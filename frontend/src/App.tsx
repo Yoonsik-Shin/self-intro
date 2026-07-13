@@ -274,7 +274,8 @@ export function App() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif]">
+    <>
+      <main className="min-h-screen bg-[#f8fafc] text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif] print:hidden">
       {/* Background Glow effects */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/5 rounded-full filter blur-[120px] pointer-events-none" />
       <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-emerald-500/5 rounded-full filter blur-[100px] pointer-events-none" />
@@ -1038,129 +1039,131 @@ export function App() {
               </div>
             )}
 
-            {/* PRINT ONLY A4 SHEET (인쇄 모드 시 브라우저에서 A4 1페이지 출력용 레이아웃) */}
-            <div id="a4-sheet-container" className="hidden print:block w-full">
-              <div className="mx-auto border border-slate-300 bg-white p-[20mm] w-[210mm] h-[297mm] shadow-inner text-slate-800 font-sans leading-normal">
-                <article id="a4-sheet" className="h-full flex flex-col justify-between">
-                  
-                  {/* Document Header */}
-                  <div className="space-y-5">
-                    <div className="border-b-2 border-slate-800 pb-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-[10px] font-bold text-blue-800 tracking-widest uppercase">Software Engineer Profile</p>
-                          <h1 className="text-3xl font-black tracking-tight text-slate-900 mt-1">신 윤 식</h1>
-                          <p className="text-sm font-bold text-slate-600 mt-1">Fullstack / Backend Developer</p>
-                        </div>
-                        <div className="text-right text-[11px] text-slate-500 space-y-0.5">
-                          <p>aaa946@naver.com</p>
-                          <p>010-5171-0994</p>
-                          <p>서울특별시</p>
-                        </div>
-                      </div>
-
-                      {/* Primary Choice indicator */}
-                      <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold">
-                        <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
-                          실무 경력: 1년 11개월 (Node.js 백엔드)
-                        </span>
-                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                          Java / Spring Boot / QueryDSL
-                        </span>
-                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                          AWS & Cloud Infrastructure
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Section 1: Academics & Info */}
-                    <div className="grid grid-cols-2 gap-6 text-xs">
-                      <div>
-                        <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-800 uppercase tracking-wider">학력 및 인적 사항</h3>
-                        <ul className="mt-2 space-y-1.5 text-slate-700">
-                          <li>
-                            <span className="font-bold">차의과학대학교</span> (학사 졸업)
-                            <span className="block text-[11px] text-slate-500">스포츠의학전공 | 평점 3.81/4.5 (137학점)</span>
-                          </li>
-                          <li>
-                            <span className="font-bold">경신고등학교</span> (과학과 졸업)
-                          </li>
-                          <li>
-                            <span className="font-bold">병역:</span> 공익근무요원 (육군이병 소집해제)
-                          </li>
-                        </ul>
-                      </div>
-
-                      <div>
-                        <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-800 uppercase tracking-wider">자격증 사항</h3>
-                        <ul className="mt-2 space-y-1.5 text-slate-700">
-                          <li>
-                            <span className="font-bold">정보처리기사</span> (한국산업인력공단)
-                            <span className="block text-[10px] text-slate-400">취득일: 2022. 06. 17</span>
-                          </li>
-                          <li>
-                            <span className="font-bold">SQL 개발자(SQLD)</span> (한국데이터산업진흥원)
-                            <span className="block text-[10px] text-slate-400">취득일: 2024. 09. 20</span>
-                          </li>
-                          <li>
-                            <span className="font-bold">빅데이터분석기사</span> (한국데이터산업진흥원)
-                            <span className="block text-[10px] text-slate-400">취득일: 2022. 07. 15</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* Section 2: Core Project Detail (Dynamic binding) */}
-                    <div>
-                      <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">핵심 프로젝트 개발 성과</h3>
-                      <div className="mt-2.5 border border-slate-200 bg-slate-50/50 p-4 rounded-xl">
-                        <div className="flex justify-between items-start">
-                          <span className="font-bold text-xs text-slate-900">{selectedMilestone.title}</span>
-                          <span className="text-[10px] font-bold text-slate-400">{selectedMilestone.period}</span>
-                        </div>
-                        <p className="mt-2 text-[11px] text-slate-600 leading-relaxed font-normal">
-                          {selectedMilestone.description}
-                        </p>
-                        <p className="mt-2 text-[11px] text-emerald-800 font-semibold">
-                          Takeaway: {selectedMilestone.takeaway}
-                        </p>
-                        <div className="mt-2.5 flex flex-wrap gap-1">
-                          {selectedMilestone.skills.map(skill => (
-                            <span key={skill} className="bg-slate-200/80 text-slate-800 text-[9px] font-bold px-2 py-0.5 rounded">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section 3: Professional Focus / COVER LETTER SUMMARY */}
-                    <div>
-                      <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">개발 철학 및 핵심 역량 요약</h3>
-                      <div className="mt-2 space-y-2 text-[11px] text-slate-700 leading-relaxed">
-                        <p className="font-normal">
-                          <span className="font-bold text-slate-800">1. 관심사 분리와 결합도 개선:</span> 서비스 규모 확장 시 안정성을 확보하기 위해 도메인 경계를 명확히 나누고 Read/Write 데이터 의존성을 격리하는 유연한 아키텍처 설계를 지향합니다.
-                        </p>
-                        <p className="font-normal">
-                          <span className="font-bold text-slate-800">2. 엔터프라이즈 역량과 풀스택 시야:</span> 1년 11개월의 Node.js/AWS 실무 경력 외에 Java, Spring Boot, JPA, QueryDSL 생태계를 체화하고 Kubernetes 환경과 Redis/Kafka 메시지 대기열을 제어할 수 있는 실행력을 갖추고 있습니다.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Document Footer */}
-                  <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-[10px] text-slate-400">
-                    <span>신윤식 개발자 포트폴리오 요약본 (Resume Summary)</span>
-                    <span>Page 01 / 01</span>
-                  </div>
-                </article>
-              </div>
-            </div>
 
           </section>
         </div>
 
       </div>
     </main>
+
+    {/* PRINT ONLY A4 SHEET (인쇄 모드 시 브라우저에서 A4 1페이지 출력용 레이아웃) */}
+    <div id="a4-sheet-container" className="hidden print:block w-full">
+      <div className="mx-auto border border-slate-300 bg-white p-[20mm] w-[210mm] h-[297mm] shadow-inner text-slate-800 font-sans leading-normal">
+        <article id="a4-sheet" className="h-full flex flex-col justify-between">
+          
+          {/* Document Header */}
+          <div className="space-y-5">
+            <div className="border-b-2 border-slate-800 pb-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-[10px] font-bold text-blue-800 tracking-widest uppercase">Software Engineer Profile</p>
+                  <h1 className="text-3xl font-black tracking-tight text-slate-900 mt-1">신 윤 식</h1>
+                  <p className="text-sm font-bold text-slate-600 mt-1">Fullstack / Backend Developer</p>
+                </div>
+                <div className="text-right text-[11px] text-slate-500 space-y-0.5">
+                  <p>aaa946@naver.com</p>
+                  <p>010-5171-0994</p>
+                  <p>서울특별시</p>
+                </div>
+              </div>
+
+              {/* Primary Choice indicator */}
+              <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold">
+                <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
+                  실무 경력: 1년 11개월 (Node.js 백엔드)
+                </span>
+                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                  Java / Spring Boot / QueryDSL
+                </span>
+                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                  AWS & Cloud Infrastructure
+                </span>
+              </div>
+            </div>
+
+            {/* Section 1: Academics & Info */}
+            <div className="grid grid-cols-2 gap-6 text-xs">
+              <div>
+                <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-800 uppercase tracking-wider">학력 및 인적 사항</h3>
+                <ul className="mt-2 space-y-1.5 text-slate-700">
+                  <li>
+                    <span className="font-bold">차의과학대학교</span> (학사 졸업)
+                    <span className="block text-[11px] text-slate-500">스포츠의학전공 | 평점 3.81/4.5 (137학점)</span>
+                  </li>
+                  <li>
+                    <span className="font-bold">경신고등학교</span> (과학과 졸업)
+                  </li>
+                  <li>
+                    <span className="font-bold">병역:</span> 공익근무요원 (육군이병 소집해제)
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-800 uppercase tracking-wider">자격증 사항</h3>
+                <ul className="mt-2 space-y-1.5 text-slate-700">
+                  <li>
+                    <span className="font-bold">정보처리기사</span> (한국산업인력공단)
+                    <span className="block text-[10px] text-slate-400">취득일: 2022. 06. 17</span>
+                  </li>
+                  <li>
+                    <span className="font-bold">SQL 개발자(SQLD)</span> (한국데이터산업진흥원)
+                    <span className="block text-[10px] text-slate-400">취득일: 2024. 09. 20</span>
+                  </li>
+                  <li>
+                    <span className="font-bold">빅데이터분석기사</span> (한국데이터산업진흥원)
+                    <span className="block text-[10px] text-slate-400">취득일: 2022. 07. 15</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Section 2: Core Project Detail (Dynamic binding) */}
+            <div>
+              <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">핵심 프로젝트 개발 성과</h3>
+              <div className="mt-2.5 border border-slate-200 bg-slate-50/50 p-4 rounded-xl">
+                <div className="flex justify-between items-start">
+                  <span className="font-bold text-xs text-slate-900">{selectedMilestone.title}</span>
+                  <span className="text-[10px] font-bold text-slate-400">{selectedMilestone.period}</span>
+                </div>
+                <p className="mt-2 text-[11px] text-slate-600 leading-relaxed font-normal">
+                  {selectedMilestone.description}
+                </p>
+                <p className="mt-2 text-[11px] text-emerald-800 font-semibold">
+                  Takeaway: {selectedMilestone.takeaway}
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-1">
+                  {selectedMilestone.skills.map(skill => (
+                    <span key={skill} className="bg-slate-200/80 text-slate-800 text-[9px] font-bold px-2 py-0.5 rounded">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Professional Focus / COVER LETTER SUMMARY */}
+            <div>
+              <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">개발 철학 및 핵심 역량 요약</h3>
+              <div className="mt-2 space-y-2 text-[11px] text-slate-700 leading-relaxed">
+                <p className="font-normal">
+                  <span className="font-bold text-slate-800">1. 관심사 분리와 결합도 개선:</span> 서비스 규모 확장 시 안정성을 확보하기 위해 도메인 경계를 명확히 나누고 Read/Write 데이터 의존성을 격리하는 유연한 아키텍처 설계를 지향합니다.
+                </p>
+                <p className="font-normal">
+                  <span className="font-bold text-slate-800">2. 엔터프라이즈 역량과 풀스택 시야:</span> 1년 11개월의 Node.js/AWS 실무 경력 외에 Java, Spring Boot, JPA, QueryDSL 생태계를 체화하고 Kubernetes 환경과 Redis/Kafka 메시지 대기열을 제어할 수 있는 실행력을 갖추고 있습니다.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Document Footer */}
+          <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-[10px] text-slate-400">
+            <span>신윤식 개발자 포트폴리오 요약본 (Resume Summary)</span>
+            <span>Page 01 / 01</span>
+          </div>
+        </article>
+      </div>
+    </div>
+    </>
   );
 }
