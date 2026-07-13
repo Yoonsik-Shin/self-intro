@@ -429,8 +429,8 @@ export function App() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="block text-[10px] font-bold text-slate-500">현주소</span>
-                    <span className="block truncate font-bold text-slate-200 text-xs" title="서울특별시 성북구 길음로 141">
-                      서울 성북구 길음로 141
+                    <span className="block truncate font-bold text-slate-200 text-xs">
+                      서울특별시
                     </span>
                   </div>
                 </div>
@@ -940,7 +940,7 @@ export function App() {
                         <div className="text-right text-[11px] text-slate-500 space-y-0.5">
                           <p>aaa946@naver.com</p>
                           <p>010-5171-0994</p>
-                          <p>서울시 성북구 길음로 141</p>
+                          <p>서울특별시</p>
                         </div>
                       </div>
 
