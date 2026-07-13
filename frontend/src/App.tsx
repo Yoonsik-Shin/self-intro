@@ -376,7 +376,7 @@ export function App() {
                       <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Fullstack / Backend Developer</p>
                       <div className="mt-2 flex justify-center gap-2">
                         <a
-                          href="https://github.com"
+                          href="https://github.com/Yoonsik-Shin"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="rounded-lg bg-slate-50 border border-slate-200/60 p-1.5 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
@@ -483,7 +483,7 @@ export function App() {
                     </div>
 
                   </div>
-                </div>\n
+                </div>
               </div>
 
               {/* SECTION 2: 역량 기술서 */}
@@ -852,7 +852,7 @@ export function App() {
           </div>
 
         </div>
-      </main>\n
+      </main>
       {/* PRINT ONLY A4 SHEET (인쇄 모드 시 브라우저에서 A4 1페이지 출력용 레이아웃) */}
       <div id="a4-sheet-container" className="hidden print:block w-full">
         <div className="mx-auto border border-slate-300 bg-white p-[20mm] w-[210mm] h-[297mm] shadow-inner text-slate-800 font-sans leading-normal">
