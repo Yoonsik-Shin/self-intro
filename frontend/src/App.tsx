@@ -297,7 +297,6 @@ export function App() {
               { id: 'INTRO', label: '경력 및 역량' },
               { id: 'PROJECTS', label: '핵심 프로젝트' },
               { id: 'THIS_APP', label: '이 웹앱의 아키텍처' },
-              { id: 'ARCHIVE', label: '학습 아카이브 & 등록' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -544,7 +543,6 @@ export function App() {
                 { id: 'INTRO', label: '경력/역량' },
                 { id: 'PROJECTS', label: '프로젝트' },
                 { id: 'THIS_APP', label: '이 웹앱' },
-                { id: 'ARCHIVE', label: '학습로그' },
               ].map((tab) => (
                 <button
                   key={tab.id}
