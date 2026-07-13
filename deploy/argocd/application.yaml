@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/<your-username>/self-intro.git' # 사용자의 GitHub Repository URL로 변경 필요
+    repoURL: 'https://github.com/Yoonsik-Shin/self-intro.git' # 사용자의 GitHub Repository URL로 변경 완료
     targetRevision: HEAD
     path: deploy/k8s/overlays/prod/backend
   destination:
