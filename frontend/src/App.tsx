@@ -420,7 +420,7 @@ export function App() {
                       2012. 03 - 2015. 02
                     </span>
                     <p className="mt-1 text-sm font-black text-slate-800">경신고등학교</p>
-                    <p className="text-xs text-slate-500">과학과 졸업</p>
+                    <p className="text-xs text-slate-500">자연계열 (물리반) 졸업</p>
                   </div>
                 </div>
               </div>
@@ -836,7 +836,7 @@ export function App() {
                       <span className="block text-[11px] text-slate-500">스포츠의학전공 | 평점 3.81/4.5 (137학점)</span>
                     </li>
                     <li>
-                      <span className="font-bold text-slate-900">경신고등학교</span> (과학과 졸업)
+                      <span className="font-bold text-slate-900">경신고등학교</span> (자연계열 물리반 졸업)
                     </li>
                     <li>
                       <span className="font-bold text-slate-900">병역:</span> 공익근무요원 (육군이병 소집해제)
