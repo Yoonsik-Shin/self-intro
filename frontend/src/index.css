@@ -32,3 +32,40 @@ select {
 .chalk-line {
   background: linear-gradient(180deg, transparent, rgba(232, 232, 232, 0.95), transparent);
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  main, header, aside, section, nav, button, div:not(#a4-sheet-container):not(#a4-sheet) {
+    display: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  /* Show only the sheet container and sheet itself */
+  #a4-sheet-container, #a4-sheet-container * {
+    display: block !important;
+  }
+  #a4-sheet-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+  #a4-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 20mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+  }
+}
