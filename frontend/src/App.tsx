@@ -361,12 +361,12 @@ export function App() {
               {/* SECTION 1: 프로필 & 이력 요약 */}
               <div className="space-y-6">
                 
-                {/* Profile Grid: 3 Cards (Academics & Military moved to bottom) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  
-                  {/* Card 1: Profile Details */}
-                  <div className={cardStyle}>
-                    <div className="flex flex-col items-center text-center">
+                {/* Unified profile card dashboard panel */}
+                <div className={cardStyle}>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                    
+                    {/* Column 1: Profile Details */}
+                    <div className="flex flex-col items-center text-center pb-6 md:pb-0 md:pr-8">
                       <div className="relative h-20 w-20 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
                         <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-2xl font-black text-white">
                           YS
@@ -390,103 +390,100 @@ export function App() {
                           <Mail className="h-3.5 w-3.5" />
                         </a>
                       </div>
-                    </div>
 
-                    <hr className="my-4 border-slate-100" />
+                      <div className="mt-6 w-full space-y-3.5 text-left font-normal">
+                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                            <User className="h-3.5 w-3.5" />
+                          </div>
+                          <div>
+                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">생년월일</span>
+                            <span className="block font-bold text-slate-800 text-[11px]">1996. 05. 04 (만 30세)</span>
+                          </div>
+                        </div>
 
-                    <div className="space-y-3.5">
-                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
-                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                          <User className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                            <Mail className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">이메일</span>
+                            <span className="block font-bold text-slate-800 text-[11px] truncate">aaa946@naver.com</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">생년월일</span>
-                          <span className="block font-bold text-slate-800 text-[11px]">1996. 05. 04 (만 30세)</span>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
-                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                          <Mail className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                            <Phone className="h-3.5 w-3.5" />
+                          </div>
+                          <div>
+                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">연락처</span>
+                            <span className="block font-bold text-slate-800 text-[11px]">010-5171-0994</span>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">이메일</span>
-                          <span className="block font-bold text-slate-800 text-[11px] truncate">aaa946@naver.com</span>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
-                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                          <Phone className="h-3.5 w-3.5" />
-                        </div>
-                        <div>
-                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">연락처</span>
-                          <span className="block font-bold text-slate-800 text-[11px]">010-5171-0994</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
-                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                          <MapPin className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">현주소</span>
-                          <span className="block font-bold text-slate-800 text-[11px] truncate">서울특별시</span>
+                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                            <MapPin className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">현주소</span>
+                            <span className="block font-bold text-slate-800 text-[11px] truncate">서울특별시</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Card 2: Career Info */}
-                  <div className={cardStyle}>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-                      <Briefcase className="h-4 w-4 text-indigo-600" />
-                      직장 경력 (총 1년 11개월)
-                    </h3>
-                    <div>
-                      <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
-                        2023. 12 - 2025. 10
-                      </span>
-                      <p className="mt-1 text-xs font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
-                      <p className="text-[10px] text-slate-500 leading-none">개발팀 / 백엔드 엔지니어</p>
-                      <ul className="mt-2 space-y-1 text-[11px] text-slate-650 list-disc list-inside leading-relaxed font-normal">
-                        <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
-                        <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
-                        <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
-                        <li>AWS 인프라 및 CI/CD 파이프라인 설계/운영</li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Core Skills */}
-                  <div className={cardStyle}>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-                      <Cpu className="h-4 w-4 text-indigo-600" />
-                      핵심 기술 스택
-                    </h3>
-                    <div className="space-y-2">
-                      {[
-                        { name: 'Java', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                        { name: 'TypeScript', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                        { name: 'Python', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                      ].map((skill) => (
-                        <div key={skill.name} className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-700">{skill.name}</span>
-                          <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${skill.bg}`}>{skill.level}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3.5 flex flex-wrap gap-1 border-t border-slate-100 pt-2.5">
-                      {['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'].map((item) => (
-                        <span key={item} className={badgeStyle}>
-                          {item}
+                    {/* Column 2: Career Info */}
+                    <div className="pt-6 md:pt-0 md:px-8">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+                        <Briefcase className="h-4 w-4 text-indigo-600" />
+                        직장 경력 (총 1년 11개월)
+                      </h3>
+                      <div>
+                        <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
+                          2023. 12 - 2025. 10
                         </span>
-                      ))}
+                        <p className="mt-1.5 text-xs font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
+                        <p className="text-[10px] text-slate-500 leading-none">개발팀 / 백엔드 엔지니어</p>
+                        <ul className="mt-3.5 space-y-2 text-[11px] text-slate-650 list-disc list-inside leading-relaxed font-normal">
+                          <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
+                          <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
+                          <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
+                          <li>AWS 인프라 및 CI/CD 파이프라인 설계/운영</li>
+                        </ul>
+                      </div>
                     </div>
+
+                    {/* Column 3: Core Skills */}
+                    <div className="pt-6 md:pt-0 md:pl-8">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+                        <Cpu className="h-4 w-4 text-indigo-600" />
+                        핵심 기술 스택
+                      </h3>
+                      <div className="space-y-2">
+                        {[
+                          { name: 'Java', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
+                          { name: 'TypeScript', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
+                          { name: 'Python', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
+                        ].map((skill) => (
+                          <div key={skill.name} className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-700">{skill.name}</span>
+                            <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${skill.bg}`}>{skill.level}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
+                        {['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'].map((item) => (
+                          <span key={item} className={badgeStyle}>
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
                   </div>
-
-                </div>
-
+                </div>\n
               </div>
 
               {/* SECTION 2: 역량 기술서 */}
