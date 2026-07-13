@@ -475,10 +475,10 @@ export function App() {
             </aside>
 
             {/* RIGHT CONTENT: Interactive Tabs */}
-            <section className="space-y-6">
+            <section className="min-w-0">
               
               {/* Mobile Navigation Tabs (visible only on mobile) */}
-              <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 md:hidden print:hidden">
+              <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 md:hidden print:hidden mb-6">
                 {[
                   { id: 'INTRO', label: '경력/역량' },
                   { id: 'PROJECTS', label: '프로젝트' },
