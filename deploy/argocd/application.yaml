@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: self-intro-backend
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/<your-username>/self-intro.git' # 사용자의 GitHub Repository URL로 변경 필요
+    targetRevision: HEAD
+    path: deploy/k8s/overlays/prod/backend
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: self-intro
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

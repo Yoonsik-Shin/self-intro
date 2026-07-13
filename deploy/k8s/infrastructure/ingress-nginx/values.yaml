@@ -1,0 +1,20 @@
+controller:
+  replicaCount: 1
+
+  service:
+    type: LoadBalancer
+    externalTrafficPolicy: Cluster
+
+    annotations:
+      oci.oraclecloud.com/load-balancer-type: "nlb"
+      oci-network-load-balancer.oraclecloud.com/subnet: "ocid1.subnet.oc1.ap-chuncheon-1.aaaaaaaai3pk7gmdr2vvc5ni7islgxhc7hfarj4hn2nczjytxe5mrk4vshvq"
+      oci-network-load-balancer.oraclecloud.com/oci-network-security-groups: "ocid1.networksecuritygroup.oc1.ap-chuncheon-1.aaaaaaaavug3wificiclzc23tmtqjifmta3refjrwlraejpsgnv7uerbcdzq"
+      oci-network-load-balancer.oraclecloud.com/security-list-management-mode: "None"
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: self-intro-backend
+  namespace: self-intro
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.unbrdn.me
+      secretName: cloudflare-origin-tls
+  rules:
+    - host: api.unbrdn.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: self-intro-backend
+                port:
+                  number: 8080
