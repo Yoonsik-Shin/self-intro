@@ -36,19 +36,15 @@ select {
     background: white !important;
     color: black !important;
   }
-  main, header, aside, section, nav, button, div:not(#a4-sheet-container):not(#a4-sheet) {
+  main, header, footer, .print\:hidden {
     display: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-  /* Show only the sheet container and sheet itself */
-  #a4-sheet-container, #a4-sheet-container * {
-    display: block !important;
   }
   #a4-sheet-container {
+    display: block !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 auto !important;
     padding: 0 !important;
-    margin: 0 !important;
     border: none !important;
     background: white !important;
     box-shadow: none !important;
@@ -57,12 +53,10 @@ select {
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    margin: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     padding: 20mm !important;
     border: none !important;
-    box-shadow: none !important;
     background: white !important;
     color: black !important;
   }
