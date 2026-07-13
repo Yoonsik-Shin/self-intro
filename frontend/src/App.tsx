@@ -53,7 +53,7 @@ const milestones = [
     period: '2026.03 - 2026.06',
     title: 'Azure 클라우드 로그 비용 진단 및 최적화 SaaS (기여도 70%)',
     body: 'Azure Functions 비용 누수 자동 진단, FastAPI/Cosmos DB 백엔드, OpenAI 처방을 연동했습니다.',
-    accent: 'from-sky-400 to-blue-600',
+    accent: 'from-sky-500 to-blue-600',
     skills: ['Azure Functions', 'FastAPI', 'Cosmos DB', 'Azure OpenAI', 'Teams SDK', 'Bicep', 'IaC'],
     role: 'Fullstack & Cloud Developer',
     description: 'Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다. (팀 프로젝트)',
@@ -87,29 +87,29 @@ const milestones = [
 
 const essays = {
   WHY: {
-    title: '1. 커리어 목표 및 발전 계획',
-    subtitle: '시스템의 효율성 극대화와 결합도 개선을 목표로 하는 백엔드 엔지니어링 성장 계획입니다.',
+    title: '1. 프로젝트별 기술 적용 및 문제 해결 상세',
+    subtitle: '실무 경력 및 핵심 프로젝트에서 직접 설계하고 해결한 구체적인 기술적 경험을 기술합니다.',
     paragraphs: [
-      `제가 백엔드 엔지니어로서 가장 큰 보람을 느끼는 부분은, 거대한 조직의 업무 효율을 책임지는 협업 시스템 및 플랫폼 서비스를 발전시키는 것입니다. 이전 프로젝트에서 흩어진 CS 데이터를 일원화하고 워크플로우를 자동화한 경험이 있습니다. 분산된 환경을 하나로 연결하자, 팀원들이 단순 취합에서 벗어나 핵심 업무에 집중하는 실질적인 생산성 향상을 확인했습니다. 조직의 일하는 방식을 개선하는 대규모 엔터프라이즈 환경이야말로, 제가 시스템 효율화에 대해 배운 역량을 가장 가치 있게 발휘할 곳이라 생각합니다.`,
-      `수많은 사내 시스템이 연동되는 대규모 서비스 환경에서는, 작은 기능 변경이 전체 서비스의 장애로 이어지지 않도록 결합도를 낮추는 설계가 무엇보다 중요합니다. 이전 서비스 개발 당시, 학생과 교사 로직이 강하게 결합된 단일 서버에서 하나의 수정이 예기치 않은 오류를 발생시키는 문제를 겪었습니다. 이를 해결하고자 모듈을 명확히 분리하고, Read와 Write 로직을 나누어 데이터의 의존성을 끊어냈습니다. 이 과정을 통해 시스템 규모가 커질수록 도메인 경계를 나누고 유연하게 설계해야 본질적인 안정성을 확보할 수 있음을 깨달았습니다. 이러한 구조적 개선 경험은 서비스 간 결합도를 낮추고 대규모 트래픽 분산 시스템에서 장애를 예방하는 데 실질적인 도움이 될 것입니다.`,
-      `새로운 환경에 합류하면 팀의 도메인과 개발 표준을 빠르게 습득하겠습니다. 기존 비즈니스 로직에 영향을 주지 않는 안정적이고 보수적인 배포로 서비스 신뢰도를 지키겠습니다. 이후에는 이벤트 주도 아키텍처(EDA) 설계 경험을 살려 시스템 간 비동기 통신의 병목을 해소하고, 대규모 트래픽을 제어하는 분산 시스템 전문가로 성장하겠습니다. 장기적으로는 워크플로우 자동화 경험을 활용해 운영 업무를 효율화함으로써, 개발 조직과 사용자 모두가 핵심 업무에 몰입하도록 돕는 소프트웨어 엔지니어가 되겠습니다.`
+      `에듀테크 스타트업 실무 경력 (1년 11개월): 핵심 애플리케이션 및 BFF 서버 개발을 전담하며 전체 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로 활약했습니다. 특히 AI 튜터 메시징 대화 세션의 4개 컨텍스트 다형성(문제풀이/복습/챌린지/개념보강) 모델을 추상화하여 외부 AI 서버와의 SQS 비동기 연동을 주도했으며, MongoDB 트랜잭션을 적용해 상태 변화의 데이터 정합성을 보장했습니다. 또한 교사용 실시간 학생 Presence 추적과 이상행동(manageable-action) 감지, 제출문제(SubmittedProblem) 도메인의 CQRS 리팩토링 및 6만 건의 데이터 마이그레이션 스크립트를 작성하여 시스템 효율화를 이뤄냈습니다.`,
+      `백오피스 TF 및 공용 서비스 단독 구축: 무료체험 프로세스 개선을 위한 자발적 TF에서 Spring Boot 3.2 + Security + JPA 기반 백오피스 서버(144개 클래스) 전체를 단독 개발했습니다. NCP 카카오 알림톡(HMAC 서명 구현) 및 MS Teams 웹훅 연동을 통해 알림을 자동화했으며, Redis Session을 활용해 크로스도메인 쿠키 인증 이슈를 해결했습니다. 추가로 여러 부서가 공용하는 6만여 개의 문항 조회를 위한 NestJS 마이크로서비스를 단독 설계하고, 공통 DB/캐시 모듈을 사내 npm 패키지로 격리하며 신규 NestJS 프로젝트 생성용 CLI 도구까지 주도 개발했습니다.`,
+      `CS Test Bed 및 신규 프로젝트 개발: CS 문의 수집·답변 자동화 E2E 시스템(CS Test Bed)을 단독 구축했습니다. n8n 워크플로우로 카페 게시판과 이메일 문의를 수집하고, Playwright를 활용해 네이버 세션 만료 및 자동 답변 우회 로직을 구현했습니다. Nginx auth_request 및 HMAC 토큰을 활용한 보안 프록시 계층을 설계하여 MinIO/Grafana 등 내부 도구에 SSO를 연동했습니다. AI 실시간 모의면접 플랫폼에서는 gRPC/Redis/Kafka 기반의 음성 스트리밍 파이프라인을 설계해 비동기 상태 통제와 RAG Rerank 최적화 성능을 확보했습니다.`
     ]
   },
   STRENGTH: {
-    title: '2. 직무 역량 강점 및 노력/경험',
-    subtitle: '지원 직무와 관련하여 어떠한 역량을(지식/기술 등) 강점으로 가지고 있는지, 그 역량을 갖추기 위해 무슨 노력과 경험을 했는지 구체적으로 작성해주시기 바랍니다. (경험 기반)',
+    title: '2. 전공 자격증 기반의 기술적 전문성 증명',
+    subtitle: '정보처리기사, SQLD, 빅데이터분석기사 자격을 통해 획득한 이론을 실제 프로젝트 아키텍처에 접목한 상세 내용입니다.',
     strengths: [
       {
-        title: '객체지향 설계와 구조적 고민: 확장을 대비하는 주도적 학습',
-        content: '첫 번째 강점은 당장의 기능 구현에 머물지 않고, 시스템 확장을 고려하여 구조적 설계를 고민하고 학습하는 태도입니다. 약 1년 11개월간 TypeScript 기반 백엔드 실무를 수행하며, 서비스가 커짐에 따라 단일 서버 내 로직이 복잡해지는 상황을 마주했습니다. 더 나은 구조에 대한 갈증을 느끼고 객체지향 패러다임과 도메인 주도 설계, 디자인 패턴을 개인적으로 꾸준히 학습했습니다. 배운 내용을 바탕으로 실무 코드의 비즈니스 로직 경계를 나누고 재사용성을 높이는 리팩토링을 점진적으로 시도했습니다. 또한 AWS 인프라를 운영하며, 장기적인 관점에서 현재의 모놀리식 시스템을 마이크로서비스 아키처로 전환한다면 어떤 구조가 적합할지 스스로 분리 기준을 세워보고 아키텍처를 스케치해 보는 등 차세대 시스템에 대한 학습을 이어갔습니다.'
+        title: '정보처리기사: 소프트웨어 공학 주기 및 클린 아키텍처 실무 접목',
+        content: '정보처리기사 취득 과정에서 체화한 소프트웨어 개발 생명주기(SDLC), 모듈 설계 원칙(응집도와 결합도), 객체지향 설계(SOLID)를 실무에 직접 투영했습니다. 도메인의 경계를 명확히 분리하고 인프라 변경에 유연하게 대응하기 위해 헥사고날(포트-어댑터) 아키텍처와 DDD 4계층(adapter-application-domain-infrastructure) 구조를 에듀테크 서비스 전체에 일관 적용하여 코드 가독성과 확장성을 대폭 높였습니다.'
       },
       {
-        title: 'Java/Spring 생태계 체화와 풀스택 개발을 통한 시야 확장',
-        content: '두 번째 강점은 엔터프라이즈 표준 기술에 대한 높은 이해도와, 전체 데이터 흐름을 파악할 수 있는 풀스택 개발 경험입니다. 특정 언어에 갇히지 않고 견고한 백엔드 생태계를 익히고자 Java와 Spring Boot를 주도적으로 학습했습니다. 이론적 학습에 그치지 않고 이를 \'청년일경험\' 프로젝트에 적용하여 풀스택 개발을 수행했습니다. 백엔드 구성 시 PostgreSQL과 Spring-Data-JPA, QueryDSL을 활용해 복잡한 동적 쿼리 작성법을 익히고 타입 안정성을 확보하는 훈련을 거쳤습니다. 프론트엔드 UI를 직접 연동하고 백엔드 파이프라인까지 구축해 보며, 클라이언트의 요청이 서버를 거쳐 데이터베이스에 도달하고 반환되는 전체 흐름을 매끄럽게 통제하는 시야를 길렀습니다.'
+        title: 'SQL 개발자(SQLD): 관계형 데이터베이스 모델링 및 동적 쿼리 최적화',
+        content: '데이터 모델 정규화 및 반정규화, 인덱스(Index) 설계 원리와 조인(Join) 메커니즘을 심도 있게 학습했습니다. Spring Boot 기반 백오피스 개발 시 8개 도메인 간의 유기적 관계(1:N, N:M)를 매핑하고, 복잡한 동적 필터 조회를 위해 QueryDSL을 연동하여 성능 향상을 이뤄냈습니다. N+1 문제를 방지하기 위해 Fetch Join과 인덱스 튜닝을 도입하여 조회 속도를 개선했습니다.'
       },
       {
-        title: '분산 환경에 대한 호기심: 관심사 분리와 비동기 통신 실험',
-        content: '세 번째 강점은 최신 도구를 활용해 생산성을 높이고, 실무에서 겪어보지 못한 대규모 분산 시스템의 구조를 직접 실험하며 습득하는 실행력입니다. 대규모 트래픽과 분산 아키텍처에 대한 학습 욕구를 해소하기 위해 개인 프로젝트를 진행했습니다. 생성형 AI 개발 툴을 적극 활용하여 단순 코드 작성 시간을 대폭 단축하고, 절감된 시간을 분산 시스템의 아키텍처 고민에 투자했습니다. Oracle OKE(k8s) 환경에 서비스를 배포해 보며, 각 서버의 역할과 관심사 분리(SoC)를 명확히 하고 독립적인 데이터 상태 관리를 구현해 보고자 노력했습니다. 나아가 서비스 간 통신에서 발생할 수 있는 지연과 데이터 유실 문제를 방지하기 위해 Redis Streams와 Kafka를 도입했습니다. 이를 통해 비동기 메시징 기반의 파이프라인을 직접 구축해 보며 안정적인 트래픽 제어 방법을 체득했습니다.'
+        title: '빅데이터분석기사: 대용량 데이터 전처리 및 통계 분석 파이프라인 설계',
+        content: '대량 데이터 수집, 이상치 정제, 통계적 분석(가설 검정, 회귀 모형) 및 평가 메커니즘을 마이그레이션과 AI RAG 파이프라인에 접목했습니다. SubmittedProblem 통계 병합 마이그레이션 시 14개 집계 지표(제출수/정답수/소요시간 등)를 MongoDB 트랜잭션 내에서 정량 데이터로 가공·적재하는 파이프라인을 구축하였으며, AI 모의면접 플랫폼에서 PDF 이력서 RAG 질문 생성의 답변 정확도를 분석하는 통계 평가 체계에 응용했습니다.'
       }
     ]
   }
@@ -173,7 +173,7 @@ const fallbackEntries: StudyEntry[] = [
   {
     id: 7,
     title: '정보처리기사 자격증 취득',
-    description: 'IT 전반의 핵심 이론 및 기술 자격 검증 (한국산업인력공단 등록번호: 22201020696L)',
+    description: 'IT 전반의 핵심 이론 및 기술 자격 검증 (한국산업인력공단)',
     category: 'CERTIFICATE',
     skills: ['Software Engineering', 'Database', 'Network'],
     takeaway: '개발 생명주기 전반에 걸친 기초 체력을 공인 자격을 통해 입증했습니다.',
@@ -199,73 +199,66 @@ const categoryLabels = {
 
 const iconByCategory = {
   PROJECT: Code2,
-  EDUCATION: GraduationCap,
-  CERTIFICATE: Trophy,
-};
+  EDUCATION: BookOpen,
+  CERTIFICATE: Award,
+} as const;
 
 export function App() {
   const queryClient = useQueryClient();
   
-  // Zustand States
+  // Zustand 스토어 상태 연동
   const {
-    activeCategory,
     selectedMilestoneId,
+    activeCategory,
     activeMainTab,
     activeEssayTab,
-    setActiveCategory,
     setSelectedMilestoneId,
+    setActiveCategory,
     setActiveMainTab,
-    setActiveEssayTab
+    setActiveEssayTab,
   } = useIntroStore();
 
-  // Local States
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState<CreateStudyEntryRequest>({
     title: '',
     description: '',
     category: 'PROJECT',
     skills: '',
     takeaway: '',
-    learnedAt: new Date().toISOString().slice(0, 10),
+    learnedAt: new Date().toISOString().split('T')[0]
   });
 
-  // Selected Milestone Project
-  const selectedMilestone = milestones.find((milestone) => milestone.id === selectedMilestoneId) ?? milestones[0];
-
-  // Fetch entries from Backend API
-  const { data, isError, isLoading } = useQuery({
-    queryKey: ['study-entries', activeCategory],
-    queryFn: () => studyApi.list(activeCategory),
+  const { data: studyEntries, isLoading } = useQuery<StudyEntry[]>({
+    queryKey: ['studyEntries'],
+    queryFn: () => studyApi.list(),
   });
 
-  const entries = data ?? fallbackEntries;
+  const selectedMilestone = useMemo(() => {
+    return milestones.find(m => m.id === selectedMilestoneId) || milestones[0];
+  }, [selectedMilestoneId]);
 
-  // Filter based on selectedCategory AND searchQuery
-  const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => {
-      const matchesCategory = activeCategory === 'ALL' || entry.category === activeCategory;
-      const matchesSearch =
-        searchQuery === '' ||
-        entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entry.takeaway.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entry.skills.some((skill) => skill.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesCategory && matchesSearch;
+  const filteredEntries = useMemo((): StudyEntry[] => {
+    const entries = studyEntries ?? fallbackEntries;
+    return entries.filter((entry: StudyEntry) => {
+      const matchCategory = activeCategory === 'ALL' || entry.category === activeCategory;
+      const matchSearch = entry.title.toLowerCase().includes(search.toLowerCase()) ||
+                          entry.description.toLowerCase().includes(search.toLowerCase()) ||
+                          entry.skills.some((s: string) => s.toLowerCase().includes(search.toLowerCase()));
+      return matchCategory && matchSearch;
     });
-  }, [entries, activeCategory, searchQuery]);
+  }, [studyEntries, activeCategory, search]);
 
-  // Create Mutation
   const createMutation = useMutation({
     mutationFn: studyApi.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['study-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['studyEntries'] });
       setForm({
         title: '',
         description: '',
         category: 'PROJECT',
         skills: '',
         takeaway: '',
-        learnedAt: new Date().toISOString().slice(0, 10),
+        learnedAt: new Date().toISOString().split('T')[0]
       });
       alert('성공적으로 등록되었습니다!');
     },
@@ -281,21 +274,21 @@ export function App() {
   };
 
   return (
-    <main className="min-h-screen bg-[#070b12] text-slate-100 font-['Plus_Jakarta_Sans',Pretendard,sans-serif]">
+    <main className="min-h-screen bg-[#f8fafc] text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif]">
       {/* Background Glow effects */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-900/10 rounded-full filter blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-emerald-900/5 rounded-full filter blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/5 rounded-full filter blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-emerald-500/5 rounded-full filter blur-[100px] pointer-events-none" />
 
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-[#080d17]/80 px-4 py-3 shadow-lg shadow-black/35 backdrop-blur-xl print:hidden">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl print:hidden">
         <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 text-sm font-black text-white shadow-lg shadow-blue-950/40">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-sm font-black text-white shadow-md shadow-blue-500/20">
               YS
             </div>
             <div>
-              <span className="block text-sm font-black text-white tracking-wider">YOONSIK SHIN</span>
-              <span className="block text-[10px] text-blue-400 font-semibold uppercase tracking-widest">Fullstack Engineer</span>
+              <span className="block text-sm font-black text-slate-800 tracking-wider">YOONSIK SHIN</span>
+              <span className="block text-[10px] text-blue-600 font-bold uppercase tracking-widest">Fullstack Engineer</span>
             </div>
           </div>
 
@@ -311,8 +304,8 @@ export function App() {
                 onClick={() => setActiveMainTab(tab.id as any)}
                 className={`rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 ${
                   activeMainTab === tab.id
-                    ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200/50'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                 }`}
               >
                 {tab.label}
@@ -325,14 +318,14 @@ export function App() {
               href="https://unbrdn.me"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition"
+              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-50 transition"
             >
               <ExternalLink className="h-3.5 w-3.5" />
               <span>unbrdn.me</span>
             </a>
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-3 py-1.5 text-xs font-bold text-white hover:from-blue-500 hover:to-blue-600 transition shadow-sm shadow-blue-950/50"
+              className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-3 py-1.5 text-xs font-bold text-white hover:from-blue-500 hover:to-blue-600 transition shadow-sm shadow-blue-500/20"
             >
               <Printer className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">PDF 인쇄</span>
@@ -345,29 +338,35 @@ export function App() {
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
         
         {/* General Career Summary Banner (Always Visible on Web) */}
-        <div className="mb-8 rounded-2xl border border-blue-500/15 bg-gradient-to-r from-blue-950/20 via-blue-900/10 to-transparent p-6 relative overflow-hidden backdrop-blur-md print:hidden">
+        <div className="mb-8 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-indigo-50/20 to-white p-6 relative overflow-hidden shadow-sm backdrop-blur-md print:hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 px-3 py-1 text-xs font-semibold text-blue-300">
-                <Sparkles className="h-3 w-3 text-emerald-400" />
-                Software Engineer Portfolio
-              </span>
-              <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-white">
-                신윤식 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Fullstack & Backend Developer</span>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 px-3 py-1 text-xs font-semibold text-blue-700">
+                  <Sparkles className="h-3 w-3 text-indigo-500" />
+                  Software Engineer Portfolio
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  실시간 아키텍처 및 콘텐츠 개선 중 (Refactoring)
+                </span>
+              </div>
+              <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-slate-800">
+                신윤식 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Fullstack & Backend Developer</span>
               </h1>
-              <p className="mt-2 text-sm text-slate-400 max-w-3xl leading-relaxed">
-                1년 11개월의 Node.js/AWS 실무 경력과 Spring Boot, Kubernetes, 비동기 분산 메시징 파이프라인 실험 경험을 바탕으로, 안정적인 데이터 흐름을 설계하고 결합도를 개선하는 엔지니어입니다.
+              <p className="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">
+                1년 11개월의 에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 추구하는 엔지니어입니다.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
-              <div className="rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 text-center min-w-[140px]">
+              <div className="rounded-xl border border-slate-200 bg-white/70 px-4 py-3 text-center min-w-[140px] shadow-sm">
                 <span className="block text-[10px] uppercase font-bold text-slate-500">실무 경력</span>
-                <span className="mt-1 block text-xs font-black text-white">Node.js / AWS 1년 11개월</span>
+                <span className="mt-1 block text-xs font-black text-slate-800">에듀테크 스타트업 1년 11개월</span>
               </div>
-              <div className="rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 text-center min-w-[140px]">
+              <div className="rounded-xl border border-slate-200 bg-white/70 px-4 py-3 text-center min-w-[140px] shadow-sm">
                 <span className="block text-[10px] uppercase font-bold text-slate-500">핵심 스택</span>
-                <span className="mt-1 block text-xs font-black text-white">Java / Spring / Cloud</span>
+                <span className="mt-1 block text-xs font-black text-slate-800">Java / Node.js / Cloud</span>
               </div>
             </div>
           </div>
@@ -378,115 +377,128 @@ export function App() {
           {/* LEFT SIDEBAR: Personal Information & Profile Card */}
           <aside className="space-y-6 print:hidden">
             {/* Profile Detail Card */}
-            <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
-              <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none" />
-              
-              <div className="relative flex flex-col items-center text-center">
-                {/* Glowing Avatar */}
-                <div className="relative group">
-                  <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 opacity-75 blur-sm transition duration-1000 group-hover:opacity-100" />
-                  <div className="relative grid h-24 w-24 place-items-center rounded-full bg-[#0a0f1d] text-3xl font-black text-white">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col items-center text-center">
+                <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-blue-50 shadow-inner">
+                  <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-blue-600 to-indigo-500 text-3xl font-black text-white">
                     YS
                   </div>
                 </div>
-                
-                <h2 className="mt-4 text-xl font-black text-white">신윤식 (YOONSIK SHIN)</h2>
-                <p className="text-xs font-bold text-blue-400 mt-1">Fullstack / Backend Developer</p>
-                <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-                  <CalendarPlus className="h-3.5 w-3.5 text-slate-500" />
-                  <span>1996. 05. 04 (만 30세)</span>
+                <h2 className="mt-4 text-lg font-black text-slate-800">신윤식</h2>
+                <p className="text-xs font-semibold text-slate-500 mt-1">Fullstack / Backend Developer</p>
+                <div className="mt-3 flex justify-center gap-3">
+                  <a
+                    href="https://github.com"
+                    target="_blank"
+                    className="rounded-lg bg-slate-50 border border-slate-200 p-2 text-slate-500 hover:text-slate-800 transition"
+                  >
+                    <Github className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="mailto:aaa946@naver.com"
+                    className="rounded-lg bg-slate-50 border border-slate-200 p-2 text-slate-500 hover:text-slate-800 transition"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </a>
                 </div>
               </div>
 
-              <hr className="my-5 border-white/5" />
+              <hr className="my-6 border-slate-100" />
 
-              {/* Personal Contact Details */}
-              <div className="space-y-3.5">
-                <div className="flex items-center gap-3 text-sm text-slate-300">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-slate-400">
-                    <Mail className="h-4 w-4" />
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200 text-slate-500">
+                    <User className="h-4 w-4" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-[10px] font-bold text-slate-500">이메일</span>
-                    <a href="mailto:aaa946@naver.com" className="block truncate font-bold text-slate-200 hover:text-blue-400 transition text-xs">
-                      aaa946@naver.com
-                    </a>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400">생년월일</span>
+                    <span className="block font-bold text-slate-700 text-xs">1996. 05. 04 (만 30세)</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-sm text-slate-300">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-slate-400">
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200 text-slate-500">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-slate-400">이메일</span>
+                    <span className="block font-bold text-slate-700 text-xs truncate">aaa946@naver.com</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200 text-slate-500">
                     <Phone className="h-4 w-4" />
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-500">연락처</span>
-                    <span className="block font-bold text-slate-200 text-xs">010-5171-0994</span>
+                    <span className="block text-[10px] font-bold text-slate-400">연락처</span>
+                    <span className="block font-bold text-slate-700 text-xs">010-5171-0994</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-sm text-slate-300">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-slate-400">
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200 text-slate-500">
                     <MapPin className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-[10px] font-bold text-slate-500">현주소</span>
-                    <span className="block truncate font-bold text-slate-200 text-xs">
+                    <span className="block text-[10px] font-bold text-slate-400">현주소</span>
+                    <span className="block truncate font-bold text-slate-700 text-xs">
                       서울특별시
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-sm text-slate-300">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-slate-400">
-                    <User className="h-4 w-4" />
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200 text-slate-500">
+                    <Award className="h-4 w-4" />
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-500">병역사항</span>
-                    <span className="block font-bold text-slate-200 text-xs">군필 (공익근무요원 이병 소집해제)</span>
+                    <span className="block text-[10px] font-bold text-slate-400">병역사항</span>
+                    <span className="block font-bold text-slate-700 text-xs">군필 (공익근무요원 이병 소집해제)</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Academic Card */}
-            <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-emerald-400" />
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-indigo-500" />
                 학력 사항
               </h3>
               <div className="space-y-4">
                 <div>
-                  <span className="inline-flex rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-300">
+                  <span className="inline-flex rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 border border-blue-100">
                     2016. 02 - 2022. 02
                   </span>
-                  <p className="mt-1 text-sm font-black text-slate-200">차의과학대학교 (학사 졸업)</p>
-                  <p className="text-xs text-slate-400">의약학계열 / 스포츠의학전공 (주전공)</p>
-                  <p className="text-xs font-semibold text-emerald-400 mt-0.5">평점 3.81 / 4.5 (137학점 이수)</p>
+                  <p className="mt-1 text-sm font-black text-slate-700">차의과학대학교 (학사 졸업)</p>
+                  <p className="text-xs text-slate-500">의약학계열 / 스포츠의학전공 (주전공)</p>
+                  <p className="text-xs font-semibold text-emerald-600 mt-0.5">평점 3.81 / 4.5 (137학점 이수)</p>
                 </div>
-                <hr className="border-white/5" />
+                <hr className="border-slate-100" />
                 <div>
-                  <span className="inline-flex rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                  <span className="inline-flex rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200/50">
                     2012. 03 - 2015. 02
                   </span>
-                  <p className="mt-1 text-sm font-black text-slate-200">경신고등학교</p>
-                  <p className="text-xs text-slate-400">과학과 졸업</p>
+                  <p className="mt-1 text-sm font-black text-slate-700">경신고등학교</p>
+                  <p className="text-xs text-slate-500">과학과 졸업</p>
                 </div>
               </div>
             </div>
 
             {/* Career Summary Card */}
-            <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-blue-400" />
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-blue-500" />
                 직장 경력 (총 1년 11개월)
               </h3>
               <div>
-                <span className="inline-flex rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                <span className="inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 border border-emerald-100">
                   2023. 12 - 2025. 10
                 </span>
-                <p className="mt-1.5 text-sm font-black text-slate-200">에듀테크 스타트업 (정규직)</p>
-                <p className="text-xs text-slate-400">개발팀 / 백엔드 엔지니어</p>
-                <ul className="mt-2.5 space-y-1 text-xs text-slate-400 list-disc list-inside">
+                <p className="mt-1.5 text-sm font-black text-slate-700">에듀테크 스타트업 (정규직)</p>
+                <p className="text-xs text-slate-500">개발팀 / 백엔드 엔지니어</p>
+                <ul className="mt-2.5 space-y-1 text-xs text-slate-500 list-disc list-inside">
                   <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
                   <li>프론트엔드 중계용 BFF(Backend for Frontend) 서버 설계 및 구축</li>
                   <li>Spring Boot 기반 사내 무료체험 관리 백오피스 단독 구축</li>
@@ -496,26 +508,26 @@ export function App() {
             </div>
 
             {/* Core Skills Summary */}
-            <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                <Cpu className="h-4 w-4 text-purple-400" />
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-purple-500" />
                 핵심 기술 스택
               </h3>
               <div className="space-y-3">
                 {[
-                  { name: 'Java', level: '중급', bg: 'bg-orange-500/10 text-orange-400 border border-orange-500/20' },
-                  { name: 'TypeScript', level: '중급', bg: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' },
-                  { name: 'Python', level: '중급', bg: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' },
+                  { name: 'Java', level: '중급', bg: 'bg-orange-50 text-orange-600 border border-orange-100' },
+                  { name: 'TypeScript', level: '중급', bg: 'bg-blue-50 text-blue-600 border border-blue-100' },
+                  { name: 'Python', level: '중급', bg: 'bg-yellow-50 text-yellow-600 border border-yellow-100' },
                 ].map((skill) => (
                   <div key={skill.name} className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-300">{skill.name}</span>
+                    <span className="text-sm font-semibold text-slate-700">{skill.name}</span>
                     <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${skill.bg}`}>{skill.level}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex flex-wrap gap-1.5 border-t border-white/5 pt-3">
+              <div className="mt-4 flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
                 {['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'].map((item) => (
-                  <span key={item} className="rounded bg-white/5 px-2 py-1 text-[10px] font-bold text-slate-300">
+                  <span key={item} className="rounded bg-slate-50 border border-slate-200/50 px-2 py-1 text-[10px] font-bold text-slate-600">
                     {item}
                   </span>
                 ))}
@@ -523,11 +535,11 @@ export function App() {
             </div>
           </aside>
 
-          {/* RIGHT CONTENT: Interactive Tabs (Cover Letters, Projects, Archive) */}
+          {/* RIGHT CONTENT: Interactive Tabs */}
           <section className="space-y-6">
             
             {/* Mobile Navigation Tabs (visible only on mobile) */}
-            <div className="flex rounded-xl bg-slate-900/50 p-1 border border-white/5 md:hidden print:hidden">
+            <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 md:hidden print:hidden">
               {[
                 { id: 'INTRO', label: '경력/역량' },
                 { id: 'PROJECTS', label: '프로젝트' },
@@ -540,7 +552,7 @@ export function App() {
                   className={`flex-1 rounded-lg py-2.5 text-center text-xs font-bold transition ${
                     activeMainTab === tab.id
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {tab.label}
@@ -548,37 +560,37 @@ export function App() {
               ))}
             </div>
 
-            {/* TAB 1: COVER LETTER (자기소개서) */}
+            {/* TAB 1: COVER LETTER (자기소개서/역량기술서) */}
             {activeMainTab === 'INTRO' && (
               <div className="space-y-6 print:hidden">
-                <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
                     <div>
-                      <h2 className="text-xl font-black text-white">역량 기술서 (Core Competencies)</h2>
-                      <p className="text-xs text-slate-400 mt-1">개발 철학 및 핵심 직무 강점 역량에 대한 상세 서술입니다.</p>
+                      <h2 className="text-xl font-black text-slate-800">역량 기술서 (Core Competencies)</h2>
+                      <p className="text-xs text-slate-500 mt-1">프로젝트 실무 및 취득 자격증에 기반한 기술 상세 명세입니다.</p>
                     </div>
                     
                     {/* Sub-tabs for Essay selection */}
-                    <div className="flex rounded-lg bg-slate-900/50 p-1 border border-white/5">
+                    <div className="flex rounded-lg bg-slate-100 p-1 border border-slate-200">
                       <button
                         onClick={() => setActiveEssayTab('WHY')}
                         className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition-all ${
                           activeEssayTab === 'WHY'
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-500 hover:text-slate-800'
                         }`}
                       >
-                        지원 동기 & 커리어 계획
+                        프로젝트 기술 적용 상세
                       </button>
                       <button
                         onClick={() => setActiveEssayTab('STRENGTH')}
                         className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition-all ${
                           activeEssayTab === 'STRENGTH'
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-500 hover:text-slate-800'
                         }`}
                       >
-                        직무 역량 강점
+                        자격증 기반 기술 전문성
                       </button>
                     </div>
                   </div>
@@ -587,15 +599,15 @@ export function App() {
                   <div className="mt-6 space-y-6">
                     {activeEssayTab === 'WHY' ? (
                       <div>
-                        <h3 className="text-base font-black text-blue-400 mb-1">
+                        <h3 className="text-base font-black text-blue-600 mb-1">
                           {essays.WHY.title}
                         </h3>
                         <p className="text-xs font-semibold text-slate-500 italic mb-5">
                           "{essays.WHY.subtitle}"
                         </p>
-                        <div className="space-y-4 text-sm text-slate-300 leading-relaxed font-normal">
+                        <div className="space-y-4 text-sm text-slate-600 leading-relaxed font-normal">
                           {essays.WHY.paragraphs.map((p, idx) => (
-                            <p key={idx} className="indent-2 bg-white/[0.01] hover:bg-white/[0.02] p-3 rounded-lg border border-white/[0.02] transition">
+                            <p key={idx} className="indent-2 bg-slate-50 hover:bg-slate-100/50 p-4 rounded-xl border border-slate-200/50 transition">
                               {p}
                             </p>
                           ))}
@@ -603,7 +615,7 @@ export function App() {
                       </div>
                     ) : (
                       <div>
-                        <h3 className="text-base font-black text-emerald-400 mb-1">
+                        <h3 className="text-base font-black text-indigo-600 mb-1">
                           {essays.STRENGTH.title}
                         </h3>
                         <p className="text-xs font-semibold text-slate-500 italic mb-5">
@@ -611,14 +623,14 @@ export function App() {
                         </p>
                         <div className="space-y-6">
                           {essays.STRENGTH.strengths.map((str, idx) => (
-                            <div key={idx} className="rounded-xl border border-white/5 bg-[#0e1526]/50 p-5 hover:border-blue-500/20 transition">
-                              <h4 className="text-sm font-black text-white flex items-center gap-2">
-                                <span className="grid h-6 w-6 place-items-center rounded bg-blue-500/10 text-xs font-black text-blue-400">
+                            <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/50 p-5 hover:border-blue-300 transition">
+                              <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                <span className="grid h-6 w-6 place-items-center rounded bg-blue-50 text-xs font-black text-blue-600 border border-blue-100">
                                   {idx + 1}
                                 </span>
                                 {str.title}
                               </h4>
-                              <p className="mt-3 text-xs leading-relaxed text-slate-300 bg-[#090d18] p-3.5 rounded-lg font-normal">
+                              <p className="mt-3 text-xs leading-relaxed text-slate-600 bg-white border border-slate-100 p-3.5 rounded-lg font-normal">
                                 {str.content}
                               </p>
                             </div>
@@ -629,97 +641,91 @@ export function App() {
                   </div>
                 </div>
 
-                {/* Direct Action Link */}
                 <div className="flex justify-end">
                   <button
                     onClick={() => setActiveMainTab('PROJECTS')}
-                    className="flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition"
+                    className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-500 transition"
                   >
-                    <span>인터랙티브 프로젝트 포트폴리오 보기</span>
+                    <span>핵심 프로젝트 상세 대시보드 보기</span>
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* TAB 2: PORTFOLIO (프로젝트 및 성장 기록) */}
+            {/* TAB 2: INTERACTIVE PROJECTS (프로젝트 타임라인 대시보드) */}
             {activeMainTab === 'PROJECTS' && (
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_1fr] print:hidden">
-                {/* Milestones Sidebar */}
-                <div className="space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Projects Timeline</p>
-                  <div className="space-y-2.5">
-                    {milestones.map((m, index) => {
-                      const isSelected = m.id === selectedMilestoneId;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => setSelectedMilestoneId(m.id)}
-                          className={`w-full rounded-xl border p-4 text-left transition-all ${
-                            isSelected
-                              ? 'border-blue-500/30 bg-blue-600/[0.08] shadow-lg shadow-black/20'
-                              : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.05]'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg text-xs font-bold ${
-                              isSelected ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400'
-                            }`}>
-                              {index + 1}
+              <div className="space-y-6 print:hidden animate-fadeIn">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800">핵심 프로젝트 포트폴리오</h2>
+                    <p className="text-xs text-slate-500 mt-1">상세 항목을 클릭하시면 구체적인 담당 업무 및 성과가 동적으로 조회됩니다.</p>
+                  </div>
+                  
+                  {/* Timeline Selection Grid */}
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {milestones.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => setSelectedMilestoneId(m.id)}
+                        className={`rounded-xl border p-4 text-left transition-all relative ${
+                          selectedMilestoneId === m.id
+                            ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-500'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400">{m.period}</span>
+                          {selectedMilestoneId === m.id && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                          )}
+                        </div>
+                        <h4 className="mt-2 text-xs font-black text-slate-800 truncate">{m.label}</h4>
+                        <p className="mt-1 text-[11px] text-slate-500 line-clamp-2 leading-snug">{m.body}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Selected Project Detailed Display Box */}
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/50 p-6 space-y-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <span className="inline-flex rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 border border-blue-100">
+                          {selectedMilestone.role} ({selectedMilestone.period})
+                        </span>
+                        <h3 className="mt-2 text-base font-black text-slate-800">
+                          {selectedMilestone.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 담당 업무</h4>
+                        <p className="mt-2 text-xs leading-relaxed text-slate-600 bg-white border border-slate-100 p-4 rounded-xl font-normal">
+                          {selectedMilestone.description}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
+                        <h4 className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                          핵심 성과 & 배운 점 (Takeaway)
+                        </h4>
+                        <p className="mt-2 text-xs leading-relaxed text-emerald-800 font-semibold">
+                          {selectedMilestone.takeaway}
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">활용 기술 스택</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedMilestone.skills.map((skill) => (
+                            <span key={skill} className="bg-white border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">
+                              {skill}
                             </span>
-                            <div className="min-w-0">
-                              <span className="block text-[10px] font-bold text-slate-500">{m.period}</span>
-                              <span className="block text-sm font-black text-slate-200 mt-0.5 truncate">{m.label}</span>
-                              <span className="block text-[11px] text-slate-400 mt-1 line-clamp-1">{m.role}</span>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Selected Project Detail Container */}
-                <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
-                  <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/5 pb-4">
-                    <div>
-                      <span className="inline-flex rounded bg-blue-600/15 px-2 py-0.5 text-[10px] font-bold text-blue-400">
-                        {selectedMilestone.period}
-                      </span>
-                      <h2 className="mt-2 text-xl font-black text-white">{selectedMilestone.label}</h2>
-                      <p className="text-xs text-slate-400 mt-0.5">{selectedMilestone.title}</p>
-                    </div>
-                    <div className="rounded bg-white/5 px-2.5 py-1 text-xs font-bold text-slate-300">
-                      기여도 {selectedMilestone.id === 'project1' || selectedMilestone.id === 'project3' ? '100%' : selectedMilestone.id === 'project2' ? '70%' : '40%'}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 space-y-5">
-                    {/* Description */}
-                    <div>
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">프로젝트 개요</span>
-                      <p className="mt-1 text-xs leading-relaxed text-slate-300 bg-[#090d17] p-4 rounded-xl font-normal">
-                        {selectedMilestone.description}
-                      </p>
-                    </div>
-
-                    {/* Takeaway / Lesson learned */}
-                    <div>
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">핵심 성과 & 배운 점 (Takeaway)</span>
-                      <p className="mt-1 text-xs leading-relaxed text-emerald-300 bg-emerald-950/15 border border-emerald-500/10 p-4 rounded-xl font-normal">
-                        {selectedMilestone.takeaway}
-                      </p>
-                    </div>
-
-                    {/* Tech Stack */}
-                    <div>
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">사용 기술 및 아키텍처 스택</span>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {selectedMilestone.skills.map((skill) => (
-                          <span key={skill} className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-1 text-xs font-bold text-blue-300">
-                            {skill}
-                          </span>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -730,82 +736,82 @@ export function App() {
             {/* TAB 2.5: THIS WEB APP ARCHITECTURE (이 웹앱 자체의 시스템 아키텍처) */}
             {activeMainTab === 'THIS_APP' && (
               <div className="space-y-6 print:hidden animate-fadeIn">
-                <div className="rounded-2xl border border-blue-500/15 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
-                  <div className="border-b border-white/5 pb-4">
-                    <h2 className="text-xl font-black text-white flex items-center gap-2">
-                      <Terminal className="h-5 w-5 text-blue-400" />
+                <div className="rounded-2xl border border-blue-200 bg-white p-6 shadow-sm">
+                  <div className="border-b border-slate-100 pb-4">
+                    <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                      <Terminal className="h-5 w-5 text-blue-600" />
                       이 포트폴리오 웹앱 자체의 시스템 아키텍처 (Self-Intro Architecture)
                     </h2>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                       지금 접속해 계신 이 웹 서버를 구동하고 데이터를 서빙하는 풀스택 컨테이너 인프라 설계 명세입니다.
                     </p>
                   </div>
 
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="rounded-xl border border-white/5 bg-[#0e1526]/50 p-5">
-                      <h3 className="text-sm font-black text-blue-400 flex items-center gap-2 mb-3">
-                        <span className="p-1.5 rounded bg-blue-500/10">💻</span>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-5">
+                      <h3 className="text-sm font-black text-blue-600 flex items-center gap-2 mb-3">
+                        <span className="p-1.5 rounded bg-blue-50">💻</span>
                         Backend Layer
                       </h3>
-                      <ul className="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+                      <ul className="text-xs text-slate-600 space-y-2.5 leading-relaxed">
                         <li>
-                          <strong className="text-white">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
+                          <strong className="text-slate-800">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
                         </li>
                         <li>
-                          <strong className="text-white">Spring Data JPA</strong> 및 H2/MySQL 데이터베이스 통합 제어
+                          <strong className="text-slate-800">Spring Data JPA</strong> 및 H2/MySQL 데이터베이스 통합 제어
                         </li>
                         <li>
-                          <strong className="text-white">Flyway 스키마 마이그레이션</strong>을 활용해 실행 시 DDL 데이터 자동 적재 및 버전 제어
+                          <strong className="text-slate-800">Flyway 스키마 마이그레이션</strong>을 활용해 실행 시 DDL 데이터 자동 적재 및 버전 제어
                         </li>
                         <li>
-                          <strong className="text-white">SampleDataLoader</strong>를 통해 로컬/인메모리 시작 시 테스트용 개발 이력 시드 자동 세팅
+                          <strong className="text-slate-800">SampleDataLoader</strong>를 통해 로컬/인메모리 시작 시 테스트용 개발 이력 시드 자동 세팅
                         </li>
                       </ul>
                     </div>
 
-                    <div className="rounded-xl border border-white/5 bg-[#0e1526]/50 p-5">
-                      <h3 className="text-sm font-black text-emerald-400 flex items-center gap-2 mb-3">
-                        <span className="p-1.5 rounded bg-emerald-500/10">🎨</span>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-5">
+                      <h3 className="text-sm font-black text-emerald-600 flex items-center gap-2 mb-3">
+                        <span className="p-1.5 rounded bg-emerald-50">🎨</span>
                         Frontend Layer
                       </h3>
-                      <ul className="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+                      <ul className="text-xs text-slate-600 space-y-2.5 leading-relaxed">
                         <li>
-                          <strong className="text-white">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
+                          <strong className="text-slate-800">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
                         </li>
                         <li>
-                          <strong className="text-white">Zustand & TanStack Query</strong>를 조합한 프론트 전역 상태 및 비동기 API 캐시 제어
+                          <strong className="text-slate-800">Zustand & TanStack Query</strong>를 조합한 프론트 전역 상태 및 비동기 API 캐시 제어
                         </li>
                         <li>
-                          <strong className="text-white">Tailwind CSS (Vanilla CSS 폴백)</strong> 미드나잇 글래스모피즘 프리미엄 UI 디자인 테마
+                          <strong className="text-slate-800">Tailwind CSS (Vanilla CSS 폴백)</strong> 미드나잇 글래스모피즘 프리미엄 UI 디자인 테마
                         </li>
                         <li>
-                          <strong className="text-white">PDF 인쇄 미디어 쿼리</strong> 최적화로 브라우저 상의 인쇄 레이아웃 단일 이력서 규격화
+                          <strong className="text-slate-800">PDF 인쇄 미디어 쿼리</strong> 최적화로 브라우저 상의 인쇄 레이아웃 단일 이력서 규격화
                         </li>
                       </ul>
                     </div>
 
-                    <div className="rounded-xl border border-white/5 bg-[#0e1526]/50 p-5">
-                      <h3 className="text-sm font-black text-amber-400 flex items-center gap-2 mb-3">
-                        <span className="p-1.5 rounded bg-amber-500/10">🐳</span>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-5">
+                      <h3 className="text-sm font-black text-amber-600 flex items-center gap-2 mb-3">
+                        <span className="p-1.5 rounded bg-amber-50">🐳</span>
                         DevOps & Docker
                       </h3>
-                      <ul className="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+                      <ul className="text-xs text-slate-600 space-y-2.5 leading-relaxed">
                         <li>
-                          <strong className="text-white">Docker Compose 오케스트레이션</strong>으로 DB-API-Nginx-Vite 환경 분리 가상화
+                          <strong className="text-slate-800">Docker Compose 오케스트레이션</strong>으로 DB-API-Nginx-Vite 환경 분리 가상화
                         </li>
                         <li>
-                          <strong className="text-white">실시간 HMR (자동 새로고침) 지원</strong>: Docker 볼륨 바인딩 및 익명 볼륨 설정으로 macOS의 빌드 바이너리 충돌 문제를 극복하고 폴링 감시(`usePolling: true`) 탑재
+                          <strong className="text-slate-800">실시간 HMR (자동 새로고침) 지원</strong>: Docker 볼륨 바인딩 및 익명 볼륨 설정으로 macOS의 빌드 바이너리 충돌 문제를 극복하고 폴링 감시(`usePolling: true`) 탑재
                         </li>
                         <li>
-                          <strong className="text-white">원클릭 관리자 스크립트</strong>: `./start-docker.sh` 및 `./start-local.sh` 제어를 통해 백그라운드 구동 및 PID 기반 안전 프로세스 종료 자동화
+                          <strong className="text-slate-800">원클릭 관리자 스크립트</strong>: `./start-docker.sh` 및 `./start-local.sh` 제어를 통해 백그라운드 구동 및 PID 기반 안전 프로세스 종료 자동화
                         </li>
                       </ul>
                     </div>
                   </div>
 
-                  <div className="mt-8 rounded-xl border border-white/5 bg-[#080d17] p-5">
-                    <h3 className="text-sm font-black text-white mb-4">🖥️ 풀스택 가상화 아키텍처 흐름도</h3>
-                    <div className="text-xs font-mono text-slate-400 bg-black/45 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-white/5">
+                  <div className="mt-8 rounded-xl border border-slate-200 bg-slate-950 p-5">
+                    <h3 className="text-sm font-black text-slate-100 mb-4">🖥️ 풀스택 가상화 아키텍처 흐름도</h3>
+                    <div className="text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-850">
 {` +------------------------------------------------------------------------------------+
  |                                  Host Machine (Mac OS)                             |
  |                                                                                    |
@@ -844,23 +850,23 @@ export function App() {
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr] print:hidden">
                 
                 {/* Left: Interactive Archive Search & List */}
-                <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-xl font-black text-white">학습 아카이브</h2>
-                      <p className="text-xs text-slate-400 mt-0.5">교육과정, 프로젝트, 자격증 취득 상세 정보</p>
+                      <h2 className="text-xl font-black text-slate-800">학습 아카이브</h2>
+                      <p className="text-xs text-slate-500 mt-0.5">교육과정, 프로젝트, 자격증 취득 상세 정보</p>
                     </div>
                     
                     {/* Category Filter buttons */}
-                    <div className="flex flex-wrap gap-1 rounded-lg bg-slate-900/50 p-1 border border-white/5">
+                    <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1 border border-slate-200">
                       {Object.entries(categoryLabels).map(([key, label]) => (
                         <button
                           key={key}
                           onClick={() => setActiveCategory(key as any)}
                           className={`rounded-md px-3 py-1 text-xs font-bold transition-all ${
                             activeCategory === key
-                              ? 'bg-blue-600 text-white'
-                              : 'text-slate-400 hover:text-white'
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'text-slate-500 hover:text-slate-800'
                           }`}
                         >
                           {label}
@@ -869,181 +875,178 @@ export function App() {
                     </div>
                   </div>
 
-                  {/* Inner Search Box */}
+                  {/* Search box */}
                   <div className="relative">
-                    <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-xl border border-white/5 bg-[#090d16] pl-10 pr-4 py-2.5 text-xs text-slate-200 outline-none focus:border-blue-500/50 transition placeholder:text-slate-600"
-                      placeholder="프로젝트명, 교육 과정, 기술 키워드로 실시간 필터링..."
+                      type="text"
+                      placeholder="학습 내역, 기술 스택, 키워드 검색..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner"
                     />
                   </div>
 
-                  {/* Fetching statuses */}
-                  {isLoading && <p className="text-center py-10 text-xs text-slate-500">API로부터 아카이브 데이터를 불러오는 중...</p>}
-                  {isError && (
-                    <div className="rounded-lg border border-yellow-500/15 bg-yellow-500/5 p-3 text-[11px] text-yellow-300 font-semibold leading-relaxed">
-                      💡 백엔드 서버(API)에 연결되지 않아 로컬 목업 데이터를 표시 중입니다. 테스트를 위해 백엔드 포트(8080)를 실행하면 실제 DB 데이터가 로딩됩니다.
-                    </div>
-                  )}
-
-                  {/* List View */}
-                  <div className="space-y-4 overflow-y-auto max-h-[500px] pr-1.5">
-                    {filteredEntries.length === 0 ? (
-                      <p className="text-center py-10 text-xs text-slate-600">검색 조건에 맞는 아카이브가 없습니다.</p>
-                    ) : (
-                      filteredEntries.map((entry) => {
-                        const Icon = iconByCategory[entry.category] || Code2;
-                        return (
-                          <article key={entry.id} className="group rounded-xl border border-white/5 bg-slate-900/35 p-4.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/10 hover:bg-slate-900/60">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <span className="inline-flex rounded-md bg-white/5 px-2 py-0.5 text-[9px] font-bold text-slate-400">
+                  {/* Grid Table display */}
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                          <th className="px-4 py-3">분류</th>
+                          <th className="px-4 py-3">내용 및 기술 정보</th>
+                          <th className="px-4 py-3 text-right">날짜</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {isLoading ? (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-12 text-center text-slate-400">
+                              데이터 로드 중...
+                            </td>
+                          </tr>
+                        ) : filteredEntries.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-12 text-center text-slate-400">
+                              검색 결과가 없습니다.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredEntries.map((entry) => {
+                            const IconComp = iconByCategory[entry.category as keyof typeof iconByCategory] || Code2;
+                            return (
+                              <tr key={entry.id} className="hover:bg-slate-50/50 border-b border-slate-100 text-slate-700 transition">
+                                <td className="px-4 py-4 whitespace-nowrap">
+                                  <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600 border border-slate-200/50">
+                                    <IconComp className="h-3 w-3" />
+                                    {categoryLabels[entry.category as keyof typeof categoryLabels]}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4 space-y-1">
+                                  <p className="font-bold text-slate-800 text-sm">{entry.title}</p>
+                                  <p className="text-slate-500 text-xs leading-relaxed font-normal">{entry.description}</p>
+                                  {entry.takeaway && (
+                                    <p className="text-[11px] text-emerald-600 font-medium leading-relaxed">
+                                      성과: {entry.takeaway}
+                                    </p>
+                                  )}
+                                  <div className="flex flex-wrap gap-1 pt-1.5">
+                                    {entry.skills.map((skill) => (
+                                      <span key={skill} className="rounded bg-slate-50 border border-slate-200/50 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">
+                                        {skill}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 text-right whitespace-nowrap text-slate-400 text-[10px]">
                                   {entry.learnedAt}
-                                </span>
-                                <h3 className="mt-1 text-sm font-black text-white group-hover:text-blue-400 transition truncate">{entry.title}</h3>
-                              </div>
-                              <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/5 text-slate-400 transition group-hover:bg-blue-600 group-hover:text-white">
-                                <Icon className="h-4 w-4" />
-                              </span>
-                            </div>
-                            <p className="mt-2.5 text-xs leading-relaxed text-slate-400 font-normal">{entry.description}</p>
-                            <p className="mt-2 text-xs text-emerald-400/90 font-semibold bg-emerald-950/10 p-2 rounded border border-emerald-500/5">
-                              📌 {entry.takeaway}
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-1">
-                              {entry.skills.map((skill) => (
-                                <span key={skill} className="rounded bg-white/5 px-2 py-0.5 text-[10px] text-slate-300">
-                                  {skill}
-                                </span>
-                              ))}
-                            </div>
-                          </article>
-                        );
-                      })
-                    )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
-                {/* Right: Registration Form */}
-                <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md space-y-5">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-8 w-8 place-items-center rounded bg-blue-600/10 text-blue-400">
-                      <CalendarPlus className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-white">신규 이력/학습기록 등록</h3>
-                      <p className="text-[10px] text-slate-500">데이터베이스에 즉각 저장 및 동기화됩니다.</p>
-                    </div>
+                {/* Right: Add New Entry Form */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5 h-fit">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800">이력 정보 추가</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">새로운 경력, 자격증, 교육 내역을 데이터베이스에 실시간으로 적재합니다.</p>
                   </div>
+                  
+                  <form onSubmit={submitStudyEntry} className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-600">분류</label>
+                      <select
+                        value={form.category}
+                        onChange={(e) => setForm({ ...form, category: e.target.value as any })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner"
+                      >
+                        <option value="PROJECT">프로젝트</option>
+                        <option value="EDUCATION">교육</option>
+                        <option value="CERTIFICATE">자격증</option>
+                      </select>
+                    </div>
 
-                  <form onSubmit={submitStudyEntry} className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1.5">이름/학습제목</label>
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-600">제목</label>
                       <input
+                        type="text"
                         required
+                        placeholder="예: 정보처리기사 자격 취득, BFF NestJS 서버 구축"
                         value={form.title}
-                        onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                        className="w-full rounded-xl border border-white/5 bg-[#090d16] px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500/50 transition placeholder:text-slate-600"
-                        placeholder="예: QueryDSL 기반 동적 다중 필터 구현"
+                        onChange={(e) => setForm({ ...form, title: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1.5">카테고리</label>
-                        <select
-                          value={form.category}
-                          onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value as any }))}
-                          className="w-full rounded-xl border border-white/5 bg-[#090d16] px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500/50 transition"
-                        >
-                          <option value="PROJECT">프로젝트 (PROJECT)</option>
-                          <option value="EDUCATION">교육 (EDUCATION)</option>
-                          <option value="CERTIFICATE">자격증 (CERTIFICATE)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1.5">날짜</label>
-                        <input
-                          required
-                          type="date"
-                          value={form.learnedAt}
-                          onChange={(e) => setForm((prev) => ({ ...prev, learnedAt: e.target.value }))}
-                          className="w-full rounded-xl border border-white/5 bg-[#090d16] px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500/50 transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1.5">기술 스택 (쉼표 구분)</label>
-                      <input
-                        required
-                        value={form.skills}
-                        onChange={(e) => setForm((prev) => ({ ...prev, skills: e.target.value }))}
-                        className="w-full rounded-xl border border-white/5 bg-[#090d16] px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500/50 transition placeholder:text-slate-600"
-                        placeholder="Java, Spring Boot, QueryDSL"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1.5">상세 내용 및 기여 사항</label>
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-600">상세 설명</label>
                       <textarea
                         required
+                        rows={3}
+                        placeholder="프로젝트 핵심 설계나 자격 내용 기술..."
                         value={form.description}
-                        onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                        className="w-full rounded-xl border border-white/5 bg-[#090d16] px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500/50 transition min-h-[70px] placeholder:text-slate-600"
-                        placeholder="수행 업무 또는 학습 내용을 구체적으로 기록해주세요."
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner resize-none"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1.5">성과 및 배운점 (Takeaway)</label>
-                      <textarea
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-600">주요 스택 (콤마 구분)</label>
+                      <input
+                        type="text"
+                        placeholder="예: Java, Spring Boot, JPA, QueryDSL"
+                        value={form.skills}
+                        onChange={(e) => setForm({ ...form, skills: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-600">성과 및 배운 점 (Takeaway)</label>
+                      <input
+                        type="text"
+                        placeholder="예: N+1 문제를 방지하여 조회 성능 200% 증가"
+                        value={form.takeaway || ''}
+                        onChange={(e) => setForm({ ...form, takeaway: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-600">취득/완료 날짜</label>
+                      <input
+                        type="date"
                         required
-                        value={form.takeaway}
-                        onChange={(e) => setForm((prev) => ({ ...prev, takeaway: e.target.value }))}
-                        className="w-full rounded-xl border border-white/5 bg-[#090d16] px-3.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500/50 transition min-h-[60px] placeholder:text-slate-600"
-                        placeholder="이력을 통해 무엇을 개선했고 어떤 가치를 창출했는지 서술해주세요."
+                        value={form.learnedAt}
+                        onChange={(e) => setForm({ ...form, learnedAt: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-inner"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={createMutation.isPending}
-                      className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 text-xs transition disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 py-3 font-bold text-white hover:from-blue-500 hover:to-blue-600 disabled:opacity-50 transition shadow-md shadow-blue-500/20"
                     >
-                      {createMutation.isPending ? '저장 처리 중...' : '새 아카이브 등록하기'}
+                      <Send className="h-4 w-4" />
+                      <span>{createMutation.isPending ? '등록 중...' : '데이터베이스 적재'}</span>
                     </button>
                   </form>
                 </div>
               </div>
             )}
 
-            {/* LIVE A4 PRINT PREVIEW AREA (Always visible at the bottom of the web view, styled like a real document) */}
-            <div className="mt-8 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
-                <div>
-                  <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-400" />
-                    실시간 A4 이력서 및 요약본 프리뷰
-                  </h3>
-                  <p className="text-xs text-slate-400">우측 상단의 'PDF 인쇄' 버튼을 통해 본 프레임만 깔끔하게 PDF로 다운로드 및 프린트할 수 있습니다.</p>
-                </div>
-                <div className="rounded-lg border border-white/5 bg-slate-900/50 px-3 py-1.5 text-xs text-slate-400">
-                  규격: A4 (210mm x 297mm)
-                </div>
-              </div>
-
-              {/* A4 Sheet Container */}
-              <div id="a4-sheet-container" className="flex justify-center bg-slate-950/20 py-6 rounded-2xl border border-white/5 shadow-inner backdrop-blur-md">
-                <article
-                  id="a4-sheet"
-                  data-testid="a4-sheet"
-                  className="w-full max-w-[800px] aspect-[210/297] bg-[#fdfdfc] text-slate-900 p-8 sm:p-12 shadow-2xl flex flex-col justify-between overflow-hidden border border-slate-200 rounded-md font-sans"
-                >
-                  <div className="space-y-6">
-                    {/* Header: Basic Details */}
+            {/* PRINT ONLY A4 SHEET (인쇄 모드 시 브라우저에서 A4 1페이지 출력용 레이아웃) */}
+            <div id="a4-sheet-container" className="hidden print:block w-full">
+              <div className="mx-auto border border-slate-300 bg-white p-[20mm] w-[210mm] h-[297mm] shadow-inner text-slate-800 font-sans leading-normal">
+                <article id="a4-sheet" className="h-full flex flex-col justify-between">
+                  
+                  {/* Document Header */}
+                  <div className="space-y-5">
                     <div className="border-b-2 border-slate-800 pb-4">
                       <div className="flex justify-between items-start">
                         <div>
@@ -1089,45 +1092,33 @@ export function App() {
                           </li>
                         </ul>
                       </div>
-                      
+
                       <div>
-                        <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-800 uppercase tracking-wider">핵심 자격증</h3>
-                        <ul className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-700">
+                        <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-800 uppercase tracking-wider">자격증 사항</h3>
+                        <ul className="mt-2 space-y-1.5 text-slate-700">
                           <li>
-                            <span className="font-bold block">정보처리기사</span>
-                            <span className="text-[10px] text-slate-500">한국산업인력공단 (2022.06)</span>
+                            <span className="font-bold">정보처리기사</span> (한국산업인력공단)
+                            <span className="block text-[10px] text-slate-400">취득일: 2022. 06. 17</span>
                           </li>
                           <li>
-                            <span className="font-bold block">SQL 개발자(SQLD)</span>
-                            <span className="text-[10px] text-slate-500">한국데이터산업진흥원 (2024.09)</span>
+                            <span className="font-bold">SQL 개발자(SQLD)</span> (한국데이터산업진흥원)
+                            <span className="block text-[10px] text-slate-400">취득일: 2024. 09. 20</span>
                           </li>
                           <li>
-                            <span className="font-bold block">빅데이터분석기사</span>
-                            <span className="text-[10px] text-slate-500">한국데이터산업진흥원 (2022.07)</span>
-                          </li>
-                          <li>
-                            <span className="font-bold block">컴퓨터활용 1급</span>
-                            <span className="text-[10px] text-slate-500">대한상공회의소 (2018.11)</span>
+                            <span className="font-bold">빅데이터분석기사</span> (한국데이터산업진흥원)
+                            <span className="block text-[10px] text-slate-400">취득일: 2022. 07. 15</span>
                           </li>
                         </ul>
                       </div>
                     </div>
 
-                    {/* Section 2: Projects Overview (Highlights selected milestone) */}
+                    {/* Section 2: Core Project Detail (Dynamic binding) */}
                     <div>
-                      <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">
-                        주요 프로젝트 요약 (선택 프로젝트: {selectedMilestone.label})
-                      </h3>
-                      
-                      <div className="mt-3 p-3 bg-slate-50 rounded border border-slate-200/60">
+                      <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">핵심 프로젝트 개발 성과</h3>
+                      <div className="mt-2.5 border border-slate-200 bg-slate-50/50 p-4 rounded-xl">
                         <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-xs font-bold text-slate-800">{selectedMilestone.label}</span>
-                            <span className="ml-2 text-[10px] text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded font-semibold">
-                              {selectedMilestone.role} (기여도 {selectedMilestone.id === 'project1' || selectedMilestone.id === 'project3' ? '100%' : selectedMilestone.id === 'project2' ? '70%' : '40%'})
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-slate-500">{selectedMilestone.period}</span>
+                          <span className="font-bold text-xs text-slate-900">{selectedMilestone.title}</span>
+                          <span className="text-[10px] font-bold text-slate-400">{selectedMilestone.period}</span>
                         </div>
                         <p className="mt-2 text-[11px] text-slate-600 leading-relaxed font-normal">
                           {selectedMilestone.description}
