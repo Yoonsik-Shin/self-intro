@@ -87,12 +87,12 @@ const milestones = [
 
 const essays = {
   WHY: {
-    title: '1. 지원동기 및 향후 커리어 계획',
-    subtitle: '현대오토에버의 해당 직무에 지원한 이유와 앞으로 현대오토에버에서 키워 나갈 커리어 계획을 작성해주시기 바랍니다.',
+    title: '1. 커리어 목표 및 발전 계획',
+    subtitle: '시스템의 효율성 극대화와 결합도 개선을 목표로 하는 백엔드 엔지니어링 성장 계획입니다.',
     paragraphs: [
-      `현대오토에버 오토웨이 개발 직무에 지원한 이유는, 거대한 조직의 업무 효율을 책임지는 시스템을 발전시키는 데 가장 큰 보람을 느끼기 때문입니다. 이전 프로젝트에서 흩어진 CS 데이터를 일원화하고 워크플로우를 자동화한 경험이 있습니다. 분산된 환경을 하나로 연결하자, 팀원들이 단순 취합에서 벗어나 핵심 업무에 집중하는 실질적인 생산성 향상을 확인했습니다. 전 계열사 임직원이 매일 사용하는 오토웨이 역시 수많은 데이터가 교차하며 전사적 협업을 지탱하는 핵심 플랫폼입니다. 조직의 일하는 방식을 개선하는 이 거대한 환경이야말로, 제가 시스템 효율화에 대해 배운 역량을 가장 가치 있게 발휘할 곳이라 생각합니다.`,
-      `수많은 사내 시스템이 연동되는 그룹웨어에서는, 작은 기능 변경이 전체 서비스의 장애로 이어지지 않도록 결합도를 낮추는 설계가 무엇보다 중요합니다. 이전 서비스 개발 당시, 학생과 교사 로직이 강하게 결합된 단일 서버에서 하나의 수정이 예기치 않은 오류를 발생시키는 문제를 겪었습니다. 이를 해결하고자 모듈을 명확히 분리하고, Read와 Write 로직을 나누어 데이터의 의존성을 끊어냈습니다. 이 과정을 통해 시스템 규모가 커질수록 도메인 경계를 나누고 유연하게 설계해야 본질적인 안정성을 확보할 수 있음을 깨달았습니다. 이러한 구조적 개선 경험은 마이크로서비스 기반으로 확장하는 오토웨이에서 서비스 간 결합도를 낮추고 장애를 예방하는 데 실질적인 도움이 될 것입니다.`,
-      `입사 초기에는 오토웨이의 방대한 도메인과 개발 표준을 빠르게 익히겠습니다. 기존 비즈니스 로직에 영향을 주지 않는 보수적인 배포로 서비스 신뢰도를 지키겠습니다. 이후에는 이벤트 주도 아키텍처(EDA) 설계 경험을 살려 시스템 간 비동기 통신의 병목을 해소하고, 대규모 트래픽을 제어하는 분산 시스템 전문가로 성장하겠습니다. 장기적으로는 워크플로우 자동화 경험을 활용해 운영 업무를 효율화함으로써, 개발 조직과 사용자 모두가 핵심 업무에 몰입하도록 돕는 소프트웨어 엔지니어가 되겠습니다.`
+      `제가 백엔드 엔지니어로서 가장 큰 보람을 느끼는 부분은, 거대한 조직의 업무 효율을 책임지는 협업 시스템 및 플랫폼 서비스를 발전시키는 것입니다. 이전 프로젝트에서 흩어진 CS 데이터를 일원화하고 워크플로우를 자동화한 경험이 있습니다. 분산된 환경을 하나로 연결하자, 팀원들이 단순 취합에서 벗어나 핵심 업무에 집중하는 실질적인 생산성 향상을 확인했습니다. 조직의 일하는 방식을 개선하는 대규모 엔터프라이즈 환경이야말로, 제가 시스템 효율화에 대해 배운 역량을 가장 가치 있게 발휘할 곳이라 생각합니다.`,
+      `수많은 사내 시스템이 연동되는 대규모 서비스 환경에서는, 작은 기능 변경이 전체 서비스의 장애로 이어지지 않도록 결합도를 낮추는 설계가 무엇보다 중요합니다. 이전 서비스 개발 당시, 학생과 교사 로직이 강하게 결합된 단일 서버에서 하나의 수정이 예기치 않은 오류를 발생시키는 문제를 겪었습니다. 이를 해결하고자 모듈을 명확히 분리하고, Read와 Write 로직을 나누어 데이터의 의존성을 끊어냈습니다. 이 과정을 통해 시스템 규모가 커질수록 도메인 경계를 나누고 유연하게 설계해야 본질적인 안정성을 확보할 수 있음을 깨달았습니다. 이러한 구조적 개선 경험은 서비스 간 결합도를 낮추고 대규모 트래픽 분산 시스템에서 장애를 예방하는 데 실질적인 도움이 될 것입니다.`,
+      `새로운 환경에 합류하면 팀의 도메인과 개발 표준을 빠르게 습득하겠습니다. 기존 비즈니스 로직에 영향을 주지 않는 안정적이고 보수적인 배포로 서비스 신뢰도를 지키겠습니다. 이후에는 이벤트 주도 아키텍처(EDA) 설계 경험을 살려 시스템 간 비동기 통신의 병목을 해소하고, 대규모 트래픽을 제어하는 분산 시스템 전문가로 성장하겠습니다. 장기적으로는 워크플로우 자동화 경험을 활용해 운영 업무를 효율화함으로써, 개발 조직과 사용자 모두가 핵심 업무에 몰입하도록 돕는 소프트웨어 엔지니어가 되겠습니다.`
     ]
   },
   STRENGTH: {
@@ -343,30 +343,30 @@ export function App() {
       {/* Main Body Layout */}
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
         
-        {/* Hyundai AutoEver Support Banner (Always Visible on Web) */}
+        {/* General Career Summary Banner (Always Visible on Web) */}
         <div className="mb-8 rounded-2xl border border-blue-500/15 bg-gradient-to-r from-blue-950/20 via-blue-900/10 to-transparent p-6 relative overflow-hidden backdrop-blur-md print:hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 px-3 py-1 text-xs font-semibold text-blue-300">
                 <Sparkles className="h-3 w-3 text-emerald-400" />
-                2026년 하반기 신입 공채 지원
+                Software Engineer Portfolio
               </span>
               <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-white">
-                현대오토에버 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Enterprise IT Fullstack Developer</span>
+                신윤식 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Fullstack & Backend Developer</span>
               </h1>
               <p className="mt-2 text-sm text-slate-400 max-w-3xl leading-relaxed">
-                오토웨이(Autoway) 그룹웨어 플랫폼의 대규모 트래픽 제어 및 MSA 안정성을 확보하고, 엔터프라이즈 백오피스 서비스 개발을 통해 임직원의 업무 생산성 향상에 기여하겠습니다.
+                1년 11개월의 Node.js/AWS 실무 경력과 Spring Boot, Kubernetes, 비동기 분산 메시징 파이프라인 실험 경험을 바탕으로, 안정적인 데이터 흐름을 설계하고 결합도를 개선하는 엔지니어입니다.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
               <div className="rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 text-center min-w-[140px]">
-                <span className="block text-[10px] uppercase font-bold text-slate-500">1순위 희망 직무</span>
-                <span className="mt-1 block text-xs font-black text-white">오토웨이 플랫폼 개발/운영</span>
+                <span className="block text-[10px] uppercase font-bold text-slate-500">실무 경력</span>
+                <span className="mt-1 block text-xs font-black text-white">Node.js / AWS 1년 11개월</span>
               </div>
               <div className="rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 text-center min-w-[140px]">
-                <span className="block text-[10px] uppercase font-bold text-slate-500">2순위 희망 직무</span>
-                <span className="mt-1 block text-xs font-black text-white">백오피스 서비스 개발</span>
+                <span className="block text-[10px] uppercase font-bold text-slate-500">핵심 스택</span>
+                <span className="mt-1 block text-xs font-black text-white">Java / Spring / Cloud</span>
               </div>
             </div>
           </div>
@@ -552,8 +552,8 @@ export function App() {
                 <div className="rounded-2xl border border-white/5 bg-[#0c1220]/80 p-6 shadow-2xl backdrop-blur-md">
                   <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
                     <div>
-                      <h2 className="text-xl font-black text-white">자기소개서 (Cover Letters)</h2>
-                      <p className="text-xs text-slate-400 mt-1">현대오토에버 지원 문항에 대한 준비 내용입니다.</p>
+                      <h2 className="text-xl font-black text-white">역량 기술서 (Core Competencies)</h2>
+                      <p className="text-xs text-slate-400 mt-1">개발 철학 및 핵심 직무 강점 역량에 대한 상세 서술입니다.</p>
                     </div>
                     
                     {/* Sub-tabs for Essay selection */}
@@ -933,7 +933,7 @@ export function App() {
                     <div className="border-b-2 border-slate-800 pb-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-[10px] font-bold text-blue-800 tracking-widest uppercase">Hyundai AutoEver Candidate</p>
+                          <p className="text-[10px] font-bold text-blue-800 tracking-widest uppercase">Software Engineer Profile</p>
                           <h1 className="text-3xl font-black tracking-tight text-slate-900 mt-1">신 윤 식</h1>
                           <p className="text-sm font-bold text-slate-600 mt-1">Fullstack / Backend Developer</p>
                         </div>
@@ -946,14 +946,14 @@ export function App() {
 
                       {/* Primary Choice indicator */}
                       <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold">
-                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                          1지망: 오토웨이 그룹웨어 개발/운영
-                        </span>
-                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                          2지망: 백오피스 서비스 개발
-                        </span>
                         <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
-                          경력: 1년 11개월 (수심달 백엔드)
+                          실무 경력: 1년 11개월 (Node.js 백엔드)
+                        </span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                          Java / Spring Boot / QueryDSL
+                        </span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                          AWS & Cloud Infrastructure
                         </span>
                       </div>
                     </div>
@@ -1033,13 +1033,13 @@ export function App() {
 
                     {/* Section 3: Professional Focus / COVER LETTER SUMMARY */}
                     <div>
-                      <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">현대오토에버 지원 포부 및 핵심 강점</h3>
+                      <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-800 uppercase tracking-wider">개발 철학 및 핵심 역량 요약</h3>
                       <div className="mt-2 space-y-2 text-[11px] text-slate-700 leading-relaxed">
                         <p className="font-normal">
-                          <span className="font-bold text-slate-800">1. 지원 동기 및 구조적 결합도 개선 역량:</span> 전사 임직원이 매일 사용하는 오토웨이 그룹웨어를 지탱하기 위해, 도메인 경계를 명확히 분리하고 Read/Write 로직 의존성을 분리하는 보수적이면서 안정적인 배포 신조를 유지하겠습니다.
+                          <span className="font-bold text-slate-800">1. 관심사 분리와 결합도 개선:</span> 서비스 규모 확장 시 안정성을 확보하기 위해 도메인 경계를 명확히 나누고 Read/Write 데이터 의존성을 격리하는 유연한 아키텍처 설계를 지향합니다.
                         </p>
                         <p className="font-normal">
-                          <span className="font-bold text-slate-800">2. 객체지향 및 풀스택 역량:</span> 1년 11개월의 Node.js/AWS 실무 외에도 Java/Spring, JPA, QueryDSL 생태계를 체화하고 Kubernetes 환경에 배포하며 비동기 Kafka 파이프라인을 직접 구축하는 등 뛰어난 설계 기본기를 보유하고 있습니다.
+                          <span className="font-bold text-slate-800">2. 엔터프라이즈 역량과 풀스택 시야:</span> 1년 11개월의 Node.js/AWS 실무 경력 외에 Java, Spring Boot, JPA, QueryDSL 생태계를 체화하고 Kubernetes 환경과 Redis/Kafka 메시지 대기열을 제어할 수 있는 실행력을 갖추고 있습니다.
                         </p>
                       </div>
                     </div>
@@ -1047,7 +1047,7 @@ export function App() {
 
                   {/* Document Footer */}
                   <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-[10px] text-slate-400">
-                    <span>신윤식 입사지원서 요약본 (현대오토에버)</span>
+                    <span>신윤식 개발자 포트폴리오 요약본 (Resume Summary)</span>
                     <span>Page 01 / 01</span>
                   </div>
                 </article>
