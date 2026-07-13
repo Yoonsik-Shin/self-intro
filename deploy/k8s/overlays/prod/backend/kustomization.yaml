@@ -6,6 +6,7 @@ namespace: self-intro
 resources:
   - ../../../base/backend
   - ingress.yaml
+  - sealed-db-secret.yaml
 
 images:
   - name: self-intro-backend
