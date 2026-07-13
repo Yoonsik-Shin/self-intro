@@ -318,9 +318,9 @@ export function App() {
         {/* Main Body Layout */}
         <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           
-          {/* General Career Summary Banner (Always Visible on Web) */}
-          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md print:hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
+          {/* General Career Summary Banner (Hero) */}
+          <div id="intro-profile" className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-550/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
               <div>
                 <div className="flex flex-wrap gap-2">
@@ -353,447 +353,399 @@ export function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[340px_1fr]">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_260px] relative items-start">
             
-            {/* LEFT SIDEBAR: Personal Information & Profile Card */}
-            <aside className="space-y-6 print:hidden">
-              {/* Profile Detail Card */}
-              <div className={cardStyle}>
-                <div className="flex flex-col items-center text-center">
-                  <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
-                    <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-3xl font-black text-white">
-                      YS
-                    </div>
-                  </div>
-                  <h2 className="mt-4 text-lg font-black text-slate-900">신윤식</h2>
-                  <p className="text-xs font-semibold text-slate-500 mt-1">Fullstack / Backend Developer</p>
-                  <div className="mt-3 flex justify-center gap-3">
-                    <a
-                      href="https://github.com"
-                      target="_blank"
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                    >
-                      <Github className="h-4 w-4" />
-                    </a>
-                    <a
-                      href="mailto:aaa946@naver.com"
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                    >
-                      <Mail className="h-4 w-4" />
-                    </a>
-                  </div>
-                </div>
-
-                <hr className="my-6 border-slate-100" />
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500">
-                      <User className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400">생년월일</span>
-                      <span className="block font-bold text-slate-800 text-xs">1996. 05. 04 (만 30세)</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400">이메일</span>
-                      <span className="block font-bold text-slate-800 text-xs truncate">aaa946@naver.com</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400">연락처</span>
-                      <span className="block font-bold text-slate-800 text-xs">010-5171-0994</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500">
-                      <MapPin className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="block text-[10px] font-bold text-slate-400">현주소</span>
-                      <span className="block truncate font-bold text-slate-800 text-xs">
-                        서울특별시
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500">
-                      <Award className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400">병역사항</span>
-                      <span className="block font-bold text-slate-800 text-xs">군필 (공익근무요원 이병 소집해제)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Academic Card */}
-              <div className={cardStyle}>
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4 text-indigo-600" />
-                  학력 사항
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <span className="inline-flex rounded bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
-                      2016. 02 - 2022. 02
-                    </span>
-                    <p className="mt-1 text-sm font-black text-slate-800">차의과학대학교 (학사 졸업)</p>
-                    <p className="text-xs text-slate-500">의약학계열 / 스포츠의학전공 (주전공)</p>
-                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">평점 3.81 / 4.5 (137학점 이수)</p>
-                  </div>
-                  <hr className="border-slate-150" />
-                  <div>
-                    <span className="inline-flex rounded bg-slate-50 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                      2012. 03 - 2015. 02
-                    </span>
-                    <p className="mt-1 text-sm font-black text-slate-800">경신고등학교</p>
-                    <p className="text-xs text-slate-500">자연계열 (물리반) 졸업</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Career Summary Card */}
-              <div className={cardStyle}>
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
-                  <Briefcase className="h-4 w-4 text-indigo-600" />
-                  직장 경력 (총 1년 11개월)
-                </h3>
-                <div>
-                  <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                    2023. 12 - 2025. 10
-                  </span>
-                  <p className="mt-1.5 text-sm font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
-                  <p className="text-xs text-slate-500">개발팀 / 백엔드 엔지니어</p>
-                  <ul className="mt-2.5 space-y-1.5 text-xs text-slate-600 list-disc list-inside">
-                    <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
-                    <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
-                    <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
-                    <li>AWS 인프라 및 CI/CD 파이프라인 설계/운영</li>
-                  </ul>
-                </div>
-              </div>
-
-              {/* Core Skills Summary */}
-              <div className={cardStyle}>
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
-                  <Cpu className="h-4 w-4 text-indigo-600" />
-                  핵심 기술 스택
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    { name: 'Java', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                    { name: 'TypeScript', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                    { name: 'Python', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                  ].map((skill) => (
-                    <div key={skill.name} className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-700">{skill.name}</span>
-                      <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${skill.bg}`}>{skill.level}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
-                  {['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'].map((item) => (
-                    <span key={item} className={badgeStyle}>
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </aside>
-
-            {/* RIGHT CONTENT: Interactive Tabs */}
-            <section className="min-w-0">
+            {/* Main Content Column */}
+            <div className="min-w-0 space-y-12">
               
-              {/* Mobile Navigation Tabs (visible only on mobile) */}
-              <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 md:hidden print:hidden mb-6">
-                {[
-                  { id: 'INTRO', label: '경력/역량' },
-                  { id: 'PROJECTS', label: '프로젝트' },
-                  { id: 'THIS_APP', label: '이 웹앱' },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveMainTab(tab.id as any)}
-                    className={`flex-1 rounded-lg py-2.5 text-center text-xs font-bold transition ${
-                      activeMainTab === tab.id
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              {/* SECTION 1: 프로필 & 이력 요약 */}
+              <div className="space-y-6">
+                
+                {/* Profile Grid: 4 Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Card 1: Profile Details */}
+                  <div className={cardStyle}>
+                    <div className="flex flex-col items-center text-center">
+                      <div className="relative h-20 w-20 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
+                        <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-2xl font-black text-white">
+                          YS
+                        </div>
+                      </div>
+                      <h2 className="mt-3 text-base font-black text-slate-900">신윤식</h2>
+                      <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Fullstack / Backend Developer</p>
+                      <div className="mt-2 flex justify-center gap-2">
+                        <a
+                          href="https://github.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-lg bg-slate-50 border border-slate-200/60 p-1.5 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                        >
+                          <Github className="h-3.5 w-3.5" />
+                        </a>
+                        <a
+                          href="mailto:aaa946@naver.com"
+                          className="rounded-lg bg-slate-50 border border-slate-200/60 p-1.5 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </div>
+
+                    <hr className="my-4 border-slate-100" />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
+                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                          <User className="h-3.5 w-3.5" />
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">생년월일</span>
+                          <span className="block font-bold text-slate-800 text-[11px]">1996. 05. 04 (만 30세)</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
+                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                          <Mail className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">이메일</span>
+                          <span className="block font-bold text-slate-800 text-[11px] truncate">aaa946@naver.com</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
+                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                          <Phone className="h-3.5 w-3.5" />
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">연락처</span>
+                          <span className="block font-bold text-slate-800 text-[11px]">010-5171-0994</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 text-xs text-slate-650">
+                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                          <MapPin className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">현주소</span>
+                          <span className="block font-bold text-slate-800 text-[11px] truncate">서울특별시</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 text-xs text-slate-650 sm:col-span-2">
+                        <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                          <Award className="h-3.5 w-3.5" />
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">병역사항</span>
+                          <span className="block font-bold text-slate-800 text-[11px]">군필 (공익근무요원 이병 소집해제)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Academic Info */}
+                  <div className={cardStyle}>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                      <GraduationCap className="h-4 w-4 text-indigo-600" />
+                      학력 사항
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="inline-flex rounded bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
+                          2016. 02 - 2022. 02
+                        </span>
+                        <p className="mt-0.5 text-xs font-black text-slate-800">차의과학대학교 (학사 졸업)</p>
+                        <p className="text-[10px] text-slate-500 leading-none">의약학계열 / 스포츠의학전공 (주전공)</p>
+                        <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">평점 3.81 / 4.5 (137학점 이수)</p>
+                      </div>
+                      <hr className="border-slate-100" />
+                      <div>
+                        <span className="inline-flex rounded bg-slate-50 border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                          2012. 03 - 2015. 02
+                        </span>
+                        <p className="mt-0.5 text-xs font-black text-slate-800">경신고등학교</p>
+                        <p className="text-[10px] text-slate-500 leading-none">자연계열 (물리반) 졸업</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Career Info */}
+                  <div className={cardStyle}>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                      <Briefcase className="h-4 w-4 text-indigo-600" />
+                      직장 경력 (총 1년 11개월)
+                    </h3>
+                    <div>
+                      <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
+                        2023. 12 - 2025. 10
+                      </span>
+                      <p className="mt-1 text-xs font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
+                      <p className="text-[10px] text-slate-500 leading-none">개발팀 / 백엔드 엔지니어</p>
+                      <ul className="mt-2 space-y-1 text-[11px] text-slate-650 list-disc list-inside leading-relaxed font-normal">
+                        <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
+                        <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
+                        <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
+                        <li>AWS 인프라 및 CI/CD 파이프라인 설계/운영</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Core Skills */}
+                  <div className={cardStyle}>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                      <Cpu className="h-4 w-4 text-indigo-600" />
+                      핵심 기술 스택
+                    </h3>
+                    <div className="space-y-2">
+                      {[
+                        { name: 'Java', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
+                        { name: 'TypeScript', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
+                        { name: 'Python', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
+                      ].map((skill) => (
+                        <div key={skill.name} className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-700">{skill.name}</span>
+                          <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${skill.bg}`}>{skill.level}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3.5 flex flex-wrap gap-1 border-t border-slate-100 pt-2.5">
+                      {['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'].map((item) => (
+                        <span key={item} className={badgeStyle}>
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
 
-              {/* TAB 1: COVER LETTER (자기소개서/역량기술서) */}
-              {activeMainTab === 'INTRO' && (
-                <div className="space-y-6 print:hidden">
-                  <div className={cardStyle}>
-                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                      <div>
-                        <h2 className="text-xl font-black text-slate-900">역량 기술서 (Core Competencies)</h2>
-                        <p className="text-xs text-slate-500 mt-1">프로젝트 실무 및 취득 자격증에 기반한 기술 상세 명세입니다.</p>
-                      </div>
-                      
-                      {/* Sub-tabs for Essay selection */}
-                      <div className="flex rounded-lg bg-slate-100 p-1 border border-slate-200">
-                        <button
-                          onClick={() => setActiveEssayTab('WHY')}
-                          className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition-all ${
-                            activeEssayTab === 'WHY'
-                              ? 'bg-indigo-600 text-white shadow-sm'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          프로젝트 기술 적용 상세
-                        </button>
-                        <button
-                          onClick={() => setActiveEssayTab('STRENGTH')}
-                          className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition-all ${
-                            activeEssayTab === 'STRENGTH'
-                              ? 'bg-indigo-600 text-white shadow-sm'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          자격증 기반 기술 전문성
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Essay Display */}
-                    <div className="mt-6 space-y-6">
-                      {activeEssayTab === 'WHY' ? (
-                        <div>
-                          <h3 className="text-base font-black text-indigo-600 mb-1">
-                            {essays.WHY.title}
-                          </h3>
-                          <p className="text-xs font-semibold text-slate-500 italic mb-5">
-                            "{essays.WHY.subtitle}"
-                          </p>
-                          <div className="space-y-4 text-sm text-slate-650 leading-relaxed font-normal">
-                            {essays.WHY.paragraphs.map((p, idx) => (
-                              <p key={idx} className="indent-2 bg-slate-50/50 p-4 rounded-xl border border-slate-200/50 transition">
-                                {p}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <h3 className="text-base font-black text-indigo-600 mb-1">
-                            {essays.STRENGTH.title}
-                          </h3>
-                          <p className="text-xs font-semibold text-slate-500 italic mb-5">
-                            "{essays.STRENGTH.subtitle}"
-                          </p>
-                          <div className="space-y-6">
-                            {essays.STRENGTH.strengths.map((str, idx) => (
-                              <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/30 p-5 hover:border-indigo-300 transition">
-                                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                                  <span className="grid h-6 w-6 place-items-center rounded bg-indigo-50 text-xs font-black text-indigo-600 border border-indigo-100">
-                                    {idx + 1}
-                                  </span>
-                                  {str.title}
-                                </h4>
-                                <p className="mt-3 text-xs leading-relaxed text-slate-650 bg-white border border-slate-100 p-3.5 rounded-lg font-normal">
-                                  {str.content}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+              {/* SECTION 2: 역량 기술서 */}
+              <section id="competencies" className="scroll-mt-24 space-y-6">
+                <div className={cardStyle}>
+                  <div className="border-b border-slate-100 pb-4">
+                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-indigo-600" />
+                      역량 기술서 (Core Competencies)
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">프로젝트 실무 및 자격증에 기반하여 입증 가능한 전문 기술 상세 명세입니다.</p>
                   </div>
 
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setActiveMainTab('PROJECTS')}
-                      className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-500 transition"
-                    >
-                      <span>핵심 프로젝트 상세 대시보드 보기</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: INTERACTIVE PROJECTS (프로젝트 타임라인 대시보드) */}
-              {activeMainTab === 'PROJECTS' && (
-                <div className="space-y-6 print:hidden animate-fadeIn">
-                  <div className={cardStyle}>
-                    <div>
-                      <h2 className="text-xl font-black text-slate-900">핵심 프로젝트 포트폴리오</h2>
-                      <p className="text-xs text-slate-500 mt-1">상세 항목을 클릭하시면 구체적인 담당 업무 및 성과가 동적으로 조회됩니다.</p>
-                    </div>
+                  <div className="mt-6 space-y-8">
                     
-                    {/* Timeline Selection Stack (1-column visual timeline for clean look) */}
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6">
-                      <div className="space-y-3">
-                        {milestones.map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => setSelectedMilestoneId(m.id)}
-                            className={`w-full rounded-xl border p-4 text-left transition-all duration-250 relative ${
-                              selectedMilestoneId === m.id
-                                ? 'border-indigo-600 bg-indigo-50/30 shadow-sm'
-                                : 'border-slate-200/60 bg-white hover:bg-slate-50 text-slate-500'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold text-slate-400">{m.period}</span>
-                              {selectedMilestoneId === m.id && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
-                              )}
-                            </div>
-                            <h4 className="mt-1 text-xs font-black text-slate-800 truncate">{m.label}</h4>
-                            <p className="mt-1 text-[11px] text-slate-500 line-clamp-1">{m.body}</p>
-                          </button>
+                    {/* Essay 1 */}
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
+                      <h3 className="text-base font-black text-indigo-600 mb-1 flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-xs font-black text-indigo-600 border border-indigo-100">1</span>
+                        {essays.WHY.title}
+                      </h3>
+                      <p className="text-xs font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
+                        "{essays.WHY.subtitle}"
+                      </p>
+                      <div className="space-y-4 text-xs sm:text-sm text-slate-650 leading-relaxed font-normal ml-0 sm:ml-8">
+                        {essays.WHY.paragraphs.map((p, idx) => (
+                          <p key={idx} className="indent-2 bg-white p-4 rounded-xl border border-slate-200/50 transition shadow-sm">
+                            {p}
+                          </p>
                         ))}
                       </div>
+                    </div>
 
-                      {/* Selected Project Detailed Display Box */}
-                      <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-6 space-y-6 h-fit">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div>
-                            <span className="inline-flex rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-100">
-                              {selectedMilestone.role} ({selectedMilestone.period})
-                            </span>
-                            <h3 className="mt-2 text-base font-black text-slate-800">
-                              {selectedMilestone.title}
-                            </h3>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 담당 업무</h4>
-                            <p className="mt-2 text-xs leading-relaxed text-slate-650 bg-white border border-slate-100 p-4 rounded-xl font-normal">
-                              {selectedMilestone.description}
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4">
-                            <h4 className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                              핵심 성과 & 배운 점 (Takeaway)
+                    {/* Essay 2 */}
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
+                      <h3 className="text-base font-black text-indigo-600 mb-1 flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-xs font-black text-indigo-600 border border-indigo-100">2</span>
+                        {essays.STRENGTH.title}
+                      </h3>
+                      <p className="text-xs font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
+                        "{essays.STRENGTH.subtitle}"
+                      </p>
+                      <div className="grid grid-cols-1 gap-4 ml-0 sm:ml-8">
+                        {essays.STRENGTH.strengths.map((str, idx) => (
+                          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 transition">
+                            <h4 className="text-xs sm:text-sm font-black text-slate-800">
+                              {str.title}
                             </h4>
-                            <p className="mt-2 text-xs leading-relaxed text-emerald-800 font-semibold">
-                              {selectedMilestone.takeaway}
+                            <p className="mt-2 text-xs leading-relaxed text-slate-650 font-normal">
+                              {str.content}
                             </p>
                           </div>
+                        ))}
+                      </div>
+                    </div>
 
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">활용 기술 스택</h4>
-                            <div className="flex flex-wrap gap-1.5">
-                              {selectedMilestone.skills.map((skill) => (
-                                <span key={skill} className={badgeStyle}>
-                                  {skill}
-                                </span>
-                              ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* SECTION 3: 핵심 프로젝트 포트폴리오 */}
+              <section id="projects" className="scroll-mt-24 space-y-6">
+                <div className={cardStyle}>
+                  <div className="border-b border-slate-100 pb-4">
+                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <Briefcase className="h-5 w-5 text-indigo-600" />
+                      핵심 프로젝트 포트폴리오
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
+                  </div>
+
+                  <div className="mt-8 space-y-8 relative before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-[2px] before:bg-slate-200">
+                    {milestones.map((m, idx) => (
+                      <div
+                        key={m.id}
+                        className="relative pl-10 group cursor-pointer"
+                        onClick={() => setSelectedMilestoneId(m.id)}
+                      >
+                        
+                        {/* Timeline Bullet node */}
+                        <div className={`absolute left-[7px] top-1.5 w-[18px] h-[18px] rounded-full border-4 border-white transition-colors shadow-sm z-10 ${
+                          selectedMilestoneId === m.id
+                            ? 'bg-indigo-600 scale-110'
+                            : 'bg-slate-300 group-hover:bg-indigo-400'
+                        }`} />
+                        
+                        <div className={`rounded-xl border p-6 space-y-4 transition-all duration-300 shadow-sm ${
+                          selectedMilestoneId === m.id
+                            ? 'border-indigo-500 bg-white ring-2 ring-indigo-50/50'
+                            : 'border-slate-200/80 bg-slate-50/50 hover:border-indigo-300 hover:bg-white'
+                        }`}>
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                            <div>
+                              <span className="inline-flex rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-100">
+                                {m.role} ({m.period})
+                              </span>
+                              <h3 className="mt-1.5 text-base font-black text-slate-800">
+                                {m.title}
+                              </h3>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-150 px-2.5 py-1 rounded-md shrink-0">
+                              기여도 {idx === 0 || idx === 2 ? '100%' : idx === 1 ? '70%' : '43%'}
+                            </span>
+                          </div>
+
+                          <div className="space-y-3.5">
+                            <div>
+                              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
+                              <p className="mt-1 text-xs leading-relaxed text-slate-650 bg-white border border-slate-100 p-3 rounded-lg font-normal">
+                                {m.description}
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg border border-emerald-100 bg-emerald-50/30 p-3.5">
+                              <h4 className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                                핵심 성과 & 배운 점 (Takeaway)
+                              </h4>
+                              <p className="mt-1 text-xs leading-relaxed text-emerald-800 font-semibold">
+                                {m.takeaway}
+                              </p>
+                            </div>
+
+                            <div>
+                              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">활용 기술 스택</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {m.skills.map((skill) => (
+                                  <span key={skill} className={badgeStyle}>
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
+
                       </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              )}
+              </section>
 
-              {/* TAB 2.5: THIS WEB APP ARCHITECTURE (이 웹앱 자체의 시스템 아키텍처) */}
-              {activeMainTab === 'THIS_APP' && (
-                <div className="space-y-6 print:hidden animate-fadeIn">
-                  <div className={cardStyle}>
-                    <div className="border-b border-slate-100 pb-4">
-                      <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                        <Terminal className="h-5 w-5 text-indigo-600" />
-                        이 포트폴리오 웹앱 자체의 시스템 아키텍처 (Self-Intro Architecture)
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        지금 접속해 계신 이 웹 서버를 구동하고 데이터를 서빙하는 풀스택 컨테이너 인프라 설계 명세입니다.
-                      </p>
+              {/* SECTION 4: 이 웹앱의 아키텍처 */}
+              <section id="architecture" className="scroll-mt-24 space-y-6">
+                <div className={cardStyle}>
+                  <div className="border-b border-slate-100 pb-4">
+                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <Terminal className="h-5 w-5 text-indigo-600" />
+                      이 포트폴리오 웹앱 자체의 시스템 아키텍처 (Self-Intro Architecture)
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      지금 접속해 계신 이 웹 서버를 구동하고 데이터를 서빙하는 풀스택 컨테이너 인프라 설계 명세입니다.
+                    </p>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                      <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
+                        <span className="p-1.5 rounded bg-indigo-50 leading-none">💻</span>
+                        Backend Layer
+                      </h3>
+                      <ul className="text-[11px] sm:text-xs text-slate-650 space-y-2 leading-relaxed font-normal">
+                        <li>
+                          <strong className="text-slate-800 font-bold">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">Spring Data JPA</strong> 및 H2/MySQL 데이터베이스 통합 제어
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">Flyway 스키마 마이그레이션</strong>을 활용해 실행 시 DDL 데이터 자동 적재 및 버전 제어
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">SampleDataLoader</strong>를 통해 로컬/인메모리 시작 시 테스트용 개발 이력 시드 자동 세팅
+                        </li>
+                      </ul>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5">
-                        <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                          <span className="p-1.5 rounded bg-indigo-50">💻</span>
-                          Backend Layer
-                        </h3>
-                        <ul className="text-xs text-slate-600 space-y-2.5 leading-relaxed font-normal">
-                          <li>
-                            <strong className="text-slate-800 font-bold">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">Spring Data JPA</strong> 및 H2/MySQL 데이터베이스 통합 제어
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">Flyway 스키마 마이그레이션</strong>을 활용해 실행 시 DDL 데이터 자동 적재 및 버전 제어
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">SampleDataLoader</strong>를 통해 로컬/인메모리 시작 시 테스트용 개발 이력 시드 자동 세팅
-                          </li>
-                        </ul>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5">
-                        <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                          <span className="p-1.5 rounded bg-indigo-50">🎨</span>
-                          Frontend Layer
-                        </h3>
-                        <ul className="text-xs text-slate-600 space-y-2.5 leading-relaxed font-normal">
-                          <li>
-                            <strong className="text-slate-800 font-bold">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">Zustand & TanStack Query</strong>를 조합한 프론트 전역 상태 및 비동기 API 캐시 제어
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">Tailwind CSS (Vanilla CSS 폴백)</strong> 미드나잇 글래스모피즘 프리미엄 UI 디자인 테마
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">PDF 인쇄 미디어 쿼리</strong> 최적화로 브라우저 상의 인쇄 레이아웃 단일 이력서 규격화
-                          </li>
-                        </ul>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5">
-                        <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                          <span className="p-1.5 rounded bg-indigo-50">🐳</span>
-                          DevOps & Docker
-                        </h3>
-                        <ul className="text-xs text-slate-600 space-y-2.5 leading-relaxed font-normal">
-                          <li>
-                            <strong className="text-slate-800 font-bold">Docker Compose 오케스트레이션</strong>으로 DB-API-Nginx-Vite 환경 분리 가상화
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">실시간 HMR (자동 새로고침) 지원</strong>: Docker 볼륨 바인딩 및 익명 볼륨 설정으로 macOS의 빌드 바이너리 충돌 문제를 극복하고 폴링 감시(`usePolling: true`) 탑재
-                          </li>
-                          <li>
-                            <strong className="text-slate-800 font-bold">원클릭 관리자 스크립트</strong>: `./start-docker.sh` 및 `./start-local.sh` 제어를 통해 백그라운드 구동 및 PID 기반 안전 프로세스 종료 자동화
-                          </li>
-                        </ul>
-                      </div>
+                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                      <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
+                        <span className="p-1.5 rounded bg-indigo-50 leading-none">🎨</span>
+                        Frontend Layer
+                      </h3>
+                      <ul className="text-[11px] sm:text-xs text-slate-650 space-y-2 leading-relaxed font-normal">
+                        <li>
+                          <strong className="text-slate-800 font-bold">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">Zustand & TanStack Query</strong>를 조합한 프론트 전역 상태 및 비동기 API 캐시 제어
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">Tailwind CSS (Vanilla CSS 폴백)</strong> 미드나잇 글래스모피즘 프리미엄 UI 디자인 테마
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">PDF 인쇄 미디어 쿼리</strong> 최적화로 브라우저 상의 인쇄 레이아웃 단일 이력서 규격화
+                        </li>
+                      </ul>
                     </div>
 
-                    <div className="mt-8 rounded-xl border border-slate-200 bg-slate-950 p-5">
-                      <h3 className="text-sm font-black text-slate-100 mb-4">🖥️ 풀스택 가상화 아키텍처 흐름도</h3>
-                      <div className="text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-800">
+                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                      <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
+                        <span className="p-1.5 rounded bg-indigo-50 leading-none">🐳</span>
+                        DevOps & Docker
+                      </h3>
+                      <ul className="text-[11px] sm:text-xs text-slate-650 space-y-2 leading-relaxed font-normal">
+                        <li>
+                          <strong className="text-slate-800 font-bold">Docker Compose 오케스트레이션</strong>으로 DB-API-Nginx-Vite 환경 분리 가상화
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">실시간 HMR (자동 새로고침) 지원</strong>: Docker 볼륨 바인딩 및 익명 볼륨 설정으로 macOS의 빌드 바이너리 충돌 문제를 극복하고 폴링 감시(`usePolling: true`) 탑재
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-bold">원클릭 관리자 스크립트</strong>: `./start-docker.sh` 및 `./start-local.sh` 제어를 통해 백그라운드 구동 및 PID 기반 안전 프로세스 종료 자동화
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 rounded-xl border border-slate-200 bg-slate-950 p-5 shadow-inner">
+                    <h3 className="text-xs sm:text-sm font-black text-slate-100 mb-3 flex items-center gap-1.5">
+                      <span>🖥️</span>
+                      <span>풀스택 가상화 아키텍처 흐름도</span>
+                    </h3>
+                    <div className="text-[10px] sm:text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-800">
 {` +------------------------------------------------------------------------------------+
  |                                  Host Machine (Mac OS)                             |
  |                                                                                    |
@@ -821,18 +773,68 @@ export function App() {
  |  |                                                                              |  |
  |  +------------------------------------------------------------------------------+  |
  +------------------------------------------------------------------------------------+`}
-                      </div>
                     </div>
                   </div>
                 </div>
-              )}
+              </section>
 
-            </section>
+            </div>
+
+            {/* Right Sticky Sidebar Column */}
+            <aside className="hidden lg:block print:hidden w-full sticky top-24 self-start">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-md backdrop-blur-md space-y-5">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">내비게이션</h3>
+                  <p className="text-[10px] text-slate-500 leading-none mt-0.5">클릭하면 해당 섹션으로 부드럽게 이동합니다.</p>
+                </div>
+                
+                {/* Vertical Stepper Links */}
+                <div className="relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-100">
+                  {[
+                    { id: 'intro-profile', label: '프로필 & 이력 요약' },
+                    { id: 'competencies', label: '역량 기술서' },
+                    { id: 'projects', label: '핵심 프로젝트' },
+                    { id: 'architecture', label: '시스템 아키텍처' },
+                  ].map((step) => (
+                    <button
+                      key={step.id}
+                      onClick={() => scrollToSection(step.id)}
+                      className="group flex items-start gap-3 w-full text-left py-2.5 relative transition-all duration-200"
+                    >
+                      {/* Stepper Bullet Node */}
+                      <div className={`absolute left-[-15px] top-[14px] w-2 h-2 rounded-full border border-white transition-all duration-300 z-10 ${
+                        activeSection === step.id
+                          ? 'bg-indigo-600 scale-125 ring-4 ring-indigo-100'
+                          : 'bg-slate-350 group-hover:bg-indigo-400'
+                      }`} />
+                      
+                      <span className={`text-xs font-bold leading-tight transition-colors duration-200 ${
+                        activeSection === step.id
+                          ? 'text-indigo-600 font-extrabold'
+                          : 'text-slate-450 hover:text-slate-800'
+                      }`}>
+                        {step.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <hr className="border-slate-100" />
+
+                {/* Back to top button */}
+                <button
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="w-full flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-2 text-[10px] font-extrabold text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                >
+                  위로 가기
+                </button>
+              </div>
+            </aside>
+
           </div>
 
         </div>
-      </main>
-
+      </main>\n
       {/* PRINT ONLY A4 SHEET (인쇄 모드 시 브라우저에서 A4 1페이지 출력용 레이아웃) */}
       <div id="a4-sheet-container" className="hidden print:block w-full">
         <div className="mx-auto border border-slate-300 bg-white p-[20mm] w-[210mm] h-[297mm] shadow-inner text-slate-800 font-sans leading-normal">
