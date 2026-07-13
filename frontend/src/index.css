@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  background: #0b0f14;
+  color-scheme: light;
+  background: #f8fafc;
   font-family: Inter, Pretendard, system-ui, sans-serif;
 }
 
@@ -12,9 +12,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(9, 14, 20, 0.98) 46%, rgba(10, 17, 24, 1)),
-    #0b0f14;
+  background: #f4f6fa;
 }
 
 button,
