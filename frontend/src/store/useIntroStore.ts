@@ -3,7 +3,7 @@ import { create } from 'zustand';
 type IntroState = {
   selectedMilestoneId: string;
   activeCategory: 'ALL' | 'EDUCATION' | 'PROJECT' | 'CERTIFICATE';
-  activeMainTab: 'INTRO' | 'PROJECTS' | 'ARCHIVE';
+  activeMainTab: 'INTRO' | 'PROJECTS' | 'THIS_APP' | 'ARCHIVE';
   activeEssayTab: 'WHY' | 'STRENGTH';
   setSelectedMilestoneId: (id: string) => void;
   setActiveCategory: (category: IntroState['activeCategory']) => void;
