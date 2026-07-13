@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  backend-db:
+    image: mysql:8.0
+    container_name: self-intro-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: self_intro
+      MYSQL_USER: self_intro_app
+      MYSQL_PASSWORD: password123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 5s
+      retries: 5
+      interval: 5s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: self-intro-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - DB_URL=jdbc:mysql://backend-db:3306/self_intro?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      - DB_USERNAME=self_intro_app
+      - DB_PASSWORD=password123
+      - DB_DRIVER=com.mysql.cj.jdbc.Driver
+      - JPA_DDL_AUTO=update
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173
+    depends_on:
+      backend-db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: self-intro-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
