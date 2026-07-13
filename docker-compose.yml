@@ -42,9 +42,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: builder
     container_name: self-intro-frontend
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
-      - "5173:80"
+      - "5173:5173"
+    environment:
+      - VITE_API_PROXY_TARGET=http://backend:8080
     depends_on:
       - backend
 
