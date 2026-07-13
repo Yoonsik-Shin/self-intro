@@ -37,27 +37,27 @@ import { useIntroStore } from './store/useIntroStore';
 const milestones = [
   {
     id: 'project1',
-    label: 'CS 처리 프로세스 개선',
+    label: 'CS Test Bed',
     period: '2026.06 - 2026.07',
-    title: '생성형 AI CS 시스템 풀스택 개발 (기여도 100%)',
+    title: '고객문의 수집·자동응답 통합 테스트베드 (기여도 100%)',
     body: 'n8n 자동 수집, Playwright 네이버 로그인, PII 암호화, Grafana 모니터링 환경을 구축했습니다.',
     accent: 'from-blue-500 to-indigo-500',
-    skills: ['n8n', 'Playwright', 'Node.js', 'React', 'PII Encryption', 'Grafana', 'Docker'],
-    role: 'Fullstack Developer',
-    description: '네이버 카페 등의 고객 문의 수집·관리 CS 시스템을 생성형 AI를 활용해 풀스택 개발했습니다. n8n으로 데이터를 자동 수집해 DB에 적재하고, 웹 콘솔에서 문의 상태·이력을 관리합니다. Playwright 네이버 세션 자동 로그인, PII 암호화, RBAC 인증, Grafana 모니터링을 포함한 컨테이너 기반 운영 환경을 구축했습니다. (발주처/근무처: 런데이, 청년일경험)',
-    takeaway: '고객 문의 수집부터 처리까지의 워크플로우를 자동화하여 운영 생산성을 높이고, PII 암호화 및 RBAC 권한 관리를 통해 실운영 수준의 안정성을 확보했습니다.'
+    skills: ['Java 21', 'Spring Boot 3.3', 'QueryDSL', 'Flyway', 'React 19', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
+    role: 'Backend & DevOps Engineer',
+    description: '고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. DB 기반 RBAC 및 PII 암호화, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.',
+    takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.'
   },
   {
     id: 'project2',
-    label: 'Azure 로그 비용 자동진단 SaaS',
+    label: 'LogDoctor (SaaS)',
     period: '2026.03 - 2026.06',
-    title: 'Teams 챗봇형 로그 진단 SaaS 개발 (기여도 70%)',
+    title: 'Azure 클라우드 로그 비용 진단 및 최적화 SaaS (기여도 70%)',
     body: 'Azure Functions 비용 누수 자동 진단, FastAPI/Cosmos DB 백엔드, OpenAI 처방을 연동했습니다.',
     accent: 'from-sky-400 to-blue-600',
-    skills: ['Azure Functions', 'FastAPI', 'Cosmos DB', 'Azure OpenAI', 'Bicep', 'IaC'],
+    skills: ['Azure Functions', 'FastAPI', 'Cosmos DB', 'Azure OpenAI', 'Teams SDK', 'Bicep', 'IaC'],
     role: 'Fullstack & Cloud Developer',
-    description: 'Azure 로그 비용 폭증과 모니터링 사각지대를 해결하고자 Teams 챗봇형 로그 진단 SaaS를 기획부터 구축까지 주도 개발했습니다. 탐지·예방·필터·보존 4대 엔진이 Azure Functions 에이전트로 비용 누수를 자동 진단하고, FastAPI·Cosmos DB 백엔드, Azure OpenAI 처방, Bicep 최소권한 IaC를 구축했습니다. (Microsoft AI 엔지니어링 과정 팀프로젝트)',
-    takeaway: '클라우드 자원 비용을 실시간으로 감시하고 에이전트 기반으로 자동 진단하는 파이프라인을 구축하며 클라우드 아키텍처와 IaC 배포 자동화를 체득했습니다.'
+    description: 'Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다. (팀 프로젝트)',
+    takeaway: '쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 체득했습니다.'
   },
   {
     id: 'project3',
@@ -66,22 +66,22 @@ const milestones = [
     title: '음성 스트리밍 및 RAG 면접 관리 (기여도 100%)',
     body: 'gRPC/Redis/Kafka 기반 실시간 음성 스트리밍, 이력서 RAG 질문 생성 서비스를 설계했습니다.',
     accent: 'from-purple-500 to-pink-500',
-    skills: ['React', 'gRPC', 'Redis', 'Kafka', 'LLM/STT/TTS', 'RAG', 'Kubernetes'],
+    skills: ['React', 'gRPC', 'Redis', 'Kafka', 'LLM', 'STT/TTS', 'RAG', 'Kubernetes'],
     role: 'Core Architect & Developer',
-    description: '실시간 AI 모의면접 서비스의 프론트엔드, BFF, Core, Socket, LLM/STT/TTS, 배포 인프라를 개발했습니다. gRPC/Redis/Kafka 기반 음성 스트리밍, 이력서 RAG 질문 생성, 면접 상태 관리와 리포트 기능을 구현했습니다. (개인 프로젝트)',
-    takeaway: '비동기 메시징 및 음성 스트리밍에서 발생할 수 있는 지연과 유실을 제어하고, 생성형 AI를 실무에 녹여내는 아키텍처를 설계하는 실행력을 길렀습니다.'
+    description: '실시간 AI 모의면접 및 역량 평가 서비스의 전체 시스템 아키텍처와 분산 메시징 처리 부분을 담당했습니다. gRPC 기반 실시간 음성 스트리밍 제어, Redis/Kafka 비동기 메시지 큐를 통한 음성 데이터 및 AI 상태 변경 큐잉, 이력서 RAG 질문 생성 기능 등을 구현하고 Kubernetes 환경에 배포했습니다. (개인 프로젝트)',
+    takeaway: '비동기 메시징 및 대용량 음성 스트리밍 환경에서 발생할 수 있는 데이터 유실과 지연 병목을 제어하며 분산 인프라 설계 능력을 키웠습니다.'
   },
   {
     id: 'project4',
-    label: '무료체험 신청·관리 백오피스',
-    period: '2025.05 - 2025.07',
-    title: '신청 프로세스 백엔드 및 인프라 (기여도 40%)',
-    body: 'Spring Boot API 서버, 유입 추적, 카카오 알림톡, Redis 세션, Docker/Nginx 인프라를 구축했습니다.',
+    label: '에듀테크 플랫폼 핵심 서버/BFF',
+    period: '2023.12 - 2025.10',
+    title: '학습 플랫폼 핵심 API 및 BFF 구축 (기여도 43%)',
+    body: 'AI 튜터 세션 모델 설계, 실시간 학생 Presence 추적, 백오피스 단독 구축을 총괄했습니다.',
     accent: 'from-teal-400 to-emerald-600',
-    skills: ['Spring Boot', 'JPA', 'Redis', 'Docker', 'Nginx', 'Grafana', 'MySQL'],
+    skills: ['Node.js', 'TypeScript', 'NestJS', 'Express', 'MongoDB', 'Redis', 'Spring Boot', 'AWS ECS/SQS', 'Docker', 'Datadog'],
     role: 'Backend & DevOps Engineer',
-    description: '사내 무료체험 신청 프로세스 개선을 위해 자발적으로 결성한 TF에서 백엔드 전체를 담당. Spring Boot API 서버, 유입경로 추적, 카카오 알림톡 연동, Redis 세션 인증을 구현하고 Docker·Nginx·MySQL·Grafana로 배포·모니터링 인프라 구축. (수심달 사내 TF)',
-    takeaway: '타 부서와의 유기적인 협업을 주도하고, Spring Boot 백엔드 파이프라인부터 모니터링 대시보드까지 주도적으로 구축해 서비스 유입 및 장애 파악 시간을 단축했습니다.'
+    description: '커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하였습니다. (에듀테크 스타트업 실무 경력)',
+    takeaway: '실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.'
   }
 ];
 
