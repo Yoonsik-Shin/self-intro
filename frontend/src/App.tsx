@@ -251,7 +251,7 @@ export function App() {
   const cardStyle = "bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative";
   
   // 공통 배지 스타일 통일
-  const badgeStyle = "bg-slate-50 border border-slate-200/60 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm";
+  const badgeStyle = "bg-slate-50 border border-slate-200/60 text-slate-700 text-sm font-bold px-2 py-0.5 rounded-md shadow-sm";
 
   return (
     <>
@@ -269,7 +269,7 @@ export function App() {
               </div>
               <div>
                 <span className="block text-sm font-black text-slate-800 tracking-wider">YOONSIK SHIN</span>
-                <span className="block text-[10px] text-indigo-600 font-bold uppercase tracking-widest">Fullstack Engineer</span>
+                <span className="block text-sm text-indigo-600 font-bold uppercase tracking-widest">Fullstack Engineer</span>
               </div>
             </div>
 
@@ -299,14 +299,14 @@ export function App() {
                 href="https://unbrdn.me"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition"
+                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 <span>unbrdn.me</span>
               </a>
               <button
                 onClick={handlePrint}
-                className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1.5 text-xs font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20"
+                className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1.5 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20"
               >
                 <Printer className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">PDF 인쇄</span>
@@ -324,30 +324,30 @@ export function App() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
               <div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-700">
                     <Sparkles className="h-3 w-3 text-indigo-500" />
                     Software Engineer Portfolio
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-sm font-semibold text-amber-700 animate-pulse">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                     실시간 아키텍처 및 콘텐츠 개선 중 (Refactoring)
                   </span>
                 </div>
-                <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                <h1 className="mt-3 text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
                   신윤식 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">Fullstack & Backend Developer</span>
                 </h1>
-                <p className="mt-2 text-sm text-slate-650 max-w-3xl leading-relaxed">
+                <p className="mt-2 text-base text-slate-650 max-w-3xl leading-relaxed">
                   1년 11개월의 에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 추구하는 엔지니어입니다.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 shrink-0">
                 <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-center min-w-[140px] shadow-sm">
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">실무 경력</span>
-                  <span className="mt-1 block text-xs font-black text-slate-800">에듀테크 스타트업 1년 11개월</span>
+                  <span className="block text-sm uppercase font-bold text-slate-400">실무 경력</span>
+                  <span className="mt-1 block text-base font-black text-slate-800">에듀테크 스타트업 1년 11개월</span>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-center min-w-[140px] shadow-sm">
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">핵심 스택</span>
-                  <span className="mt-1 block text-xs font-black text-slate-800">Java / Node.js / Cloud</span>
+                  <span className="block text-sm uppercase font-bold text-slate-400">핵심 스택</span>
+                  <span className="mt-1 block text-base font-black text-slate-800">Java / Node.js / Cloud</span>
                 </div>
               </div>
             </div>
@@ -372,8 +372,8 @@ export function App() {
                           YS
                         </div>
                       </div>
-                      <h2 className="mt-3 text-base font-black text-slate-900">신윤식</h2>
-                      <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Fullstack / Backend Developer</p>
+                      <h2 className="mt-3 text-lg font-black text-slate-900">신윤식</h2>
+                      <p className="text-sm font-semibold text-slate-500 mt-0.5">Fullstack / Backend Developer</p>
                       <div className="mt-2 flex justify-center gap-2">
                         <a
                           href="https://github.com/Yoonsik-Shin"
@@ -392,43 +392,43 @@ export function App() {
                       </div>
 
                       <div className="mt-6 w-full space-y-3.5 text-left font-normal">
-                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
                           <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
                             <User className="h-3.5 w-3.5" />
                           </div>
                           <div>
-                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">생년월일</span>
-                            <span className="block font-bold text-slate-800 text-[11px]">1996. 05. 04 (만 30세)</span>
+                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">생년월일</span>
+                            <span className="block font-bold text-slate-800 text-sm">1996. 05. 04 (만 30세)</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
                           <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
                             <Mail className="h-3.5 w-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">이메일</span>
-                            <span className="block font-bold text-slate-800 text-[11px] truncate">aaa946@naver.com</span>
+                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">이메일</span>
+                            <span className="block font-bold text-slate-800 text-sm truncate">aaa946@naver.com</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
                           <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
                             <Phone className="h-3.5 w-3.5" />
                           </div>
                           <div>
-                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">연락처</span>
-                            <span className="block font-bold text-slate-800 text-[11px]">010-5171-0994</span>
+                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">연락처</span>
+                            <span className="block font-bold text-slate-800 text-sm">010-5171-0994</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 text-xs text-slate-655">
+                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
                           <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
                             <MapPin className="h-3.5 w-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <span className="block text-[9px] font-bold text-slate-400 leading-none mb-0.5">현주소</span>
-                            <span className="block font-bold text-slate-800 text-[11px] truncate">서울특별시</span>
+                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">현주소</span>
+                            <span className="block font-bold text-slate-800 text-sm truncate">서울특별시</span>
                           </div>
                         </div>
                       </div>
@@ -436,17 +436,17 @@ export function App() {
 
                     {/* Column 2: Career Info */}
                     <div className="pt-6 md:pt-0 md:px-8">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
                         <Briefcase className="h-4 w-4 text-indigo-600" />
                         직장 경력 (총 1년 11개월)
                       </h3>
                       <div>
-                        <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
+                        <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-xs font-bold text-emerald-700">
                           2023. 12 - 2025. 10
                         </span>
-                        <p className="mt-1.5 text-xs font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
-                        <p className="text-[10px] text-slate-500 leading-none">개발팀 / 백엔드 엔지니어</p>
-                        <ul className="mt-3.5 space-y-2 text-[11px] text-slate-650 list-disc list-inside leading-relaxed font-normal">
+                        <p className="mt-1.5 text-base font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
+                        <p className="text-sm text-slate-500 leading-none">개발팀 / 백엔드 엔지니어</p>
+                        <ul className="mt-3.5 space-y-2 text-sm text-slate-650 list-disc list-inside leading-relaxed font-normal">
                           <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
                           <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
                           <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
@@ -457,7 +457,7 @@ export function App() {
 
                     {/* Column 3: Core Skills */}
                     <div className="pt-6 md:pt-0 md:pl-8">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
                         <Cpu className="h-4 w-4 text-indigo-600" />
                         핵심 기술 스택
                       </h3>
@@ -468,8 +468,8 @@ export function App() {
                           { name: 'Python', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
                         ].map((skill) => (
                           <div key={skill.name} className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-700">{skill.name}</span>
-                            <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${skill.bg}`}>{skill.level}</span>
+                            <span className="text-base font-semibold text-slate-700">{skill.name}</span>
+                            <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${skill.bg}`}>{skill.level}</span>
                           </div>
                         ))}
                       </div>
@@ -490,25 +490,25 @@ export function App() {
               <section id="competencies" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                       <Sparkles className="h-5 w-5 text-indigo-600" />
                       역량 기술서 (Core Competencies)
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">프로젝트 실무 및 자격증에 기반하여 입증 가능한 전문 기술 상세 명세입니다.</p>
+                    <p className="text-base text-slate-500 mt-1">프로젝트 실무 및 자격증에 기반하여 입증 가능한 전문 기술 상세 명세입니다.</p>
                   </div>
 
                   <div className="mt-6 space-y-8">
                     
                     {/* Essay 1 */}
                     <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
-                      <h3 className="text-base font-black text-indigo-600 mb-1 flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-xs font-black text-indigo-600 border border-indigo-100">1</span>
+                      <h3 className="text-lg font-black text-indigo-600 mb-1 flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-sm font-black text-indigo-600 border border-indigo-100">1</span>
                         {essays.WHY.title}
                       </h3>
-                      <p className="text-xs font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
+                      <p className="text-base font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
                         "{essays.WHY.subtitle}"
                       </p>
-                      <div className="space-y-4 text-xs sm:text-sm text-slate-650 leading-relaxed font-normal ml-0 sm:ml-8">
+                      <div className="space-y-4 text-base sm:text-lg text-slate-650 leading-relaxed font-normal ml-0 sm:ml-8">
                         {essays.WHY.paragraphs.map((p, idx) => (
                           <p key={idx} className="indent-2 bg-white p-4 rounded-xl border border-slate-200/50 transition shadow-sm">
                             {p}
@@ -519,20 +519,20 @@ export function App() {
 
                     {/* Essay 2 */}
                     <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
-                      <h3 className="text-base font-black text-indigo-600 mb-1 flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-xs font-black text-indigo-600 border border-indigo-100">2</span>
+                      <h3 className="text-lg font-black text-indigo-600 mb-1 flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-sm font-black text-indigo-600 border border-indigo-100">2</span>
                         {essays.STRENGTH.title}
                       </h3>
-                      <p className="text-xs font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
+                      <p className="text-base font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
                         "{essays.STRENGTH.subtitle}"
                       </p>
                       <div className="grid grid-cols-1 gap-4 ml-0 sm:ml-8">
                         {essays.STRENGTH.strengths.map((str, idx) => (
                           <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 transition">
-                            <h4 className="text-xs sm:text-sm font-black text-slate-800">
+                            <h4 className="text-base sm:text-lg font-black text-slate-800">
                               {str.title}
                             </h4>
-                            <p className="mt-2 text-xs leading-relaxed text-slate-650 font-normal">
+                            <p className="mt-2 text-base leading-relaxed text-slate-650 font-normal">
                               {str.content}
                             </p>
                           </div>
@@ -548,11 +548,11 @@ export function App() {
               <section id="projects" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                       <Briefcase className="h-5 w-5 text-indigo-600" />
                       핵심 프로젝트 포트폴리오
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
+                    <p className="text-base text-slate-500 mt-1">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
                   </div>
 
                   <div className="mt-8 space-y-8 relative before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-[2px] before:bg-slate-200">
@@ -577,38 +577,38 @@ export function App() {
                         }`}>
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                             <div>
-                              <span className="inline-flex rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-100">
+                              <span className="inline-flex rounded bg-indigo-50 px-2 py-0.5 text-sm font-bold text-indigo-700 border border-indigo-100">
                                 {m.role} ({m.period})
                               </span>
-                              <h3 className="mt-1.5 text-base font-black text-slate-800">
+                              <h3 className="mt-1.5 text-lg font-black text-slate-800">
                                 {m.title}
                               </h3>
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-150 px-2.5 py-1 rounded-md shrink-0">
+                            <span className="text-sm font-bold text-slate-400 bg-white border border-slate-150 px-2.5 py-1 rounded-md shrink-0">
                               기여도 {idx === 0 || idx === 2 ? '100%' : idx === 1 ? '70%' : '43%'}
                             </span>
                           </div>
 
                           <div className="space-y-3.5">
                             <div>
-                              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
-                              <p className="mt-1 text-xs leading-relaxed text-slate-650 bg-white border border-slate-100 p-3 rounded-lg font-normal">
+                              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
+                              <p className="mt-1 text-base leading-relaxed text-slate-650 bg-white border border-slate-100 p-3 rounded-lg font-normal">
                                 {m.description}
                               </p>
                             </div>
 
                             <div className="rounded-lg border border-emerald-100 bg-emerald-50/30 p-3.5">
-                              <h4 className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                              <h4 className="text-sm font-bold text-emerald-700 flex items-center gap-1">
                                 <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                                 핵심 성과 & 배운 점 (Takeaway)
                               </h4>
-                              <p className="mt-1 text-xs leading-relaxed text-emerald-800 font-semibold">
+                              <p className="mt-1 text-base leading-relaxed text-emerald-800 font-semibold">
                                 {m.takeaway}
                               </p>
                             </div>
 
                             <div>
-                              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">활용 기술 스택</h4>
+                              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1.5">활용 기술 스택</h4>
                               <div className="flex flex-wrap gap-1">
                                 {m.skills.map((skill) => (
                                   <span key={skill} className={badgeStyle}>
@@ -630,11 +630,11 @@ export function App() {
               <section id="architecture" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                       <Terminal className="h-5 w-5 text-indigo-600" />
                       이 포트폴리오 웹앱 자체의 시스템 아키텍처 (Self-Intro Architecture)
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-base text-slate-500 mt-1">
                       지금 접속해 계신 이 웹 서버를 구동하고 데이터를 서빙하는 풀스택 컨테이너 인프라 설계 명세입니다.
                     </p>
                   </div>
@@ -645,7 +645,7 @@ export function App() {
                         <span className="p-1.5 rounded bg-indigo-50 leading-none">💻</span>
                         Backend Layer
                       </h3>
-                      <ul className="text-[11px] sm:text-xs text-slate-650 space-y-2 leading-relaxed font-normal">
+                      <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
                         <li>
                           <strong className="text-slate-800 font-bold">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
                         </li>
@@ -666,7 +666,7 @@ export function App() {
                         <span className="p-1.5 rounded bg-indigo-50 leading-none">🎨</span>
                         Frontend Layer
                       </h3>
-                      <ul className="text-[11px] sm:text-xs text-slate-650 space-y-2 leading-relaxed font-normal">
+                      <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
                         <li>
                           <strong className="text-slate-800 font-bold">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
                         </li>
@@ -687,7 +687,7 @@ export function App() {
                         <span className="p-1.5 rounded bg-indigo-50 leading-none">☸️</span>
                         DevOps & GitOps
                       </h3>
-                      <ul className="text-[11px] sm:text-xs text-slate-655 space-y-2 leading-relaxed font-normal">
+                      <ul className="text-base sm:text-lg text-slate-655 space-y-2 leading-relaxed font-normal">
                         <li>
                           <strong className="text-slate-850 font-bold">Cloudflare Pages CDN</strong>: 프론트엔드 정적 빌드 파일을 전 세계 엣지 노드에 초고속 캐싱 및 배포
                         </li>
@@ -705,11 +705,11 @@ export function App() {
                   </div>
 
                   <div className="mt-6 rounded-xl border border-slate-200 bg-slate-950 p-5 shadow-inner">
-                    <h3 className="text-xs sm:text-sm font-black text-slate-100 mb-3 flex items-center gap-1.5">
+                    <h3 className="text-base sm:text-lg font-black text-slate-100 mb-3 flex items-center gap-1.5">
                       <span>☸️</span>
                       <span>실제 운영(Production) 시스템 아키텍처 및 배포 흐름도</span>
                     </h3>
-                    <div className="text-[10px] sm:text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-800">
+                    <div className="text-sm sm:text-base font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-800">
 {` +-----------------------------------------------------------------------------------------+
  |                                    [ Web Client User ]                                  |
  |                                             |                                           |
@@ -754,51 +754,51 @@ export function App() {
               <section id="education-military" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                       <GraduationCap className="h-5 w-5 text-indigo-600" />
                       학력 및 병역 사항
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">학력 사항 및 병역 이행 관련 세부 사항입니다.</p>
+                    <p className="text-base text-slate-500 mt-1">학력 사항 및 병역 이행 관련 세부 사항입니다.</p>
                   </div>
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Academic Info */}
                     <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
                         <GraduationCap className="h-4 w-4 text-indigo-600" />
                         학력 사항
                       </h3>
-                      <div className="space-y-3.5 text-xs text-slate-650 leading-relaxed font-normal">
+                      <div className="space-y-3.5 text-base text-slate-650 leading-relaxed font-normal">
                         <div>
-                          <span className="inline-flex rounded bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
+                          <span className="inline-flex rounded bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-xs font-bold text-indigo-700">
                             2016. 02 - 2022. 02
                           </span>
-                          <p className="mt-0.5 text-xs font-black text-slate-800">차의과학대학교 (학사 졸업)</p>
-                          <p className="text-[10px] text-slate-500 leading-none">의약학계열 / 스포츠의학전공 (주전공)</p>
-                          <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">평점 3.81 / 4.5 (137학점 이수)</p>
+                          <p className="mt-0.5 text-base font-black text-slate-800">차의과학대학교 (학사 졸업)</p>
+                          <p className="text-sm text-slate-500 leading-none">의약학계열 / 스포츠의학전공 (주전공)</p>
+                          <p className="text-sm font-semibold text-emerald-600 mt-0.5">평점 3.81 / 4.5 (137학점 이수)</p>
                         </div>
                         <hr className="border-slate-150/50" />
                         <div>
-                          <span className="inline-flex rounded bg-slate-50 border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                          <span className="inline-flex rounded bg-slate-50 border border-slate-200 px-1.5 py-0.5 text-xs font-bold text-slate-500">
                             2012. 03 - 2015. 02
                           </span>
-                          <p className="mt-0.5 text-xs font-black text-slate-800">경신고등학교</p>
-                          <p className="text-[10px] text-slate-500 leading-none">자연계열 (물리반) 졸업</p>
+                          <p className="mt-0.5 text-base font-black text-slate-800">경신고등학교</p>
+                          <p className="text-sm text-slate-500 leading-none">자연계열 (물리반) 졸업</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Military Info */}
                     <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
                         <Award className="h-4 w-4 text-indigo-600" />
                         병역 사항
                       </h3>
-                      <div className="flex items-center gap-3 text-xs text-slate-650 bg-white border border-slate-150/50 p-4 rounded-xl shadow-sm">
+                      <div className="flex items-center gap-3 text-base text-slate-650 bg-white border border-slate-150/50 p-4 rounded-xl shadow-sm">
                         <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
                           <Award className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-400 leading-none mb-1">병역 구분</span>
+                          <span className="block text-sm font-bold text-slate-400 leading-none mb-1">병역 구분</span>
                           <span className="block font-black text-slate-800">군필 (공익근무요원 이병 소집해제)</span>
                         </div>
                       </div>
@@ -813,8 +813,8 @@ export function App() {
             <aside className="hidden lg:block print:hidden w-full sticky top-24 self-start">
               <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-md backdrop-blur-md space-y-5">
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">내비게이션</h3>
-                  <p className="text-[10px] text-slate-500 leading-none mt-0.5">클릭하면 해당 섹션으로 부드럽게 이동합니다.</p>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-400">내비게이션</h3>
+                  <p className="text-sm text-slate-500 leading-none mt-0.5">클릭하면 해당 섹션으로 부드럽게 이동합니다.</p>
                 </div>
                 
                 {/* Vertical Stepper Links */}
@@ -837,7 +837,7 @@ export function App() {
                           : 'bg-slate-350 group-hover:bg-indigo-400'
                       }`} />
                       
-                      <span className={`text-xs font-bold leading-tight transition-colors duration-200 ${
+                      <span className={`text-sm font-bold leading-tight transition-colors duration-200 ${
                         activeSection === step.id
                           ? 'text-indigo-600 font-extrabold'
                           : 'text-slate-450 hover:text-slate-800'
@@ -853,7 +853,7 @@ export function App() {
                 {/* Back to top button */}
                 <button
                   onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className="w-full flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-2 text-[10px] font-extrabold text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                  className="w-full flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-2 text-sm font-extrabold text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
                 >
                   위로 가기
                 </button>
@@ -874,7 +874,7 @@ export function App() {
               <div className="border-b-2 border-slate-850 pb-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-[10px] font-bold text-indigo-750 tracking-widest uppercase">Software Engineer Profile</p>
+                    <p className="text-sm font-bold text-indigo-750 tracking-widest uppercase">Software Engineer Profile</p>
                     <h1 className="text-3xl font-black tracking-tight text-slate-900 mt-1">신 윤 식</h1>
                     <p className="text-sm font-bold text-slate-600 mt-1">Fullstack / Backend Developer</p>
                   </div>
@@ -886,7 +886,7 @@ export function App() {
                 </div>
 
                 {/* Primary Choice indicator */}
-                <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold">
+                <div className="mt-4 flex flex-wrap gap-2 text-sm font-bold">
                   <span className="bg-indigo-50 text-indigo-850 px-2 py-0.5 rounded border border-indigo-200">
                     실무 경력: 1년 11개월 (Node.js 백엔드)
                   </span>
@@ -900,7 +900,7 @@ export function App() {
               </div>
 
               {/* Section 1: Academics & Info */}
-              <div className="grid grid-cols-2 gap-6 text-xs">
+              <div className="grid grid-cols-2 gap-6 text-sm">
                 <div>
                   <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-850 uppercase tracking-wider">학력 및 인적 사항</h3>
                   <ul className="mt-2 space-y-1.5 text-slate-750 font-normal">
@@ -922,15 +922,15 @@ export function App() {
                   <ul className="mt-2 space-y-1.5 text-slate-750 font-normal">
                     <li>
                       <span className="font-bold text-slate-900">정보처리기사</span> (한국산업인력공단)
-                      <span className="block text-[10px] text-slate-400">취득일: 2022. 06. 17</span>
+                      <span className="block text-sm text-slate-400">취득일: 2022. 06. 17</span>
                     </li>
                     <li>
                       <span className="font-bold text-slate-900">SQL 개발자(SQLD)</span> (한국데이터산업진흥원)
-                      <span className="block text-[10px] text-slate-400">취득일: 2024. 09. 20</span>
+                      <span className="block text-sm text-slate-400">취득일: 2024. 09. 20</span>
                     </li>
                     <li>
                       <span className="font-bold text-slate-900">빅데이터분석기사</span> (한국데이터산업진흥원)
-                      <span className="block text-[10px] text-slate-400">취득일: 2022. 07. 15</span>
+                      <span className="block text-sm text-slate-400">취득일: 2022. 07. 15</span>
                     </li>
                   </ul>
                 </div>
@@ -938,11 +938,11 @@ export function App() {
 
               {/* Section 2: Core Project Detail (Dynamic binding) */}
               <div>
-                <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-850 uppercase tracking-wider">핵심 프로젝트 개발 성과</h3>
+                <h3 className="font-bold border-b border-slate-300 pb-1 text-sm text-slate-850 uppercase tracking-wider">핵심 프로젝트 개발 성과</h3>
                 <div className="mt-2.5 border border-slate-200 bg-slate-50/50 p-4 rounded-xl">
                   <div className="flex justify-between items-start">
-                    <span className="font-bold text-xs text-slate-900">{selectedMilestone.title}</span>
-                    <span className="text-[10px] font-bold text-slate-400">{selectedMilestone.period}</span>
+                    <span className="font-bold text-sm text-slate-900">{selectedMilestone.title}</span>
+                    <span className="text-sm font-bold text-slate-400">{selectedMilestone.period}</span>
                   </div>
                   <p className="mt-2 text-[11px] text-slate-650 leading-relaxed font-normal">
                     {selectedMilestone.description}
@@ -952,7 +952,7 @@ export function App() {
                   </p>
                   <div className="mt-2.5 flex flex-wrap gap-1">
                     {selectedMilestone.skills.map(skill => (
-                      <span key={skill} className="bg-slate-200/80 text-slate-800 text-[9px] font-bold px-2 py-0.5 rounded">
+                      <span key={skill} className="bg-slate-200/80 text-slate-800 text-[11px] font-bold px-2 py-0.5 rounded">
                         {skill}
                       </span>
                     ))}
@@ -962,7 +962,7 @@ export function App() {
 
               {/* Section 3: Professional Focus / COVER LETTER SUMMARY */}
               <div>
-                <h3 className="font-bold border-b border-slate-300 pb-1 text-xs text-slate-850 uppercase tracking-wider">개발 철학 및 핵심 역량 요약</h3>
+                <h3 className="font-bold border-b border-slate-300 pb-1 text-sm text-slate-850 uppercase tracking-wider">개발 철학 및 핵심 역량 요약</h3>
                 <div className="mt-2 space-y-2 text-[11px] text-slate-700 leading-relaxed font-normal">
                   <p>
                     <span className="font-bold text-slate-800">1. 관심사 분리와 결합도 개선:</span> 서비스 규모 확장 시 안정성을 확보하기 위해 도메인 경계를 명확히 나누고 Read/Write 데이터 의존성을 격리하는 유연한 아키텍처 설계를 지향합니다.
@@ -975,7 +975,7 @@ export function App() {
             </div>
 
             {/* Document Footer */}
-            <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-[10px] text-slate-400 font-normal">
+            <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-sm text-slate-400 font-normal">
               <span>신윤식 개발자 포트폴리오 요약본 (Resume Summary)</span>
               <span>Page 01 / 01</span>
             </div>
