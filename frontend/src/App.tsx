@@ -275,15 +275,16 @@ export function App() {
 
             <nav className="hidden items-center gap-1 md:flex">
               {[
-                { id: 'INTRO', label: '경력 및 역량' },
-                { id: 'PROJECTS', label: '핵심 프로젝트' },
-                { id: 'THIS_APP', label: '이 웹앱의 아키텍처' },
+                { id: 'intro-profile', label: '프로필 & 이력' },
+                { id: 'competencies', label: '역량 기술서' },
+                { id: 'projects', label: '핵심 프로젝트' },
+                { id: 'architecture', label: '시스템 아키텍처' },
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveMainTab(tab.id as any)}
+                  onClick={() => scrollToSection(tab.id)}
                   className={`rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 ${
-                    activeMainTab === tab.id
+                    activeSection === tab.id
                       ? 'bg-indigo-50 text-indigo-600 border border-indigo-200/50'
                       : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                   }`}
