@@ -684,18 +684,21 @@ export function App() {
 
                     <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
                       <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                        <span className="p-1.5 rounded bg-indigo-50 leading-none">🐳</span>
-                        DevOps & Docker
+                        <span className="p-1.5 rounded bg-indigo-50 leading-none">☸️</span>
+                        DevOps & GitOps
                       </h3>
-                      <ul className="text-[11px] sm:text-xs text-slate-650 space-y-2 leading-relaxed font-normal">
+                      <ul className="text-[11px] sm:text-xs text-slate-655 space-y-2 leading-relaxed font-normal">
                         <li>
-                          <strong className="text-slate-800 font-bold">Docker Compose 오케스트레이션</strong>으로 DB-API-Nginx-Vite 환경 분리 가상화
+                          <strong className="text-slate-850 font-bold">Cloudflare Pages CDN</strong>: 프론트엔드 정적 빌드 파일을 전 세계 엣지 노드에 초고속 캐싱 및 배포
                         </li>
                         <li>
-                          <strong className="text-slate-800 font-bold">실시간 HMR (자동 새로고침) 지원</strong>: Docker 볼륨 바인딩 및 익명 볼륨 설정으로 macOS의 빌드 바이너리 충돌 문제를 극복하고 폴링 감시(`usePolling: true`) 탑재
+                          <strong className="text-slate-850 font-bold">GitHub Actions & OCIR</strong>: 백엔드 푸시 시 ARM64 네이티브 컨테이너 이미지 자동 빌드 및 Oracle OCI Registry 배포
                         </li>
                         <li>
-                          <strong className="text-slate-800 font-bold">원클릭 관리자 스크립트</strong>: `./start-docker.sh` 및 `./start-local.sh` 제어를 통해 백그라운드 구동 및 PID 기반 안전 프로세스 종료 자동화
+                          <strong className="text-slate-850 font-bold">Argo CD 자동 동기화</strong>: k8s 배포 매니페스트 변경을 Argo CD가 실시간 감지하여 OKE 클러스터에 무중단 롤아웃 배포
+                        </li>
+                        <li>
+                          <strong className="text-slate-850 font-bold">Sealed Secrets 보안</strong>: DB 비밀번호 등 민감 데이터를 비대칭 키로 안전하게 암호화하여 Git에 안심하고 형상 관리
                         </li>
                       </ul>
                     </div>
@@ -703,37 +706,45 @@ export function App() {
 
                   <div className="mt-6 rounded-xl border border-slate-200 bg-slate-950 p-5 shadow-inner">
                     <h3 className="text-xs sm:text-sm font-black text-slate-100 mb-3 flex items-center gap-1.5">
-                      <span>🖥️</span>
-                      <span>풀스택 가상화 아키텍처 흐름도</span>
+                      <span>☸️</span>
+                      <span>실제 운영(Production) 시스템 아키텍처 및 배포 흐름도</span>
                     </h3>
                     <div className="text-[10px] sm:text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-800">
-{` +------------------------------------------------------------------------------------+
- |                                  Host Machine (Mac OS)                             |
- |                                                                                    |
- |  [ Client Web Browser ]                                                            |
- |           |                                                                        |
- |           | Port 5173 (Vite HMR WebSocket / Static Server)                         |
- |           v                                                                        |
- |  +------------------------------------------------------------------------------+  |
- |  |                       Docker Compose Bridge Network                          |  |
- |  |                                                                              |  |
- |  |  [ self-intro-frontend (Node 20 Alpine) ]                                    |  |
- |  |    - Runs: vite --host 0.0.0.0 (Vite Dev Server)                             |  |
- |  |    - Volume Mount: ./frontend -> /app (with usePolling: true)                |  |
- |  |         |                                                                    |  |
- |  |         | Proxies /api requests to http://backend:8080                       |  |
- |  |         v                                                                    |  |
- |  |  [ self-intro-backend (Spring Boot 3.3) ]                                    |  |
- |  |    - Runs: Java 21 app.jar                                                   |  |
- |  |    - Profiles: local-docker (Flyway Database Schema Initialization)         |  |
- |  |         |                                                                    |  |
- |  |         | Port 3306 (MySQL Driver Connection)                                |  |
- |  |         v                                                                    |  |
- |  |  [ self-intro-db (MySQL 8.0) ]                                               |  |
- |  |    - Volume Mount: mysql_data -> /var/lib/mysql                              |  |
- |  |                                                                              |  |
- |  +------------------------------------------------------------------------------+  |
- +------------------------------------------------------------------------------------+`}
+{` +-----------------------------------------------------------------------------------------+
+ |                                    [ Web Client User ]                                  |
+ |                                             |                                           |
+ |                       https://unbrdn.me     |     https://api.unbrdn.me                 |
+ |                     +-----------------------+-----------------------+                   |
+ |                     |                                               |                   |
+ |                     v                                               v                   |
+ |           [ Cloudflare Pages ]                            [ Cloudflare DNS Proxy ]      |
+ |           - Frontend Static Hosting                                 |                   |
+ |           - Worldwide Edge Caching                                  | OCI Load Balancer |
+ |                                                                     v                   |
+ |                                                          [ Ingress Nginx Controller ]   |
+ |                                                                     | SSL / TLS Route   |
+ |                                                                     v                   |
+ |  +-----------------------------------------------------------------------------------+  |
+ |  |                          Oracle Kubernetes Engine (OKE Cluster)                   |  |
+ |  |                                                                                   |  |
+ |  |   [ Argo CD Engine ]                 [ Sealed Secrets Controller ]                |  |
+ |  |     - Watches GitHub Repository        - Decrypts encrypted DB Secrets            |  |
+ |  |     - Automated git sync to cluster                                               |  |
+ |  |                    |                                 |                            |  |
+ |  |                    v                                 v                            |  |
+ |  |        +-------------------------------------------------------+                  |  |
+ |  |        |                  [ self-intro-backend-pod ]           |                  |  |
+ |  |        |     - Spring Boot 3.3.3 API Server (Java 21 JRE)      |                  |  |
+ |  |        |     - Runs on ARM64 Ampere A1 Compute Instance        |                  |  |
+ |  |        +-------------------------------------------------------+                  |  |
+ |  |                                    |                                              |  |
+ |  +------------------------------------|----------------------------------------------+  |
+ |                                       | JDBC Connector (OCI VCN Private Subnet)          |
+ |                                       v                                                 |
+ |                   [ MySQL HeatWave Database (Always Free) ]                             |
+ |                     - Persistent relational database store                              |
+ |                     - Flyway schema & SampleDataLoader automatic seeds                  |
+ +-----------------------------------------------------------------------------------------+`}
                     </div>
                   </div>
                 </div>
