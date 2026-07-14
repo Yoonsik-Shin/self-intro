@@ -447,7 +447,7 @@ export function AdminDashboard() {
       <header className="sticky top-0 z-25 flex items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-black text-slate-900">관리자 대시보드</h1>
-          <span className="text-xs font-bold text-slate-405">v1.5</span>
+          <span className="text-xs font-bold text-slate-400">v1.5</span>
         </div>
         <div className="flex items-center gap-2">
           <a
@@ -476,7 +476,7 @@ export function AdminDashboard() {
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'STUDY'
                 ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
-                : 'text-slate-600 hover:bg-slate-105 hover:text-slate-900'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <BookOpen className="h-4 w-4" />
@@ -487,7 +487,7 @@ export function AdminDashboard() {
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'PROFILE'
                 ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
-                : 'text-slate-600 hover:bg-slate-105 hover:text-slate-900'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <User className="h-4 w-4" />
@@ -498,7 +498,7 @@ export function AdminDashboard() {
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'SKILLS'
                 ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
-                : 'text-slate-600 hover:bg-slate-105 hover:text-slate-900'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Cpu className="h-4 w-4" />
@@ -509,7 +509,7 @@ export function AdminDashboard() {
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'EXPERIENCE'
                 ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
-                : 'text-slate-600 hover:bg-slate-105 hover:text-slate-900'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Briefcase className="h-4 w-4" />
@@ -549,7 +549,7 @@ export function AdminDashboard() {
                       onClick={() => setStudyFilter(cat)}
                       className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
                         studyFilter === cat
-                          ? 'bg-slate-850 text-white shadow-sm'
+                          ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
                       }`}
                     >
@@ -579,7 +579,7 @@ export function AdminDashboard() {
                   <h3 className="text-sm font-black text-slate-800">{studyEditingId !== null ? '글 수정' : '새 글 작성'}</h3>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">제목</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">제목</label>
                       <input
                         type="text"
                         required
@@ -589,7 +589,7 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">분류</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">분류</label>
                       <select
                         value={studyForm.category}
                         onChange={(e) =>
@@ -605,7 +605,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">기술 스택 (쉼표 구분)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">기술 스택 (쉼표 구분)</label>
                     <input
                       type="text"
                       value={studyForm.skills}
@@ -615,7 +615,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-455">상세 설명</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">상세 설명</label>
                     <textarea
                       required
                       rows={5}
@@ -626,7 +626,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-455">핵심 Lesson Learned / Takeaway</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">핵심 Lesson Learned / Takeaway</label>
                     <textarea
                       required
                       rows={3}
@@ -637,7 +637,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">학습일</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">학습일</label>
                     <input
                       type="date"
                       required
@@ -682,7 +682,7 @@ export function AdminDashboard() {
                           <p className="font-mono text-xs font-bold text-slate-400">
                             {entry.learnedAt} · {entry.category}
                           </p>
-                          <p className="text-sm font-black text-slate-800 hover:text-indigo-650 transition">{entry.title}</p>
+                          <p className="text-sm font-black text-slate-800 hover:text-indigo-600 transition">{entry.title}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <button
@@ -698,13 +698,13 @@ export function AdminDashboard() {
                               });
                               setIsStudyFormOpen(true);
                             }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-650"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleStudyDelete(entry.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-650"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -712,7 +712,7 @@ export function AdminDashboard() {
                       </div>
 
                       {isExpanded && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs space-y-3 text-slate-650">
+                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs space-y-3 text-slate-600">
                           <div>
                             <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">상세 설명</h5>
                             <p className="whitespace-pre-wrap font-medium">{entry.description}</p>
@@ -755,7 +755,7 @@ export function AdminDashboard() {
               <form onSubmit={handleProfileSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">이름 (한글)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이름 (한글)</label>
                     <input
                       type="text"
                       required
@@ -765,7 +765,7 @@ export function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">이름 (영문)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이름 (영문)</label>
                     <input
                       type="text"
                       required
@@ -778,7 +778,7 @@ export function AdminDashboard() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">희망 직무 타이틀</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">희망 직무 타이틀</label>
                     <input
                       type="text"
                       required
@@ -788,7 +788,7 @@ export function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">활동 배지 상태 텍스트</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">활동 배지 상태 텍스트</label>
                     <input
                       type="text"
                       required
@@ -800,7 +800,7 @@ export function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-455">Bio (대표 소개 문장)</label>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Bio (대표 소개 문장)</label>
                   <textarea
                     required
                     rows={3}
@@ -812,7 +812,7 @@ export function AdminDashboard() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">경력 요약 문구 (예: 1년 11개월...)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">경력 요약 문구 (예: 1년 11개월...)</label>
                     <input
                       type="text"
                       required
@@ -822,7 +822,7 @@ export function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">핵심 기술 요약 문구 (예: Java / Node.js...)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">핵심 기술 요약 문구 (예: Java / Node.js...)</label>
                     <input
                       type="text"
                       required
@@ -835,7 +835,7 @@ export function AdminDashboard() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">GitHub 주소</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">GitHub 주소</label>
                     <input
                       type="url"
                       required
@@ -845,7 +845,7 @@ export function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">이메일</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이메일</label>
                     <input
                       type="email"
                       required
@@ -855,7 +855,7 @@ export function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">연락처</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">연락처</label>
                     <input
                       type="text"
                       required
@@ -909,7 +909,7 @@ export function AdminDashboard() {
                       onClick={() => setSkillFilter(cat)}
                       className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
                         skillFilter === cat
-                          ? 'bg-slate-850 text-white shadow-sm'
+                          ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
                       }`}
                     >
@@ -945,18 +945,18 @@ export function AdminDashboard() {
                   <h3 className="text-sm font-black text-slate-800">{skillEditingId !== null ? '기술 수정' : '새 기술 추가'}</h3>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">기술 스택명</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">기술 스택명</label>
                       <input
                         type="text"
                         required
                         placeholder="예: Java, React"
                         value={skillForm.name}
                         onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-550 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">분류 카테고리</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">분류 카테고리</label>
                       <select
                         value={skillForm.category}
                         onChange={(e) => setSkillForm({ ...skillForm, category: e.target.value })}
@@ -974,7 +974,7 @@ export function AdminDashboard() {
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">기술 레벨</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">기술 레벨</label>
                       <input
                         type="text"
                         value={skillForm.skillLevel}
@@ -984,7 +984,7 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">버전</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">버전</label>
                       <input
                         type="text"
                         value={skillForm.skillVersion}
@@ -994,7 +994,7 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">활용 구분</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">활용 구분</label>
                       <select
                         value={skillForm.usageType}
                         onChange={(e) => setSkillForm({ ...skillForm, usageType: e.target.value })}
@@ -1006,7 +1006,7 @@ export function AdminDashboard() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">정렬 순서</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">정렬 순서</label>
                       <input
                         type="number"
                         required
@@ -1029,7 +1029,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">코멘트</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">코멘트</label>
                     <textarea
                       rows={3}
                       value={skillForm.comment}
@@ -1098,13 +1098,13 @@ export function AdminDashboard() {
                           });
                           setIsSkillFormOpen(true);
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-650"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => handleSkillDelete(skill.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-650"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -1145,7 +1145,7 @@ export function AdminDashboard() {
                       onClick={() => setExpFilter(cat)}
                       className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
                         expFilter === cat
-                          ? 'bg-slate-850 text-white shadow-sm'
+                          ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
                       }`}
                     >
@@ -1179,7 +1179,7 @@ export function AdminDashboard() {
                   {/* Common: Type, Title, displayOrder */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">이력 구분 (유형)</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이력 구분 (유형)</label>
                       <select
                         value={expForm.type}
                         onChange={(e) => setExpForm({ ...expForm, type: e.target.value as any })}
@@ -1192,7 +1192,7 @@ export function AdminDashboard() {
                       </select>
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">이력명 (타이틀)</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이력명 (타이틀)</label>
                       <input
                         type="text"
                         required
@@ -1206,7 +1206,7 @@ export function AdminDashboard() {
                   {/* Common: Period, displayOrder */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">시작일</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">시작일</label>
                       <input
                         type="date"
                         required
@@ -1216,7 +1216,7 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">종료일 (없으면 비워둠)</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">종료일 (없으면 비워둠)</label>
                       <input
                         type="date"
                         value={expForm.periodEnd}
@@ -1225,7 +1225,7 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">정렬 순서</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">정렬 순서</label>
                       <input
                         type="number"
                         required
@@ -1351,7 +1351,7 @@ export function AdminDashboard() {
 
                   {/* Common Text Areas */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">한줄 요약 (Summary)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">한줄 요약 (Summary)</label>
                     <input
                       type="text"
                       value={expForm.summary}
@@ -1361,7 +1361,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">Takeaway (성과 및 배운점)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Takeaway (성과 및 배운점)</label>
                     <textarea
                       rows={2}
                       value={expForm.takeaway}
@@ -1371,7 +1371,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">역량 기술서 본문 내용 (Essay Content - Optional)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">역량 기술서 본문 내용 (Essay Content - Optional)</label>
                     <textarea
                       rows={5}
                       placeholder="역량 기술서 화면에 표시될 서술형 줄글 수필 내용을 작성합니다."
@@ -1383,7 +1383,7 @@ export function AdminDashboard() {
 
                   {/* Dynamic Details List (Bullet Points) */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">이력 상세 항목 (Bullet Points)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이력 상세 항목 (Bullet Points)</label>
                     
                     <div className="flex gap-2 mb-3">
                       <input
@@ -1408,7 +1408,7 @@ export function AdminDashboard() {
                       {expForm.details.map((d, idx) => {
                         const isDetailExpanded = expandedDetailIdx === idx;
                         return (
-                          <div key={idx} className="bg-white rounded-lg border border-slate-150 text-sm">
+                          <div key={idx} className="bg-white rounded-lg border border-slate-200 text-sm">
                             <div className="flex items-center justify-between gap-2 p-2">
                               <input
                                 type="text"
@@ -1475,7 +1475,7 @@ export function AdminDashboard() {
                                           className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
                                             isChecked
                                               ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                                              : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-150'
+                                              : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-200'
                                           }`}
                                         >
                                           {s.name}
@@ -1494,7 +1494,7 @@ export function AdminDashboard() {
 
                   {/* Skills Tagger */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-405">사용 기술 매핑</label>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">사용 기술 매핑</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {skillsList?.map((s) => {
                         const isChecked = expForm.skillIds.includes(s.id);
@@ -1504,7 +1504,7 @@ export function AdminDashboard() {
                             className={`flex items-start gap-2 p-2 rounded-lg border transition cursor-pointer text-xs ${
                               isChecked
                                 ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold'
-                                : 'bg-white border-slate-200 hover:border-indigo-150'
+                                : 'bg-white border-slate-200 hover:border-indigo-200'
                             }`}
                           >
                             <input
@@ -1603,13 +1603,13 @@ export function AdminDashboard() {
                               });
                               setIsExpFormOpen(true);
                             }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-650"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleExpDelete(exp.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-650"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1635,7 +1635,7 @@ export function AdminDashboard() {
                               <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">상세 항목 (Bullet Points)</h5>
                               <div className="mt-1 space-y-2">
                                 {exp.details.map((d) => (
-                                  <div key={d.id} className="rounded-lg border border-slate-150 bg-slate-50/50 p-2">
+                                  <div key={d.id} className="rounded-lg border border-slate-200 bg-slate-50/50 p-2">
                                     <p className="font-bold text-slate-700">{d.content}</p>
                                     {d.situation && <p className="mt-1 text-slate-500">상황: {d.situation}</p>}
                                     {d.actionDetail && <p className="mt-1 whitespace-pre-wrap text-slate-500">과정: {d.actionDetail}</p>}

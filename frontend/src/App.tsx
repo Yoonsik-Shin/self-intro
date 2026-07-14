@@ -645,7 +645,7 @@ export function App() {
               
               {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
               <div id="intro-profile" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-550/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
             
             <div className="relative z-10 space-y-6">
               
@@ -658,7 +658,7 @@ export function App() {
                   </h2>
                   <div className="flex items-baseline gap-2.5 whitespace-nowrap">
                     <h1 className="text-3xl font-black text-slate-900 leading-none whitespace-nowrap">{profile.name}</h1>
-                    <span className="text-lg font-bold text-slate-450 font-mono whitespace-nowrap">{profile.nameEn}</span>
+                    <span className="text-lg font-bold text-slate-400 font-mono whitespace-nowrap">{profile.nameEn}</span>
                   </div>
                 </div>
 
@@ -699,7 +699,7 @@ export function App() {
               {/* Bio & Personal Info */}
               <div className="space-y-6">
                 <div>
-                  <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed max-w-4xl">
+                  <p className="mt-2 text-sm sm:text-base text-slate-600 leading-relaxed max-w-4xl">
                     {profile.bio}
                   </p>
                 </div>
@@ -707,26 +707,26 @@ export function App() {
                     <div className="flex flex-col sm:flex-row print:flex-row gap-4 pt-2">
                       <button
                         onClick={() => scrollToSection('career')}
-                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-150 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
+                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
                       >
                         <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition shadow-sm">
                           <Briefcase className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider group-hover:text-indigo-550 transition">실무 경력</span>
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">실무 경력</span>
                           <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">{profile.careerSummary}</span>
                         </div>
                       </button>
 
                       <button
                         onClick={() => scrollToSection('skills')}
-                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-150 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
+                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
                       >
                         <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition shadow-sm">
                           <Cpu className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider group-hover:text-indigo-550 transition">핵심 스택</span>
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">핵심 스택</span>
                           <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">{profile.coreStackSummary}</span>
                         </div>
                       </button>
@@ -1037,7 +1037,7 @@ export function App() {
                                   </span>
                                   <span className="text-sm font-black text-slate-400">{experience.period}</span>
                                 </div>
-                                <p className="mt-1.5 text-base font-black leading-snug text-slate-850">{experience.title}</p>
+                                <p className="mt-1.5 text-base font-black leading-snug text-slate-900">{experience.title}</p>
                                 {experience.role && (
                                   <p className="mt-0.5 text-sm font-black text-indigo-600">{experience.role}</p>
                                 )}
@@ -1084,7 +1084,7 @@ export function App() {
                                 className="group flex items-start justify-between gap-3 cursor-pointer rounded-lg px-2 py-1 -mx-2 transition hover:bg-slate-50"
                                 onClick={() => hasDetailContent && setExpandedCareerDetailId(isExpanded ? null : detail.id)}
                               >
-                                <span className="flex items-start gap-2 text-base text-slate-650 leading-relaxed font-normal">
+                                <span className="flex items-start gap-2 text-base text-slate-600 leading-relaxed font-normal">
                                   <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
                                   {detail.content}
                                 </span>
@@ -1158,7 +1158,7 @@ export function App() {
                       <p className="text-base font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
                         "{essays.WHY.subtitle}"
                       </p>
-                      <div className="space-y-4 text-base sm:text-lg text-slate-650 leading-relaxed font-normal ml-0 sm:ml-8">
+                      <div className="space-y-4 text-base sm:text-lg text-slate-600 leading-relaxed font-normal ml-0 sm:ml-8">
                         {dynamicWhyParagraphs.map((p, idx) => (
                           <p key={idx} className="indent-2 bg-white p-4 rounded-xl border border-slate-200/50 transition shadow-sm">
                             {p}
@@ -1182,7 +1182,7 @@ export function App() {
                             <h4 className="text-base sm:text-lg font-black text-slate-800">
                               {str.title}
                             </h4>
-                            <p className="mt-2 text-base leading-relaxed text-slate-650 font-normal">
+                            <p className="mt-2 text-base leading-relaxed text-slate-600 font-normal">
                               {str.content}
                             </p>
                           </div>
@@ -1234,7 +1234,7 @@ export function App() {
                                 {m.title}
                               </h3>
                             </div>
-                            <span className="text-sm font-bold text-slate-400 bg-white border border-slate-150 px-2.5 py-1 rounded-md shrink-0">
+                            <span className="text-sm font-bold text-slate-400 bg-white border border-slate-200 px-2.5 py-1 rounded-md shrink-0">
                               기여도 {idx === 0 || idx === 2 ? '100%' : idx === 1 ? '70%' : '43%'}
                             </span>
                           </div>
@@ -1242,7 +1242,7 @@ export function App() {
                           <div className="space-y-3.5">
                             <div>
                               <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
-                              <p className="mt-1 text-base leading-relaxed text-slate-650 bg-white border border-slate-100 p-3 rounded-lg font-normal">
+                              <p className="mt-1 text-base leading-relaxed text-slate-600 bg-white border border-slate-100 p-3 rounded-lg font-normal">
                                 {m.description}
                               </p>
                             </div>
@@ -1352,7 +1352,7 @@ export function App() {
           /* SYSTEM ARCHITECTURE PAGE */
           <div className="mx-auto max-w-6xl space-y-8 animate-fadeIn pb-12 print:hidden">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-550/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
               <div className="relative z-10 border-b border-slate-100 pb-5">
                 <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
                   <Terminal className="h-6 w-6 text-indigo-600" />
@@ -1369,7 +1369,7 @@ export function App() {
                     <span className="p-1.5 rounded bg-indigo-50 leading-none">💻</span>
                     Backend Layer
                   </h2>
-                  <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
+                  <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
                     <li>
                       <strong className="text-slate-800 font-bold">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
                     </li>
@@ -1390,7 +1390,7 @@ export function App() {
                     <span className="p-1.5 rounded bg-indigo-50 leading-none">🎨</span>
                     Frontend Layer
                   </h2>
-                  <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
+                  <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
                     <li>
                       <strong className="text-slate-800 font-bold">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
                     </li>
@@ -1411,18 +1411,18 @@ export function App() {
                     <span className="p-1.5 rounded bg-indigo-50 leading-none">☸️</span>
                     DevOps & GitOps
                   </h2>
-                  <ul className="text-base sm:text-lg text-slate-655 space-y-2 leading-relaxed font-normal">
+                  <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
                     <li>
-                      <strong className="text-slate-850 font-bold">Cloudflare Pages CDN</strong>: 프론트엔드 정적 빌드 파일을 전 세계 엣지 노드에 초고속 캐싱 및 배포
+                      <strong className="text-slate-900 font-bold">Cloudflare Pages CDN</strong>: 프론트엔드 정적 빌드 파일을 전 세계 엣지 노드에 초고속 캐싱 및 배포
                     </li>
                     <li>
-                      <strong className="text-slate-850 font-bold">GitHub Actions & OCIR</strong>: 백엔드 푸시 시 ARM64 네이티브 컨테이너 이미지 자동 빌드 및 Oracle OCI Registry 배포
+                      <strong className="text-slate-900 font-bold">GitHub Actions & OCIR</strong>: 백엔드 푸시 시 ARM64 네이티브 컨테이너 이미지 자동 빌드 및 Oracle OCI Registry 배포
                     </li>
                     <li>
-                      <strong className="text-slate-850 font-bold">Argo CD 자동 동기화</strong>: k8s 배포 매니페스트 변경을 Argo CD가 실시간 감지하여 OKE 클러스터에 무중단 롤아웃 배포
+                      <strong className="text-slate-900 font-bold">Argo CD 자동 동기화</strong>: k8s 배포 매니페스트 변경을 Argo CD가 실시간 감지하여 OKE 클러스터에 무중단 롤아웃 배포
                     </li>
                     <li>
-                      <strong className="text-slate-850 font-bold">Sealed Secrets 보안</strong>: DB 비밀번호 등 민감 데이터를 비대칭 키로 안전하게 암호화하여 Git에 안심하고 형상 관리
+                      <strong className="text-slate-900 font-bold">Sealed Secrets 보안</strong>: DB 비밀번호 등 민감 데이터를 비대칭 키로 안전하게 암호화하여 Git에 안심하고 형상 관리
                     </li>
                   </ul>
                 </div>
@@ -1478,7 +1478,7 @@ export function App() {
           <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn pb-12 print:hidden">
             {/* Page Title & Intro Banner */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-550/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
               <div className="relative z-10 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="space-y-1">
@@ -1655,7 +1655,7 @@ export function App() {
                         </h3>
 
                         {/* Post Body Description */}
-                        <p className="text-sm sm:text-base text-slate-650 leading-relaxed font-normal whitespace-pre-line mb-4">
+                        <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal whitespace-pre-line mb-4">
                           {entry.description}
                         </p>
 
@@ -1672,12 +1672,12 @@ export function App() {
 
                         {/* Takeaway / Lesson Learned block */}
                         {entry.takeaway && (
-                          <div className="bg-slate-50/70 border border-slate-150 rounded-xl p-4 space-y-1.5 shadow-inner">
+                          <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-1.5 shadow-inner">
                             <h4 className="text-xs font-black uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
                               <Sparkles className="h-3.5 w-3.5" />
                               Lesson Learned / Key Takeaway
                             </h4>
-                            <p className="text-xs sm:text-sm text-slate-650 leading-relaxed font-normal">
+                            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
                               {entry.takeaway}
                             </p>
                           </div>

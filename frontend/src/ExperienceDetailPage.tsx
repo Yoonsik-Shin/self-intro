@@ -77,7 +77,7 @@ export function ExperienceDetailPage() {
             {found.detail.situation && (
               <section>
                 <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">상황</h2>
-                <div className="text-base leading-relaxed text-slate-650">
+                <div className="text-base leading-relaxed text-slate-600">
                   <ReactMarkdown components={markdownComponents}>{found.detail.situation}</ReactMarkdown>
                 </div>
               </section>
@@ -86,7 +86,7 @@ export function ExperienceDetailPage() {
             {found.detail.actionDetail && (
               <section>
                 <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">진행 과정</h2>
-                <div className="text-base leading-relaxed text-slate-650">
+                <div className="text-base leading-relaxed text-slate-600">
                   <ReactMarkdown components={markdownComponents}>{found.detail.actionDetail}</ReactMarkdown>
                 </div>
               </section>
