@@ -165,11 +165,12 @@ const pages = [
 type PageId = (typeof pages)[number]['id'];
 
 const mainSections = [
-  { id: 'intro-profile', label: '프로필 (Profile)', icon: User },
-  { id: 'skills', label: '기술 스택 (Skills)', icon: Cpu },
-  { id: 'career', label: '직장 경력 (Work Experience)', icon: Briefcase },
-  { id: 'competencies', label: '역량 기술서 (Core Competencies)', icon: Sparkles },
-  { id: 'projects', label: '핵심 프로젝트 (Key Projects)', icon: Briefcase },
+  { id: 'intro-profile', label: '프로필', icon: User },
+  { id: 'timeline', label: '커리어 & 학습 타임라인', icon: Calendar },
+  { id: 'skills', label: '기술 스택', icon: Cpu },
+  { id: 'career', label: '직장 경력', icon: Briefcase },
+  { id: 'competencies', label: '역량 기술서', icon: Sparkles },
+  { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
 ];
 
 function getDisplayCategory(skill: Skill): string {
@@ -738,13 +739,13 @@ export function App() {
           </div>
 
               {/* SECTION 1.4: 커리어 & 학습 타임라인 그래프 */}
-              <section className="scroll-mt-24 space-y-6">
+              <section id="timeline" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-indigo-600" />
                       커리어 & 학습 타임라인
-                    </h3>
+                    </h2>
                     <p className="text-sm text-slate-500 mt-1">자격증 취득, 교육 수강, 실무 경력 및 프로젝트 이력을 한눈에 보는 타임라인입니다. 요소를 클릭하면 해당 위치로 스크롤됩니다.</p>
                   </div>
 
@@ -947,10 +948,10 @@ export function App() {
               {/* SECTION 1.5: 기술 스택 */}
               <section id="skills" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
-                  <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
                     <Cpu className="h-5 w-5 text-indigo-600" />
                     기술 스택
-                  </h3>
+                  </h2>
                   <div className="space-y-5">
                     {groupedCoreSkills.map((group) => (
                       <div key={group.value} className="space-y-4">
@@ -1063,10 +1064,10 @@ export function App() {
               <section id="career" className="scroll-mt-24 space-y-6">
                 {careerCards.map(career => (
                   <div key={career.id} className={cardStyle}>
-                    <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
                       <Briefcase className="h-5 w-5 text-indigo-600" />
                       직장 경력 (총 1년 11개월)
-                    </h3>
+                    </h2>
                     <div>
                       <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
                         {career.period}
@@ -1300,7 +1301,7 @@ export function App() {
                           : 'bg-indigo-200 group-hover:bg-indigo-400'
                       }`} />
                       
-                      <span className={`rounded-lg px-2 py-1 text-xs font-bold leading-tight transition-all duration-200 ${
+                      <span className={`rounded-lg px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${
                         activeSection === step.id
                           ? 'bg-indigo-50 text-indigo-600 font-extrabold'
                           : 'text-slate-600 hover:bg-indigo-50/60 hover:text-indigo-700'
