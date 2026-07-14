@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { AdminApp } from './admin/AdminApp';
+import { ExperienceDetailPage } from './ExperienceDetailPage';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -15,15 +16,21 @@ const queryClient = new QueryClient({
 });
 
 function RootRouter() {
-  const [isAdminRoute, setIsAdminRoute] = useState(() => window.location.hash.startsWith('#/admin'));
+  const [hash, setHash] = useState(() => window.location.hash);
 
   useEffect(() => {
-    const onHashChange = () => setIsAdminRoute(window.location.hash.startsWith('#/admin'));
+    const onHashChange = () => setHash(window.location.hash);
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  return isAdminRoute ? <AdminApp /> : <App />;
+  if (hash.startsWith('#/admin')) {
+    return <AdminApp />;
+  }
+  if (hash.startsWith('#/experience-detail/')) {
+    return <ExperienceDetailPage />;
+  }
+  return <App />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

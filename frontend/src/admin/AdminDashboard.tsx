@@ -11,7 +11,9 @@ import {
   Cpu,
   Briefcase,
   PlusCircle,
-  MinusCircle
+  MinusCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import {
   ApiError,
@@ -24,7 +26,8 @@ import {
   type StudyEntry,
   type Skill,
   type Experience,
-  type ExperienceRequest
+  type ExperienceRequest,
+  type ExperienceDetailRequest
 } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -56,9 +59,18 @@ const emptySkillForm = {
   name: '',
   category: 'FRAMEWORK',
   skillLevel: '중급',
+  skillVersion: '',
+  comment: '',
+  usageType: 'LEARNING',
   isCore: false,
   displayOrder: 0,
 };
+
+const skillUsageOptions = [
+  { value: 'LEARNING', label: '학습' },
+  { value: 'WORK_EXPERIENCE', label: '실무 경험' },
+  { value: 'PROJECT_USE', label: '프로젝트 활용' },
+];
 
 const emptyExperienceForm = {
   type: 'PROJECT' as ExperienceRequest['type'],
@@ -69,7 +81,7 @@ const emptyExperienceForm = {
   takeaway: '',
   essayContent: '',
   displayOrder: 0,
-  details: [] as string[],
+  details: [] as ExperienceDetailRequest[],
   skillIds: [] as number[],
   companyName: '',
   employmentType: '정규직',
@@ -149,7 +161,10 @@ export function AdminDashboard() {
     return skillsList?.filter((skill) => {
       const matchesCategory = skillFilter === 'ALL' || skill.category === skillFilter;
       const matchesSearch =
-        !skillSearch || skill.name.toLowerCase().includes(skillSearch.toLowerCase());
+        !skillSearch ||
+        skill.name.toLowerCase().includes(skillSearch.toLowerCase()) ||
+        (skill.comment ?? '').toLowerCase().includes(skillSearch.toLowerCase()) ||
+        (skill.skillVersion ?? '').toLowerCase().includes(skillSearch.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [skillsList, skillFilter, skillSearch]);
@@ -307,6 +322,7 @@ export function AdminDashboard() {
   const [isExpFormOpen, setIsExpFormOpen] = useState(false);
   const [detailInput, setDetailInput] = useState('');
   const [expandedExpId, setExpandedExpId] = useState<number | null>(null);
+  const [expandedDetailIdx, setExpandedDetailIdx] = useState<number | null>(null);
 
   const createExpMutation = useMutation({
     mutationFn: experienceApi.create,
@@ -381,7 +397,7 @@ export function AdminDashboard() {
     if (detailInput.trim()) {
       setExpForm({
         ...expForm,
-        details: [...expForm.details, detailInput.trim()],
+        details: [...expForm.details, { content: detailInput.trim(), situation: '', actionDetail: '', outcome: '', skillIds: [] }],
       });
       setDetailInput('');
     }
@@ -391,6 +407,27 @@ export function AdminDashboard() {
     setExpForm({
       ...expForm,
       details: expForm.details.filter((_, i) => i !== idx),
+    });
+  };
+
+  const updateDetailField = (idx: number, field: 'content' | 'situation' | 'actionDetail' | 'outcome', value: string) => {
+    setExpForm({
+      ...expForm,
+      details: expForm.details.map((d, i) => (i === idx ? { ...d, [field]: value } : d)),
+    });
+  };
+
+  const toggleDetailSkill = (idx: number, skillId: number) => {
+    setExpForm({
+      ...expForm,
+      details: expForm.details.map((d, i) => {
+        if (i !== idx) return d;
+        const isChecked = d.skillIds.includes(skillId);
+        return {
+          ...d,
+          skillIds: isChecked ? d.skillIds.filter((id) => id !== skillId) : [...d.skillIds, skillId],
+        };
+      }),
     });
   };
 
@@ -935,7 +972,7 @@ export function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                     <div>
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">기술 레벨</label>
                       <input
@@ -945,6 +982,28 @@ export function AdminDashboard() {
                         onChange={(e) => setSkillForm({ ...skillForm, skillLevel: e.target.value })}
                         className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                       />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">버전</label>
+                      <input
+                        type="text"
+                        value={skillForm.skillVersion}
+                        placeholder="예: 21, 3.3, 19"
+                        onChange={(e) => setSkillForm({ ...skillForm, skillVersion: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">활용 구분</label>
+                      <select
+                        value={skillForm.usageType}
+                        onChange={(e) => setSkillForm({ ...skillForm, usageType: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      >
+                        {skillUsageOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">정렬 순서</label>
@@ -967,6 +1026,17 @@ export function AdminDashboard() {
                         <span className="text-xs font-bold text-slate-600 uppercase">핵심기술로 표시</span>
                       </label>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-405">코멘트</label>
+                    <textarea
+                      rows={3}
+                      value={skillForm.comment}
+                      placeholder="이 기술을 어느 수준으로, 어디에 활용했는지 짧게 남깁니다."
+                      onChange={(e) => setSkillForm({ ...skillForm, comment: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    />
                   </div>
 
                   <div className="flex justify-end gap-3 pt-2">
@@ -997,13 +1067,20 @@ export function AdminDashboard() {
                     <div>
                       <p className="font-mono text-[10px] font-bold text-slate-400">
                         {skill.category} {skill.skillLevel ? `· ${skill.skillLevel}` : ''}
+                        {skill.skillVersion ? ` · v${skill.skillVersion}` : ''}
                       </p>
                       <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
                         {skill.name}
                         {skill.isCore && (
                           <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 border border-indigo-100">Core</span>
                         )}
+                        <span className="rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200">
+                          {skillUsageOptions.find((option) => option.value === skill.usageType)?.label ?? skill.usageType}
+                        </span>
                       </h4>
+                      {skill.comment && (
+                        <p className="mt-1 line-clamp-2 text-xs font-medium text-slate-500">{skill.comment}</p>
+                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <button
@@ -1013,6 +1090,9 @@ export function AdminDashboard() {
                             name: skill.name,
                             category: skill.category,
                             skillLevel: skill.skillLevel ?? '',
+                            skillVersion: skill.skillVersion ?? '',
+                            comment: skill.comment ?? '',
+                            usageType: skill.usageType ?? 'LEARNING',
                             isCore: skill.isCore,
                             displayOrder: skill.displayOrder,
                           });
@@ -1324,32 +1404,104 @@ export function AdminDashboard() {
                       </button>
                     </div>
 
-                    <div className="space-y-1.5">
-                      {expForm.details.map((pt, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-3 bg-white p-2 rounded-lg border border-slate-150 text-sm">
-                          <span className="truncate">{pt}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeDetailPoint(idx)}
-                            className="text-red-500 hover:text-red-700 transition"
-                          >
-                            <MinusCircle className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="space-y-2">
+                      {expForm.details.map((d, idx) => {
+                        const isDetailExpanded = expandedDetailIdx === idx;
+                        return (
+                          <div key={idx} className="bg-white rounded-lg border border-slate-150 text-sm">
+                            <div className="flex items-center justify-between gap-2 p-2">
+                              <input
+                                type="text"
+                                value={d.content}
+                                onChange={(e) => updateDetailField(idx, 'content', e.target.value)}
+                                placeholder="불릿 한 줄 요약"
+                                className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-indigo-300 focus:bg-indigo-50/30 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setExpandedDetailIdx(isDetailExpanded ? null : idx)}
+                                className="text-slate-400 transition hover:text-indigo-600"
+                              >
+                                {isDetailExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeDetailPoint(idx)}
+                                className="text-red-500 transition hover:text-red-700"
+                              >
+                                <MinusCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            {isDetailExpanded && (
+                              <div className="space-y-2 border-t border-slate-100 p-3">
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">상황 (Situation, 마크다운)</label>
+                                  <textarea
+                                    value={d.situation}
+                                    onChange={(e) => updateDetailField(idx, 'situation', e.target.value)}
+                                    rows={2}
+                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">과정 (Action, 마크다운)</label>
+                                  <textarea
+                                    value={d.actionDetail}
+                                    onChange={(e) => updateDetailField(idx, 'actionDetail', e.target.value)}
+                                    rows={3}
+                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">성과 (Outcome, 마크다운)</label>
+                                  <textarea
+                                    value={d.outcome}
+                                    onChange={(e) => updateDetailField(idx, 'outcome', e.target.value)}
+                                    rows={2}
+                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">이 항목의 기술 태그</label>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {skillsList?.map((s) => {
+                                      const isChecked = d.skillIds.includes(s.id);
+                                      return (
+                                        <button
+                                          type="button"
+                                          key={s.id}
+                                          onClick={() => toggleDetailSkill(idx, s.id)}
+                                          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
+                                            isChecked
+                                              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                              : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-150'
+                                          }`}
+                                        >
+                                          {s.name}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
                   {/* Skills Tagger */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-405">사용 기술 매핑</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {skillsList?.map((s) => {
                         const isChecked = expForm.skillIds.includes(s.id);
                         return (
                           <label
                             key={s.id}
-                            className={`flex items-center gap-2 p-2 rounded-lg border transition cursor-pointer text-xs ${
+                            className={`flex items-start gap-2 p-2 rounded-lg border transition cursor-pointer text-xs ${
                               isChecked
                                 ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold'
                                 : 'bg-white border-slate-200 hover:border-indigo-150'
@@ -1359,9 +1511,16 @@ export function AdminDashboard() {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleExpSkill(s.id)}
-                              className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                             />
-                            <span className="truncate">{s.name}</span>
+                            <span className="min-w-0">
+                              <span className="block truncate">{s.name}</span>
+                              <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
+                                {skillUsageOptions.find((option) => option.value === s.usageType)?.label ?? s.usageType}
+                                {s.skillVersion ? ` · v${s.skillVersion}` : ''}
+                                {s.skillLevel ? ` · ${s.skillLevel}` : ''}
+                              </span>
+                            </span>
                           </label>
                         );
                       })}
@@ -1424,7 +1583,14 @@ export function AdminDashboard() {
                                 takeaway: exp.takeaway ?? '',
                                 essayContent: exp.essayContent ?? '',
                                 displayOrder: exp.displayOrder,
-                                details: exp.details ?? [],
+                                details: (exp.details ?? []).map((d) => ({
+                                  id: d.id,
+                                  content: d.content,
+                                  situation: d.situation ?? '',
+                                  actionDetail: d.actionDetail ?? '',
+                                  outcome: d.outcome ?? '',
+                                  skillIds: d.skills?.map((s) => s.id) ?? [],
+                                })),
                                 skillIds: exp.skills?.map((s) => s.id) ?? [],
                                 companyName: exp.companyName ?? '',
                                 employmentType: exp.employmentType ?? '정규직',
@@ -1467,11 +1633,25 @@ export function AdminDashboard() {
                           {exp.details && exp.details.length > 0 && (
                             <div>
                               <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">상세 항목 (Bullet Points)</h5>
-                              <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-700 font-medium">
-                                {exp.details.map((pt, i) => (
-                                  <li key={i}>{pt}</li>
+                              <div className="mt-1 space-y-2">
+                                {exp.details.map((d) => (
+                                  <div key={d.id} className="rounded-lg border border-slate-150 bg-slate-50/50 p-2">
+                                    <p className="font-bold text-slate-700">{d.content}</p>
+                                    {d.situation && <p className="mt-1 text-slate-500">상황: {d.situation}</p>}
+                                    {d.actionDetail && <p className="mt-1 whitespace-pre-wrap text-slate-500">과정: {d.actionDetail}</p>}
+                                    {d.outcome && <p className="mt-1 text-slate-500">성과: {d.outcome}</p>}
+                                    {d.skills.length > 0 && (
+                                      <div className="mt-1 flex flex-wrap gap-1">
+                                        {d.skills.map((s) => (
+                                          <span key={s.id} className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 border border-indigo-100">
+                                            {s.name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 ))}
-                              </ul>
+                              </div>
                             </div>
                           )}
                           {exp.skills && exp.skills.length > 0 && (
@@ -1481,6 +1661,7 @@ export function AdminDashboard() {
                                 {exp.skills.map((s) => (
                                   <span key={s.id} className="bg-indigo-50 px-2 py-0.5 rounded text-[10px] font-bold text-indigo-600 border border-indigo-100">
                                     {s.name}
+                                    {s.skillVersion ? ` v${s.skillVersion}` : ''}
                                   </span>
                                 ))}
                               </div>

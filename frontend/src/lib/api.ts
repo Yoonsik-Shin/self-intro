@@ -34,8 +34,21 @@ export type Skill = {
   name: string;
   category: string;
   skillLevel?: string;
+  skillVersion?: string;
+  comment?: string;
+  usageType: 'LEARNING' | 'WORK_EXPERIENCE' | 'PROJECT_USE' | string;
   isCore: boolean;
   displayOrder: number;
+};
+
+export type ExperienceDetail = {
+  id: number;
+  content: string;
+  situation?: string;
+  actionDetail?: string;
+  outcome?: string;
+  displayOrder: number;
+  skills: Skill[];
 };
 
 export type Experience = {
@@ -48,7 +61,7 @@ export type Experience = {
   takeaway?: string;
   essayContent?: string;
   displayOrder: number;
-  details: string[];
+  details: ExperienceDetail[];
   skills: Skill[];
 
   // Career specific
@@ -199,6 +212,15 @@ export const skillApi = {
     }),
 };
 
+export type ExperienceDetailRequest = {
+  id?: number | null;
+  content: string;
+  situation?: string;
+  actionDetail?: string;
+  outcome?: string;
+  skillIds: number[];
+};
+
 export type ExperienceRequest = {
   type: 'CAREER' | 'PROJECT' | 'EDUCATION' | 'CERTIFICATE';
   title: string;
@@ -208,7 +230,7 @@ export type ExperienceRequest = {
   takeaway?: string;
   essayContent?: string;
   displayOrder: number;
-  details: string[];
+  details: ExperienceDetailRequest[];
   skillIds: number[];
   companyName?: string;
   employmentType?: string;
@@ -237,5 +259,4 @@ export const experienceApi = {
       method: 'DELETE',
     }),
 };
-
 
