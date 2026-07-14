@@ -392,7 +392,7 @@ export function App() {
         <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           
           {activePage === 'intro' ? (
-            <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-8 min-[900px]:grid-cols-[minmax(0,1fr)_220px] print:block relative items-start">
+            <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_240px] print:block relative items-start">
             
             {/* Main Content Column */}
             <div className="min-w-0 space-y-12">
@@ -817,15 +817,15 @@ export function App() {
 
             {/* Right Sticky Sidebar Column */}
             <aside className="block print:hidden w-full sticky top-24 self-start">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:p-4 min-[900px]:space-y-4">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-indigo-200 min-[900px]:p-5 min-[900px]:space-y-5">
                 <div className="hidden min-[900px]:block">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-400">내비게이션</h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-indigo-400">내비게이션</h3>
                   <p className="text-sm text-slate-500 leading-none mt-0.5">
                     클릭하면 해당 섹션으로 부드럽게 이동합니다.
                   </p>
                 </div>
                 
-                <div className="hidden min-[900px]:block relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-100">
+                <div className="hidden min-[900px]:block relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-indigo-100">
                   {mainSections.map((step) => (
                     <button
                       key={step.id}
@@ -835,13 +835,13 @@ export function App() {
                       <div className={`absolute left-[-15px] top-[14px] w-2 h-2 rounded-full border border-white transition-all duration-300 z-10 ${
                         activeSection === step.id
                           ? 'bg-indigo-600 scale-125 ring-4 ring-indigo-100'
-                          : 'bg-slate-350 group-hover:bg-indigo-400'
+                          : 'bg-indigo-200 group-hover:bg-indigo-400'
                       }`} />
                       
-                      <span className={`text-sm font-bold leading-tight transition-colors duration-200 ${
+                      <span className={`rounded-lg px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${
                         activeSection === step.id
-                          ? 'text-indigo-600 font-extrabold'
-                          : 'text-slate-450 hover:text-slate-800'
+                          ? 'bg-indigo-50 text-indigo-600 font-extrabold'
+                          : 'text-slate-600 hover:bg-indigo-50/60 hover:text-indigo-700'
                       }`}>
                         {step.label}
                       </span>
