@@ -150,7 +150,16 @@ const pages = [
     description: '기술 글, 학습 기록, 프로젝트 회고',
     icon: BookOpen,
   },
+  {
+    id: 'architecture' as const,
+    label: '시스템 아키텍처',
+    shortLabel: '시스템 아키텍처',
+    description: '운영 인프라, 배포 흐름, 애플리케이션 구조',
+    icon: Terminal,
+  },
 ];
+
+type PageId = (typeof pages)[number]['id'];
 
 const mainSections = [
   { id: 'intro-profile', label: '프로필', icon: User },
@@ -158,7 +167,6 @@ const mainSections = [
   { id: 'skills', label: '기술 스택', icon: Cpu },
   { id: 'competencies', label: '역량 기술서', icon: Sparkles },
   { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
-  { id: 'architecture', label: '시스템 아키텍처', icon: Terminal },
 ];
 
 export function App() {
@@ -182,7 +190,7 @@ export function App() {
   });
 
   const [activeSection, setActiveSection] = useState('intro-profile');
-  const [activePage, setActivePage] = useState<'intro' | 'blog'>('intro');
+  const [activePage, setActivePage] = useState<PageId>('intro');
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
 
@@ -268,7 +276,7 @@ export function App() {
     window.print();
   };
 
-  const goToPage = (pageId: 'intro' | 'blog') => {
+  const goToPage = (pageId: PageId) => {
     setActivePage(pageId);
     setIsPageMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -290,7 +298,7 @@ export function App() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-xl print:hidden relative sm:px-4">
           <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-6">
               <button
                 onClick={() => goToPage('intro')}
                 className="flex shrink-0 items-center text-left focus:outline-none hover:opacity-90 transition"
@@ -300,32 +308,32 @@ export function App() {
                   YS
                 </div>
               </button>
-            </div>
 
-            <nav
-              aria-label="페이지 네비게이션"
-              className="hidden min-w-0 items-center gap-1 overflow-x-auto scrollbar-none min-[900px]:mx-auto min-[900px]:flex min-[900px]:w-auto"
-            >
-              {pages.map((page) => {
-                const Icon = page.icon;
-                const isActive = activePage === page.id;
-                return (
-                  <button
-                    key={page.id}
-                    onClick={() => goToPage(page.id)}
-                    className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-black transition-all duration-200 ${
-                      isActive
-                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                    title={page.label}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{page.shortLabel}</span>
-                  </button>
-                );
-              })}
-            </nav>
+              <nav
+                aria-label="페이지 네비게이션"
+                className="hidden min-w-0 items-center gap-5 overflow-x-auto scrollbar-none min-[900px]:flex"
+              >
+                {pages.map((page) => {
+                  const Icon = page.icon;
+                  const isActive = activePage === page.id;
+                  return (
+                    <button
+                      key={page.id}
+                      onClick={() => goToPage(page.id)}
+                      className={`relative inline-flex h-12 shrink-0 items-center gap-2 px-1 text-sm font-black transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-center after:rounded-full after:bg-indigo-600 after:transition-transform after:duration-200 ${
+                        isActive
+                          ? 'text-indigo-700 after:scale-x-100'
+                          : 'text-slate-500 after:scale-x-0 hover:text-slate-900'
+                      }`}
+                      title={page.label}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{page.shortLabel}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
 
             <div className="flex shrink-0 items-center gap-2">
               {activePage === 'intro' && (
@@ -360,10 +368,10 @@ export function App() {
                     <button
                       key={page.id}
                       onClick={() => goToPage(page.id)}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-black transition-all duration-200 ${
+                      className={`relative flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-black transition-colors duration-200 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:rounded-full after:bg-indigo-600 ${
                         isActive
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          ? 'text-indigo-700 after:opacity-100'
+                          : 'text-slate-600 after:opacity-0 hover:text-slate-900'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -688,131 +696,6 @@ export function App() {
                 </div>
               </section>
 
-              {/* SECTION 4: 이 웹앱의 아키텍처 */}
-              <section id="architecture" className="scroll-mt-24 space-y-6">
-                <div className={cardStyle}>
-                  <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <Terminal className="h-5 w-5 text-indigo-600" />
-                      이 포트폴리오 웹앱 자체의 시스템 아키텍처 (Self-Intro Architecture)
-                    </h2>
-                    <p className="text-base text-slate-500 mt-1">
-                      지금 접속해 계신 이 웹 서버를 구동하고 데이터를 서빙하는 풀스택 컨테이너 인프라 설계 명세입니다.
-                    </p>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                      <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                        <span className="p-1.5 rounded bg-indigo-50 leading-none">💻</span>
-                        Backend Layer
-                      </h3>
-                      <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
-                        <li>
-                          <strong className="text-slate-800 font-bold">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
-                        </li>
-                        <li>
-                          <strong className="text-slate-800 font-bold">Spring Data JPA</strong> 및 H2/MySQL 데이터베이스 통합 제어
-                        </li>
-                        <li>
-                          <strong className="text-slate-800 font-bold">Flyway 스키마 마이그레이션</strong>을 활용해 실행 시 DDL 데이터 자동 적재 및 버전 제어
-                        </li>
-                        <li>
-                          <strong className="text-slate-800 font-bold">SampleDataLoader</strong>를 통해 로컬/인메모리 시작 시 테스트용 개발 이력 시드 자동 세팅
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                      <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                        <span className="p-1.5 rounded bg-indigo-50 leading-none">🎨</span>
-                        Frontend Layer
-                      </h3>
-                      <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
-                        <li>
-                          <strong className="text-slate-800 font-bold">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
-                        </li>
-                        <li>
-                          <strong className="text-slate-800 font-bold">Zustand & TanStack Query</strong>를 조합한 프론트 전역 상태 및 비동기 API 캐시 제어
-                        </li>
-                        <li>
-                          <strong className="text-slate-800 font-bold">Tailwind CSS (Vanilla CSS 폴백)</strong> 미드나잇 글래스모피즘 프리미엄 UI 디자인 테마
-                        </li>
-                        <li>
-                          <strong className="text-slate-800 font-bold">PDF 인쇄 미디어 쿼리</strong> 최적화로 브라우저 상의 인쇄 레이아웃 단일 이력서 규격화
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                      <h3 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                        <span className="p-1.5 rounded bg-indigo-50 leading-none">☸️</span>
-                        DevOps & GitOps
-                      </h3>
-                      <ul className="text-base sm:text-lg text-slate-655 space-y-2 leading-relaxed font-normal">
-                        <li>
-                          <strong className="text-slate-850 font-bold">Cloudflare Pages CDN</strong>: 프론트엔드 정적 빌드 파일을 전 세계 엣지 노드에 초고속 캐싱 및 배포
-                        </li>
-                        <li>
-                          <strong className="text-slate-850 font-bold">GitHub Actions & OCIR</strong>: 백엔드 푸시 시 ARM64 네이티브 컨테이너 이미지 자동 빌드 및 Oracle OCI Registry 배포
-                        </li>
-                        <li>
-                          <strong className="text-slate-850 font-bold">Argo CD 자동 동기화</strong>: k8s 배포 매니페스트 변경을 Argo CD가 실시간 감지하여 OKE 클러스터에 무중단 롤아웃 배포
-                        </li>
-                        <li>
-                          <strong className="text-slate-850 font-bold">Sealed Secrets 보안</strong>: DB 비밀번호 등 민감 데이터를 비대칭 키로 안전하게 암호화하여 Git에 안심하고 형상 관리
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 rounded-xl border border-slate-200 bg-slate-950 p-5 shadow-inner">
-                    <h3 className="text-base sm:text-lg font-black text-slate-100 mb-3 flex items-center gap-1.5">
-                      <span>☸️</span>
-                      <span>실제 운영(Production) 시스템 아키텍처 및 배포 흐름도</span>
-                    </h3>
-                    <div className="text-[8px] xs:text-[9.5px] sm:text-[11px] md:text-[13px] lg:text-[11px] xl:text-[12.5px] print:text-[8.5px] font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-normal tracking-tight sm:tracking-normal print:leading-[1.15] print:tracking-tighter whitespace-pre overflow-x-auto border border-slate-800">
-{` +-----------------------------------------------------------------------------------------+
- |                                    [ Web Client User ]                                  |
- |                                             |                                           |
- |                       https://unbrdn.me     |     https://api.unbrdn.me                 |
- |                     +-----------------------+-----------------------+                   |
- |                     |                                               |                   |
- |                     v                                               v                   |
- |           [ Cloudflare Pages ]                            [ Cloudflare DNS Proxy ]      |
- |           - Frontend Static Hosting                                 |                   |
- |           - Worldwide Edge Caching                                  | OCI Load Balancer |
- |                                                                     v                   |
- |                                                          [ Ingress Nginx Controller ]   |
- |                                                                     | SSL / TLS Route   |
- |                                                                     v                   |
- |  +-----------------------------------------------------------------------------------+  |
- |  |                          Oracle Kubernetes Engine (OKE Cluster)                   |  |
- |  |                                                                                   |  |
- |  |   [ Argo CD Engine ]                 [ Sealed Secrets Controller ]                |  |
- |  |     - Watches GitHub Repository        - Decrypts encrypted DB Secrets            |  |
- |  |     - Automated git sync to cluster                                               |  |
- |  |                    |                                 |                            |  |
- |  |                    v                                 v                            |  |
- |  |        +-------------------------------------------------------+                  |  |
- |  |        |                  [ self-intro-backend-pod ]           |                  |  |
- |  |        |     - Spring Boot 3.3.3 API Server (Java 21 JRE)      |                  |  |
- |  |        |     - Runs on ARM64 Ampere A1 Compute Instance        |                  |  |
- |  |        +-------------------------------------------------------+                  |  |
- |  |                                    |                                              |  |
- |  +------------------------------------|----------------------------------------------+  |
- |                                       | JDBC Connector (OCI VCN Private Subnet)          |
- |                                       v                                                 |
- |                   [ MySQL HeatWave Database (Always Free) ]                             |
- |                     - Persistent relational database store                              |
- |                     - Flyway schema & SampleDataLoader automatic seeds                  |
- +-----------------------------------------------------------------------------------------+`}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-
             </div>
 
             {/* Right Sticky Sidebar Column */}
@@ -884,6 +767,131 @@ export function App() {
               </div>
             </aside>
 
+          </div>
+        ) : activePage === 'architecture' ? (
+          /* SYSTEM ARCHITECTURE PAGE */
+          <div className="mx-auto max-w-6xl space-y-8 animate-fadeIn pb-12 print:hidden">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-550/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+              <div className="relative z-10 border-b border-slate-100 pb-5">
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+                  <Terminal className="h-6 w-6 text-indigo-600" />
+                  시스템 아키텍처 (Self-Intro Architecture)
+                </h1>
+                <p className="mt-2 text-sm sm:text-base text-slate-500 font-normal leading-relaxed">
+                  이 포트폴리오 웹앱을 구동하고 데이터를 서빙하는 풀스택 컨테이너 인프라 설계 명세입니다.
+                </p>
+              </div>
+
+              <div className="relative z-10 mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
+                    <span className="p-1.5 rounded bg-indigo-50 leading-none">💻</span>
+                    Backend Layer
+                  </h2>
+                  <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
+                    <li>
+                      <strong className="text-slate-800 font-bold">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 font-bold">Spring Data JPA</strong> 및 H2/MySQL 데이터베이스 통합 제어
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 font-bold">Flyway 스키마 마이그레이션</strong>을 활용해 실행 시 DDL 데이터 자동 적재 및 버전 제어
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 font-bold">SampleDataLoader</strong>를 통해 로컬/인메모리 시작 시 테스트용 개발 이력 시드 자동 세팅
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
+                    <span className="p-1.5 rounded bg-indigo-50 leading-none">🎨</span>
+                    Frontend Layer
+                  </h2>
+                  <ul className="text-base sm:text-lg text-slate-650 space-y-2 leading-relaxed font-normal">
+                    <li>
+                      <strong className="text-slate-800 font-bold">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 font-bold">Zustand & TanStack Query</strong>를 조합한 프론트 전역 상태 및 비동기 API 캐시 제어
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 font-bold">Tailwind CSS (Vanilla CSS 폴백)</strong> 미드나잇 글래스모피즘 프리미엄 UI 디자인 테마
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 font-bold">PDF 인쇄 미디어 쿼리</strong> 최적화로 브라우저 상의 인쇄 레이아웃 단일 이력서 규격화
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                  <h2 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
+                    <span className="p-1.5 rounded bg-indigo-50 leading-none">☸️</span>
+                    DevOps & GitOps
+                  </h2>
+                  <ul className="text-base sm:text-lg text-slate-655 space-y-2 leading-relaxed font-normal">
+                    <li>
+                      <strong className="text-slate-850 font-bold">Cloudflare Pages CDN</strong>: 프론트엔드 정적 빌드 파일을 전 세계 엣지 노드에 초고속 캐싱 및 배포
+                    </li>
+                    <li>
+                      <strong className="text-slate-850 font-bold">GitHub Actions & OCIR</strong>: 백엔드 푸시 시 ARM64 네이티브 컨테이너 이미지 자동 빌드 및 Oracle OCI Registry 배포
+                    </li>
+                    <li>
+                      <strong className="text-slate-850 font-bold">Argo CD 자동 동기화</strong>: k8s 배포 매니페스트 변경을 Argo CD가 실시간 감지하여 OKE 클러스터에 무중단 롤아웃 배포
+                    </li>
+                    <li>
+                      <strong className="text-slate-850 font-bold">Sealed Secrets 보안</strong>: DB 비밀번호 등 민감 데이터를 비대칭 키로 안전하게 암호화하여 Git에 안심하고 형상 관리
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-950 p-5 sm:p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.12)]">
+              <h2 className="text-base sm:text-lg font-black text-slate-100 mb-3 flex items-center gap-1.5">
+                <span>☸️</span>
+                <span>실제 운영(Production) 시스템 아키텍처 및 배포 흐름도</span>
+              </h2>
+              <div className="text-[8px] xs:text-[9.5px] sm:text-[11px] md:text-[13px] lg:text-[11px] xl:text-[12.5px] print:text-[8.5px] font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-normal tracking-tight sm:tracking-normal print:leading-[1.15] print:tracking-tighter whitespace-pre overflow-x-auto border border-slate-800">
+{` +-----------------------------------------------------------------------------------------+
+ |                                    [ Web Client User ]                                  |
+ |                                             |                                           |
+ |                       https://unbrdn.me     |     https://api.unbrdn.me                 |
+ |                     +-----------------------+-----------------------+                   |
+ |                     |                                               |                   |
+ |                     v                                               v                   |
+ |           [ Cloudflare Pages ]                            [ Cloudflare DNS Proxy ]      |
+ |           - Frontend Static Hosting                                 |                   |
+ |           - Worldwide Edge Caching                                  | OCI Load Balancer |
+ |                                                                     v                   |
+ |                                                          [ Ingress Nginx Controller ]   |
+ |                                                                     | SSL / TLS Route   |
+ |                                                                     v                   |
+ |  +-----------------------------------------------------------------------------------+  |
+ |  |                          Oracle Kubernetes Engine (OKE Cluster)                   |  |
+ |  |                                                                                   |  |
+ |  |   [ Argo CD Engine ]                 [ Sealed Secrets Controller ]                |  |
+ |  |     - Watches GitHub Repository        - Decrypts encrypted DB Secrets            |  |
+ |  |     - Automated git sync to cluster                                               |  |
+ |  |                    |                                 |                            |  |
+ |  |                    v                                 v                            |  |
+ |  |        +-------------------------------------------------------+                  |  |
+ |  |        |                  [ self-intro-backend-pod ]           |                  |  |
+ |  |        |     - Spring Boot 3.3.3 API Server (Java 21 JRE)      |                  |  |
+ |  |        |     - Runs on ARM64 Ampere A1 Compute Instance        |                  |  |
+ |  |        +-------------------------------------------------------+                  |  |
+ |  |                                    |                                              |  |
+ |  +------------------------------------|----------------------------------------------+  |
+ |                                       | JDBC Connector (OCI VCN Private Subnet)          |
+ |                                       v                                                 |
+ |                   [ MySQL HeatWave Database (Always Free) ]                             |
+ |                     - Persistent relational database store                              |
+ |                     - Flyway schema & SampleDataLoader automatic seeds                  |
+ +-----------------------------------------------------------------------------------------+`}
+              </div>
+            </div>
           </div>
         ) : (
           /* STUDY LOGS PAGE (공부 정리) */
