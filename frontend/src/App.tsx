@@ -16,7 +16,7 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { studyApi, type CreateStudyEntryRequest, type StudyEntry } from './lib/api';
+import { studyApi, bffApi, type CreateStudyEntryRequest, type StudyEntry } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
 
 const milestones = [
@@ -231,14 +231,130 @@ export function App() {
     }
   };
 
-  const { data: studyEntries } = useQuery<StudyEntry[]>({
-    queryKey: ['studyEntries'],
-    queryFn: () => studyApi.list(),
+  const { data: introData } = useQuery({
+    queryKey: ['introduction'],
+    queryFn: bffApi.getIntroduction,
   });
 
+  const { data: bffLearningData } = useQuery({
+    queryKey: ['learning'],
+    queryFn: bffApi.getLearning,
+  });
+
+  const studyEntries = bffLearningData?.studyEntries;
+
+  const fallbackProfile = {
+    name: "신윤식",
+    nameEn: "Yoonsik Shin",
+    jobTitle: "Software Engineer",
+    bio: "에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.",
+    careerSummary: "1년 11개월 (에듀테크 스타트업)",
+    coreStackSummary: "Java / Node.js / Cloud",
+    statusBadgeText: "실시간 아키텍처 및 콘텐츠 개선 중",
+    githubUrl: "https://github.com/Yoonsik-Shin",
+    email: "aaa946@naver.com",
+    phone: "010-5171-0994"
+  };
+
+  const profile = introData?.profile ?? fallbackProfile;
+
+  const coreLanguages = useMemo(() => {
+    if (introData?.skills && introData.skills.length > 0) {
+      return introData.skills.filter(s => s.category === 'LANGUAGE').map(s => s.name);
+    }
+    return ['Java', 'TypeScript', 'Python'];
+  }, [introData]);
+
+  const frameworkSkills = useMemo(() => {
+    if (introData?.skills && introData.skills.length > 0) {
+      return introData.skills.filter(s => s.category !== 'LANGUAGE').map(s => s.name);
+    }
+    return ['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'];
+  }, [introData]);
+
+  const activeMilestones = useMemo(() => {
+    if (introData?.experiences && introData.experiences.length > 0) {
+      return introData.experiences
+        .filter(exp => exp.type === 'PROJECT' || exp.type === 'CAREER')
+        .map(exp => {
+          const formatPeriod = (start: string, end?: string) => {
+            const format = (dateStr: string) => dateStr.replace(/-/g, '.').substring(0, 7);
+            return `${format(start)} - ${end ? format(end) : '진행 중'}`;
+          };
+          
+          let label = exp.title.split(' (')[0];
+          if (exp.type === 'CAREER') {
+             label = '에듀테크 플랫폼 핵심 서버/BFF';
+          } else if (exp.slug === 'project1') {
+             label = 'CS Test Bed';
+          } else if (exp.slug === 'project2') {
+             label = 'LogDoctor (SaaS)';
+          } else if (exp.slug === 'project3') {
+             label = 'AI 실시간 모의면접 플랫폼';
+          }
+
+          return {
+            id: exp.slug ?? exp.id.toString(),
+            label: label,
+            period: formatPeriod(exp.periodStart, exp.periodEnd),
+            title: exp.title,
+            body: exp.details.join(', '),
+            skills: exp.skills.map(s => s.name),
+            role: exp.role ?? '',
+            description: exp.summary ?? '',
+            takeaway: exp.takeaway ?? '',
+            essayContent: exp.essayContent
+          };
+        });
+    }
+    return milestones;
+  }, [introData]);
+
   const selectedMilestone = useMemo(() => {
-    return milestones.find(m => m.id === selectedMilestoneId) || milestones[0];
-  }, [selectedMilestoneId]);
+    return activeMilestones.find(m => m.id === selectedMilestoneId) || activeMilestones[0];
+  }, [selectedMilestoneId, activeMilestones]);
+
+  const dynamicWhyParagraphs = useMemo(() => {
+    if (introData?.experiences && introData.experiences.length > 0) {
+      const careerExp = introData.experiences.find(exp => exp.type === 'CAREER');
+      const projectExp = introData.experiences.find(exp => exp.type === 'PROJECT' && exp.essayContent);
+      
+      const paragraphs: string[] = [];
+      if (careerExp && careerExp.essayContent) {
+        paragraphs.push(...careerExp.essayContent.split('\n\n'));
+      }
+      if (projectExp && projectExp.essayContent) {
+        paragraphs.push(projectExp.essayContent);
+      }
+      if (paragraphs.length > 0) {
+        return paragraphs;
+      }
+    }
+    return essays.WHY.paragraphs;
+  }, [introData]);
+
+  const dynamicStrengths = useMemo(() => {
+    if (introData?.experiences && introData.experiences.length > 0) {
+      const certs = introData.experiences
+        .filter(exp => exp.type === 'CERTIFICATE' && exp.essayContent)
+        .sort((a, b) => a.displayOrder - b.displayOrder);
+      
+      if (certs.length > 0) {
+        return certs.map(cert => {
+          let takeawayLabel = cert.takeaway ?? '';
+          if (cert.title === '정보처리기사') takeawayLabel = '소프트웨어 공학 주기 및 클린 아키텍처 실무 접목';
+          else if (cert.title === 'SQL 개발자(SQLD)') takeawayLabel = '관계형 데이터베이스 모델링 및 동적 쿼리 최적화';
+          else if (cert.title === '빅데이터분석기사') takeawayLabel = '대용량 데이터 전처리 및 통계 분석 파이프라인 설계';
+
+          return {
+            title: `${cert.title}: ${takeawayLabel}`,
+            content: cert.essayContent ?? ''
+          };
+        });
+      }
+    }
+    return essays.STRENGTH.strengths;
+  }, [introData]);
 
   const filteredEntries = useMemo((): StudyEntry[] => {
     const entries = studyEntries ?? fallbackEntries;
@@ -254,7 +370,7 @@ export function App() {
   const createMutation = useMutation({
     mutationFn: studyApi.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['studyEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['learning'] });
       setForm({
         title: '',
         description: '',
@@ -416,23 +532,23 @@ export function App() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
                 <div className="space-y-2 shrink-0">
                   <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700 leading-none whitespace-nowrap">
-                    Software Engineer
+                    {profile.jobTitle}
                   </h2>
                   <div className="flex items-baseline gap-2.5 whitespace-nowrap">
-                    <h1 className="text-3xl font-black text-slate-900 leading-none whitespace-nowrap">신윤식</h1>
-                    <span className="text-lg font-bold text-slate-450 font-mono whitespace-nowrap">Yoonsik Shin</span>
+                    <h1 className="text-3xl font-black text-slate-900 leading-none whitespace-nowrap">{profile.name}</h1>
+                    <span className="text-lg font-bold text-slate-450 font-mono whitespace-nowrap">{profile.nameEn}</span>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3.5 mt-2 md:mt-0">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse shadow-sm">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    실시간 아키텍처 및 콘텐츠 개선 중 (v{__APP_VERSION__} - {__BUILD_DATE__} 배포)
+                    {profile.statusBadgeText} (v{__APP_VERSION__} - {__BUILD_DATE__} 배포)
                   </span>
 
                   <div className="flex items-center gap-2">
                     <a
-                      href="https://github.com/Yoonsik-Shin"
+                      href={profile.githubUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
@@ -441,14 +557,14 @@ export function App() {
                       <Github className="h-4 w-4" />
                     </a>
                     <a
-                      href="mailto:aaa946@naver.com"
+                      href={`mailto:${profile.email}`}
                       className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
                       title="이메일 보내기"
                     >
                       <Mail className="h-4 w-4" />
                     </a>
                     <a
-                      href="tel:010-5171-0994"
+                      href={`tel:${profile.phone}`}
                       className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
                       title="전화 걸기"
                     >
@@ -462,7 +578,7 @@ export function App() {
               <div className="space-y-6">
                 <div>
                   <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed max-w-4xl">
-                    에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.
+                    {profile.bio}
                   </p>
                 </div>
 
@@ -475,8 +591,8 @@ export function App() {
                           <Briefcase className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-550 transition">실무 경력</span>
-                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">1년 11개월 (에듀테크 스타트업)</span>
+                          <span className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider group-hover:text-indigo-550 transition">실무 경력</span>
+                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">{profile.careerSummary}</span>
                         </div>
                       </button>
 
@@ -488,8 +604,8 @@ export function App() {
                           <Cpu className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-550 transition">핵심 스택</span>
-                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">Java / Node.js / Cloud</span>
+                          <span className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider group-hover:text-indigo-550 transition">핵심 스택</span>
+                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">{profile.coreStackSummary}</span>
                         </div>
                       </button>
                     </div>
@@ -534,7 +650,7 @@ export function App() {
                     <div>
                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Core Languages</h4>
                       <div className="flex flex-wrap gap-1.5">
-                        {['Java', 'TypeScript', 'Python'].map((lang) => (
+                        {coreLanguages.map((lang) => (
                           <span key={lang} className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-bold px-3 py-1 rounded-md shadow-sm">
                             {lang}
                           </span>
@@ -545,7 +661,7 @@ export function App() {
                     <div>
                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Frameworks, Libraries & DevOps</h4>
                       <div className="flex flex-wrap gap-1.5">
-                        {['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'].map((item) => (
+                        {frameworkSkills.map((item) => (
                           <span key={item} className={badgeStyle}>
                             {item}
                           </span>
@@ -579,7 +695,7 @@ export function App() {
                         "{essays.WHY.subtitle}"
                       </p>
                       <div className="space-y-4 text-base sm:text-lg text-slate-650 leading-relaxed font-normal ml-0 sm:ml-8">
-                        {essays.WHY.paragraphs.map((p, idx) => (
+                        {dynamicWhyParagraphs.map((p, idx) => (
                           <p key={idx} className="indent-2 bg-white p-4 rounded-xl border border-slate-200/50 transition shadow-sm">
                             {p}
                           </p>
@@ -597,7 +713,7 @@ export function App() {
                         "{essays.STRENGTH.subtitle}"
                       </p>
                       <div className="grid grid-cols-1 gap-4 ml-0 sm:ml-8">
-                        {essays.STRENGTH.strengths.map((str, idx) => (
+                        {dynamicStrengths.map((str, idx) => (
                           <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 transition">
                             <h4 className="text-base sm:text-lg font-black text-slate-800">
                               {str.title}
@@ -626,7 +742,7 @@ export function App() {
                   </div>
 
                   <div className="mt-8 space-y-8 relative before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-[2px] before:bg-slate-200">
-                    {milestones.map((m, idx) => (
+                    {activeMilestones.map((m, idx) => (
                       <div
                         key={m.id}
                         className="relative pl-10 group cursor-pointer"

@@ -14,6 +14,70 @@ export type CreateStudyEntryRequest = Omit<StudyEntry, 'id' | 'skills'> & {
   skills: string;
 };
 
+export type Profile = {
+  id: number;
+  name: string;
+  nameEn: string;
+  jobTitle: string;
+  bio: string;
+  careerSummary: string;
+  coreStackSummary: string;
+  statusBadgeText: string;
+  githubUrl: string;
+  email: string;
+  phone: string;
+  updatedAt: string;
+};
+
+export type Skill = {
+  id: number;
+  name: string;
+  category: string;
+  skillLevel?: string;
+  isCore: boolean;
+  displayOrder: number;
+};
+
+export type Experience = {
+  id: number;
+  type: 'CAREER' | 'PROJECT' | 'EDUCATION' | 'CERTIFICATE';
+  title: string;
+  periodStart: string;
+  periodEnd?: string;
+  summary?: string;
+  takeaway?: string;
+  essayContent?: string;
+  displayOrder: number;
+  details: string[];
+  skills: Skill[];
+
+  // Career specific
+  companyName?: string;
+  employmentType?: string;
+  department?: string;
+  role?: string;
+
+  // Project specific
+  slug?: string;
+  contributionRate?: number;
+
+  // Education specific
+  institutionName?: string;
+
+  // Certificate specific
+  issuer?: string;
+};
+
+export type IntroductionResponse = {
+  profile: Profile | null;
+  experiences: Experience[];
+  skills: Skill[];
+};
+
+export type LearningResponse = {
+  studyEntries: StudyEntry[];
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 export class ApiError extends Error {
@@ -103,3 +167,9 @@ export const authApi = {
     }),
   me: () => request<{ username: string }>('/api/auth/me'),
 };
+
+export const bffApi = {
+  getIntroduction: () => request<IntroductionResponse>('/api/bff/introduction'),
+  getLearning: () => request<LearningResponse>('/api/bff/learning'),
+};
+
