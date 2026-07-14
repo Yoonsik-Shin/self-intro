@@ -41,3 +41,5 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+// Force deploy trigger to rebuild and redeploy backend with the new endpoints
+
