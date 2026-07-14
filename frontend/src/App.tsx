@@ -164,7 +164,7 @@ export function App() {
   const [activeSection, setActiveSection] = useState('intro-profile');
 
   useEffect(() => {
-    const sections = ['intro-profile', 'competencies', 'projects', 'architecture'];
+    const sections = ['intro-profile', 'career', 'skills', 'competencies', 'projects', 'architecture'];
     
     const observerOptions = {
       root: null,
@@ -275,7 +275,9 @@ export function App() {
 
             <nav className="hidden items-center gap-1 md:flex">
               {[
-                { id: 'intro-profile', label: '프로필 & 이력' },
+                { id: 'intro-profile', label: '프로필' },
+                { id: 'career', label: '직장 경력' },
+                { id: 'skills', label: '기술 스택' },
                 { id: 'competencies', label: '역량 기술서' },
                 { id: 'projects', label: '핵심 프로젝트' },
                 { id: 'architecture', label: '시스템 아키텍처' },
@@ -447,53 +449,51 @@ export function App() {
             {/* Main Content Column */}
             <div className="min-w-0 space-y-12">
               
-              {/* SECTION 1: 프로필 & 이력 요약 */}
-              <div className="space-y-6">
-                
-                {/* Unified profile card dashboard panel */}
+              {/* SECTION 1: 직장 경력 */}
+              <section id="career" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-                    
-                    {/* Column 1: Career Info */}
-                    <div className="pb-6 md:pb-0 md:pr-8">
-                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
-                        <Briefcase className="h-4 w-4 text-indigo-600" />
-                        직장 경력 (총 1년 11개월)
-                      </h3>
-                      <div>
-                        <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-xs font-bold text-emerald-700">
-                          2023. 12 - 2025. 10
-                        </span>
-                        <p className="mt-1.5 text-base font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
-                        <p className="text-sm text-slate-500 leading-none">개발팀 / 백엔드 엔지니어</p>
-                        <ul className="mt-3.5 space-y-2 text-sm text-slate-650 list-disc list-inside leading-relaxed font-normal">
-                          <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
-                          <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
-                          <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
-                          <li>AWS 인프라 및 CI/CD 파이프라인 설계/운영</li>
-                        </ul>
-                      </div>
-                    </div>
+                  <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <Briefcase className="h-5 w-5 text-indigo-600" />
+                    직장 경력 (총 1년 11개월)
+                  </h3>
+                  <div>
+                    <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                      2023. 12 - 2025. 10
+                    </span>
+                    <p className="mt-2 text-lg font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
+                    <p className="text-sm font-semibold text-slate-500">개발팀 / 백엔드 엔지니어</p>
+                    <ul className="mt-4 space-y-2 text-base text-slate-650 list-disc list-inside leading-relaxed font-normal">
+                      <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
+                      <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
+                      <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
+                      <li>AWS 인프라 및 CI/CD 파이프라인 설계/운영</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
 
-                    {/* Column 2: Core Skills */}
-                    <div className="pt-6 md:pt-0 md:pl-8">
-                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
-                        <Cpu className="h-4 w-4 text-indigo-600" />
-                        핵심 기술 스택
-                      </h3>
-                      <div className="space-y-2">
-                        {[
-                          { name: 'Java', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                          { name: 'TypeScript', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                          { name: 'Python', level: '중급', bg: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
-                        ].map((skill) => (
-                          <div key={skill.name} className="flex items-center justify-between">
-                            <span className="text-base font-semibold text-slate-700">{skill.name}</span>
-                            <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${skill.bg}`}>{skill.level}</span>
-                          </div>
+              {/* SECTION 1.5: 핵심 기술 스택 */}
+              <section id="skills" className="scroll-mt-24 space-y-6">
+                <div className={cardStyle}>
+                  <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <Cpu className="h-5 w-5 text-indigo-600" />
+                    핵심 기술 스택
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Core Languages</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['Java', 'TypeScript', 'Python'].map((lang) => (
+                          <span key={lang} className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-bold px-3 py-1 rounded-md shadow-sm">
+                            {lang}
+                          </span>
                         ))}
                       </div>
-                      <div className="mt-4 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Frameworks, Libraries & DevOps</h4>
+                      <div className="flex flex-wrap gap-1.5">
                         {['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'].map((item) => (
                           <span key={item} className={badgeStyle}>
                             {item}
@@ -501,10 +501,9 @@ export function App() {
                         ))}
                       </div>
                     </div>
-
                   </div>
                 </div>
-              </div>
+              </section>
 
               {/* SECTION 2: 역량 기술서 */}
               <section id="competencies" className="scroll-mt-24 space-y-6">
@@ -840,7 +839,9 @@ export function App() {
                 {/* Vertical Stepper Links */}
                 <div className="relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-100">
                   {[
-                    { id: 'intro-profile', label: '프로필 & 이력 요약' },
+                    { id: 'intro-profile', label: '프로필' },
+                    { id: 'career', label: '직장 경력' },
+                    { id: 'skills', label: '기술 스택' },
                     { id: 'competencies', label: '역량 기술서' },
                     { id: 'projects', label: '핵심 프로젝트' },
                     { id: 'architecture', label: '시스템 아키텍처' },
