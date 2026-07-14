@@ -120,6 +120,7 @@ export function AdminDashboard() {
   const [studyEditingId, setStudyEditingId] = useState<number | null>(null);
   const [studyForm, setStudyForm] = useState<CreateStudyEntryRequest>(emptyStudyForm);
   const [isStudyFormOpen, setIsStudyFormOpen] = useState(false);
+  const [expandedStudyId, setExpandedStudyId] = useState<number | null>(null);
 
   const createStudyMutation = useMutation({
     mutationFn: studyApi.create,
@@ -262,6 +263,7 @@ export function AdminDashboard() {
   const [expForm, setExpForm] = useState(emptyExperienceForm);
   const [isExpFormOpen, setIsExpFormOpen] = useState(false);
   const [detailInput, setDetailInput] = useState('');
+  const [expandedExpId, setExpandedExpId] = useState<number | null>(null);
 
   const createExpMutation = useMutation({
     mutationFn: experienceApi.create,
@@ -551,44 +553,79 @@ export function AdminDashboard() {
               )}
 
               <div className="space-y-2.5">
-                {studyEntries?.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-mono text-xs font-bold text-slate-400">
-                        {entry.learnedAt} · {entry.category}
-                      </p>
-                      <p className="truncate text-sm font-black text-slate-800">{entry.title}</p>
+                {studyEntries?.map((entry) => {
+                  const isExpanded = expandedStudyId === entry.id;
+                  return (
+                    <div
+                      key={entry.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div
+                          className="min-w-0 flex-1 cursor-pointer"
+                          onClick={() => setExpandedStudyId(isExpanded ? null : entry.id)}
+                        >
+                          <p className="font-mono text-xs font-bold text-slate-400">
+                            {entry.learnedAt} · {entry.category}
+                          </p>
+                          <p className="text-sm font-black text-slate-800 hover:text-indigo-650 transition">{entry.title}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setStudyEditingId(entry.id);
+                              setStudyForm({
+                                title: entry.title,
+                                description: entry.description,
+                                category: entry.category,
+                                skills: entry.skills.join(', '),
+                                takeaway: entry.takeaway,
+                                learnedAt: entry.learnedAt,
+                              });
+                              setIsStudyFormOpen(true);
+                            }}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-650"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleStudyDelete(entry.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-650"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs space-y-3 text-slate-650">
+                          <div>
+                            <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">상세 설명</h5>
+                            <p className="whitespace-pre-wrap font-medium">{entry.description}</p>
+                          </div>
+                          {entry.skills && entry.skills.length > 0 && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">기술 스택</h5>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {entry.skills.map((s) => (
+                                  <span key={s} className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600">
+                                    {s}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {entry.takeaway && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">Lesson Learned / Takeaway</h5>
+                              <p className="whitespace-pre-wrap font-medium text-indigo-600">{entry.takeaway}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setStudyEditingId(entry.id);
-                          setStudyForm({
-                            title: entry.title,
-                            description: entry.description,
-                            category: entry.category,
-                            skills: entry.skills.join(', '),
-                            takeaway: entry.takeaway,
-                            learnedAt: entry.learnedAt,
-                          });
-                          setIsStudyFormOpen(true);
-                        }}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-650"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleStudyDelete(entry.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1199,61 +1236,114 @@ export function AdminDashboard() {
 
               {/* Experiences List */}
               <div className="space-y-2.5">
-                {experiencesList?.map((exp) => (
-                  <div
-                    key={exp.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200">
-                          {exp.type}
-                        </span>
-                        <p className="font-mono text-xs font-bold text-slate-400">
-                          정렬 {exp.displayOrder}
-                        </p>
+                {experiencesList?.map((exp) => {
+                  const isExpanded = expandedExpId === exp.id;
+                  return (
+                    <div
+                      key={exp.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div
+                          className="min-w-0 flex-1 cursor-pointer"
+                          onClick={() => setExpandedExpId(isExpanded ? null : exp.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200">
+                              {exp.type}
+                            </span>
+                            <p className="font-mono text-xs font-bold text-slate-400">
+                              정렬 {exp.displayOrder}
+                            </p>
+                          </div>
+                          <p className="text-sm font-black text-slate-800 mt-1 hover:text-indigo-600 transition">{exp.title}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setExpEditingId(exp.id);
+                              setExpForm({
+                                type: exp.type,
+                                title: exp.title,
+                                periodStart: exp.periodStart,
+                                periodEnd: exp.periodEnd ?? '',
+                                summary: exp.summary ?? '',
+                                takeaway: exp.takeaway ?? '',
+                                essayContent: exp.essayContent ?? '',
+                                displayOrder: exp.displayOrder,
+                                details: exp.details ?? [],
+                                skillIds: exp.skills?.map((s) => s.id) ?? [],
+                                companyName: exp.companyName ?? '',
+                                employmentType: exp.employmentType ?? '정규직',
+                                department: exp.department ?? '',
+                                role: exp.role ?? '',
+                                slug: exp.slug ?? '',
+                                contributionRate: exp.contributionRate ?? 100,
+                                institutionName: exp.institutionName ?? '',
+                                issuer: exp.issuer ?? '',
+                              });
+                              setIsExpFormOpen(true);
+                            }}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-650"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleExpDelete(exp.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-650"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <p className="truncate text-sm font-black text-slate-800 mt-1">{exp.title}</p>
+
+                      {isExpanded && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs space-y-3 text-slate-600">
+                          {exp.summary && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">한줄 요약</h5>
+                              <p className="font-medium text-slate-700">{exp.summary}</p>
+                            </div>
+                          )}
+                          {exp.takeaway && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">Takeaway (핵심 성과)</h5>
+                              <p className="font-medium text-slate-700">{exp.takeaway}</p>
+                            </div>
+                          )}
+                          {exp.details && exp.details.length > 0 && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">상세 항목 (Bullet Points)</h5>
+                              <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-700 font-medium">
+                                {exp.details.map((pt, i) => (
+                                  <li key={i}>{pt}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {exp.skills && exp.skills.length > 0 && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">연관 기술 스택</h5>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {exp.skills.map((s) => (
+                                  <span key={s.id} className="bg-indigo-50 px-2 py-0.5 rounded text-[10px] font-bold text-indigo-600 border border-indigo-100">
+                                    {s.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {exp.essayContent && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">에세이 상세내용 (Essay Content)</h5>
+                              <p className="whitespace-pre-wrap font-medium text-slate-700">{exp.essayContent}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setExpEditingId(exp.id);
-                          setExpForm({
-                            type: exp.type,
-                            title: exp.title,
-                            periodStart: exp.periodStart,
-                            periodEnd: exp.periodEnd ?? '',
-                            summary: exp.summary ?? '',
-                            takeaway: exp.takeaway ?? '',
-                            essayContent: exp.essayContent ?? '',
-                            displayOrder: exp.displayOrder,
-                            details: exp.details ?? [],
-                            skillIds: exp.skills?.map((s) => s.id) ?? [],
-                            companyName: exp.companyName ?? '',
-                            employmentType: exp.employmentType ?? '정규직',
-                            department: exp.department ?? '',
-                            role: exp.role ?? '',
-                            slug: exp.slug ?? '',
-                            contributionRate: exp.contributionRate ?? 100,
-                            institutionName: exp.institutionName ?? '',
-                            issuer: exp.issuer ?? '',
-                          });
-                          setIsExpFormOpen(true);
-                        }}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-650"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleExpDelete(exp.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-650"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
