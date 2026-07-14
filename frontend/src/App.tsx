@@ -10,7 +10,6 @@ import {
   User,
   Mail,
   Phone,
-  Award,
   ChevronRight,
   Terminal,
   Code2,
@@ -740,29 +739,6 @@ export function App() {
                 </div>
               </section>
 
-              {/* SECTION 5: 병역 사항 */}
-              <section id="education-military" className="scroll-mt-24 space-y-6">
-                <div className={cardStyle}>
-                  <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <Award className="h-5 w-5 text-indigo-600" />
-                      병역 사항
-                    </h2>
-                    <p className="text-base text-slate-500 mt-1">병역 이행 관련 세부 사항입니다.</p>
-                  </div>
-                  <div className="mt-6 max-w-md">
-                    <div className="flex items-center gap-3 text-base text-slate-650 bg-slate-50/50 border border-slate-200/60 p-4 rounded-xl shadow-sm">
-                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 shadow-sm">
-                        <Award className="h-5 w-5 text-indigo-650" />
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">병역 구분</span>
-                        <span className="block font-black text-slate-800 text-sm">군필 (공익근무요원 이병 소집해제)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
 
             </div>
 
@@ -858,34 +834,23 @@ export function App() {
                 </div>
               </div>
 
-              {/* Section 1: Academics & Info */}
-              <div className="grid grid-cols-2 gap-6 text-sm">
-                <div>
-                  <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-850 uppercase tracking-wider">병역 사항</h3>
-                  <ul className="mt-2 space-y-1.5 text-slate-750 font-normal">
-                    <li>
-                      <span className="font-bold text-slate-900">병역 구분:</span> 군필 (공익근무요원 이병 소집해제)
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-850 uppercase tracking-wider">자격증 사항</h3>
-                  <ul className="mt-2 space-y-1.5 text-slate-750 font-normal">
-                    <li>
-                      <span className="font-bold text-slate-900">정보처리기사</span> (한국산업인력공단)
-                      <span className="block text-sm text-slate-400">취득일: 2022. 06. 17</span>
-                    </li>
-                    <li>
-                      <span className="font-bold text-slate-900">SQL 개발자(SQLD)</span> (한국데이터산업진흥원)
-                      <span className="block text-sm text-slate-400">취득일: 2024. 09. 20</span>
-                    </li>
-                    <li>
-                      <span className="font-bold text-slate-900">빅데이터분석기사</span> (한국데이터산업진흥원)
-                      <span className="block text-sm text-slate-400">취득일: 2022. 07. 15</span>
-                    </li>
-                  </ul>
-                </div>
+              {/* Section 1: Certificates */}
+              <div className="text-sm">
+                <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-850 uppercase tracking-wider">자격증 사항</h3>
+                <ul className="mt-2 grid grid-cols-3 gap-6 text-slate-750 font-normal">
+                  <li>
+                    <span className="font-bold text-slate-900">정보처리기사</span> (한국산업인력공단)
+                    <span className="block text-xs text-slate-400 mt-0.5">취득일: 2022. 06. 17</span>
+                  </li>
+                  <li>
+                    <span className="font-bold text-slate-900">SQL 개발자(SQLD)</span> (한국데이터산업진흥원)
+                    <span className="block text-xs text-slate-400 mt-0.5">취득일: 2024. 09. 20</span>
+                  </li>
+                  <li>
+                    <span className="font-bold text-slate-900">빅데이터분석기사</span> (한국데이터산업진흥원)
+                    <span className="block text-xs text-slate-400 mt-0.5">취득일: 2022. 07. 15</span>
+                  </li>
+                </ul>
               </div>
 
               {/* Section 2: Core Project Detail (Dynamic binding) */}
