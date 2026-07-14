@@ -323,7 +323,8 @@ export function App() {
                   </div>
                 </div>
                 <h1 className="mt-4 text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
-                <p className="text-sm font-bold text-slate-500 mt-1">Fullstack & Backend Developer</p>
+                <p className="text-sm font-bold text-slate-600 mt-1">Yoonsik Shin</p>
+                <p className="text-xs font-semibold text-slate-400 mt-0.5">Fullstack & Backend Developer</p>
                 
                 <div className="mt-4 flex justify-center lg:justify-start print:justify-start gap-2">
                   <a
@@ -362,8 +363,8 @@ export function App() {
                       실시간 아키텍처 및 콘텐츠 개선 중 (v1.2.4 - 2026. 07. 14 10:07 배포)
                     </span>
                   </div>
-                  <h2 className="mt-3 text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-                    신윤식 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">Fullstack & Backend Developer</span>
+                  <h2 className="mt-3 text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">
+                    Software Engineer
                   </h2>
                   <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed">
                     1년 11개월의 에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.
