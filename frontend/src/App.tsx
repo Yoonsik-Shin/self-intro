@@ -171,6 +171,26 @@ const mainSections = [
   { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
 ];
 
+function getDisplayCategory(skill: Skill): string {
+  const nameLower = skill.name.toLowerCase();
+  if (nameLower.includes('react') || nameLower.includes('vue') || nameLower.includes('svelte') || nameLower.includes('html') || nameLower.includes('css')) {
+    return 'Frontend';
+  }
+  if (skill.category === 'LANGUAGE' || skill.category === 'FRAMEWORK') {
+    return 'Backend & Language';
+  }
+  if (skill.category === 'DATABASE') {
+    return 'Database';
+  }
+  if (skill.category === 'DEVOPS') {
+    return 'DevOps & Infra';
+  }
+  if (skill.category === 'AI_RAG') {
+    return 'AI / RAG';
+  }
+  return 'Others';
+}
+
 const fallbackCoreSkills: Skill[] = [
   { id: -1, name: 'Java', category: 'LANGUAGE', skillLevel: '중급', skillVersion: '21', comment: 'Spring Boot 기반 백엔드 주력 언어', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 1 },
   { id: -2, name: 'TypeScript', category: 'LANGUAGE', skillLevel: '중급', skillVersion: '5', comment: 'NestJS, React 프로젝트에서 사용', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 2 },
@@ -725,37 +745,48 @@ export function App() {
                   </h3>
                   <div className="space-y-5">
                     {groupedCoreSkills.map((group) => (
-                      <div key={group.value}>
-                        <h4 className="mb-2 text-sm font-black text-slate-500">{group.label}</h4>
+                      <div key={group.value} className="space-y-4">
+                        <h4 className="text-sm font-black text-slate-500 border-b border-slate-100 pb-1.5">{group.label}</h4>
                         {group.skills.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {group.skills.map((skill) => (
-                              <button
-                                type="button"
-                                key={skill.id}
-                                onClick={() => setSelectedCoreSkillId((current) => (current === skill.id ? null : skill.id))}
-                                className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
-                                  selectedCoreSkillId === skill.id
-                                    ? 'border-indigo-400 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                                    : 'border-slate-200 bg-white text-slate-800 hover:border-indigo-300 hover:bg-indigo-50/50'
-                                }`}
-                              >
-                                <span className="text-base font-black leading-tight">{skill.name}</span>
-                                {skill.skillVersion && (
-                                  <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-xs font-black leading-none ${
-                                    selectedCoreSkillId === skill.id
-                                      ? 'border-white/25 bg-white/15 text-white'
-                                      : 'border-slate-200 bg-slate-50 text-slate-500'
-                                  }`}>
-                                    v{skill.skillVersion}
-                                  </span>
-                                )}
-                              </button>
-                            ))}
+                          <div className="space-y-4 pl-1">
+                            {['Backend & Language', 'Frontend', 'Database', 'DevOps & Infra', 'AI / RAG', 'Others'].map((cat) => {
+                              const catSkills = group.skills.filter(s => getDisplayCategory(s) === cat);
+                              if (catSkills.length === 0) return null;
+                              return (
+                                <div key={cat} className="space-y-2">
+                                  <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-wider">{cat}</h5>
+                                  <div className="flex flex-wrap gap-2">
+                                    {catSkills.map((skill) => (
+                                      <button
+                                        type="button"
+                                        key={skill.id}
+                                        onClick={() => setSelectedCoreSkillId((current) => (current === skill.id ? null : skill.id))}
+                                        className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
+                                          selectedCoreSkillId === skill.id
+                                            ? 'border-indigo-400 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                                            : 'border-slate-200 bg-white text-slate-800 hover:border-indigo-300 hover:bg-indigo-50/50'
+                                        }`}
+                                      >
+                                        <span className="text-base font-black leading-tight">{skill.name}</span>
+                                        {skill.skillVersion && (
+                                          <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-xs font-black leading-none ${
+                                            selectedCoreSkillId === skill.id
+                                              ? 'border-white/25 bg-white/15 text-white'
+                                              : 'border-slate-200 bg-slate-50 text-slate-500'
+                                          }`}>
+                                            v{skill.skillVersion}
+                                          </span>
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <p className="border-l-4 border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-400">
-                            선택된 핵심 기술이 없습니다.
+                            선택된 기술이 없습니다.
                           </p>
                         )}
                       </div>
