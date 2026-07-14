@@ -772,10 +772,22 @@ export function App() {
 
                     {/* Rows */}
                     <div className="mt-4 space-y-4 pb-2">
-                      {/* Row 1: 자격증 취득 */}
+                      {/* Row 1: 자격증 및 학력 */}
                       <div className="relative flex items-center h-10">
-                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">자격증 취득</div>
+                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">자격증 및 학력</div>
                         <div className="relative flex-1 h-full">
+                          {/* 대학교 학사 졸업 */}
+                          <div 
+                            style={{ left: '1.8%' }} 
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
+                            onClick={() => {
+                              scrollToSection('career');
+                            }}
+                          >
+                            <div className="w-3.5 h-3.5 rounded-full bg-blue-600 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
+                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">대학교 졸업 (22.02)</span>
+                          </div>
+
                           {/* 정보처리기사 */}
                           <div 
                             style={{ left: '8.9%' }} 

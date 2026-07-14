@@ -359,6 +359,19 @@ public class SampleDataLoader implements ApplicationRunner {
 
         // 3. Educations
         experienceRepository.save(Education.create(
+                "대학교 학사 졸업",
+                LocalDate.of(2022, 2, 25),
+                LocalDate.of(2022, 2, 25),
+                "컴퓨터공학 학사 학위 취득",
+                "학부 과정에서 컴퓨터공학 전공 지식을 학습하고 학사 학위를 취득했습니다.",
+                null,
+                12,
+                List.of(detail("컴퓨터공학 학사 학위 취득", null, null, null, 0, List.of())),
+                List.of(),
+                "대학교"
+        ));
+
+        experienceRepository.save(Education.create(
                 "[Microsoft] AI 엔지니어링 과정 (3기)",
                 LocalDate.of(2025, 9, 1),
                 LocalDate.of(2026, 3, 15),
