@@ -327,10 +327,10 @@ export function App() {
               <div id="intro-profile" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
             <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-550/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
             
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 relative z-10 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-4 print:grid-cols-4 gap-8 relative z-10 items-center">
               
               {/* Profile Avatar & Name & Socials (Column 1) */}
-              <div className="flex flex-col items-center lg:items-start text-center lg:text-left lg:border-r lg:border-slate-100 lg:pr-8">
+              <div className="flex flex-col items-center lg:items-start text-center lg:text-left lg:border-r lg:border-slate-100 lg:pr-8 print:items-start print:text-left print:border-r print:border-slate-100 print:pr-8">
                 <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
                   <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-3xl font-black text-white">
                     YS
@@ -339,7 +339,7 @@ export function App() {
                 <h1 className="mt-4 text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
                 <p className="text-sm font-bold text-slate-500 mt-1">Fullstack & Backend Developer</p>
                 
-                <div className="mt-4 flex justify-center lg:justify-start gap-2">
+                <div className="mt-4 flex justify-center lg:justify-start print:justify-start gap-2">
                   <a
                     href="https://github.com/Yoonsik-Shin"
                     target="_blank"
@@ -367,7 +367,7 @@ export function App() {
               </div>
 
               {/* Bio & Personal Info (Column 2-4) */}
-              <div className="lg:col-span-3 space-y-6">
+              <div className="lg:col-span-3 print:col-span-3 space-y-6">
                 <div>
                   <div className="flex flex-wrap gap-2">
 
@@ -384,7 +384,7 @@ export function App() {
                   </p>
                 </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                    <div className="flex flex-col sm:flex-row print:flex-row gap-4 pt-2">
                       <button
                         onClick={() => scrollToSection('career')}
                         className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-150 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
