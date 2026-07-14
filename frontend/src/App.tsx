@@ -364,13 +364,13 @@ export function App() {
               {/* Top Row: Name, English Name, Social Links, and Deploy Badge */}
               {/* Top Row: Name, English Name, Job Title and Social Links */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
-                <div className="space-y-2">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700 leading-none">
+                <div className="space-y-2 shrink-0">
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700 leading-none whitespace-nowrap">
                     Software Engineer
                   </h2>
-                  <div className="flex items-baseline gap-2.5">
-                    <h1 className="text-3xl font-black text-slate-900 leading-none">신윤식</h1>
-                    <span className="text-lg font-bold text-slate-450 font-mono">Yoonsik Shin</span>
+                  <div className="flex items-baseline gap-2.5 whitespace-nowrap">
+                    <h1 className="text-3xl font-black text-slate-900 leading-none whitespace-nowrap">신윤식</h1>
+                    <span className="text-lg font-bold text-slate-450 font-mono whitespace-nowrap">Yoonsik Shin</span>
                   </div>
                 </div>
 
