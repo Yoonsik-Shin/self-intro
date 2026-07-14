@@ -165,11 +165,11 @@ const pages = [
 type PageId = (typeof pages)[number]['id'];
 
 const mainSections = [
-  { id: 'intro-profile', label: '프로필', icon: User },
-  { id: 'skills', label: '기술 스택', icon: Cpu },
-  { id: 'career', label: '직장 경력', icon: Briefcase },
-  { id: 'competencies', label: '역량 기술서', icon: Sparkles },
-  { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
+  { id: 'intro-profile', label: '프로필 (Profile)', icon: User },
+  { id: 'skills', label: '기술 스택 (Skills)', icon: Cpu },
+  { id: 'career', label: '직장 경력 (Work Experience)', icon: Briefcase },
+  { id: 'competencies', label: '역량 기술서 (Core Competencies)', icon: Sparkles },
+  { id: 'projects', label: '핵심 프로젝트 (Key Projects)', icon: Briefcase },
 ];
 
 function getDisplayCategory(skill: Skill): string {
@@ -1300,7 +1300,7 @@ export function App() {
                           : 'bg-indigo-200 group-hover:bg-indigo-400'
                       }`} />
                       
-                      <span className={`rounded-lg px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${
+                      <span className={`rounded-lg px-2 py-1 text-xs font-bold leading-tight transition-all duration-200 ${
                         activeSection === step.id
                           ? 'bg-indigo-50 text-indigo-600 font-extrabold'
                           : 'text-slate-600 hover:bg-indigo-50/60 hover:text-indigo-700'
