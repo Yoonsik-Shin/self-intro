@@ -56,8 +56,8 @@ select {
     display: none !important;
   }
 
-  /* Force cards and sections to avoid breaking midway through a page where possible */
-  section, .rounded-2xl {
+  /* Force cards, sections, and inner blocks to avoid breaking midway through a page */
+  section, .rounded-2xl, .rounded-xl {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
