@@ -16,8 +16,10 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { studyApi, bffApi, type CreateStudyEntryRequest, type StudyEntry } from './lib/api';
+import ReactMarkdown from 'react-markdown';
+import { studyApi, bffApi, type CreateStudyEntryRequest, type Skill, type StudyEntry, type ExperienceDetail } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
+import { markdownComponents } from './lib/markdown';
 
 const milestones = [
   {
@@ -26,7 +28,7 @@ const milestones = [
     period: '2026.06 - 2026.07',
     title: '고객문의 수집·자동응답 통합 테스트베드 (기여도 100%)',
     body: 'n8n 자동 수집, Playwright 네이버 로그인, PII 암호화, Grafana 모니터링 환경을 구축했습니다.',
-    skills: ['Java 21', 'Spring Boot 3.3', 'QueryDSL', 'Flyway', 'React 19', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
+    skills: ['Java', 'Spring Boot', 'QueryDSL', 'Flyway', 'React', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
     role: 'Backend & DevOps Engineer',
     description: '고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. DB 기반 RBAC 및 PII 암호화, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.',
     takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.'
@@ -102,7 +104,7 @@ const fallbackEntries: StudyEntry[] = [
     title: 'CS Test Bed (고객문의 수집·자동응답 통합 테스트베드)',
     description: '고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. Spring Boot 3.3 백엔드, React 19 프론트엔드, Playwright Express 워커, n8n 오케스트레이터, DB 기반 RBAC 및 PII 암호화를 구축하고, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.',
     category: 'PROJECT',
-    skills: ['Java 21', 'Spring Boot 3.3', 'QueryDSL', 'Flyway', 'React 19', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
+    skills: ['Java', 'Spring Boot', 'QueryDSL', 'Flyway', 'React', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
     takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.',
     learnedAt: '2026-07-01'
   },
@@ -163,10 +165,25 @@ type PageId = (typeof pages)[number]['id'];
 
 const mainSections = [
   { id: 'intro-profile', label: '프로필', icon: User },
-  { id: 'career', label: '직장 경력', icon: Briefcase },
   { id: 'skills', label: '기술 스택', icon: Cpu },
+  { id: 'career', label: '직장 경력', icon: Briefcase },
   { id: 'competencies', label: '역량 기술서', icon: Sparkles },
   { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
+];
+
+const skillUsageGroups = [
+  { value: 'WORK_EXPERIENCE', label: '실무 경험' },
+  { value: 'PROJECT_USE', label: '프로젝트 활용' },
+  { value: 'LEARNING', label: '학습' },
+];
+
+const fallbackCoreSkills: Skill[] = [
+  { id: -1, name: 'Java', category: 'LANGUAGE', skillLevel: '중급', skillVersion: '21', comment: 'Spring Boot 기반 백엔드 주력 언어', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 1 },
+  { id: -2, name: 'TypeScript', category: 'LANGUAGE', skillLevel: '중급', skillVersion: '5', comment: 'NestJS, React 프로젝트에서 사용', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 2 },
+  { id: -3, name: 'Spring Boot', category: 'FRAMEWORK', skillLevel: '중급', skillVersion: '3', comment: '백오피스 및 포트폴리오 API 구축', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 3 },
+  { id: -4, name: 'React', category: 'FRAMEWORK', skillLevel: '중급', skillVersion: '19', comment: '관리자/포트폴리오 화면 구현', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 4 },
+  { id: -5, name: 'Docker', category: 'DEVOPS', skillLevel: '중급', comment: '로컬/운영 컨테이너 환경 구성', usageType: 'PROJECT_USE', isCore: true, displayOrder: 5 },
+  { id: -6, name: 'RAG', category: 'AI_RAG', skillLevel: '학습/활용', comment: 'AI 면접 질문 생성과 로그 진단에 적용', usageType: 'LEARNING', isCore: true, displayOrder: 6 },
 ];
 
 export function App() {
@@ -193,6 +210,8 @@ export function App() {
   const [activePage, setActivePage] = useState<PageId>('intro');
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
+  const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
+  const [expandedCareerDetailId, setExpandedCareerDetailId] = useState<number | null>(null);
 
   useEffect(() => {
     const observerOptions = {
@@ -258,19 +277,58 @@ export function App() {
 
   const profile = introData?.profile ?? fallbackProfile;
 
-  const coreLanguages = useMemo(() => {
-    if (introData?.skills && introData.skills.length > 0) {
-      return introData.skills.filter(s => s.category === 'LANGUAGE').map(s => s.name);
-    }
-    return ['Java', 'TypeScript', 'Python'];
+  const groupedCoreSkills = useMemo(() => {
+    const coreSkills =
+      introData?.skills && introData.skills.length > 0
+        ? introData.skills.filter((skill) => skill.isCore)
+        : fallbackCoreSkills;
+
+    return skillUsageGroups.map((group) => ({
+      ...group,
+      skills: coreSkills
+        .filter((skill) => skill.usageType === group.value)
+        .sort((a, b) => a.displayOrder - b.displayOrder),
+    }));
   }, [introData]);
 
-  const frameworkSkills = useMemo(() => {
-    if (introData?.skills && introData.skills.length > 0) {
-      return introData.skills.filter(s => s.category !== 'LANGUAGE').map(s => s.name);
+  const selectedCoreSkill = useMemo(() => {
+    return groupedCoreSkills
+      .flatMap((group) => group.skills)
+      .find((skill) => skill.id === selectedCoreSkillId);
+  }, [groupedCoreSkills, selectedCoreSkillId]);
+
+  const selectedCoreSkillExperiences = useMemo(() => {
+    if (!selectedCoreSkill) {
+      return [];
     }
-    return ['Spring Boot', 'JPA', 'QueryDSL', 'Node.js', 'FastAPI', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'n8n'];
-  }, [introData]);
+
+    if (introData?.experiences && introData.experiences.length > 0) {
+      return introData.experiences
+        .filter((experience) => experience.skills.some((skill) => skill.id === selectedCoreSkill.id))
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map((experience) => ({
+          id: experience.id.toString(),
+          type: experience.type,
+          title: experience.title,
+          period: `${experience.periodStart.replace(/-/g, '.').substring(0, 7)} - ${
+            experience.periodEnd ? experience.periodEnd.replace(/-/g, '.').substring(0, 7) : '진행 중'
+          }`,
+          role: experience.role ?? experience.companyName ?? experience.institutionName ?? experience.issuer ?? '',
+          summary: experience.summary ?? experience.details?.[0]?.content ?? '',
+        }));
+    }
+
+    return milestones
+      .filter((milestone) => milestone.skills.includes(selectedCoreSkill.name))
+      .map((milestone) => ({
+        id: milestone.id,
+        type: 'PROJECT',
+        title: milestone.title,
+        period: milestone.period,
+        role: milestone.role,
+        summary: milestone.body,
+      }));
+  }, [introData, selectedCoreSkill]);
 
   const activeMilestones = useMemo(() => {
     if (introData?.experiences && introData.experiences.length > 0) {
@@ -298,7 +356,7 @@ export function App() {
             label: label,
             period: formatPeriod(exp.periodStart, exp.periodEnd),
             title: exp.title,
-            body: exp.details.join(', '),
+            body: exp.details.map(d => d.content).join(', '),
             skills: exp.skills.map(s => s.name),
             role: exp.role ?? '',
             description: exp.summary ?? '',
@@ -308,6 +366,44 @@ export function App() {
         });
     }
     return milestones;
+  }, [introData]);
+
+  const careerCards = useMemo(() => {
+    const formatPeriod = (start: string, end?: string) => {
+      const format = (dateStr: string) => dateStr.replace(/-/g, '.').substring(0, 7);
+      return `${format(start)} - ${end ? format(end) : '진행 중'}`;
+    };
+
+    if (introData?.experiences && introData.experiences.length > 0) {
+      return introData.experiences
+        .filter(exp => exp.type === 'CAREER')
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map(exp => ({
+          id: exp.id,
+          period: formatPeriod(exp.periodStart, exp.periodEnd),
+          companyName: exp.companyName ?? '',
+          employmentType: exp.employmentType ?? '',
+          department: exp.department ?? '',
+          role: exp.role ?? '',
+          details: exp.details,
+        }));
+    }
+
+    const fallbackDetails: ExperienceDetail[] = [
+      { id: -1, content: 'AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발', displayOrder: 0, skills: [] },
+      { id: -2, content: '프론트엔드 중계용 BFF 서버 설계 및 구축', displayOrder: 1, skills: [] },
+      { id: -3, content: 'Spring Boot 기반 사내 백오피스 단독 구축', displayOrder: 2, skills: [] },
+      { id: -4, content: 'AWS 인프라 및 CI/CD 파이프라인 설계/운영', displayOrder: 3, skills: [] },
+    ];
+    return [{
+      id: -1,
+      period: '2023. 12 - 2025. 10',
+      companyName: '에듀테크 스타트업',
+      employmentType: '정규직',
+      department: '개발팀',
+      role: '백엔드 엔지니어',
+      details: fallbackDetails,
+    }];
   }, [introData]);
 
   const selectedMilestone = useMemo(() => {
@@ -616,29 +712,6 @@ export function App() {
             </div>
           </div>
 
-              {/* SECTION 1: 직장 경력 */}
-              <section id="career" className="scroll-mt-24 space-y-6">
-                <div className={cardStyle}>
-                  <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-                    <Briefcase className="h-5 w-5 text-indigo-600" />
-                    직장 경력 (총 1년 11개월)
-                  </h3>
-                  <div>
-                    <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                      2023. 12 - 2025. 10
-                    </span>
-                    <p className="mt-2 text-lg font-black text-slate-800">에듀테크 스타트업 (정규직)</p>
-                    <p className="text-sm font-semibold text-slate-500">개발팀 / 백엔드 엔지니어</p>
-                    <ul className="mt-4 space-y-2 text-base text-slate-650 list-disc list-inside leading-relaxed font-normal">
-                      <li>AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발</li>
-                      <li>프론트엔드 중계용 BFF 서버 설계 및 구축</li>
-                      <li>Spring Boot 기반 사내 백오피스 단독 구축</li>
-                      <li>AWS 인프라 및 CI/CD 파이프라인 설계/운영</li>
-                    </ul>
-                  </div>
-                </div>
-              </section>
-
               {/* SECTION 1.5: 핵심 기술 스택 */}
               <section id="skills" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
@@ -646,30 +719,177 @@ export function App() {
                     <Cpu className="h-5 w-5 text-indigo-600" />
                     핵심 기술 스택
                   </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Core Languages</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {coreLanguages.map((lang) => (
-                          <span key={lang} className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-bold px-3 py-1 rounded-md shadow-sm">
-                            {lang}
-                          </span>
-                        ))}
+                  <div className="space-y-5">
+                    {groupedCoreSkills.map((group) => (
+                      <div key={group.value}>
+                        <h4 className="mb-2 text-sm font-black text-slate-500">{group.label}</h4>
+                        {group.skills.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {group.skills.map((skill) => (
+                              <button
+                                type="button"
+                                key={skill.id}
+                                onClick={() => setSelectedCoreSkillId((current) => (current === skill.id ? null : skill.id))}
+                                className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
+                                  selectedCoreSkillId === skill.id
+                                    ? 'border-indigo-400 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                                    : 'border-slate-200 bg-white text-slate-800 hover:border-indigo-300 hover:bg-indigo-50/50'
+                                }`}
+                              >
+                                <span className="text-base font-black leading-tight">{skill.name}</span>
+                                {skill.skillVersion && (
+                                  <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-xs font-black leading-none ${
+                                    selectedCoreSkillId === skill.id
+                                      ? 'border-white/25 bg-white/15 text-white'
+                                      : 'border-slate-200 bg-slate-50 text-slate-500'
+                                  }`}>
+                                    v{skill.skillVersion}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="border-l-4 border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-400">
+                            선택된 핵심 기술이 없습니다.
+                          </p>
+                        )}
                       </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Frameworks, Libraries & DevOps</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {frameworkSkills.map((item) => (
-                          <span key={item} className={badgeStyle}>
-                            {item}
+                    ))}
+
+                    {selectedCoreSkill && (
+                      <div className="border-t border-slate-200 pt-5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <span className="text-xs font-black text-indigo-600">이 기술을 사용한 경험</span>
+                            <h4 className="mt-0.5 text-lg font-black text-slate-900">{selectedCoreSkill.name}</h4>
+                            {selectedCoreSkill.skillVersion && (
+                              <p className="mt-0.5 text-sm font-bold text-slate-500">v{selectedCoreSkill.skillVersion}</p>
+                            )}
+                          </div>
+                          <span className="rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-black text-indigo-600">
+                            연결된 경험 {selectedCoreSkillExperiences.length}개
                           </span>
-                        ))}
+                        </div>
+
+                        <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
+                          {selectedCoreSkillExperiences.length > 0 ? (
+                            selectedCoreSkillExperiences.map((experience) => (
+                              <button
+                                type="button"
+                                key={experience.id}
+                                onClick={() => {
+                                  const milestone = activeMilestones.find((item) => item.title === experience.title);
+                                  if (milestone) {
+                                    setSelectedMilestoneId(milestone.id);
+                                    scrollToSection('projects');
+                                  }
+                                }}
+                                className="w-full px-1 py-3.5 text-left transition hover:bg-indigo-50/40 sm:px-2"
+                              >
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-black text-slate-500">
+                                    {experience.type}
+                                  </span>
+                                  <span className="text-sm font-black text-slate-400">{experience.period}</span>
+                                </div>
+                                <p className="mt-1.5 text-base font-black leading-snug text-slate-850">{experience.title}</p>
+                                {experience.role && (
+                                  <p className="mt-0.5 text-sm font-black text-indigo-600">{experience.role}</p>
+                                )}
+                                {experience.summary && (
+                                  <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-relaxed text-slate-600">
+                                    {experience.summary}
+                                  </p>
+                                )}
+                              </button>
+                            ))
+                          ) : (
+                            <p className="px-1 py-3 text-sm font-bold text-slate-400">
+                              연결된 experience가 없습니다.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
+              </section>
+
+              {/* SECTION 2: 직장 경력 */}
+              <section id="career" className="scroll-mt-24 space-y-6">
+                {careerCards.map(career => (
+                  <div key={career.id} className={cardStyle}>
+                    <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                      <Briefcase className="h-5 w-5 text-indigo-600" />
+                      직장 경력 (총 1년 11개월)
+                    </h3>
+                    <div>
+                      <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                        {career.period}
+                      </span>
+                      <p className="mt-2 text-lg font-black text-slate-800">{career.companyName} ({career.employmentType})</p>
+                      <p className="text-sm font-semibold text-slate-500">{career.department} / {career.role}</p>
+                      <ul className="mt-4 space-y-2">
+                        {career.details.map(detail => {
+                          const isExpanded = expandedCareerDetailId === detail.id;
+                          const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
+                          return (
+                            <li key={detail.id} className="list-none">
+                              <div
+                                className="group flex items-start justify-between gap-3 cursor-pointer rounded-lg px-2 py-1 -mx-2 transition hover:bg-slate-50"
+                                onClick={() => hasDetailContent && setExpandedCareerDetailId(isExpanded ? null : detail.id)}
+                              >
+                                <span className="flex items-start gap-2 text-base text-slate-650 leading-relaxed font-normal">
+                                  <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                                  {detail.content}
+                                </span>
+                                {detail.id > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); window.location.hash = `#/experience-detail/${detail.id}`; }}
+                                    className="shrink-0 whitespace-nowrap text-xs font-bold text-indigo-500 transition hover:text-indigo-700 hover:underline"
+                                  >
+                                    자세히 보기
+                                  </button>
+                                )}
+                              </div>
+                              {isExpanded && (
+                                <div className="mt-2 ml-3.5 space-y-2.5 rounded-lg border border-slate-100 bg-slate-50/50 p-3.5 text-sm text-slate-600">
+                                  {detail.situation && (
+                                    <div>
+                                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">상황</p>
+                                      <ReactMarkdown components={markdownComponents}>{detail.situation}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                  {detail.actionDetail && (
+                                    <div>
+                                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
+                                      <ReactMarkdown components={markdownComponents}>{detail.actionDetail}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                  {detail.outcome && (
+                                    <div>
+                                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-600">성과</p>
+                                      <ReactMarkdown components={markdownComponents}>{detail.outcome}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                  {detail.skills.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 pt-1">
+                                      {detail.skills.map(s => (
+                                        <span key={s.id} className={badgeStyle}>{s.name}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
               </section>
 
               {/* SECTION 2: 역량 기술서 */}
