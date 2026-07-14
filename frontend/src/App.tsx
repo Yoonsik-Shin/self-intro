@@ -316,53 +316,48 @@ export function App() {
             <div className="relative z-10 space-y-6">
               
               {/* Top Row: Name, English Name, Social Links, and Deploy Badge */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
-                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-3.5">
+              {/* Top Row: Name, English Name, Job Title and Social Links */}
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-slate-100 pb-5">
+                <div className="space-y-2">
                   <div className="flex items-baseline gap-2.5">
                     <h1 className="text-3xl font-black text-slate-900 leading-none">신윤식</h1>
                     <span className="text-lg font-bold text-slate-450 font-mono">Yoonsik Shin</span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 sm:mt-0 sm:ml-2">
-                    <a
-                      href="https://github.com/Yoonsik-Shin"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                      title="GitHub"
-                    >
-                      <Github className="h-4 w-4" />
-                    </a>
-                    <a
-                      href="mailto:aaa946@naver.com"
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                      title="이메일 보내기"
-                    >
-                      <Mail className="h-4 w-4" />
-                    </a>
-                    <a
-                      href="tel:010-5171-0994"
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                      title="전화 걸기"
-                    >
-                      <Phone className="h-4 w-4" />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-center">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse shadow-sm">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    실시간 아키텍처 및 콘텐츠 개선 중 (v1.2.4 - 2026. 07. 14 10:07 배포)
-                  </span>
-                </div>
-              </div>
-
-              {/* Bio & Personal Info (Column 2-4) */}
-              <div className="space-y-6">
-                <div className="space-y-3">
                   <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">
                     Software Engineer
                   </h2>
+                </div>
+
+                <div className="flex items-center gap-2 mt-2 md:mt-0">
+                  <a
+                    href="https://github.com/Yoonsik-Shin"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                    title="GitHub"
+                  >
+                    <Github className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="mailto:aaa946@naver.com"
+                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                    title="이메일 보내기"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="tel:010-5171-0994"
+                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                    title="전화 걸기"
+                  >
+                    <Phone className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Bio & Personal Info */}
+              <div className="space-y-6">
+                <div>
                   <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed max-w-4xl">
                     에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.
                   </p>
@@ -394,6 +389,14 @@ export function App() {
                           <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">Java / Node.js / Cloud</span>
                         </div>
                       </button>
+                    </div>
+
+                    {/* Combined status badge at the bottom of the card */}
+                    <div className="pt-2 flex justify-end">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50/50 border border-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700 animate-pulse">
+                        <span className="h-1 w-1 rounded-full bg-amber-500" />
+                        실시간 아키텍처 및 콘텐츠 개선 중 (v1.2.4 - 2026. 07. 14 10:07 배포)
+                      </span>
                     </div>
 
               </div>
