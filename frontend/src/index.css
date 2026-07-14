@@ -36,28 +36,7 @@ select {
     background: white !important;
     color: black !important;
   }
-  main, header, footer, .print\:hidden {
+  header, footer, aside, .print\:hidden {
     display: none !important;
-  }
-  #a4-sheet-container {
-    display: block !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    border: none !important;
-    background: white !important;
-    box-shadow: none !important;
-  }
-  #a4-sheet {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    width: 100% !important;
-    height: 100% !important;
-    padding: 20mm !important;
-    border: none !important;
-    background: white !important;
-    color: black !important;
   }
 }
