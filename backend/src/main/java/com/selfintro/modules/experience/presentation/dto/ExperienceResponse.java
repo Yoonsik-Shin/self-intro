@@ -1,0 +1,80 @@
+package com.selfintro.modules.experience.presentation.dto;
+
+import com.selfintro.modules.experience.domain.*;
+import com.selfintro.modules.skill.presentation.dto.SkillResponse;
+import java.time.LocalDate;
+import java.util.List;
+
+public record ExperienceResponse(
+    Long id,
+    String type,
+    String title,
+    LocalDate periodStart,
+    LocalDate periodEnd,
+    String summary,
+    String takeaway,
+    String essayContent,
+    int displayOrder,
+    List<String> details,
+    List<SkillResponse> skills,
+
+    // Career
+    String companyName,
+    String employmentType,
+    String department,
+    String role,
+
+    // Project
+    String slug,
+    Integer contributionRate,
+
+    // Education
+    String institutionName,
+
+    // Certificate
+    String issuer
+) {
+    public static ExperienceResponse from(Experience exp) {
+        List<String> detailContents = exp.getDetails().stream()
+            .map(ExperienceDetail::getContent)
+            .toList();
+        List<SkillResponse> skillResponses = exp.getSkills().stream()
+            .map(SkillResponse::from)
+            .toList();
+
+        if (exp instanceof Career career) {
+            return new ExperienceResponse(
+                exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
+                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                detailContents, skillResponses,
+                career.getCompanyName(), career.getEmploymentType(), career.getDepartment(), career.getRole(),
+                null, null, null, null
+            );
+        } else if (exp instanceof Project project) {
+            return new ExperienceResponse(
+                exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
+                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                detailContents, skillResponses,
+                null, null, null, project.getRole(),
+                project.getSlug(), project.getContributionRate(), null, null
+            );
+        } else if (exp instanceof Education edu) {
+            return new ExperienceResponse(
+                exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
+                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                detailContents, skillResponses,
+                null, null, null, null,
+                null, null, edu.getInstitutionName(), null
+            );
+        } else if (exp instanceof Certificate cert) {
+            return new ExperienceResponse(
+                exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
+                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                detailContents, skillResponses,
+                null, null, null, null,
+                null, null, null, cert.getIssuer()
+            );
+        }
+        throw new IllegalArgumentException("지원하지 않는 이력 서브타입입니다.");
+    }
+}
