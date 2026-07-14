@@ -1,4 +1,4 @@
-CREATE TABLE profile (
+CREATE TABLE IF NOT EXISTS profile (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(60) NOT NULL,
     name_en VARCHAR(60) NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE profile (
     updated_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE skill (
+CREATE TABLE IF NOT EXISTS skill (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(80) NOT NULL UNIQUE,
     category VARCHAR(50) NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE skill (
     display_order INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE experience (
+CREATE TABLE IF NOT EXISTS experience (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     type VARCHAR(20) NOT NULL,
     title VARCHAR(150) NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE experience (
     display_order INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE experience_skill (
+CREATE TABLE IF NOT EXISTS experience_skill (
     experience_id BIGINT NOT NULL,
     skill_id BIGINT NOT NULL,
     list_order INT NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE experience_skill (
     CONSTRAINT fk_exp_skill_skill FOREIGN KEY (skill_id) REFERENCES skill (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE experience_detail (
+CREATE TABLE IF NOT EXISTS experience_detail (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     experience_id BIGINT NULL,
     content VARCHAR(500) NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE experience_detail (
     CONSTRAINT fk_exp_detail_experience FOREIGN KEY (experience_id) REFERENCES experience (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE career (
+CREATE TABLE IF NOT EXISTS career (
     experience_id BIGINT PRIMARY KEY,
     company_name VARCHAR(80) NOT NULL,
     employment_type VARCHAR(40) NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE career (
     CONSTRAINT fk_career_experience FOREIGN KEY (experience_id) REFERENCES experience (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE project (
+CREATE TABLE IF NOT EXISTS project (
     experience_id BIGINT PRIMARY KEY,
     slug VARCHAR(40) NOT NULL,
     role VARCHAR(80) NOT NULL,
@@ -68,13 +68,13 @@ CREATE TABLE project (
     CONSTRAINT fk_project_experience FOREIGN KEY (experience_id) REFERENCES experience (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE education (
+CREATE TABLE IF NOT EXISTS education (
     experience_id BIGINT PRIMARY KEY,
     institution_name VARCHAR(100) NOT NULL,
     CONSTRAINT fk_education_experience FOREIGN KEY (experience_id) REFERENCES experience (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE certificate (
+CREATE TABLE IF NOT EXISTS certificate (
     experience_id BIGINT PRIMARY KEY,
     issuer VARCHAR(100) NOT NULL,
     CONSTRAINT fk_certificate_experience FOREIGN KEY (experience_id) REFERENCES experience (id) ON DELETE CASCADE
