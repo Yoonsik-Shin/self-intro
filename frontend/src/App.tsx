@@ -341,20 +341,29 @@ export function App() {
                 <h1 className="mt-4 text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
                 <p className="text-sm font-bold text-slate-500 mt-1">Fullstack & Backend Developer</p>
                 
-                <div className="mt-3.5 flex justify-center lg:justify-start gap-2">
+                <div className="mt-4 flex justify-center lg:justify-start gap-2">
                   <a
                     href="https://github.com/Yoonsik-Shin"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                    title="GitHub"
                   >
                     <Github className="h-4 w-4" />
                   </a>
                   <a
                     href="mailto:aaa946@naver.com"
                     className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                    title="이메일 보내기"
                   >
                     <Mail className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="tel:010-5171-0994"
+                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                    title="전화 걸기"
+                  >
+                    <Phone className="h-4 w-4" />
                   </a>
                 </div>
               </div>
@@ -380,79 +389,33 @@ export function App() {
                   </p>
                 </div>
 
-                <hr className="border-slate-100" />
+                    <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                      <button
+                        onClick={() => scrollToSection('career')}
+                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-150 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
+                      >
+                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition shadow-sm">
+                          <Briefcase className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-550 transition">실무 경력</span>
+                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">1년 11개월 (에듀테크 스타트업)</span>
+                        </div>
+                      </button>
 
-                {/* Personal Info Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                      <User className="h-4 w-4" />
+                      <button
+                        onClick={() => scrollToSection('skills')}
+                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-150 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
+                      >
+                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition shadow-sm">
+                          <Cpu className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-550 transition">핵심 스택</span>
+                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">Java / Node.js / Cloud</span>
+                        </div>
+                      </button>
                     </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">생년월일</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">1996. 05. 04 (만 30세)</span>
-                    </div>
-                  </div>
-
-                  <a
-                    href="mailto:aaa946@naver.com"
-                    className="flex items-center gap-3 text-left hover:bg-slate-50 p-2 -m-2 rounded-xl transition group w-full"
-                  >
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">이메일</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm truncate group-hover:text-indigo-600 transition">aaa946@naver.com</span>
-                    </div>
-                  </a>
-
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">연락처</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">010-5171-0994</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                      <MapPin className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">현주소</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm truncate">서울특별시</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => scrollToSection('career')}
-                    className="flex items-center gap-3 text-left hover:bg-slate-50 p-2 -m-2 rounded-xl transition group w-full"
-                  >
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition">
-                      <Briefcase className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">실무 경력</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm group-hover:text-indigo-600 transition">1년 11개월 (에듀테크 스타트업)</span>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => scrollToSection('skills')}
-                    className="flex items-center gap-3 text-left hover:bg-slate-50 p-2 -m-2 rounded-xl transition group w-full"
-                  >
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition">
-                      <Cpu className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">핵심 스택</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm group-hover:text-indigo-600 transition">Java / Node.js / Cloud</span>
-                    </div>
-                  </button>
-                </div>
 
               </div>
             </div>
