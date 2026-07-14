@@ -318,37 +318,126 @@ export function App() {
         {/* Main Body Layout */}
         <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           
-          {/* General Career Summary Banner (Hero) */}
-          <div id="intro-profile" className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+          {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
+          <div id="intro-profile" className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
             <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-550/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-              <div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-700">
-                    <Sparkles className="h-3 w-3 text-indigo-500" />
-                    Software Engineer Portfolio
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-sm font-semibold text-amber-700 animate-pulse">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    실시간 아키텍처 및 콘텐츠 개선 중 (Refactoring)
-                  </span>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 relative z-10 items-center">
+              
+              {/* Profile Avatar & Name & Socials (Column 1) */}
+              <div className="flex flex-col items-center lg:items-start text-center lg:text-left lg:border-r lg:border-slate-100 lg:pr-8">
+                <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
+                  <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-3xl font-black text-white">
+                    YS
+                  </div>
                 </div>
-                <h1 className="mt-3 text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
-                  신윤식 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">Fullstack & Backend Developer</span>
-                </h1>
-                <p className="mt-2 text-base text-slate-650 max-w-3xl leading-relaxed">
-                  1년 11개월의 에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 추구하는 엔지니어입니다.
-                </p>
+                <h1 className="mt-4 text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
+                <p className="text-sm font-bold text-slate-500 mt-1">Fullstack & Backend Developer</p>
+                
+                <div className="mt-3.5 flex justify-center lg:justify-start gap-2">
+                  <a
+                    href="https://github.com/Yoonsik-Shin"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                  >
+                    <Github className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="mailto:aaa946@naver.com"
+                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </a>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-3 shrink-0">
-                <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-center min-w-[140px] shadow-sm">
-                  <span className="block text-sm uppercase font-bold text-slate-400">실무 경력</span>
-                  <span className="mt-1 block text-base font-black text-slate-800">에듀테크 스타트업 1년 11개월</span>
+
+              {/* Bio & Personal Info (Column 2-4) */}
+              <div className="lg:col-span-3 space-y-6">
+                <div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                      <Sparkles className="h-3 w-3 text-indigo-500" />
+                      Software Engineer Portfolio
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      실시간 아키텍처 및 콘텐츠 개선 중 (Refactoring)
+                    </span>
+                  </div>
+                  <h2 className="mt-3 text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+                    신윤식 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">Fullstack & Backend Developer</span>
+                  </h2>
+                  <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed">
+                    1년 11개월의 에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.
+                  </p>
                 </div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-center min-w-[140px] shadow-sm">
-                  <span className="block text-sm uppercase font-bold text-slate-400">핵심 스택</span>
-                  <span className="mt-1 block text-base font-black text-slate-800">Java / Node.js / Cloud</span>
+
+                <hr className="border-slate-100" />
+
+                {/* Personal Info Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">생년월일</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">1996. 05. 04 (만 30세)</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                      <Mail className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">이메일</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm truncate">aaa946@naver.com</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">연락처</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">010-5171-0994</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                      <MapPin className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">현주소</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm truncate">서울특별시</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                      <Briefcase className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">실무 경력</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">1년 11개월 (에듀테크 스타트업)</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                      <Cpu className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">핵심 스택</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">Java / Node.js / Cloud</span>
+                    </div>
+                  </div>
                 </div>
+
               </div>
             </div>
           </div>
@@ -363,79 +452,10 @@ export function App() {
                 
                 {/* Unified profile card dashboard panel */}
                 <div className={cardStyle}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-100">
                     
-                    {/* Column 1: Profile Details */}
-                    <div className="flex flex-col items-center text-center pb-6 md:pb-0 md:pr-8">
-                      <div className="relative h-20 w-20 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
-                        <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-2xl font-black text-white">
-                          YS
-                        </div>
-                      </div>
-                      <h2 className="mt-3 text-lg font-black text-slate-900">신윤식</h2>
-                      <p className="text-sm font-semibold text-slate-500 mt-0.5">Fullstack / Backend Developer</p>
-                      <div className="mt-2 flex justify-center gap-2">
-                        <a
-                          href="https://github.com/Yoonsik-Shin"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-lg bg-slate-50 border border-slate-200/60 p-1.5 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                        >
-                          <Github className="h-3.5 w-3.5" />
-                        </a>
-                        <a
-                          href="mailto:aaa946@naver.com"
-                          className="rounded-lg bg-slate-50 border border-slate-200/60 p-1.5 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                        >
-                          <Mail className="h-3.5 w-3.5" />
-                        </a>
-                      </div>
-
-                      <div className="mt-6 w-full space-y-3.5 text-left font-normal">
-                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
-                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                            <User className="h-3.5 w-3.5" />
-                          </div>
-                          <div>
-                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">생년월일</span>
-                            <span className="block font-bold text-slate-800 text-sm">1996. 05. 04 (만 30세)</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
-                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                            <Mail className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">이메일</span>
-                            <span className="block font-bold text-slate-800 text-sm truncate">aaa946@naver.com</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
-                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                            <Phone className="h-3.5 w-3.5" />
-                          </div>
-                          <div>
-                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">연락처</span>
-                            <span className="block font-bold text-slate-800 text-sm">010-5171-0994</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 text-sm text-slate-655">
-                          <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                            <MapPin className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className="block text-xs font-bold text-slate-400 leading-none mb-0.5">현주소</span>
-                            <span className="block font-bold text-slate-800 text-sm truncate">서울특별시</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Column 2: Career Info */}
-                    <div className="pt-6 md:pt-0 md:px-8">
+                    {/* Column 1: Career Info */}
+                    <div className="pb-6 md:pb-0 md:pr-8">
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
                         <Briefcase className="h-4 w-4 text-indigo-600" />
                         직장 경력 (총 1년 11개월)
@@ -455,7 +475,7 @@ export function App() {
                       </div>
                     </div>
 
-                    {/* Column 3: Core Skills */}
+                    {/* Column 2: Core Skills */}
                     <div className="pt-6 md:pt-0 md:pl-8">
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
                         <Cpu className="h-4 w-4 text-indigo-600" />
