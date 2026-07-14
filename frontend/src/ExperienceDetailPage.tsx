@@ -52,7 +52,7 @@ export function ExperienceDetailPage() {
         <button
           type="button"
           onClick={goBack}
-          className="mb-6 flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-indigo-600"
+          className="mb-6 flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" />
           돌아가기
@@ -67,7 +67,7 @@ export function ExperienceDetailPage() {
         {found && (
           <article className="space-y-6 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm sm:p-8">
             <header className="space-y-2 border-b border-slate-100 pb-5">
-              <span className="inline-flex items-center gap-1.5 rounded border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">
+              <span className="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-950">
                 <Briefcase className="h-3.5 w-3.5" />
                 {found.exp.companyName ?? found.exp.title} · {formatPeriod(found.exp)}
               </span>

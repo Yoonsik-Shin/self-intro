@@ -475,7 +475,7 @@ export function AdminDashboard() {
             onClick={() => { setActiveTab('STUDY'); setIsStudyFormOpen(false); }}
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'STUDY'
-                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
+                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
@@ -486,7 +486,7 @@ export function AdminDashboard() {
             onClick={() => { setActiveTab('PROFILE'); }}
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'PROFILE'
-                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
+                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
@@ -497,7 +497,7 @@ export function AdminDashboard() {
             onClick={() => { setActiveTab('SKILLS'); setIsSkillFormOpen(false); }}
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'SKILLS'
-                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
+                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
@@ -508,7 +508,7 @@ export function AdminDashboard() {
             onClick={() => { setActiveTab('EXPERIENCE'); setIsExpFormOpen(false); }}
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
               activeTab === 'EXPERIENCE'
-                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
+                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
@@ -533,7 +533,7 @@ export function AdminDashboard() {
                     setStudyForm(emptyStudyForm);
                     setIsStudyFormOpen(true);
                   }}
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-500"
+                  className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
                 >
                   <Plus className="h-4 w-4" />
                   새 글 작성
@@ -569,7 +569,7 @@ export function AdminDashboard() {
                     placeholder="제목, 본문, 기술 검색..."
                     value={studySearch}
                     onChange={(e) => setStudySearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
                   />
                 </div>
               </div>
@@ -585,7 +585,7 @@ export function AdminDashboard() {
                         required
                         value={studyForm.title}
                         onChange={(e) => setStudyForm({ ...studyForm, title: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div>
@@ -595,7 +595,7 @@ export function AdminDashboard() {
                         onChange={(e) =>
                           setStudyForm({ ...studyForm, category: e.target.value as CreateStudyEntryRequest['category'] })
                         }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
                         <option value="PROJECT">프로젝트 (PROJECT)</option>
                         <option value="EDUCATION">공부/학습 (STUDY)</option>
@@ -610,7 +610,7 @@ export function AdminDashboard() {
                       type="text"
                       value={studyForm.skills}
                       onChange={(e) => setStudyForm({ ...studyForm, skills: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -621,7 +621,7 @@ export function AdminDashboard() {
                       rows={5}
                       value={studyForm.description}
                       onChange={(e) => setStudyForm({ ...studyForm, description: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -632,7 +632,7 @@ export function AdminDashboard() {
                       rows={3}
                       value={studyForm.takeaway}
                       onChange={(e) => setStudyForm({ ...studyForm, takeaway: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -643,7 +643,7 @@ export function AdminDashboard() {
                       required
                       value={studyForm.learnedAt}
                       onChange={(e) => setStudyForm({ ...studyForm, learnedAt: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -658,7 +658,7 @@ export function AdminDashboard() {
                     <button
                       type="submit"
                       disabled={createStudyMutation.isPending || updateStudyMutation.isPending}
-                      className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
+                      className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
                     >
                       {studyEditingId !== null ? '수정 완료' : '작성 완료'}
                     </button>
@@ -672,7 +672,7 @@ export function AdminDashboard() {
                   return (
                     <div
                       key={entry.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200"
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div
@@ -682,7 +682,7 @@ export function AdminDashboard() {
                           <p className="font-mono text-xs font-bold text-slate-400">
                             {entry.learnedAt} · {entry.category}
                           </p>
-                          <p className="text-sm font-black text-slate-800 hover:text-indigo-600 transition">{entry.title}</p>
+                          <p className="text-sm font-black text-slate-800 hover:text-slate-900 transition">{entry.title}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <button
@@ -698,7 +698,7 @@ export function AdminDashboard() {
                               });
                               setIsStudyFormOpen(true);
                             }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -732,7 +732,7 @@ export function AdminDashboard() {
                           {entry.takeaway && (
                             <div>
                               <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">Lesson Learned / Takeaway</h5>
-                              <p className="whitespace-pre-wrap font-medium text-indigo-600">{entry.takeaway}</p>
+                              <p className="whitespace-pre-wrap font-medium text-slate-900">{entry.takeaway}</p>
                             </div>
                           )}
                         </div>
@@ -761,7 +761,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.name}
                       onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                   <div>
@@ -771,7 +771,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.nameEn}
                       onChange={(e) => setProfileForm({ ...profileForm, nameEn: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                 </div>
@@ -784,7 +784,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.jobTitle}
                       onChange={(e) => setProfileForm({ ...profileForm, jobTitle: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                   <div>
@@ -794,7 +794,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.statusBadgeText}
                       onChange={(e) => setProfileForm({ ...profileForm, statusBadgeText: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                 </div>
@@ -806,7 +806,7 @@ export function AdminDashboard() {
                     rows={3}
                     value={profileForm.bio}
                     onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                   />
                 </div>
 
@@ -818,7 +818,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.careerSummary}
                       onChange={(e) => setProfileForm({ ...profileForm, careerSummary: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                   <div>
@@ -828,7 +828,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.coreStackSummary}
                       onChange={(e) => setProfileForm({ ...profileForm, coreStackSummary: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                 </div>
@@ -841,7 +841,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.githubUrl}
                       onChange={(e) => setProfileForm({ ...profileForm, githubUrl: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                   <div>
@@ -851,7 +851,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.email}
                       onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                   <div>
@@ -861,7 +861,7 @@ export function AdminDashboard() {
                       required
                       value={profileForm.phone}
                       onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                 </div>
@@ -870,7 +870,7 @@ export function AdminDashboard() {
                   <button
                     type="submit"
                     disabled={updateProfileMutation.isPending}
-                    className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
+                    className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
                   >
                     프로필 저장
                   </button>
@@ -893,7 +893,7 @@ export function AdminDashboard() {
                     setSkillForm(emptySkillForm);
                     setIsSkillFormOpen(true);
                   }}
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-500"
+                  className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
                 >
                   <Plus className="h-4 w-4" />
                   새 기술 추가
@@ -935,7 +935,7 @@ export function AdminDashboard() {
                     placeholder="기술명 검색..."
                     value={skillSearch}
                     onChange={(e) => setSkillSearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
                   />
                 </div>
               </div>
@@ -952,7 +952,7 @@ export function AdminDashboard() {
                         placeholder="예: Java, React"
                         value={skillForm.name}
                         onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div>
@@ -960,7 +960,7 @@ export function AdminDashboard() {
                       <select
                         value={skillForm.category}
                         onChange={(e) => setSkillForm({ ...skillForm, category: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
                         <option value="LANGUAGE">개발 언어 (LANGUAGE)</option>
                         <option value="FRAMEWORK">프레임워크 / 라이브러리 (FRAMEWORK)</option>
@@ -980,7 +980,7 @@ export function AdminDashboard() {
                         value={skillForm.skillLevel}
                         placeholder="예: 중급, 고급, 상"
                         onChange={(e) => setSkillForm({ ...skillForm, skillLevel: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div>
@@ -990,7 +990,7 @@ export function AdminDashboard() {
                         value={skillForm.skillVersion}
                         placeholder="예: 21, 3.3, 19"
                         onChange={(e) => setSkillForm({ ...skillForm, skillVersion: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div>
@@ -998,7 +998,7 @@ export function AdminDashboard() {
                       <select
                         value={skillForm.usageType}
                         onChange={(e) => setSkillForm({ ...skillForm, usageType: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
                         {skillUsageOptions.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
@@ -1012,7 +1012,7 @@ export function AdminDashboard() {
                         required
                         value={skillForm.displayOrder}
                         onChange={(e) => setSkillForm({ ...skillForm, displayOrder: Number(e.target.value) })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div className="flex items-center pt-5">
@@ -1021,7 +1021,7 @@ export function AdminDashboard() {
                           type="checkbox"
                           checked={skillForm.isCore}
                           onChange={(e) => setSkillForm({ ...skillForm, isCore: e.target.checked })}
-                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-800"
                         />
                         <span className="text-xs font-bold text-slate-600 uppercase">핵심기술로 표시</span>
                       </label>
@@ -1035,7 +1035,7 @@ export function AdminDashboard() {
                       value={skillForm.comment}
                       placeholder="이 기술을 어느 수준으로, 어디에 활용했는지 짧게 남깁니다."
                       onChange={(e) => setSkillForm({ ...skillForm, comment: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -1050,7 +1050,7 @@ export function AdminDashboard() {
                     <button
                       type="submit"
                       disabled={createSkillMutation.isPending || updateSkillMutation.isPending}
-                      className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
+                      className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
                     >
                       {skillEditingId !== null ? '수정 완료' : '추가 완료'}
                     </button>
@@ -1072,7 +1072,7 @@ export function AdminDashboard() {
                       <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
                         {skill.name}
                         {skill.isCore && (
-                          <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 border border-indigo-100">Core</span>
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-900 border border-slate-200">Core</span>
                         )}
                         <span className="rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200">
                           {skillUsageOptions.find((option) => option.value === skill.usageType)?.label ?? skill.usageType}
@@ -1098,7 +1098,7 @@ export function AdminDashboard() {
                           });
                           setIsSkillFormOpen(true);
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -1129,7 +1129,7 @@ export function AdminDashboard() {
                     setExpForm(emptyExperienceForm);
                     setIsExpFormOpen(true);
                   }}
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-500"
+                  className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
                 >
                   <Plus className="h-4 w-4" />
                   이력 추가
@@ -1167,7 +1167,7 @@ export function AdminDashboard() {
                     placeholder="이력명, 성과 검색..."
                     value={expSearch}
                     onChange={(e) => setExpSearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
                   />
                 </div>
               </div>
@@ -1183,7 +1183,7 @@ export function AdminDashboard() {
                       <select
                         value={expForm.type}
                         onChange={(e) => setExpForm({ ...expForm, type: e.target.value as any })}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
                         <option value="CAREER">회사 경력 (CAREER)</option>
                         <option value="PROJECT">프로젝트 (PROJECT)</option>
@@ -1198,7 +1198,7 @@ export function AdminDashboard() {
                         required
                         value={expForm.title}
                         onChange={(e) => setExpForm({ ...expForm, title: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                   </div>
@@ -1212,7 +1212,7 @@ export function AdminDashboard() {
                         required
                         value={expForm.periodStart}
                         onChange={(e) => setExpForm({ ...expForm, periodStart: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div>
@@ -1221,7 +1221,7 @@ export function AdminDashboard() {
                         type="date"
                         value={expForm.periodEnd}
                         onChange={(e) => setExpForm({ ...expForm, periodEnd: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div>
@@ -1231,14 +1231,14 @@ export function AdminDashboard() {
                         required
                         value={expForm.displayOrder}
                         onChange={(e) => setExpForm({ ...expForm, displayOrder: Number(e.target.value) })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                   </div>
 
                   {/* Subtype Conditional Fields */}
                   {expForm.type === 'CAREER' && (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 rounded-xl bg-indigo-50/20 border border-indigo-100/50 p-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
                       <div>
                         <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">회사명</label>
                         <input
@@ -1246,7 +1246,7 @@ export function AdminDashboard() {
                           required
                           value={expForm.companyName}
                           onChange={(e) => setExpForm({ ...expForm, companyName: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -1256,7 +1256,7 @@ export function AdminDashboard() {
                           required
                           value={expForm.employmentType}
                           onChange={(e) => setExpForm({ ...expForm, employmentType: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -1266,7 +1266,7 @@ export function AdminDashboard() {
                           required
                           value={expForm.department}
                           onChange={(e) => setExpForm({ ...expForm, department: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -1276,14 +1276,14 @@ export function AdminDashboard() {
                           required
                           value={expForm.role}
                           onChange={(e) => setExpForm({ ...expForm, role: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
                     </div>
                   )}
 
                   {expForm.type === 'PROJECT' && (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl bg-indigo-50/20 border border-indigo-100/50 p-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
                       <div>
                         <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">프로젝트 식별자 (slug)</label>
                         <input
@@ -1292,7 +1292,7 @@ export function AdminDashboard() {
                           placeholder="예: project1, project2"
                           value={expForm.slug}
                           onChange={(e) => setExpForm({ ...expForm, slug: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -1303,7 +1303,7 @@ export function AdminDashboard() {
                           placeholder="예: Backend & DevOps"
                           value={expForm.role}
                           onChange={(e) => setExpForm({ ...expForm, role: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -1315,14 +1315,14 @@ export function AdminDashboard() {
                           max={100}
                           value={expForm.contributionRate}
                           onChange={(e) => setExpForm({ ...expForm, contributionRate: Number(e.target.value) })}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
                     </div>
                   )}
 
                   {expForm.type === 'EDUCATION' && (
-                    <div className="rounded-xl bg-indigo-50/20 border border-indigo-100/50 p-4">
+                    <div className="rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
                       <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">학교 또는 교육 기관명</label>
                       <input
                         type="text"
@@ -1330,13 +1330,13 @@ export function AdminDashboard() {
                         placeholder="예: OO대학교 컴퓨터공학"
                         value={expForm.institutionName}
                         onChange={(e) => setExpForm({ ...expForm, institutionName: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                       />
                     </div>
                   )}
 
                   {expForm.type === 'CERTIFICATE' && (
-                    <div className="rounded-xl bg-indigo-50/20 border border-indigo-100/50 p-4">
+                    <div className="rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
                       <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">발급 기관</label>
                       <input
                         type="text"
@@ -1344,7 +1344,7 @@ export function AdminDashboard() {
                         placeholder="예: 한국산업인력공단"
                         value={expForm.issuer}
                         onChange={(e) => setExpForm({ ...expForm, issuer: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                       />
                     </div>
                   )}
@@ -1356,7 +1356,7 @@ export function AdminDashboard() {
                       type="text"
                       value={expForm.summary}
                       onChange={(e) => setExpForm({ ...expForm, summary: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -1366,7 +1366,7 @@ export function AdminDashboard() {
                       rows={2}
                       value={expForm.takeaway}
                       onChange={(e) => setExpForm({ ...expForm, takeaway: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -1377,7 +1377,7 @@ export function AdminDashboard() {
                       placeholder="역량 기술서 화면에 표시될 서술형 줄글 수필 내용을 작성합니다."
                       value={expForm.essayContent}
                       onChange={(e) => setExpForm({ ...expForm, essayContent: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
@@ -1392,12 +1392,12 @@ export function AdminDashboard() {
                         value={detailInput}
                         onChange={(e) => setDetailInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDetailPoint(); } }}
-                        className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500 bg-white"
+                        className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:border-slate-800 bg-white"
                       />
                       <button
                         type="button"
                         onClick={addDetailPoint}
-                        className="rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 p-2 hover:bg-indigo-100 text-xs font-bold flex items-center gap-1"
+                        className="rounded-lg bg-slate-100 border border-slate-300 text-slate-900 p-2 hover:bg-slate-200 text-xs font-bold flex items-center gap-1"
                       >
                         <PlusCircle className="h-4 w-4" />
                         추가
@@ -1415,12 +1415,12 @@ export function AdminDashboard() {
                                 value={d.content}
                                 onChange={(e) => updateDetailField(idx, 'content', e.target.value)}
                                 placeholder="불릿 한 줄 요약"
-                                className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-indigo-300 focus:bg-indigo-50/30 focus:outline-none"
+                                className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-slate-400 focus:bg-slate-100/30 focus:outline-none"
                               />
                               <button
                                 type="button"
                                 onClick={() => setExpandedDetailIdx(isDetailExpanded ? null : idx)}
-                                className="text-slate-400 transition hover:text-indigo-600"
+                                className="text-slate-400 transition hover:text-slate-900"
                               >
                                 {isDetailExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                               </button>
@@ -1441,7 +1441,7 @@ export function AdminDashboard() {
                                     value={d.situation}
                                     onChange={(e) => updateDetailField(idx, 'situation', e.target.value)}
                                     rows={2}
-                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-slate-800 focus:outline-none"
                                   />
                                 </div>
                                 <div>
@@ -1450,7 +1450,7 @@ export function AdminDashboard() {
                                     value={d.actionDetail}
                                     onChange={(e) => updateDetailField(idx, 'actionDetail', e.target.value)}
                                     rows={3}
-                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-slate-800 focus:outline-none"
                                   />
                                 </div>
                                 <div>
@@ -1459,7 +1459,7 @@ export function AdminDashboard() {
                                     value={d.outcome}
                                     onChange={(e) => updateDetailField(idx, 'outcome', e.target.value)}
                                     rows={2}
-                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-slate-800 focus:outline-none"
                                   />
                                 </div>
                                 <div>
@@ -1474,8 +1474,8 @@ export function AdminDashboard() {
                                           onClick={() => toggleDetailSkill(idx, s.id)}
                                           className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
                                             isChecked
-                                              ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                                              : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-200'
+                                              ? 'border-slate-300 bg-slate-100 text-slate-950'
+                                              : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                                           }`}
                                         >
                                           {s.name}
@@ -1503,15 +1503,15 @@ export function AdminDashboard() {
                             key={s.id}
                             className={`flex items-start gap-2 p-2 rounded-lg border transition cursor-pointer text-xs ${
                               isChecked
-                                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold'
-                                : 'bg-white border-slate-200 hover:border-indigo-200'
+                                ? 'bg-slate-100 border-slate-300 text-slate-950 font-bold'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
                             }`}
                           >
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleExpSkill(s.id)}
-                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-800"
                             />
                             <span className="min-w-0">
                               <span className="block truncate">{s.name}</span>
@@ -1538,7 +1538,7 @@ export function AdminDashboard() {
                     <button
                       type="submit"
                       disabled={createExpMutation.isPending || updateExpMutation.isPending}
-                      className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-500 disabled:opacity-50"
+                      className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
                     >
                       {expEditingId !== null ? '수정 완료' : '이력 생성'}
                     </button>
@@ -1553,7 +1553,7 @@ export function AdminDashboard() {
                   return (
                     <div
                       key={exp.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200"
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div
@@ -1568,7 +1568,7 @@ export function AdminDashboard() {
                               정렬 {exp.displayOrder}
                             </p>
                           </div>
-                          <p className="text-sm font-black text-slate-800 mt-1 hover:text-indigo-600 transition">{exp.title}</p>
+                          <p className="text-sm font-black text-slate-800 mt-1 hover:text-slate-900 transition">{exp.title}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <button
@@ -1603,7 +1603,7 @@ export function AdminDashboard() {
                               });
                               setIsExpFormOpen(true);
                             }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -1643,7 +1643,7 @@ export function AdminDashboard() {
                                     {d.skills.length > 0 && (
                                       <div className="mt-1 flex flex-wrap gap-1">
                                         {d.skills.map((s) => (
-                                          <span key={s.id} className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 border border-indigo-100">
+                                          <span key={s.id} className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-900 border border-slate-200">
                                             {s.name}
                                           </span>
                                         ))}
@@ -1659,7 +1659,7 @@ export function AdminDashboard() {
                               <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">연관 기술 스택</h5>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {exp.skills.map((s) => (
-                                  <span key={s.id} className="bg-indigo-50 px-2 py-0.5 rounded text-[10px] font-bold text-indigo-600 border border-indigo-100">
+                                  <span key={s.id} className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold text-slate-900 border border-slate-200">
                                     {s.name}
                                     {s.skillVersion ? ` v${s.skillVersion}` : ''}
                                   </span>

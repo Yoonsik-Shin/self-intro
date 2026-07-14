@@ -530,8 +530,8 @@ export function App() {
     <>
       <main className="min-h-screen bg-[#f8fafc] text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif] print:bg-white print:text-black pb-12">
         {/* Background Glow effects */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 rounded-full filter blur-[120px] pointer-events-none print:hidden" />
-        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-indigo-500/3 rounded-full filter blur-[100px] pointer-events-none print:hidden" />
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-slate-800/5 rounded-full filter blur-[120px] pointer-events-none print:hidden" />
+        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-slate-800/3 rounded-full filter blur-[100px] pointer-events-none print:hidden" />
 
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-xl print:hidden relative sm:px-4">
@@ -542,7 +542,7 @@ export function App() {
                 className="flex shrink-0 items-center text-left focus:outline-none hover:opacity-90 transition"
                 title="소개 페이지로 이동"
               >
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-500/20">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-slate-900 to-slate-950 text-sm font-black text-white shadow-md shadow-slate-800/20">
                   YS
                 </div>
               </button>
@@ -558,9 +558,9 @@ export function App() {
                     <button
                       key={page.id}
                       onClick={() => goToPage(page.id)}
-                      className={`relative inline-flex h-12 shrink-0 items-center gap-2 px-1 text-sm font-black transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-center after:rounded-full after:bg-indigo-600 after:transition-transform after:duration-200 ${
+                      className={`relative inline-flex h-12 shrink-0 items-center gap-2 px-1 text-sm font-black transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-center after:rounded-full after:bg-slate-900 after:transition-transform after:duration-200 ${
                         isActive
-                          ? 'text-indigo-700 after:scale-x-100'
+                          ? 'text-slate-950 after:scale-x-100'
                           : 'text-slate-500 after:scale-x-0 hover:text-slate-900'
                       }`}
                       title={page.label}
@@ -577,7 +577,7 @@ export function App() {
               {activePage === 'intro' && (
                 <button
                   onClick={handlePrint}
-                  className="hidden h-9 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20 min-[900px]:flex"
+                  className="hidden h-9 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-slate-900 to-slate-950 px-3 text-sm font-bold text-white hover:from-slate-800 hover:to-slate-900 transition shadow-sm shadow-slate-800/20 min-[900px]:flex"
                   title="PDF 인쇄"
                 >
                   <Printer className="h-3.5 w-3.5" />
@@ -586,7 +586,7 @@ export function App() {
               )}
               <button
                 onClick={() => setIsPageMenuOpen((open) => !open)}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-indigo-200 hover:text-indigo-600 min-[900px]:hidden"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 min-[900px]:hidden"
                 title="페이지 메뉴"
                 aria-label="페이지 메뉴"
                 aria-expanded={isPageMenuOpen}
@@ -606,9 +606,9 @@ export function App() {
                     <button
                       key={page.id}
                       onClick={() => goToPage(page.id)}
-                      className={`relative flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-black transition-colors duration-200 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:rounded-full after:bg-indigo-600 ${
+                      className={`relative flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-black transition-colors duration-200 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:rounded-full after:bg-slate-900 ${
                         isActive
-                          ? 'text-indigo-700 after:opacity-100'
+                          ? 'text-slate-950 after:opacity-100'
                           : 'text-slate-600 after:opacity-0 hover:text-slate-900'
                       }`}
                     >
@@ -623,7 +623,7 @@ export function App() {
                       setIsPageMenuOpen(false);
                       handlePrint();
                     }}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-black text-slate-600 transition-all duration-200 hover:bg-slate-50 hover:text-indigo-700"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-black text-slate-600 transition-all duration-200 hover:bg-slate-50 hover:text-slate-950"
                   >
                     <Printer className="h-4 w-4" />
                     <span>PDF 인쇄</span>
@@ -645,7 +645,7 @@ export function App() {
               
               {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
               <div id="intro-profile" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-slate-800/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
             
             <div className="relative z-10 space-y-6">
               
@@ -653,7 +653,7 @@ export function App() {
               {/* Top Row: Name, English Name, Job Title and Social Links */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
                 <div className="space-y-2 shrink-0">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700 leading-none whitespace-nowrap">
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 leading-none whitespace-nowrap">
                     {profile.jobTitle}
                   </h2>
                   <div className="flex items-baseline gap-2.5 whitespace-nowrap">
@@ -673,21 +673,21 @@ export function App() {
                       href={profile.githubUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition"
                       title="GitHub"
                     >
                       <Github className="h-4 w-4" />
                     </a>
                     <a
                       href={`mailto:${profile.email}`}
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition"
                       title="이메일 보내기"
                     >
                       <Mail className="h-4 w-4" />
                     </a>
                     <a
                       href={`tel:${profile.phone}`}
-                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition"
                       title="전화 걸기"
                     >
                       <Phone className="h-4 w-4" />
@@ -707,27 +707,27 @@ export function App() {
                     <div className="flex flex-col sm:flex-row print:flex-row gap-4 pt-2">
                       <button
                         onClick={() => scrollToSection('career')}
-                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
+                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
                       >
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition shadow-sm">
+                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
                           <Briefcase className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">실무 경력</span>
-                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">{profile.careerSummary}</span>
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">실무 경력</span>
+                          <span className="block font-black text-slate-800 text-sm group-hover:text-slate-950 transition mt-0.5">{profile.careerSummary}</span>
                         </div>
                       </button>
 
                       <button
                         onClick={() => scrollToSection('skills')}
-                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 p-4 rounded-xl transition group shadow-sm"
+                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
                       >
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition shadow-sm">
+                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
                           <Cpu className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">핵심 스택</span>
-                          <span className="block font-black text-slate-800 text-sm group-hover:text-indigo-700 transition mt-0.5">{profile.coreStackSummary}</span>
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">핵심 스택</span>
+                          <span className="block font-black text-slate-800 text-sm group-hover:text-slate-950 transition mt-0.5">{profile.coreStackSummary}</span>
                         </div>
                       </button>
                     </div>
@@ -743,7 +743,7 @@ export function App() {
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-3">
                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-indigo-600" />
+                      <Calendar className="h-5 w-5 text-slate-900" />
                       커리어 & 학습 타임라인
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">자격증 취득, 교육 수강, 실무 경력 및 프로젝트 이력을 한눈에 보는 타임라인입니다. 요소를 클릭하면 해당 위치로 스크롤됩니다.</p>
@@ -834,7 +834,7 @@ export function App() {
                           {/* 멀티캠퍼스 */}
                           <div 
                             style={{ left: '8.9%', width: '12.5%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-slate-800 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
                             title="멀티캠퍼스 파이썬 풀스택 부트캠프 (2022.06 - 2022.12)"
                             onClick={() => {
                               scrollToSection('career');
@@ -846,7 +846,7 @@ export function App() {
                           {/* 청년취업사관학교 */}
                           <div 
                             style={{ left: '28.5%', width: '10.7%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-slate-800 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
                             title="청년취업사관학교 풀스택 과정 (2023.05 - 2023.10)"
                             onClick={() => {
                               scrollToSection('career');
@@ -858,7 +858,7 @@ export function App() {
                           {/* MS AI 스쿨 */}
                           <div 
                             style={{ left: '78.5%', width: '12.5%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-slate-800 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
                             title="Microsoft AI 엔지니어링 과정 3기 (2025.09 - 2026.03)"
                             onClick={() => {
                               scrollToSection('career');
@@ -876,7 +876,7 @@ export function App() {
                           {/* 에듀테크 실무 */}
                           <div 
                             style={{ left: '41.1%', width: '41.1%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-violet-600 to-slate-900 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
                             title="에듀테크 스타트업 실무 경력 (2023.12 - 2025.10)"
                             onClick={() => {
                               scrollToSection('career');
@@ -949,7 +949,7 @@ export function App() {
               <section id="skills" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-                    <Cpu className="h-5 w-5 text-indigo-600" />
+                    <Cpu className="h-5 w-5 text-slate-900" />
                     기술 스택
                   </h2>
                   <div className="space-y-5">
@@ -972,8 +972,8 @@ export function App() {
                                         onClick={() => setSelectedCoreSkillId((current) => (current === skill.id ? null : skill.id))}
                                         className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
                                           selectedCoreSkillId === skill.id
-                                            ? 'border-indigo-400 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                                            : 'border-slate-200 bg-white text-slate-800 hover:border-indigo-300 hover:bg-indigo-50/50'
+                                            ? 'border-slate-500 bg-slate-900 text-white shadow-sm shadow-slate-800/20'
+                                            : 'border-slate-200 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-100/50'
                                         }`}
                                       >
                                         <span className="text-base font-black leading-tight">{skill.name}</span>
@@ -1005,13 +1005,13 @@ export function App() {
                       <div className="border-t border-slate-200 pt-5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <span className="text-xs font-black text-indigo-600">이 기술을 사용한 경험</span>
+                            <span className="text-xs font-black text-slate-900">이 기술을 사용한 경험</span>
                             <h4 className="mt-0.5 text-lg font-black text-slate-900">{selectedCoreSkill.name}</h4>
                             {selectedCoreSkill.skillVersion && (
                               <p className="mt-0.5 text-sm font-bold text-slate-500">v{selectedCoreSkill.skillVersion}</p>
                             )}
                           </div>
-                          <span className="rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-black text-indigo-600">
+                          <span className="rounded-md bg-slate-100 px-2.5 py-1 text-sm font-black text-slate-900">
                             연결된 경험 {selectedCoreSkillExperiences.length}개
                           </span>
                         </div>
@@ -1029,7 +1029,7 @@ export function App() {
                                     scrollToSection('projects');
                                   }
                                 }}
-                                className="w-full px-1 py-3.5 text-left transition hover:bg-indigo-50/40 sm:px-2"
+                                className="w-full px-1 py-3.5 text-left transition hover:bg-slate-100/40 sm:px-2"
                               >
                                 <div className="flex flex-wrap items-center gap-2">
                                   <span className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-black text-slate-500">
@@ -1039,7 +1039,7 @@ export function App() {
                                 </div>
                                 <p className="mt-1.5 text-base font-black leading-snug text-slate-900">{experience.title}</p>
                                 {experience.role && (
-                                  <p className="mt-0.5 text-sm font-black text-indigo-600">{experience.role}</p>
+                                  <p className="mt-0.5 text-sm font-black text-slate-900">{experience.role}</p>
                                 )}
                                 {experience.summary && (
                                   <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-relaxed text-slate-600">
@@ -1065,7 +1065,7 @@ export function App() {
                 {careerCards.map(career => (
                   <div key={career.id} className={cardStyle}>
                     <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-                      <Briefcase className="h-5 w-5 text-indigo-600" />
+                      <Briefcase className="h-5 w-5 text-slate-900" />
                       직장 경력 (총 1년 11개월)
                     </h2>
                     <div>
@@ -1092,7 +1092,7 @@ export function App() {
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); window.location.hash = `#/experience-detail/${detail.id}`; }}
-                                    className="shrink-0 whitespace-nowrap text-xs font-bold text-indigo-500 transition hover:text-indigo-700 hover:underline"
+                                    className="shrink-0 whitespace-nowrap text-xs font-bold text-slate-800 transition hover:text-slate-950 hover:underline"
                                   >
                                     자세히 보기
                                   </button>
@@ -1141,7 +1141,7 @@ export function App() {
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-4">
                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-indigo-600" />
+                      <Sparkles className="h-5 w-5 text-slate-900" />
                       역량 기술서 (Core Competencies)
                     </h2>
                     <p className="text-base text-slate-500 mt-1">프로젝트 실무 및 자격증에 기반하여 입증 가능한 전문 기술 상세 명세입니다.</p>
@@ -1151,8 +1151,8 @@ export function App() {
                     
                     {/* Essay 1 */}
                     <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
-                      <h3 className="text-lg font-black text-indigo-600 mb-1 flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-sm font-black text-indigo-600 border border-indigo-100">1</span>
+                      <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-sm font-black text-slate-900 border border-slate-200">1</span>
                         {essays.WHY.title}
                       </h3>
                       <p className="text-base font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
@@ -1169,8 +1169,8 @@ export function App() {
 
                     {/* Essay 2 */}
                     <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
-                      <h3 className="text-lg font-black text-indigo-600 mb-1 flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-indigo-50 text-sm font-black text-indigo-600 border border-indigo-100">2</span>
+                      <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-sm font-black text-slate-900 border border-slate-200">2</span>
                         {essays.STRENGTH.title}
                       </h3>
                       <p className="text-base font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
@@ -1178,7 +1178,7 @@ export function App() {
                       </p>
                       <div className="grid grid-cols-1 gap-4 ml-0 sm:ml-8">
                         {dynamicStrengths.map((str, idx) => (
-                          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 transition">
+                          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-400 transition">
                             <h4 className="text-base sm:text-lg font-black text-slate-800">
                               {str.title}
                             </h4>
@@ -1199,7 +1199,7 @@ export function App() {
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-4">
                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <Briefcase className="h-5 w-5 text-indigo-600" />
+                      <Briefcase className="h-5 w-5 text-slate-900" />
                       핵심 프로젝트 포트폴리오
                     </h2>
                     <p className="text-base text-slate-500 mt-1">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
@@ -1216,18 +1216,18 @@ export function App() {
                         {/* Timeline Bullet node */}
                         <div className={`absolute left-[7px] top-1.5 w-[18px] h-[18px] rounded-full border-4 border-white transition-colors shadow-sm z-10 ${
                           selectedMilestoneId === m.id
-                            ? 'bg-indigo-600 scale-110'
-                            : 'bg-slate-300 group-hover:bg-indigo-400'
+                            ? 'bg-slate-900 scale-110'
+                            : 'bg-slate-300 group-hover:bg-slate-500'
                         }`} />
                         
                         <div className={`rounded-xl border p-6 space-y-4 transition-all duration-300 shadow-sm ${
                           selectedMilestoneId === m.id
-                            ? 'border-indigo-500 bg-white ring-2 ring-indigo-50/50'
-                            : 'border-slate-200/80 bg-slate-50/50 hover:border-indigo-300 hover:bg-white'
+                            ? 'border-slate-800 bg-white ring-2 ring-slate-100/50'
+                            : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-400 hover:bg-white'
                         }`}>
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                             <div>
-                              <span className="inline-flex rounded bg-indigo-50 px-2 py-0.5 text-sm font-bold text-indigo-700 border border-indigo-100">
+                              <span className="inline-flex rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-950 border border-slate-200">
                                 {m.role} ({m.period})
                               </span>
                               <h3 className="mt-1.5 text-lg font-black text-slate-800">
@@ -1280,15 +1280,15 @@ export function App() {
 
             {/* Right Sticky Sidebar Column */}
             <aside className="block print:hidden w-full sticky top-24 self-start">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-indigo-200 min-[900px]:p-5 min-[900px]:space-y-5">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-slate-300 min-[900px]:p-5 min-[900px]:space-y-5">
                 <div className="hidden min-[900px]:block">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-indigo-400">내비게이션</h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">내비게이션</h3>
                   <p className="text-sm text-slate-500 leading-none mt-0.5">
                     클릭하면 해당 섹션으로 부드럽게 이동합니다.
                   </p>
                 </div>
                 
-                <div className="hidden min-[900px]:block relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-indigo-100">
+                <div className="hidden min-[900px]:block relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-200">
                   {mainSections.map((step) => (
                     <button
                       key={step.id}
@@ -1297,14 +1297,14 @@ export function App() {
                     >
                       <div className={`absolute left-[-15px] top-[14px] w-2 h-2 rounded-full border border-white transition-all duration-300 z-10 ${
                         activeSection === step.id
-                          ? 'bg-indigo-600 scale-125 ring-4 ring-indigo-100'
-                          : 'bg-indigo-200 group-hover:bg-indigo-400'
+                          ? 'bg-slate-900 scale-125 ring-4 ring-slate-200'
+                          : 'bg-slate-300 group-hover:bg-slate-500'
                       }`} />
                       
                       <span className={`rounded-lg px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${
                         activeSection === step.id
-                          ? 'bg-indigo-50 text-indigo-600 font-extrabold'
-                          : 'text-slate-600 hover:bg-indigo-50/60 hover:text-indigo-700'
+                          ? 'bg-slate-100 text-slate-900 font-extrabold'
+                          : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-950'
                       }`}>
                         {step.label}
                       </span>
@@ -1323,8 +1323,8 @@ export function App() {
                         aria-label={step.label}
                         className={`relative z-10 grid h-8 w-8 place-items-center rounded-full border transition-all duration-200 ${
                           activeSection === step.id
-                            ? 'border-indigo-200 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20 ring-4 ring-indigo-100'
-                            : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-200 hover:text-indigo-600'
+                            ? 'border-slate-300 bg-slate-900 text-white shadow-sm shadow-slate-800/20 ring-4 ring-slate-200'
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900'
                         }`}
                       >
                         <Icon className="h-4 w-4" />
@@ -1337,7 +1337,7 @@ export function App() {
 
                 <button
                   onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                  className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
                   title="위로 가기"
                   aria-label="위로 가기"
                 >
@@ -1352,10 +1352,10 @@ export function App() {
           /* SYSTEM ARCHITECTURE PAGE */
           <div className="mx-auto max-w-6xl space-y-8 animate-fadeIn pb-12 print:hidden">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-80 h-80 bg-slate-800/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
               <div className="relative z-10 border-b border-slate-100 pb-5">
                 <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-                  <Terminal className="h-6 w-6 text-indigo-600" />
+                  <Terminal className="h-6 w-6 text-slate-900" />
                   시스템 아키텍처 (Self-Intro Architecture)
                 </h1>
                 <p className="mt-2 text-sm sm:text-base text-slate-500 font-normal leading-relaxed">
@@ -1365,8 +1365,8 @@ export function App() {
 
               <div className="relative z-10 mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                    <span className="p-1.5 rounded bg-indigo-50 leading-none">💻</span>
+                  <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
+                    <span className="p-1.5 rounded bg-slate-100 leading-none">💻</span>
                     Backend Layer
                   </h2>
                   <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
@@ -1386,8 +1386,8 @@ export function App() {
                 </div>
 
                 <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                    <span className="p-1.5 rounded bg-indigo-50 leading-none">🎨</span>
+                  <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
+                    <span className="p-1.5 rounded bg-slate-100 leading-none">🎨</span>
                     Frontend Layer
                   </h2>
                   <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
@@ -1407,8 +1407,8 @@ export function App() {
                 </div>
 
                 <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-indigo-600 flex items-center gap-2 mb-3">
-                    <span className="p-1.5 rounded bg-indigo-50 leading-none">☸️</span>
+                  <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
+                    <span className="p-1.5 rounded bg-slate-100 leading-none">☸️</span>
                     DevOps & GitOps
                   </h2>
                   <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
@@ -1478,7 +1478,7 @@ export function App() {
           <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn pb-12 print:hidden">
             {/* Page Title & Intro Banner */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-80 h-80 bg-slate-800/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
               <div className="relative z-10 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="space-y-1">
@@ -1490,7 +1490,7 @@ export function App() {
                   {/* Add Study Log Toggle Button */}
                   <button
                     onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
-                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-md shadow-indigo-500/20"
+                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 to-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:from-slate-800 hover:to-slate-900 transition shadow-md shadow-slate-800/20"
                   >
                     <Code2 className="h-4.5 w-4.5" />
                     <span>{isCreateFormOpen ? '목록으로 돌아가기' : '새 글 작성하기'}</span>
@@ -1503,7 +1503,7 @@ export function App() {
               /* CREATE STUDY LOG FORM CARD */
               <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)]">
                 <h3 className="text-lg font-black text-slate-900 mb-6 border-b border-slate-100 pb-3 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-indigo-600" />
+                  <Sparkles className="h-5 w-5 text-slate-900" />
                   새로운 기술 기록 남기기
                 </h3>
 
@@ -1517,7 +1517,7 @@ export function App() {
                         value={form.title}
                         onChange={(e) => setForm({ ...form, title: e.target.value })}
                         placeholder="예: Spring Boot DB 커넥션 풀 최적화 가이드"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
                       />
                     </div>
                     <div>
@@ -1525,7 +1525,7 @@ export function App() {
                       <select
                         value={form.category}
                         onChange={(e) => setForm({ ...form, category: e.target.value as any })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 bg-white transition"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white transition"
                       >
                         <option value="PROJECT">프로젝트 (PROJECT)</option>
                         <option value="EDUCATION">공부/학습 (STUDY)</option>
@@ -1541,7 +1541,7 @@ export function App() {
                       value={form.skills}
                       onChange={(e) => setForm({ ...form, skills: e.target.value })}
                       placeholder="예: Java, Spring Boot, MySQL, HikariCP"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
                     />
                   </div>
 
@@ -1553,7 +1553,7 @@ export function App() {
                       value={form.description}
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
                       placeholder="공부한 내용이나 구현 사항을 상세히 남겨주세요..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition resize-none"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition resize-none"
                     />
                   </div>
 
@@ -1565,7 +1565,7 @@ export function App() {
                       value={form.takeaway}
                       onChange={(e) => setForm({ ...form, takeaway: e.target.value })}
                       placeholder="이번 기록에서 배운 점이나 핵심 성과를 요약해주세요..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition resize-none"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition resize-none"
                     />
                   </div>
 
@@ -1580,7 +1580,7 @@ export function App() {
                     <button
                       type="submit"
                       disabled={createMutation.isPending}
-                      className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition shadow-md shadow-indigo-500/20"
+                      className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition shadow-md shadow-slate-800/20"
                     >
                       {createMutation.isPending ? '등록 중...' : '작성 완료'}
                     </button>
@@ -1605,7 +1605,7 @@ export function App() {
                         onClick={() => setActiveCategory(item.key as any)}
                         className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all shrink-0 ${
                           activeCategory === item.key
-                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
+                            ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                             : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
                         }`}
                       >
@@ -1621,7 +1621,7 @@ export function App() {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="기술명, 제목 검색..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
                     />
                   </div>
                 </div>
@@ -1639,7 +1639,7 @@ export function App() {
                         <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
                           <span className={`inline-flex rounded px-2.5 py-0.5 text-xs font-bold ${
                             entry.category === 'PROJECT'
-                              ? 'bg-indigo-50 border border-indigo-100 text-indigo-700'
+                              ? 'bg-slate-100 border border-slate-200 text-slate-950'
                               : entry.category === 'EDUCATION'
                               ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
                               : 'bg-amber-50 border border-amber-100 text-amber-700'
@@ -1650,7 +1650,7 @@ export function App() {
                         </div>
 
                         {/* Post Title */}
-                        <h3 className="text-xl font-black text-slate-900 leading-snug hover:text-indigo-600 transition mb-3">
+                        <h3 className="text-xl font-black text-slate-900 leading-snug hover:text-slate-900 transition mb-3">
                           {entry.title}
                         </h3>
 
@@ -1673,7 +1673,7 @@ export function App() {
                         {/* Takeaway / Lesson Learned block */}
                         {entry.takeaway && (
                           <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-1.5 shadow-inner">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                               <Sparkles className="h-3.5 w-3.5" />
                               Lesson Learned / Key Takeaway
                             </h4>
