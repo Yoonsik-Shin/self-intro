@@ -313,54 +313,57 @@ export function App() {
               <div id="intro-profile" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
             <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-550/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
             
-            <div className="grid grid-cols-1 lg:grid-cols-4 print:grid-cols-4 gap-8 relative z-10 items-center">
+            <div className="relative z-10 space-y-6">
               
-              {/* Profile Avatar & Name & Socials (Column 1) */}
-              <div className="flex flex-col items-center text-center lg:border-r lg:border-slate-100 lg:pr-8 print:items-center print:text-center print:border-r print:border-slate-100 print:pr-8">
-                <h1 className="text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
-                <p className="text-sm font-bold text-slate-600 mt-1">Yoonsik Shin</p>
-                
-                <div className="mt-4 flex justify-center gap-2">
-                  <a
-                    href="https://github.com/Yoonsik-Shin"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                    title="GitHub"
-                  >
-                    <Github className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="mailto:aaa946@naver.com"
-                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                    title="이메일 보내기"
-                  >
-                    <Mail className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="tel:010-5171-0994"
-                    className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
-                    title="전화 걸기"
-                  >
-                    <Phone className="h-4 w-4" />
-                  </a>
+              {/* Top Row: Name, English Name, Social Links, and Deploy Badge */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-3.5">
+                  <div className="flex items-baseline gap-2.5">
+                    <h1 className="text-3xl font-black text-slate-900 leading-none">신윤식</h1>
+                    <span className="text-lg font-bold text-slate-450 font-mono">Yoonsik Shin</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 sm:mt-0 sm:ml-2">
+                    <a
+                      href="https://github.com/Yoonsik-Shin"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                      title="GitHub"
+                    >
+                      <Github className="h-4 w-4" />
+                    </a>
+                    <a
+                      href="mailto:aaa946@naver.com"
+                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                      title="이메일 보내기"
+                    >
+                      <Mail className="h-4 w-4" />
+                    </a>
+                    <a
+                      href="tel:010-5171-0994"
+                      className="rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                      title="전화 걸기"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse shadow-sm">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    실시간 아키텍처 및 콘텐츠 개선 중 (v1.2.4 - 2026. 07. 14 10:07 배포)
+                  </span>
                 </div>
               </div>
 
               {/* Bio & Personal Info (Column 2-4) */}
-              <div className="lg:col-span-3 print:col-span-3 space-y-6">
-                <div>
-                  <div className="flex flex-wrap gap-2">
-
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse shadow-sm">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                      실시간 아키텍처 및 콘텐츠 개선 중 (v1.2.4 - 2026. 07. 14 10:07 배포)
-                    </span>
-                  </div>
-                  <h2 className="mt-3 text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-700">
                     Software Engineer
                   </h2>
-                  <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed">
+                  <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed max-w-4xl">
                     에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.
                   </p>
                 </div>
