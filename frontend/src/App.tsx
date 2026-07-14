@@ -15,6 +15,7 @@ import {
   Phone,
   User,
   X,
+  Calendar,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { studyApi, bffApi, type CreateStudyEntryRequest, type Skill, type StudyEntry, type ExperienceDetail } from './lib/api';
@@ -735,6 +736,183 @@ export function App() {
               </div>
             </div>
           </div>
+
+              {/* SECTION 1.4: 커리어 & 학습 타임라인 그래프 */}
+              <section className="scroll-mt-24 space-y-6">
+                <div className={cardStyle}>
+                  <div className="border-b border-slate-100 pb-3">
+                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-indigo-600" />
+                      커리어 & 학습 타임라인
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">자격증 취득, 교육 수강, 실무 경력 및 프로젝트 이력을 한눈에 보는 타임라인입니다. 요소를 클릭하면 해당 위치로 스크롤됩니다.</p>
+                  </div>
+
+                  <div className="relative mt-8 select-none">
+                    {/* Horizontal Axis: Year grid */}
+                    <div className="relative h-6 border-b border-slate-100 flex text-xs font-black text-slate-400">
+                      <div className="absolute left-[0%] -translate-x-1/2">2022</div>
+                      <div className="absolute left-[21.4%] -translate-x-1/2">2023</div>
+                      <div className="absolute left-[42.8%] -translate-x-1/2">2024</div>
+                      <div className="absolute left-[64.3%] -translate-x-1/2">2025</div>
+                      <div className="absolute left-[85.7%] -translate-x-1/2">2026</div>
+                    </div>
+
+                    {/* Vertical grid lines */}
+                    <div className="absolute inset-0 top-6 bottom-0 pointer-events-none">
+                      <div className="absolute left-[0%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
+                      <div className="absolute left-[21.4%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
+                      <div className="absolute left-[42.8%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
+                      <div className="absolute left-[64.3%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
+                      <div className="absolute left-[85.7%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
+                    </div>
+
+                    {/* Rows */}
+                    <div className="mt-4 space-y-6 pb-2">
+                      {/* Row 1: 자격증 취득 */}
+                      <div className="relative flex items-center h-10">
+                        <div className="w-24 text-sm font-black text-slate-500 shrink-0">자격증 취득</div>
+                        <div className="relative flex-1 h-full">
+                          {/* 정보처리기사 */}
+                          <div 
+                            style={{ left: '8.9%' }} 
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
+                            onClick={() => {
+                              scrollToSection('competencies');
+                            }}
+                          >
+                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
+                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">정보처리기사 (22.06)</span>
+                          </div>
+
+                          {/* 빅데이터분석기사 */}
+                          <div 
+                            style={{ left: '10.7%' }} 
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
+                            onClick={() => {
+                              scrollToSection('competencies');
+                            }}
+                          >
+                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
+                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">빅데이터분석기사 (22.07)</span>
+                          </div>
+
+                          {/* SQLD */}
+                          <div 
+                            style={{ left: '57.1%' }} 
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
+                            onClick={() => {
+                              scrollToSection('competencies');
+                            }}
+                          >
+                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
+                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">SQLD (24.09)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 2: 교육 수강 */}
+                      <div className="relative flex items-center h-10">
+                        <div className="w-24 text-sm font-black text-slate-500 shrink-0">교육 수강</div>
+                        <div className="relative flex-1 h-full">
+                          {/* 멀티캠퍼스 */}
+                          <div 
+                            style={{ left: '8.9%', width: '12.5%' }} 
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            title="멀티캠퍼스 파이썬 풀스택 부트캠프 (2022.06 - 2022.12)"
+                            onClick={() => {
+                              scrollToSection('career');
+                            }}
+                          >
+                            멀티캠퍼스
+                          </div>
+
+                          {/* 청년취업사관학교 */}
+                          <div 
+                            style={{ left: '28.5%', width: '10.7%' }} 
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            title="청년취업사관학교 풀스택 과정 (2023.05 - 2023.10)"
+                            onClick={() => {
+                              scrollToSection('career');
+                            }}
+                          >
+                            청년취업사관
+                          </div>
+
+                          {/* MS AI 스쿨 */}
+                          <div 
+                            style={{ left: '78.5%', width: '12.5%' }} 
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            title="Microsoft AI 엔지니어링 과정 3기 (2025.09 - 2026.03)"
+                            onClick={() => {
+                              scrollToSection('career');
+                            }}
+                          >
+                            MS AI 스쿨
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 3: 실무 & 프로젝트 */}
+                      <div className="relative flex items-center h-10">
+                        <div className="w-24 text-sm font-black text-slate-500 shrink-0">실무 & 프로젝트</div>
+                        <div className="relative flex-1 h-full">
+                          {/* 에듀테크 실무 */}
+                          <div 
+                            style={{ left: '41.1%', width: '41.1%' }} 
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            title="에듀테크 스타트업 실무 경력 (2023.12 - 2025.10)"
+                            onClick={() => {
+                              scrollToSection('career');
+                            }}
+                          >
+                            에듀테크 실무 (1년 11m)
+                          </div>
+
+                          {/* AI 모의면접 */}
+                          <div 
+                            style={{ left: '83.9%', width: '7.1%' }} 
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            title="AI 실시간 모의면접 플랫폼 (2025.12 - 2026.03)"
+                            onClick={() => {
+                              setSelectedMilestoneId('project3');
+                              scrollToSection('projects');
+                            }}
+                          >
+                            AI면접
+                          </div>
+
+                          {/* LogDoctor */}
+                          <div 
+                            style={{ left: '89.3%', width: '7.1%' }} 
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            title="LogDoctor (Azure 클라우드 로그 비용 진단 및 최적화 SaaS) (2026.03 - 2026.06)"
+                            onClick={() => {
+                              setSelectedMilestoneId('project2');
+                              scrollToSection('projects');
+                            }}
+                          >
+                            LogDr.
+                          </div>
+
+                          {/* CS Test Bed */}
+                          <div 
+                            style={{ left: '94.6%', width: '3.6%' }} 
+                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
+                            title="CS Test Bed (고객문의 수집·자동응답 통합 테스트베드) (2026.06 - 2026.07)"
+                            onClick={() => {
+                              setSelectedMilestoneId('project1');
+                              scrollToSection('projects');
+                            }}
+                          >
+                            CS
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
               {/* SECTION 1.5: 기술 스택 */}
               <section id="skills" className="scroll-mt-24 space-y-6">
