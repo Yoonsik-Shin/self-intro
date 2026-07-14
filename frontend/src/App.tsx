@@ -320,8 +320,13 @@ export function App() {
         {/* Main Body Layout */}
         <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           
-          {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
-          <div id="intro-profile" className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_260px] relative items-start">
+            
+            {/* Main Content Column */}
+            <div className="min-w-0 space-y-12">
+              
+              {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
+              <div id="intro-profile" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
             <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-550/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
             
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 relative z-10 items-center">
@@ -453,11 +458,6 @@ export function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_260px] relative items-start">
-            
-            {/* Main Content Column */}
-            <div className="min-w-0 space-y-12">
-              
               {/* SECTION 1: 직장 경력 */}
               <section id="career" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
