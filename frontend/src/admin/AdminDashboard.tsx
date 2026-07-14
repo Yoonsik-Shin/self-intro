@@ -1,4 +1,4 @@
-import { useState, type FormEvent, useEffect } from 'react';
+import { useState, type FormEvent, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Home,
@@ -121,6 +121,49 @@ export function AdminDashboard() {
   const [studyForm, setStudyForm] = useState<CreateStudyEntryRequest>(emptyStudyForm);
   const [isStudyFormOpen, setIsStudyFormOpen] = useState(false);
   const [expandedStudyId, setExpandedStudyId] = useState<number | null>(null);
+
+  // --- FILTER STATES ---
+  const [studyFilter, setStudyFilter] = useState<string>('ALL');
+  const [studySearch, setStudySearch] = useState<string>('');
+
+  const [skillFilter, setSkillFilter] = useState<string>('ALL');
+  const [skillSearch, setSkillSearch] = useState<string>('');
+
+  const [expFilter, setExpFilter] = useState<string>('ALL');
+  const [expSearch, setExpSearch] = useState<string>('');
+
+  // --- FILTERED DATA MEMOS ---
+  const filteredStudyEntries = useMemo(() => {
+    return studyEntries?.filter((entry) => {
+      const matchesCategory = studyFilter === 'ALL' || entry.category === studyFilter;
+      const matchesSearch =
+        !studySearch ||
+        entry.title.toLowerCase().includes(studySearch.toLowerCase()) ||
+        entry.description.toLowerCase().includes(studySearch.toLowerCase()) ||
+        entry.skills.some((s) => s.toLowerCase().includes(studySearch.toLowerCase()));
+      return matchesCategory && matchesSearch;
+    });
+  }, [studyEntries, studyFilter, studySearch]);
+
+  const filteredSkills = useMemo(() => {
+    return skillsList?.filter((skill) => {
+      const matchesCategory = skillFilter === 'ALL' || skill.category === skillFilter;
+      const matchesSearch =
+        !skillSearch || skill.name.toLowerCase().includes(skillSearch.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [skillsList, skillFilter, skillSearch]);
+
+  const filteredExperiences = useMemo(() => {
+    return experiencesList?.filter((exp) => {
+      const matchesType = expFilter === 'ALL' || exp.type === expFilter;
+      const matchesSearch =
+        !expSearch ||
+        exp.title.toLowerCase().includes(expSearch.toLowerCase()) ||
+        (exp.summary && exp.summary.toLowerCase().includes(expSearch.toLowerCase()));
+      return matchesType && matchesSearch;
+    });
+  }, [experiencesList, expFilter, expSearch]);
 
   const createStudyMutation = useMutation({
     mutationFn: studyApi.create,
@@ -460,6 +503,40 @@ export function AdminDashboard() {
                 </button>
               </div>
 
+              {/* FILTERS & SEARCH */}
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
+                <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+                  {['ALL', 'PROJECT', 'EDUCATION', 'CERTIFICATE'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setStudyFilter(cat)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                        studyFilter === cat
+                          ? 'bg-slate-850 text-white shadow-sm'
+                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
+                      }`}
+                    >
+                      {cat === 'ALL'
+                        ? '전체'
+                        : cat === 'PROJECT'
+                        ? '프로젝트'
+                        : cat === 'EDUCATION'
+                        ? '공부/학습'
+                        : '자격증'}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="제목, 본문, 기술 검색..."
+                    value={studySearch}
+                    onChange={(e) => setStudySearch(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
+              </div>
+
               {isStudyFormOpen && (
                 <form onSubmit={handleStudySubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h3 className="text-sm font-black text-slate-800">{studyEditingId !== null ? '글 수정' : '새 글 작성'}</h3>
@@ -553,7 +630,7 @@ export function AdminDashboard() {
               )}
 
               <div className="space-y-2.5">
-                {studyEntries?.map((entry) => {
+                {filteredStudyEntries?.map((entry) => {
                   const isExpanded = expandedStudyId === entry.id;
                   return (
                     <div
@@ -786,6 +863,46 @@ export function AdminDashboard() {
                 </button>
               </div>
 
+              {/* FILTERS & SEARCH */}
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
+                <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+                  {['ALL', 'LANGUAGE', 'FRAMEWORK', 'DATABASE', 'DEVOPS', 'AI_RAG', 'ETC'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSkillFilter(cat)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                        skillFilter === cat
+                          ? 'bg-slate-850 text-white shadow-sm'
+                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
+                      }`}
+                    >
+                      {cat === 'ALL'
+                        ? '전체'
+                        : cat === 'LANGUAGE'
+                        ? '언어'
+                        : cat === 'FRAMEWORK'
+                        ? '프레임워크'
+                        : cat === 'DATABASE'
+                        ? 'DB'
+                        : cat === 'DEVOPS'
+                        ? '인프라/DevOps'
+                        : cat === 'AI_RAG'
+                        ? 'AI/RAG'
+                        : '기타'}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="기술명 검색..."
+                    value={skillSearch}
+                    onChange={(e) => setSkillSearch(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
+              </div>
+
               {isSkillFormOpen && (
                 <form onSubmit={handleSkillSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h3 className="text-sm font-black text-slate-800">{skillEditingId !== null ? '기술 수정' : '새 기술 추가'}</h3>
@@ -872,7 +989,7 @@ export function AdminDashboard() {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {skillsList?.map((skill) => (
+                {filteredSkills?.map((skill) => (
                   <div
                     key={skill.id}
                     className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm"
@@ -937,6 +1054,42 @@ export function AdminDashboard() {
                   <Plus className="h-4 w-4" />
                   이력 추가
                 </button>
+              </div>
+
+              {/* FILTERS & SEARCH */}
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
+                <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+                  {['ALL', 'CAREER', 'PROJECT', 'EDUCATION', 'CERTIFICATE'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setExpFilter(cat)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                        expFilter === cat
+                          ? 'bg-slate-850 text-white shadow-sm'
+                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
+                      }`}
+                    >
+                      {cat === 'ALL'
+                        ? '전체'
+                        : cat === 'CAREER'
+                        ? '회사 경력'
+                        : cat === 'PROJECT'
+                        ? '프로젝트'
+                        : cat === 'EDUCATION'
+                        ? '학력'
+                        : '자격증'}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="이력명, 성과 검색..."
+                    value={expSearch}
+                    onChange={(e) => setExpSearch(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
               </div>
 
               {isExpFormOpen && (
@@ -1236,7 +1389,7 @@ export function AdminDashboard() {
 
               {/* Experiences List */}
               <div className="space-y-2.5">
-                {experiencesList?.map((exp) => {
+                {filteredExperiences?.map((exp) => {
                   const isExpanded = expandedExpId === exp.id;
                   return (
                     <div
