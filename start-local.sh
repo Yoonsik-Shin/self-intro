@@ -7,7 +7,7 @@ echo "=========================================================="
 echo "   현대오토에버 지원자 신윤식 소개 웹 앱 로컬 구동 스크립트"
 echo "=========================================================="
 
-PID_DIR="$(dirname "$0")"
+PID_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_PID_FILE="$PID_DIR/.backend.pid"
 FRONTEND_PID_FILE="$PID_DIR/.frontend.pid"
 
