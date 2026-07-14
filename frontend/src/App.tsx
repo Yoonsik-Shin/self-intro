@@ -317,12 +317,7 @@ export function App() {
               
               {/* Profile Avatar & Name & Socials (Column 1) */}
               <div className="flex flex-col items-center text-center lg:border-r lg:border-slate-100 lg:pr-8 print:items-center print:text-center print:border-r print:border-slate-100 print:pr-8">
-                <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
-                  <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-3xl font-black text-white">
-                    YS
-                  </div>
-                </div>
-                <h1 className="mt-4 text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
+                <h1 className="text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
                 <p className="text-sm font-bold text-slate-600 mt-1">Yoonsik Shin</p>
                 
                 <div className="mt-4 flex justify-center gap-2">
