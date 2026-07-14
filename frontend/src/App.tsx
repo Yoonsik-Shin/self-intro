@@ -427,7 +427,7 @@ export function App() {
                 <div className="flex flex-wrap items-center gap-3.5 mt-2 md:mt-0">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse shadow-sm">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    실시간 아키텍처 및 콘텐츠 개선 중 (v1.2.4 - 2026. 07. 14 10:07 배포)
+                    실시간 아키텍처 및 콘텐츠 개선 중 (v{__APP_VERSION__} - {__BUILD_DATE__} 배포)
                   </span>
 
                   <div className="flex items-center gap-2">
