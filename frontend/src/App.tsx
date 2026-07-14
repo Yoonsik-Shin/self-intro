@@ -5,18 +5,16 @@ import {
   Printer,
   Briefcase,
   Cpu,
-  MapPin,
-  User,
-  Mail,
-  Phone,
-  ChevronRight,
   Terminal,
   Code2,
   BookOpen,
-  Send,
   Github,
+  Home,
+  Mail,
   Menu,
-  X
+  Phone,
+  User,
+  X,
 } from 'lucide-react';
 import { studyApi, type CreateStudyEntryRequest, type StudyEntry } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
@@ -137,17 +135,40 @@ const fallbackEntries: StudyEntry[] = [
   }
 ];
 
+const pages = [
+  {
+    id: 'intro' as const,
+    label: '메인페이지',
+    shortLabel: '메인',
+    description: '프로필, 경력, 프로젝트, 아키텍처',
+    icon: Home,
+  },
+  {
+    id: 'blog' as const,
+    label: '공부 정리',
+    shortLabel: '공부 정리',
+    description: '기술 글, 학습 기록, 프로젝트 회고',
+    icon: BookOpen,
+  },
+];
+
+const mainSections = [
+  { id: 'intro-profile', label: '프로필', icon: User },
+  { id: 'career', label: '직장 경력', icon: Briefcase },
+  { id: 'skills', label: '기술 스택', icon: Cpu },
+  { id: 'competencies', label: '역량 기술서', icon: Sparkles },
+  { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
+  { id: 'architecture', label: '시스템 아키텍처', icon: Terminal },
+];
+
 export function App() {
   const queryClient = useQueryClient();
   
   const {
     selectedMilestoneId,
     activeCategory,
-    activeMainTab,
-    activeEssayTab,
     setSelectedMilestoneId,
-    setActiveMainTab,
-    setActiveEssayTab,
+    setActiveCategory,
   } = useIntroStore();
 
   const [search, setSearch] = useState('');
@@ -161,11 +182,11 @@ export function App() {
   });
 
   const [activeSection, setActiveSection] = useState('intro-profile');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activePage, setActivePage] = useState<'intro' | 'blog'>('intro');
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+  const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
 
   useEffect(() => {
-    const sections = ['intro-profile', 'career', 'skills', 'competencies', 'projects', 'architecture'];
-    
     const observerOptions = {
       root: null,
       rootMargin: '-20% 0px -55% 0px', // 스크롤 시 화면 중앙 부근에서 변경되도록 마진 설정
@@ -182,13 +203,13 @@ export function App() {
 
     const observer = new IntersectionObserver(observerCallback, observerOptions);
     
-    sections.forEach((id) => {
+    mainSections.forEach(({ id }) => {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     });
 
     return () => {
-      sections.forEach((id) => {
+      mainSections.forEach(({ id }) => {
         const el = document.getElementById(id);
         if (el) observer.unobserve(el);
       });
@@ -247,6 +268,12 @@ export function App() {
     window.print();
   };
 
+  const goToPage = (pageId: 'intro' | 'blog') => {
+    setActivePage(pageId);
+    setIsPageMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // 공통 카드 레이아웃 스타일 통일
   const cardStyle = "bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative";
   
@@ -261,88 +288,102 @@ export function App() {
         <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-indigo-500/3 rounded-full filter blur-[100px] pointer-events-none print:hidden" />
 
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl print:hidden relative">
-          <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <button onClick={() => scrollToSection('intro-profile')} className="flex items-center gap-3 text-left focus:outline-none hover:opacity-90 transition" title="프로필로 이동">
+        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-xl print:hidden relative sm:px-4">
+          <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <button
+                onClick={() => goToPage('intro')}
+                className="flex shrink-0 items-center text-left focus:outline-none hover:opacity-90 transition"
+                title="소개 페이지로 이동"
+              >
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-500/20">
                   YS
                 </div>
               </button>
-
-              {/* Mobile Hamburger Menu Button */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-650 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm"
-                title="메뉴"
-              >
-                {isMobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
-              </button>
             </div>
 
-            <nav className="hidden items-center gap-0.5 lg:gap-1 md:flex">
-              {[
-                { id: 'intro-profile', label: '프로필' },
-                { id: 'career', label: '직장 경력' },
-                { id: 'skills', label: '기술 스택' },
-                { id: 'competencies', label: '역량 기술서' },
-                { id: 'projects', label: '핵심 프로젝트' },
-                { id: 'architecture', label: '시스템 아키텍처' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => scrollToSection(tab.id)}
-                  className={`rounded-lg px-2 lg:px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-200 ${
-                    activeSection === tab.id
-                      ? 'bg-indigo-50 text-indigo-600 border border-indigo-200/50'
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <nav
+              aria-label="페이지 네비게이션"
+              className="hidden min-w-0 items-center gap-1 overflow-x-auto scrollbar-none min-[900px]:mx-auto min-[900px]:flex min-[900px]:w-auto"
+            >
+              {pages.map((page) => {
+                const Icon = page.icon;
+                const isActive = activePage === page.id;
+                return (
+                  <button
+                    key={page.id}
+                    onClick={() => goToPage(page.id)}
+                    className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-black transition-all duration-200 ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                    title={page.label}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{page.shortLabel}</span>
+                  </button>
+                );
+              })}
             </nav>
 
-            <div className="flex items-center">
+            <div className="flex shrink-0 items-center gap-2">
+              {activePage === 'intro' && (
+                <button
+                  onClick={handlePrint}
+                  className="hidden h-9 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20 min-[900px]:flex"
+                  title="PDF 인쇄"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  <span>PDF 인쇄</span>
+                </button>
+              )}
               <button
-                onClick={handlePrint}
-                className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1.5 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20"
+                onClick={() => setIsPageMenuOpen((open) => !open)}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-indigo-200 hover:text-indigo-600 min-[900px]:hidden"
+                title="페이지 메뉴"
+                aria-label="페이지 메뉴"
+                aria-expanded={isPageMenuOpen}
               >
-                <Printer className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">PDF 인쇄</span>
+                {isPageMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
-          {/* Mobile Dropdown Menu */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 border-b border-slate-200/80 shadow-lg backdrop-blur-lg px-4 py-3 space-y-1.5 z-40 transition-all duration-200">
-              {[
-                { id: 'intro-profile', label: '프로필' },
-                { id: 'career', label: '직장 경력' },
-                { id: 'skills', label: '기술 스택' },
-                { id: 'competencies', label: '역량 기술서' },
-                { id: 'projects', label: '핵심 프로젝트' },
-                { id: 'architecture', label: '시스템 아키텍처' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    scrollToSection(tab.id);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2.5 ${
-                    activeSection === tab.id
-                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50'
-                      : 'text-slate-650 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
-                    activeSection === tab.id ? 'bg-indigo-600' : 'bg-slate-300'
-                  }`} />
-                  {tab.label}
-                </button>
-              ))}
+          {isPageMenuOpen && (
+            <div className="absolute left-0 right-0 top-full z-40 border-b border-slate-200/80 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-xl min-[900px]:hidden">
+              <nav aria-label="모바일 페이지 네비게이션" className="mx-auto flex max-w-[1500px] flex-col gap-1">
+                {pages.map((page) => {
+                  const Icon = page.icon;
+                  const isActive = activePage === page.id;
+                  return (
+                    <button
+                      key={page.id}
+                      onClick={() => goToPage(page.id)}
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-black transition-all duration-200 ${
+                        isActive
+                          ? 'bg-indigo-50 text-indigo-700'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{page.label}</span>
+                    </button>
+                  );
+                })}
+                {activePage === 'intro' && (
+                  <button
+                    onClick={() => {
+                      setIsPageMenuOpen(false);
+                      handlePrint();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-black text-slate-600 transition-all duration-200 hover:bg-slate-50 hover:text-indigo-700"
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>PDF 인쇄</span>
+                  </button>
+                )}
+              </nav>
             </div>
           )}
         </header>
@@ -350,7 +391,8 @@ export function App() {
         {/* Main Body Layout */}
         <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_260px] print:block relative items-start">
+          {activePage === 'intro' ? (
+            <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-8 min-[900px]:grid-cols-[minmax(0,1fr)_220px] print:block relative items-start">
             
             {/* Main Content Column */}
             <div className="min-w-0 space-y-12">
@@ -774,29 +816,22 @@ export function App() {
             </div>
 
             {/* Right Sticky Sidebar Column */}
-            <aside className="hidden lg:block print:hidden w-full sticky top-24 self-start">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-md backdrop-blur-md space-y-5">
-                <div>
+            <aside className="block print:hidden w-full sticky top-24 self-start">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:p-4 min-[900px]:space-y-4">
+                <div className="hidden min-[900px]:block">
                   <h3 className="text-sm font-black uppercase tracking-wider text-slate-400">내비게이션</h3>
-                  <p className="text-sm text-slate-500 leading-none mt-0.5">클릭하면 해당 섹션으로 부드럽게 이동합니다.</p>
+                  <p className="text-sm text-slate-500 leading-none mt-0.5">
+                    클릭하면 해당 섹션으로 부드럽게 이동합니다.
+                  </p>
                 </div>
                 
-                {/* Vertical Stepper Links */}
-                <div className="relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-100">
-                  {[
-                    { id: 'intro-profile', label: '프로필' },
-                    { id: 'career', label: '직장 경력' },
-                    { id: 'skills', label: '기술 스택' },
-                    { id: 'competencies', label: '역량 기술서' },
-                    { id: 'projects', label: '핵심 프로젝트' },
-                    { id: 'architecture', label: '시스템 아키텍처' },
-                  ].map((step) => (
+                <div className="hidden min-[900px]:block relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-100">
+                  {mainSections.map((step) => (
                     <button
                       key={step.id}
                       onClick={() => scrollToSection(step.id)}
                       className="group flex items-start gap-3 w-full text-left py-2.5 relative transition-all duration-200"
                     >
-                      {/* Stepper Bullet Node */}
                       <div className={`absolute left-[-15px] top-[14px] w-2 h-2 rounded-full border border-white transition-all duration-300 z-10 ${
                         activeSection === step.id
                           ? 'bg-indigo-600 scale-125 ring-4 ring-indigo-100'
@@ -814,20 +849,259 @@ export function App() {
                   ))}
                 </div>
 
-                <hr className="border-slate-100" />
+                <div className="relative flex flex-col items-center gap-2 py-1.5 min-[900px]:hidden before:absolute before:bottom-5 before:top-5 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-slate-200">
+                  {mainSections.map((step) => {
+                    const Icon = step.icon;
+                    return (
+                      <button
+                        key={step.id}
+                        onClick={() => scrollToSection(step.id)}
+                        title={step.label}
+                        aria-label={step.label}
+                        className={`relative z-10 grid h-8 w-8 place-items-center rounded-full border transition-all duration-200 ${
+                          activeSection === step.id
+                            ? 'border-indigo-200 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20 ring-4 ring-indigo-100'
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-200 hover:text-indigo-600'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                </div>
 
-                {/* Back to top button */}
+                <hr className="hidden border-slate-100 min-[900px]:block" />
+
                 <button
                   onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className="w-full flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-2 text-sm font-extrabold text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition"
+                  className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                  title="위로 가기"
+                  aria-label="위로 가기"
                 >
-                  위로 가기
+                  <span className="min-[900px]:hidden">↑</span>
+                  <span className="hidden min-[900px]:inline">위로 가기</span>
                 </button>
               </div>
             </aside>
 
           </div>
+        ) : (
+          /* STUDY LOGS PAGE (공부 정리) */
+          <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn pb-12 print:hidden">
+            {/* Page Title & Intro Banner */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-550/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+              <div className="relative z-10 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-1">
+                    <h1 className="text-3xl font-black tracking-tight text-slate-900">공부 정리 (Study Logs)</h1>
+                    <p className="text-sm sm:text-base text-slate-500 font-normal leading-relaxed">
+                      학습내용, 사이드 프로젝트 구축 경험, 그리고 핵심 기술 개념을 기록하고 보관하는 기술 블로그 공간입니다.
+                    </p>
+                  </div>
+                  {/* Add Study Log Toggle Button */}
+                  <button
+                    onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
+                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-md shadow-indigo-500/20"
+                  >
+                    <Code2 className="h-4.5 w-4.5" />
+                    <span>{isCreateFormOpen ? '목록으로 돌아가기' : '새 글 작성하기'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
+            {isCreateFormOpen ? (
+              /* CREATE STUDY LOG FORM CARD */
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)]">
+                <h3 className="text-lg font-black text-slate-900 mb-6 border-b border-slate-100 pb-3 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-indigo-600" />
+                  새로운 기술 기록 남기기
+                </h3>
+
+                <form onSubmit={submitStudyEntry} className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">제목</label>
+                      <input
+                        type="text"
+                        required
+                        value={form.title}
+                        onChange={(e) => setForm({ ...form, title: e.target.value })}
+                        placeholder="예: Spring Boot DB 커넥션 풀 최적화 가이드"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">분류</label>
+                      <select
+                        value={form.category}
+                        onChange={(e) => setForm({ ...form, category: e.target.value as any })}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 bg-white transition"
+                      >
+                        <option value="PROJECT">프로젝트 (PROJECT)</option>
+                        <option value="EDUCATION">공부/학습 (STUDY)</option>
+                        <option value="CERTIFICATE">자격증 (CERTIFICATE)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">기술 스택 (쉼표 구분)</label>
+                    <input
+                      type="text"
+                      value={form.skills}
+                      onChange={(e) => setForm({ ...form, skills: e.target.value })}
+                      placeholder="예: Java, Spring Boot, MySQL, HikariCP"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">상세 설명</label>
+                    <textarea
+                      required
+                      rows={5}
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="공부한 내용이나 구현 사항을 상세히 남겨주세요..."
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">핵심 Lesson Learned / Takeaway</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={form.takeaway}
+                      onChange={(e) => setForm({ ...form, takeaway: e.target.value })}
+                      placeholder="이번 기록에서 배운 점이나 핵심 성과를 요약해주세요..."
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition resize-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateFormOpen(false)}
+                      className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createMutation.isPending}
+                      className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition shadow-md shadow-indigo-500/20"
+                    >
+                      {createMutation.isPending ? '등록 중...' : '작성 완료'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              /* STUDY LOGS FEED & FILTERS */
+              <div className="space-y-6">
+                {/* Filters Header (Pills on left, Search on right) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+                  {/* Categories */}
+                  <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-none">
+                    {[
+                      { key: 'ALL', label: '전체' },
+                      { key: 'PROJECT', label: '프로젝트' },
+                      { key: 'EDUCATION', label: '공부/학습' },
+                      { key: 'CERTIFICATE', label: '자격증' }
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        onClick={() => setActiveCategory(item.key as any)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all shrink-0 ${
+                          activeCategory === item.key
+                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/10'
+                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Search Input */}
+                  <div className="relative w-full sm:w-64">
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="기술명, 제목 검색..."
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
+                    />
+                  </div>
+                </div>
+
+                {/* List of Study Logs */}
+                <div className="space-y-6">
+                  {filteredEntries.length === 0 ? (
+                    <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80">
+                      <p className="text-sm text-slate-400 font-semibold">검색 조건에 맞는 공부 기록이 없습니다.</p>
+                    </div>
+                  ) : (
+                    filteredEntries.map((entry) => (
+                      <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm hover:shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] transition duration-200 relative overflow-hidden">
+                        {/* Category Badge & Date */}
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
+                          <span className={`inline-flex rounded px-2.5 py-0.5 text-xs font-bold ${
+                            entry.category === 'PROJECT'
+                              ? 'bg-indigo-50 border border-indigo-100 text-indigo-700'
+                              : entry.category === 'EDUCATION'
+                              ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
+                              : 'bg-amber-50 border border-amber-100 text-amber-700'
+                          }`}>
+                            {entry.category === 'PROJECT' ? 'PROJECT' : entry.category === 'EDUCATION' ? 'STUDY' : 'CERTIFICATE'}
+                          </span>
+                          <span className="text-xs font-bold text-slate-400 font-mono">{entry.learnedAt}</span>
+                        </div>
+
+                        {/* Post Title */}
+                        <h3 className="text-xl font-black text-slate-900 leading-snug hover:text-indigo-600 transition mb-3">
+                          {entry.title}
+                        </h3>
+
+                        {/* Post Body Description */}
+                        <p className="text-sm sm:text-base text-slate-650 leading-relaxed font-normal whitespace-pre-line mb-4">
+                          {entry.description}
+                        </p>
+
+                        {/* Tech Stack Badges */}
+                        {entry.skills && entry.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {entry.skills.map((skill) => (
+                              <span key={skill} className="bg-slate-50 border border-slate-200/60 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Takeaway / Lesson Learned block */}
+                        {entry.takeaway && (
+                          <div className="bg-slate-50/70 border border-slate-150 rounded-xl p-4 space-y-1.5 shadow-inner">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5" />
+                              Lesson Learned / Key Takeaway
+                            </h4>
+                            <p className="text-xs sm:text-sm text-slate-650 leading-relaxed font-normal">
+                              {entry.takeaway}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         </div>
       </main>
     </>
