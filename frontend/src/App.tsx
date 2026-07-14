@@ -695,7 +695,7 @@ export function App() {
                       <span>☸️</span>
                       <span>실제 운영(Production) 시스템 아키텍처 및 배포 흐름도</span>
                     </h3>
-                    <div className="text-sm sm:text-base font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-800">
+                    <div className="text-sm sm:text-base print:text-[8.5px] print:leading-[1.15] print:tracking-tighter font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-relaxed whitespace-pre overflow-x-auto border border-slate-800">
 {` +-----------------------------------------------------------------------------------------+
  |                                    [ Web Client User ]                                  |
  |                                             |                                           |

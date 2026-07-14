@@ -61,4 +61,10 @@ select {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+
+  /* Prevent scrolling and force visibility of diagram whitespace on print */
+  .whitespace-pre {
+    overflow: visible !important;
+    overflow-x: visible !important;
+  }
 }
