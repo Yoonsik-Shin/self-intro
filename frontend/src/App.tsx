@@ -263,7 +263,7 @@ export function App() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl print:hidden">
           <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+            <button onClick={() => scrollToSection('intro-profile')} className="flex items-center gap-3 text-left focus:outline-none hover:opacity-90 transition">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-500/20">
                 YS
               </div>
@@ -271,7 +271,7 @@ export function App() {
                 <span className="block text-sm font-black text-slate-800 tracking-wider">YOONSIK SHIN</span>
                 <span className="block text-sm text-indigo-600 font-bold uppercase tracking-widest">Fullstack Engineer</span>
               </div>
-            </div>
+            </button>
 
             <nav className="hidden items-center gap-1 md:flex">
               {[
@@ -389,15 +389,18 @@ export function App() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                  <a
+                    href="mailto:aaa946@naver.com"
+                    className="flex items-center gap-3 text-left hover:bg-slate-50 p-2 -m-2 rounded-xl transition group w-full"
+                  >
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition">
                       <Mail className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">이메일</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm truncate">aaa946@naver.com</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">이메일</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm truncate group-hover:text-indigo-600 transition">aaa946@naver.com</span>
                     </div>
-                  </div>
+                  </a>
 
                   <div className="flex items-center gap-3">
                     <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
@@ -419,25 +422,31 @@ export function App() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                  <button
+                    onClick={() => scrollToSection('career')}
+                    className="flex items-center gap-3 text-left hover:bg-slate-50 p-2 -m-2 rounded-xl transition group w-full"
+                  >
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition">
                       <Briefcase className="h-4 w-4" />
                     </div>
                     <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">실무 경력</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">1년 11개월 (에듀테크 스타트업)</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">실무 경력</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm group-hover:text-indigo-600 transition">1년 11개월 (에듀테크 스타트업)</span>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
+                  <button
+                    onClick={() => scrollToSection('skills')}
+                    className="flex items-center gap-3 text-left hover:bg-slate-50 p-2 -m-2 rounded-xl transition group w-full"
+                  >
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0 group-hover:text-indigo-600 group-hover:border-indigo-200 transition">
                       <Cpu className="h-4 w-4" />
                     </div>
                     <div>
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">핵심 스택</span>
-                      <span className="block font-bold text-slate-800 text-xs sm:text-sm">Java / Node.js / Cloud</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-indigo-500 transition">핵심 스택</span>
+                      <span className="block font-bold text-slate-800 text-xs sm:text-sm group-hover:text-indigo-600 transition">Java / Node.js / Cloud</span>
                     </div>
-                  </div>
+                  </button>
                 </div>
 
               </div>
