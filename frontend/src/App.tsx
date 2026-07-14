@@ -316,7 +316,7 @@ export function App() {
             <div className="grid grid-cols-1 lg:grid-cols-4 print:grid-cols-4 gap-8 relative z-10 items-center">
               
               {/* Profile Avatar & Name & Socials (Column 1) */}
-              <div className="flex flex-col items-center lg:items-start text-center lg:text-left lg:border-r lg:border-slate-100 lg:pr-8 print:items-start print:text-left print:border-r print:border-slate-100 print:pr-8">
+              <div className="flex flex-col items-center text-center lg:border-r lg:border-slate-100 lg:pr-8 print:items-center print:text-center print:border-r print:border-slate-100 print:pr-8">
                 <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-indigo-50 shadow-inner">
                   <div className="grid h-full w-full place-items-center bg-gradient-to-tr from-indigo-600 to-indigo-700 text-3xl font-black text-white">
                     YS
@@ -325,7 +325,7 @@ export function App() {
                 <h1 className="mt-4 text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
                 <p className="text-sm font-bold text-slate-600 mt-1">Yoonsik Shin</p>
                 
-                <div className="mt-4 flex justify-center lg:justify-start print:justify-start gap-2">
+                <div className="mt-4 flex justify-center gap-2">
                   <a
                     href="https://github.com/Yoonsik-Shin"
                     target="_blank"
