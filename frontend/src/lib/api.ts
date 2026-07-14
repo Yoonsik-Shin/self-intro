@@ -173,3 +173,69 @@ export const bffApi = {
   getLearning: () => request<LearningResponse>('/api/bff/learning'),
 };
 
+export const profileApi = {
+  update: (payload: Omit<Profile, 'id' | 'updatedAt'>) =>
+    request<Profile>('/api/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const skillApi = {
+  list: () => request<Skill[]>('/api/skills'),
+  create: (payload: Omit<Skill, 'id'>) =>
+    request<Skill>('/api/skills', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: Omit<Skill, 'id'>) =>
+    request<Skill>(`/api/skills/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: number) =>
+    request<void>(`/api/skills/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export type ExperienceRequest = {
+  type: 'CAREER' | 'PROJECT' | 'EDUCATION' | 'CERTIFICATE';
+  title: string;
+  periodStart: string;
+  periodEnd?: string | null;
+  summary?: string;
+  takeaway?: string;
+  essayContent?: string;
+  displayOrder: number;
+  details: string[];
+  skillIds: number[];
+  companyName?: string;
+  employmentType?: string;
+  department?: string;
+  role?: string;
+  slug?: string;
+  contributionRate?: number;
+  institutionName?: string;
+  issuer?: string;
+};
+
+export const experienceApi = {
+  list: () => request<Experience[]>('/api/experiences'),
+  create: (payload: ExperienceRequest) =>
+    request<Experience>('/api/experiences', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: ExperienceRequest) =>
+    request<Experience>(`/api/experiences/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: number) =>
+    request<void>(`/api/experiences/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+
