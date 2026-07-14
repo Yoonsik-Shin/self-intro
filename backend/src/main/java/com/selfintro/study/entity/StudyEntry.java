@@ -65,4 +65,13 @@ public class StudyEntry {
     public static StudyEntry create(String title, String description, StudyCategory category, List<String> skills, String takeaway, LocalDate learnedAt) {
         return new StudyEntry(title, description, category, skills, takeaway, learnedAt);
     }
+
+    public void update(String title, String description, StudyCategory category, List<String> skills, String takeaway, LocalDate learnedAt) {
+        this.title = title;
+        this.description = description;
+        this.category = category;
+        this.skills = new ArrayList<>(skills);
+        this.takeaway = takeaway;
+        this.learnedAt = learnedAt;
+    }
 }

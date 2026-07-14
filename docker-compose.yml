@@ -26,6 +26,8 @@ services:
     container_name: self-intro-backend
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - DB_URL=jdbc:mysql://backend-db:3306/self_intro?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
