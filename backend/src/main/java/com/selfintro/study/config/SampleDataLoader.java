@@ -29,10 +29,14 @@ public class SampleDataLoader implements ApplicationRunner {
 
     private final SkillRepository skillRepository;
     private final ExperienceRepository experienceRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        // Clean up duplicates if existing in database
+        cleanupDuplicates();
+
         // 1. Study Entries Seeding
         seedStudyEntries();
 
@@ -505,5 +509,66 @@ public class SampleDataLoader implements ApplicationRunner {
 
     private ExperienceDetail.Draft detail(String content, String situation, String actionDetail, String outcome, int displayOrder, List<Skill> skills) {
         return new ExperienceDetail.Draft(null, content, situation, actionDetail, outcome, displayOrder, skills);
+    }
+
+    private void cleanupDuplicates() {
+        // If we find 'Spring Boot 3.3' in the database, merge it into 'Spring Boot'
+        java.util.Optional<Skill> springBoot33Opt = skillRepository.findByName("Spring Boot 3.3");
+        java.util.Optional<Skill> springBootOpt = skillRepository.findByName("Spring Boot");
+        if (springBoot33Opt.isPresent() && springBootOpt.isPresent()) {
+            Skill s33 = springBoot33Opt.get();
+            Skill sBase = springBootOpt.get();
+            
+            // Re-map experience_skill references
+            jdbcTemplate.execute("UPDATE experience_skill SET skill_id = " + sBase.getId() + " WHERE skill_id = " + s33.getId() + 
+                " AND experience_id NOT IN (SELECT es2.experience_id FROM (SELECT * FROM experience_skill) es2 WHERE es2.skill_id = " + sBase.getId() + ")");
+            jdbcTemplate.execute("DELETE FROM experience_skill WHERE skill_id = " + s33.getId());
+            
+            // Delete the duplicate skill
+            skillRepository.delete(s33);
+        }
+        
+        // If 'Spring Boot' is found, make sure its name is 'Spring Boot' and version is '3'
+        skillRepository.findByName("Spring Boot").ifPresent(s -> {
+            s.update(s.getName(), s.getCategory(), s.getSkillLevel(), "3", s.getComment(), "WORK_EXPERIENCE", s.isCore(), s.getDisplayOrder());
+            skillRepository.save(s);
+        });
+
+        // Similar cleanup for React 19
+        java.util.Optional<Skill> react19Opt = skillRepository.findByName("React 19");
+        java.util.Optional<Skill> reactOpt = skillRepository.findByName("React");
+        if (react19Opt.isPresent() && reactOpt.isPresent()) {
+            Skill r19 = react19Opt.get();
+            Skill rBase = reactOpt.get();
+            
+            jdbcTemplate.execute("UPDATE experience_skill SET skill_id = " + rBase.getId() + " WHERE skill_id = " + r19.getId() + 
+                " AND experience_id NOT IN (SELECT es2.experience_id FROM (SELECT * FROM experience_skill) es2 WHERE es2.skill_id = " + rBase.getId() + ")");
+            jdbcTemplate.execute("DELETE FROM experience_skill WHERE skill_id = " + r19.getId());
+            
+            skillRepository.delete(r19);
+        }
+        
+        skillRepository.findByName("React").ifPresent(s -> {
+            s.update(s.getName(), s.getCategory(), s.getSkillLevel(), "19", s.getComment(), "WORK_EXPERIENCE", s.isCore(), s.getDisplayOrder());
+            skillRepository.save(s);
+        });
+
+        // Java 21 -> Java
+        skillRepository.findByName("Java 21").ifPresent(s -> {
+            s.update("Java", s.getCategory(), s.getSkillLevel(), "21", s.getComment(), "WORK_EXPERIENCE", s.isCore(), s.getDisplayOrder());
+            skillRepository.save(s);
+        });
+
+        // TypeScript version -> 5
+        skillRepository.findByName("TypeScript").ifPresent(s -> {
+            s.update(s.getName(), s.getCategory(), s.getSkillLevel(), "5", s.getComment(), s.getUsageType(), s.isCore(), s.getDisplayOrder());
+            skillRepository.save(s);
+        });
+
+        // Node.js version -> 20
+        skillRepository.findByName("Node.js").ifPresent(s -> {
+            s.update(s.getName(), s.getCategory(), s.getSkillLevel(), "20", s.getComment(), s.getUsageType(), s.isCore(), s.getDisplayOrder());
+            skillRepository.save(s);
+        });
     }
 }

@@ -171,12 +171,6 @@ const mainSections = [
   { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
 ];
 
-const skillUsageGroups = [
-  { value: 'WORK_EXPERIENCE', label: '실무 경험' },
-  { value: 'PROJECT_USE', label: '프로젝트 활용' },
-  { value: 'LEARNING', label: '학습' },
-];
-
 const fallbackCoreSkills: Skill[] = [
   { id: -1, name: 'Java', category: 'LANGUAGE', skillLevel: '중급', skillVersion: '21', comment: 'Spring Boot 기반 백엔드 주력 언어', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 1 },
   { id: -2, name: 'TypeScript', category: 'LANGUAGE', skillLevel: '중급', skillVersion: '5', comment: 'NestJS, React 프로젝트에서 사용', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 2 },
@@ -283,12 +277,22 @@ export function App() {
         ? introData.skills.filter((skill) => skill.isCore)
         : fallbackCoreSkills;
 
-    return skillUsageGroups.map((group) => ({
-      ...group,
-      skills: coreSkills
-        .filter((skill) => skill.usageType === group.value)
-        .sort((a, b) => a.displayOrder - b.displayOrder),
-    }));
+    return [
+      {
+        value: 'CORE',
+        label: '핵심 기술 스택',
+        skills: coreSkills
+          .filter((skill) => skill.usageType === 'WORK_EXPERIENCE')
+          .sort((a, b) => a.displayOrder - b.displayOrder),
+      },
+      {
+        value: 'PROJECT_LEARNING',
+        label: '프로젝트/학습',
+        skills: coreSkills
+          .filter((skill) => skill.usageType === 'PROJECT_USE' || skill.usageType === 'LEARNING')
+          .sort((a, b) => a.displayOrder - b.displayOrder),
+      },
+    ];
   }, [introData]);
 
   const selectedCoreSkill = useMemo(() => {
@@ -712,12 +716,12 @@ export function App() {
             </div>
           </div>
 
-              {/* SECTION 1.5: 핵심 기술 스택 */}
+              {/* SECTION 1.5: 기술 스택 */}
               <section id="skills" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <h3 className="text-xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
                     <Cpu className="h-5 w-5 text-indigo-600" />
-                    핵심 기술 스택
+                    기술 스택
                   </h3>
                   <div className="space-y-5">
                     {groupedCoreSkills.map((group) => (

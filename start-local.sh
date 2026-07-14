@@ -43,6 +43,11 @@ if [ -f "$BACKEND_PID_FILE" ] && kill -0 "$(cat "$BACKEND_PID_FILE")" 2>/dev/nul
     exit 1
 fi
 
+# Load environment variables from .env if present
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
 # 백엔드 서버 백그라운드 기동
 echo "1. 백엔드 Spring Boot 백그라운드 기동 중... (로그: backend.log)"
 cd backend
