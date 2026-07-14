@@ -263,11 +263,22 @@ export function App() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl print:hidden relative">
           <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-4">
-            <button onClick={() => scrollToSection('intro-profile')} className="flex items-center gap-3 text-left focus:outline-none hover:opacity-90 transition" title="프로필로 이동">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-500/20">
-                YS
-              </div>
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => scrollToSection('intro-profile')} className="flex items-center gap-3 text-left focus:outline-none hover:opacity-90 transition" title="프로필로 이동">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-500/20">
+                  YS
+                </div>
+              </button>
+
+              {/* Mobile Hamburger Menu Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-650 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm"
+                title="메뉴"
+              >
+                {isMobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
+              </button>
+            </div>
 
             <nav className="hidden items-center gap-0.5 lg:gap-1 md:flex">
               {[
@@ -292,22 +303,13 @@ export function App() {
               ))}
             </nav>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               <button
                 onClick={handlePrint}
                 className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1.5 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20"
               >
                 <Printer className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">PDF 인쇄</span>
-              </button>
-
-              {/* Mobile Hamburger Menu Button */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-650 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm"
-                title="메뉴"
-              >
-                {isMobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
               </button>
             </div>
           </div>
