@@ -324,7 +324,6 @@ export function App() {
                 </div>
                 <h1 className="mt-4 text-2xl font-black text-slate-900 leading-tight">신윤식</h1>
                 <p className="text-sm font-bold text-slate-600 mt-1">Yoonsik Shin</p>
-                <p className="text-xs font-semibold text-slate-400 mt-0.5">Fullstack & Backend Developer</p>
                 
                 <div className="mt-4 flex justify-center lg:justify-start print:justify-start gap-2">
                   <a
@@ -367,7 +366,7 @@ export function App() {
                     Software Engineer
                   </h2>
                   <p className="mt-2 text-sm sm:text-base text-slate-650 leading-relaxed">
-                    1년 11개월의 에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.
+                    에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.
                   </p>
                 </div>
 
