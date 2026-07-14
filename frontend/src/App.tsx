@@ -2,7 +2,6 @@ import { type FormEvent, useMemo, useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles,
-  ExternalLink,
   Printer,
   Briefcase,
   Cpu,
@@ -261,17 +260,13 @@ export function App() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl print:hidden">
           <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-4">
-            <button onClick={() => scrollToSection('intro-profile')} className="flex items-center gap-3 text-left focus:outline-none hover:opacity-90 transition">
+            <button onClick={() => scrollToSection('intro-profile')} className="flex items-center gap-3 text-left focus:outline-none hover:opacity-90 transition" title="프로필로 이동">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-500/20">
                 YS
               </div>
-              <div>
-                <span className="block text-sm font-black text-slate-800 tracking-wider">YOONSIK SHIN</span>
-                <span className="block text-sm text-indigo-600 font-bold uppercase tracking-widest">Software Engineer Portfolio</span>
-              </div>
             </button>
 
-            <nav className="hidden items-center gap-1 md:flex">
+            <nav className="hidden items-center gap-0.5 lg:gap-1 md:flex">
               {[
                 { id: 'intro-profile', label: '프로필' },
                 { id: 'career', label: '직장 경력' },
@@ -283,7 +278,7 @@ export function App() {
                 <button
                   key={tab.id}
                   onClick={() => scrollToSection(tab.id)}
-                  className={`rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                  className={`rounded-lg px-2 lg:px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-200 ${
                     activeSection === tab.id
                       ? 'bg-indigo-50 text-indigo-600 border border-indigo-200/50'
                       : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
@@ -295,15 +290,6 @@ export function App() {
             </nav>
 
             <div className="flex items-center gap-3">
-              <a
-                href="https://unbrdn.me"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span>unbrdn.me</span>
-              </a>
               <button
                 onClick={handlePrint}
                 className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1.5 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20"
