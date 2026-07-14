@@ -58,7 +58,7 @@ public abstract class Experience {
         // JPA standard constructor
     }
 
-    protected Experience(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills) {
+    protected Experience(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
@@ -66,11 +66,11 @@ public abstract class Experience {
         this.takeaway = takeaway;
         this.essayContent = essayContent;
         this.displayOrder = displayOrder;
-        this.details = details != null ? details : new ArrayList<>();
+        this.details = toEntities(details);
         this.skills = skills != null ? skills : new ArrayList<>();
     }
 
-    public void updateCommonFields(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills) {
+    public void updateCommonFields(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
@@ -78,16 +78,46 @@ public abstract class Experience {
         this.takeaway = takeaway;
         this.essayContent = essayContent;
         this.displayOrder = displayOrder;
-        
-        this.details.clear();
-        if (details != null) {
-            this.details.addAll(details);
-        }
-        
+
+        reconcileDetails(details != null ? details : List.of());
+
         this.skills.clear();
         if (skills != null) {
             this.skills.addAll(skills);
         }
+    }
+
+    private static List<ExperienceDetail> toEntities(List<ExperienceDetail.Draft> drafts) {
+        if (drafts == null) {
+            return new ArrayList<>();
+        }
+        return drafts.stream()
+            .map(d -> ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.displayOrder(), d.skills()))
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Merges incoming detail data into the existing collection in place instead of clearing and
+     * re-adding, so that unchanged/edited items keep their IDENTITY-generated id (detail pages link
+     * to these ids, and a clear()+addAll() on this unidirectional bag would otherwise cause Hibernate
+     * to delete and re-insert every row on every save).
+     */
+    private void reconcileDetails(List<ExperienceDetail.Draft> incoming) {
+        this.details.removeIf(existing -> existing.getId() == null
+            || incoming.stream().noneMatch(d -> existing.getId().equals(d.id())));
+
+        for (ExperienceDetail.Draft d : incoming) {
+            if (d.id() != null) {
+                this.details.stream()
+                    .filter(existing -> d.id().equals(existing.getId()))
+                    .findFirst()
+                    .ifPresent(existing -> existing.update(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.displayOrder(), d.skills()));
+            } else {
+                this.details.add(ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.displayOrder(), d.skills()));
+            }
+        }
+
+        this.details.sort(java.util.Comparator.comparingInt(ExperienceDetail::getDisplayOrder));
     }
 
     // Getters

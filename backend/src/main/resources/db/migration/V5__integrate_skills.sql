@@ -1,20 +1,15 @@
 -- Delete duplicate experience_skill associations for 'Spring Boot 3.3' if 'Spring Boot' is already associated
-DELETE es1 FROM experience_skill es1
-JOIN skill s_33 ON s_33.name = 'Spring Boot 3.3'
-JOIN skill s_base ON s_base.name = 'Spring Boot'
-WHERE es1.skill_id = s_33.id
-  AND EXISTS (
-      SELECT 1 FROM (SELECT * FROM experience_skill) es2
-      WHERE es2.experience_id = es1.experience_id
-        AND es2.skill_id = s_base.id
+DELETE FROM experience_skill
+WHERE skill_id = (SELECT id FROM skill WHERE name = 'Spring Boot 3.3')
+  AND experience_id IN (
+      SELECT es2.experience_id FROM (SELECT * FROM experience_skill) es2
+      WHERE es2.skill_id = (SELECT id FROM skill WHERE name = 'Spring Boot')
   );
 
 -- Update references from 'Spring Boot 3.3' to 'Spring Boot'
-UPDATE experience_skill es
-JOIN skill s_33 ON s_33.name = 'Spring Boot 3.3'
-JOIN skill s_base ON s_base.name = 'Spring Boot'
-SET es.skill_id = s_base.id
-WHERE es.skill_id = s_33.id;
+UPDATE experience_skill
+SET skill_id = (SELECT id FROM skill WHERE name = 'Spring Boot')
+WHERE skill_id = (SELECT id FROM skill WHERE name = 'Spring Boot 3.3');
 
 -- Delete the duplicate 'Spring Boot 3.3' skill
 DELETE FROM skill WHERE name = 'Spring Boot 3.3';
@@ -24,22 +19,17 @@ UPDATE skill SET name = 'Spring Boot', skill_version = '3' WHERE name = 'Spring 
 
 
 -- Delete duplicate experience_skill associations for 'React 19' if 'React' is already associated
-DELETE es1 FROM experience_skill es1
-JOIN skill s_19 ON s_19.name = 'React 19'
-JOIN skill s_base ON s_base.name = 'React'
-WHERE es1.skill_id = s_19.id
-  AND EXISTS (
-      SELECT 1 FROM (SELECT * FROM experience_skill) es2
-      WHERE es2.experience_id = es1.experience_id
-        AND es2.skill_id = s_base.id
+DELETE FROM experience_skill
+WHERE skill_id = (SELECT id FROM skill WHERE name = 'React 19')
+  AND experience_id IN (
+      SELECT es2.experience_id FROM (SELECT * FROM experience_skill) es2
+      WHERE es2.skill_id = (SELECT id FROM skill WHERE name = 'React')
   );
 
 -- Update references from 'React 19' to 'React'
-UPDATE experience_skill es
-JOIN skill s_19 ON s_19.name = 'React 19'
-JOIN skill s_base ON s_base.name = 'React'
-SET es.skill_id = s_base.id
-WHERE es.skill_id = s_19.id;
+UPDATE experience_skill
+SET skill_id = (SELECT id FROM skill WHERE name = 'React')
+WHERE skill_id = (SELECT id FROM skill WHERE name = 'React 19');
 
 -- Delete duplicate 'React 19' skill
 DELETE FROM skill WHERE name = 'React 19';

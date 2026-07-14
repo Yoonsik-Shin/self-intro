@@ -18,16 +18,16 @@ public class Certificate extends Experience {
         // JPA standard constructor
     }
 
-    private Certificate(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String issuer) {
+    private Certificate(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String issuer) {
         super(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
         this.issuer = issuer;
     }
 
-    public static Certificate create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String issuer) {
+    public static Certificate create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String issuer) {
         return new Certificate(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, issuer);
     }
 
-    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String issuer) {
+    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String issuer) {
         super.updateCommonFields(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
         this.issuer = issuer;
     }

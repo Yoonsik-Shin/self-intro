@@ -24,18 +24,18 @@ public class Project extends Experience {
         // JPA standard constructor
     }
 
-    private Project(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String slug, String role, int contributionRate) {
+    private Project(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String slug, String role, int contributionRate) {
         super(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
         this.slug = slug;
         this.role = role;
         this.contributionRate = contributionRate;
     }
 
-    public static Project create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String slug, String role, int contributionRate) {
+    public static Project create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String slug, String role, int contributionRate) {
         return new Project(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, slug, role, contributionRate);
     }
 
-    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String slug, String role, int contributionRate) {
+    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String slug, String role, int contributionRate) {
         super.updateCommonFields(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
         this.slug = slug;
         this.role = role;

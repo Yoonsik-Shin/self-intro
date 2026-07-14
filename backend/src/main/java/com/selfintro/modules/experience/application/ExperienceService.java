@@ -3,12 +3,12 @@ package com.selfintro.modules.experience.application;
 import com.selfintro.modules.experience.domain.*;
 import com.selfintro.modules.skill.domain.Skill;
 import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.experience.presentation.dto.ExperienceDetailRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
@@ -29,11 +29,7 @@ public class ExperienceService {
             ? skillRepository.findAllById(request.skillIds())
             : List.of();
 
-        List<ExperienceDetail> details = request.details() != null
-            ? IntStream.range(0, request.details().size())
-                .mapToObj(i -> ExperienceDetail.create(request.details().get(i), i))
-                .collect(Collectors.toList())
-            : List.of();
+        List<ExperienceDetail.Draft> details = toDetailDrafts(request.details());
 
         Experience exp;
         switch (request.type().toUpperCase()) {
@@ -68,11 +64,7 @@ public class ExperienceService {
             ? skillRepository.findAllById(request.skillIds())
             : List.of();
 
-        List<ExperienceDetail> details = request.details() != null
-            ? IntStream.range(0, request.details().size())
-                .mapToObj(i -> ExperienceDetail.create(request.details().get(i), i))
-                .collect(Collectors.toList())
-            : List.of();
+        List<ExperienceDetail.Draft> details = toDetailDrafts(request.details());
 
         if (exp instanceof Career career && "CAREER".equalsIgnoreCase(request.type())) {
             career.update(
@@ -109,5 +101,20 @@ public class ExperienceService {
             throw new IllegalArgumentException("존재하지 않는 이력서 항목입니다.");
         }
         experienceRepository.deleteById(id);
+    }
+
+    private List<ExperienceDetail.Draft> toDetailDrafts(List<ExperienceDetailRequest> detailRequests) {
+        if (detailRequests == null) {
+            return List.of();
+        }
+        return IntStream.range(0, detailRequests.size())
+            .mapToObj(i -> {
+                ExperienceDetailRequest dr = detailRequests.get(i);
+                List<Skill> detailSkills = dr.skillIds() != null
+                    ? skillRepository.findAllById(dr.skillIds())
+                    : List.of();
+                return new ExperienceDetail.Draft(dr.id(), dr.content(), dr.situation(), dr.actionDetail(), dr.outcome(), i, detailSkills);
+            })
+            .toList();
     }
 }

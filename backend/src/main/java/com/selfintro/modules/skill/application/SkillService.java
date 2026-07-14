@@ -29,6 +29,9 @@ public class SkillService {
             request.name(),
             request.category(),
             request.skillLevel(),
+            request.skillVersion(),
+            request.comment(),
+            request.usageType(),
             request.isCore(),
             request.displayOrder()
         );
@@ -43,6 +46,9 @@ public class SkillService {
             request.name(),
             request.category(),
             request.skillLevel(),
+            request.skillVersion(),
+            request.comment(),
+            request.usageType(),
             request.isCore(),
             request.displayOrder()
         );

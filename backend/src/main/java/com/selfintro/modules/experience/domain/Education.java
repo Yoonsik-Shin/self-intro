@@ -18,16 +18,16 @@ public class Education extends Experience {
         // JPA standard constructor
     }
 
-    private Education(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String institutionName) {
+    private Education(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String institutionName) {
         super(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
         this.institutionName = institutionName;
     }
 
-    public static Education create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String institutionName) {
+    public static Education create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String institutionName) {
         return new Education(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, institutionName);
     }
 
-    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail> details, List<Skill> skills, String institutionName) {
+    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String institutionName) {
         super.updateCommonFields(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
         this.institutionName = institutionName;
     }

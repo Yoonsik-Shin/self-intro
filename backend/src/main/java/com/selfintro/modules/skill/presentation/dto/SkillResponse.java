@@ -7,6 +7,9 @@ public record SkillResponse(
     String name,
     String category,
     String skillLevel,
+    String skillVersion,
+    String comment,
+    String usageType,
     boolean isCore,
     int displayOrder
 ) {
@@ -16,6 +19,9 @@ public record SkillResponse(
             skill.getName(),
             skill.getCategory(),
             skill.getSkillLevel(),
+            skill.getSkillVersion(),
+            skill.getComment(),
+            skill.getUsageType(),
             skill.isCore(),
             skill.getDisplayOrder()
         );

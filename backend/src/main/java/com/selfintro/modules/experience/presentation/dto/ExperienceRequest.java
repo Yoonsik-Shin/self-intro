@@ -13,7 +13,7 @@ public record ExperienceRequest(
     @Size(max = 500) String takeaway,
     String essayContent,
     int displayOrder,
-    List<String> details, // Bullet point contents
+    List<ExperienceDetailRequest> details, // Bullet points with per-item detail content
     List<Long> skillIds,  // Mapping to Skill entities
 
     // Career specific fields
