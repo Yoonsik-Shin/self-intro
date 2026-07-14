@@ -5,7 +5,6 @@ import {
   ExternalLink,
   Printer,
   Briefcase,
-  GraduationCap,
   Cpu,
   MapPin,
   User,
@@ -741,57 +740,24 @@ export function App() {
                 </div>
               </section>
 
-              {/* SECTION 5: 기타 사항 (학력 및 병역) */}
+              {/* SECTION 5: 병역 사항 */}
               <section id="education-military" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-4">
                     <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5 text-indigo-600" />
-                      학력 및 병역 사항
+                      <Award className="h-5 w-5 text-indigo-600" />
+                      병역 사항
                     </h2>
-                    <p className="text-base text-slate-500 mt-1">학력 사항 및 병역 이행 관련 세부 사항입니다.</p>
+                    <p className="text-base text-slate-500 mt-1">병역 이행 관련 세부 사항입니다.</p>
                   </div>
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Academic Info */}
-                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-                        <GraduationCap className="h-4 w-4 text-indigo-600" />
-                        학력 사항
-                      </h3>
-                      <div className="space-y-3.5 text-base text-slate-650 leading-relaxed font-normal">
-                        <div>
-                          <span className="inline-flex rounded bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-xs font-bold text-indigo-700">
-                            2016. 02 - 2022. 02
-                          </span>
-                          <p className="mt-0.5 text-base font-black text-slate-800">차의과학대학교 (학사 졸업)</p>
-                          <p className="text-sm text-slate-500 leading-none">의약학계열 / 스포츠의학전공 (주전공)</p>
-                          <p className="text-sm font-semibold text-emerald-600 mt-0.5">평점 3.81 / 4.5 (137학점 이수)</p>
-                        </div>
-                        <hr className="border-slate-150/50" />
-                        <div>
-                          <span className="inline-flex rounded bg-slate-50 border border-slate-200 px-1.5 py-0.5 text-xs font-bold text-slate-500">
-                            2012. 03 - 2015. 02
-                          </span>
-                          <p className="mt-0.5 text-base font-black text-slate-800">경신고등학교</p>
-                          <p className="text-sm text-slate-500 leading-none">자연계열 (물리반) 졸업</p>
-                        </div>
+                  <div className="mt-6 max-w-md">
+                    <div className="flex items-center gap-3 text-base text-slate-650 bg-slate-50/50 border border-slate-200/60 p-4 rounded-xl shadow-sm">
+                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 shadow-sm">
+                        <Award className="h-5 w-5 text-indigo-650" />
                       </div>
-                    </div>
-
-                    {/* Military Info */}
-                    <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-                        <Award className="h-4 w-4 text-indigo-600" />
-                        병역 사항
-                      </h3>
-                      <div className="flex items-center gap-3 text-base text-slate-650 bg-white border border-slate-150/50 p-4 rounded-xl shadow-sm">
-                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-50 border border-slate-200/60 text-slate-500 shrink-0">
-                          <Award className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <span className="block text-sm font-bold text-slate-400 leading-none mb-1">병역 구분</span>
-                          <span className="block font-black text-slate-800">군필 (공익근무요원 이병 소집해제)</span>
-                        </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">병역 구분</span>
+                        <span className="block font-black text-slate-800 text-sm">군필 (공익근무요원 이병 소집해제)</span>
                       </div>
                     </div>
                   </div>
@@ -895,17 +861,10 @@ export function App() {
               {/* Section 1: Academics & Info */}
               <div className="grid grid-cols-2 gap-6 text-sm">
                 <div>
-                  <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-850 uppercase tracking-wider">학력 및 인적 사항</h3>
+                  <h3 className="font-bold border-b border-slate-300 pb-1 text-slate-850 uppercase tracking-wider">병역 사항</h3>
                   <ul className="mt-2 space-y-1.5 text-slate-750 font-normal">
                     <li>
-                      <span className="font-bold text-slate-900">차의과학대학교</span> (학사 졸업)
-                      <span className="block text-[11px] text-slate-500">스포츠의학전공 | 평점 3.81/4.5 (137학점)</span>
-                    </li>
-                    <li>
-                      <span className="font-bold text-slate-900">경신고등학교</span> (자연계열 물리반 졸업)
-                    </li>
-                    <li>
-                      <span className="font-bold text-slate-900">병역:</span> 공익근무요원 (육군이병 소집해제)
+                      <span className="font-bold text-slate-900">병역 구분:</span> 군필 (공익근무요원 이병 소집해제)
                     </li>
                   </ul>
                 </div>
