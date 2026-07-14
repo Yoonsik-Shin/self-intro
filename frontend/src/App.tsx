@@ -14,7 +14,9 @@ import {
   Code2,
   BookOpen,
   Send,
-  Github
+  Github,
+  Menu,
+  X
 } from 'lucide-react';
 import { studyApi, type CreateStudyEntryRequest, type StudyEntry } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
@@ -159,6 +161,7 @@ export function App() {
   });
 
   const [activeSection, setActiveSection] = useState('intro-profile');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const sections = ['intro-profile', 'career', 'skills', 'competencies', 'projects', 'architecture'];
@@ -258,7 +261,7 @@ export function App() {
         <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-indigo-500/3 rounded-full filter blur-[100px] pointer-events-none print:hidden" />
 
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl print:hidden">
+        <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl print:hidden relative">
           <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-4">
             <button onClick={() => scrollToSection('intro-profile')} className="flex items-center gap-3 text-left focus:outline-none hover:opacity-90 transition" title="프로필로 이동">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-500/20">
@@ -289,7 +292,7 @@ export function App() {
               ))}
             </nav>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
                 className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1.5 text-sm font-bold text-white hover:from-indigo-500 hover:to-indigo-600 transition shadow-sm shadow-indigo-500/20"
@@ -297,8 +300,49 @@ export function App() {
                 <Printer className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">PDF 인쇄</span>
               </button>
+
+              {/* Mobile Hamburger Menu Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200/60 p-2 text-slate-650 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm"
+                title="메뉴"
+              >
+                {isMobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
+              </button>
             </div>
           </div>
+
+          {/* Mobile Dropdown Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 border-b border-slate-200/80 shadow-lg backdrop-blur-lg px-4 py-3 space-y-1.5 z-40 transition-all duration-200">
+              {[
+                { id: 'intro-profile', label: '프로필' },
+                { id: 'career', label: '직장 경력' },
+                { id: 'skills', label: '기술 스택' },
+                { id: 'competencies', label: '역량 기술서' },
+                { id: 'projects', label: '핵심 프로젝트' },
+                { id: 'architecture', label: '시스템 아키텍처' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    scrollToSection(tab.id);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2.5 ${
+                    activeSection === tab.id
+                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50'
+                      : 'text-slate-650 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+                    activeSection === tab.id ? 'bg-indigo-600' : 'bg-slate-300'
+                  }`} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
 
         {/* Main Body Layout */}
