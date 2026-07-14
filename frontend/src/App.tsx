@@ -749,17 +749,20 @@ export function App() {
                   </div>
 
                   <div className="relative mt-8 select-none">
-                    {/* Horizontal Axis: Year grid */}
-                    <div className="relative h-6 border-b border-slate-100 flex text-xs font-black text-slate-400">
-                      <div className="absolute left-[0%] -translate-x-1/2">2022</div>
-                      <div className="absolute left-[21.4%] -translate-x-1/2">2023</div>
-                      <div className="absolute left-[42.8%] -translate-x-1/2">2024</div>
-                      <div className="absolute left-[64.3%] -translate-x-1/2">2025</div>
-                      <div className="absolute left-[85.7%] -translate-x-1/2">2026</div>
+                    {/* Header Row: Contains Year labels */}
+                    <div className="relative flex items-center h-8 border-b border-slate-100">
+                      <div className="w-36 shrink-0"></div> {/* Empty spacer for row header */}
+                      <div className="relative flex-1 h-full text-xs font-black text-slate-400">
+                        <div className="absolute left-[0%] -translate-x-1/2">2022</div>
+                        <div className="absolute left-[21.4%] -translate-x-1/2">2023</div>
+                        <div className="absolute left-[42.8%] -translate-x-1/2">2024</div>
+                        <div className="absolute left-[64.3%] -translate-x-1/2">2025</div>
+                        <div className="absolute left-[85.7%] -translate-x-1/2">2026</div>
+                      </div>
                     </div>
 
                     {/* Vertical grid lines */}
-                    <div className="absolute inset-0 top-6 bottom-0 pointer-events-none">
+                    <div className="absolute inset-y-0 left-36 right-0 top-8 pointer-events-none z-0">
                       <div className="absolute left-[0%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
                       <div className="absolute left-[21.4%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
                       <div className="absolute left-[42.8%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
@@ -768,10 +771,10 @@ export function App() {
                     </div>
 
                     {/* Rows */}
-                    <div className="mt-4 space-y-6 pb-2">
+                    <div className="mt-4 space-y-4 pb-2">
                       {/* Row 1: 자격증 취득 */}
                       <div className="relative flex items-center h-10">
-                        <div className="w-24 text-sm font-black text-slate-500 shrink-0">자격증 취득</div>
+                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">자격증 취득</div>
                         <div className="relative flex-1 h-full">
                           {/* 정보처리기사 */}
                           <div 
@@ -813,7 +816,7 @@ export function App() {
 
                       {/* Row 2: 교육 수강 */}
                       <div className="relative flex items-center h-10">
-                        <div className="w-24 text-sm font-black text-slate-500 shrink-0">교육 수강</div>
+                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">교육 수강</div>
                         <div className="relative flex-1 h-full">
                           {/* 멀티캠퍼스 */}
                           <div 
@@ -853,9 +856,9 @@ export function App() {
                         </div>
                       </div>
 
-                      {/* Row 3: 실무 & 프로젝트 */}
+                      {/* Row 3: 실무 경력 */}
                       <div className="relative flex items-center h-10">
-                        <div className="w-24 text-sm font-black text-slate-500 shrink-0">실무 & 프로젝트</div>
+                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">실무 경력</div>
                         <div className="relative flex-1 h-full">
                           {/* 에듀테크 실무 */}
                           <div 
@@ -866,10 +869,15 @@ export function App() {
                               scrollToSection('career');
                             }}
                           >
-                            에듀테크 실무 (1년 11m)
+                            에듀테크 실무 (1년 11개월)
                           </div>
+                        </div>
+                      </div>
 
-                          {/* AI 모의면접 */}
+                      {/* Row 4: AI 모의면접 */}
+                      <div className="relative flex items-center h-10">
+                        <div className="w-36 text-xs font-bold text-slate-400 pl-2 shrink-0">└ AI 모의면접 플랫폼</div>
+                        <div className="relative flex-1 h-full">
                           <div 
                             style={{ left: '83.9%', width: '7.1%' }} 
                             className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
@@ -881,8 +889,13 @@ export function App() {
                           >
                             AI면접
                           </div>
+                        </div>
+                      </div>
 
-                          {/* LogDoctor */}
+                      {/* Row 5: LogDoctor */}
+                      <div className="relative flex items-center h-10">
+                        <div className="w-36 text-xs font-bold text-slate-400 pl-2 shrink-0">└ LogDoctor (SaaS)</div>
+                        <div className="relative flex-1 h-full">
                           <div 
                             style={{ left: '89.3%', width: '7.1%' }} 
                             className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
@@ -894,8 +907,13 @@ export function App() {
                           >
                             LogDr.
                           </div>
+                        </div>
+                      </div>
 
-                          {/* CS Test Bed */}
+                      {/* Row 6: CS Test Bed */}
+                      <div className="relative flex items-center h-10">
+                        <div className="w-36 text-xs font-bold text-slate-400 pl-2 shrink-0">└ CS Test Bed</div>
+                        <div className="relative flex-1 h-full">
                           <div 
                             style={{ left: '94.6%', width: '3.6%' }} 
                             className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
