@@ -18,8 +18,18 @@ fi
 echo "1. 기존 실행 중인 컨테이너 확인 및 정리..."
 docker compose down >/dev/null 2>&1
 
+# 백엔드 Java 컴파일 및 Jar 빌드
+echo "2. 백엔드 Java 애플리케이션 컴파일 및 Jar 빌드 중..."
+cd backend
+gradle bootJar
+if [ $? -ne 0 ]; then
+    echo "❌ 백엔드 빌드 실패. 컨테이너 기동을 중단합니다."
+    exit 1
+fi
+cd ..
+
 # 컨테이너 빌드 및 백그라운드 기동
-echo "2. 신규 컨테이너 빌드 및 백그라운드 기동 중..."
+echo "3. 신규 컨테이너 빌드 및 백그라운드 기동 중..."
 docker compose up --build -d
 
 echo "================================================================="
