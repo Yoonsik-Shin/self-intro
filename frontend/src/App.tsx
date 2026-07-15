@@ -22,7 +22,7 @@ import {
   Award,
   GraduationCap,
   Eye,
-  Coffee,
+  MessageCircle,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { bffApi, connectionApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
@@ -31,7 +31,7 @@ import { markdownComponents, resumeMarkdownComponents } from './lib/markdown';
 import { SkillBadgeIcon } from './lib/SkillBadgeIcon';
 import { navigate, pagePaths, pathForExperienceDetail, pathForStudy } from './lib/navigation';
 
-const BUY_ME_A_COFFEE_URL = 'https://www.buymeacoffee.com/sys2580099x';
+const KAKAOPAY_DONATION_URL = 'https://qr.kakaopay.com/YOUR_CODE';
 
 const milestones = [
   {
@@ -2229,13 +2229,13 @@ export function App() {
         </div>
       </main>
       <a
-        href={BUY_ME_A_COFFEE_URL}
+        href={KAKAOPAY_DONATION_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full bg-[#FFDD00] px-5 text-sm font-black text-slate-900 shadow-lg shadow-amber-500/30 transition hover:brightness-95 hover:shadow-xl print:hidden"
-        title="Buy me a coffee"
+        className="fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full bg-[#FEE500] px-5 text-sm font-black text-slate-900 shadow-lg shadow-amber-500/30 transition hover:brightness-95 hover:shadow-xl print:hidden"
+        title="카카오페이로 후원하기"
       >
-        <Coffee className="h-4 w-4" />
+        <MessageCircle className="h-4 w-4" />
         <span>후원하기</span>
       </a>
     </>
