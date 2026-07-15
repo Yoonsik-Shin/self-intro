@@ -1112,7 +1112,7 @@ export function App() {
                                 )}
                               </div>
                               {isExpanded && (
-                                <div className="mt-2 ml-3.5 space-y-2.5 rounded-lg border border-slate-100 bg-slate-50/50 p-3.5 text-sm text-slate-600">
+                                <div className="mt-3 ml-6 space-y-3.5 text-sm text-slate-600">
                                   {detail.situation && (
                                     <div>
                                       <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">상황</p>
