@@ -1,6 +1,22 @@
 spring:
   application:
     name: self-intro-backend
+  ai:
+    model:
+      chat: openai
+    retry:
+      max-attempts: 1
+    openai:
+      base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
+      api-key: ${NVIDIA_API_KEY:not-configured}
+      chat:
+        options:
+          model: ${NVIDIA_MODEL:qwen/qwen3.5-122b-a10b}
+          temperature: 0.2
+          top-p: 0.9
+          max-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:4096}
+      embedding:
+        enabled: false
   datasource:
     url: ${DB_URL:jdbc:h2:mem:selfintro;MODE=MySQL;DATABASE_TO_LOWER=TRUE}
     username: ${DB_USERNAME:sa}
@@ -41,6 +57,15 @@ app:
     username: ${ADMIN_USERNAME}
     password: ${ADMIN_PASSWORD:}
     password-hash: ${ADMIN_PASSWORD_HASH:}
+  ai:
+    competency:
+      enabled: ${COMPETENCY_AI_ENABLED:false}
+      base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
+      api-key: ${NVIDIA_API_KEY:}
+      model: ${NVIDIA_MODEL:qwen/qwen3.5-122b-a10b}
+      max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:4096}
+      # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환함 (지원 모델에서만 true)
+      json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
 
 server:
   port: ${SERVER_PORT:8080}

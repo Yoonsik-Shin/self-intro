@@ -99,6 +99,20 @@ cd backend
 ```
 *백엔드 API는 `http://localhost:8080`에서 구동됩니다.*
 
+#### NVIDIA NIM 핵심 역량 AI 활성화
+
+관리자 핵심 역량 작성 화면의 AI 초안 기능은 기본적으로 비활성화되어 있습니다.
+루트 `.env`에 아래 값을 설정한 뒤 백엔드를 재시작하세요. API 키는 저장소에 커밋하지 않습니다.
+백엔드는 NVIDIA NIM을 두 번 순차 호출하여 `포트폴리오 근거 추출 → 검증된 근거 기반 역량 작성`을 수행합니다.
+
+```env
+COMPETENCY_AI_ENABLED=true
+NVIDIA_API_KEY=<build.nvidia.com에서 발급한 키>
+NVIDIA_MODEL=qwen/qwen3.5-122b-a10b
+```
+
+NVIDIA 호스팅 NIM API는 프로토타이핑 용도로 제공되므로, 운영 사용 전 현재 이용 약관과 한도를 확인해야 합니다.
+
 ### 2. Frontend Run
 ```bash
 cd frontend
