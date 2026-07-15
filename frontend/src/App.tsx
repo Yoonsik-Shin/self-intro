@@ -174,7 +174,7 @@ const fallbackCoreSkills: Skill[] = [
   { id: -6, name: 'RAG', category: 'AI_RAG', skillLevel: '학습/활용', comment: 'AI 면접 질문 생성과 로그 진단에 적용', usageType: 'LEARNING', isCore: true, displayOrder: 6 },
 ];
 
-function RelatedStudyNotes({ experienceDetailId, onOpenStudy }: { experienceDetailId: number; onOpenStudy: (slug: string) => void }) {
+function RelatedStudyNotes({ experienceDetailId, onOpenStudy }: { experienceDetailId: number; onOpenStudy: (slug: string, refPage?: PageId, refSectionId?: string) => void }) {
   const { data: relatedPage } = useQuery({
     queryKey: ['studies', 'byExperienceDetail', experienceDetailId],
     queryFn: () => studyApi.list({ experienceDetailIds: [experienceDetailId] }),
@@ -196,7 +196,7 @@ function RelatedStudyNotes({ experienceDetailId, onOpenStudy }: { experienceDeta
           <button
             key={study.id}
             type="button"
-            onClick={() => onOpenStudy(study.slug)}
+            onClick={() => onOpenStudy(study.slug, 'intro', `experience-detail-${experienceDetailId}`)}
             className="flex w-full items-center justify-between gap-2.5 rounded-xl border border-blue-100/50 bg-blue-50/40 px-4 py-2.5 text-left text-[13px] sm:text-sm font-semibold text-blue-700 transition hover:bg-blue-50/80 hover:text-blue-800 hover:border-blue-200 shadow-sm"
           >
             <span>{study.title}</span>
@@ -227,6 +227,7 @@ export function App() {
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
   const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
   const [expandedCareerDetailIds, setExpandedCareerDetailIds] = useState<number[]>([]);
+  const [referrer, setReferrer] = useState<{ page: PageId; sectionId?: string } | null>(null);
 
   useEffect(() => {
     const observerOptions = {
@@ -544,17 +545,45 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const openStudy = (slug: string) => {
+  const openStudy = (slug: string, refPage?: PageId, refSectionId?: string) => {
     setSelectedStudySlug(slug);
     setActivePage('blog');
     window.history.pushState({}, '', `/study/${encodeURIComponent(slug)}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (refPage) {
+      setReferrer({ page: refPage, sectionId: refSectionId });
+    } else {
+      setReferrer(null);
+    }
   };
 
   const closeStudy = () => {
-    setSelectedStudySlug(null);
-    window.history.pushState({}, '', '/');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (referrer) {
+      setActivePage(referrer.page);
+      setSelectedStudySlug(null);
+      window.history.pushState({}, '', '/');
+      const targetId = referrer.sectionId;
+      setReferrer(null);
+      
+      setTimeout(() => {
+        if (targetId) {
+          const el = document.getElementById(targetId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('bg-blue-50/40', 'transition-colors', 'duration-500');
+            setTimeout(() => {
+              el.classList.remove('bg-blue-50/40');
+            }, 1500);
+            return;
+          }
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 150);
+    } else {
+      setSelectedStudySlug(null);
+      window.history.pushState({}, '', '/');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // 공통 카드 레이아웃 스타일 통일
@@ -1127,7 +1156,7 @@ export function App() {
                           const isExpanded = expandedCareerDetailIds.includes(detail.id);
                           const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
                           return (
-                            <li key={detail.id} className="list-none">
+                            <li key={detail.id} id={`experience-detail-${detail.id}`} className="list-none scroll-mt-24">
                               <div
                                 className={`group flex items-start justify-between gap-3 rounded-lg px-2 py-1 -mx-2 transition hover:bg-slate-50 ${
                                   hasDetailContent ? 'cursor-pointer' : 'cursor-default'
@@ -1554,7 +1583,7 @@ export function App() {
               {selectedStudySlug ? (
                 <>
                   <button onClick={closeStudy} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
-                    <ArrowLeft className="h-4 w-4" /> Study 목록
+                    <ArrowLeft className="h-4 w-4" /> {referrer ? '이전 화면으로' : 'Study 목록'}
                   </button>
                   {selectedStudy && (
                     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
@@ -1730,7 +1759,7 @@ export function App() {
                       onClick={closeStudy}
                       className="hidden min-[900px]:flex h-8 w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
                     >
-                      목록으로
+                      {referrer ? '이전 화면으로' : '목록으로'}
                     </button>
                   )}
                   <button
