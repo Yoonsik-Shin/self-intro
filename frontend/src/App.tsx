@@ -140,6 +140,11 @@ const mainSections = [
   { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
 ];
 
+const architectureSections = [
+  { id: 'architecture-components', label: '구성 요소', icon: Cpu },
+  { id: 'architecture-diagram', label: '배포 흐름도', icon: Terminal },
+];
+
 function getDisplayCategory(skill: Skill): string {
   const nameLower = skill.name.toLowerCase();
   if (nameLower.includes('react') || nameLower.includes('vue') || nameLower.includes('svelte') || nameLower.includes('html') || nameLower.includes('css')) {
@@ -237,13 +242,14 @@ export function App() {
 
     const observer = new IntersectionObserver(observerCallback, observerOptions);
     
-    mainSections.forEach(({ id }) => {
+    const allSections = [...mainSections, ...architectureSections];
+    allSections.forEach(({ id }) => {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     });
 
     return () => {
-      mainSections.forEach(({ id }) => {
+      allSections.forEach(({ id }) => {
         const el = document.getElementById(id);
         if (el) observer.unobserve(el);
       });
@@ -1538,100 +1544,204 @@ export function App() {
           </div>
         ) : (
           /* STUDY PAGE */
-          <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn pb-12 print:hidden">
-            {selectedStudySlug ? (
-              <>
-                <button onClick={closeStudy} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
-                  <ArrowLeft className="h-4 w-4" /> Study 목록
-                </button>
-                {selectedStudy && (
-                  <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
-                    <div className="mb-8 border-b border-slate-100 pb-6">
-                      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{selectedStudy.category.name}</span>
-                        <span className="font-mono">{selectedStudy.learnedAt}</span>
+          <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_240px] print:block relative items-start animate-fadeIn pb-12">
+            
+            {/* Main Content Column */}
+            <div className="min-w-0 space-y-8">
+              {selectedStudySlug ? (
+                <>
+                  <button onClick={closeStudy} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
+                    <ArrowLeft className="h-4 w-4" /> Study 목록
+                  </button>
+                  {selectedStudy && (
+                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                      <div className="mb-8 border-b border-slate-100 pb-6">
+                        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{selectedStudy.category.name}</span>
+                          <span className="font-mono">{selectedStudy.learnedAt}</span>
+                        </div>
+                        <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{selectedStudy.title}</h1>
+                        <p className="mt-4 text-base sm:text-lg leading-relaxed text-slate-500">{selectedStudy.summary}</p>
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {selectedStudy.tags.map((tag) => <span key={tag.id} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">#{tag.name}</span>)}
+                          {selectedStudy.skills.map((skill) => <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600">{skill.name}</span>)}
+                        </div>
                       </div>
-                      <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{selectedStudy.title}</h1>
-                      <p className="mt-4 text-base leading-relaxed text-slate-500">{selectedStudy.summary}</p>
-                      <div className="mt-4 flex flex-wrap gap-1.5">
-                        {selectedStudy.tags.map((tag) => <span key={tag.id} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">#{tag.name}</span>)}
-                        {selectedStudy.skills.map((skill) => <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600">{skill.name}</span>)}
+                      <div className="space-y-4 text-base sm:text-lg leading-relaxed text-slate-700">
+                        <ReactMarkdown components={markdownComponents}>{selectedStudy.contentMarkdown}</ReactMarkdown>
                       </div>
+                    </article>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div className="absolute right-0 top-0 h-80 w-80 -translate-y-16 translate-x-16 rounded-full bg-slate-800/5 blur-[50px]" />
+                    <div className="relative">
+                      <h1 className="text-3xl font-black tracking-tight text-slate-900">Study</h1>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">학습 내용과 실제 프로젝트 적용 경험을 연결해 기록하는 기술 아카이브입니다.</p>
                     </div>
-                    <div className="space-y-4 text-base leading-8 text-slate-700">
-                      <ReactMarkdown components={markdownComponents}>{selectedStudy.contentMarkdown}</ReactMarkdown>
-                    </div>
-                    {(selectedStudy.experiences.length > 0 || selectedStudy.experienceDetails.length > 0 || selectedStudy.relatedStudies.length > 0) && (
-                      <div className="mt-10 grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2">
-                        {selectedStudy.experiences.length > 0 && (
-                          <div className="rounded-xl bg-slate-50 p-4">
-                            <h2 className="mb-3 text-sm font-black text-slate-900">관련 프로젝트·경력</h2>
-                            <div className="space-y-2">{selectedStudy.experiences.map((experience) => <p key={experience.id} className="text-xs text-slate-600"><span className="mr-2 font-mono text-slate-400">{experience.type}</span>{experience.title}</p>)}</div>
-                          </div>
-                        )}
-                        {selectedStudy.experienceDetails.length > 0 && (
-                          <div className="rounded-xl bg-slate-50 p-4">
-                            <h2 className="mb-3 text-sm font-black text-slate-900">관련 경력 항목</h2>
-                            <div className="space-y-2">{selectedStudy.experienceDetails.map((detail) => (
-                              <button key={detail.id} onClick={() => { window.location.hash = `#/experience-detail/${detail.id}`; }} className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-slate-600 hover:text-slate-950">
-                                <span><span className="mr-1 text-slate-400">{detail.experienceTitle} ›</span>{detail.content}</span>
-                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                              </button>
-                            ))}</div>
-                          </div>
-                        )}
-                        {selectedStudy.relatedStudies.length > 0 && (
-                          <div className="rounded-xl bg-slate-50 p-4">
-                            <h2 className="mb-3 text-sm font-black text-slate-900">관련 Study</h2>
-                            <div className="space-y-2">{selectedStudy.relatedStudies.map((related) => (
-                              <button key={`${related.id}-${related.type}`} onClick={() => openStudy(related.slug)} className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-slate-600 hover:text-slate-950">
-                                <span>{related.title}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                              </button>
-                            ))}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </article>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                  <div className="absolute right-0 top-0 h-80 w-80 -translate-y-16 translate-x-16 rounded-full bg-slate-800/5 blur-[50px]" />
-                  <div className="relative">
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900">Study</h1>
-                    <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">학습 내용과 실제 프로젝트 적용 경험을 연결해 기록하는 기술 아카이브입니다.</p>
                   </div>
-                </div>
-                <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map((category) => (
-                      <button key={category.slug} onClick={() => setActiveCategory(category.slug)} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeCategory === category.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{category.name}</button>
+                  <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map((category) => (
+                        <button key={category.slug} onClick={() => setActiveCategory(category.slug)} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeCategory === category.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{category.name}</button>
+                      ))}
+                    </div>
+                    <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="제목, 본문, 태그, 기술 검색..." className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72" />
+                  </div>
+                  <div className="space-y-5">
+                    {studies.length === 0 ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm font-semibold text-slate-400">검색 조건에 맞는 Study가 없습니다.</div>
+                    ) : studies.map((study) => (
+                      <button key={study.id} onClick={() => openStudy(study.slug)} className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8">
+                        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                          <span className="rounded bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800">{study.category.name}</span>
+                          <span className="font-mono text-xs font-bold text-slate-400">{study.learnedAt}</span>
+                        </div>
+                        <h2 className="text-xl font-black text-slate-900">{study.title}</h2>
+                        <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">{study.summary}</p>
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {study.tags.map((tag) => <span key={tag.id} className="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">#{tag.name}</span>)}
+                          {study.skills.map((skill) => <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">{skill.name}</span>)}
+                        </div>
+                      </button>
                     ))}
                   </div>
-                  <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="제목, 본문, 태그, 기술 검색..." className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72" />
-                </div>
-                <div className="space-y-5">
-                  {studies.length === 0 ? (
-                    <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm font-semibold text-slate-400">검색 조건에 맞는 Study가 없습니다.</div>
-                  ) : studies.map((study) => (
-                    <button key={study.id} onClick={() => openStudy(study.slug)} className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8">
-                      <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                        <span className="rounded bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800">{study.category.name}</span>
-                        <span className="font-mono text-xs font-bold text-slate-400">{study.learnedAt}</span>
-                      </div>
-                      <h2 className="text-xl font-black text-slate-900">{study.title}</h2>
-                      <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">{study.summary}</p>
-                      <div className="mt-4 flex flex-wrap gap-1.5">
-                        {study.tags.map((tag) => <span key={tag.id} className="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">#{tag.name}</span>)}
-                        {study.skills.map((skill) => <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">{skill.name}</span>)}
-                      </div>
+                </>
+              )}
+            </div>
+
+            {/* Right Sticky Sidebar Column */}
+            <aside className="block print:hidden w-full sticky top-24 self-start">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-slate-300 min-[900px]:p-5 min-[900px]:space-y-5">
+                {selectedStudySlug ? (
+                  /* Detail View Sidebar */
+                  <>
+                    <div className="hidden min-[900px]:block">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">연결 항목</h3>
+                      <p className="text-sm text-slate-500 leading-none mt-0.5">
+                        이 학습과 연관된 이력 정보입니다.
+                      </p>
+                    </div>
+
+                    <div className="hidden min-[900px]:block space-y-4">
+                      {selectedStudy && selectedStudy.experiences.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-black uppercase text-slate-400 mb-1">관련 프로젝트·경력</h4>
+                          <div className="space-y-1.5">
+                            {selectedStudy.experiences.map((experience) => (
+                              <p key={experience.id} className="text-xs leading-normal text-slate-600">
+                                <span className="mr-1.5 font-mono text-[10px] font-bold text-slate-400 bg-slate-100 px-1 py-0.5 rounded">{experience.type}</span>
+                                {experience.title}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedStudy && selectedStudy.experienceDetails.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-black uppercase text-slate-400 mb-1">관련 경력 항목</h4>
+                          <div className="space-y-1.5">
+                            {selectedStudy.experienceDetails.map((detail) => (
+                              <button
+                                key={detail.id}
+                                onClick={() => { window.location.hash = `#/experience-detail/${detail.id}`; }}
+                                className="flex w-full items-start gap-1 text-left text-xs font-semibold text-slate-600 hover:text-slate-950 leading-normal"
+                              >
+                                <span className="mt-0.5 text-slate-400 font-bold shrink-0">›</span>
+                                <span>{detail.content}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedStudy && selectedStudy.relatedStudies.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-black uppercase text-slate-400 mb-1">관련 Study</h4>
+                          <div className="space-y-1.5">
+                            {selectedStudy.relatedStudies.map((related) => (
+                              <button
+                                key={`${related.id}-${related.type}`}
+                                onClick={() => openStudy(related.slug)}
+                                className="flex w-full items-start gap-1 text-left text-xs font-semibold text-slate-600 hover:text-slate-905 leading-normal"
+                              >
+                                <span className="mt-0.5 text-slate-400 font-bold shrink-0">▪</span>
+                                <span>{related.title}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedStudy && selectedStudy.experiences.length === 0 && selectedStudy.experienceDetails.length === 0 && selectedStudy.relatedStudies.length === 0 && (
+                        <p className="text-xs font-bold text-slate-400 italic">연결된 이력 항목이 없습니다.</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-center gap-2 py-1 min-[900px]:hidden">
+                      <button
+                        onClick={closeStudy}
+                        title="Study 목록"
+                        className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900 shadow-sm"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* List View Sidebar */
+                  <>
+                    <div className="hidden min-[900px]:block">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">최근 작성글</h3>
+                      <p className="text-sm text-slate-500 leading-none mt-0.5">
+                        최근 등록된 학습 기록입니다.
+                      </p>
+                    </div>
+
+                    <div className="hidden min-[900px]:block space-y-2">
+                      {studies.slice(0, 5).map((study) => (
+                        <button
+                          key={study.id}
+                          onClick={() => openStudy(study.slug)}
+                          className="block w-full text-left text-xs font-semibold text-slate-600 hover:text-slate-900 transition truncate leading-relaxed"
+                          title={study.title}
+                        >
+                          • {study.title}
+                        </button>
+                      ))}
+                      {studies.length === 0 && (
+                        <p className="text-xs font-bold text-slate-400 italic">등록된 글이 없습니다.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <hr className="hidden border-slate-100 min-[900px]:block" />
+
+                <div className="flex flex-col gap-2 w-full">
+                  {selectedStudySlug && (
+                    <button
+                      onClick={closeStudy}
+                      className="hidden min-[900px]:flex h-8 w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                    >
+                      목록으로
                     </button>
-                  ))}
+                  )}
+                  <button
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                    title="위로 가기"
+                  >
+                    <span className="min-[900px]:hidden">↑</span>
+                    <span className="hidden min-[900px]:inline">위로 가기</span>
+                  </button>
                 </div>
-              </>
-            )}
+              </div>
+            </aside>
+
           </div>
         )}
         </div>
