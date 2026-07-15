@@ -32,6 +32,8 @@ public class SkillService {
             request.skillVersion(),
             request.comment(),
             request.usageType(),
+            request.badgeKey(),
+            request.badgeColor(),
             request.isCore(),
             request.displayOrder()
         );
@@ -49,6 +51,8 @@ public class SkillService {
             request.skillVersion(),
             request.comment(),
             request.usageType(),
+            request.badgeKey(),
+            request.badgeColor(),
             request.isCore(),
             request.displayOrder()
         );

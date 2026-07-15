@@ -10,6 +10,8 @@ public record SkillResponse(
     String skillVersion,
     String comment,
     String usageType,
+    String badgeKey,
+    String badgeColor,
     boolean isCore,
     int displayOrder
 ) {
@@ -22,6 +24,8 @@ public record SkillResponse(
             skill.getSkillVersion(),
             skill.getComment(),
             skill.getUsageType(),
+            skill.getBadgeKey(),
+            skill.getBadgeColor(),
             skill.isCore(),
             skill.getDisplayOrder()
         );
