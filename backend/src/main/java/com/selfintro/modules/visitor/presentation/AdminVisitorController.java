@@ -2,6 +2,7 @@ package com.selfintro.modules.visitor.presentation;
 
 import com.selfintro.modules.visitor.application.VisitorService;
 import com.selfintro.modules.visitor.presentation.dto.VisitorDailyResponse;
+import com.selfintro.modules.visitor.presentation.dto.VisitorHourlyResponse;
 import com.selfintro.modules.visitor.presentation.dto.VisitorSummaryResponse;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -33,5 +34,12 @@ public class AdminVisitorController {
         LocalDate resolvedTo = to != null ? to : LocalDate.now(visitorClock);
         LocalDate resolvedFrom = from != null ? from : resolvedTo.minusDays(13);
         return ResponseEntity.ok(visitorService.getDaily(resolvedFrom, resolvedTo));
+    }
+
+    @GetMapping("/hourly")
+    public ResponseEntity<List<VisitorHourlyResponse>> hourly(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        LocalDate resolvedDate = date != null ? date : LocalDate.now(visitorClock);
+        return ResponseEntity.ok(visitorService.getHourly(resolvedDate));
     }
 }

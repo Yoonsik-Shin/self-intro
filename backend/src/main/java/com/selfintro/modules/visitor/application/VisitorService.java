@@ -2,7 +2,10 @@ package com.selfintro.modules.visitor.application;
 
 import com.selfintro.modules.visitor.domain.VisitorDailyVisit;
 import com.selfintro.modules.visitor.domain.VisitorDailyVisitRepository;
+import com.selfintro.modules.visitor.domain.VisitorHourlyVisit;
+import com.selfintro.modules.visitor.domain.VisitorHourlyVisitRepository;
 import com.selfintro.modules.visitor.presentation.dto.VisitorDailyResponse;
+import com.selfintro.modules.visitor.presentation.dto.VisitorHourlyResponse;
 import com.selfintro.modules.visitor.presentation.dto.VisitorSummaryResponse;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -11,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class VisitorService {
     private final VisitorDailyVisitRepository visitorRepository;
+    private final VisitorHourlyVisitRepository hourlyVisitorRepository;
     private final Clock visitorClock;
 
     @Transactional
@@ -31,6 +36,12 @@ public class VisitorService {
                         visit -> visit.recordPageView(visitedAt),
                         () -> visitorRepository.save(VisitorDailyVisit.firstVisit(
                                 visitorHash, visitedDate, visitedAt)));
+        hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(
+                        visitorHash, visitedDate, visitedAt.getHour())
+                .ifPresentOrElse(
+                        VisitorHourlyVisit::recordPageView,
+                        () -> hourlyVisitorRepository.save(VisitorHourlyVisit.firstVisit(
+                                visitorHash, visitedDate, visitedAt.getHour())));
         visitorRepository.flush();
         return getSummaryFor(visitedDate);
     }
@@ -60,6 +71,24 @@ public class VisitorService {
                     return value == null
                             ? new VisitorDailyResponse(date, 0, 0)
                             : new VisitorDailyResponse(date, value.getVisitors(), value.getPageViews());
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<VisitorHourlyResponse> getHourly(LocalDate date) {
+        Map<Integer, VisitorHourlyVisitRepository.HourlyAggregation> aggregations =
+                hourlyVisitorRepository.aggregateHourly(date).stream()
+                        .collect(Collectors.toMap(
+                                VisitorHourlyVisitRepository.HourlyAggregation::getVisitedHour,
+                                Function.identity()));
+
+        return IntStream.rangeClosed(0, 23)
+                .mapToObj(hour -> {
+                    VisitorHourlyVisitRepository.HourlyAggregation value = aggregations.get(hour);
+                    return value == null
+                            ? new VisitorHourlyResponse(hour, 0, 0)
+                            : new VisitorHourlyResponse(hour, value.getVisitors(), value.getPageViews());
                 })
                 .toList();
     }
