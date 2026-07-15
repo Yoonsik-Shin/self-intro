@@ -56,15 +56,15 @@ INSERT INTO skill (id, name, category, skill_level, is_core, display_order, skil
 (7, 'FastAPI', 'FRAMEWORK', '초급', FALSE, 7, NULL, NULL, 'PROJECT_USE'),
 (8, 'NestJS', 'FRAMEWORK', '중급', TRUE, 8, NULL, NULL, 'WORK_EXPERIENCE'),
 (9, 'Express', 'FRAMEWORK', '중급', FALSE, 9, NULL, NULL, 'WORK_EXPERIENCE'),
-(10, 'React', 'FRAMEWORK', '중급', TRUE, 10, '19', NULL, 'PROJECT_USE'),
+(10, 'React', 'FRAMEWORK', '중급', FALSE, 10, '19', NULL, 'PROJECT_USE'),
 (12, 'Django', 'FRAMEWORK', '초급', FALSE, 12, NULL, NULL, 'LEARNING'),
-(13, 'QueryDSL', 'DATABASE', '중급', FALSE, 13, NULL, NULL, 'PROJECT_USE'),
+(13, 'QueryDSL', 'FRAMEWORK', '중급', FALSE, 13, NULL, NULL, 'PROJECT_USE'),
 (14, 'Cosmos DB', 'DATABASE', '초급', FALSE, 14, NULL, NULL, 'PROJECT_USE'),
 (15, 'Redis', 'DATABASE', '중급', TRUE, 15, NULL, '세션, 캐시, 실시간 상태 제어 경험', 'WORK_EXPERIENCE'),
 (16, 'MongoDB', 'DATABASE', '중급', FALSE, 16, NULL, NULL, 'WORK_EXPERIENCE'),
 (17, 'SQL', 'DATABASE', '중급', FALSE, 17, NULL, NULL, 'PROJECT_USE'),
-(18, 'DB Modeling', 'DATABASE', '중급', FALSE, 18, NULL, NULL, 'LEARNING'),
-(19, 'Optimization', 'DATABASE', '중급', FALSE, 19, NULL, NULL, 'LEARNING'),
+(18, 'Database Modeling', 'DATABASE', '중급', FALSE, 18, NULL, NULL, 'LEARNING'),
+(19, 'SQL Query Optimization', 'DATABASE', '중급', FALSE, 19, NULL, NULL, 'LEARNING'),
 (20, 'Excel', 'DATABASE', '초급', FALSE, 20, NULL, NULL, 'LEARNING'),
 (21, 'Access', 'DATABASE', '초급', FALSE, 21, NULL, NULL, 'LEARNING'),
 (22, 'Flyway', 'DEVOPS', '중급', FALSE, 22, NULL, NULL, 'PROJECT_USE'),
@@ -75,30 +75,39 @@ INSERT INTO skill (id, name, category, skill_level, is_core, display_order, skil
 (27, 'Grafana', 'DEVOPS', '중급', FALSE, 27, NULL, NULL, 'PROJECT_USE'),
 (28, 'Loki', 'DEVOPS', '중급', FALSE, 28, NULL, NULL, 'PROJECT_USE'),
 (29, 'Alloy', 'DEVOPS', '중급', FALSE, 29, NULL, NULL, 'PROJECT_USE'),
-(30, 'AWS ECS/SQS', 'DEVOPS', '중급', TRUE, 30, NULL, NULL, 'WORK_EXPERIENCE'),
+(30, 'AWS ECS', 'DEVOPS', '중급', TRUE, 30, NULL, '컨테이너 기반 서비스 배포 및 운영', 'WORK_EXPERIENCE'),
 (31, 'Docker', 'DEVOPS', '중급', TRUE, 31, NULL, '로컬 개발과 배포 환경 컨테이너화에 활용', 'WORK_EXPERIENCE'),
 (32, 'Datadog', 'DEVOPS', '초급', FALSE, 32, NULL, NULL, 'WORK_EXPERIENCE'),
-(33, 'IaC', 'DEVOPS', '초급', FALSE, 33, NULL, NULL, 'PROJECT_USE'),
+(33, 'Infrastructure as Code (IaC)', 'DEVOPS', '초급', FALSE, 33, NULL, NULL, 'PROJECT_USE'),
 (34, 'Bicep', 'DEVOPS', '초급', FALSE, 34, NULL, NULL, 'PROJECT_USE'),
 (35, 'Kubernetes', 'DEVOPS', '중급', TRUE, 35, NULL, NULL, 'PROJECT_USE'),
 (36, 'Azure OpenAI', 'AI_RAG', '중급', FALSE, 36, NULL, NULL, 'PROJECT_USE'),
-(37, 'Teams SDK', 'AI_RAG', '중급', FALSE, 37, NULL, NULL, 'PROJECT_USE'),
+(37, 'Teams SDK', 'FRAMEWORK', '중급', FALSE, 37, NULL, NULL, 'PROJECT_USE'),
 (38, 'LLM', 'AI_RAG', '중급', FALSE, 38, NULL, NULL, 'LEARNING'),
 (39, 'STT/TTS', 'AI_RAG', '중급', FALSE, 39, NULL, NULL, 'LEARNING'),
 (40, 'RAG', 'AI_RAG', '중급', FALSE, 40, NULL, 'AI 면접 질문 생성과 로그 진단 흐름에서 학습 및 적용', 'LEARNING'),
-(41, 'ML/DL', 'AI_RAG', '초급', FALSE, 41, NULL, NULL, 'LEARNING'),
+(41, 'Machine Learning / Deep Learning', 'AI_RAG', '중급', FALSE, 41, NULL, '머신러닝·딥러닝 기초 학습 및 데이터 분석 적용', 'LEARNING'),
 (42, 'LangChain', 'AI_RAG', '중급', FALSE, 42, NULL, NULL, 'LEARNING'),
 (43, 'LangGraph', 'AI_RAG', '초급', FALSE, 43, NULL, NULL, 'LEARNING'),
-(44, 'Azure', 'AI_RAG', '중급', FALSE, 44, NULL, NULL, 'LEARNING'),
-(45, 'Azure Functions', 'DEVOPS', '중급', TRUE, 45, NULL, NULL, 'PROJECT_USE'),
+(44, 'Azure', 'DEVOPS', '중급', FALSE, 44, NULL, NULL, 'LEARNING'),
+(45, 'Azure Functions', 'DEVOPS', '중급', FALSE, 45, NULL, NULL, 'PROJECT_USE'),
 (46, 'Data Preprocessing', 'AI_RAG', '중급', FALSE, 46, NULL, NULL, 'LEARNING'),
 (47, 'Statistics', 'AI_RAG', '중급', FALSE, 47, NULL, NULL, 'LEARNING'),
-(48, 'Machine Learning', 'AI_RAG', '중급', FALSE, 48, NULL, NULL, 'LEARNING'),
 (49, 'Software Engineering', 'ETC', '중급', FALSE, 49, NULL, NULL, 'LEARNING'),
 (50, 'Database', 'ETC', '중급', FALSE, 50, NULL, NULL, 'LEARNING'),
 (51, 'Network', 'ETC', '중급', FALSE, 51, NULL, NULL, 'LEARNING'),
 (52, 'HTML/CSS', 'LANGUAGE', '초급', FALSE, 52, NULL, NULL, 'LEARNING'),
-(53, 'Git', 'ETC', '초급', FALSE, 53, NULL, NULL, 'LEARNING');
+(53, 'Git', 'DEVOPS', '초급', FALSE, 53, NULL, NULL, 'LEARNING'),
+(54, 'Amazon SQS', 'DEVOPS', '중급', FALSE, 31, NULL, '비동기 메시징 및 외부 AI 서버 연동', 'WORK_EXPERIENCE'),
+(55, 'PostgreSQL', 'DATABASE', '중급', FALSE, 54, '16', 'CS Test Bed의 운영 데이터 저장소', 'PROJECT_USE'),
+(56, 'MySQL', 'DATABASE', '중급', FALSE, 55, NULL, 'Spring Boot 기반 서비스의 관계형 데이터 저장소', 'WORK_EXPERIENCE'),
+(57, 'gRPC', 'FRAMEWORK', '중급', FALSE, 56, NULL, 'AI 면접 음성 스트리밍 서비스 간 통신', 'PROJECT_USE'),
+(58, 'Apache Kafka', 'DEVOPS', '중급', FALSE, 57, NULL, 'AI 면접 비동기 이벤트 및 상태 변경 처리', 'PROJECT_USE'),
+(59, 'KQL', 'LANGUAGE', '중급', FALSE, 58, NULL, 'Azure 로그 비용과 사용량 진단 쿼리 작성', 'PROJECT_USE'),
+(60, 'Azure Log Analytics', 'DEVOPS', '중급', FALSE, 59, NULL, 'LogDoctor의 로그 수집·비용 진단 대상 플랫폼', 'PROJECT_USE'),
+(61, 'Spring Data JPA', 'FRAMEWORK', '중급', FALSE, 60, NULL, 'Spring Boot 백오피스 및 CS Test Bed 데이터 접근', 'WORK_EXPERIENCE'),
+(62, 'Spring Security', 'FRAMEWORK', '중급', FALSE, 61, NULL, '백오피스 인증·인가 및 CS Test Bed 보안 구성', 'WORK_EXPERIENCE'),
+(63, 'GitHub Actions', 'DEVOPS', '중급', FALSE, 62, NULL, '서비스 빌드·배포 CI/CD 자동화', 'WORK_EXPERIENCE');
 
 -- 3. Experiences Seeding (Common experience table)
 INSERT INTO experience (id, type, title, period_start, period_end, summary, takeaway, essay_content, display_order) VALUES
@@ -132,50 +141,50 @@ INSERT INTO experience (id, type, title, period_start, period_end, summary, take
  NULL,
  6),
 
-(6, 'EDUCATION', '대학교 학사 졸업', '2022-02-25', '2022-02-25',
- '컴퓨터공학 학사 학위 취득',
- '학부 과정에서 컴퓨터공학 전공 지식을 학습하고 학사 학위를 취득했습니다.',
+(6, 'EDUCATION', '스포츠의학과 학사 졸업', '2022-02-25', '2022-02-25',
+ 'IT 비전공자로서 개발 역량을 별도로 쌓았습니다.',
+ '스포츠의학을 전공한 뒤 개발 교육과 프로젝트, 실무 경험을 통해 소프트웨어 개발 역량을 쌓았습니다.',
  NULL,
  12),
 
-(7, 'EDUCATION', '[Microsoft] AI 엔지니어링 과정 (3기)', '2025-09-01', '2026-03-15',
+(7, 'EDUCATION', 'AI 엔지니어링 과정 (3기)', '2025-09-01', '2026-03-15',
  'ML/DL 기초학습, Agentic AI 구축 (LangChain, LangGraph), RAG 구축, AI Azure 기반의 클라우드 엔지니어 학습 (600시간)',
  'Agentic AI와 RAG 아키텍처를 깊이 있게 다루고, 클라우드 환경에서 AI 인프라를 구축하고 운영하는 방법을 익혔습니다.',
  NULL,
  5),
 
-(8, 'EDUCATION', '풀스택 프로젝트 실무과정 [청년취업사관학교]', '2023-05-01', '2023-10-31',
+(8, 'EDUCATION', '풀스택 프로젝트 실무과정', '2023-05-01', '2023-10-31',
  'TypeScript 기반 풀스택 교육으로 주로 JavaScript/TypeScript 언어에 대한 깊은 이해와 프레임워크 사용법 등을 학습 (265시간)',
  'TypeScript와 React/Express 환경에서 웹 애플리케이션의 풀스택 개발 생태계와 협업 워크플로우를 체화했습니다.',
  NULL,
  6),
 
-(9, 'EDUCATION', '파이썬 기반 풀스택 부트캠프 [멀티캠퍼스]', '2022-06-01', '2022-12-31',
+(9, 'EDUCATION', '파이썬 기반 풀스택 부트캠프', '2022-06-01', '2022-12-31',
  '풀스택 교육으로 Git, HTML, CSS, Django Template Engine을 활용한 MVC 기반 웹사이트 구현 기초를 학습 (980시간)',
  '소프트웨어 개발의 첫 단추인 MVC 아키텍처와 웹 표준, 형상 관리 도구의 기초를 탄탄히 다졌습니다.',
  NULL,
  7),
 
 (10, 'CERTIFICATE', '정보처리기사', '2022-06-17', '2022-06-17',
- 'IT 전반의 핵심 이론 및 기술 자격 검증 (한국산업인력공단)',
+ 'IT 전반의 핵심 이론 및 기술 자격 검증',
  '개발 생명주기 전반에 걸친 기초 체력을 공인 자격을 통해 입증했습니다.',
  '정보처리기사 취득 과정에서 체화한 소프트웨어 개발 생명주기(SDLC), 모듈 설계 원칙(응집도와 결합도), 객체지향 설계(SOLID)를 실무에 직접 투영했습니다. 도메인의 경계를 명확히 분리하고 인프라 변경에 유연하게 대응하기 위해 헥사고날(포트-어댑터) 아키텍처와 DDD 4계층(adapter-application-domain-infrastructure) 구조를 에듀테크 서비스 전체에 일관 적용하여 코드 가독성과 확장성을 대폭 높였습니다.',
  8),
 
 (11, 'CERTIFICATE', 'SQL 개발자(SQLD)', '2024-09-20', '2024-09-20',
- '데이터베이스 모델링 및 SQL 작성 능력 검증 ((재)한국데이터산업진흥원)',
+ '데이터베이스 모델링 및 SQL 작성 능력 검증',
  '데이터베이스를 단순히 저장소로 쓰는 것을 넘어 성능과 무결성을 고려하여 쿼리하고 모델링할 수 있음을 검증했습니다.',
  '데이터 모델 정규화 및 반정규화, 인덱스(Index) 설계 원리와 조인(Join) 메커니즘을 심도 있게 학습했습니다. Spring Boot 기반 백오피스 개발 시 8개 도메인 간의 유기적 관계(1:N, N:M)를 매핑하고, 복잡한 동적 필터 조회를 위해 QueryDSL을 연동하여 성능 향상을 이뤄냈습니다. N+1 문제를 방지하기 위해 Fetch Join과 인덱스 튜닝을 도입하여 조회 속도를 개선했습니다.',
  9),
 
 (12, 'CERTIFICATE', '빅데이터분석기사', '2022-07-15', '2022-07-15',
- '데이터 수집, 전처리, 분석 모형 설계 및 평가 역량 검증 ((재)한국데이터산업진흥원)',
- '데이터를 수집하고 전처리하여 통계적 기법 and ML 모형으로 분석해 유의미한 가치를 추출할 수 있는 이론적 토대를 닦았습니다.',
+ '데이터 수집, 전처리, 분석 모형 설계 및 평가 역량 검증',
+ '데이터를 수집하고 전처리하여 통계적 기법과 ML 모형으로 분석해 유의미한 가치를 추출할 수 있는 이론적 토대를 닦았습니다.',
  '대량 데이터 수집, 이상치 정제, 통계적 분석(가설 검정, 회귀 모형) 및 평가 메커니즘을 마이그레이션과 AI RAG 파이프라인에 접목했습니다. SubmittedProblem 통계 병합 마이그레이션 시 14개 집계 지표(제출수/정답수/소요시간 등)를 MongoDB 트랜잭션 내에서 정량 데이터로 가공·적재하는 파이프라인을 구축하였으며, AI 모의면접 플랫폼에서 PDF 이력서 RAG 질문 생성의 답변 정확도를 분석하는 통계 평가 체계에 응용했습니다.',
  10),
 
 (13, 'CERTIFICATE', '컴퓨터활용능력 1급', '2018-11-16', '2018-11-16',
- '스프레드시트 및 데이터베이스 활용 능력 자격 검증 (대한상공회의소)',
+ '스프레드시트 및 데이터베이스 활용 능력 자격 검증',
  '정량적 데이터 정제 및 비즈니스 데이터 처리에 필요한 기본 오피스 역량을 인증받았습니다.',
  NULL,
  11);
@@ -191,7 +200,7 @@ INSERT INTO project (experience_id, slug, role, contribution_rate) VALUES
 (5, 'project-study-helper', 'QA Automation Engineer', 80);
 
 INSERT INTO education (experience_id, institution_name) VALUES
-(6, '대학교'),
+(6, '차의과학대학교'),
 (7, 'Microsoft / 대한상공회의소'),
 (8, 'SBA 청년취업사관학교'),
 (9, '멀티캠퍼스');
@@ -212,9 +221,14 @@ INSERT INTO experience_skill (experience_id, skill_id, list_order) VALUES
 (1, 16, 4),  -- MongoDB
 (1, 15, 5),  -- Redis
 (1, 5, 6),   -- Spring Boot
-(1, 30, 7),  -- AWS ECS/SQS
-(1, 31, 8),  -- Docker
-(1, 32, 9),  -- Datadog
+(1, 30, 7),  -- AWS ECS
+(1, 54, 8),  -- Amazon SQS
+(1, 31, 9),  -- Docker
+(1, 32, 10), -- Datadog
+(1, 56, 11), -- MySQL
+(1, 61, 12), -- Spring Data JPA
+(1, 62, 13), -- Spring Security
+(1, 63, 14), -- GitHub Actions
 -- CS Test Bed (2)
 (2, 1, 0),   -- Java
 (2, 5, 1),   -- Spring Boot
@@ -227,6 +241,9 @@ INSERT INTO experience_skill (experience_id, skill_id, list_order) VALUES
 (2, 27, 8),  -- Grafana
 (2, 28, 9),  -- Loki
 (2, 29, 10), -- Alloy
+(2, 55, 11), -- PostgreSQL
+(2, 61, 12), -- Spring Data JPA
+(2, 62, 13), -- Spring Security
 -- LogDoctor (3)
 (3, 3, 0),   -- Python
 (3, 7, 1),   -- FastAPI
@@ -241,6 +258,8 @@ INSERT INTO experience_skill (experience_id, skill_id, list_order) VALUES
 (3, 27, 10), -- Grafana
 (3, 28, 11), -- Loki
 (3, 29, 12), -- Alloy
+(3, 59, 13), -- KQL
+(3, 60, 14), -- Azure Log Analytics
 -- AI Interview (4)
 (4, 10, 0),  -- React
 (4, 15, 1),  -- Redis
@@ -248,6 +267,8 @@ INSERT INTO experience_skill (experience_id, skill_id, list_order) VALUES
 (4, 38, 3),  -- LLM
 (4, 39, 4),  -- STT/TTS
 (4, 40, 5),  -- RAG
+(4, 57, 6),  -- gRPC
+(4, 58, 7),  -- Apache Kafka
 -- QA Helper (5)
 (5, 2, 0),   -- TypeScript
 (5, 4, 1),   -- Node.js
@@ -278,7 +299,7 @@ INSERT INTO experience_skill (experience_id, skill_id, list_order) VALUES
 -- Cert 12
 (12, 46, 0), -- Data Preprocessing
 (12, 47, 1), -- Statistics
-(12, 48, 2), -- Machine Learning
+(12, 41, 2), -- Machine Learning / Deep Learning
 -- Cert 13
 (13, 20, 0), -- Excel
 (13, 21, 1); -- Access -- Access
@@ -303,7 +324,7 @@ INSERT INTO experience_detail (id, experience_id, content, display_order, situat
 
 (4, 1, 'AWS 인프라 및 CI/CD 파이프라인 설계/운영', 3, 
  '서비스가 커지면서 배포 과정에서의 수동 작업과 장애 대응 속도가 병목이 되고 있었습니다.', 
- '- AWS ECS/SQS 기반 인프라를 설계하고 서비스별 배포 파이프라인을 CI/CD로 자동화했습니다.\n- Docker로 로컬/배포 환경을 컨테이너화해 환경 차이로 인한 배포 실패를 줄였습니다.\n- Datadog으로 지표를 모니터링하며 장애를 조기에 탐지할 수 있는 체계를 구축했습니다.', 
+ '- AWS ECS 기반 인프라를 설계하고 서비스별 배포 파이프라인을 CI/CD로 자동화했습니다.\n- Amazon SQS로 비동기 메시징을 분리해 외부 시스템의 지연에도 안정적으로 처리했습니다.\n- Docker로 로컬/배포 환경을 컨테이너화해 환경 차이로 인한 배포 실패를 줄였습니다.\n- Datadog으로 지표를 모니터링하며 장애를 조기에 탐지할 수 있는 체계를 구축했습니다.',
  '배포 소요 시간을 줄이고 장애 대응 리드타임을 단축시켜, 비즈니스 확장 국면에서도 안정적인 인프라 운영 기반을 마련했습니다.'),
 
 (5, 1, '공용 문제(Problem) 서비스 및 사내 공통 패키지 모노레포 단독 구축', 4, 
@@ -371,7 +392,7 @@ INSERT INTO experience_detail (id, experience_id, content, display_order, situat
  'API 단독 부하 테스트 및 수천 회 분량의 비즈니스 플로우 회귀 테스팅을 무인화했습니다.'),
 
 -- Edu 6 Detail
-(17, 6, '컴퓨터공학 학사 학위 취득', 0, NULL, NULL, '학부 과정에서 컴퓨터공학 전공 지식을 학습하고 학사 학위를 취득했습니다.'),
+(17, 6, '스포츠의학과 학사 학위 취득 (IT 비전공)', 0, NULL, NULL, '차의과학대학교 스포츠의학과를 졸업했으며, IT 비전공자로서 개발 역량을 별도로 쌓았습니다.'),
 -- Edu 7 Detail
 (18, 7, 'AI 및 클라우드 엔지니어링 600시간 이수', 0, NULL, NULL, 'ML/DL 기초학습, Agentic AI 구축(LangChain, LangGraph), RAG 구축, AI Azure 기반의 클라우드 엔지니어링 파이프라인을 학습했습니다.'),
 -- Edu 8 Detail
@@ -400,9 +421,11 @@ INSERT INTO experience_detail_skill (experience_detail_id, skill_id, list_order)
 (3, 5, 0),   -- Spring Boot
 (3, 15, 1),  -- Redis
 (3, 31, 2),  -- Docker
-(4, 30, 0),  -- AWS ECS/SQS
-(4, 31, 1),  -- Docker
-(4, 32, 2),  -- Datadog
+(4, 30, 0),  -- AWS ECS
+(4, 54, 1),  -- Amazon SQS
+(4, 31, 2),  -- Docker
+(4, 32, 3),  -- Datadog
+(4, 63, 4),  -- GitHub Actions
 (5, 8, 0),   -- NestJS
 (5, 2, 1),   -- TypeScript
 (5, 16, 2),  -- MongoDB
@@ -414,6 +437,9 @@ INSERT INTO experience_detail_skill (experience_detail_id, skill_id, list_order)
 (7, 1, 0),   -- Java
 (7, 5, 1),   -- Spring Boot
 (7, 13, 2),  -- QueryDSL
+(7, 55, 3),  -- PostgreSQL
+(7, 61, 4),  -- Spring Data JPA
+(7, 62, 5),  -- Spring Security
 (8, 1, 0),   -- Java
 (8, 5, 1),   -- Spring Boot
 (8, 22, 2),  -- Flyway
@@ -427,7 +453,9 @@ INSERT INTO experience_detail_skill (experience_detail_id, skill_id, list_order)
 -- LogDoctor details (11-14)
 (11, 3, 0),  -- Python
 (11, 17, 1), -- SQL
-(11, 19, 2), -- Optimization
+(11, 19, 2), -- SQL Query Optimization
+(11, 59, 3), -- KQL
+(11, 60, 4), -- Azure Log Analytics
 (12, 7, 0),  -- FastAPI
 (12, 14, 1), -- Cosmos DB
 (13, 45, 0), -- Azure Functions
@@ -641,12 +669,14 @@ INSERT INTO study_skill (study_id, skill_id) VALUES
 (1, 2),  -- TypeScript
 (1, 9),  -- Express
 (1, 16), -- MongoDB
-(1, 30), -- AWS ECS/SQS
+(1, 30), -- AWS ECS
+(1, 54), -- Amazon SQS
 (1, 8),  -- NestJS
 (2, 2),  -- TypeScript
 (2, 8),  -- NestJS
 (2, 15), -- Redis
-(2, 30), -- AWS ECS/SQS
+(2, 30), -- AWS ECS
+(2, 54), -- Amazon SQS
 (3, 4),  -- Node.js
 (3, 2),  -- TypeScript
 (3, 16), -- MongoDB
@@ -658,11 +688,15 @@ INSERT INTO study_skill (study_id, skill_id) VALUES
 (4, 31), -- Docker
 (4, 25), -- Nginx
 (4, 27), -- Grafana
+(4, 56), -- MySQL
+(4, 61), -- Spring Data JPA
+(4, 62), -- Spring Security
 (5, 4),  -- Node.js
 (5, 2),  -- TypeScript
 (5, 8),  -- NestJS
 (5, 31), -- Docker
-(5, 30), -- AWS ECS/SQS
+(5, 30), -- AWS ECS
+(5, 54), -- Amazon SQS
 (5, 16), -- MongoDB
 (6, 23), -- Playwright
 (6, 26), -- Docker Compose
@@ -670,12 +704,17 @@ INSERT INTO study_skill (study_id, skill_id) VALUES
 (7, 1),  -- Java
 (7, 5),  -- Spring Boot
 (7, 13), -- QueryDSL
+(7, 55), -- PostgreSQL
+(7, 61), -- Spring Data JPA
+(7, 62), -- Spring Security
 (8, 1),  -- Java
 (8, 5),  -- Spring Boot
 (8, 22), -- Flyway
 (9, 17), -- SQL
-(9, 18), -- DB Modeling
-(9, 19), -- Optimization
+(9, 18), -- Database Modeling
+(9, 19), -- SQL Query Optimization
+(9, 59), -- KQL
+(9, 60), -- Azure Log Analytics
 (9, 34), -- Bicep
 (9, 33), -- IaC
 (10, 45), -- Azure Functions

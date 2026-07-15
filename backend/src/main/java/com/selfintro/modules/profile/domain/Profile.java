@@ -23,9 +23,6 @@ public class Profile {
     @Column(nullable = false, length = 500)
     private String bio;
 
-    @Column(name = "career_summary", nullable = false, length = 120)
-    private String careerSummary;
-
     @Column(name = "core_stack_summary", nullable = false, length = 120)
     private String coreStackSummary;
 
@@ -48,12 +45,11 @@ public class Profile {
         // JPA standard constructor
     }
 
-    private Profile(String name, String nameEn, String jobTitle, String bio, String careerSummary, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
+    private Profile(String name, String nameEn, String jobTitle, String bio, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
         this.name = name;
         this.nameEn = nameEn;
         this.jobTitle = jobTitle;
         this.bio = bio;
-        this.careerSummary = careerSummary;
         this.coreStackSummary = coreStackSummary;
         this.statusBadgeText = statusBadgeText;
         this.githubUrl = githubUrl;
@@ -62,16 +58,15 @@ public class Profile {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public static Profile create(String name, String nameEn, String jobTitle, String bio, String careerSummary, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
-        return new Profile(name, nameEn, jobTitle, bio, careerSummary, coreStackSummary, statusBadgeText, githubUrl, email, phone);
+    public static Profile create(String name, String nameEn, String jobTitle, String bio, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
+        return new Profile(name, nameEn, jobTitle, bio, coreStackSummary, statusBadgeText, githubUrl, email, phone);
     }
 
-    public void update(String name, String nameEn, String jobTitle, String bio, String careerSummary, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
+    public void update(String name, String nameEn, String jobTitle, String bio, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
         this.name = name;
         this.nameEn = nameEn;
         this.jobTitle = jobTitle;
         this.bio = bio;
-        this.careerSummary = careerSummary;
         this.coreStackSummary = coreStackSummary;
         this.statusBadgeText = statusBadgeText;
         this.githubUrl = githubUrl;
@@ -86,7 +81,6 @@ public class Profile {
     public String getNameEn() { return nameEn; }
     public String getJobTitle() { return jobTitle; }
     public String getBio() { return bio; }
-    public String getCareerSummary() { return careerSummary; }
     public String getCoreStackSummary() { return coreStackSummary; }
     public String getStatusBadgeText() { return statusBadgeText; }
     public String getGithubUrl() { return githubUrl; }

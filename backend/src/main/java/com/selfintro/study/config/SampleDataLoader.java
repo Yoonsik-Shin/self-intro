@@ -58,7 +58,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 "Yoonsik Shin",
                 "Software Engineer",
                 "에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.",
-                "1년 11개월 (에듀테크 스타트업)",
                 "Java / Node.js / Cloud",
                 "실시간 아키텍처 및 콘텐츠 개선 중",
                 "https://github.com/Yoonsik-Shin",
@@ -92,7 +91,7 @@ public class SampleDataLoader implements ApplicationRunner {
         Skill fastapiSkill = getOrCreateSkill("FastAPI", "FRAMEWORK", "초급", false, 7);
         Skill nestjsSkill = getOrCreateSkill("NestJS", "FRAMEWORK", "중급", true, 8);
         Skill expressSkill = getOrCreateSkill("Express", "FRAMEWORK", "중급", false, 9);
-        Skill reactSkill = getOrCreateSkill("React", "FRAMEWORK", "중급", true, 10);
+        Skill reactSkill = getOrCreateSkill("React", "FRAMEWORK", "중급", false, 10);
         Skill djangoSkill = getOrCreateSkill("Django", "FRAMEWORK", "초급", false, 12);
 
         skillMap.put("Spring Boot", springBootSkill);
@@ -105,13 +104,15 @@ public class SampleDataLoader implements ApplicationRunner {
         skillMap.put("Django", djangoSkill);
 
         // Databases / Querying
-        skillMap.put("QueryDSL", getOrCreateSkill("QueryDSL", "DATABASE", "중급", false, 13));
+        skillMap.put("QueryDSL", getOrCreateSkill("QueryDSL", "FRAMEWORK", "중급", false, 13));
         skillMap.put("Cosmos DB", getOrCreateSkill("Cosmos DB", "DATABASE", "초급", false, 14));
         skillMap.put("Redis", getOrCreateSkill("Redis", "DATABASE", "중급", true, 15));
         skillMap.put("MongoDB", getOrCreateSkill("MongoDB", "DATABASE", "중급", false, 16));
         skillMap.put("SQL", getOrCreateSkill("SQL", "DATABASE", "중급", false, 17));
-        skillMap.put("DB Modeling", getOrCreateSkill("DB Modeling", "DATABASE", "중급", false, 18));
-        skillMap.put("Optimization", getOrCreateSkill("Optimization", "DATABASE", "중급", false, 19));
+        skillMap.put("Database Modeling", getOrCreateSkill("Database Modeling", "DATABASE", "중급", false, 18));
+        skillMap.put("SQL Query Optimization", getOrCreateSkill("SQL Query Optimization", "DATABASE", "중급", false, 19));
+        skillMap.put("PostgreSQL", getOrCreateSkill("PostgreSQL", "DATABASE", "중급", false, 54));
+        skillMap.put("MySQL", getOrCreateSkill("MySQL", "DATABASE", "중급", false, 55));
         skillMap.put("Excel", getOrCreateSkill("Excel", "DATABASE", "초급", false, 20));
         skillMap.put("Access", getOrCreateSkill("Access", "DATABASE", "초급", false, 21));
 
@@ -124,27 +125,34 @@ public class SampleDataLoader implements ApplicationRunner {
         skillMap.put("Grafana", getOrCreateSkill("Grafana", "DEVOPS", "중급", false, 27));
         skillMap.put("Loki", getOrCreateSkill("Loki", "DEVOPS", "중급", false, 28));
         skillMap.put("Alloy", getOrCreateSkill("Alloy", "DEVOPS", "중급", false, 29));
-        skillMap.put("AWS ECS/SQS", getOrCreateSkill("AWS ECS/SQS", "DEVOPS", "중급", true, 30));
+        skillMap.put("AWS ECS", getOrCreateSkill("AWS ECS", "DEVOPS", "중급", true, 30));
+        skillMap.put("Amazon SQS", getOrCreateSkill("Amazon SQS", "DEVOPS", "중급", false, 31));
         skillMap.put("Docker", getOrCreateSkill("Docker", "DEVOPS", "중급", true, 31));
         skillMap.put("Datadog", getOrCreateSkill("Datadog", "DEVOPS", "초급", false, 32));
-        skillMap.put("IaC", getOrCreateSkill("IaC", "DEVOPS", "초급", false, 33));
+        skillMap.put("Infrastructure as Code (IaC)", getOrCreateSkill("Infrastructure as Code (IaC)", "DEVOPS", "초급", false, 33));
         skillMap.put("Bicep", getOrCreateSkill("Bicep", "DEVOPS", "초급", false, 34));
         skillMap.put("Kubernetes", getOrCreateSkill("Kubernetes", "DEVOPS", "중급", true, 35));
-        skillMap.put("Azure Functions", getOrCreateSkill("Azure Functions", "DEVOPS", "중급", true, 45));
+        skillMap.put("Azure Functions", getOrCreateSkill("Azure Functions", "DEVOPS", "중급", false, 45));
+        skillMap.put("Apache Kafka", getOrCreateSkill("Apache Kafka", "DEVOPS", "중급", false, 57));
+        skillMap.put("Azure Log Analytics", getOrCreateSkill("Azure Log Analytics", "DEVOPS", "중급", false, 59));
+        skillMap.put("GitHub Actions", getOrCreateSkill("GitHub Actions", "DEVOPS", "중급", false, 62));
 
         // AI / RAG
         skillMap.put("Azure OpenAI", getOrCreateSkill("Azure OpenAI", "AI_RAG", "중급", false, 36));
-        skillMap.put("Teams SDK", getOrCreateSkill("Teams SDK", "AI_RAG", "중급", false, 37));
+        skillMap.put("Teams SDK", getOrCreateSkill("Teams SDK", "FRAMEWORK", "중급", false, 37));
         skillMap.put("LLM", getOrCreateSkill("LLM", "AI_RAG", "중급", false, 38));
         skillMap.put("STT/TTS", getOrCreateSkill("STT/TTS", "AI_RAG", "중급", false, 39));
         skillMap.put("RAG", getOrCreateSkill("RAG", "AI_RAG", "중급", false, 40));
-        skillMap.put("ML/DL", getOrCreateSkill("ML/DL", "AI_RAG", "초급", false, 41));
+        skillMap.put("Machine Learning / Deep Learning", getOrCreateSkill("Machine Learning / Deep Learning", "AI_RAG", "중급", false, 41));
         skillMap.put("LangChain", getOrCreateSkill("LangChain", "AI_RAG", "중급", false, 42));
-        skillMap.put("LangGraph", getOrCreateSkill("LangGraph", "중급", "초급", false, 43));
-        skillMap.put("Azure", getOrCreateSkill("Azure", "AI_RAG", "중급", false, 44));
+        skillMap.put("LangGraph", getOrCreateSkill("LangGraph", "AI_RAG", "초급", false, 43));
+        skillMap.put("Azure", getOrCreateSkill("Azure", "DEVOPS", "중급", false, 44));
         skillMap.put("Data Preprocessing", getOrCreateSkill("Data Preprocessing", "AI_RAG", "중급", false, 45));
         skillMap.put("Statistics", getOrCreateSkill("Statistics", "AI_RAG", "중급", false, 46));
-        skillMap.put("Machine Learning", getOrCreateSkill("Machine Learning", "AI_RAG", "중급", false, 47));
+        skillMap.put("gRPC", getOrCreateSkill("gRPC", "FRAMEWORK", "중급", false, 56));
+        skillMap.put("KQL", getOrCreateSkill("KQL", "LANGUAGE", "중급", false, 58));
+        skillMap.put("Spring Data JPA", getOrCreateSkill("Spring Data JPA", "FRAMEWORK", "중급", false, 60));
+        skillMap.put("Spring Security", getOrCreateSkill("Spring Security", "FRAMEWORK", "중급", false, 61));
 
         // Theory / Others
         skillMap.put("Software Engineering", getOrCreateSkill("Software Engineering", "ETC", "중급", false, 48));
@@ -199,10 +207,10 @@ public class SampleDataLoader implements ApplicationRunner {
                         detail(
                                 "AWS 인프라 및 CI/CD 파이프라인 설계/운영",
                                 "서비스가 커지면서 배포 과정에서의 수동 작업과 장애 대응 속도가 병목이 되고 있었습니다.",
-                                "- AWS ECS/SQS 기반 인프라를 설계하고 서비스별 배포 파이프라인을 CI/CD로 자동화했습니다.\n- Docker로 로컬/배포 환경을 컨테이너화해 환경 차이로 인한 배포 실패를 줄였습니다.\n- Datadog으로 지표를 모니터링하며 장애를 조기에 탐지할 수 있는 체계를 구축했습니다.",
+                                "- AWS ECS 기반 인프라를 설계하고 서비스별 배포 파이프라인을 CI/CD로 자동화했습니다.\n- Amazon SQS로 비동기 메시징을 분리해 외부 시스템의 지연에도 안정적으로 처리했습니다.\n- Docker로 로컬/배포 환경을 컨테이너화해 환경 차이로 인한 배포 실패를 줄였습니다.\n- Datadog으로 지표를 모니터링하며 장애를 조기에 탐지할 수 있는 체계를 구축했습니다.",
                                 "배포 소요 시간을 줄이고 장애 대응 리드타임을 단축시켜, 비즈니스 확장 국면에서도 안정적인 인프라 운영 기반을 마련했습니다.",
                                 3,
-                                getSkills(List.of("AWS ECS/SQS", "Docker", "Datadog"), skillMap)
+                                getSkills(List.of("AWS ECS", "Amazon SQS", "Docker", "Datadog", "GitHub Actions"), skillMap)
                         ),
                         detail(
                                 "공용 문제(Problem) 서비스 및 사내 공통 패키지 모노레포 단독 구축",
@@ -213,7 +221,8 @@ public class SampleDataLoader implements ApplicationRunner {
                                 getSkills(List.of("NestJS", "TypeScript", "MongoDB", "Docker"), skillMap)
                         )
                 ),
-                getSkills(List.of("Node.js", "TypeScript", "NestJS", "Express", "MongoDB", "Redis", "Spring Boot", "AWS ECS/SQS", "Docker", "Datadog"), skillMap),
+                getSkills(List.of("Node.js", "TypeScript", "NestJS", "Express", "MongoDB", "Redis", "Spring Boot", "Spring Data JPA", "Spring Security", "MySQL", "AWS ECS", "Amazon SQS", "Docker", "Datadog", "GitHub Actions"), skillMap),
+                true, "에듀테크 실무 (1년 11개월)",
                 "(주)에듀테크 스타트업",
                 "정규직",
                 "개발팀 백엔드 파트",
@@ -244,7 +253,7 @@ public class SampleDataLoader implements ApplicationRunner {
                                 "- In-Reply-To 및 References 이메일 헤더를 파싱해 고유 Message-ID 관계 추적 및 부모 문의 매핑 모델 설계\n- 헤더가 유실된 메일에 대비해 회신 접두사 제거 제목 정규화 및 발신자 이메일 해싱(email_sender_hash) 값 기반 Heuristic 후보군 매칭 구현\n- 해결(RESOLVED) 문의에 메일 회신 시 자동으로 오픈(OPEN) 상태 복원 및 변경 이력(Work Log) 시스템 로깅",
                                 "중복 티켓 생성을 방지하고 연관 문의를 단일 스레드로 통일하여 CS 상담원의 생산성을 대폭 개선했습니다.",
                                 1,
-                                getSkills(List.of("Java", "Spring Boot", "QueryDSL"), skillMap)
+                                getSkills(List.of("Java", "Spring Boot", "Spring Data JPA", "Spring Security", "QueryDSL", "PostgreSQL"), skillMap)
                         ),
                         detail(
                                 "JPA Converter 기반 개인정보(PII) AES/GCM 암호화 및 무중단 마이그레이션",
@@ -252,7 +261,7 @@ public class SampleDataLoader implements ApplicationRunner {
                                 "- JPA @Convert 및 PiiEncryptionUtils를 통해 영속성 계층 저장/조회 시 AES/GCM 암복호화 자동화\n- 정확한 등치 검색 조회를 위한 단방향 HMAC-SHA256 해시 설계 및 컬럼 매핑\n- 복호화 실패 시 평문을 반환하는 하위 호환 복호화 로직(decryptOrPassThrough)을 도입해 무중단 암호화 마이그레이션 배치 가동",
                                 "DB 유출 시에도 안전한 PII 암호화 보안 규격을 달성하였으며, 기존 적재 데이터를 데이터 유실 없이 무중단으로 100% 암호화 이관했습니다.",
                                 2,
-                                getSkills(List.of("Java", "Spring Boot", "Flyway"), skillMap)
+                                getSkills(List.of("Java", "Spring Boot", "Spring Data JPA", "PostgreSQL", "Flyway"), skillMap)
                         ),
                         detail(
                                 "n8n 워크플로우 및 Spring Boot REST API 기반 멀티채널 문의 통합 수집 파이프라인",
@@ -271,7 +280,8 @@ public class SampleDataLoader implements ApplicationRunner {
                                 getSkills(List.of("Nginx", "Grafana", "Loki", "Alloy"), skillMap)
                         )
                 ),
-                getSkills(List.of("Java", "Spring Boot", "QueryDSL", "Flyway", "Playwright", "n8n", "Nginx", "Docker Compose", "Grafana", "Loki", "Alloy"), skillMap),
+                getSkills(List.of("Java", "Spring Boot", "Spring Data JPA", "Spring Security", "QueryDSL", "PostgreSQL", "Flyway", "Playwright", "n8n", "Nginx", "Docker Compose", "Grafana", "Loki", "Alloy"), skillMap),
+                true, "CS",
                 "project-cs-testbed",
                 "Backend & DevOps Engineer",
                 100
@@ -289,7 +299,8 @@ public class SampleDataLoader implements ApplicationRunner {
                 essayProjects,
                 3,
                 List.of(detail("gRPC/Redis/Kafka 기반 실시간 음성 스트리밍, 이력서 RAG 질문 생성 서비스를 설계했습니다.", null, null, null, 0, List.of())),
-                getSkills(List.of("React", "gRPC", "Redis", "Kafka", "LLM", "STT/TTS", "RAG", "Kubernetes"), skillMap),
+                getSkills(List.of("React", "gRPC", "Redis", "Apache Kafka", "LLM", "STT/TTS", "RAG", "Kubernetes"), skillMap),
+                true, "AI면접",
                 "project-ai-interview",
                 "Core Architect & Developer",
                 100
@@ -305,6 +316,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 6,
                 List.of(detail("가중치 랜덤 기반 학습 행동 시뮬레이션 봇을 개발해 회귀 검증을 자동화했습니다.", null, null, null, 0, List.of())),
                 getSkills(List.of("TypeScript", "Node.js"), skillMap),
+                true, "QA 자동화",
                 "project-study-helper",
                 "QA Automation Engineer",
                 80
@@ -312,20 +324,20 @@ public class SampleDataLoader implements ApplicationRunner {
 
         // Seed Experience - Educations
         experienceRepository.save(Education.create(
-                "대학교 학사 졸업",
+                "스포츠의학과 학사 졸업",
                 LocalDate.of(2022, 2, 25),
                 LocalDate.of(2022, 2, 25),
-                "컴퓨터공학 학사 학위 취득",
-                "학부 과정에서 컴퓨터공학 전공 지식을 학습하고 학사 학위를 취득했습니다.",
+                "IT 비전공자로서 개발 역량을 별도로 쌓았습니다.",
+                "스포츠의학을 전공한 뒤 개발 교육과 프로젝트, 실무 경험을 통해 소프트웨어 개발 역량을 쌓았습니다.",
                 null,
                 12,
-                List.of(detail("컴퓨터공학 학사 학위 취득", null, null, null, 0, List.of())),
+                List.of(detail("스포츠의학과 학사 학위 취득 (IT 비전공)", null, null, "차의과학대학교 스포츠의학과를 졸업했으며, IT 비전공자로서 개발 역량을 별도로 쌓았습니다.", 0, List.of())),
                 List.of(),
-                "대학교"
+                "차의과학대학교"
         ));
 
         experienceRepository.save(Education.create(
-                "[Microsoft] AI 엔지니어링 과정 (3기)",
+                "AI 엔지니어링 과정 (3기)",
                 LocalDate.of(2025, 9, 1),
                 LocalDate.of(2026, 3, 15),
                 "ML/DL 기초학습, Agentic AI 구축 (LangChain, LangGraph), RAG 구축, AI Azure 기반의 클라우드 엔지니어 학습 (600시간)",
@@ -333,12 +345,13 @@ public class SampleDataLoader implements ApplicationRunner {
                 null,
                 5,
                 List.of(detail("ML/DL 기초학습, Agentic AI 구축 (LangChain, LangGraph), RAG 구축, AI Azure 기반의 클라우드 엔지니어 학습", null, null, null, 0, List.of())),
-                getSkills(List.of("ML/DL", "LangChain", "LangGraph", "RAG", "Azure"), skillMap),
+                getSkills(List.of("Machine Learning / Deep Learning", "LangChain", "LangGraph", "RAG", "Azure"), skillMap),
+                true, "MS AI 스쿨",
                 "Microsoft / 대한상공회의소"
         ));
 
         experienceRepository.save(Education.create(
-                "풀스택 프로젝트 실무과정 [청년취업사관학교]",
+                "풀스택 프로젝트 실무과정",
                 LocalDate.of(2023, 5, 1),
                 LocalDate.of(2023, 10, 31),
                 "TypeScript 기반 풀스택 교육으로 주로 JavaScript/TypeScript 언어에 대한 깊은 이해와 프레임워크 사용법 등을 학습 (265시간)",
@@ -347,11 +360,12 @@ public class SampleDataLoader implements ApplicationRunner {
                 6,
                 List.of(detail("TypeScript 기반 풀스택 교육, Express/React 풀스택 프로젝트 협업", null, null, null, 0, List.of())),
                 getSkills(List.of("TypeScript", "Node.js", "React", "Express"), skillMap),
+                true, "청년취업사관",
                 "SBA 청년취업사관학교"
         ));
 
         experienceRepository.save(Education.create(
-                "파이썬 기반 풀스택 부트캠프 [멀티캠퍼스]",
+                "파이썬 기반 풀스택 부트캠프",
                 LocalDate.of(2022, 6, 1),
                 LocalDate.of(2022, 12, 31),
                 "풀스택 교육으로 Git, HTML, CSS, Django Template Engine을 활용한 MVC 기반 웹사이트 구현 기초를 학습 (980시간)",
@@ -360,6 +374,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 7,
                 List.of(detail("Git, HTML, CSS, Django Template Engine을 활용한 웹 사이트 구현 기초 학습", null, null, null, 0, List.of())),
                 getSkills(List.of("Python", "Django", "HTML/CSS", "Git"), skillMap),
+                true, "멀티캠퍼스",
                 "멀티캠퍼스"
         ));
 
@@ -368,7 +383,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 "정보처리기사",
                 LocalDate.of(2022, 6, 17),
                 LocalDate.of(2022, 6, 17),
-                "IT 전반의 핵심 이론 및 기술 자격 검증 (한국산업인력공단)",
+                "IT 전반의 핵심 이론 및 기술 자격 검증",
                 "개발 생명주기 전반에 걸친 기초 체력을 공인 자격을 통해 입증했습니다.",
                 essayInfo,
                 8,
@@ -381,12 +396,12 @@ public class SampleDataLoader implements ApplicationRunner {
                 "SQL 개발자(SQLD)",
                 LocalDate.of(2024, 9, 20),
                 LocalDate.of(2024, 9, 20),
-                "데이터베이스 모델링 및 SQL 작성 능력 검증 ((재)한국데이터산업진흥원)",
+                "데이터베이스 모델링 및 SQL 작성 능력 검증",
                 "데이터베이스를 단순히 저장소로 쓰는 것을 넘어 성능과 무결성을 고려하여 쿼리하고 모델링할 수 있음을 검증했습니다.",
                 essaySql,
                 9,
                 List.of(detail("RDB 모델링, SQL 작성 및 쿼리 최적화 능력 검증", null, null, null, 0, List.of())),
-                getSkills(List.of("SQL", "DB Modeling", "Optimization"), skillMap),
+                getSkills(List.of("SQL", "Database Modeling", "SQL Query Optimization"), skillMap),
                 "(재)한국데이터산업진흥원"
         ));
 
@@ -394,12 +409,12 @@ public class SampleDataLoader implements ApplicationRunner {
                 "빅데이터분석기사",
                 LocalDate.of(2022, 7, 15),
                 LocalDate.of(2022, 7, 15),
-                "데이터 수집, 전처리, 분석 모형 설계 및 평가 역량 검증 ((재)한국데이터산업진흥원)",
-                "데이터를 수집하고 전처리하여 통계적 기법 and ML 모형으로 분석해 유의미한 가치를 추출할 수 있는 이론적 토대를 닦았습니다.",
+                "데이터 수집, 전처리, 분석 모형 설계 및 평가 역량 검증",
+                "데이터를 수집하고 전처리하여 통계적 기법과 ML 모형으로 분석해 유의미한 가치를 추출할 수 있는 이론적 토대를 닦았습니다.",
                 essayBigdata,
                 10,
                 List.of(detail("데이터 전처리, 통계적 가설 검정, 머신러닝 모형 설계 역량 검증", null, null, null, 0, List.of())),
-                getSkills(List.of("Data Preprocessing", "Statistics", "Machine Learning"), skillMap),
+                getSkills(List.of("Data Preprocessing", "Statistics", "Machine Learning / Deep Learning"), skillMap),
                 "(재)한국데이터산업진흥원"
         ));
 
@@ -407,12 +422,13 @@ public class SampleDataLoader implements ApplicationRunner {
                 "컴퓨터활용능력 1급",
                 LocalDate.of(2018, 11, 16),
                 LocalDate.of(2018, 11, 16),
-                "스프레드시트 및 데이터베이스 활용 능력 자격 검증 (대한상공회의소)",
+                "스프레드시트 및 데이터베이스 활용 능력 자격 검증",
                 "정량적 데이터 정제 및 비즈니스 데이터 처리에 필요한 기본 오피스 역량을 인증받았습니다.",
                 null,
                 11,
                 List.of(detail("Excel 스프레드시트 및 Access 데이터베이스 활용 검증", null, null, null, 0, List.of())),
                 getSkills(List.of("Excel", "Access"), skillMap),
+                false, null,
                 "대한상공회의소"
         ));
 
@@ -432,7 +448,7 @@ public class SampleDataLoader implements ApplicationRunner {
         ));
         study1.replaceExperiences(List.of(savedCareer));
         if (careerDetails.size() > 0) study1.replaceExperienceDetails(List.of(careerDetails.get(0)));
-        study1.replaceSkills(getSkills(List.of("Node.js", "TypeScript", "Express", "MongoDB", "AWS ECS/SQS", "NestJS"), skillMap));
+        study1.replaceSkills(getSkills(List.of("Node.js", "TypeScript", "Express", "MongoDB", "AWS ECS", "Amazon SQS", "NestJS"), skillMap));
         study1.replaceTags(getOrCreateTags(List.of("Backend", "MSA", "AI", "SQS", "Idempotence", "MongoDB")));
         studyRepository.save(study1);
 
@@ -449,7 +465,7 @@ public class SampleDataLoader implements ApplicationRunner {
         ));
         study2.replaceExperiences(List.of(savedCareer));
         if (careerDetails.size() > 1) study2.replaceExperienceDetails(List.of(careerDetails.get(1)));
-        study2.replaceSkills(getSkills(List.of("TypeScript", "NestJS", "Redis", "AWS ECS/SQS"), skillMap));
+        study2.replaceSkills(getSkills(List.of("TypeScript", "NestJS", "Redis", "AWS ECS", "Amazon SQS"), skillMap));
         study2.replaceTags(getOrCreateTags(List.of("Backend", "Presence", "Redis", "Telemetry", "SQS")));
         studyRepository.save(study2);
 
@@ -483,7 +499,7 @@ public class SampleDataLoader implements ApplicationRunner {
         ));
         study4.replaceExperiences(List.of(savedCareer));
         if (careerDetails.size() > 2) study4.replaceExperienceDetails(List.of(careerDetails.get(2)));
-        study4.replaceSkills(getSkills(List.of("Java", "Spring Boot", "Redis", "MySQL", "Docker", "Nginx", "Grafana"), skillMap));
+        study4.replaceSkills(getSkills(List.of("Java", "Spring Boot", "Spring Data JPA", "Spring Security", "Redis", "MySQL", "Docker", "Nginx", "Grafana"), skillMap));
         study4.replaceTags(getOrCreateTags(List.of("Backend", "Spring", "Security", "Redis", "Session", "Nginx")));
         studyRepository.save(study4);
 
@@ -500,7 +516,7 @@ public class SampleDataLoader implements ApplicationRunner {
         ));
         study5.replaceExperiences(List.of(savedCareer));
         if (careerDetails.size() > 4) study5.replaceExperienceDetails(List.of(careerDetails.get(4)));
-        study5.replaceSkills(getSkills(List.of("Node.js", "TypeScript", "NestJS", "Docker", "AWS ECS/SQS", "MongoDB"), skillMap));
+        study5.replaceSkills(getSkills(List.of("Node.js", "TypeScript", "NestJS", "Docker", "AWS ECS", "Amazon SQS", "MongoDB"), skillMap));
         study5.replaceTags(getOrCreateTags(List.of("DevOps", "Monorepo", "CLI", "Scaffold", "Infrastructure", "NPM")));
         studyRepository.save(study5);
 
@@ -554,7 +570,7 @@ public class SampleDataLoader implements ApplicationRunner {
         ));
         study8.replaceExperiences(List.of(project1));
         if (project1Details.size() > 2) study8.replaceExperienceDetails(List.of(project1Details.get(2)));
-        study8.replaceSkills(getSkills(List.of("Java", "Spring Boot", "Flyway"), skillMap));
+        study8.replaceSkills(getSkills(List.of("Java", "Spring Boot", "Spring Data JPA", "PostgreSQL", "Flyway"), skillMap));
         study8.replaceTags(getOrCreateTags(List.of("Backend", "Security", "Encryption", "Migration", "HMAC")));
         studyRepository.save(study8);
     }
@@ -575,8 +591,8 @@ public class SampleDataLoader implements ApplicationRunner {
 
     private String inferUsageType(String name) {
         return switch (name) {
-            case "Java", "TypeScript", "Node.js", "NestJS", "Express", "MongoDB", "Redis", "Spring Boot", "AWS ECS/SQS", "Docker", "Datadog" -> "WORK_EXPERIENCE";
-            case "QueryDSL", "Flyway", "Playwright", "n8n", "Nginx", "Docker Compose", "Grafana", "Loki", "Alloy", "FastAPI", "Cosmos DB", "Azure Functions", "Azure OpenAI", "Teams SDK", "Bicep", "IaC", "gRPC", "Kafka", "Kubernetes" -> "PROJECT_USE";
+            case "Java", "TypeScript", "Node.js", "NestJS", "Express", "MongoDB", "Redis", "Spring Boot", "Spring Data JPA", "Spring Security", "MySQL", "AWS ECS", "Amazon SQS", "Docker", "Datadog", "GitHub Actions" -> "WORK_EXPERIENCE";
+            case "QueryDSL", "PostgreSQL", "Flyway", "Playwright", "n8n", "Nginx", "Docker Compose", "Grafana", "Loki", "Alloy", "FastAPI", "Cosmos DB", "Azure Functions", "Azure OpenAI", "Teams SDK", "Bicep", "Infrastructure as Code (IaC)", "gRPC", "Apache Kafka", "KQL", "Azure Log Analytics", "Kubernetes" -> "PROJECT_USE";
             default -> "LEARNING";
         };
     }
@@ -599,6 +615,9 @@ public class SampleDataLoader implements ApplicationRunner {
             case "TypeScript" -> "NestJS, Express, React 기반 서비스 구현에 활용";
             case "Redis" -> "세션, 캐시, 실시간 상태 제어 경험";
             case "Docker" -> "로컬 개발과 배포 환경 컨테이너화에 활용";
+            case "PostgreSQL" -> "CS Test Bed의 운영 데이터 저장소";
+            case "AWS ECS" -> "컨테이너 기반 서비스 배포 및 운영";
+            case "Amazon SQS" -> "비동기 메시징 및 외부 AI 서버 연동";
             case "RAG" -> "AI 면접 질문 생성과 로그 진단 흐름에서 학습 및 적용";
             default -> null;
         };
@@ -652,7 +671,7 @@ public class SampleDataLoader implements ApplicationRunner {
                                 "- BaseInspector 클래스를 설계하여 11개의 규칙을 플러그인 형태로 추가 가능한 구조 확립\n- 4대 진단 영역(Detect, Prevent, Filter, Retain) 정의 및 11개 규칙 인스펙터 구현\n- KQL(Kusto Query Language)과 Azure Resource Graph를 연동하여 최근 24시간 동안의 과금 로그(BilledSize), 테이블별 용량, Quota 정보 수집",
                                 "- 디버그 로그 폭증, 고빈도 노이즈, PII 유출, 과보존 테이블 및 Quota 초과 위험을 실시간으로 감지하고 Markdown 기반의 맞춤 처방 제공\n- Azure Retail Prices API를 실시간 조회하여 리전별 로그 수집 단가를 바탕으로 정밀한 월간 예상 절감 비용 산출 가능",
                                 0,
-                                getSkills(List.of("Python", "SQL", "Optimization"), skillMap)
+                                getSkills(List.of("Python", "SQL", "SQL Query Optimization", "KQL", "Azure Log Analytics"), skillMap)
                         ),
                         detail(
                                 "비동기 Queue Worker 기반의 진단 리포트 수집 및 처리 파이프라인 설계",
@@ -668,7 +687,7 @@ public class SampleDataLoader implements ApplicationRunner {
                                 "- Azure Functions 기반의 가벼운 에이전트 러너(client-back)를 분리 구축하고 18개 최소 읽기 전용 IAM 권한 매핑 설계\n- Nginx auth_request 계층과 HMAC 토큰을 활용한 보안 프록시 설계로 내부 툴들과의 SSO 연동 구현\n- Azure Retail Prices API를 호출하여 위치별 단가를 GB 단위로 캐싱(TTL 24시간) 처리",
                                 "- 고객의 쓰기/삭제 권한 없이 완전 무마취 읽기 전용 진단 프로세스를 성공적으로 안착\n- 개인정보(PII) 등 민감 데이터가 게이트웨이 단계에서 즉시 마스킹되고 마스킹 유형 및 건수만 본 서버로 전송되도록 하드닝 구현",
                                 2,
-                                getSkills(List.of("Azure Functions", "Bicep", "IaC"), skillMap)
+                                getSkills(List.of("Azure Functions", "Bicep", "Infrastructure as Code (IaC)"), skillMap)
                         ),
                         detail(
                                 "Microsoft Teams 챗봇을 통한 알림 발송 및 사용자 진단 대시보드 연동",
@@ -679,7 +698,8 @@ public class SampleDataLoader implements ApplicationRunner {
                                 getSkills(List.of("Teams SDK"), skillMap)
                         )
                 ),
-                getSkills(List.of("Python", "FastAPI", "Cosmos DB", "Azure OpenAI", "Teams SDK", "Bicep", "IaC", "Azure Functions", "Nginx", "Docker Compose", "Grafana", "Loki", "Alloy"), skillMap),
+                getSkills(List.of("Python", "FastAPI", "Cosmos DB", "Azure OpenAI", "Teams SDK", "KQL", "Azure Log Analytics", "Bicep", "Infrastructure as Code (IaC)", "Azure Functions", "Nginx", "Docker Compose", "Grafana", "Loki", "Alloy"), skillMap),
+                true, "LogDr.",
                 "project-log-doctor",
                 "Fullstack & Cloud Developer",
                 70
@@ -703,7 +723,7 @@ public class SampleDataLoader implements ApplicationRunner {
         if (doctorDetails.size() > 2) {
             study1.replaceExperienceDetails(List.of(doctorDetails.get(0), doctorDetails.get(2)));
         }
-        study1.replaceSkills(getSkills(List.of("SQL", "DB Modeling", "Optimization", "Bicep", "IaC"), skillMap));
+        study1.replaceSkills(getSkills(List.of("SQL", "Database Modeling", "SQL Query Optimization", "KQL", "Azure Log Analytics", "Bicep", "Infrastructure as Code (IaC)"), skillMap));
         study1.replaceTags(getOrCreateTags(List.of("Cloud", "Azure", "Cost Optimization", "KQL")));
         studyRepository.save(study1);
 
