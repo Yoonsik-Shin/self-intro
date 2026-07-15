@@ -31,7 +31,7 @@ import { markdownComponents, resumeMarkdownComponents } from './lib/markdown';
 import { SkillBadgeIcon } from './lib/SkillBadgeIcon';
 import { navigate, pagePaths, pathForExperienceDetail, pathForStudy } from './lib/navigation';
 
-const KAKAOPAY_DONATION_URL = 'https://qr.kakaopay.com/YOUR_CODE';
+const KAKAOPAY_DONATION_URL = 'https://qr.kakaopay.com/FeffjrNnk2ee02128';
 
 const milestones = [
   {
