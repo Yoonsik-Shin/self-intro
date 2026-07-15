@@ -1,6 +1,27 @@
 export type StudyStatus = 'DRAFT' | 'PUBLISHED';
 export type StudyRelationType = 'RELATED' | 'PREREQUISITE' | 'FOLLOW_UP' | 'APPLIED_TO';
 
+export type ImageScope = 'STUDY_GALLERY' | 'EXPERIENCE_GALLERY' | 'STUDY_MARKDOWN';
+
+export type GalleryImage = {
+  id?: number;
+  objectKey: string;
+  url: string;
+  displayOrder: number;
+};
+
+export type GalleryImageRequest = {
+  id?: number | null;
+  objectKey: string;
+  displayOrder: number;
+};
+
+export type PresignedUploadResponse = {
+  objectKey: string;
+  uploadUrl: string;
+  publicUrl: string;
+};
+
 export type StudyCategory = {
   id: number;
   name: string;
@@ -27,6 +48,7 @@ export type Study = {
   experiences: Array<Pick<Experience, 'id' | 'type' | 'title'>>;
   experienceDetails: Array<{ id: number; content: string; experienceId: number; experienceTitle: string }>;
   relatedStudies: Array<Pick<Study, 'id' | 'slug' | 'title'> & { type: StudyRelationType }>;
+  images: GalleryImage[];
   learnedAt: string;
   publishedAt?: string;
   createdAt: string;
@@ -45,6 +67,7 @@ export type StudyRequest = {
   experienceIds: number[];
   experienceDetailIds: number[];
   relatedStudies: Array<{ studyId: number; type: StudyRelationType }>;
+  images: GalleryImageRequest[];
   learnedAt: string;
   publishedAt?: string | null;
 };
@@ -110,6 +133,7 @@ export type Experience = {
   details: ExperienceDetail[];
   skills: Skill[];
   tags: Tag[];
+  images: GalleryImage[];
 
   // Career specific
   companyName?: string;
@@ -225,6 +249,12 @@ export type VisitorSummary = {
 
 export type VisitorDaily = {
   date: string;
+  visitors: number;
+  pageViews: number;
+};
+
+export type VisitorHourly = {
+  hour: number;
   visitors: number;
   pageViews: number;
 };
@@ -400,6 +430,29 @@ export const studyApi = {
     }),
 };
 
+export const imageApi = {
+  requestPresignedUpload: (scope: ImageScope, fileName: string, contentType: string) =>
+    request<PresignedUploadResponse>('/api/admin/images/presigned-upload', {
+      method: 'POST',
+      body: JSON.stringify({ scope, fileName, contentType }),
+    }),
+  // Uploads directly to object storage, not through the backend — no XSRF header, no
+  // credentials, no API_BASE_URL prefix, since the presigned URL is a different origin.
+  uploadToPresignedUrl: async (uploadUrl: string, file: File): Promise<void> => {
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
+    if (!response.ok) {
+      throw new ApiError(response.status, `이미지 업로드에 실패했습니다: ${response.status}`);
+    }
+  },
+};
+
 export const authApi = {
   login: (username: string, password: string) =>
     request<void>('/api/auth/login', {
@@ -458,6 +511,8 @@ export const visitorApi = {
     const query = search.toString();
     return request<VisitorDaily[]>(`/api/admin/visits/daily${query ? `?${query}` : ''}`);
   },
+  adminHourly: (date?: string) =>
+    request<VisitorHourly[]>(`/api/admin/visits/hourly${date ? `?date=${date}` : ''}`),
 };
 
 export const profileApi = {
@@ -509,6 +564,7 @@ export type ExperienceRequest = {
   details: ExperienceDetailRequest[];
   skillIds: number[];
   tagNames: string[];
+  images: GalleryImageRequest[];
   companyName?: string;
   employmentType?: string;
   department?: string;

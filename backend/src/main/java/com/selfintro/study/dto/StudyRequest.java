@@ -21,6 +21,7 @@ public record StudyRequest(
         List<Long> experienceIds,
         List<Long> experienceDetailIds,
         List<@Valid StudyRelationRequest> relatedStudies,
+        List<@Valid StudyImageRequest> images,
         @NotNull LocalDate learnedAt,
         LocalDateTime publishedAt
 ) {

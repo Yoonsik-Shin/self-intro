@@ -78,6 +78,18 @@ export function StudyDetailPanel({ study, onBack, onEdit, onDelete }: StudyDetai
 
       <div className="grid gap-8 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(0,1fr)_260px] lg:py-8">
         <div className="min-w-0">
+          {study.images.length > 0 && (
+            <div className="mb-6 flex flex-wrap gap-3">
+              {[...study.images].sort((a, b) => a.displayOrder - b.displayOrder).map((image) => (
+                <img
+                  key={image.objectKey}
+                  src={image.url}
+                  alt=""
+                  className="h-28 w-28 rounded-xl border border-slate-200 object-cover"
+                />
+              ))}
+            </div>
+          )}
           <div className="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3">
             <BookOpen className="h-4 w-4 text-slate-500" />
             <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">학습 내용</h4>

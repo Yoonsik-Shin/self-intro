@@ -26,6 +26,7 @@ import {
   Users,
   MousePointerClick,
   CalendarDays,
+  Clock,
   Sparkles
 } from 'lucide-react';
 import {
@@ -44,17 +45,20 @@ import {
   type ExperienceRequest,
   type ExperienceDetailRequest,
   type ExperienceConnections,
-  type IntroductionResponse
+  type IntroductionResponse,
+  type GalleryImage
 } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { MarkdownEditor } from './MarkdownEditor';
 import { ExperienceDetailPanel } from './ExperienceDetailPanel';
 import { SkillGroupSection } from './SkillGroupSection';
 import { StudyDetailPanel } from './StudyDetailPanel';
+import { ImageGalleryEditor } from './ImageGalleryEditor';
 import { getSkillCategoryPresentation, skillCategoryPresentations } from './skillPresentation';
 import { SkillBadgeIcon } from '../lib/SkillBadgeIcon';
 import { findSkillBadge, recommendSkillBadge, skillBadgeOptions } from '../lib/skillBadges';
 import { CompetencyManagement } from './CompetencyManagement';
+import { VisitorHourlyChart, VisitorTrendChart } from './VisitorCharts';
 
 type TabId = 'ANALYTICS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE';
 
@@ -73,7 +77,7 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-type StudyForm = Omit<StudyRequest, 'tagNames'> & { tagNames: string };
+type StudyForm = Omit<StudyRequest, 'tagNames' | 'images'> & { tagNames: string; images: GalleryImage[] };
 
 const emptyStudyForm: StudyForm = {
   slug: '',
@@ -87,6 +91,7 @@ const emptyStudyForm: StudyForm = {
   experienceIds: [],
   experienceDetailIds: [],
   relatedStudies: [],
+  images: [],
   learnedAt: new Date().toISOString().split('T')[0],
   publishedAt: null,
 };
@@ -94,6 +99,7 @@ const emptyStudyForm: StudyForm = {
 const toStudyRequest = (form: StudyForm): StudyRequest => ({
   ...form,
   tagNames: form.tagNames.split(',').map((tag) => tag.trim()).filter(Boolean),
+  images: form.images.map(({ id, objectKey, displayOrder }) => ({ id, objectKey, displayOrder })),
 });
 
 const emptyProfileForm = {
@@ -138,9 +144,10 @@ const skillUsageOptions = [
 
 type AdminExperienceDetailForm = ExperienceDetailRequest & { studyIds: number[] };
 
-type AdminExperienceForm = Omit<ExperienceRequest, 'details' | 'tagNames'> & {
+type AdminExperienceForm = Omit<ExperienceRequest, 'details' | 'tagNames' | 'images'> & {
   details: AdminExperienceDetailForm[];
   tagNames: string;
+  images: GalleryImage[];
   studyIds: number[];
   relatedExperienceIds: number[];
 };
@@ -159,6 +166,7 @@ const emptyExperienceForm: AdminExperienceForm = {
   details: [],
   skillIds: [] as number[],
   tagNames: '',
+  images: [],
   companyName: '',
   employmentType: '정규직',
   department: '',
@@ -263,6 +271,12 @@ export function AdminDashboard() {
   const { data: visitorDaily = [], isLoading: isVisitorDailyLoading } = useQuery({
     queryKey: ['visitor', 'admin', 'daily', visitorDateRange.from, visitorDateRange.to],
     queryFn: () => visitorApi.adminDaily(visitorDateRange.from, visitorDateRange.to),
+    enabled: activeTab === 'ANALYTICS',
+  });
+
+  const { data: visitorHourly = [], isLoading: isVisitorHourlyLoading } = useQuery({
+    queryKey: ['visitor', 'admin', 'hourly', visitorDateRange.to],
+    queryFn: () => visitorApi.adminHourly(visitorDateRange.to),
     enabled: activeTab === 'ANALYTICS',
   });
 
@@ -494,6 +508,7 @@ export function AdminDashboard() {
       experienceIds: study.experiences.map((experience) => experience.id),
       experienceDetailIds: study.experienceDetails.map((detail) => detail.id),
       relatedStudies: study.relatedStudies.map((related) => ({ studyId: related.id, type: related.type })),
+      images: study.images,
       learnedAt: study.learnedAt,
       publishedAt: study.publishedAt ?? null,
     });
@@ -771,6 +786,7 @@ export function AdminDashboard() {
       details: expForm.details.map(({ studyIds: _studyIds, ...detail }) => detail),
       skillIds: expForm.skillIds,
       tagNames: expForm.tagNames.split(',').map((tag) => tag.trim()).filter(Boolean),
+      images: expForm.images.map(({ id, objectKey, displayOrder }) => ({ id, objectKey, displayOrder })),
       companyName: expForm.type === 'CAREER' ? expForm.companyName : undefined,
       employmentType: expForm.type === 'CAREER' ? expForm.employmentType : undefined,
       department: expForm.type === 'CAREER' ? expForm.department : undefined,
@@ -824,6 +840,7 @@ export function AdminDashboard() {
         })),
         skillIds: experience.skills?.map((skill) => skill.id) ?? [],
         tagNames: experience.tags?.map((tag) => tag.name).join(', ') ?? '',
+        images: experience.images ?? [],
         companyName: experience.companyName ?? '',
         employmentType: experience.employmentType ?? '정규직',
         department: experience.department ?? '',
@@ -964,6 +981,7 @@ export function AdminDashboard() {
         })),
         skills: resolveSkills(expForm.skillIds),
         tags: expForm.tagNames.split(',').map((name) => name.trim()).filter(Boolean).map((name) => ({ id: -1, name, slug: name })),
+        images: expForm.images,
         companyName: expForm.type === 'CAREER' ? expForm.companyName : undefined,
         employmentType: expForm.type === 'CAREER' ? expForm.employmentType : undefined,
         department: expForm.type === 'CAREER' ? expForm.department : undefined,
@@ -1280,6 +1298,25 @@ export function AdminDashboard() {
                 ))}
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                  <div>
+                    <h3 className="font-black text-slate-900">오늘 시간대별</h3>
+                    <p className="mt-0.5 text-xs font-medium text-slate-400">
+                      {visitorDateRange.to} · 0시 ~ 23시
+                    </p>
+                  </div>
+                  <Clock className="h-5 w-5 text-slate-400" />
+                </div>
+                <div className="px-5 pb-5 pt-4">
+                  {isVisitorHourlyLoading ? (
+                    <p className="py-10 text-center text-sm font-semibold text-slate-400">통계를 불러오는 중입니다.</p>
+                  ) : (
+                    <VisitorHourlyChart data={visitorHourly} />
+                  )}
+                </div>
+              </div>
+
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                   <div>
@@ -1289,6 +1326,13 @@ export function AdminDashboard() {
                     </p>
                   </div>
                   <BarChart3 className="h-5 w-5 text-slate-400" />
+                </div>
+                <div className="border-b border-slate-200 px-5 pb-5 pt-4">
+                  {isVisitorDailyLoading ? (
+                    <p className="py-10 text-center text-sm font-semibold text-slate-400">통계를 불러오는 중입니다.</p>
+                  ) : (
+                    <VisitorTrendChart data={visitorDaily} />
+                  )}
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[520px] text-left text-sm">
@@ -1616,10 +1660,20 @@ export function AdminDashboard() {
                   </div>
 
                   <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이미지</label>
+                    <ImageGalleryEditor
+                      scope="STUDY_GALLERY"
+                      images={studyForm.images}
+                      onChange={(images) => setStudyForm({ ...studyForm, images })}
+                    />
+                  </div>
+
+                  <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Markdown 본문</label>
                     <MarkdownEditor
                       value={studyForm.contentMarkdown}
                       onChange={(contentMarkdown) => setStudyForm({ ...studyForm, contentMarkdown })}
+                      enableImageUpload
                     />
                   </div>
 
@@ -2542,6 +2596,15 @@ export function AdminDashboard() {
                       />
                     </div>
                   )}
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이미지</label>
+                    <ImageGalleryEditor
+                      scope="EXPERIENCE_GALLERY"
+                      images={expForm.images}
+                      onChange={(images) => setExpForm({ ...expForm, images })}
+                    />
+                  </div>
 
                   {/* Common Text Areas */}
                   <div>

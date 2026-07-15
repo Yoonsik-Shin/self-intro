@@ -5,6 +5,7 @@ import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.study.entity.Tag;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Function;
 
 public record ExperienceResponse(
     Long id,
@@ -21,6 +22,7 @@ public record ExperienceResponse(
     List<ExperienceDetailResponse> details,
     List<SkillResponse> skills,
     List<TagResponse> tags,
+    List<ImageResponse> images,
 
     // Career
     String companyName,
@@ -39,7 +41,7 @@ public record ExperienceResponse(
     // Certificate
     String issuer
 ) {
-    public static ExperienceResponse from(Experience exp) {
+    public static ExperienceResponse from(Experience exp, Function<String, String> imageUrlResolver) {
         List<ExperienceDetailResponse> detailResponses = exp.getDetails().stream()
             .map(ExperienceDetailResponse::from)
             .toList();
@@ -49,13 +51,16 @@ public record ExperienceResponse(
         List<TagResponse> tagResponses = exp.getTags().stream()
             .map(TagResponse::from)
             .toList();
+        List<ImageResponse> imageResponses = exp.getImages().stream()
+            .map(image -> ImageResponse.from(image, imageUrlResolver))
+            .toList();
 
         if (exp instanceof Career career) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
-                detailResponses, skillResponses, tagResponses,
+                detailResponses, skillResponses, tagResponses, imageResponses,
                 career.getCompanyName(), career.getEmploymentType(), career.getDepartment(), career.getRole(),
                 null, null, null, null, null
             );
@@ -64,7 +69,7 @@ public record ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
-                detailResponses, skillResponses, tagResponses,
+                detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, project.getRole(),
                 project.getSlug(), project.getContributionRate(), project.getRepositoryUrl(), null, null
             );
@@ -73,7 +78,7 @@ public record ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
-                detailResponses, skillResponses, tagResponses,
+                detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, null,
                 null, null, null, edu.getInstitutionName(), null
             );
@@ -82,7 +87,7 @@ public record ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
-                detailResponses, skillResponses, tagResponses,
+                detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, null,
                 null, null, null, null, cert.getIssuer()
             );
@@ -93,6 +98,12 @@ public record ExperienceResponse(
     public record TagResponse(Long id, String name, String slug) {
         public static TagResponse from(Tag tag) {
             return new TagResponse(tag.getId(), tag.getName(), tag.getSlug());
+        }
+    }
+
+    public record ImageResponse(Long id, String objectKey, String url, int displayOrder) {
+        public static ImageResponse from(ExperienceImage image, Function<String, String> imageUrlResolver) {
+            return new ImageResponse(image.getId(), image.getObjectKey(), imageUrlResolver.apply(image.getObjectKey()), image.getDisplayOrder());
         }
     }
 }

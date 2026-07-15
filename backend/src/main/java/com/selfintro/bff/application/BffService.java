@@ -36,7 +36,7 @@ public class BffService {
             .orElse(null);
 
         List<ExperienceResponse> experiences = experienceService.getAllExperiences().stream()
-            .map(ExperienceResponse::from)
+            .map(experienceService::toResponse)
             .toList();
 
         List<SkillResponse> skills = skillService.getAllSkills().stream()

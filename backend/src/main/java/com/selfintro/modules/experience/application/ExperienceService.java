@@ -4,7 +4,10 @@ import com.selfintro.modules.experience.domain.*;
 import com.selfintro.modules.skill.domain.Skill;
 import com.selfintro.modules.skill.domain.SkillRepository;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailRequest;
+import com.selfintro.modules.experience.presentation.dto.ExperienceImageRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceRequest;
+import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
+import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.study.entity.Tag;
 import com.selfintro.study.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +30,18 @@ public class ExperienceService {
     private final ExperienceRepository experienceRepository;
     private final SkillRepository skillRepository;
     private final TagRepository tagRepository;
+    private final StorageService storageService;
 
     public List<Experience> getAllExperiences() {
         return experienceRepository.findAllByOrderByDisplayOrderAsc();
     }
 
+    public ExperienceResponse toResponse(Experience experience) {
+        return ExperienceResponse.from(experience, storageService::toPublicUrl);
+    }
+
     @Transactional
-    public Experience create(ExperienceRequest request) {
+    public ExperienceResponse create(ExperienceRequest request) {
         List<Skill> skills = request.skillIds() != null
             ? skillRepository.findAllById(request.skillIds())
             : List.of();
@@ -65,13 +73,14 @@ public class ExperienceService {
             default -> throw new IllegalArgumentException("지원하지 않는 이력서 서브타입입니다: " + request.type());
         }
 
+        exp.reconcileImages(toImageDrafts(request.images()));
         Experience saved = experienceRepository.save(exp);
         saved.replaceTags(resolveTags(request.tagNames()));
-        return saved;
+        return toResponse(saved);
     }
 
     @Transactional
-    public Experience update(Long id, ExperienceRequest request) {
+    public ExperienceResponse update(Long id, ExperienceRequest request) {
         Experience exp = experienceRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력서 항목입니다."));
 
@@ -106,21 +115,39 @@ public class ExperienceService {
                 request.issuer()
             );
         } else {
-            // 서브타입이 달라지는 경우 기존 항목을 삭제하고 새로 생성
+            // 서브타입이 달라지는 경우 기존 항목을 삭제하고 새로 생성 (이미지도 함께 정리)
+            List<String> orphanedImageKeys = exp.getImages().stream().map(ExperienceImage::getObjectKey).toList();
             experienceRepository.delete(exp);
+            storageService.deleteAll(orphanedImageKeys);
             return create(request);
         }
 
         exp.replaceTags(resolveTags(request.tagNames()));
-        return experienceRepository.save(exp);
+
+        List<ExperienceImage.Draft> imageDrafts = toImageDrafts(request.images());
+        List<String> removedImageKeys = exp.imageObjectKeysNotIn(imageDrafts);
+        exp.reconcileImages(imageDrafts);
+        Experience saved = experienceRepository.save(exp);
+        storageService.deleteAll(removedImageKeys);
+        return toResponse(saved);
     }
 
     @Transactional
     public void delete(Long id) {
-        if (!experienceRepository.existsById(id)) {
-            throw new IllegalArgumentException("존재하지 않는 이력서 항목입니다.");
+        Experience exp = experienceRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력서 항목입니다."));
+        List<String> objectKeys = exp.getImages().stream().map(ExperienceImage::getObjectKey).toList();
+        experienceRepository.delete(exp);
+        storageService.deleteAll(objectKeys);
+    }
+
+    private List<ExperienceImage.Draft> toImageDrafts(List<ExperienceImageRequest> imageRequests) {
+        if (imageRequests == null) {
+            return List.of();
         }
-        experienceRepository.deleteById(id);
+        return IntStream.range(0, imageRequests.size())
+            .mapToObj(i -> new ExperienceImage.Draft(imageRequests.get(i).id(), imageRequests.get(i).objectKey(), i))
+            .toList();
     }
 
     private String normalizeOptionalText(String value) {

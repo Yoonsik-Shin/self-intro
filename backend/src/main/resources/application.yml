@@ -66,6 +66,19 @@ app:
       max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:4096}
       # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환함 (지원 모델에서만 true)
       json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
+  storage:
+    endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
+    # 브라우저가 presigned URL로 직접 PUT할 때 접속할 호스트. 로컬(docker-compose)처럼
+    # 백엔드 컨테이너와 브라우저가 서로 다른 호스트명으로 접근해야 할 때만 endpoint와
+    # 다르게 지정하고, 그 외(운영)에는 endpoint와 동일하므로 값을 지정하지 않아도 된다.
+    presigned-endpoint: ${STORAGE_PRESIGNED_ENDPOINT:${STORAGE_ENDPOINT:http://localhost:9000}}
+    region: ${STORAGE_REGION:us-east-1}
+    bucket: ${STORAGE_BUCKET:self-intro-images}
+    access-key: ${STORAGE_ACCESS_KEY:minioadmin}
+    secret-key: ${STORAGE_SECRET_KEY:minioadmin}
+    path-style-access: ${STORAGE_PATH_STYLE_ACCESS:true}
+    presigned-upload-ttl-seconds: ${STORAGE_PRESIGNED_TTL_SECONDS:300}
+    public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:9000/self-intro-images}
 
 server:
   port: ${SERVER_PORT:8080}

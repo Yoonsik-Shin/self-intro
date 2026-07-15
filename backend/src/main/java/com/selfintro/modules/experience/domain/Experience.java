@@ -71,6 +71,11 @@ public abstract class Experience {
     @OrderBy("name ASC")
     private List<Tag> tags = new ArrayList<>();
 
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "experience_id")
+    @OrderBy("displayOrder ASC")
+    private List<ExperienceImage> images = new ArrayList<>();
+
     protected Experience() {
         // JPA standard constructor
     }
@@ -155,6 +160,30 @@ public abstract class Experience {
         }
     }
 
+    public List<String> imageObjectKeysNotIn(List<ExperienceImage.Draft> incoming) {
+        return images.stream()
+            .filter(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())))
+            .map(ExperienceImage::getObjectKey)
+            .toList();
+    }
+
+    public void reconcileImages(List<ExperienceImage.Draft> incoming) {
+        images.removeIf(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())));
+
+        for (ExperienceImage.Draft draft : incoming) {
+            if (draft.id() != null) {
+                images.stream()
+                    .filter(existing -> draft.id().equals(existing.getId()))
+                    .findFirst()
+                    .ifPresent(existing -> existing.updateDisplayOrder(draft.displayOrder()));
+            } else {
+                images.add(ExperienceImage.create(draft.objectKey(), draft.displayOrder()));
+            }
+        }
+
+        images.sort(java.util.Comparator.comparingInt(ExperienceImage::getDisplayOrder));
+    }
+
     // Getters
     public Long getId() { return id; }
     public String getType() { return type; }
@@ -170,4 +199,5 @@ public abstract class Experience {
     public List<ExperienceDetail> getDetails() { return details; }
     public List<Skill> getSkills() { return skills; }
     public List<Tag> getTags() { return tags; }
+    public List<ExperienceImage> getImages() { return images; }
 }

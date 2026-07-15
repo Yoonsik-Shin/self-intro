@@ -16,6 +16,7 @@ public record ExperienceRequest(
     List<ExperienceDetailRequest> details, // Bullet points with per-item detail content
     List<Long> skillIds,  // Mapping to Skill entities
     List<@NotBlank @Size(max = 80) String> tagNames,
+    List<ExperienceImageRequest> images,
     boolean showOnTimeline,
     @Size(max = 60) String timelineLabel,
 

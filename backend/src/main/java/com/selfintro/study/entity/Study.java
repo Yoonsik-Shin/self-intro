@@ -94,6 +94,11 @@ public class Study {
     @OrderBy("displayOrder ASC")
     private List<StudyRelation> relations = new ArrayList<>();
 
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "study_id")
+    @OrderBy("displayOrder ASC")
+    private List<StudyImage> images = new ArrayList<>();
+
     @Column(name = "learned_at", nullable = false)
     private LocalDate learnedAt;
 
@@ -199,5 +204,29 @@ public class Study {
         } else if (!linked && alreadyLinked) {
             experienceDetails.removeIf(value -> value.getId().equals(detail.getId()));
         }
+    }
+
+    public List<String> imageObjectKeysNotIn(List<StudyImage.Draft> incoming) {
+        return images.stream()
+                .filter(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())))
+                .map(StudyImage::getObjectKey)
+                .toList();
+    }
+
+    public void reconcileImages(List<StudyImage.Draft> incoming) {
+        images.removeIf(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())));
+
+        for (StudyImage.Draft draft : incoming) {
+            if (draft.id() != null) {
+                images.stream()
+                        .filter(existing -> draft.id().equals(existing.getId()))
+                        .findFirst()
+                        .ifPresent(existing -> existing.updateDisplayOrder(draft.displayOrder()));
+            } else {
+                images.add(StudyImage.create(draft.objectKey(), draft.displayOrder()));
+            }
+        }
+
+        images.sort(java.util.Comparator.comparingInt(StudyImage::getDisplayOrder));
     }
 }

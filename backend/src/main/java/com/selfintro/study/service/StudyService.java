@@ -6,12 +6,15 @@ import com.selfintro.modules.experience.domain.ExperienceDetailRepository;
 import com.selfintro.modules.experience.domain.ExperienceRepository;
 import com.selfintro.modules.skill.domain.Skill;
 import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.storage.application.StorageService;
+import com.selfintro.study.dto.StudyImageRequest;
 import com.selfintro.study.dto.StudyPageResponse;
 import com.selfintro.study.dto.StudyRelationRequest;
 import com.selfintro.study.dto.StudyRequest;
 import com.selfintro.study.dto.StudyResponse;
 import com.selfintro.study.entity.Study;
 import com.selfintro.study.entity.StudyCategory;
+import com.selfintro.study.entity.StudyImage;
 import com.selfintro.study.entity.StudyRelation;
 import com.selfintro.study.entity.StudyStatus;
 import com.selfintro.study.entity.Tag;
@@ -27,6 +30,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -45,6 +49,7 @@ public class StudyService {
     private final SkillRepository skillRepository;
     private final ExperienceRepository experienceRepository;
     private final ExperienceDetailRepository experienceDetailRepository;
+    private final StorageService storageService;
 
     public StudyPageResponse searchPublished(String keyword, String category, List<String> tags,
                                              List<Long> skillIds, List<Long> experienceIds,
@@ -68,7 +73,7 @@ public class StudyService {
         Page<StudyResponse> result = studyRepository.search(
                         new StudySearchCondition(keyword, category, tags, skillIds, experienceIds, experienceDetailIds, status),
                         PageRequest.of(Math.max(page, 0), safeSize))
-                .map(StudyResponse::from);
+                .map(this::toResponse);
         return StudyPageResponse.from(result);
     }
 
@@ -76,7 +81,11 @@ public class StudyService {
         Study study = studyRepository.findBySlug(slug)
                 .filter(value -> value.getStatus() == StudyStatus.PUBLISHED)
                 .orElseThrow(() -> new EntityNotFoundException("Study not found: " + slug));
-        return StudyResponse.from(study);
+        return toResponse(study);
+    }
+
+    private StudyResponse toResponse(Study study) {
+        return StudyResponse.from(study, storageService::toPublicUrl);
     }
 
     public List<StudyResponse.CategoryResponse> findCategories() {
@@ -99,10 +108,11 @@ public class StudyService {
         Study study = Study.create(slug, request.title().trim(), request.summary().trim(),
                 request.contentMarkdown(), request.status(), category, request.learnedAt(), publishedAt);
 
-        applyAssociations(study, request);
+        List<String> removedImageKeys = applyAssociations(study, request);
         Study saved = studyRepository.save(study);
         applyRelations(saved, request.relatedStudies());
-        return StudyResponse.from(saved);
+        storageService.deleteAll(removedImageKeys);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -115,16 +125,19 @@ public class StudyService {
 
         study.update(slug, request.title().trim(), request.summary().trim(), request.contentMarkdown(),
                 request.status(), category, request.learnedAt(), publishedAt);
-        applyAssociations(study, request);
+        List<String> removedImageKeys = applyAssociations(study, request);
         applyRelations(study, request.relatedStudies());
-        return StudyResponse.from(study);
+        storageService.deleteAll(removedImageKeys);
+        return toResponse(study);
     }
 
     @Transactional
     public void delete(Long id) {
         Study study = studyRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
+        List<String> objectKeys = study.getImages().stream().map(StudyImage::getObjectKey).toList();
         studyRepository.delete(study);
+        storageService.deleteAll(objectKeys);
     }
 
     private StudyCategory findCategory(Long id) {
@@ -132,7 +145,7 @@ public class StudyService {
                 .orElseThrow(() -> new EntityNotFoundException("Study category not found: " + id));
     }
 
-    private void applyAssociations(Study study, StudyRequest request) {
+    private List<String> applyAssociations(Study study, StudyRequest request) {
         study.replaceTags(resolveTags(request.tagNames()));
         List<Skill> skills = request.skillIds() == null ? List.of() : skillRepository.findAllById(request.skillIds());
         List<Experience> experiences = request.experienceIds() == null
@@ -142,6 +155,20 @@ public class StudyService {
         study.replaceSkills(skills);
         study.replaceExperiences(experiences);
         study.replaceExperienceDetails(experienceDetails);
+
+        List<StudyImage.Draft> imageDrafts = toImageDrafts(request.images());
+        List<String> removedImageKeys = study.imageObjectKeysNotIn(imageDrafts);
+        study.reconcileImages(imageDrafts);
+        return removedImageKeys;
+    }
+
+    private List<StudyImage.Draft> toImageDrafts(List<StudyImageRequest> imageRequests) {
+        if (imageRequests == null) {
+            return List.of();
+        }
+        return IntStream.range(0, imageRequests.size())
+                .mapToObj(i -> new StudyImage.Draft(imageRequests.get(i).id(), imageRequests.get(i).objectKey(), i))
+                .toList();
     }
 
     private List<Tag> resolveTags(List<String> tagNames) {

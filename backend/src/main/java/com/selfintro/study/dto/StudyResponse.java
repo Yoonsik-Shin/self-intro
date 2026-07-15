@@ -4,12 +4,14 @@ import com.selfintro.modules.experience.domain.Experience;
 import com.selfintro.modules.experience.domain.ExperienceDetail;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.study.entity.Study;
+import com.selfintro.study.entity.StudyImage;
 import com.selfintro.study.entity.StudyRelation;
 import com.selfintro.study.entity.StudyRelationType;
 import com.selfintro.study.entity.StudyStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Function;
 
 public record StudyResponse(
         Long id,
@@ -24,12 +26,13 @@ public record StudyResponse(
         List<ExperienceReferenceResponse> experiences,
         List<ExperienceDetailReferenceResponse> experienceDetails,
         List<RelatedStudyResponse> relatedStudies,
+        List<ImageResponse> images,
         LocalDate learnedAt,
         LocalDateTime publishedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static StudyResponse from(Study study) {
+    public static StudyResponse from(Study study, Function<String, String> imageUrlResolver) {
         return new StudyResponse(
                 study.getId(),
                 study.getSlug(),
@@ -43,10 +46,17 @@ public record StudyResponse(
                 study.getExperiences().stream().map(ExperienceReferenceResponse::from).toList(),
                 study.getExperienceDetails().stream().map(ExperienceDetailReferenceResponse::from).toList(),
                 study.getRelations().stream().map(RelatedStudyResponse::from).toList(),
+                study.getImages().stream().map(image -> ImageResponse.from(image, imageUrlResolver)).toList(),
                 study.getLearnedAt(),
                 study.getPublishedAt(),
                 study.getCreatedAt(),
                 study.getUpdatedAt());
+    }
+
+    public record ImageResponse(Long id, String objectKey, String url, int displayOrder) {
+        public static ImageResponse from(StudyImage image, Function<String, String> imageUrlResolver) {
+            return new ImageResponse(image.getId(), image.getObjectKey(), imageUrlResolver.apply(image.getObjectKey()), image.getDisplayOrder());
+        }
     }
 
     public record CategoryResponse(Long id, String name, String slug, int displayOrder) {

@@ -99,6 +99,19 @@ export function ExperienceDetailPanel({ experience, onBack, onEdit, onDelete }: 
 
       <div className="grid gap-8 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(0,1fr)_260px] lg:py-8">
         <div className="min-w-0 space-y-8">
+          {experience.images.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {[...experience.images].sort((a, b) => a.displayOrder - b.displayOrder).map((image) => (
+                <img
+                  key={image.objectKey}
+                  src={image.url}
+                  alt=""
+                  className="h-28 w-28 rounded-xl border border-slate-200 object-cover"
+                />
+              ))}
+            </div>
+          )}
+
           {experience.takeaway && (
             <section className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
               <h4 className="text-xs font-black uppercase tracking-wider text-emerald-700">핵심 성과 및 배운 점</h4>

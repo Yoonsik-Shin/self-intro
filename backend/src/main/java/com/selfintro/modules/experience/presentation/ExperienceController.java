@@ -19,19 +19,19 @@ public class ExperienceController {
     @GetMapping
     public ResponseEntity<List<ExperienceResponse>> list() {
         List<ExperienceResponse> responses = experienceService.getAllExperiences().stream()
-            .map(ExperienceResponse::from)
+            .map(experienceService::toResponse)
             .toList();
         return ResponseEntity.ok(responses);
     }
 
     @PostMapping
     public ResponseEntity<ExperienceResponse> create(@Valid @RequestBody ExperienceRequest request) {
-        return ResponseEntity.ok(ExperienceResponse.from(experienceService.create(request)));
+        return ResponseEntity.ok(experienceService.create(request));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ExperienceResponse> update(@PathVariable Long id, @Valid @RequestBody ExperienceRequest request) {
-        return ResponseEntity.ok(ExperienceResponse.from(experienceService.update(id, request)));
+        return ResponseEntity.ok(experienceService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
