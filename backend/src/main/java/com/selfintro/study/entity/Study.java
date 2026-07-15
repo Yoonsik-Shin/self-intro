@@ -173,4 +173,31 @@ public class Study {
         }
         relations.sort(java.util.Comparator.comparingInt(StudyRelation::getDisplayOrder));
     }
+
+    public void setSkillLinked(Skill skill, boolean linked) {
+        boolean alreadyLinked = skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
+        if (linked && !alreadyLinked) {
+            skills.add(skill);
+        } else if (!linked && alreadyLinked) {
+            skills.removeIf(value -> value.getId().equals(skill.getId()));
+        }
+    }
+
+    public void setExperienceLinked(Experience experience, boolean linked) {
+        boolean alreadyLinked = experiences.stream().anyMatch(value -> value.getId().equals(experience.getId()));
+        if (linked && !alreadyLinked) {
+            experiences.add(experience);
+        } else if (!linked && alreadyLinked) {
+            experiences.removeIf(value -> value.getId().equals(experience.getId()));
+        }
+    }
+
+    public void setExperienceDetailLinked(ExperienceDetail detail, boolean linked) {
+        boolean alreadyLinked = experienceDetails.stream().anyMatch(value -> value.getId().equals(detail.getId()));
+        if (linked && !alreadyLinked) {
+            experienceDetails.add(detail);
+        } else if (!linked && alreadyLinked) {
+            experienceDetails.removeIf(value -> value.getId().equals(detail.getId()));
+        }
+    }
 }

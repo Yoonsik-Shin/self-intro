@@ -80,6 +80,15 @@ public class ExperienceDetail {
         }
     }
 
+    public void setSkillLinked(Skill skill, boolean linked) {
+        boolean alreadyLinked = skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
+        if (linked && !alreadyLinked) {
+            skills.add(skill);
+        } else if (!linked && alreadyLinked) {
+            skills.removeIf(value -> value.getId().equals(skill.getId()));
+        }
+    }
+
     // Getters
     public Long getId() { return id; }
     public Experience getExperience() { return experience; }

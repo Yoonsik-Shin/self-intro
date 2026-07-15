@@ -16,6 +16,8 @@ public record ExperienceRequest(
     List<ExperienceDetailRequest> details, // Bullet points with per-item detail content
     List<Long> skillIds,  // Mapping to Skill entities
     List<@NotBlank @Size(max = 80) String> tagNames,
+    boolean showOnTimeline,
+    @Size(max = 60) String timelineLabel,
 
     // Career specific fields
     String companyName,
@@ -26,6 +28,9 @@ public record ExperienceRequest(
     // Project specific fields
     String slug,
     Integer contributionRate,
+    @Size(max = 500)
+    @Pattern(regexp = "^$|https?://\\S+$", message = "repositoryUrl은 http 또는 https URL이어야 합니다.")
+    String repositoryUrl,
 
     // Education specific fields
     String institutionName,

@@ -18,17 +18,21 @@ public class Certificate extends Experience {
         // JPA standard constructor
     }
 
-    private Certificate(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String issuer) {
-        super(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
+    private Certificate(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String issuer) {
+        super(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, showOnTimeline, timelineLabel);
         this.issuer = issuer;
     }
 
-    public static Certificate create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String issuer) {
-        return new Certificate(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, issuer);
+    public static Certificate create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String issuer) {
+        return new Certificate(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, showOnTimeline, timelineLabel, issuer);
     }
 
-    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String issuer) {
-        super.updateCommonFields(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills);
+    public static Certificate create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String issuer) {
+        return create(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, true, null, issuer);
+    }
+
+    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String issuer) {
+        super.updateCommonFields(title, periodStart, periodEnd, summary, takeaway, essayContent, displayOrder, details, skills, showOnTimeline, timelineLabel);
         this.issuer = issuer;
     }
 

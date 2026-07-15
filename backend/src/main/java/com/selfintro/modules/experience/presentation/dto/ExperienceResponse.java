@@ -16,6 +16,8 @@ public record ExperienceResponse(
     String takeaway,
     String essayContent,
     int displayOrder,
+    boolean showOnTimeline,
+    String timelineLabel,
     List<ExperienceDetailResponse> details,
     List<SkillResponse> skills,
     List<TagResponse> tags,
@@ -29,6 +31,7 @@ public record ExperienceResponse(
     // Project
     String slug,
     Integer contributionRate,
+    String repositoryUrl,
 
     // Education
     String institutionName,
@@ -51,33 +54,37 @@ public record ExperienceResponse(
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses,
                 career.getCompanyName(), career.getEmploymentType(), career.getDepartment(), career.getRole(),
-                null, null, null, null
+                null, null, null, null, null
             );
         } else if (exp instanceof Project project) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses,
                 null, null, null, project.getRole(),
-                project.getSlug(), project.getContributionRate(), null, null
+                project.getSlug(), project.getContributionRate(), project.getRepositoryUrl(), null, null
             );
         } else if (exp instanceof Education edu) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses,
                 null, null, null, null,
-                null, null, edu.getInstitutionName(), null
+                null, null, null, edu.getInstitutionName(), null
             );
         } else if (exp instanceof Certificate cert) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses,
                 null, null, null, null,
-                null, null, null, cert.getIssuer()
+                null, null, null, null, cert.getIssuer()
             );
         }
         throw new IllegalArgumentException("지원하지 않는 이력 서브타입입니다.");

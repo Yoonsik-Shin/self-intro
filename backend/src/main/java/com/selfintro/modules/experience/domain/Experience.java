@@ -42,6 +42,12 @@ public abstract class Experience {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
+    @Column(name = "show_on_timeline", nullable = false)
+    private boolean showOnTimeline;
+
+    @Column(name = "timeline_label", length = 60)
+    private String timelineLabel;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JoinColumn(name = "experience_id")
     @OrderBy("displayOrder ASC")
@@ -69,7 +75,7 @@ public abstract class Experience {
         // JPA standard constructor
     }
 
-    protected Experience(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills) {
+    protected Experience(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
@@ -79,9 +85,11 @@ public abstract class Experience {
         this.displayOrder = displayOrder;
         this.details = toEntities(details);
         this.skills = skills != null ? skills : new ArrayList<>();
+        this.showOnTimeline = showOnTimeline;
+        this.timelineLabel = timelineLabel;
     }
 
-    public void updateCommonFields(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills) {
+    public void updateCommonFields(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
@@ -89,6 +97,8 @@ public abstract class Experience {
         this.takeaway = takeaway;
         this.essayContent = essayContent;
         this.displayOrder = displayOrder;
+        this.showOnTimeline = showOnTimeline;
+        this.timelineLabel = timelineLabel;
 
         reconcileDetails(details != null ? details : List.of());
 
@@ -136,6 +146,15 @@ public abstract class Experience {
         tags.addAll(values);
     }
 
+    public void setSkillLinked(Skill skill, boolean linked) {
+        boolean alreadyLinked = skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
+        if (linked && !alreadyLinked) {
+            skills.add(skill);
+        } else if (!linked && alreadyLinked) {
+            skills.removeIf(value -> value.getId().equals(skill.getId()));
+        }
+    }
+
     // Getters
     public Long getId() { return id; }
     public String getType() { return type; }
@@ -146,6 +165,8 @@ public abstract class Experience {
     public String getTakeaway() { return takeaway; }
     public String getEssayContent() { return essayContent; }
     public int getDisplayOrder() { return displayOrder; }
+    public boolean isShowOnTimeline() { return showOnTimeline; }
+    public String getTimelineLabel() { return timelineLabel; }
     public List<ExperienceDetail> getDetails() { return details; }
     public List<Skill> getSkills() { return skills; }
     public List<Tag> getTags() { return tags; }
