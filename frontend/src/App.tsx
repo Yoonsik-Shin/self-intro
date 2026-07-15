@@ -1,12 +1,11 @@
-import { type FormEvent, useMemo, useState, useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles,
   Printer,
   Briefcase,
   Cpu,
   Terminal,
-  Code2,
   BookOpen,
   Github,
   Home,
@@ -18,7 +17,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { studyApi, bffApi, type CreateStudyEntryRequest, type Skill, type StudyEntry, type ExperienceDetail } from './lib/api';
+import { bffApi, type Skill, type StudyEntry, type ExperienceDetail } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
 import { markdownComponents } from './lib/markdown';
 
@@ -99,45 +98,6 @@ const essays = {
   }
 };
 
-const fallbackEntries: StudyEntry[] = [
-  {
-    id: 1,
-    title: 'CS Test Bed (고객문의 수집·자동응답 통합 테스트베드)',
-    description: '고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. Spring Boot 3.3 백엔드, React 19 프론트엔드, Playwright Express 워커, n8n 오케스트레이터, DB 기반 RBAC 및 PII 암호화를 구축하고, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.',
-    category: 'PROJECT',
-    skills: ['Java', 'Spring Boot', 'QueryDSL', 'Flyway', 'React', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
-    takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.',
-    learnedAt: '2026-07-01'
-  },
-  {
-    id: 2,
-    title: 'LogDoctor (Azure 클라우드 로그 비용 진단 및 최적화 SaaS)',
-    description: 'Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다.',
-    category: 'PROJECT',
-    skills: ['Azure Functions', 'FastAPI', 'Cosmos DB', 'Azure OpenAI', 'Teams SDK', 'Bicep', 'IaC'],
-    takeaway: '쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 체득했습니다.',
-    learnedAt: '2026-06-01'
-  },
-  {
-    id: 3,
-    title: 'AI 기반 실시간 모의면접 플랫폼',
-    description: '실시간 AI 모의면접 및 역량 평가 서비스의 전체 시스템 아키텍처와 분산 메시징 처리 부분을 담당했습니다. gRPC 기반 실시간 음성 스트리밍 제어, Redis/Kafka 비동기 메시지 큐를 통한 음성 데이터 및 AI 상태 변경 큐잉, 이력서 RAG 질문 생성 기능 등을 구현하고 Kubernetes 환경에 배포했습니다.',
-    category: 'PROJECT',
-    skills: ['React', 'gRPC', 'Redis', 'Kafka', 'LLM', 'STT/TTS', 'RAG', 'Kubernetes'],
-    takeaway: '비동기 메시징 및 대용량 음성 스트리밍 환경에서 발생할 수 있는 데이터 유실과 지연 병목을 제어하며 분산 인프라 설계 능력을 키웠습니다.',
-    learnedAt: '2026-03-01'
-  },
-  {
-    id: 4,
-    title: '에듀테크 학습 플랫폼 핵심 서버 및 BFF 구축 [실무 경력]',
-    description: '커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하여 알림톡 연동과 Redis 세션 로그인을 구현했습니다.',
-    category: 'PROJECT',
-    skills: ['Node.js', 'TypeScript', 'NestJS', 'Express', 'MongoDB', 'Redis', 'Spring Boot', 'AWS ECS/SQS', 'Docker', 'Datadog'],
-    takeaway: '실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.',
-    learnedAt: '2025-09-15'
-  }
-];
-
 const pages = [
   {
     id: 'intro' as const,
@@ -213,18 +173,9 @@ export function App() {
   } = useIntroStore();
 
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState<CreateStudyEntryRequest>({
-    title: '',
-    description: '',
-    category: 'PROJECT',
-    skills: '',
-    takeaway: '',
-    learnedAt: new Date().toISOString().split('T')[0]
-  });
 
   const [activeSection, setActiveSection] = useState('intro-profile');
   const [activePage, setActivePage] = useState<PageId>('intro');
-  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
   const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
   const [expandedCareerDetailId, setExpandedCareerDetailId] = useState<number | null>(null);
@@ -479,7 +430,7 @@ export function App() {
   }, [introData]);
 
   const filteredEntries = useMemo((): StudyEntry[] => {
-    const entries = studyEntries ?? fallbackEntries;
+    const entries = studyEntries ?? [];
     return entries.filter((entry: StudyEntry) => {
       const matchCategory = activeCategory === 'ALL' || entry.category === activeCategory;
       const matchSearch = entry.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -489,26 +440,6 @@ export function App() {
     });
   }, [studyEntries, activeCategory, search]);
 
-  const createMutation = useMutation({
-    mutationFn: studyApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['learning'] });
-      setForm({
-        title: '',
-        description: '',
-        category: 'PROJECT',
-        skills: '',
-        takeaway: '',
-        learnedAt: new Date().toISOString().split('T')[0]
-      });
-      alert('성공적으로 등록되었습니다!');
-    },
-  });
-
-  const submitStudyEntry = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    createMutation.mutate(form);
-  };
 
   const handlePrint = () => {
     window.print();
@@ -1487,207 +1418,113 @@ export function App() {
                       학습내용, 사이드 프로젝트 구축 경험, 그리고 핵심 기술 개념을 기록하고 보관하는 기술 블로그 공간입니다.
                     </p>
                   </div>
-                  {/* Add Study Log Toggle Button */}
-                  <button
-                    onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
-                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 to-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:from-slate-800 hover:to-slate-900 transition shadow-md shadow-slate-800/20"
-                  >
-                    <Code2 className="h-4.5 w-4.5" />
-                    <span>{isCreateFormOpen ? '목록으로 돌아가기' : '새 글 작성하기'}</span>
-                  </button>
                 </div>
               </div>
             </div>
 
-            {isCreateFormOpen ? (
-              /* CREATE STUDY LOG FORM CARD */
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)]">
-                <h3 className="text-lg font-black text-slate-900 mb-6 border-b border-slate-100 pb-3 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-slate-900" />
-                  새로운 기술 기록 남기기
-                </h3>
-
-                <form onSubmit={submitStudyEntry} className="space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">제목</label>
-                      <input
-                        type="text"
-                        required
-                        value={form.title}
-                        onChange={(e) => setForm({ ...form, title: e.target.value })}
-                        placeholder="예: Spring Boot DB 커넥션 풀 최적화 가이드"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">분류</label>
-                      <select
-                        value={form.category}
-                        onChange={(e) => setForm({ ...form, category: e.target.value as any })}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 bg-white transition"
-                      >
-                        <option value="PROJECT">프로젝트 (PROJECT)</option>
-                        <option value="EDUCATION">공부/학습 (STUDY)</option>
-                        <option value="CERTIFICATE">자격증 (CERTIFICATE)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">기술 스택 (쉼표 구분)</label>
-                    <input
-                      type="text"
-                      value={form.skills}
-                      onChange={(e) => setForm({ ...form, skills: e.target.value })}
-                      placeholder="예: Java, Spring Boot, MySQL, HikariCP"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">상세 설명</label>
-                    <textarea
-                      required
-                      rows={5}
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      placeholder="공부한 내용이나 구현 사항을 상세히 남겨주세요..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition resize-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">핵심 Lesson Learned / Takeaway</label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={form.takeaway}
-                      onChange={(e) => setForm({ ...form, takeaway: e.target.value })}
-                      placeholder="이번 기록에서 배운 점이나 핵심 성과를 요약해주세요..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition resize-none"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-2">
+            {/* STUDY LOGS FEED & FILTERS */}
+            <div className="space-y-6">
+              {/* Filters Header (Pills on left, Search on right) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+                {/* Categories */}
+                <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-none">
+                  {[
+                    { key: 'ALL', label: '전체' },
+                    { key: 'PROJECT', label: '프로젝트' },
+                    { key: 'EDUCATION', label: '공부/학습' },
+                    { key: 'CERTIFICATE', label: '자격증' }
+                  ].map((item) => (
                     <button
-                      type="button"
-                      onClick={() => setIsCreateFormOpen(false)}
-                      className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition"
+                      key={item.key}
+                      onClick={() => setActiveCategory(item.key as any)}
+                      className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all shrink-0 ${
+                        activeCategory === item.key
+                          ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
+                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
                     >
-                      취소
+                      {item.label}
                     </button>
-                    <button
-                      type="submit"
-                      disabled={createMutation.isPending}
-                      className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition shadow-md shadow-slate-800/20"
-                    >
-                      {createMutation.isPending ? '등록 중...' : '작성 완료'}
-                    </button>
-                  </div>
-                </form>
+                  ))}
+                </div>
+
+                {/* Search Input */}
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="기술명, 제목 검색..."
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
+                  />
+                </div>
               </div>
-            ) : (
-              /* STUDY LOGS FEED & FILTERS */
+
+              {/* List of Study Logs */}
               <div className="space-y-6">
-                {/* Filters Header (Pills on left, Search on right) */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
-                  {/* Categories */}
-                  <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-none">
-                    {[
-                      { key: 'ALL', label: '전체' },
-                      { key: 'PROJECT', label: '프로젝트' },
-                      { key: 'EDUCATION', label: '공부/학습' },
-                      { key: 'CERTIFICATE', label: '자격증' }
-                    ].map((item) => (
-                      <button
-                        key={item.key}
-                        onClick={() => setActiveCategory(item.key as any)}
-                        className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all shrink-0 ${
-                          activeCategory === item.key
-                            ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
+                {filteredEntries.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80">
+                    <p className="text-sm text-slate-400 font-semibold">
+                      {activeCategory === 'ALL' && !search
+                        ? '아직 작성된 공부 기록이 없습니다.'
+                        : '검색 조건에 맞는 공부 기록이 없습니다.'}
+                    </p>
                   </div>
-
-                  {/* Search Input */}
-                  <div className="relative w-full sm:w-64">
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="기술명, 제목 검색..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
-                    />
-                  </div>
-                </div>
-
-                {/* List of Study Logs */}
-                <div className="space-y-6">
-                  {filteredEntries.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80">
-                      <p className="text-sm text-slate-400 font-semibold">검색 조건에 맞는 공부 기록이 없습니다.</p>
-                    </div>
-                  ) : (
-                    filteredEntries.map((entry) => (
-                      <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm hover:shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] transition duration-200 relative overflow-hidden">
-                        {/* Category Badge & Date */}
-                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
-                          <span className={`inline-flex rounded px-2.5 py-0.5 text-xs font-bold ${
-                            entry.category === 'PROJECT'
-                              ? 'bg-slate-100 border border-slate-200 text-slate-950'
-                              : entry.category === 'EDUCATION'
-                              ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
-                              : 'bg-amber-50 border border-amber-100 text-amber-700'
-                          }`}>
-                            {entry.category === 'PROJECT' ? 'PROJECT' : entry.category === 'EDUCATION' ? 'STUDY' : 'CERTIFICATE'}
-                          </span>
-                          <span className="text-xs font-bold text-slate-400 font-mono">{entry.learnedAt}</span>
-                        </div>
-
-                        {/* Post Title */}
-                        <h3 className="text-xl font-black text-slate-900 leading-snug hover:text-slate-900 transition mb-3">
-                          {entry.title}
-                        </h3>
-
-                        {/* Post Body Description */}
-                        <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal whitespace-pre-line mb-4">
-                          {entry.description}
-                        </p>
-
-                        {/* Tech Stack Badges */}
-                        {entry.skills && entry.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mb-4">
-                            {entry.skills.map((skill) => (
-                              <span key={skill} className="bg-slate-50 border border-slate-200/60 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-xs">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Takeaway / Lesson Learned block */}
-                        {entry.takeaway && (
-                          <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-1.5 shadow-inner">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5" />
-                              Lesson Learned / Key Takeaway
-                            </h4>
-                            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                              {entry.takeaway}
-                            </p>
-                          </div>
-                        )}
+                ) : (
+                  filteredEntries.map((entry) => (
+                    <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm hover:shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] transition duration-200 relative overflow-hidden">
+                      {/* Category Badge & Date */}
+                      <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
+                        <span className={`inline-flex rounded px-2.5 py-0.5 text-xs font-bold ${
+                          entry.category === 'PROJECT'
+                            ? 'bg-slate-100 border border-slate-200 text-slate-950'
+                            : entry.category === 'EDUCATION'
+                            ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
+                            : 'bg-amber-50 border border-amber-100 text-amber-700'
+                        }`}>
+                          {entry.category === 'PROJECT' ? 'PROJECT' : entry.category === 'EDUCATION' ? 'STUDY' : 'CERTIFICATE'}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400 font-mono">{entry.learnedAt}</span>
                       </div>
-                    ))
-                  )}
-                </div>
+
+                      {/* Post Title */}
+                      <h3 className="text-xl font-black text-slate-900 leading-snug hover:text-slate-900 transition mb-3">
+                        {entry.title}
+                      </h3>
+
+                      {/* Post Body Description */}
+                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal whitespace-pre-line mb-4">
+                        {entry.description}
+                      </p>
+
+                      {/* Tech Stack Badges */}
+                      {entry.skills && entry.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {entry.skills.map((skill) => (
+                            <span key={skill} className="bg-slate-50 border border-slate-200/60 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Takeaway / Lesson Learned block */}
+                      {entry.takeaway && (
+                        <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-1.5 shadow-inner">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Lesson Learned / Key Takeaway
+                          </h4>
+                          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                            {entry.takeaway}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
         </div>
