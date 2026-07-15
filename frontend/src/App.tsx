@@ -186,18 +186,21 @@ function RelatedStudyNotes({ experienceDetailId, onOpenStudy }: { experienceDeta
   }
 
   return (
-    <div className="pt-1">
-      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-blue-600">관련 기술노트</p>
-      <div className="space-y-1.5">
+    <div className="pt-2.5 mt-2 border-t border-slate-100">
+      <p className="mb-2 text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
+        관련 기술노트
+      </p>
+      <div className="space-y-2">
         {relatedStudies.map((study) => (
           <button
             key={study.id}
             type="button"
             onClick={() => onOpenStudy(study.slug)}
-            className="flex w-full items-center justify-between gap-2 rounded-lg bg-blue-50/60 px-2.5 py-1.5 text-left text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+            className="flex w-full items-center justify-between gap-2.5 rounded-xl border border-blue-100/50 bg-blue-50/40 px-4 py-2.5 text-left text-[13px] sm:text-sm font-semibold text-blue-700 transition hover:bg-blue-50/80 hover:text-blue-800 hover:border-blue-200 shadow-sm"
           >
             <span>{study.title}</span>
-            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+            <ExternalLink className="h-4 w-4 shrink-0 text-blue-500" />
           </button>
         ))}
       </div>
