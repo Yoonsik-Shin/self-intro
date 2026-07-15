@@ -34,7 +34,8 @@ const milestones = [
     skills: ['Java', 'Spring Boot', 'QueryDSL', 'Flyway', 'React', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
     role: 'Backend & DevOps Engineer',
     description: '고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. DB 기반 RBAC 및 PII 암호화, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.',
-    takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.'
+    takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.',
+    tags: [] as string[]
   },
   {
     id: 'project2',
@@ -45,7 +46,8 @@ const milestones = [
     skills: ['Azure Functions', 'FastAPI', 'Cosmos DB', 'Azure OpenAI', 'Teams SDK', 'Bicep', 'IaC'],
     role: 'Fullstack & Cloud Developer',
     description: 'Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다. (팀 프로젝트)',
-    takeaway: '쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 체득했습니다.'
+    takeaway: '쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 체득했습니다.',
+    tags: [] as string[]
   },
   {
     id: 'project3',
@@ -56,7 +58,8 @@ const milestones = [
     skills: ['React', 'gRPC', 'Redis', 'Kafka', 'LLM', 'STT/TTS', 'RAG', 'Kubernetes'],
     role: 'Core Architect & Developer',
     description: '실시간 AI 모의면접 및 역량 평가 서비스의 전체 시스템 아키텍처와 분산 메시징 처리 부분을 담당했습니다. gRPC 기반 실시간 음성 스트리밍 제어, Redis/Kafka 비동기 메시지 큐를 통한 음성 데이터 및 AI 상태 변경 큐잉, 이력서 RAG 질문 생성 기능 등을 구현하고 Kubernetes 환경에 배포했습니다. (개인 프로젝트)',
-    takeaway: '비동기 메시징 및 대용량 음성 스트리밍 환경에서 발생할 수 있는 데이터 유실과 지연 병목을 제어하며 분산 인프라 설계 능력을 키웠습니다.'
+    takeaway: '비동기 메시징 및 대용량 음성 스트리밍 환경에서 발생할 수 있는 데이터 유실과 지연 병목을 제어하며 분산 인프라 설계 능력을 키웠습니다.',
+    tags: [] as string[]
   },
   {
     id: 'project4',
@@ -67,7 +70,8 @@ const milestones = [
     skills: ['Node.js', 'TypeScript', 'NestJS', 'Express', 'MongoDB', 'Redis', 'Spring Boot', 'AWS ECS/SQS', 'Docker', 'Datadog'],
     role: 'Backend & DevOps Engineer',
     description: '커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하였습니다. (에듀테크 스타트업 실무 경력)',
-    takeaway: '실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.'
+    takeaway: '실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.',
+    tags: [] as string[]
   }
 ];
 
@@ -396,6 +400,7 @@ export function App() {
             title: exp.title,
             body: exp.details.map(d => d.content).join(', '),
             skills: exp.skills.map(s => s.name),
+            tags: exp.tags?.map(t => t.name) ?? [],
             role: exp.role ?? '',
             description: exp.summary ?? '',
             takeaway: exp.takeaway ?? '',
@@ -1065,9 +1070,9 @@ export function App() {
                                   <p className="mt-0.5 text-sm font-black text-slate-900">{experience.role}</p>
                                 )}
                                 {experience.summary && (
-                                  <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-relaxed text-slate-600">
-                                    {experience.summary}
-                                  </p>
+                                  <div className="mt-1.5 line-clamp-2 text-sm font-semibold leading-relaxed text-slate-600">
+                                    <ReactMarkdown components={markdownComponents}>{experience.summary}</ReactMarkdown>
+                                  </div>
                                 )}
                               </button>
                             ))
@@ -1205,9 +1210,9 @@ export function App() {
                       </p>
                       <div className="space-y-4 text-base sm:text-lg text-slate-600 leading-relaxed font-normal ml-0 sm:ml-8">
                         {dynamicWhyParagraphs.map((p, idx) => (
-                          <p key={idx} className="indent-2 bg-white p-4 rounded-xl border border-slate-200/50 transition shadow-sm">
-                            {p}
-                          </p>
+                          <div key={idx} className="indent-2 bg-white p-4 rounded-xl border border-slate-200/50 transition shadow-sm">
+                            <ReactMarkdown components={markdownComponents}>{p}</ReactMarkdown>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -1227,9 +1232,9 @@ export function App() {
                             <h4 className="text-base sm:text-lg font-black text-slate-800">
                               {str.title}
                             </h4>
-                            <p className="mt-2 text-base leading-relaxed text-slate-600 font-normal">
-                              {str.content}
-                            </p>
+                            <div className="mt-2 text-base leading-relaxed text-slate-600 font-normal">
+                              <ReactMarkdown components={markdownComponents}>{str.content}</ReactMarkdown>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1287,9 +1292,9 @@ export function App() {
                           <div className="space-y-3.5">
                             <div>
                               <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
-                              <p className="mt-1 text-base leading-relaxed text-slate-600 bg-white border border-slate-100 p-3 rounded-lg font-normal">
-                                {m.description}
-                              </p>
+                              <div className="mt-1 text-base leading-relaxed text-slate-600 bg-white border border-slate-100 p-3 rounded-lg font-normal">
+                                <ReactMarkdown components={markdownComponents}>{m.description}</ReactMarkdown>
+                              </div>
                             </div>
 
                             <div className="rounded-lg border border-emerald-100 bg-emerald-50/30 p-3.5">
@@ -1297,9 +1302,9 @@ export function App() {
                                 <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                                 핵심 성과 & 배운 점 (Takeaway)
                               </h4>
-                              <p className="mt-1 text-base leading-relaxed text-emerald-800 font-semibold">
-                                {m.takeaway}
-                              </p>
+                              <div className="mt-1 text-base leading-relaxed text-emerald-800 font-semibold">
+                                <ReactMarkdown components={markdownComponents}>{m.takeaway}</ReactMarkdown>
+                              </div>
                             </div>
 
                             <div>
@@ -1312,6 +1317,19 @@ export function App() {
                                 ))}
                               </div>
                             </div>
+
+                            {m.tags.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1.5">태그</h4>
+                                <div className="flex flex-wrap gap-1">
+                                  {m.tags.map((tag) => (
+                                    <span key={tag} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 

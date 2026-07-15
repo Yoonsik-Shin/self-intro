@@ -1,9 +1,11 @@
 package com.selfintro.modules.experience.domain;
 
 import com.selfintro.modules.skill.domain.Skill;
+import com.selfintro.study.entity.Tag;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Entity
@@ -53,6 +55,15 @@ public abstract class Experience {
     )
     @OrderColumn(name = "list_order")
     private List<Skill> skills = new ArrayList<>();
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "experience_tag",
+        joinColumns = @JoinColumn(name = "experience_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    @OrderBy("name ASC")
+    private List<Tag> tags = new ArrayList<>();
 
     protected Experience() {
         // JPA standard constructor
@@ -120,6 +131,11 @@ public abstract class Experience {
         this.details.sort(java.util.Comparator.comparingInt(ExperienceDetail::getDisplayOrder));
     }
 
+    public void replaceTags(Collection<Tag> values) {
+        tags.clear();
+        tags.addAll(values);
+    }
+
     // Getters
     public Long getId() { return id; }
     public String getType() { return type; }
@@ -132,4 +148,5 @@ public abstract class Experience {
     public int getDisplayOrder() { return displayOrder; }
     public List<ExperienceDetail> getDetails() { return details; }
     public List<Skill> getSkills() { return skills; }
+    public List<Tag> getTags() { return tags; }
 }

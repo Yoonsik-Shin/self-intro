@@ -1,5 +1,6 @@
 import { useState, type FormEvent, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
 import {
   Home,
   LogOut,
@@ -34,6 +35,7 @@ import {
 } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { MarkdownEditor } from './MarkdownEditor';
+import { markdownComponents } from '../lib/markdown';
 
 type TabId = 'STUDY' | 'PROFILE' | 'SKILLS' | 'EXPERIENCE';
 
@@ -101,6 +103,7 @@ const emptyExperienceForm = {
   displayOrder: 0,
   details: [] as ExperienceDetailRequest[],
   skillIds: [] as number[],
+  tagNames: '',
   companyName: '',
   employmentType: '정규직',
   department: '',
@@ -173,6 +176,7 @@ export function AdminDashboard() {
 
   const [expFilter, setExpFilter] = useState<string>('ALL');
   const [expSearch, setExpSearch] = useState<string>('');
+  const [expSkillSearch, setExpSkillSearch] = useState<string>('');
 
   // --- FILTERED DATA MEMOS ---
   const filteredStudies = useMemo(() => {
@@ -188,6 +192,14 @@ export function AdminDashboard() {
       return matchesCategory && matchesSearch;
     });
   }, [studies, studyFilter, studySearch]);
+
+  const selectableExpSkills = useMemo(() => {
+    const keyword = expSkillSearch.trim().toLowerCase();
+    if (!keyword) return skillsList ?? [];
+    return (skillsList ?? []).filter((skill) =>
+      skill.name.toLowerCase().includes(keyword) ||
+      skill.category.toLowerCase().includes(keyword));
+  }, [skillsList, expSkillSearch]);
 
   const selectableStudySkills = useMemo(() => {
     const keyword = studySkillSearch.trim().toLowerCase();
@@ -441,6 +453,7 @@ export function AdminDashboard() {
       displayOrder: Number(expForm.displayOrder),
       details: expForm.details,
       skillIds: expForm.skillIds,
+      tagNames: expForm.tagNames.split(',').map((tag) => tag.trim()).filter(Boolean),
       companyName: expForm.type === 'CAREER' ? expForm.companyName : undefined,
       employmentType: expForm.type === 'CAREER' ? expForm.employmentType : undefined,
       department: expForm.type === 'CAREER' ? expForm.department : undefined,
@@ -1516,6 +1529,17 @@ export function AdminDashboard() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">태그 (쉼표 구분)</label>
+                    <input
+                      type="text"
+                      value={expForm.tagNames}
+                      onChange={(e) => setExpForm({ ...expForm, tagNames: e.target.value })}
+                      placeholder="리드, 아키텍처, 마이그레이션"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    />
+                  </div>
+
                   {/* Subtype Conditional Fields */}
                   {expForm.type === 'CAREER' && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
@@ -1631,33 +1655,26 @@ export function AdminDashboard() {
 
                   {/* Common Text Areas */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">한줄 요약 (Summary)</label>
-                    <input
-                      type="text"
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">한줄 요약 (Summary, 마크다운)</label>
+                    <MarkdownEditor
                       value={expForm.summary}
-                      onChange={(e) => setExpForm({ ...expForm, summary: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      onChange={(summary) => setExpForm({ ...expForm, summary })}
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Takeaway (성과 및 배운점)</label>
-                    <textarea
-                      rows={2}
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Takeaway (성과 및 배운점, 마크다운)</label>
+                    <MarkdownEditor
                       value={expForm.takeaway}
-                      onChange={(e) => setExpForm({ ...expForm, takeaway: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      onChange={(takeaway) => setExpForm({ ...expForm, takeaway })}
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">역량 기술서 본문 내용 (Essay Content - Optional)</label>
-                    <textarea
-                      rows={5}
-                      placeholder="역량 기술서 화면에 표시될 서술형 줄글 수필 내용을 작성합니다."
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">역량 기술서 본문 내용 (Essay Content, 마크다운, Optional)</label>
+                    <MarkdownEditor
                       value={expForm.essayContent}
-                      onChange={(e) => setExpForm({ ...expForm, essayContent: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      onChange={(essayContent) => setExpForm({ ...expForm, essayContent })}
                     />
                   </div>
 
@@ -1717,29 +1734,23 @@ export function AdminDashboard() {
                               <div className="space-y-2 border-t border-slate-100 p-3">
                                 <div>
                                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">상황 (Situation, 마크다운)</label>
-                                  <textarea
-                                    value={d.situation}
-                                    onChange={(e) => updateDetailField(idx, 'situation', e.target.value)}
-                                    rows={2}
-                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-slate-800 focus:outline-none"
+                                  <MarkdownEditor
+                                    value={d.situation ?? ''}
+                                    onChange={(value) => updateDetailField(idx, 'situation', value)}
                                   />
                                 </div>
                                 <div>
                                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">과정 (Action, 마크다운)</label>
-                                  <textarea
-                                    value={d.actionDetail}
-                                    onChange={(e) => updateDetailField(idx, 'actionDetail', e.target.value)}
-                                    rows={3}
-                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-slate-800 focus:outline-none"
+                                  <MarkdownEditor
+                                    value={d.actionDetail ?? ''}
+                                    onChange={(value) => updateDetailField(idx, 'actionDetail', value)}
                                   />
                                 </div>
                                 <div>
                                   <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">성과 (Outcome, 마크다운)</label>
-                                  <textarea
-                                    value={d.outcome}
-                                    onChange={(e) => updateDetailField(idx, 'outcome', e.target.value)}
-                                    rows={2}
-                                    className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-slate-800 focus:outline-none"
+                                  <MarkdownEditor
+                                    value={d.outcome ?? ''}
+                                    onChange={(value) => updateDetailField(idx, 'outcome', value)}
                                   />
                                 </div>
                                 <div>
@@ -1775,8 +1786,18 @@ export function AdminDashboard() {
                   {/* Skills Tagger */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">사용 기술 매핑</label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {skillsList?.map((s) => {
+                    <div className="relative mb-2">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="search"
+                        value={expSkillSearch}
+                        onChange={(event) => setExpSkillSearch(event.target.value)}
+                        placeholder="기술명 또는 분류 검색"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                      />
+                    </div>
+                    <div className="grid max-h-56 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
+                      {selectableExpSkills.map((s) => {
                         const isChecked = expForm.skillIds.includes(s.id);
                         return (
                           <label
@@ -1804,6 +1825,9 @@ export function AdminDashboard() {
                           </label>
                         );
                       })}
+                      {selectableExpSkills.length === 0 && (
+                        <p className="col-span-full py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                      )}
                     </div>
                   </div>
 
@@ -1872,6 +1896,7 @@ export function AdminDashboard() {
                                   skillIds: d.skills?.map((s) => s.id) ?? [],
                                 })),
                                 skillIds: exp.skills?.map((s) => s.id) ?? [],
+                                tagNames: exp.tags?.map((t) => t.name).join(', ') ?? '',
                                 companyName: exp.companyName ?? '',
                                 employmentType: exp.employmentType ?? '정규직',
                                 department: exp.department ?? '',
@@ -1901,13 +1926,13 @@ export function AdminDashboard() {
                           {exp.summary && (
                             <div>
                               <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">한줄 요약</h5>
-                              <p className="font-medium text-slate-700">{exp.summary}</p>
+                              <div className="font-medium text-slate-700"><ReactMarkdown components={markdownComponents}>{exp.summary}</ReactMarkdown></div>
                             </div>
                           )}
                           {exp.takeaway && (
                             <div>
                               <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">Takeaway (핵심 성과)</h5>
-                              <p className="font-medium text-slate-700">{exp.takeaway}</p>
+                              <div className="font-medium text-slate-700"><ReactMarkdown components={markdownComponents}>{exp.takeaway}</ReactMarkdown></div>
                             </div>
                           )}
                           {exp.details && exp.details.length > 0 && (
@@ -1917,9 +1942,9 @@ export function AdminDashboard() {
                                 {exp.details.map((d) => (
                                   <div key={d.id} className="rounded-lg border border-slate-200 bg-slate-50/50 p-2">
                                     <p className="font-bold text-slate-700">{d.content}</p>
-                                    {d.situation && <p className="mt-1 text-slate-500">상황: {d.situation}</p>}
-                                    {d.actionDetail && <p className="mt-1 whitespace-pre-wrap text-slate-500">과정: {d.actionDetail}</p>}
-                                    {d.outcome && <p className="mt-1 text-slate-500">성과: {d.outcome}</p>}
+                                    {d.situation && <div className="mt-1 text-slate-500"><span className="font-bold">상황: </span><ReactMarkdown components={markdownComponents}>{d.situation}</ReactMarkdown></div>}
+                                    {d.actionDetail && <div className="mt-1 text-slate-500"><span className="font-bold">과정: </span><ReactMarkdown components={markdownComponents}>{d.actionDetail}</ReactMarkdown></div>}
+                                    {d.outcome && <div className="mt-1 text-slate-500"><span className="font-bold">성과: </span><ReactMarkdown components={markdownComponents}>{d.outcome}</ReactMarkdown></div>}
                                     {d.skills.length > 0 && (
                                       <div className="mt-1 flex flex-wrap gap-1">
                                         {d.skills.map((s) => (
@@ -1947,10 +1972,22 @@ export function AdminDashboard() {
                               </div>
                             </div>
                           )}
+                          {exp.tags && exp.tags.length > 0 && (
+                            <div>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">태그</h5>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {exp.tags.map((t) => (
+                                  <span key={t.id} className="bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold text-blue-700 border border-blue-100">
+                                    #{t.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {exp.essayContent && (
                             <div>
                               <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">에세이 상세내용 (Essay Content)</h5>
-                              <p className="whitespace-pre-wrap font-medium text-slate-700">{exp.essayContent}</p>
+                              <div className="font-medium text-slate-700"><ReactMarkdown components={markdownComponents}>{exp.essayContent}</ReactMarkdown></div>
                             </div>
                           )}
                         </div>

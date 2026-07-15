@@ -2,6 +2,7 @@ package com.selfintro.modules.experience.presentation.dto;
 
 import com.selfintro.modules.experience.domain.*;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
+import com.selfintro.study.entity.Tag;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -17,6 +18,7 @@ public record ExperienceResponse(
     int displayOrder,
     List<ExperienceDetailResponse> details,
     List<SkillResponse> skills,
+    List<TagResponse> tags,
 
     // Career
     String companyName,
@@ -41,12 +43,15 @@ public record ExperienceResponse(
         List<SkillResponse> skillResponses = exp.getSkills().stream()
             .map(SkillResponse::from)
             .toList();
+        List<TagResponse> tagResponses = exp.getTags().stream()
+            .map(TagResponse::from)
+            .toList();
 
         if (exp instanceof Career career) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
-                detailResponses, skillResponses,
+                detailResponses, skillResponses, tagResponses,
                 career.getCompanyName(), career.getEmploymentType(), career.getDepartment(), career.getRole(),
                 null, null, null, null
             );
@@ -54,7 +59,7 @@ public record ExperienceResponse(
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
-                detailResponses, skillResponses,
+                detailResponses, skillResponses, tagResponses,
                 null, null, null, project.getRole(),
                 project.getSlug(), project.getContributionRate(), null, null
             );
@@ -62,7 +67,7 @@ public record ExperienceResponse(
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
-                detailResponses, skillResponses,
+                detailResponses, skillResponses, tagResponses,
                 null, null, null, null,
                 null, null, edu.getInstitutionName(), null
             );
@@ -70,11 +75,17 @@ public record ExperienceResponse(
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
                 exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
-                detailResponses, skillResponses,
+                detailResponses, skillResponses, tagResponses,
                 null, null, null, null,
                 null, null, null, cert.getIssuer()
             );
         }
         throw new IllegalArgumentException("지원하지 않는 이력 서브타입입니다.");
+    }
+
+    public record TagResponse(Long id, String name, String slug) {
+        public static TagResponse from(Tag tag) {
+            return new TagResponse(tag.getId(), tag.getName(), tag.getSlug());
+        }
     }
 }

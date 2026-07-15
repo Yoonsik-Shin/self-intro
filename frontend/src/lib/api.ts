@@ -106,6 +106,7 @@ export type Experience = {
   displayOrder: number;
   details: ExperienceDetail[];
   skills: Skill[];
+  tags: Tag[];
 
   // Career specific
   companyName?: string;
@@ -278,6 +279,7 @@ export type ExperienceRequest = {
   displayOrder: number;
   details: ExperienceDetailRequest[];
   skillIds: number[];
+  tagNames: string[];
   companyName?: string;
   employmentType?: string;
   department?: string;
