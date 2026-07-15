@@ -19,3 +19,4 @@ configMapGenerator:
       - CORS_ALLOWED_ORIGINS=https://unbrdn.me,https://www.unbrdn.me
       - JPA_DDL_AUTO=none
       - COOKIE_DOMAIN=unbrdn.me
+      - VISITOR_COOKIE_SECURE=true
