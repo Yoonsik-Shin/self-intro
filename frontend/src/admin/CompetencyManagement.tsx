@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Eye, EyeOff, Pencil, Plus, Save, Search, Sparkles, Trash2, WandSparkles } from 'lucide-react';
+import { Check, Eye, EyeOff, Loader2, Pencil, Plus, Save, Search, Sparkles, Trash2, WandSparkles } from 'lucide-react';
 import {
   competencyApi,
   experienceApi,
@@ -37,6 +37,12 @@ export function CompetencyManagement() {
   const [studySearch, setStudySearch] = useState('');
   const [aiInstruction, setAiInstruction] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<CompetencySuggestion[]>([]);
+  const [aiStages, setAiStages] = useState<AiStageProgress[]>([]);
+  const [aiEvidenceGroups, setAiEvidenceGroups] = useState<AiEvidenceGroupSummary[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const aiAbortRef = useRef<AbortController | null>(null);
+  const aiChatRef = useRef<HTMLDivElement | null>(null);
 
   const { data: competencies = [], isLoading } = useQuery({
     queryKey: ['competencies', 'admin'],
@@ -105,10 +111,21 @@ export function CompetencyManagement() {
       await refresh();
     },
   });
-  const suggestionMutation = useMutation({
-    mutationFn: competencyApi.suggest,
-    onSuccess: (response) => setAiSuggestions(response.suggestions),
-  });
+  const resetAiStream = () => {
+    aiAbortRef.current?.abort();
+    aiAbortRef.current = null;
+    setAiStages([]);
+    setAiEvidenceGroups([]);
+    setAiError(null);
+    setIsGenerating(false);
+  };
+
+  useEffect(() => () => aiAbortRef.current?.abort(), []);
+
+  useEffect(() => {
+    const container = aiChatRef.current;
+    if (container && isGenerating) container.scrollTop = container.scrollHeight;
+  }, [aiStages, isGenerating]);
 
   const resetRelationSearches = () => {
     setSkillSearch('');
@@ -122,7 +139,7 @@ export function CompetencyManagement() {
     setForm({ ...emptyForm, displayOrder: competencies.length + 1 });
     setAiInstruction('');
     setAiSuggestions([]);
-    suggestionMutation.reset();
+    resetAiStream();
     resetRelationSearches();
     setIsFormOpen(true);
   };
@@ -145,7 +162,7 @@ export function CompetencyManagement() {
       studyIds: competency.relatedStudies.map((study) => study.id),
     });
     setAiSuggestions([]);
-    suggestionMutation.reset();
+    resetAiStream();
     resetRelationSearches();
     setIsFormOpen(true);
   };
@@ -154,7 +171,7 @@ export function CompetencyManagement() {
     setEditingId(null);
     setForm(emptyForm);
     setAiSuggestions([]);
-    suggestionMutation.reset();
+    resetAiStream();
     setIsFormOpen(false);
   };
 
@@ -224,15 +241,52 @@ export function CompetencyManagement() {
     else updateMutation.mutate({ id: editingId, payload });
   };
 
-  const requestAiSuggestions = () => {
-    suggestionMutation.mutate({
-      instruction: aiInstruction,
-      draftTitle: form.title,
-      draftSummary: form.summary,
-      skillIds: form.skillIds,
-      experienceIds: form.evidences.map((item) => item.experienceId),
-      studyIds: form.studyIds,
-    });
+  const requestAiSuggestions = async () => {
+    resetAiStream();
+    setAiSuggestions([]);
+    setIsGenerating(true);
+    const controller = new AbortController();
+    aiAbortRef.current = controller;
+    try {
+      await competencyApi.suggestStream(
+        {
+          instruction: aiInstruction,
+          draftTitle: form.title,
+          draftSummary: form.summary,
+          skillIds: form.skillIds,
+          experienceIds: form.evidences.map((item) => item.experienceId),
+          studyIds: form.studyIds,
+        },
+        (event) => {
+          if (event.type === 'stage') {
+            setAiStages((current) => [
+              ...current.map((item) => ({ ...item, done: true })),
+              { stage: event.stage, message: event.message, buffer: '', done: false },
+            ]);
+          } else if (event.type === 'token') {
+            setAiStages((current) => current.map((item) =>
+              item.stage === event.stage ? { ...item, buffer: item.buffer + event.text } : item));
+          } else if (event.type === 'evidence') {
+            setAiEvidenceGroups(event.groups);
+          } else if (event.type === 'complete') {
+            setAiStages((current) => current.map((item) => ({ ...item, done: true })));
+            setAiSuggestions(event.suggestions);
+          } else {
+            setAiError(event.message);
+          }
+        },
+        controller.signal,
+      );
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setAiError(error instanceof Error ? error.message : 'AI 초안 생성에 실패했습니다.');
+      }
+    } finally {
+      if (aiAbortRef.current === controller) {
+        aiAbortRef.current = null;
+        setIsGenerating(false);
+      }
+    }
   };
 
   const applyAiSuggestion = (suggestion: CompetencySuggestion) => {
@@ -346,19 +400,28 @@ export function CompetencyManagement() {
                     <button
                       type="button"
                       onClick={requestAiSuggestions}
-                      disabled={suggestionMutation.isPending}
+                      disabled={isGenerating}
                       className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
                     >
-                      <WandSparkles className={`h-4 w-4 ${suggestionMutation.isPending ? 'animate-pulse' : ''}`} />
-                      {suggestionMutation.isPending ? '근거 분석·작성 중...' : aiSuggestions.length > 0 ? '다시 생성' : 'AI 초안 생성'}
+                      <WandSparkles className={`h-4 w-4 ${isGenerating ? 'animate-pulse' : ''}`} />
+                      {isGenerating ? '근거 분석·작성 중...' : aiSuggestions.length > 0 ? '다시 생성' : 'AI 초안 생성'}
                     </button>
                   </div>
                   <p className="mt-2 text-[11px] leading-relaxed text-violet-500">선택한 포트폴리오 요약 데이터가 NVIDIA NIM API로 전송됩니다. AI 초안은 자동 저장되지 않습니다.</p>
 
-                  {suggestionMutation.error && (
-                    <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-                      {suggestionMutation.error instanceof Error ? suggestionMutation.error.message : 'AI 초안 생성에 실패했습니다.'}
-                    </p>
+                  {(aiStages.length > 0 || aiError) && (
+                    <div ref={aiChatRef} className="mt-4 max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-violet-100 bg-white p-3">
+                      {aiStages.map((stageItem) => (
+                        <AiStageBubble
+                          key={stageItem.stage}
+                          stage={stageItem}
+                          evidenceGroups={stageItem.stage === 1 ? aiEvidenceGroups : []}
+                        />
+                      ))}
+                      {aiError && (
+                        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{aiError}</p>
+                      )}
+                    </div>
                   )}
 
                   {aiSuggestions.length > 0 && (
@@ -483,4 +546,74 @@ function CheckItem({ checked, onChange, label, meta }: { checked: boolean; onCha
       </span>
     </label>
   );
+}
+
+type AiStageProgress = { stage: number; message: string; buffer: string; done: boolean };
+type AiEvidenceGroupSummary = { theme: string; evidenceCount: number; studyCount: number };
+type AiReadableLine = { label: string; text: string; done: boolean };
+
+function AiStageBubble({ stage, evidenceGroups }: { stage: AiStageProgress; evidenceGroups: AiEvidenceGroupSummary[] }) {
+  const lines = extractAiReadableLines(stage.buffer);
+  return (
+    <div className="flex items-start gap-2.5">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-600">
+        {stage.done ? <Check className="h-3.5 w-3.5" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+      </span>
+      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm bg-violet-50 px-3.5 py-2.5">
+        <p className="text-xs font-black text-violet-900">{stage.stage}단계 · {stage.message}{stage.done ? ' — 완료' : '...'}</p>
+        {lines.length > 0 && (
+          <ul className="mt-2 space-y-1.5">
+            {lines.map((line, index) => (
+              <li key={index} className="text-xs leading-relaxed text-slate-600">
+                <span className="mr-1 font-bold text-violet-600">{line.label}</span>
+                {line.text}
+                {!line.done && <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse rounded-sm bg-violet-400 align-middle" />}
+              </li>
+            ))}
+          </ul>
+        )}
+        {evidenceGroups.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {evidenceGroups.map((group) => (
+              <span key={group.theme} className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                {group.theme} · 근거 {group.evidenceCount}개 · Study {group.studyCount}개
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const AI_FIELD_LABELS: Record<string, string> = {
+  theme: '주제',
+  fact: '근거',
+  reason: '판단',
+  title: '역량명',
+  summary: '설명',
+  evidenceSummary: '근거 요약',
+};
+
+function extractAiReadableLines(buffer: string): AiReadableLine[] {
+  const completedPattern = /"(theme|fact|reason|title|summary|evidenceSummary)"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  const partialPattern = /"(theme|fact|reason|title|summary|evidenceSummary)"\s*:\s*"((?:[^"\\]|\\.)*)$/;
+  const lines: AiReadableLine[] = [];
+  let tailIndex = 0;
+  for (let match = completedPattern.exec(buffer); match; match = completedPattern.exec(buffer)) {
+    const text = unescapeJsonText(match[2]);
+    if (text) lines.push({ label: AI_FIELD_LABELS[match[1]], text, done: true });
+    tailIndex = completedPattern.lastIndex;
+  }
+  const partial = partialPattern.exec(buffer.slice(tailIndex));
+  if (partial) lines.push({ label: AI_FIELD_LABELS[partial[1]], text: unescapeJsonText(partial[2]), done: false });
+  return lines;
+}
+
+function unescapeJsonText(value: string): string {
+  try {
+    return JSON.parse(`"${value}"`) as string;
+  } catch {
+    return value.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
 }
