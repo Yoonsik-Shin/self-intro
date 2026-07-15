@@ -1084,11 +1084,9 @@ export function App() {
                           return (
                             <li key={detail.id} className="list-none">
                               <div
-                                className={`group flex items-start justify-between gap-3 rounded-lg px-2 py-1.5 -mx-2 transition-all duration-200 border border-transparent ${
-                                  hasDetailContent 
-                                    ? 'cursor-pointer hover:bg-slate-50/80 hover:border-slate-200/50 hover:shadow-xs' 
-                                    : 'cursor-default'
-                                } ${isExpanded ? 'bg-slate-50/60 border-slate-200/30' : ''}`}
+                                className={`group flex items-start justify-between gap-3 rounded-lg px-2 py-1 -mx-2 transition hover:bg-slate-50 ${
+                                  hasDetailContent ? 'cursor-pointer' : 'cursor-default'
+                                }`}
                                 onClick={() => hasDetailContent && toggleCareerDetail(detail.id)}
                               >
                                 <span className={`flex items-start gap-2.5 text-base leading-relaxed font-normal transition ${
