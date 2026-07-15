@@ -63,7 +63,6 @@ export type Profile = {
   nameEn: string;
   jobTitle: string;
   bio: string;
-  careerSummary: string;
   coreStackSummary: string;
   statusBadgeText: string;
   githubUrl: string;
@@ -80,6 +79,8 @@ export type Skill = {
   skillVersion?: string;
   comment?: string;
   usageType: 'LEARNING' | 'WORK_EXPERIENCE' | 'PROJECT_USE' | string;
+  badgeKey?: string | null;
+  badgeColor?: string | null;
   isCore: boolean;
   displayOrder: number;
 };
@@ -104,6 +105,8 @@ export type Experience = {
   takeaway?: string;
   essayContent?: string;
   displayOrder: number;
+  showOnTimeline: boolean;
+  timelineLabel?: string;
   details: ExperienceDetail[];
   skills: Skill[];
   tags: Tag[];
@@ -117,6 +120,7 @@ export type Experience = {
   // Project specific
   slug?: string;
   contributionRate?: number;
+  repositoryUrl?: string;
 
   // Education specific
   institutionName?: string;
@@ -125,14 +129,115 @@ export type Experience = {
   issuer?: string;
 };
 
+export type CompetencyEvidence = {
+  id: number;
+  experienceId: number;
+  experienceType: 'CAREER' | 'PROJECT';
+  experienceTitle: string;
+  evidenceSummary?: string;
+  primary: boolean;
+  displayOrder: number;
+};
+
+export type CompetencyStudy = {
+  id: number;
+  slug: string;
+  title: string;
+  status: StudyStatus;
+};
+
+export type Competency = {
+  id: number;
+  title: string;
+  summary: string;
+  displayOrder: number;
+  visible: boolean;
+  skills: Skill[];
+  evidences: CompetencyEvidence[];
+  relatedStudies: CompetencyStudy[];
+};
+
+export type CompetencyRequest = {
+  title: string;
+  summary: string;
+  displayOrder: number;
+  visible: boolean;
+  skillIds: number[];
+  evidences: Array<{
+    experienceId: number;
+    evidenceSummary?: string;
+    primary: boolean;
+    displayOrder: number;
+  }>;
+  studyIds: number[];
+};
+
+export type CompetencySuggestionRequest = {
+  instruction: string;
+  draftTitle: string;
+  draftSummary: string;
+  skillIds: number[];
+  experienceIds: number[];
+  studyIds: number[];
+};
+
+export type CompetencySuggestion = {
+  title: string;
+  summary: string;
+  skillIds: number[];
+  evidences: Array<{
+    experienceId: number;
+    evidenceSummary: string;
+    primary: boolean;
+  }>;
+  studyIds: number[];
+  reason: string;
+};
+
+export type CompetencySuggestionResponse = {
+  suggestions: CompetencySuggestion[];
+};
+
 export type IntroductionResponse = {
   profile: Profile | null;
   experiences: Experience[];
   skills: Skill[];
+  careerSummary: string;
+  competencies: Competency[];
 };
 
 export type LearningResponse = {
   studies: Study[];
+};
+
+export type VisitorSummary = {
+  todayVisitors: number;
+  totalVisitors: number;
+  totalPageViews: number;
+};
+
+export type VisitorDaily = {
+  date: string;
+  visitors: number;
+  pageViews: number;
+};
+
+export type SkillConnections = {
+  studyIds: number[];
+  experienceIds: number[];
+  experienceDetailIds: number[];
+};
+
+export type ExperienceRelationType = 'RELATED' | 'PART_OF' | 'APPLIED_TO' | 'FOLLOW_UP';
+
+export type ExperienceConnections = {
+  studyIds: number[];
+  detailStudies: Array<{ detailId: number; studyIds: number[] }>;
+  relatedExperiences: Array<{ experienceId: number; type: ExperienceRelationType }>;
+};
+
+export type RelatedExperience = Pick<Experience, 'id' | 'type' | 'title'> & {
+  relationType: ExperienceRelationType;
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -172,7 +277,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new ApiError(response.status, `API request failed: ${response.status}`);
+    const errorText = await response.text();
+    let message = `API request failed: ${response.status}`;
+    if (errorText) {
+      try {
+        const errorBody = JSON.parse(errorText) as { detail?: string; message?: string; error?: string };
+        message = errorBody.detail ?? errorBody.message ?? errorBody.error ?? message;
+      } catch {
+        message = errorText;
+      }
+    }
+    throw new ApiError(response.status, message);
   }
 
   const text = await response.text();
@@ -180,21 +295,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const studyApi = {
-  list: (params: { q?: string; category?: string; experienceDetailIds?: number[]; page?: number; size?: number } = {}) => {
+  list: (params: { q?: string; category?: string; skillIds?: number[]; experienceIds?: number[]; experienceDetailIds?: number[]; page?: number; size?: number } = {}) => {
     const search = new URLSearchParams();
     if (params.q) search.set('q', params.q);
     if (params.category && params.category !== 'ALL') search.set('category', params.category);
+    params.skillIds?.forEach((id) => search.append('skillIds', String(id)));
+    params.experienceIds?.forEach((id) => search.append('experienceIds', String(id)));
     params.experienceDetailIds?.forEach((id) => search.append('experienceDetailIds', String(id)));
     search.set('page', String(params.page ?? 0));
     search.set('size', String(params.size ?? 20));
     return request<StudyPage>(`/api/studies?${search}`);
   },
   detail: (slug: string) => request<Study>(`/api/studies/${encodeURIComponent(slug)}`),
-  adminList: (params: { q?: string; category?: string; status?: StudyStatus } = {}) => {
+  adminList: (params: { q?: string; category?: string; status?: StudyStatus; skillIds?: number[]; experienceIds?: number[]; experienceDetailIds?: number[] } = {}) => {
     const search = new URLSearchParams({ size: '100' });
     if (params.q) search.set('q', params.q);
     if (params.category && params.category !== 'ALL') search.set('category', params.category);
     if (params.status) search.set('status', params.status);
+    params.skillIds?.forEach((id) => search.append('skillIds', String(id)));
+    params.experienceIds?.forEach((id) => search.append('experienceIds', String(id)));
+    params.experienceDetailIds?.forEach((id) => search.append('experienceDetailIds', String(id)));
     return request<StudyPage>(`/api/admin/studies?${search}`);
   },
   categories: () => request<StudyCategory[]>('/api/study-categories'),
@@ -231,6 +351,41 @@ export const authApi = {
 export const bffApi = {
   getIntroduction: () => request<IntroductionResponse>('/api/bff/introduction'),
   getLearning: () => request<LearningResponse>('/api/bff/learning'),
+};
+
+export const competencyApi = {
+  list: () => request<Competency[]>('/api/admin/competencies'),
+  create: (payload: CompetencyRequest) =>
+    request<Competency>('/api/admin/competencies', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: CompetencyRequest) =>
+    request<Competency>(`/api/admin/competencies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: number) =>
+    request<void>(`/api/admin/competencies/${id}`, {
+      method: 'DELETE',
+    }),
+  suggest: (payload: CompetencySuggestionRequest) =>
+    request<CompetencySuggestionResponse>('/api/admin/competencies/ai/suggestions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const visitorApi = {
+  record: () => request<VisitorSummary>('/api/visits', { method: 'POST' }),
+  adminSummary: () => request<VisitorSummary>('/api/admin/visits/summary'),
+  adminDaily: (from?: string, to?: string) => {
+    const search = new URLSearchParams();
+    if (from) search.set('from', from);
+    if (to) search.set('to', to);
+    const query = search.toString();
+    return request<VisitorDaily[]>(`/api/admin/visits/daily${query ? `?${query}` : ''}`);
+  },
 };
 
 export const profileApi = {
@@ -277,6 +432,8 @@ export type ExperienceRequest = {
   takeaway?: string;
   essayContent?: string;
   displayOrder: number;
+  showOnTimeline: boolean;
+  timelineLabel?: string;
   details: ExperienceDetailRequest[];
   skillIds: number[];
   tagNames: string[];
@@ -286,6 +443,7 @@ export type ExperienceRequest = {
   role?: string;
   slug?: string;
   contributionRate?: number;
+  repositoryUrl?: string;
   institutionName?: string;
   issuer?: string;
 };
@@ -306,4 +464,23 @@ export const experienceApi = {
     request<void>(`/api/experiences/${id}`, {
       method: 'DELETE',
     }),
+};
+
+export const connectionApi = {
+  getSkill: (id: number) =>
+    request<SkillConnections>(`/api/admin/skills/${id}/connections`),
+  updateSkill: (id: number, payload: SkillConnections) =>
+    request<SkillConnections>(`/api/admin/skills/${id}/connections`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  getExperience: (id: number) =>
+    request<ExperienceConnections>(`/api/admin/experiences/${id}/connections`),
+  updateExperience: (id: number, payload: ExperienceConnections) =>
+    request<ExperienceConnections>(`/api/admin/experiences/${id}/connections`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  relatedExperiences: (id: number) =>
+    request<RelatedExperience[]>(`/api/experiences/${id}/related`),
 };

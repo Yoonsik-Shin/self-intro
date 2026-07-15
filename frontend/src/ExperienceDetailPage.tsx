@@ -4,9 +4,10 @@ import ReactMarkdown from 'react-markdown';
 import { ArrowLeft, Briefcase } from 'lucide-react';
 import { bffApi, studyApi, type Experience } from './lib/api';
 import { markdownComponents } from './lib/markdown';
+import { navigate } from './lib/navigation';
 
-function parseDetailId(hash: string): number | null {
-  const match = hash.match(/^#\/experience-detail\/(\d+)$/);
+function parseDetailId(pathname: string): number | null {
+  const match = pathname.match(/^\/experience-detail\/(\d+)\/?$/);
   return match ? Number(match[1]) : null;
 }
 
@@ -16,12 +17,12 @@ function formatPeriod(exp: Experience) {
 }
 
 export function ExperienceDetailPage() {
-  const [detailId, setDetailId] = useState(() => parseDetailId(window.location.hash));
+  const [detailId, setDetailId] = useState(() => parseDetailId(window.location.pathname));
 
   useEffect(() => {
-    const onHashChange = () => setDetailId(parseDetailId(window.location.hash));
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const onPopState = () => setDetailId(parseDetailId(window.location.pathname));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   const { data: introData, isLoading } = useQuery({
@@ -50,7 +51,7 @@ export function ExperienceDetailPage() {
   }, [introData, detailId]);
 
   const goBack = () => {
-    window.location.hash = '';
+    navigate('/');
   };
 
   return (

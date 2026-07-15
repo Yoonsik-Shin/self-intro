@@ -1,0 +1,203 @@
+import ReactMarkdown from 'react-markdown';
+import {
+  ArrowLeft,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  ExternalLink,
+  Github,
+  GraduationCap,
+  Pencil,
+  Pin,
+  PinOff,
+  Tags,
+  Trash2,
+  Wrench,
+} from 'lucide-react';
+import type { Experience } from '../lib/api';
+import { adminDetailMarkdownComponents, markdownComponents } from '../lib/markdown';
+
+type ExperienceDetailPanelProps = {
+  experience: Experience;
+  onBack: () => void;
+  onEdit: (experience: Experience) => void;
+  onDelete: (id: number) => void;
+};
+
+const typeLabels: Record<Experience['type'], string> = {
+  CAREER: '회사 경력',
+  PROJECT: '프로젝트',
+  EDUCATION: '학력·교육',
+  CERTIFICATE: '자격증',
+};
+
+function formatPeriod(start: string, end?: string) {
+  return `${start} — ${end ?? '진행 중'}`;
+}
+
+export function ExperienceDetailPanel({ experience, onBack, onEdit, onDelete }: ExperienceDetailPanelProps) {
+  const organization = experience.companyName ?? experience.institutionName ?? experience.issuer;
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-fadeIn">
+      <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-4 sm:px-7">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-950"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            목록으로
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onEdit(experience)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              수정
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(experience.id)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-white px-3 py-2 text-sm font-bold text-red-500 transition hover:border-red-200 hover:bg-red-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              삭제
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6 max-w-5xl">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">{typeLabels[experience.type]}</span>
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {formatPeriod(experience.periodStart, experience.periodEnd)}
+            </span>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${experience.showOnTimeline ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+              {experience.showOnTimeline ? <Pin className="h-3 w-3" /> : <PinOff className="h-3 w-3" />}
+              {experience.showOnTimeline ? '타임라인 표시' : '타임라인 숨김'}
+            </span>
+          </div>
+          <h3 className="mt-3 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">{experience.title}</h3>
+          {(organization || experience.role) && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-500">
+              <Building2 className="h-4 w-4" />
+              {[organization, experience.department, experience.role].filter(Boolean).join(' · ')}
+            </p>
+          )}
+          {experience.summary && (
+            <div className="mt-4 text-sm font-medium leading-relaxed text-slate-600 sm:text-base">
+              <ReactMarkdown components={adminDetailMarkdownComponents}>{experience.summary}</ReactMarkdown>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-8 px-5 py-6 sm:px-7 lg:grid-cols-[minmax(0,1fr)_260px] lg:py-8">
+        <div className="min-w-0 space-y-8">
+          {experience.takeaway && (
+            <section className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
+              <h4 className="text-xs font-black uppercase tracking-wider text-emerald-700">핵심 성과 및 배운 점</h4>
+              <div className="mt-2 text-sm leading-relaxed text-emerald-900">
+                <ReactMarkdown components={adminDetailMarkdownComponents}>{experience.takeaway}</ReactMarkdown>
+              </div>
+            </section>
+          )}
+
+          {experience.details.length > 0 && (
+            <section>
+              <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                <BriefcaseBusiness className="h-4 w-4 text-slate-500" />
+                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">상세 경험</h4>
+              </div>
+              <div className="space-y-4">
+                {experience.details.map((detail, index) => (
+                  <div key={detail.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">{index + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-black leading-snug text-slate-800">{detail.content}</p>
+                        <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-600">
+                          {detail.situation && <div><p className="mb-1 text-xs font-black text-slate-400">상황</p><ReactMarkdown components={adminDetailMarkdownComponents}>{detail.situation}</ReactMarkdown></div>}
+                          {detail.actionDetail && <div><p className="mb-1 text-xs font-black text-slate-400">과정</p><ReactMarkdown components={adminDetailMarkdownComponents}>{detail.actionDetail}</ReactMarkdown></div>}
+                          {detail.outcome && <div><p className="mb-1 text-xs font-black text-slate-400">성과</p><ReactMarkdown components={adminDetailMarkdownComponents}>{detail.outcome}</ReactMarkdown></div>}
+                        </div>
+                        {detail.skills.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {detail.skills.map((skill) => <span key={skill.id} className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{skill.name}</span>)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {experience.essayContent && (
+            <section>
+              <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                <GraduationCap className="h-4 w-4 text-slate-500" />
+                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">상세 기술서</h4>
+              </div>
+              <div className="min-w-0 break-words">
+                <ReactMarkdown components={markdownComponents}>{experience.essayContent}</ReactMarkdown>
+              </div>
+            </section>
+          )}
+        </div>
+
+        <aside className="space-y-5 lg:border-l lg:border-slate-100 lg:pl-6">
+          {experience.type === 'PROJECT' && (
+            <section className="rounded-xl border border-slate-200 p-3">
+              <p className="text-xs font-black uppercase tracking-wider text-slate-400">프로젝트 정보</p>
+              <dl className="mt-2 space-y-2 text-xs">
+                <div className="flex justify-between gap-3"><dt className="text-slate-400">역할</dt><dd className="text-right font-bold text-slate-700">{experience.role ?? '-'}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-slate-400">기여도</dt><dd className="font-bold text-slate-700">{experience.contributionRate ?? 0}%</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-slate-400">Slug</dt><dd className="truncate font-mono font-bold text-slate-700">{experience.slug ?? '-'}</dd></div>
+              </dl>
+              {experience.repositoryUrl && (
+                <a
+                  href={experience.repositoryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
+                >
+                  <Github className="h-3.5 w-3.5" /> GitHub 저장소 <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </section>
+          )}
+
+          {experience.skills.length > 0 && (
+            <section>
+              <h4 className="mb-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-400"><Wrench className="h-3.5 w-3.5" /> 기술 스택</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {experience.skills.map((skill) => <span key={skill.id} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{skill.name}{skill.skillVersion ? ` v${skill.skillVersion}` : ''}</span>)}
+              </div>
+            </section>
+          )}
+
+          {experience.tags.length > 0 && (
+            <section>
+              <h4 className="mb-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-400"><Tags className="h-3.5 w-3.5" /> 태그</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {experience.tags.map((tag) => <span key={tag.id} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">#{tag.name}</span>)}
+              </div>
+            </section>
+          )}
+
+          <section className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+            <p><span className="font-bold text-slate-700">정렬 순서</span> {experience.displayOrder}</p>
+            {experience.timelineLabel && <p className="mt-1"><span className="font-bold text-slate-700">타임라인 라벨</span> {experience.timelineLabel}</p>}
+          </section>
+        </aside>
+      </div>
+    </article>
+  );
+}

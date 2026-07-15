@@ -18,11 +18,17 @@ import {
   ChevronDown,
   ArrowLeft,
   ExternalLink,
+  FolderGit2,
+  Award,
+  GraduationCap,
+  Eye,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { bffApi, studyApi, type Skill, type ExperienceDetail } from './lib/api';
+import { bffApi, connectionApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
-import { markdownComponents, experienceMarkdownComponents } from './lib/markdown';
+import { markdownComponents, resumeMarkdownComponents } from './lib/markdown';
+import { SkillBadgeIcon } from './lib/SkillBadgeIcon';
+import { navigate, pagePaths, pathForExperienceDetail, pathForStudy } from './lib/navigation';
 
 const milestones = [
   {
@@ -31,7 +37,7 @@ const milestones = [
     period: '2026.06 - 2026.07',
     title: '고객문의 수집·자동응답 통합 테스트베드 (기여도 100%)',
     body: 'n8n 자동 수집, Playwright 네이버 로그인, PII 암호화, Grafana 모니터링 환경을 구축했습니다.',
-    skills: ['Java', 'Spring Boot', 'QueryDSL', 'Flyway', 'React', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
+    skills: ['Java', 'Spring Boot', 'Spring Data JPA', 'Spring Security', 'QueryDSL', 'PostgreSQL', 'Flyway', 'React', 'Playwright', 'n8n', 'Nginx', 'Docker Compose', 'Grafana', 'Loki', 'Alloy'],
     role: 'Backend & DevOps Engineer',
     description: '고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. DB 기반 RBAC 및 PII 암호화, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.',
     takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.',
@@ -43,7 +49,7 @@ const milestones = [
     period: '2026.03 - 2026.06',
     title: 'Azure 클라우드 로그 비용 진단 및 최적화 SaaS (기여도 70%)',
     body: 'Azure Functions 비용 누수 자동 진단, FastAPI/Cosmos DB 백엔드, OpenAI 처방을 연동했습니다.',
-    skills: ['Azure Functions', 'FastAPI', 'Cosmos DB', 'Azure OpenAI', 'Teams SDK', 'Bicep', 'IaC'],
+    skills: ['Azure Functions', 'FastAPI', 'Cosmos DB', 'KQL', 'Azure Log Analytics', 'Azure OpenAI', 'Teams SDK', 'Bicep', 'Infrastructure as Code (IaC)'],
     role: 'Fullstack & Cloud Developer',
     description: 'Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다. (팀 프로젝트)',
     takeaway: '쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 체득했습니다.',
@@ -55,7 +61,7 @@ const milestones = [
     period: '2025.12 - 2026.03',
     title: '음성 스트리밍 및 RAG 면접 관리 (기여도 100%)',
     body: 'gRPC/Redis/Kafka 기반 실시간 음성 스트리밍, 이력서 RAG 질문 생성 서비스를 설계했습니다.',
-    skills: ['React', 'gRPC', 'Redis', 'Kafka', 'LLM', 'STT/TTS', 'RAG', 'Kubernetes'],
+    skills: ['React', 'gRPC', 'Redis', 'Apache Kafka', 'LLM', 'STT/TTS', 'RAG', 'Kubernetes'],
     role: 'Core Architect & Developer',
     description: '실시간 AI 모의면접 및 역량 평가 서비스의 전체 시스템 아키텍처와 분산 메시징 처리 부분을 담당했습니다. gRPC 기반 실시간 음성 스트리밍 제어, Redis/Kafka 비동기 메시지 큐를 통한 음성 데이터 및 AI 상태 변경 큐잉, 이력서 RAG 질문 생성 기능 등을 구현하고 Kubernetes 환경에 배포했습니다. (개인 프로젝트)',
     takeaway: '비동기 메시징 및 대용량 음성 스트리밍 환경에서 발생할 수 있는 데이터 유실과 지연 병목을 제어하며 분산 인프라 설계 능력을 키웠습니다.',
@@ -67,43 +73,13 @@ const milestones = [
     period: '2023.12 - 2025.10',
     title: '학습 플랫폼 핵심 API 및 BFF 구축 (기여도 43%)',
     body: 'AI 튜터 세션 모델 설계, 실시간 학생 Presence 추적, 백오피스 단독 구축을 총괄했습니다.',
-    skills: ['Node.js', 'TypeScript', 'NestJS', 'Express', 'MongoDB', 'Redis', 'Spring Boot', 'AWS ECS/SQS', 'Docker', 'Datadog'],
+    skills: ['Node.js', 'TypeScript', 'NestJS', 'Express', 'MongoDB', 'Redis', 'Spring Boot', 'Spring Data JPA', 'Spring Security', 'MySQL', 'AWS ECS', 'Amazon SQS', 'Docker', 'Datadog', 'GitHub Actions'],
     role: 'Backend & DevOps Engineer',
     description: '커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하였습니다. (에듀테크 스타트업 실무 경력)',
     takeaway: '실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.',
     tags: [] as string[]
   }
 ];
-
-const essays = {
-  WHY: {
-    title: '1. 프로젝트별 기술 적용 및 문제 해결 상세',
-    subtitle: '실무 경력 및 핵심 프로젝트에서 직접 설계하고 해결한 구체적인 기술적 경험을 기술합니다.',
-    paragraphs: [
-      `에듀테크 스타트업 실무 경력 (1년 11개월): 핵심 애플리케이션 및 BFF 서버 개발을 전담하며 전체 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로 활약했습니다. 특히 AI 튜터 메시징 대화 세션의 4개 컨텍스트 다형성(문제풀이/복습/챌린지/개념보강) 모델을 추상화하여 외부 AI 서버와의 SQS 비동기 연동을 주도했으며, MongoDB 트랜잭션을 적용해 상태 변화의 데이터 정합성을 보장했습니다. 또한 교사용 실시간 학생 Presence 추적과 이상행동(manageable-action) 감지, 제출문제(SubmittedProblem) 도메인의 CQRS 리팩토링 및 6만 건의 데이터 마이그레이션 스크립트를 작성하여 시스템 효율화를 이뤄냈습니다.`,
-      `백오피스 TF 및 공용 서비스 단독 구축: 무료체험 프로세스 개선을 위한 자발적 TF에서 Spring Boot 3.2 + Security + JPA 기반 백오피스 서버(144개 클래스) 전체를 단독 개발했습니다. NCP 카카오 알림톡(HMAC 서명 구현) 및 MS Teams 웹훅 연동을 통해 알림을 자동화했으며, Redis Session을 활용해 크로스도메인 쿠키 인증 이슈를 해결했습니다. 추가로 여러 부서가 공용하는 6만여 개의 문항 조회를 위한 NestJS 마이크로서비스를 단독 설계하고, 공통 DB/캐시 모듈을 사내 npm 패키지로 격리하며 신규 NestJS 프로젝트 생성용 CLI 도구까지 주도 개발했습니다.`,
-      `CS Test Bed 및 신규 프로젝트 개발: CS 문의 수집·답변 자동화 E2E 시스템(CS Test Bed)을 단독 구축했습니다. n8n 워크플로우로 카페 게시판과 이메일 문의를 수집하고, Playwright를 활용해 네이버 세션 만료 및 자동 답변 우회 로직을 구현했습니다. Nginx auth_request 및 HMAC 토큰을 활용한 보안 프록시 계층을 설계하여 MinIO/Grafana 등 내부 도구에 SSO를 연동했습니다. AI 실시간 모의면접 플랫폼에서는 gRPC/Redis/Kafka 기반의 음성 스트리밍 파이프라인을 설계해 비동기 상태 통제와 RAG Rerank 최적화 성능을 확보했습니다.`
-    ]
-  },
-  STRENGTH: {
-    title: '2. 전공 자격증 기반의 기술적 전문성 증명',
-    subtitle: '정보처리기사, SQLD, 빅데이터분석기사 자격을 통해 획득한 이론을 실제 프로젝트 아키텍처에 접목한 상세 내용입니다.',
-    strengths: [
-      {
-        title: '정보처리기사: 소프트웨어 공학 주기 및 클린 아키텍처 실무 접목',
-        content: '정보처리기사 취득 과정에서 체화한 소프트웨어 개발 생명주기(SDLC), 모듈 설계 원칙(응집도와 결합도), 객체지향 설계(SOLID)를 실무에 직접 투영했습니다. 도메인의 경계를 명확히 분리하고 인프라 변경에 유연하게 대응하기 위해 헥사고날(포트-어댑터) 아키텍처와 DDD 4계층(adapter-application-domain-infrastructure) 구조를 에듀테크 서비스 전체에 일관 적용하여 코드 가독성과 확장성을 대폭 높였습니다.'
-      },
-      {
-        title: 'SQL 개발자(SQLD): 관계형 데이터베이스 모델링 및 동적 쿼리 최적화',
-        content: '데이터 모델 정규화 및 반정규화, 인덱스(Index) 설계 원리와 조인(Join) 메커니즘을 심도 있게 학습했습니다. Spring Boot 기반 백오피스 개발 시 8개 도메인 간의 유기적 관계(1:N, N:M)를 매핑하고, 복잡한 동적 필터 조회를 위해 QueryDSL을 연동하여 성능 향상을 이뤄냈습니다. N+1 문제를 방지하기 위해 Fetch Join과 인덱스 튜닝을 도입하여 조회 속도를 개선했습니다.'
-      },
-      {
-        title: '빅데이터분석기사: 대용량 데이터 전처리 및 통계 분석 파이프라인 설계',
-        content: '대량 데이터 수집, 이상치 정제, 통계적 분석(가설 검정, 회귀 모형) 및 평가 메커니즘을 마이그레이션과 AI RAG 파이프라인에 접목했습니다. SubmittedProblem 통계 병합 마이그레이션 시 14개 집계 지표(제출수/정답수/소요시간 등)를 MongoDB 트랜잭션 내에서 정량 데이터로 가공·적재하는 파이프라인을 구축하였으며, AI 모의면접 플랫폼에서 PDF 이력서 RAG 질문 생성의 답변 정확도를 분석하는 통계 평가 체계에 응용했습니다.'
-      }
-    ]
-  }
-};
 
 const pages = [
   {
@@ -131,12 +107,29 @@ const pages = [
 
 type PageId = (typeof pages)[number]['id'];
 
+function getPageFromPath(pathname: string): PageId {
+  if (pathname === '/architecture' || pathname.startsWith('/architecture/')) return 'architecture';
+  if (pathname === '/study' || pathname.startsWith('/study/')) return 'blog';
+  return 'intro';
+}
+
+function getStudySlugFromPath(pathname: string): string | null {
+  const slug = pathname.match(/^\/study\/([^/]+)\/?$/)?.[1];
+  if (!slug) return null;
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return null;
+  }
+}
+
 const mainSections = [
   { id: 'intro-profile', label: '프로필', icon: User },
   { id: 'timeline', label: '커리어 & 학습 타임라인', icon: Calendar },
   { id: 'skills', label: '기술 스택', icon: Cpu },
+  { id: 'competencies', label: '핵심 역량', icon: Sparkles },
   { id: 'career', label: '직장 경력', icon: Briefcase },
-  { id: 'competencies', label: '역량 기술서', icon: Sparkles },
+  { id: 'credentials', label: '학력·교육 및 자격증', icon: GraduationCap },
   { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
 ];
 
@@ -174,33 +167,97 @@ const fallbackCoreSkills: Skill[] = [
   { id: -6, name: 'RAG', category: 'AI_RAG', skillLevel: '학습/활용', comment: 'AI 면접 질문 생성과 로그 진단에 적용', usageType: 'LEARNING', isCore: true, displayOrder: 6 },
 ];
 
-function RelatedStudyNotes({ experienceDetailId, onOpenStudy }: { experienceDetailId: number; onOpenStudy: (slug: string, refPage?: PageId, refSectionId?: string) => void }) {
+type RelatedStudyNotesProps = {
+  skillId?: number;
+  experienceId?: number;
+  experienceDetailId?: number;
+  refSectionId?: string;
+  onOpenStudy: (slug: string, refPage?: PageId, refSectionId?: string) => void;
+};
+
+function RelatedStudyNotes({ skillId, experienceId, experienceDetailId, refSectionId: customRefSectionId, onOpenStudy }: RelatedStudyNotesProps) {
+  const relationKey = skillId
+    ? `skill-${skillId}`
+    : experienceDetailId
+      ? `detail-${experienceDetailId}`
+      : `experience-${experienceId}`;
   const { data: relatedPage } = useQuery({
-    queryKey: ['studies', 'byExperienceDetail', experienceDetailId],
-    queryFn: () => studyApi.list({ experienceDetailIds: [experienceDetailId] }),
+    queryKey: ['studies', 'byExperience', relationKey],
+    queryFn: () => studyApi.list({
+      skillIds: skillId ? [skillId] : undefined,
+      experienceIds: experienceId ? [experienceId] : undefined,
+      experienceDetailIds: experienceDetailId ? [experienceDetailId] : undefined,
+      size: 100,
+    }),
+    enabled: Boolean(skillId || experienceId || experienceDetailId),
   });
   const relatedStudies = relatedPage?.content ?? [];
+  const refSectionId = customRefSectionId ?? (skillId
+    ? 'skills'
+    : experienceDetailId
+      ? `experience-detail-${experienceDetailId}`
+      : `project-experience-${experienceId}`);
 
   if (relatedStudies.length === 0) {
     return null;
   }
 
   return (
-    <div className="pt-2.5 mt-2 border-t border-slate-100">
-      <p className="mb-2 text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
+    <div className="mt-2 border-t border-slate-100 pt-2.5 print:hidden">
+      <p className="resume-label mb-2 flex items-center gap-1.5 font-bold uppercase tracking-wider text-blue-600">
         <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
-        관련 기술노트
+        관련 학습 · 기술노트
       </p>
       <div className="space-y-2">
         {relatedStudies.map((study) => (
           <button
             key={study.id}
             type="button"
-            onClick={() => onOpenStudy(study.slug, 'intro', `experience-detail-${experienceDetailId}`)}
-            className="flex w-full items-center justify-between gap-2.5 rounded-xl border border-blue-100/50 bg-blue-50/40 px-4 py-2.5 text-left text-[13px] sm:text-sm font-semibold text-blue-700 transition hover:bg-blue-50/80 hover:text-blue-800 hover:border-blue-200 shadow-sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenStudy(study.slug, 'intro', refSectionId);
+            }}
+            className="resume-meta flex w-full items-center justify-between gap-2.5 rounded-xl border border-blue-100/50 bg-blue-50/40 px-4 py-2.5 text-left font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-50/80 hover:text-blue-800 shadow-sm"
           >
             <span>{study.title}</span>
             <ExternalLink className="h-4 w-4 shrink-0 text-blue-500" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RelatedExperienceLinks({
+  experienceId,
+  onNavigate,
+}: {
+  experienceId: number;
+  onNavigate: (experience: RelatedExperience) => void;
+}) {
+  const { data = [] } = useQuery({
+    queryKey: ['experiences', 'related', experienceId],
+    queryFn: () => connectionApi.relatedExperiences(experienceId),
+    enabled: experienceId > 0,
+  });
+
+  if (data.length === 0) return null;
+
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2.5 print:hidden">
+      <p className="resume-label mb-2 font-bold uppercase tracking-wider text-violet-600">관련 프로젝트 · 이력</p>
+      <div className="flex flex-wrap gap-1.5">
+        {data.map((experience) => (
+          <button
+            key={experience.id}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigate(experience);
+            }}
+            className="resume-meta rounded-lg border border-violet-100 bg-violet-50/50 px-2.5 py-1.5 font-semibold text-violet-700 transition hover:border-violet-200 hover:bg-violet-50"
+          >
+            {experience.title}
           </button>
         ))}
       </div>
@@ -220,13 +277,32 @@ export function App() {
 
   const [search, setSearch] = useState('');
 
+  const isPreviewMode = useMemo(
+    () => new URLSearchParams(window.location.search).get('preview') === '1',
+    [],
+  );
+
+  // 관리자 대시보드가 현재 선택된 메뉴에 맞춰 미리보기 위치를 지정할 수 있도록 sessionStorage에서 초기 목표 지점을 읽어온다.
+  const [previewNav, setPreviewNav] = useState<{ page: PageId; section?: string } | null>(() => {
+    if (!isPreviewMode) return null;
+    try {
+      const raw = sessionStorage.getItem('admin-preview-nav');
+      return raw ? (JSON.parse(raw) as { page: PageId; section?: string }) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [activeSection, setActiveSection] = useState('intro-profile');
-  const initialStudySlug = window.location.pathname.match(/^\/study\/(.+)$/)?.[1];
-  const [activePage, setActivePage] = useState<PageId>(initialStudySlug ? 'blog' : 'intro');
-  const [selectedStudySlug, setSelectedStudySlug] = useState(initialStudySlug ? decodeURIComponent(initialStudySlug) : null);
+  const initialStudySlug = getStudySlugFromPath(window.location.pathname);
+  const [activePage, setActivePage] = useState<PageId>(
+    previewNav?.page ?? getPageFromPath(window.location.pathname),
+  );
+  const [selectedStudySlug, setSelectedStudySlug] = useState(initialStudySlug);
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
   const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
   const [expandedCareerDetailIds, setExpandedCareerDetailIds] = useState<number[]>([]);
+  const [selectedTimelineYear, setSelectedTimelineYear] = useState<number | null>(null);
   const [referrer, setReferrer] = useState<{ page: PageId; sectionId?: string } | null>(null);
 
   useEffect(() => {
@@ -267,10 +343,77 @@ export function App() {
     }
   };
 
-  const { data: introData } = useQuery({
+  const [previewIntroData, setPreviewIntroData] = useState<IntroductionResponse | undefined>(() => {
+    if (!isPreviewMode) return undefined;
+    try {
+      const raw = sessionStorage.getItem('admin-preview-intro-override');
+      return raw ? (JSON.parse(raw) as IntroductionResponse) : undefined;
+    } catch {
+      return undefined;
+    }
+  });
+
+  // 관리자 대시보드(부모 창)가 sessionStorage를 갱신하면 같은 탭 내 iframe인 이 창에도 storage 이벤트가 전달되어,
+  // 페이지 새로고침 없이 미리보기 데이터와 위치를 실시간으로 반영할 수 있다.
+  useEffect(() => {
+    if (!isPreviewMode) return;
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'admin-preview-intro-override') {
+        try {
+          setPreviewIntroData(event.newValue ? (JSON.parse(event.newValue) as IntroductionResponse) : undefined);
+        } catch {
+          setPreviewIntroData(undefined);
+        }
+      } else if (event.key === 'admin-preview-nav') {
+        try {
+          setPreviewNav(event.newValue ? (JSON.parse(event.newValue) as { page: PageId; section?: string }) : null);
+        } catch {
+          // ignore malformed nav payloads
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [isPreviewMode]);
+
+  // 관리자에서 선택된 메뉴에 대응하는 페이지/섹션으로 미리보기를 이동시킨다.
+  useEffect(() => {
+    if (!isPreviewMode || !previewNav) return;
+    setActivePage(previewNav.page);
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        if (previewNav.section) {
+          scrollToSection(previewNav.section);
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreviewMode, previewNav]);
+
+  const { data: visitorSummary } = useQuery({
+    queryKey: ['visitor', 'record'],
+    queryFn: visitorApi.record,
+    enabled: !isPreviewMode,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: fetchedIntroData } = useQuery({
     queryKey: ['introduction'],
     queryFn: bffApi.getIntroduction,
+    enabled: !isPreviewMode,
   });
+
+  const introData = isPreviewMode ? previewIntroData : fetchedIntroData;
 
   const { data: studyPage } = useQuery({
     queryKey: ['studies', 'public', search, activeCategory],
@@ -296,12 +439,30 @@ export function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      const slug = window.location.pathname.match(/^\/study\/(.+)$/)?.[1];
-      setSelectedStudySlug(slug ? decodeURIComponent(slug) : null);
-      if (slug) setActivePage('blog');
+      setSelectedStudySlug(getStudySlugFromPath(window.location.pathname));
+      setActivePage(getPageFromPath(window.location.pathname));
+      setReferrer(null);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    let titleBeforePrint = document.title;
+    const clearPrintTitle = () => {
+      titleBeforePrint = document.title;
+      document.title = '';
+    };
+    const restorePrintTitle = () => {
+      document.title = titleBeforePrint;
+    };
+
+    window.addEventListener('beforeprint', clearPrintTitle);
+    window.addEventListener('afterprint', restorePrintTitle);
+    return () => {
+      window.removeEventListener('beforeprint', clearPrintTitle);
+      window.removeEventListener('afterprint', restorePrintTitle);
+    };
   }, []);
 
   const fallbackProfile = {
@@ -309,7 +470,6 @@ export function App() {
     nameEn: "Yoonsik Shin",
     jobTitle: "Software Engineer",
     bio: "에듀테크 실무 백엔드 개발 경험과 Java/Spring Boot, MSA 및 Cloud 인프라 구축 지식을 기반으로 안정적이고 최적화된 아키텍처를 설계하고 운영합니다.",
-    careerSummary: "1년 11개월 (에듀테크 스타트업)",
     coreStackSummary: "Java / Node.js / Cloud",
     statusBadgeText: "실시간 아키텍처 및 콘텐츠 개선 중",
     githubUrl: "https://github.com/Yoonsik-Shin",
@@ -318,6 +478,7 @@ export function App() {
   };
 
   const profile = introData?.profile ?? fallbackProfile;
+  const careerSummary = introData?.careerSummary ?? '1년 11개월';
 
   const groupedCoreSkills = useMemo(() => {
     const coreSkills =
@@ -414,12 +575,30 @@ export function App() {
             role: exp.role ?? '',
             description: exp.summary ?? '',
             takeaway: exp.takeaway ?? '',
-            essayContent: exp.essayContent
+            essayContent: exp.essayContent,
+            repositoryUrl: exp.repositoryUrl,
+            experienceId: exp.id,
           };
         });
     }
-    return milestones;
+    return milestones.map((milestone) => ({
+      ...milestone,
+      repositoryUrl: undefined as string | undefined,
+      experienceId: undefined as number | undefined,
+    }));
   }, [introData]);
+
+  const navigateToRelatedExperience = (experience: RelatedExperience) => {
+    if (experience.type === 'PROJECT') {
+      const milestone = activeMilestones.find((item) => item.experienceId === experience.id);
+      if (milestone) setSelectedMilestoneId(milestone.id);
+      document.getElementById(`project-experience-${experience.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    scrollToSection(experience.type === 'CAREER' ? 'career' : 'credentials');
+  };
+
+  const coreCompetencies = introData?.competencies ?? [];
 
   const careerCards = useMemo(() => {
     const formatPeriod = (start: string, end?: string) => {
@@ -459,6 +638,118 @@ export function App() {
     }];
   }, [introData]);
 
+  const educationExperiences = useMemo(() => {
+    return (introData?.experiences ?? [])
+      .filter((experience) => experience.type === 'EDUCATION')
+      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+  }, [introData]);
+
+  const certificateExperiences = useMemo(() => {
+    return (introData?.experiences ?? [])
+      .filter((experience) => experience.type === 'CERTIFICATE')
+      .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+  }, [introData]);
+
+  const formatCredentialDate = (date: string) => date.replace(/-/g, '.');
+  const formatCredentialPeriod = (experience: Experience) => {
+    const start = formatCredentialDate(experience.periodStart);
+    if (!experience.periodEnd || experience.periodEnd === experience.periodStart) {
+      return start;
+    }
+    return `${start} - ${formatCredentialDate(experience.periodEnd)}`;
+  };
+
+  const timelineExperiences = useMemo(() => {
+    return (introData?.experiences ?? []).filter((exp) => exp.showOnTimeline);
+  }, [introData]);
+
+  const timelineRange = useMemo(() => {
+    const now = new Date();
+    const dates = timelineExperiences.flatMap((exp) => [
+      new Date(exp.periodStart),
+      exp.periodEnd ? new Date(exp.periodEnd) : now,
+    ]);
+    if (dates.length === 0) {
+      return { startYear: now.getFullYear() - 1, endYear: now.getFullYear() };
+    }
+    const minYear = Math.min(...dates.map((d) => d.getFullYear()));
+    const maxYear = Math.max(...dates.map((d) => d.getFullYear()));
+    return { startYear: minYear, endYear: Math.max(maxYear, minYear + 1) };
+  }, [timelineExperiences]);
+
+  const timelineYears = useMemo(() => {
+    const years: number[] = [];
+    for (let y = timelineRange.startYear; y <= timelineRange.endYear; y++) years.push(y);
+    return years;
+  }, [timelineRange]);
+
+  const timelineRangeStartMs = new Date(`${timelineRange.startYear}-01-01`).getTime();
+  const timelineRangeEndMs = new Date(`${timelineRange.endYear + 1}-01-01`).getTime();
+  const timelineRangeSpanMs = timelineRangeEndMs - timelineRangeStartMs;
+
+  const timelinePercentFor = (dateStr: string) => {
+    const ms = new Date(dateStr).getTime();
+    return Math.min(100, Math.max(0, ((ms - timelineRangeStartMs) / timelineRangeSpanMs) * 100));
+  };
+
+  const timelineWidthFor = (startStr: string, endStr?: string) => {
+    const startMs = new Date(startStr).getTime();
+    const endMs = endStr ? new Date(endStr).getTime() : Date.now();
+    return Math.max(2, ((endMs - startMs) / timelineRangeSpanMs) * 100);
+  };
+
+  const isTimelineYearActive = (startStr: string, endStr?: string) => {
+    if (selectedTimelineYear === null) return true;
+    const startYear = new Date(startStr).getFullYear();
+    const endYear = endStr ? new Date(endStr).getFullYear() : new Date().getFullYear();
+    return selectedTimelineYear >= startYear && selectedTimelineYear <= endYear;
+  };
+
+  const timelineDim = (startStr: string, endStr?: string) =>
+    isTimelineYearActive(startStr, endStr) ? 'opacity-100' : 'opacity-20 grayscale';
+
+  const timelineShortDate = (dateStr: string) => {
+    const [y, m] = dateStr.split('-');
+    return `${y.slice(2)}.${m}`;
+  };
+  const timelineLongDate = (dateStr: string) => {
+    const [y, m] = dateStr.split('-');
+    return `${y}.${m}`;
+  };
+
+  const timelineTooltip = (exp: { title: string; periodStart: string; periodEnd?: string }, isPoint: boolean) =>
+    isPoint
+      ? `${exp.title} (${timelineShortDate(exp.periodStart)})`
+      : `${exp.title} (${timelineLongDate(exp.periodStart)} - ${exp.periodEnd ? timelineLongDate(exp.periodEnd) : '진행 중'})`;
+
+  const onTimelineItemClick = (exp: Experience) => {
+    if (exp.type === 'PROJECT') {
+      setSelectedMilestoneId(exp.slug ?? exp.id.toString());
+      scrollToSection('projects');
+    } else if (exp.type === 'EDUCATION' || exp.type === 'CERTIFICATE') {
+      scrollToSection('credentials');
+    } else {
+      scrollToSection('career');
+    }
+  };
+
+  const timelinePointItems = useMemo(() =>
+    timelineExperiences.filter((exp) =>
+      (exp.type === 'EDUCATION' || exp.type === 'CERTIFICATE') && exp.periodEnd && exp.periodStart === exp.periodEnd
+    ), [timelineExperiences]);
+
+  const timelineCourseItems = useMemo(() =>
+    timelineExperiences.filter((exp) =>
+      exp.type === 'EDUCATION' && !(exp.periodEnd && exp.periodStart === exp.periodEnd)
+    ), [timelineExperiences]);
+
+  const timelineCareerItems = useMemo(() =>
+    timelineExperiences.filter((exp) => exp.type === 'CAREER'), [timelineExperiences]);
+
+  const timelineProjectItems = useMemo(() =>
+    timelineExperiences.filter((exp) => exp.type === 'PROJECT').sort((a, b) => a.periodStart.localeCompare(b.periodStart)),
+    [timelineExperiences]);
+
   const toggleCareerDetail = (id: number) => {
     setExpandedCareerDetailIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -489,58 +780,15 @@ export function App() {
     return activeMilestones.find(m => m.id === selectedMilestoneId) || activeMilestones[0];
   }, [selectedMilestoneId, activeMilestones]);
 
-  const dynamicWhyParagraphs = useMemo(() => {
-    if (introData?.experiences && introData.experiences.length > 0) {
-      const careerExp = introData.experiences.find(exp => exp.type === 'CAREER');
-      const projectExp = introData.experiences.find(exp => exp.type === 'PROJECT' && exp.essayContent);
-      
-      const paragraphs: string[] = [];
-      if (careerExp && careerExp.essayContent) {
-        paragraphs.push(...careerExp.essayContent.split('\n\n'));
-      }
-      if (projectExp && projectExp.essayContent) {
-        paragraphs.push(projectExp.essayContent);
-      }
-      if (paragraphs.length > 0) {
-        return paragraphs;
-      }
-    }
-    return essays.WHY.paragraphs;
-  }, [introData]);
-
-  const dynamicStrengths = useMemo(() => {
-    if (introData?.experiences && introData.experiences.length > 0) {
-      const certs = introData.experiences
-        .filter(exp => exp.type === 'CERTIFICATE' && exp.essayContent)
-        .sort((a, b) => a.displayOrder - b.displayOrder);
-      
-      if (certs.length > 0) {
-        return certs.map(cert => {
-          let takeawayLabel = cert.takeaway ?? '';
-          if (cert.title === '정보처리기사') takeawayLabel = '소프트웨어 공학 주기 및 클린 아키텍처 실무 접목';
-          else if (cert.title === 'SQL 개발자(SQLD)') takeawayLabel = '관계형 데이터베이스 모델링 및 동적 쿼리 최적화';
-          else if (cert.title === '빅데이터분석기사') takeawayLabel = '대용량 데이터 전처리 및 통계 분석 파이프라인 설계';
-
-          return {
-            title: `${cert.title}: ${takeawayLabel}`,
-            content: cert.essayContent ?? ''
-          };
-        });
-      }
-    }
-    return essays.STRENGTH.strengths;
-  }, [introData]);
-
   const handlePrint = () => {
     window.print();
   };
 
   const goToPage = (pageId: PageId) => {
     setActivePage(pageId);
-    if (pageId !== 'blog' && selectedStudySlug) {
-      setSelectedStudySlug(null);
-      window.history.pushState({}, '', '/');
-    }
+    setSelectedStudySlug(null);
+    setReferrer(null);
+    navigate(pagePaths[pageId]);
     setIsPageMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -548,7 +796,7 @@ export function App() {
   const openStudy = (slug: string, refPage?: PageId, refSectionId?: string) => {
     setSelectedStudySlug(slug);
     setActivePage('blog');
-    window.history.pushState({}, '', `/study/${encodeURIComponent(slug)}`);
+    navigate(pathForStudy(slug));
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (refPage) {
       setReferrer({ page: refPage, sectionId: refSectionId });
@@ -561,7 +809,7 @@ export function App() {
     if (referrer) {
       setActivePage(referrer.page);
       setSelectedStudySlug(null);
-      window.history.pushState({}, '', '/');
+      navigate(pagePaths[referrer.page]);
       const targetId = referrer.sectionId;
       setReferrer(null);
       
@@ -581,27 +829,33 @@ export function App() {
       }, 150);
     } else {
       setSelectedStudySlug(null);
-      window.history.pushState({}, '', '/');
+      navigate(pagePaths.blog);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   // 공통 카드 레이아웃 스타일 통일
-  const cardStyle = "bg-white border border-slate-200/60 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative";
+  const cardStyle = "resume-section-card bg-white border border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative";
   
   // 공통 배지 스타일 통일
-  const badgeStyle = "bg-slate-50 border border-slate-200/60 text-slate-700 text-sm font-bold px-2 py-0.5 rounded-md shadow-sm";
+  const badgeStyle = "resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded-md shadow-sm";
 
   return (
     <>
       <main className="min-h-screen bg-[#f8fafc] text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif] print:bg-white print:text-black pb-12">
+        {isPreviewMode && (
+          <div className="flex items-center justify-center gap-2 bg-amber-400 px-4 py-1.5 text-xs font-black text-amber-950 print:hidden">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-900" />
+            미리보기 모드 · 저장되지 않은 변경사항을 표시하고 있습니다
+          </div>
+        )}
         {/* Background Glow effects */}
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-slate-800/5 rounded-full filter blur-[120px] pointer-events-none print:hidden" />
         <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-slate-800/3 rounded-full filter blur-[100px] pointer-events-none print:hidden" />
 
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-xl print:hidden relative sm:px-4">
-          <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3">
+        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 py-2 shadow-sm backdrop-blur-xl print:hidden relative">
+          <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-6">
               <button
                 onClick={() => goToPage('intro')}
@@ -640,6 +894,13 @@ export function App() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
+              {visitorSummary && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-500 sm:px-2.5">
+                  <Eye className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">오늘 {visitorSummary.todayVisitors.toLocaleString()} · </span>
+                  누적 {visitorSummary.totalVisitors.toLocaleString()}
+                </span>
+              )}
               {activePage === 'intro' && (
                 <button
                   onClick={handlePrint}
@@ -701,17 +962,17 @@ export function App() {
         </header>
 
         {/* Main Body Layout */}
-        <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="resume-print-shell mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           
           {activePage === 'intro' ? (
             <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_240px] print:block relative items-start">
             
             {/* Main Content Column */}
-            <div className="min-w-0 space-y-12">
+            <div className="resume-page min-w-0 space-y-12">
               
               {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
-              <div id="intro-profile" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-slate-800/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none" />
+              <div id="intro-profile" className="resume-profile-card scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-slate-800/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none print:hidden" />
             
             <div className="relative z-10 space-y-6">
               
@@ -719,22 +980,22 @@ export function App() {
               {/* Top Row: Name, English Name, Job Title and Social Links */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
                 <div className="space-y-2 shrink-0">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 leading-none whitespace-nowrap">
+                  <h2 className="resume-profile-role font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 whitespace-nowrap">
                     {profile.jobTitle}
                   </h2>
                   <div className="flex items-baseline gap-2.5 whitespace-nowrap">
-                    <h1 className="text-3xl font-black text-slate-900 leading-none whitespace-nowrap">{profile.name}</h1>
-                    <span className="text-lg font-bold text-slate-400 font-mono whitespace-nowrap">{profile.nameEn}</span>
+                    <h1 className="resume-profile-name font-black text-slate-900 whitespace-nowrap">{profile.name}</h1>
+                    <span className="resume-profile-name-en font-bold text-slate-400 font-mono whitespace-nowrap">{profile.nameEn}</span>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3.5 mt-2 md:mt-0">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse shadow-sm">
+                  <span className="resume-meta inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 font-semibold text-amber-700 animate-pulse shadow-sm print:hidden">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                     {profile.statusBadgeText} (v{__APP_VERSION__} - {__BUILD_DATE__} 배포)
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 print:hidden">
                     <a
                       href={profile.githubUrl}
                       target="_blank"
@@ -762,38 +1023,70 @@ export function App() {
                 </div>
               </div>
 
+              <div className="resume-print-contact hidden flex-wrap gap-x-4 gap-y-1 border-b border-slate-200 pb-3 text-slate-600 print:flex">
+                <span>{profile.email}</span>
+                <span>{profile.phone}</span>
+                <span>{profile.githubUrl.replace(/^https?:\/\//, '')}</span>
+              </div>
+
               {/* Bio & Personal Info */}
               <div className="space-y-6">
                 <div>
-                  <p className="mt-2 text-sm sm:text-base text-slate-600 leading-relaxed max-w-4xl">
+                  <p className="resume-body mt-2 max-w-4xl whitespace-pre-line break-words text-slate-600">
                     {profile.bio}
                   </p>
                 </div>
 
-                    <div className="flex flex-col sm:flex-row print:flex-row gap-4 pt-2">
+                    <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2 print:grid-cols-2">
                       <button
                         onClick={() => scrollToSection('career')}
-                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
+                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
                       >
                         <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
                           <Briefcase className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">실무 경력</span>
-                          <span className="block font-black text-slate-800 text-sm group-hover:text-slate-950 transition mt-0.5">{profile.careerSummary}</span>
+                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">실무 경력</span>
+                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{careerSummary}</span>
                         </div>
                       </button>
 
                       <button
                         onClick={() => scrollToSection('skills')}
-                        className="flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
+                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
                       >
                         <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
                           <Cpu className="h-5 w-5" />
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">핵심 스택</span>
-                          <span className="block font-black text-slate-800 text-sm group-hover:text-slate-950 transition mt-0.5">{profile.coreStackSummary}</span>
+                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">핵심 스택</span>
+                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{profile.coreStackSummary}</span>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => scrollToSection('credentials')}
+                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
+                      >
+                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
+                          <GraduationCap className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">학력 · 교육</span>
+                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{educationExperiences.length}건</span>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => scrollToSection('credentials')}
+                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
+                      >
+                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
+                          <Award className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">보유 자격증</span>
+                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{certificateExperiences.length}개</span>
                         </div>
                       </button>
                     </div>
@@ -805,223 +1098,180 @@ export function App() {
           </div>
 
               {/* SECTION 1.4: 커리어 & 학습 타임라인 그래프 */}
-              <section id="timeline" className="scroll-mt-24 space-y-6">
+              <section id="timeline" className="scroll-mt-24 space-y-6 print:hidden">
                 <div className={cardStyle}>
                   <div className="border-b border-slate-100 pb-3">
-                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                    <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                       <Calendar className="h-5 w-5 text-slate-900" />
                       커리어 & 학습 타임라인
                     </h2>
-                    <p className="text-sm text-slate-500 mt-1">자격증 취득, 교육 수강, 실무 경력 및 프로젝트 이력을 한눈에 보는 타임라인입니다. 요소를 클릭하면 해당 위치로 스크롤됩니다.</p>
+                    <p className="resume-section-description mt-1 text-slate-500">자격증 취득, 교육 수강, 실무 경력 및 프로젝트 이력을 한눈에 보는 타임라인입니다. 요소를 클릭하면 해당 위치로 스크롤됩니다.</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-bold text-slate-500">
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-600 border border-white shadow-sm" />자격증/학력 취득</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-3.5 rounded bg-gradient-to-r from-blue-500 to-slate-800" />교육 수강</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-3.5 rounded bg-gradient-to-r from-violet-600 to-slate-900" />실무 경력</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-3.5 rounded bg-gradient-to-r from-pink-500 to-rose-500" /><FolderGit2 className="h-3 w-3 text-rose-500" />프로젝트</span>
+                    </div>
+                    {timelineYears.length > 0 && (
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5 print:hidden">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTimelineYear(null)}
+                          className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                            selectedTimelineYear === null
+                              ? 'bg-slate-900 text-white shadow-sm'
+                              : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
+                          }`}
+                        >
+                          전체 기간
+                        </button>
+                        {timelineYears.map((year) => (
+                          <button
+                            key={year}
+                            type="button"
+                            onClick={() => setSelectedTimelineYear((current) => (current === year ? null : year))}
+                            className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                              selectedTimelineYear === year
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
+                            }`}
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="relative mt-8 select-none">
-                    {/* Header Row: Contains Year labels */}
-                    <div className="relative flex items-center h-8 border-b border-slate-100">
-                      <div className="w-36 shrink-0"></div> {/* Empty spacer for row header */}
-                      <div className="relative flex-1 h-full text-xs font-black text-slate-400">
-                        <div className="absolute left-[0%] -translate-x-1/2">2022</div>
-                        <div className="absolute left-[21.4%] -translate-x-1/2">2023</div>
-                        <div className="absolute left-[42.8%] -translate-x-1/2">2024</div>
-                        <div className="absolute left-[64.3%] -translate-x-1/2">2025</div>
-                        <div className="absolute left-[85.7%] -translate-x-1/2">2026</div>
-                      </div>
-                    </div>
-
-                    {/* Vertical grid lines */}
-                    <div className="absolute inset-y-0 left-36 right-0 top-8 pointer-events-none z-0">
-                      <div className="absolute left-[0%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
-                      <div className="absolute left-[21.4%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
-                      <div className="absolute left-[42.8%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
-                      <div className="absolute left-[64.3%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
-                      <div className="absolute left-[85.7%] top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200"></div>
-                    </div>
-
-                    {/* Rows */}
-                    <div className="mt-4 space-y-4 pb-2">
-                      {/* Row 1: 자격증 및 학력 */}
-                      <div className="relative flex items-center h-10">
-                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">자격증 및 학력</div>
-                        <div className="relative flex-1 h-full">
-                          {/* 대학교 학사 졸업 */}
-                          <div 
-                            style={{ left: '1.8%' }} 
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
-                            onClick={() => {
-                              scrollToSection('career');
-                            }}
-                          >
-                            <div className="w-3.5 h-3.5 rounded-full bg-blue-600 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
-                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">대학교 졸업 (22.02)</span>
-                          </div>
-
-                          {/* 정보처리기사 */}
-                          <div 
-                            style={{ left: '8.9%' }} 
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
-                            onClick={() => {
-                              scrollToSection('competencies');
-                            }}
-                          >
-                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
-                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">정보처리기사 (22.06)</span>
-                          </div>
-
-                          {/* 빅데이터분석기사 */}
-                          <div 
-                            style={{ left: '10.7%' }} 
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
-                            onClick={() => {
-                              scrollToSection('competencies');
-                            }}
-                          >
-                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
-                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">빅데이터분석기사 (22.07)</span>
-                          </div>
-
-                          {/* SQLD */}
-                          <div 
-                            style={{ left: '57.1%' }} 
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
-                            onClick={() => {
-                              scrollToSection('competencies');
-                            }}
-                          >
-                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-md hover:scale-125 transition-transform"></div>
-                            <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">SQLD (24.09)</span>
-                          </div>
+                  {!introData ? (
+                    <p className="py-10 text-center text-sm font-bold text-slate-400">타임라인 데이터를 불러오는 중입니다...</p>
+                  ) : timelineExperiences.length === 0 ? (
+                    <p className="py-10 text-center text-sm font-bold text-slate-400">타임라인에 표시할 항목이 없습니다. 어드민에서 "타임라인에 표시"를 켜주세요.</p>
+                  ) : (
+                    <div className="relative mt-8 select-none">
+                      {/* Header Row: Contains Year labels */}
+                      <div className="relative flex items-center h-8 border-b border-slate-100">
+                        <div className="w-36 shrink-0"></div> {/* Empty spacer for row header */}
+                        <div className="relative flex-1 h-full text-xs font-black text-slate-400">
+                          {timelineYears.map((year) => (
+                            <div key={year} className="absolute -translate-x-1/2" style={{ left: `${timelinePercentFor(`${year}-01-01`)}%` }}>{year}</div>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Row 2: 교육 수강 */}
-                      <div className="relative flex items-center h-10">
-                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">교육 수강</div>
-                        <div className="relative flex-1 h-full">
-                          {/* 멀티캠퍼스 */}
-                          <div 
-                            style={{ left: '8.9%', width: '12.5%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-slate-800 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
-                            title="멀티캠퍼스 파이썬 풀스택 부트캠프 (2022.06 - 2022.12)"
-                            onClick={() => {
-                              scrollToSection('career');
-                            }}
-                          >
-                            멀티캠퍼스
-                          </div>
-
-                          {/* 청년취업사관학교 */}
-                          <div 
-                            style={{ left: '28.5%', width: '10.7%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-slate-800 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
-                            title="청년취업사관학교 풀스택 과정 (2023.05 - 2023.10)"
-                            onClick={() => {
-                              scrollToSection('career');
-                            }}
-                          >
-                            청년취업사관
-                          </div>
-
-                          {/* MS AI 스쿨 */}
-                          <div 
-                            style={{ left: '78.5%', width: '12.5%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-slate-800 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
-                            title="Microsoft AI 엔지니어링 과정 3기 (2025.09 - 2026.03)"
-                            onClick={() => {
-                              scrollToSection('career');
-                            }}
-                          >
-                            MS AI 스쿨
-                          </div>
-                        </div>
+                      {/* Vertical grid lines */}
+                      <div className="absolute inset-y-0 left-36 right-0 top-8 pointer-events-none z-0">
+                        {timelineYears.map((year) => (
+                          <div key={year} className="absolute top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200" style={{ left: `${timelinePercentFor(`${year}-01-01`)}%` }}></div>
+                        ))}
                       </div>
 
-                      {/* Row 3: 실무 경력 */}
-                      <div className="relative flex items-center h-10">
-                        <div className="w-36 text-sm font-black text-slate-500 shrink-0">실무 경력</div>
-                        <div className="relative flex-1 h-full">
-                          {/* 에듀테크 실무 */}
-                          <div 
-                            style={{ left: '41.1%', width: '41.1%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-violet-600 to-slate-900 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
-                            title="에듀테크 스타트업 실무 경력 (2023.12 - 2025.10)"
-                            onClick={() => {
-                              scrollToSection('career');
-                            }}
-                          >
-                            에듀테크 실무 (1년 11개월)
+                      {/* Rows */}
+                      <div className="mt-4 space-y-4 pb-2">
+                        {timelinePointItems.length > 0 && (
+                          <div className="relative flex items-center h-10">
+                            <div className="w-36 text-sm font-black text-slate-500 shrink-0">자격증 및 학력</div>
+                            <div className="relative flex-1 h-full">
+                              {timelinePointItems.map((exp) => (
+                                <div
+                                  key={exp.id}
+                                  style={{ left: `${timelinePercentFor(exp.periodStart)}%` }}
+                                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group/item cursor-pointer z-10"
+                                  onClick={() => onTimelineItemClick(exp)}
+                                >
+                                  <div className={`w-3.5 h-3.5 rounded-full ${exp.type === 'CERTIFICATE' ? 'bg-emerald-500' : 'bg-blue-600'} border-2 border-white shadow-md hover:scale-125 transition ${timelineDim(exp.periodStart, exp.periodEnd)}`}></div>
+                                  <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-slate-800/90 shadow-sm px-2 py-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none z-30">
+                                    {timelineTooltip(exp, true)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {timelineCourseItems.length > 0 && (
+                          <div className="relative flex items-center h-10">
+                            <div className="w-36 text-sm font-black text-slate-500 shrink-0">교육 수강</div>
+                            <div className="relative flex-1 h-full">
+                              {timelineCourseItems.map((exp) => (
+                                <div
+                                  key={exp.id}
+                                  style={{ left: `${timelinePercentFor(exp.periodStart)}%`, width: `${timelineWidthFor(exp.periodStart, exp.periodEnd)}%` }}
+                                  className={`absolute top-1.5 bottom-1.5 bg-gradient-to-r from-blue-500 to-slate-800 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden ${timelineDim(exp.periodStart, exp.periodEnd)}`}
+                                  title={timelineTooltip(exp, false)}
+                                  onClick={() => onTimelineItemClick(exp)}
+                                >
+                                  <span className="truncate">{exp.timelineLabel || exp.title}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {timelineCareerItems.length > 0 && (
+                          <div className="relative flex items-center h-10">
+                            <div className="w-36 text-sm font-black text-slate-500 shrink-0">실무 경력</div>
+                            <div className="relative flex-1 h-full">
+                              {timelineCareerItems.map((exp) => (
+                                <div
+                                  key={exp.id}
+                                  style={{ left: `${timelinePercentFor(exp.periodStart)}%`, width: `${timelineWidthFor(exp.periodStart, exp.periodEnd)}%` }}
+                                  className={`absolute top-1.5 bottom-1.5 bg-gradient-to-r from-violet-600 to-slate-900 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden ${timelineDim(exp.periodStart, exp.periodEnd)}`}
+                                  title={timelineTooltip(exp, false)}
+                                  onClick={() => onTimelineItemClick(exp)}
+                                >
+                                  <span className="truncate">{exp.timelineLabel || exp.title}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {timelineProjectItems.map((exp) => (
+                          <div key={exp.id} className="relative flex items-center h-10">
+                            <div className="w-36 flex items-center gap-1 text-xs font-bold text-slate-400 pl-2 shrink-0">
+                              <FolderGit2 className="h-3 w-3 shrink-0 text-rose-400" />
+                              <span className="truncate">{exp.title}</span>
+                            </div>
+                            <div className="relative flex-1 h-full">
+                              <div
+                                style={{ left: `${timelinePercentFor(exp.periodStart)}%`, width: `${timelineWidthFor(exp.periodStart, exp.periodEnd)}%` }}
+                                className={`absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden ${timelineDim(exp.periodStart, exp.periodEnd)}`}
+                                title={timelineTooltip(exp, false)}
+                                onClick={() => onTimelineItemClick(exp)}
+                              >
+                                <span className="truncate">{exp.timelineLabel || exp.title}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
 
-                      {/* Row 4: AI 모의면접 */}
-                      <div className="relative flex items-center h-10">
-                        <div className="w-36 text-xs font-bold text-slate-400 pl-2 shrink-0">└ AI 모의면접 플랫폼</div>
-                        <div className="relative flex-1 h-full">
-                          <div 
-                            style={{ left: '83.9%', width: '7.1%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
-                            title="AI 실시간 모의면접 플랫폼 (2025.12 - 2026.03)"
-                            onClick={() => {
-                              setSelectedMilestoneId('project3');
-                              scrollToSection('projects');
-                            }}
-                          >
-                            AI면접
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Row 5: LogDoctor */}
-                      <div className="relative flex items-center h-10">
-                        <div className="w-36 text-xs font-bold text-slate-400 pl-2 shrink-0">└ LogDoctor (SaaS)</div>
-                        <div className="relative flex-1 h-full">
-                          <div 
-                            style={{ left: '89.3%', width: '7.1%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
-                            title="LogDoctor (Azure 클라우드 로그 비용 진단 및 최적화 SaaS) (2026.03 - 2026.06)"
-                            onClick={() => {
-                              setSelectedMilestoneId('project2');
-                              scrollToSection('projects');
-                            }}
-                          >
-                            LogDr.
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Row 6: CS Test Bed */}
-                      <div className="relative flex items-center h-10">
-                        <div className="w-36 text-xs font-bold text-slate-400 pl-2 shrink-0">└ CS Test Bed</div>
-                        <div className="relative flex-1 h-full">
-                          <div 
-                            style={{ left: '94.6%', width: '3.6%' }} 
-                            className="absolute top-1.5 bottom-1.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg shadow-sm border border-white hover:brightness-105 active:scale-[0.98] transition cursor-pointer flex items-center justify-center text-[10px] font-black text-white px-1 overflow-hidden"
-                            title="CS Test Bed (고객문의 수집·자동응답 통합 테스트베드) (2026.06 - 2026.07)"
-                            onClick={() => {
-                              setSelectedMilestoneId('project1');
-                              scrollToSection('projects');
-                            }}
-                          >
-                            CS
-                          </div>
+                      {/* Footer Row: mirrors the year header so the axis stays readable next to the bottom rows */}
+                      <div className="relative flex items-center h-6 border-t border-slate-100 mt-1">
+                        <div className="w-36 shrink-0"></div>
+                        <div className="relative flex-1 h-full text-[11px] font-black text-slate-300">
+                          {timelineYears.map((year) => (
+                            <div key={year} className="absolute -translate-x-1/2" style={{ left: `${timelinePercentFor(`${year}-01-01`)}%` }}>{year}</div>
+                          ))}
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </section>
 
               {/* SECTION 1.5: 기술 스택 */}
               <section id="skills" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
-                  <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <h2 className="resume-section-title mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 font-black text-slate-900">
                     <Cpu className="h-5 w-5 text-slate-900" />
                     기술 스택
                   </h2>
                   <div className="space-y-5">
                     {groupedCoreSkills.map((group) => (
                       <div key={group.value} className="space-y-4">
-                        <h4 className="text-sm font-black text-slate-500 border-b border-slate-100 pb-1.5">{group.label}</h4>
+                        <h4 className="resume-subtitle border-b border-slate-100 pb-1.5 font-black text-slate-500">{group.label}</h4>
                         {group.skills.length > 0 ? (
                           <div className="space-y-4 pl-1">
                             {['Backend & Language', 'Frontend', 'Database', 'DevOps & Infra', 'AI / RAG', 'Others'].map((cat) => {
@@ -1029,22 +1279,28 @@ export function App() {
                               if (catSkills.length === 0) return null;
                               return (
                                 <div key={cat} className="space-y-2">
-                                  <h5 className="text-[11px] font-black text-slate-400 uppercase tracking-wider">{cat}</h5>
-                                  <div className="flex flex-wrap gap-2">
+                                  <h5 className="resume-label font-black text-slate-400 uppercase tracking-wider">{cat}</h5>
+                                  <div className="flex flex-wrap gap-1.5">
                                     {catSkills.map((skill) => (
                                       <button
                                         type="button"
                                         key={skill.id}
                                         onClick={() => setSelectedCoreSkillId((current) => (current === skill.id ? null : skill.id))}
-                                        className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
+                                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left transition ${
                                           selectedCoreSkillId === skill.id
                                             ? 'border-slate-500 bg-slate-900 text-white shadow-sm shadow-slate-800/20'
                                             : 'border-slate-200 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-100/50'
                                         }`}
                                       >
-                                        <span className="text-base font-black leading-tight">{skill.name}</span>
+                                        <SkillBadgeIcon
+                                          name={skill.name}
+                                          badgeKey={skill.badgeKey}
+                                          badgeColor={skill.badgeColor}
+                                          className="h-5 w-5"
+                                        />
+                                        <span className="resume-badge font-black">{skill.name}</span>
                                         {skill.skillVersion && (
-                                          <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-xs font-black leading-none ${
+                                          <span className={`shrink-0 rounded-md border px-1 py-0.5 text-[10px] font-black leading-none ${
                                             selectedCoreSkillId === skill.id
                                               ? 'border-white/25 bg-white/15 text-white'
                                               : 'border-slate-200 bg-slate-50 text-slate-500'
@@ -1068,16 +1324,24 @@ export function App() {
                     ))}
 
                     {selectedCoreSkill && (
-                      <div className="border-t border-slate-200 pt-5">
+                      <div className="border-t border-slate-200 pt-5 print:hidden">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <span className="text-xs font-black text-slate-900">이 기술을 사용한 경험</span>
-                            <h4 className="mt-0.5 text-lg font-black text-slate-900">{selectedCoreSkill.name}</h4>
-                            {selectedCoreSkill.skillVersion && (
-                              <p className="mt-0.5 text-sm font-bold text-slate-500">v{selectedCoreSkill.skillVersion}</p>
-                            )}
+                          <div className="flex min-w-0 items-center gap-3">
+                            <SkillBadgeIcon
+                              name={selectedCoreSkill.name}
+                              badgeKey={selectedCoreSkill.badgeKey}
+                              badgeColor={selectedCoreSkill.badgeColor}
+                              className="h-9 w-9"
+                            />
+                            <div className="min-w-0">
+                              <span className="resume-label font-black text-slate-900">이 기술을 사용한 경험</span>
+                              <h4 className="resume-item-title mt-0.5 font-black text-slate-900">{selectedCoreSkill.name}</h4>
+                              {selectedCoreSkill.skillVersion && (
+                                <p className="resume-meta mt-0.5 font-bold text-slate-500">v{selectedCoreSkill.skillVersion}</p>
+                              )}
+                            </div>
                           </div>
-                          <span className="rounded-md bg-slate-100 px-2.5 py-1 text-sm font-black text-slate-900">
+                          <span className="resume-meta rounded-md bg-slate-100 px-2.5 py-1 font-black text-slate-900">
                             연결된 경험 {selectedCoreSkillExperiences.length}개
                           </span>
                         </div>
@@ -1098,18 +1362,18 @@ export function App() {
                                 className="w-full px-1 py-3.5 text-left transition hover:bg-slate-100/40 sm:px-2"
                               >
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-black text-slate-500">
+                                  <span className="resume-label rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-black text-slate-500">
                                     {experience.type}
                                   </span>
-                                  <span className="text-sm font-black text-slate-400">{experience.period}</span>
+                                  <span className="resume-meta font-black text-slate-400">{experience.period}</span>
                                 </div>
-                                <p className="mt-1.5 text-base font-black leading-snug text-slate-900">{experience.title}</p>
+                                <p className="resume-subtitle mt-1.5 font-black text-slate-900">{experience.title}</p>
                                 {experience.role && (
-                                  <p className="mt-0.5 text-sm font-black text-slate-900">{experience.role}</p>
+                                  <p className="resume-meta mt-0.5 font-black text-slate-900">{experience.role}</p>
                                 )}
                                 {experience.summary && (
-                                  <div className="mt-1.5 line-clamp-2 text-sm font-semibold leading-relaxed text-slate-600">
-                                    <ReactMarkdown components={markdownComponents}>{experience.summary}</ReactMarkdown>
+                                  <div className="resume-meta mt-1.5 line-clamp-2 font-semibold text-slate-600">
+                                    <ReactMarkdown components={resumeMarkdownComponents}>{experience.summary}</ReactMarkdown>
                                   </div>
                                 )}
                               </button>
@@ -1120,8 +1384,118 @@ export function App() {
                             </p>
                           )}
                         </div>
+                        {selectedCoreSkill.id > 0 && (
+                          <RelatedStudyNotes
+                            skillId={selectedCoreSkill.id}
+                            refSectionId="skills"
+                            onOpenStudy={openStudy}
+                          />
+                        )}
                       </div>
                     )}
+                  </div>
+                </div>
+              </section>
+
+              {/* SECTION 1.6: 핵심 역량 */}
+              <section id="competencies" className="print-competency-section scroll-mt-24 space-y-6">
+                <div className={`${cardStyle} print:rounded-none print:border-x-0 print:border-t-0 print:p-0 print:shadow-none`}>
+                  <div className="resume-competency-header border-b border-slate-200 pb-4 print:pb-2">
+                    <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                      <Sparkles className="h-5 w-5 text-slate-900" />
+                      핵심 역량
+                    </h2>
+                    <p className="resume-section-description mt-1 text-slate-500">
+                      실무 경력과 프로젝트 성과를 기준으로 정리한 문제 해결 역량입니다.
+                    </p>
+                  </div>
+
+                  <div className="mt-2 divide-y divide-slate-200 border-b border-slate-200">
+                    {coreCompetencies.map((competency, index) => (
+                      <article
+                        key={competency.id}
+                        id={`competency-${competency.id}`}
+                        className="print-competency-row scroll-mt-24 grid gap-3 py-5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6 print:grid-cols-[31%_69%] print:gap-4 print:py-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <span className="resume-label font-black tabular-nums tracking-[0.14em] text-slate-400">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                            <h3 className="resume-item-title font-black text-slate-900">
+                              {competency.title}
+                            </h3>
+                          </div>
+                          {competency.skills.length > 0 && (
+                            <p className="resume-meta mt-2 font-bold text-slate-500 print:mt-1">
+                              {competency.skills.slice(0, 6).map((skill) => skill.name).join(' · ')}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="resume-body font-semibold text-slate-700">
+                            {competency.summary}
+                          </p>
+
+                          {competency.evidences.length > 0 ? (
+                            <div className="mt-3 print:mt-1.5">
+                              <p className="resume-label font-black uppercase tracking-[0.14em] text-slate-400">
+                                대표 실무 근거
+                              </p>
+                              <button
+                                type="button"
+                                title={competency.evidences[0].experienceTitle}
+                                onClick={() => {
+                                  const evidence = competency.evidences[0];
+                                  if (evidence.experienceType === 'PROJECT') {
+                                    const milestone = activeMilestones.find((item) => item.experienceId === evidence.experienceId);
+                                    if (milestone) setSelectedMilestoneId(milestone.id);
+                                    document.getElementById(`project-experience-${evidence.experienceId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  } else {
+                                    scrollToSection('career');
+                                  }
+                                }}
+                                className="resume-body mt-1 block w-full text-left text-slate-700 transition hover:text-slate-950 print:pointer-events-none"
+                              >
+                                <span className="font-black text-slate-900">
+                                  {competency.evidences[0].experienceType === 'CAREER' ? '경력' : '프로젝트'} · {competency.evidences[0].experienceTitle}
+                                </span>
+                                {competency.evidences[0].evidenceSummary && (
+                                  <span className="mt-0.5 block font-medium text-slate-600">
+                                    {competency.evidences[0].evidenceSummary}
+                                  </span>
+                                )}
+                              </button>
+
+                              {competency.evidences.length > 1 && (
+                                <p className="resume-meta mt-1.5 font-semibold text-slate-500">
+                                  추가 검증 사례 · {competency.evidences.slice(1).map((evidence) => evidence.experienceTitle).join(' · ')}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs font-semibold text-slate-400">연결된 실무 근거가 없습니다.</p>
+                          )}
+
+                          {competency.relatedStudies.length > 0 && (
+                            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs print:hidden">
+                              <span className="font-black text-slate-400">관련 학습</span>
+                              {competency.relatedStudies.map((study) => (
+                                <button
+                                  key={`study-${study.id}`}
+                                  type="button"
+                                  onClick={() => openStudy(study.slug, 'intro', `competency-${competency.id}`)}
+                                  className="font-bold text-blue-700 hover:underline"
+                                >
+                                  {study.title}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -1130,27 +1504,27 @@ export function App() {
               <section id="career" className="scroll-mt-24 space-y-6">
                 {careerCards.map(career => (
                   <div key={career.id} className={cardStyle}>
-                    <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <h2 className="resume-section-title mb-4 flex items-center justify-between gap-2 border-b border-slate-100 pb-3 font-black text-slate-900">
                       <span className="flex items-center gap-2">
                         <Briefcase className="h-5 w-5 text-slate-900" />
-                        직장 경력 (총 1년 11개월)
+                        직장 경력 (총 {careerSummary})
                       </span>
                       {expandableDetailIds.length > 0 && (
                         <button
                           type="button"
                           onClick={toggleExpandAll}
-                          className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-950 transition bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs"
+                          className="resume-meta flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-bold text-slate-500 shadow-xs transition hover:bg-slate-100 hover:text-slate-950 print:hidden"
                         >
                           {isAllExpanded ? '모두 접기' : '모두 펼치기'}
                         </button>
                       )}
                     </h2>
                     <div>
-                      <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                      <span className="resume-print-plain resume-meta inline-flex rounded border border-emerald-100 bg-emerald-50 px-2 py-0.5 font-bold text-emerald-700">
                         {career.period}
                       </span>
-                      <p className="mt-2 text-lg font-black text-slate-800">{career.companyName} ({career.employmentType})</p>
-                      <p className="text-sm font-semibold text-slate-500">{career.department} / {career.role}</p>
+                      <p className="resume-item-title mt-2 font-black text-slate-800">{career.companyName} ({career.employmentType})</p>
+                      <p className="resume-meta font-semibold text-slate-500">{career.department} / {career.role}</p>
                       <ul className="mt-4 space-y-2">
                         {career.details.map(detail => {
                           const isExpanded = expandedCareerDetailIds.includes(detail.id);
@@ -1159,7 +1533,7 @@ export function App() {
                             <li
                               key={detail.id}
                               id={`experience-detail-${detail.id}`}
-                              className={`list-none scroll-mt-24 transition-all duration-300 ${
+                              className={`resume-career-item list-none scroll-mt-24 transition-all duration-300 ${
                                 isExpanded
                                   ? 'pb-6 mb-6 border-b border-slate-200/50 last:border-0 last:pb-0 last:mb-0'
                                   : 'border-b border-transparent'
@@ -1171,13 +1545,13 @@ export function App() {
                                 }`}
                                 onClick={() => hasDetailContent && toggleCareerDetail(detail.id)}
                               >
-                                <span className={`flex items-start gap-2.5 text-base leading-relaxed font-normal transition ${
+                                <span className={`resume-body flex items-start gap-2.5 font-normal transition ${
                                   hasDetailContent 
                                     ? 'text-slate-700 group-hover:text-slate-900 group-hover:font-semibold' 
                                     : 'text-slate-500'
                                 }`}>
                                   {hasDetailContent ? (
-                                    <ChevronDown className={`mt-1.5 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`} />
+                                    <ChevronDown className={`mt-1.5 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 print:hidden ${isExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`} />
                                   ) : (
                                     <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 ml-1.5 mr-1" />
                                   )}
@@ -1186,31 +1560,31 @@ export function App() {
                                 {detail.id > 0 && (
                                   <button
                                     type="button"
-                                    onClick={(e) => { e.stopPropagation(); window.location.hash = `#/experience-detail/${detail.id}`; }}
-                                    className="shrink-0 whitespace-nowrap text-xs font-bold text-slate-800 transition hover:text-slate-950 hover:underline"
+                                    onClick={(e) => { e.stopPropagation(); navigate(pathForExperienceDetail(detail.id)); }}
+                                    className="resume-meta shrink-0 whitespace-nowrap font-bold text-slate-800 transition hover:text-slate-950 hover:underline print:hidden"
                                   >
                                     자세히 보기
                                   </button>
                                 )}
                               </div>
-                              {isExpanded && (
-                                <div className="mt-3 ml-6 space-y-3.5 text-sm text-slate-600">
+                              {hasDetailContent && (
+                                <div className={`resume-career-detail resume-body mt-3 ml-6 space-y-3.5 text-slate-600 print:block print:ml-0 ${isExpanded ? 'block' : 'hidden'}`}>
                                   {detail.situation && (
                                     <div>
-                                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">상황</p>
-                                      <ReactMarkdown components={experienceMarkdownComponents}>{detail.situation}</ReactMarkdown>
+                                      <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">상황</p>
+                                      <ReactMarkdown components={resumeMarkdownComponents}>{detail.situation}</ReactMarkdown>
                                     </div>
                                   )}
                                   {detail.actionDetail && (
                                     <div>
-                                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
-                                      <ReactMarkdown components={experienceMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
+                                      <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
+                                      <ReactMarkdown components={resumeMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
                                     </div>
                                   )}
                                   {detail.outcome && (
                                     <div>
-                                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-600">성과</p>
-                                      <ReactMarkdown components={experienceMarkdownComponents}>{detail.outcome}</ReactMarkdown>
+                                      <p className="resume-label mb-1 font-bold uppercase tracking-wider text-emerald-600">성과</p>
+                                      <ReactMarkdown components={resumeMarkdownComponents}>{detail.outcome}</ReactMarkdown>
                                     </div>
                                   )}
                                   {detail.skills.length > 0 && (
@@ -1227,134 +1601,170 @@ export function App() {
                           );
                         })}
                       </ul>
+                      {career.id > 0 && (
+                        <RelatedExperienceLinks experienceId={career.id} onNavigate={navigateToRelatedExperience} />
+                      )}
                     </div>
                   </div>
                 ))}
               </section>
 
-              {/* SECTION 2: 역량 기술서 */}
-              <section id="competencies" className="scroll-mt-24 space-y-6">
+              {/* SECTION 3: 학력·교육 및 자격증 */}
+              <section id="credentials" className="resume-credentials-section scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
-                  <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-slate-900" />
-                      역량 기술서 (Core Competencies)
+                  <div className="resume-credentials-header border-b border-slate-100 pb-4">
+                    <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                      <GraduationCap className="h-5 w-5 text-slate-900" />
+                      학력 · 교육 및 자격증
                     </h2>
-                    <p className="text-base text-slate-500 mt-1">프로젝트 실무 및 자격증에 기반하여 입증 가능한 전문 기술 상세 명세입니다.</p>
+                    <p className="resume-section-description mt-1 text-slate-500">
+                      전공 학력과 직무 교육 이수 내역, 보유 자격을 정리했습니다.
+                    </p>
                   </div>
 
-                  <div className="mt-6 space-y-8">
-                    
-                    {/* Essay 1 */}
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
-                      <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-sm font-black text-slate-900 border border-slate-200">1</span>
-                        {essays.WHY.title}
+                  <div className="resume-credential-groups mt-6 grid gap-8 lg:grid-cols-2">
+                    <div className="resume-credential-group">
+                      <h3 className="resume-credential-group-title resume-item-title mb-4 flex items-center gap-2 font-black text-slate-800">
+                        <GraduationCap className="h-4 w-4 text-blue-600" />
+                        학력 · 교육
+                        <span className="resume-credential-count resume-meta rounded-full bg-blue-50 px-2 py-0.5 font-bold text-blue-700">{educationExperiences.length}건</span>
                       </h3>
-                      <p className="text-base font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
-                        "{essays.WHY.subtitle}"
-                      </p>
-                      <div className="space-y-4 text-base sm:text-lg text-slate-600 leading-relaxed font-normal ml-0 sm:ml-8">
-                        {dynamicWhyParagraphs.map((p, idx) => (
-                          <div key={idx} className="indent-2 bg-white p-4 rounded-xl border border-slate-200/50 transition shadow-sm">
-                            <ReactMarkdown components={markdownComponents}>{p}</ReactMarkdown>
-                          </div>
-                        ))}
-                      </div>
+
+                      {educationExperiences.length > 0 ? (
+                        <div className="resume-credential-list space-y-3">
+                          {educationExperiences.map((education) => (
+                            <article id={`credential-experience-${education.id}`} key={education.id} className="resume-credential-item scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <h4 className="resume-subtitle font-black text-slate-800">{education.title}</h4>
+                                  <p className="resume-meta mt-0.5 font-semibold text-slate-500">{education.institutionName}</p>
+                                </div>
+                                <span className="resume-print-plain resume-label shrink-0 rounded border border-blue-100 bg-blue-50 px-2 py-1 font-bold text-blue-700">
+                                  {formatCredentialPeriod(education)}
+                                </span>
+                              </div>
+                              {education.summary && (
+                                <div className="resume-body mt-3 text-slate-600">
+                                  <ReactMarkdown components={resumeMarkdownComponents}>{education.summary}</ReactMarkdown>
+                                </div>
+                              )}
+                              {education.skills.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-1">
+                                  {education.skills.map((skill) => <span key={skill.id} className={badgeStyle}>{skill.name}</span>)}
+                                </div>
+                              )}
+                              <RelatedStudyNotes experienceId={education.id} refSectionId={`credential-experience-${education.id}`} onOpenStudy={openStudy} />
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="resume-body rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">등록된 학력·교육 정보가 없습니다.</p>
+                      )}
                     </div>
 
-                    {/* Essay 2 */}
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/30 p-5">
-                      <h3 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-sm font-black text-slate-900 border border-slate-200">2</span>
-                        {essays.STRENGTH.title}
+                    <div className="resume-credential-group">
+                      <h3 className="resume-credential-group-title resume-item-title mb-4 flex items-center gap-2 font-black text-slate-800">
+                        <Award className="h-4 w-4 text-amber-600" />
+                        자격증
+                        <span className="resume-credential-count resume-meta rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700">{certificateExperiences.length}개</span>
                       </h3>
-                      <p className="text-base font-semibold text-slate-500 italic mb-4 ml-0 sm:ml-8">
-                        "{essays.STRENGTH.subtitle}"
-                      </p>
-                      <div className="grid grid-cols-1 gap-4 ml-0 sm:ml-8">
-                        {dynamicStrengths.map((str, idx) => (
-                          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-400 transition">
-                            <h4 className="text-base sm:text-lg font-black text-slate-800">
-                              {str.title}
-                            </h4>
-                            <div className="mt-2 text-base leading-relaxed text-slate-600 font-normal">
-                              <ReactMarkdown components={markdownComponents}>{str.content}</ReactMarkdown>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
 
+                      {certificateExperiences.length > 0 ? (
+                        <div className="resume-credential-list space-y-3">
+                          {certificateExperiences.map((certificate) => (
+                            <article id={`credential-experience-${certificate.id}`} key={certificate.id} className="resume-credential-item scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <h4 className="resume-subtitle font-black text-slate-800">{certificate.title}</h4>
+                                  <p className="resume-meta mt-0.5 font-semibold text-slate-500">{certificate.issuer}</p>
+                                </div>
+                                <span className="resume-print-plain resume-label shrink-0 rounded border border-amber-100 bg-amber-50 px-2 py-1 font-bold text-amber-700">
+                                  {formatCredentialPeriod(certificate)} 취득
+                                </span>
+                              </div>
+                              {certificate.summary && (
+                                <div className="resume-body mt-3 text-slate-600">
+                                  <ReactMarkdown components={resumeMarkdownComponents}>{certificate.summary}</ReactMarkdown>
+                                </div>
+                              )}
+                              <RelatedStudyNotes experienceId={certificate.id} refSectionId={`credential-experience-${certificate.id}`} onOpenStudy={openStudy} />
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="resume-body rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">등록된 자격증 정보가 없습니다.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </section>
 
-              {/* SECTION 3: 핵심 프로젝트 포트폴리오 */}
+              {/* SECTION 4: 핵심 프로젝트 포트폴리오 */}
               <section id="projects" className="scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
-                  <div className="border-b border-slate-100 pb-4">
-                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                  <div className="resume-projects-header border-b border-slate-100 pb-4">
+                    <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                       <Briefcase className="h-5 w-5 text-slate-900" />
                       핵심 프로젝트 포트폴리오
                     </h2>
-                    <p className="text-base text-slate-500 mt-1">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
+                    <p className="resume-section-description mt-1 text-slate-500">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
                   </div>
 
-                  <div className="mt-8 space-y-8 relative before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-[2px] before:bg-slate-200">
+                  <div className="resume-project-list mt-8 space-y-8 relative before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-[2px] before:bg-slate-200">
                     {activeMilestones.map((m, idx) => (
                       <div
                         key={m.id}
-                        className="relative pl-10 group cursor-pointer"
+                        id={`project-experience-${m.experienceId ?? m.id}`}
+                        className="resume-project-item relative pl-10 group cursor-pointer"
                         onClick={() => setSelectedMilestoneId(m.id)}
                       >
                         
                         {/* Timeline Bullet node */}
-                        <div className={`absolute left-[7px] top-1.5 w-[18px] h-[18px] rounded-full border-4 border-white transition-colors shadow-sm z-10 ${
+                        <div className={`resume-project-bullet absolute left-[7px] top-1.5 w-[18px] h-[18px] rounded-full border-4 border-white transition-colors shadow-sm z-10 ${
                           selectedMilestoneId === m.id
                             ? 'bg-slate-900 scale-110'
                             : 'bg-slate-300 group-hover:bg-slate-500'
                         }`} />
                         
-                        <div className={`rounded-xl border p-6 space-y-4 transition-all duration-300 shadow-sm ${
+                        <div className={`resume-project-card rounded-xl border p-6 space-y-4 transition-all duration-300 shadow-sm ${
                           selectedMilestoneId === m.id
                             ? 'border-slate-800 bg-white ring-2 ring-slate-100/50'
                             : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-400 hover:bg-white'
                         }`}>
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                             <div>
-                              <span className="inline-flex rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-950 border border-slate-200">
+                              <span className="resume-print-plain resume-meta inline-flex rounded bg-slate-100 px-2 py-0.5 font-bold text-slate-950 border border-slate-200">
                                 {m.role} ({m.period})
                               </span>
-                              <h3 className="mt-1.5 text-lg font-black text-slate-800">
+                              <h3 className="resume-item-title mt-1.5 font-black text-slate-800">
                                 {m.title}
                               </h3>
                             </div>
-                            <span className="text-sm font-bold text-slate-400 bg-white border border-slate-200 px-2.5 py-1 rounded-md shrink-0">
+                            <span className="resume-print-plain resume-meta shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-400">
                               기여도 {idx === 0 || idx === 2 ? '100%' : idx === 1 ? '70%' : '43%'}
                             </span>
                           </div>
 
                           <div className="space-y-3.5">
                             <div>
-                              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
-                              <div className="mt-1 text-base leading-relaxed text-slate-600 bg-white border border-slate-100 p-3 rounded-lg font-normal">
-                                <ReactMarkdown components={markdownComponents}>{m.description}</ReactMarkdown>
+                              <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
+                              <div className="resume-project-description resume-body mt-1 rounded-lg border border-slate-100 bg-white p-3 font-normal text-slate-600">
+                                <ReactMarkdown components={resumeMarkdownComponents}>{m.description}</ReactMarkdown>
                               </div>
                             </div>
 
-                            <div className="rounded-lg border border-emerald-100 bg-emerald-50/30 p-3.5">
-                              <h4 className="text-sm font-bold text-emerald-700 flex items-center gap-1">
+                            <div className="resume-project-takeaway rounded-lg border border-emerald-100 bg-emerald-50/30 p-3.5">
+                              <h4 className="resume-label flex items-center gap-1 font-bold text-emerald-700">
                                 <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                                 핵심 성과 & 배운 점 (Takeaway)
                               </h4>
-                              <div className="mt-1 text-base leading-relaxed text-emerald-800 font-semibold">
-                                <ReactMarkdown components={markdownComponents}>{m.takeaway}</ReactMarkdown>
+                              <div className="resume-body mt-1 font-semibold text-emerald-800">
+                                <ReactMarkdown components={resumeMarkdownComponents}>{m.takeaway}</ReactMarkdown>
                               </div>
                             </div>
 
                             <div>
-                              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1.5">활용 기술 스택</h4>
+                              <h4 className="resume-label mb-1.5 font-bold text-slate-400 uppercase tracking-wider">활용 기술 스택</h4>
                               <div className="flex flex-wrap gap-1">
                                 {m.skills.map((skill) => (
                                   <span key={skill} className={badgeStyle}>
@@ -1364,17 +1774,40 @@ export function App() {
                               </div>
                             </div>
 
+                            {m.repositoryUrl && (
+                              <div>
+                                <a
+                                  href={m.repositoryUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+                                >
+                                  <Github className="h-4 w-4" />
+                                  GitHub 저장소
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              </div>
+                            )}
+
                             {m.tags.length > 0 && (
                               <div>
-                                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1.5">태그</h4>
+                                <h4 className="resume-label mb-1.5 font-bold text-slate-400 uppercase tracking-wider">태그</h4>
                                 <div className="flex flex-wrap gap-1">
                                   {m.tags.map((tag) => (
-                                    <span key={tag} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+                                    <span key={tag} className="resume-badge rounded-md bg-blue-50 px-2 py-1 font-bold text-blue-700">
                                       #{tag}
                                     </span>
                                   ))}
                                 </div>
                               </div>
+                            )}
+
+                            {m.experienceId && (
+                              <>
+                                <RelatedStudyNotes experienceId={m.experienceId} onOpenStudy={openStudy} />
+                                <RelatedExperienceLinks experienceId={m.experienceId} onNavigate={navigateToRelatedExperience} />
+                              </>
                             )}
                           </div>
                         </div>
@@ -1692,7 +2125,7 @@ export function App() {
                             {selectedStudy.experienceDetails.map((detail) => (
                               <button
                                 key={detail.id}
-                                onClick={() => { window.location.hash = `#/experience-detail/${detail.id}`; }}
+                                onClick={() => navigate(pathForExperienceDetail(detail.id))}
                                 className="flex w-full items-start gap-1 text-left text-xs font-semibold text-slate-600 hover:text-slate-950 leading-normal"
                               >
                                 <span className="mt-0.5 text-slate-400 font-bold shrink-0">›</span>

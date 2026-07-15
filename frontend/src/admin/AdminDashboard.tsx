@@ -1,6 +1,5 @@
-import { useState, type FormEvent, useEffect, useMemo } from 'react';
+import { useState, type FormEvent, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
 import {
   Home,
   LogOut,
@@ -17,7 +16,17 @@ import {
   ChevronUp,
   Search,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Pin,
+  PinOff,
+  Eye,
+  RefreshCw,
+  X,
+  BarChart3,
+  Users,
+  MousePointerClick,
+  CalendarDays,
+  Sparkles
 } from 'lucide-react';
 import {
   ApiError,
@@ -25,19 +34,44 @@ import {
   profileApi,
   skillApi,
   experienceApi,
+  connectionApi,
   bffApi,
+  visitorApi,
   type StudyRequest,
   type Study,
   type Skill,
   type Experience,
   type ExperienceRequest,
-  type ExperienceDetailRequest
+  type ExperienceDetailRequest,
+  type ExperienceConnections,
+  type IntroductionResponse
 } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { MarkdownEditor } from './MarkdownEditor';
-import { markdownComponents } from '../lib/markdown';
+import { ExperienceDetailPanel } from './ExperienceDetailPanel';
+import { SkillGroupSection } from './SkillGroupSection';
+import { StudyDetailPanel } from './StudyDetailPanel';
+import { getSkillCategoryPresentation, skillCategoryPresentations } from './skillPresentation';
+import { SkillBadgeIcon } from '../lib/SkillBadgeIcon';
+import { findSkillBadge, recommendSkillBadge, skillBadgeOptions } from '../lib/skillBadges';
+import { CompetencyManagement } from './CompetencyManagement';
 
-type TabId = 'STUDY' | 'PROFILE' | 'SKILLS' | 'EXPERIENCE';
+type TabId = 'ANALYTICS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE';
+
+const PREVIEW_MIN_WIDTH = 420;
+const PREVIEW_MAX_WIDTH = 960;
+const PREVIEW_DEFAULT_WIDTH = 760;
+// Below this viewport width, the preview takes the full screen instead of docking beside the admin content.
+const PREVIEW_STACK_BREAKPOINT = 640;
+// Space reserved for the sidebar + a usable minimum of admin content when the preview is docked.
+const ADMIN_CONTENT_RESERVE_WIDTH = 460;
+
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 type StudyForm = Omit<StudyRequest, 'tagNames'> & { tagNames: string };
 
@@ -67,7 +101,6 @@ const emptyProfileForm = {
   nameEn: '',
   jobTitle: '',
   bio: '',
-  careerSummary: '',
   coreStackSummary: '',
   statusBadgeText: '',
   githubUrl: '',
@@ -75,15 +108,26 @@ const emptyProfileForm = {
   phone: '',
 };
 
-const emptySkillForm = {
+type SkillForm = Omit<Skill, 'id'> & {
+  studyIds: number[];
+  experienceIds: number[];
+  experienceDetailIds: number[];
+};
+
+const emptySkillForm: SkillForm = {
   name: '',
   category: 'FRAMEWORK',
   skillLevel: '중급',
   skillVersion: '',
   comment: '',
   usageType: 'LEARNING',
+  badgeKey: '',
+  badgeColor: '',
   isCore: false,
   displayOrder: 0,
+  studyIds: [],
+  experienceIds: [],
+  experienceDetailIds: [],
 };
 
 const skillUsageOptions = [
@@ -92,7 +136,16 @@ const skillUsageOptions = [
   { value: 'PROJECT_USE', label: '프로젝트 활용' },
 ];
 
-const emptyExperienceForm = {
+type AdminExperienceDetailForm = ExperienceDetailRequest & { studyIds: number[] };
+
+type AdminExperienceForm = Omit<ExperienceRequest, 'details' | 'tagNames'> & {
+  details: AdminExperienceDetailForm[];
+  tagNames: string;
+  studyIds: number[];
+  relatedExperienceIds: number[];
+};
+
+const emptyExperienceForm: AdminExperienceForm = {
   type: 'PROJECT' as ExperienceRequest['type'],
   title: '',
   periodStart: new Date().toISOString().split('T')[0],
@@ -101,7 +154,9 @@ const emptyExperienceForm = {
   takeaway: '',
   essayContent: '',
   displayOrder: 0,
-  details: [] as ExperienceDetailRequest[],
+  showOnTimeline: true,
+  timelineLabel: '',
+  details: [],
   skillIds: [] as number[],
   tagNames: '',
   companyName: '',
@@ -110,8 +165,11 @@ const emptyExperienceForm = {
   role: '',
   slug: '',
   contributionRate: 100,
+  repositoryUrl: '',
   institutionName: '',
   issuer: '',
+  studyIds: [],
+  relatedExperienceIds: [],
 };
 
 export function AdminDashboard() {
@@ -121,6 +179,33 @@ export function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<TabId>('STUDY');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [previewNonce, setPreviewNonce] = useState(0);
+  const [previewWidth, setPreviewWidth] = useState(() => {
+    const stored = typeof window !== 'undefined' ? window.localStorage.getItem('admin-preview-width') : null;
+    const parsed = stored ? parseInt(stored, 10) : NaN;
+    return Number.isFinite(parsed) ? Math.min(Math.max(parsed, PREVIEW_MIN_WIDTH), PREVIEW_MAX_WIDTH) : PREVIEW_DEFAULT_WIDTH;
+  });
+  const [isResizingPreview, setIsResizingPreview] = useState(false);
+  const previewResizeStartRef = useRef<{ x: number; width: number } | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1280));
+
+  useEffect(() => {
+    const handleWindowResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, []);
+
+  // The largest width the preview may occupy without crowding out the admin sidebar/content.
+  const previewMaxAllowedWidth = Math.min(
+    PREVIEW_MAX_WIDTH,
+    Math.max(PREVIEW_MIN_WIDTH, viewportWidth - ADMIN_CONTENT_RESERVE_WIDTH),
+  );
+  // Below the stack breakpoint the preview simply takes the full viewport (mirrors a mobile full-screen view).
+  const effectivePreviewWidth = viewportWidth < PREVIEW_STACK_BREAKPOINT
+    ? viewportWidth
+    : Math.min(previewWidth, previewMaxAllowedWidth);
 
   // Unified API error handler for security expiration
   const handleMutationError = (error: unknown) => {
@@ -130,7 +215,12 @@ export function AdminDashboard() {
   };
 
   // --- QUERY HOOKS ---
-  const { data: studyPage } = useQuery({
+  const {
+    data: studyPage,
+    isLoading: isStudyListLoading,
+    isError: isStudyListError,
+    refetch: refetchStudies,
+  } = useQuery({
     queryKey: ['studies', 'admin'],
     queryFn: () => studyApi.adminList(),
   });
@@ -157,11 +247,30 @@ export function AdminDashboard() {
     queryFn: () => experienceApi.list(),
   });
 
+  const visitorDateRange = useMemo(() => {
+    const to = new Date();
+    const from = new Date(to);
+    from.setDate(from.getDate() - 13);
+    return { from: formatLocalDate(from), to: formatLocalDate(to) };
+  }, []);
+
+  const { data: visitorSummary, isLoading: isVisitorSummaryLoading } = useQuery({
+    queryKey: ['visitor', 'admin', 'summary'],
+    queryFn: visitorApi.adminSummary,
+    enabled: activeTab === 'ANALYTICS',
+  });
+
+  const { data: visitorDaily = [], isLoading: isVisitorDailyLoading } = useQuery({
+    queryKey: ['visitor', 'admin', 'daily', visitorDateRange.from, visitorDateRange.to],
+    queryFn: () => visitorApi.adminDaily(visitorDateRange.from, visitorDateRange.to),
+    enabled: activeTab === 'ANALYTICS',
+  });
+
   // --- TAB 1: STUDY STATE & MUTATIONS ---
   const [studyEditingId, setStudyEditingId] = useState<number | null>(null);
   const [studyForm, setStudyForm] = useState<StudyForm>(emptyStudyForm);
   const [isStudyFormOpen, setIsStudyFormOpen] = useState(false);
-  const [expandedStudyId, setExpandedStudyId] = useState<number | null>(null);
+  const [selectedStudyId, setSelectedStudyId] = useState<number | null>(null);
   const [studySkillSearch, setStudySkillSearch] = useState('');
   const [studyExperienceSearch, setStudyExperienceSearch] = useState('');
   const [studyExperienceDetailSearch, setStudyExperienceDetailSearch] = useState('');
@@ -177,6 +286,11 @@ export function AdminDashboard() {
   const [expFilter, setExpFilter] = useState<string>('ALL');
   const [expSearch, setExpSearch] = useState<string>('');
   const [expSkillSearch, setExpSkillSearch] = useState<string>('');
+  const [skillStudySearch, setSkillStudySearch] = useState('');
+  const [skillExperienceSearch, setSkillExperienceSearch] = useState('');
+  const [skillDetailSearch, setSkillDetailSearch] = useState('');
+  const [expStudySearch, setExpStudySearch] = useState('');
+  const [expRelatedSearch, setExpRelatedSearch] = useState('');
 
   // --- FILTERED DATA MEMOS ---
   const filteredStudies = useMemo(() => {
@@ -192,6 +306,11 @@ export function AdminDashboard() {
       return matchesCategory && matchesSearch;
     });
   }, [studies, studyFilter, studySearch]);
+
+  const selectedStudy = useMemo(
+    () => studies?.find((study) => study.id === selectedStudyId) ?? null,
+    [studies, selectedStudyId],
+  );
 
   const selectableExpSkills = useMemo(() => {
     const keyword = expSkillSearch.trim().toLowerCase();
@@ -252,6 +371,38 @@ export function AdminDashboard() {
     });
   }, [skillsList, skillFilter, skillSearch]);
 
+  const groupedFilteredSkills = useMemo(() => {
+    const sorted = [...(filteredSkills ?? [])].sort((a, b) =>
+      a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+    const knownGroups = skillCategoryPresentations
+      .map((category) => ({
+        category,
+        skills: sorted.filter((skill) => skill.category === category.key),
+      }))
+      .filter((group) => group.skills.length > 0);
+    const knownKeys = new Set(skillCategoryPresentations.map((category) => category.key));
+    const unknownSkills = sorted.filter((skill) => !knownKeys.has(skill.category));
+
+    if (unknownSkills.length > 0) {
+      knownGroups.push({
+        category: getSkillCategoryPresentation(unknownSkills[0].category),
+        skills: unknownSkills,
+      });
+    }
+    return knownGroups;
+  }, [filteredSkills]);
+
+  const filteredSkillSummary = useMemo(() => {
+    const items = filteredSkills ?? [];
+    return {
+      total: items.length,
+      core: items.filter((skill) => skill.isCore).length,
+      work: items.filter((skill) => skill.usageType === 'WORK_EXPERIENCE').length,
+      project: items.filter((skill) => skill.usageType === 'PROJECT_USE').length,
+      learning: items.filter((skill) => skill.usageType === 'LEARNING').length,
+    };
+  }, [filteredSkills]);
+
   const filteredExperiences = useMemo(() => {
     return experiencesList?.filter((exp) => {
       const matchesType = expFilter === 'ALL' || exp.type === expFilter;
@@ -262,6 +413,21 @@ export function AdminDashboard() {
       return matchesType && matchesSearch;
     });
   }, [experiencesList, expFilter, expSearch]);
+
+  const connectionStudies = (studies ?? []).filter((study) =>
+    !skillStudySearch || study.title.toLowerCase().includes(skillStudySearch.toLowerCase()));
+  const connectionExperiences = (experiencesList ?? []).filter((experience) =>
+    !skillExperienceSearch ||
+    experience.title.toLowerCase().includes(skillExperienceSearch.toLowerCase()) ||
+    experience.type.toLowerCase().includes(skillExperienceSearch.toLowerCase()));
+  const connectionDetails = (experiencesList ?? []).flatMap((experience) =>
+    experience.details.map((detail) => ({ ...detail, experienceTitle: experience.title })))
+    .filter((detail) =>
+      !skillDetailSearch ||
+      detail.content.toLowerCase().includes(skillDetailSearch.toLowerCase()) ||
+      detail.experienceTitle.toLowerCase().includes(skillDetailSearch.toLowerCase()));
+  const selectableExpStudies = (studies ?? []).filter((study) =>
+    !expStudySearch || study.title.toLowerCase().includes(expStudySearch.toLowerCase()));
 
   const createStudyMutation = useMutation({
     mutationFn: (form: StudyForm) => studyApi.create(toStudyRequest(form)),
@@ -289,9 +455,12 @@ export function AdminDashboard() {
 
   const deleteStudyMutation = useMutation({
     mutationFn: studyApi.remove,
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ['learning'] });
       queryClient.invalidateQueries({ queryKey: ['studies'] });
+      if (selectedStudyId === deletedId) {
+        setSelectedStudyId(null);
+      }
     },
     onError: handleMutationError,
   });
@@ -311,8 +480,29 @@ export function AdminDashboard() {
     }
   };
 
+  const openStudyEditor = (study: Study) => {
+    setStudyEditingId(study.id);
+    setStudyForm({
+      slug: study.slug,
+      title: study.title,
+      summary: study.summary,
+      contentMarkdown: study.contentMarkdown,
+      status: study.status,
+      categoryId: study.category.id,
+      tagNames: study.tags.map((tag) => tag.name).join(', '),
+      skillIds: study.skills.map((skill) => skill.id),
+      experienceIds: study.experiences.map((experience) => experience.id),
+      experienceDetailIds: study.experienceDetails.map((detail) => detail.id),
+      relatedStudies: study.relatedStudies.map((related) => ({ studyId: related.id, type: related.type })),
+      learnedAt: study.learnedAt,
+      publishedAt: study.publishedAt ?? null,
+    });
+    setIsStudyFormOpen(true);
+  };
+
   // --- TAB 2: PROFILE STATE & MUTATIONS ---
   const [profileForm, setProfileForm] = useState(emptyProfileForm);
+  const profileBioRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (introData?.profile) {
@@ -322,7 +512,6 @@ export function AdminDashboard() {
         nameEn: p.nameEn,
         jobTitle: p.jobTitle,
         bio: p.bio,
-        careerSummary: p.careerSummary,
         coreStackSummary: p.coreStackSummary,
         statusBadgeText: p.statusBadgeText,
         githubUrl: p.githubUrl,
@@ -331,6 +520,13 @@ export function AdminDashboard() {
       });
     }
   }, [introData]);
+
+  useLayoutEffect(() => {
+    const textarea = profileBioRef.current;
+    if (!textarea || activeTab !== 'PROFILE') return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [activeTab, profileForm.bio, viewportWidth]);
 
   const updateProfileMutation = useMutation({
     mutationFn: profileApi.update,
@@ -352,9 +548,16 @@ export function AdminDashboard() {
   const [isSkillFormOpen, setIsSkillFormOpen] = useState(false);
 
   const createSkillMutation = useMutation({
-    mutationFn: skillApi.create,
+    mutationFn: async (form: SkillForm) => {
+      const { studyIds, experienceIds, experienceDetailIds, ...payload } = form;
+      const skill = await skillApi.create(payload);
+      await connectionApi.updateSkill(skill.id, { studyIds, experienceIds, experienceDetailIds });
+      return skill;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills'] });
+      queryClient.invalidateQueries({ queryKey: ['studies'] });
+      queryClient.invalidateQueries({ queryKey: ['experiences'] });
       queryClient.invalidateQueries({ queryKey: ['introduction'] });
       setSkillForm(emptySkillForm);
       setIsSkillFormOpen(false);
@@ -363,16 +566,51 @@ export function AdminDashboard() {
   });
 
   const updateSkillMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: typeof emptySkillForm }) =>
-      skillApi.update(id, payload),
+    mutationFn: async ({ id, payload }: { id: number; payload: SkillForm }) => {
+      const { studyIds, experienceIds, experienceDetailIds, ...skillPayload } = payload;
+      const skill = await skillApi.update(id, skillPayload);
+      await connectionApi.updateSkill(id, { studyIds, experienceIds, experienceDetailIds });
+      return skill;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills'] });
+      queryClient.invalidateQueries({ queryKey: ['studies'] });
+      queryClient.invalidateQueries({ queryKey: ['experiences'] });
       queryClient.invalidateQueries({ queryKey: ['introduction'] });
       setSkillEditingId(null);
       setSkillForm(emptySkillForm);
       setIsSkillFormOpen(false);
     },
     onError: handleMutationError,
+  });
+
+  const toggleCoreSkillMutation = useMutation({
+    mutationFn: (skill: Skill) => {
+      const { id, ...payload } = skill;
+      return skillApi.update(id, { ...payload, isCore: !skill.isCore });
+    },
+    onMutate: async (skill) => {
+      await queryClient.cancelQueries({ queryKey: ['skills'] });
+      const previousSkills = queryClient.getQueryData<Skill[]>(['skills']);
+      queryClient.setQueryData<Skill[]>(['skills'], (current = []) => current.map((item) =>
+        item.id === skill.id ? { ...item, isCore: !item.isCore } : item));
+      return { previousSkills };
+    },
+    onError: (error, _skill, context) => {
+      if (context?.previousSkills) {
+        queryClient.setQueryData(['skills'], context.previousSkills);
+      }
+      handleMutationError(error);
+      window.alert('핵심 기술 설정을 저장하지 못했습니다. 다시 시도해 주세요.');
+    },
+    onSuccess: (updatedSkill) => {
+      queryClient.setQueryData<Skill[]>(['skills'], (current = []) => current.map((item) =>
+        item.id === updatedSkill.id ? updatedSkill : item));
+      queryClient.invalidateQueries({ queryKey: ['introduction'] });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['skills'] });
+    },
   });
 
   const deleteSkillMutation = useMutation({
@@ -393,9 +631,47 @@ export function AdminDashboard() {
     }
   };
 
+  const handleSkillNameChange = (name: string) => {
+    setSkillForm((current) => {
+      const previousRecommendation = recommendSkillBadge(current.name);
+      const nextRecommendation = recommendSkillBadge(name);
+      const usesAutomaticBadge = !current.badgeKey || current.badgeKey === previousRecommendation?.key;
+      return {
+        ...current,
+        name,
+        badgeKey: usesAutomaticBadge ? nextRecommendation?.key ?? '' : current.badgeKey,
+        badgeColor: usesAutomaticBadge ? nextRecommendation?.color ?? '' : current.badgeColor,
+      };
+    });
+  };
+
   const handleSkillDelete = (id: number) => {
     if (window.confirm('정말 이 기술 스택을 삭제하시겠습니까?')) {
       deleteSkillMutation.mutate(id);
+    }
+  };
+
+  const openSkillEditor = async (skill: Skill) => {
+    try {
+      const connections = await connectionApi.getSkill(skill.id);
+      const recommendedBadge = recommendSkillBadge(skill.name);
+      setSkillEditingId(skill.id);
+      setSkillForm({
+        name: skill.name,
+        category: skill.category,
+        skillLevel: skill.skillLevel ?? '',
+        skillVersion: skill.skillVersion ?? '',
+        comment: skill.comment ?? '',
+        usageType: skill.usageType ?? 'LEARNING',
+        badgeKey: skill.badgeKey ?? recommendedBadge?.key ?? '',
+        badgeColor: skill.badgeColor ?? recommendedBadge?.color ?? '',
+        isCore: skill.isCore,
+        displayOrder: skill.displayOrder,
+        ...connections,
+      });
+      setIsSkillFormOpen(true);
+    } catch (error) {
+      handleMutationError(error);
     }
   };
 
@@ -404,13 +680,45 @@ export function AdminDashboard() {
   const [expForm, setExpForm] = useState(emptyExperienceForm);
   const [isExpFormOpen, setIsExpFormOpen] = useState(false);
   const [detailInput, setDetailInput] = useState('');
-  const [expandedExpId, setExpandedExpId] = useState<number | null>(null);
+  const [selectedExperienceId, setSelectedExperienceId] = useState<number | null>(null);
   const [expandedDetailIdx, setExpandedDetailIdx] = useState<number | null>(null);
 
+  const selectedExperience = useMemo(
+    () => experiencesList?.find((experience) => experience.id === selectedExperienceId) ?? null,
+    [experiencesList, selectedExperienceId],
+  );
+
+  const selectableRelatedExperiences = (experiencesList ?? []).filter((experience) =>
+    experience.id !== expEditingId && (
+      !expRelatedSearch ||
+      experience.title.toLowerCase().includes(expRelatedSearch.toLowerCase()) ||
+      experience.type.toLowerCase().includes(expRelatedSearch.toLowerCase())
+    ));
+
+  const buildExperienceConnections = (
+    saved: Experience,
+    form: AdminExperienceForm,
+  ): ExperienceConnections => ({
+    studyIds: form.studyIds,
+    detailStudies: saved.details.map((detail, index) => ({
+      detailId: detail.id,
+      studyIds: form.details[index]?.studyIds ?? [],
+    })),
+    relatedExperiences: form.relatedExperienceIds.map((experienceId) => ({
+      experienceId,
+      type: 'RELATED' as const,
+    })),
+  });
+
   const createExpMutation = useMutation({
-    mutationFn: experienceApi.create,
+    mutationFn: async ({ payload, form }: { payload: ExperienceRequest; form: AdminExperienceForm }) => {
+      const experience = await experienceApi.create(payload);
+      await connectionApi.updateExperience(experience.id, buildExperienceConnections(experience, form));
+      return experience;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['experiences'] });
+      queryClient.invalidateQueries({ queryKey: ['studies'] });
       queryClient.invalidateQueries({ queryKey: ['introduction'] });
       setExpForm(emptyExperienceForm);
       setIsExpFormOpen(false);
@@ -419,10 +727,14 @@ export function AdminDashboard() {
   });
 
   const updateExpMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: ExperienceRequest }) =>
-      experienceApi.update(id, payload),
+    mutationFn: async ({ id, payload, form }: { id: number; payload: ExperienceRequest; form: AdminExperienceForm }) => {
+      const experience = await experienceApi.update(id, payload);
+      await connectionApi.updateExperience(experience.id, buildExperienceConnections(experience, form));
+      return experience;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['experiences'] });
+      queryClient.invalidateQueries({ queryKey: ['studies'] });
       queryClient.invalidateQueries({ queryKey: ['introduction'] });
       setExpEditingId(null);
       setExpForm(emptyExperienceForm);
@@ -433,9 +745,12 @@ export function AdminDashboard() {
 
   const deleteExpMutation = useMutation({
     mutationFn: experienceApi.remove,
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ['experiences'] });
       queryClient.invalidateQueries({ queryKey: ['introduction'] });
+      if (selectedExperienceId === deletedId) {
+        setSelectedExperienceId(null);
+      }
     },
     onError: handleMutationError,
   });
@@ -451,7 +766,9 @@ export function AdminDashboard() {
       takeaway: expForm.takeaway,
       essayContent: expForm.essayContent,
       displayOrder: Number(expForm.displayOrder),
-      details: expForm.details,
+      showOnTimeline: expForm.showOnTimeline,
+      timelineLabel: expForm.timelineLabel?.trim() || undefined,
+      details: expForm.details.map(({ studyIds: _studyIds, ...detail }) => detail),
       skillIds: expForm.skillIds,
       tagNames: expForm.tagNames.split(',').map((tag) => tag.trim()).filter(Boolean),
       companyName: expForm.type === 'CAREER' ? expForm.companyName : undefined,
@@ -460,14 +777,15 @@ export function AdminDashboard() {
       role: (expForm.type === 'CAREER' || expForm.type === 'PROJECT') ? expForm.role : undefined,
       slug: expForm.type === 'PROJECT' ? expForm.slug : undefined,
       contributionRate: expForm.type === 'PROJECT' ? Number(expForm.contributionRate) : undefined,
+      repositoryUrl: expForm.type === 'PROJECT' ? expForm.repositoryUrl?.trim() || undefined : undefined,
       institutionName: expForm.type === 'EDUCATION' ? expForm.institutionName : undefined,
       issuer: expForm.type === 'CERTIFICATE' ? expForm.issuer : undefined,
     };
 
     if (expEditingId !== null) {
-      updateExpMutation.mutate({ id: expEditingId, payload });
+      updateExpMutation.mutate({ id: expEditingId, payload, form: expForm });
     } else {
-      createExpMutation.mutate(payload);
+      createExpMutation.mutate({ payload, form: expForm });
     }
   };
 
@@ -477,11 +795,58 @@ export function AdminDashboard() {
     }
   };
 
+  const openExperienceEditor = async (experience: Experience) => {
+    try {
+      const connections = await connectionApi.getExperience(experience.id);
+      const detailStudies = new Map(
+        connections.detailStudies.map((connection) => [connection.detailId, connection.studyIds]),
+      );
+      setExpEditingId(experience.id);
+      setExpForm({
+        type: experience.type,
+        title: experience.title,
+        periodStart: experience.periodStart,
+        periodEnd: experience.periodEnd ?? '',
+        summary: experience.summary ?? '',
+        takeaway: experience.takeaway ?? '',
+        essayContent: experience.essayContent ?? '',
+        displayOrder: experience.displayOrder,
+        showOnTimeline: experience.showOnTimeline,
+        timelineLabel: experience.timelineLabel ?? '',
+        details: (experience.details ?? []).map((detail) => ({
+          id: detail.id,
+          content: detail.content,
+          situation: detail.situation ?? '',
+          actionDetail: detail.actionDetail ?? '',
+          outcome: detail.outcome ?? '',
+          skillIds: detail.skills?.map((skill) => skill.id) ?? [],
+          studyIds: detailStudies.get(detail.id) ?? [],
+        })),
+        skillIds: experience.skills?.map((skill) => skill.id) ?? [],
+        tagNames: experience.tags?.map((tag) => tag.name).join(', ') ?? '',
+        companyName: experience.companyName ?? '',
+        employmentType: experience.employmentType ?? '정규직',
+        department: experience.department ?? '',
+        role: experience.role ?? '',
+        slug: experience.slug ?? '',
+        contributionRate: experience.contributionRate ?? 100,
+        repositoryUrl: experience.repositoryUrl ?? '',
+        institutionName: experience.institutionName ?? '',
+        issuer: experience.issuer ?? '',
+        studyIds: connections.studyIds,
+        relatedExperienceIds: connections.relatedExperiences.map((related) => related.experienceId),
+      });
+      setIsExpFormOpen(true);
+    } catch (error) {
+      handleMutationError(error);
+    }
+  };
+
   const addDetailPoint = () => {
     if (detailInput.trim()) {
       setExpForm({
         ...expForm,
-        details: [...expForm.details, { content: detailInput.trim(), situation: '', actionDetail: '', outcome: '', skillIds: [] }],
+        details: [...expForm.details, { content: detailInput.trim(), situation: '', actionDetail: '', outcome: '', skillIds: [], studyIds: [] }],
       });
       setDetailInput('');
     }
@@ -515,6 +880,22 @@ export function AdminDashboard() {
     });
   };
 
+  const toggleDetailStudy = (idx: number, studyId: number) => {
+    setExpForm({
+      ...expForm,
+      details: expForm.details.map((detail, detailIndex) => {
+        if (detailIndex !== idx) return detail;
+        const isChecked = detail.studyIds.includes(studyId);
+        return {
+          ...detail,
+          studyIds: isChecked
+            ? detail.studyIds.filter((id) => id !== studyId)
+            : [...detail.studyIds, studyId],
+        };
+      }),
+    });
+  };
+
   const toggleExpSkill = (skillId: number) => {
     const isChecked = expForm.skillIds.includes(skillId);
     setExpForm({
@@ -525,25 +906,242 @@ export function AdminDashboard() {
     });
   };
 
+  // --- PREVIEW: 저장 전 작성 중인 내용을 메인페이지에 반영해 미리보기용 데이터를 구성 ---
+  const buildPreviewIntroData = (): IntroductionResponse | null => {
+    if (!introData) return null;
+
+    let profile = introData.profile;
+    let skills = introData.skills;
+    let experiences = introData.experiences;
+
+    if (activeTab === 'PROFILE') {
+      profile = {
+        id: introData.profile?.id ?? 0,
+        updatedAt: introData.profile?.updatedAt ?? new Date().toISOString(),
+        ...profileForm,
+      };
+    }
+
+    if (activeTab === 'SKILLS' && isSkillFormOpen) {
+      const {
+        studyIds: _studyIds,
+        experienceIds: _experienceIds,
+        experienceDetailIds: _experienceDetailIds,
+        ...draftSkillFields
+      } = skillForm;
+      const draftSkill: Skill = { id: skillEditingId ?? -1, ...draftSkillFields };
+      skills = skillEditingId !== null
+        ? skills.map((skill) => (skill.id === skillEditingId ? draftSkill : skill))
+        : [...skills, draftSkill];
+    }
+
+    if (activeTab === 'EXPERIENCE' && isExpFormOpen) {
+      const resolveSkills = (ids: number[]): Skill[] =>
+        ids
+          .map((id) => skillsList?.find((skill) => skill.id === id))
+          .filter((skill): skill is Skill => Boolean(skill));
+
+      const draftExperience: Experience = {
+        id: expEditingId ?? -1,
+        type: expForm.type,
+        title: expForm.title,
+        periodStart: expForm.periodStart,
+        periodEnd: expForm.periodEnd ? expForm.periodEnd : undefined,
+        summary: expForm.summary,
+        takeaway: expForm.takeaway,
+        essayContent: expForm.essayContent,
+        displayOrder: Number(expForm.displayOrder),
+        showOnTimeline: expForm.showOnTimeline,
+        timelineLabel: expForm.timelineLabel?.trim() || undefined,
+        details: expForm.details.map((detail, idx) => ({
+          id: detail.id ?? -(idx + 1),
+          content: detail.content,
+          situation: detail.situation,
+          actionDetail: detail.actionDetail,
+          outcome: detail.outcome,
+          displayOrder: idx,
+          skills: resolveSkills(detail.skillIds),
+        })),
+        skills: resolveSkills(expForm.skillIds),
+        tags: expForm.tagNames.split(',').map((name) => name.trim()).filter(Boolean).map((name) => ({ id: -1, name, slug: name })),
+        companyName: expForm.type === 'CAREER' ? expForm.companyName : undefined,
+        employmentType: expForm.type === 'CAREER' ? expForm.employmentType : undefined,
+        department: expForm.type === 'CAREER' ? expForm.department : undefined,
+        role: (expForm.type === 'CAREER' || expForm.type === 'PROJECT') ? expForm.role : undefined,
+        slug: expForm.type === 'PROJECT' ? expForm.slug : undefined,
+        contributionRate: expForm.type === 'PROJECT' ? Number(expForm.contributionRate) : undefined,
+        repositoryUrl: expForm.type === 'PROJECT' ? expForm.repositoryUrl?.trim() || undefined : undefined,
+        institutionName: expForm.type === 'EDUCATION' ? expForm.institutionName : undefined,
+        issuer: expForm.type === 'CERTIFICATE' ? expForm.issuer : undefined,
+      };
+
+      experiences = expEditingId !== null
+        ? experiences.map((experience) => (experience.id === expEditingId ? draftExperience : experience))
+        : [...experiences, draftExperience];
+    }
+
+    return { ...introData, profile, skills, experiences };
+  };
+
+  // 현재 선택된 관리자 메뉴(및 하위 상태)에 대응하는 메인페이지 위치를 계산한다.
+  const getPreviewTarget = (): { page: 'intro' | 'blog' | 'architecture'; section?: string } => {
+    switch (activeTab) {
+      case 'STUDY':
+        return { page: 'blog' };
+      case 'PROFILE':
+        return { page: 'intro', section: 'intro-profile' };
+      case 'SKILLS':
+        return { page: 'intro', section: 'skills' };
+      case 'COMPETENCIES':
+        return { page: 'intro', section: 'competencies' };
+      case 'EXPERIENCE': {
+        const type = isExpFormOpen ? expForm.type : expFilter;
+        const section =
+          type === 'CAREER' ? 'career'
+          : type === 'PROJECT' ? 'projects'
+          : type === 'EDUCATION' || type === 'CERTIFICATE' ? 'credentials'
+          : 'timeline';
+        return { page: 'intro', section };
+      }
+      case 'ANALYTICS':
+      default:
+        return { page: 'intro', section: 'intro-profile' };
+    }
+  };
+
+  // 저장 전 작성 중인 내용과 현재 메뉴 위치를 sessionStorage에 기록한다.
+  // 미리보기 iframe이 같은 탭 안에서 storage 이벤트를 받아 새로고침 없이 반영한다.
+  const writePreviewState = () => {
+    const data = buildPreviewIntroData();
+    if (data) {
+      sessionStorage.setItem('admin-preview-intro-override', JSON.stringify(data));
+    } else {
+      sessionStorage.removeItem('admin-preview-intro-override');
+    }
+    sessionStorage.setItem('admin-preview-nav', JSON.stringify(getPreviewTarget()));
+  };
+
+  // 미리보기가 열려있는 동안 편집 중인 내용과 선택된 메뉴가 바뀔 때마다 실시간으로 반영한다.
+  useEffect(() => {
+    if (!isPreviewOpen) return;
+    const timer = setTimeout(writePreviewState, 200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isPreviewOpen,
+    activeTab,
+    introData,
+    profileForm,
+    skillForm,
+    isSkillFormOpen,
+    skillEditingId,
+    expForm,
+    isExpFormOpen,
+    expEditingId,
+    expFilter,
+    skillsList,
+  ]);
+
+  const refreshPreview = () => {
+    writePreviewState();
+    setPreviewNonce((n) => n + 1);
+  };
+
+  const openPreview = () => {
+    writePreviewState();
+    setIsPreviewOpen(true);
+    requestAnimationFrame(() => setIsPreviewVisible(true));
+  };
+
+  const closePreviewPanel = () => {
+    setIsPreviewVisible(false);
+    setTimeout(() => {
+      setIsPreviewOpen(false);
+      sessionStorage.removeItem('admin-preview-intro-override');
+      sessionStorage.removeItem('admin-preview-nav');
+    }, 300);
+  };
+
+  const togglePreview = () => {
+    if (isPreviewOpen) {
+      closePreviewPanel();
+    } else {
+      openPreview();
+    }
+  };
+
+  const handlePreviewResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    previewResizeStartRef.current = { x: e.clientX, width: effectivePreviewWidth };
+    setIsResizingPreview(true);
+  };
+
+  useEffect(() => {
+    if (!isResizingPreview) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const start = previewResizeStartRef.current;
+      if (!start) return;
+      const delta = start.x - e.clientX;
+      const nextWidth = Math.min(Math.max(start.width + delta, PREVIEW_MIN_WIDTH), previewMaxAllowedWidth);
+      setPreviewWidth(nextWidth);
+    };
+
+    const handleMouseUp = () => {
+      previewResizeStartRef.current = null;
+      setIsResizingPreview(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingPreview, previewMaxAllowedWidth]);
+
+  useEffect(() => {
+    window.localStorage.setItem('admin-preview-width', String(previewWidth));
+  }, [previewWidth]);
+
   return (
     <main className="min-h-screen bg-[#f8fafc] text-slate-800">
       {/* HEADER */}
       <header className="sticky top-0 z-25 flex items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-black text-slate-900">관리자 대시보드</h1>
+          <h1 className="text-base font-black text-slate-900">관리자 대시보드</h1>
           <span className="text-xs font-bold text-slate-400">v1.5</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={togglePreview}
+            disabled={!introData}
+            title="저장 전 변경사항을 메인페이지에서 미리 확인합니다"
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              isPreviewOpen
+                ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+                : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            }`}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            미리보기
+          </button>
           <a
             href="/"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
           >
             <Home className="h-3.5 w-3.5" />
             메인페이지
           </a>
           <button
             onClick={() => logout()}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
           >
             <LogOut className="h-3.5 w-3.5" />
             로그아웃
@@ -551,6 +1149,8 @@ export function AdminDashboard() {
         </div>
       </header>
 
+      <div className="flex items-start">
+      <div className="min-w-0 flex-1">
       <div className={`grid w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:px-8 ${
         isSidebarCollapsed
           ? 'lg:grid-cols-[64px_minmax(0,1fr)]'
@@ -563,7 +1163,7 @@ export function AdminDashboard() {
             : ''
         }`}>
           <div className={`mb-2 flex h-8 items-center justify-between gap-2 px-2 ${isSidebarCollapsed ? 'lg:justify-center lg:px-0' : ''}`}>
-            <p className={`text-[10px] font-bold uppercase tracking-widest text-slate-400 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>메뉴 목록</p>
+            <p className={`text-xs font-bold uppercase tracking-widest text-slate-400 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>메뉴 목록</p>
             <button
               type="button"
               onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
@@ -577,7 +1177,19 @@ export function AdminDashboard() {
             </button>
           </div>
           <button
-            onClick={() => { setActiveTab('STUDY'); setIsStudyFormOpen(false); }}
+            onClick={() => setActiveTab('ANALYTICS')}
+            title="방문자 통계"
+            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
+              activeTab === 'ANALYTICS'
+                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>방문자 통계</span>
+          </button>
+          <button
+            onClick={() => { setActiveTab('STUDY'); setIsStudyFormOpen(false); setSelectedStudyId(null); }}
             title="공부 정리 관리"
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
               activeTab === 'STUDY'
@@ -613,7 +1225,19 @@ export function AdminDashboard() {
             <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>기술 스택 관리</span>
           </button>
           <button
-            onClick={() => { setActiveTab('EXPERIENCE'); setIsExpFormOpen(false); }}
+            onClick={() => setActiveTab('COMPETENCIES')}
+            title="핵심 역량 관리"
+            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
+              activeTab === 'COMPETENCIES'
+                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>핵심 역량 관리</span>
+          </button>
+          <button
+            onClick={() => { setActiveTab('EXPERIENCE'); setIsExpFormOpen(false); setSelectedExperienceId(null); }}
             title="이력 및 경력 관리"
             className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
               activeTab === 'EXPERIENCE'
@@ -628,16 +1252,93 @@ export function AdminDashboard() {
 
         {/* MAIN PANEL CONTENT */}
         <section className="min-w-0 space-y-6">
+          {activeTab === 'COMPETENCIES' && <CompetencyManagement />}
+          {activeTab === 'ANALYTICS' && (
+            <div className="space-y-6">
+              <div className="border-b border-slate-200 pb-3">
+                <h2 className="text-xl font-black text-slate-950">방문자 통계</h2>
+                <p className="mt-0.5 text-sm text-slate-500">브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                {[
+                  { label: '오늘 방문자', value: visitorSummary?.todayVisitors, icon: CalendarDays },
+                  { label: '누적 방문자', value: visitorSummary?.totalVisitors, icon: Users },
+                  { label: '누적 조회 수', value: visitorSummary?.totalPageViews, icon: MousePointerClick },
+                ].map(({ label, value, icon: Icon }) => (
+                  <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-slate-500">{label}</p>
+                      <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                    </div>
+                    <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
+                      {isVisitorSummaryLoading || value === undefined ? '—' : value.toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                  <div>
+                    <h3 className="font-black text-slate-900">최근 14일</h3>
+                    <p className="mt-0.5 text-xs font-medium text-slate-400">
+                      {visitorDateRange.from} ~ {visitorDateRange.to}
+                    </p>
+                  </div>
+                  <BarChart3 className="h-5 w-5 text-slate-400" />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left text-sm">
+                    <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
+                      <tr>
+                        <th className="px-5 py-3 font-bold">날짜</th>
+                        <th className="px-5 py-3 text-right font-bold">순 방문자</th>
+                        <th className="px-5 py-3 text-right font-bold">조회 수</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {visitorDaily.map((day) => (
+                        <tr key={day.date} className="text-slate-600">
+                          <td className="px-5 py-3 font-semibold text-slate-700">{day.date}</td>
+                          <td className="px-5 py-3 text-right font-bold">{day.visitors.toLocaleString()}</td>
+                          <td className="px-5 py-3 text-right font-bold">{day.pageViews.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      {!isVisitorDailyLoading && visitorDaily.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-5 py-10 text-center font-semibold text-slate-400">
+                            아직 집계된 방문 기록이 없습니다.
+                          </td>
+                        </tr>
+                      )}
+                      {isVisitorDailyLoading && (
+                        <tr>
+                          <td colSpan={3} className="px-5 py-10 text-center font-semibold text-slate-400">
+                            통계를 불러오는 중입니다.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ======================= STUDY TAB ======================= */}
           {activeTab === 'STUDY' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">Study 관리</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Markdown 학습 문서와 관련 기술·프로젝트·경력을 관리합니다.</p>
+                  <h2 className="text-xl font-black text-slate-950">Study 관리</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">Markdown 학습 문서와 관련 기술·프로젝트·경력을 관리합니다.</p>
                 </div>
                 <button
                   onClick={() => {
+                    setSelectedStudyId(null);
                     setStudyEditingId(null);
                     setStudyForm(emptyStudyForm);
                     setIsStudyFormOpen(true);
@@ -650,13 +1351,14 @@ export function AdminDashboard() {
               </div>
 
               {/* FILTERS & SEARCH */}
+              {!isStudyFormOpen && !selectedStudy && (
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
                 <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
                   {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map((category) => (
                     <button
                       key={category.slug}
                       onClick={() => setStudyFilter(category.slug)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`px-3 py-1.5 text-sm font-bold rounded-lg transition ${
                         studyFilter === category.slug
                           ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
@@ -672,14 +1374,15 @@ export function AdminDashboard() {
                     placeholder="제목, 본문, 기술 검색..."
                     value={studySearch}
                     onChange={(e) => setStudySearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
                   />
                 </div>
               </div>
+              )}
 
               {isStudyFormOpen && (
                 <form onSubmit={handleStudySubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-sm font-black text-slate-800">{studyEditingId !== null ? '글 수정' : '새 글 작성'}</h3>
+                  <h3 className="text-base font-black text-slate-800">{studyEditingId !== null ? '글 수정' : '새 글 작성'}</h3>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">제목</label>
@@ -759,12 +1462,12 @@ export function AdminDashboard() {
                           value={studySkillSearch}
                           onChange={(event) => setStudySkillSearch(event.target.value)}
                           placeholder="기술명 또는 분류 검색"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
                         />
                       </div>
                       <div className="max-h-44 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
                         {selectableStudySkills.map((skill) => (
-                          <label key={skill.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50">
+                          <label key={skill.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
                             <input
                               type="checkbox"
                               checked={studyForm.skillIds.includes(skill.id)}
@@ -792,12 +1495,12 @@ export function AdminDashboard() {
                           value={studyExperienceSearch}
                           onChange={(event) => setStudyExperienceSearch(event.target.value)}
                           placeholder="제목 또는 유형 검색"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
                         />
                       </div>
                       <div className="max-h-44 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
                         {selectableStudyExperiences.map((experience) => (
-                          <label key={experience.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50">
+                          <label key={experience.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
                             <input
                               type="checkbox"
                               checked={studyForm.experienceIds.includes(experience.id)}
@@ -828,15 +1531,15 @@ export function AdminDashboard() {
                         value={studyExperienceDetailSearch}
                         onChange={(event) => setStudyExperienceDetailSearch(event.target.value)}
                         placeholder="경력 제목 또는 항목 내용 검색"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div className="max-h-52 space-y-3 overflow-auto rounded-xl border border-slate-200 p-3">
                       {selectableStudyExperienceDetails.map(({ experience, details }) => (
                         <div key={experience.id}>
-                          <p className="mb-1 px-2 text-[11px] font-bold text-slate-400">{experience.title}</p>
+                          <p className="mb-1 px-2 text-xs font-bold text-slate-400">{experience.title}</p>
                           {details.map((detail) => (
-                            <label key={detail.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50">
+                            <label key={detail.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
                               <input
                                 type="checkbox"
                                 checked={studyForm.experienceDetailIds.includes(detail.id)}
@@ -867,7 +1570,7 @@ export function AdminDashboard() {
                         value={relatedStudySearch}
                         onChange={(event) => setRelatedStudySearch(event.target.value)}
                         placeholder="Study 제목 또는 slug 검색"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div className="max-h-52 space-y-2 overflow-auto rounded-xl border border-slate-200 p-3">
@@ -885,7 +1588,7 @@ export function AdminDashboard() {
                                   : studyForm.relatedStudies.filter((item) => item.studyId !== study.id),
                               })}
                             />
-                            <span className="min-w-0 flex-1 truncate text-xs font-semibold">{study.title}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{study.title}</span>
                             {relation && (
                               <select
                                 value={relation.type}
@@ -895,7 +1598,7 @@ export function AdminDashboard() {
                                     ? { ...item, type: event.target.value as typeof item.type }
                                     : item),
                                 })}
-                                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px]"
+                                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
                               >
                                 <option value="RELATED">일반 관련</option>
                                 <option value="PREREQUISITE">선행 학습</option>
@@ -950,83 +1653,93 @@ export function AdminDashboard() {
                 </form>
               )}
 
-              <div className="space-y-2.5">
-                {filteredStudies?.map((study) => {
-                  const isExpanded = expandedStudyId === study.id;
-                  return (
+              {!isStudyFormOpen && selectedStudy && (
+                <StudyDetailPanel
+                  study={selectedStudy}
+                  onBack={() => setSelectedStudyId(null)}
+                  onEdit={openStudyEditor}
+                  onDelete={handleStudyDelete}
+                />
+              )}
+
+              {!isStudyFormOpen && !selectedStudy && (
+                <div className="space-y-2.5">
+                  {isStudyListLoading && (
+                    <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+                      <RefreshCw className="h-6 w-6 animate-spin text-slate-300" />
+                      <p className="mt-3 text-sm font-bold text-slate-500">Study 목록을 불러오는 중입니다.</p>
+                    </div>
+                  )}
+
+                  {isStudyListError && (
+                    <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-red-200 bg-red-50/50 px-6 py-12 text-center shadow-sm">
+                      <p className="text-base font-black text-red-700">Study 목록을 불러오지 못했습니다.</p>
+                      <p className="mt-1 text-sm font-medium text-red-500">잠시 후 다시 시도해 주세요.</p>
+                      <button
+                        type="button"
+                        onClick={() => { void refetchStudies(); }}
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        다시 시도
+                      </button>
+                    </div>
+                  )}
+
+                  {!isStudyListLoading && !isStudyListError && filteredStudies?.length === 0 && (
+                    <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center">
+                      <BookOpen className="h-7 w-7 text-slate-300" />
+                      <p className="mt-3 text-base font-black text-slate-700">
+                        {studies?.length === 0 ? '아직 등록된 Study가 없습니다.' : '조건에 맞는 Study가 없습니다.'}
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-slate-400">
+                        {studies?.length === 0
+                          ? '새 글 작성을 눌러 첫 번째 학습 기록을 추가해 보세요.'
+                          : '카테고리나 검색어를 변경해 보세요.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {!isStudyListLoading && !isStudyListError && filteredStudies?.map((study) => (
                     <div
                       key={study.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                     >
                       <div className="flex items-center justify-between gap-4">
-                        <div
-                          className="min-w-0 flex-1 cursor-pointer"
-                          onClick={() => setExpandedStudyId(isExpanded ? null : study.id)}
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => setSelectedStudyId(study.id)}
                         >
                           <p className="font-mono text-xs font-bold text-slate-400">
                             {study.learnedAt} · {study.category.name} · {study.status === 'PUBLISHED' ? '공개' : '초안'}
                           </p>
-                          <p className="text-sm font-black text-slate-800 hover:text-slate-900 transition">{study.title}</p>
-                        </div>
+                          <p className="mt-0.5 text-base font-black text-slate-800 transition hover:text-slate-950">{study.title}</p>
+                          <p className="mt-1 line-clamp-1 text-sm text-slate-500">{study.summary}</p>
+                        </button>
                         <div className="flex shrink-0 items-center gap-2">
                           <button
-                            onClick={() => {
-                              setStudyEditingId(study.id);
-                              setStudyForm({
-                                slug: study.slug,
-                                title: study.title,
-                                summary: study.summary,
-                                contentMarkdown: study.contentMarkdown,
-                                status: study.status,
-                                categoryId: study.category.id,
-                                tagNames: study.tags.map((tag) => tag.name).join(', '),
-                                skillIds: study.skills.map((skill) => skill.id),
-                                experienceIds: study.experiences.map((experience) => experience.id),
-                                experienceDetailIds: study.experienceDetails.map((detail) => detail.id),
-                                relatedStudies: study.relatedStudies.map((related) => ({ studyId: related.id, type: related.type })),
-                                learnedAt: study.learnedAt,
-                                publishedAt: study.publishedAt ?? null,
-                              });
-                              setIsStudyFormOpen(true);
-                            }}
+                            type="button"
+                            onClick={() => openStudyEditor(study)}
+                            title="수정"
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleStudyDelete(study.id)}
+                            title="삭제"
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
-
-                      {isExpanded && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs space-y-3 text-slate-600">
-                          <div>
-                            <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">요약</h5>
-                            <p className="font-medium">{study.summary}</p>
-                          </div>
-                          {study.tags.length > 0 && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">태그</h5>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {study.tags.map((tag) => (
-                                  <span key={tag.id} className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600">
-                                    #{tag.name}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <p className="line-clamp-5 whitespace-pre-wrap font-mono text-[11px] text-slate-500">{study.contentMarkdown}</p>
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1034,8 +1747,8 @@ export function AdminDashboard() {
           {activeTab === 'PROFILE' && (
             <div className="space-y-6">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-lg font-black text-slate-950">프로필 정보 관리</h2>
-                <p className="text-xs text-slate-500 mt-0.5">이력서 헤더 및 바이오 요약 영역 정보를 실시간 편집합니다.</p>
+                <h2 className="text-xl font-black text-slate-950">프로필 정보 관리</h2>
+                <p className="text-sm text-slate-500 mt-0.5">이력서 헤더 및 바이오 요약 영역 정보를 실시간 편집합니다.</p>
               </div>
 
               <form onSubmit={handleProfileSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1088,23 +1801,24 @@ export function AdminDashboard() {
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Bio (대표 소개 문장)</label>
                   <textarea
+                    ref={profileBioRef}
                     required
                     rows={3}
                     value={profileForm.bio}
                     onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    className="min-h-28 w-full resize-none overflow-hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm leading-relaxed transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">경력 요약 문구 (예: 1년 11개월...)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">총 경력 기간 (자동 계산)</label>
                     <input
                       type="text"
-                      required
-                      value={profileForm.careerSummary}
-                      onChange={(e) => setProfileForm({ ...profileForm, careerSummary: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      readOnly
+                      value={introData?.careerSummary ?? '경력 정보를 불러오는 중...'}
+                      title="이력 및 경력 관리의 직장 경력 기간을 기준으로 자동 계산됩니다."
+                      className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500"
                     />
                   </div>
                   <div>
@@ -1170,8 +1884,8 @@ export function AdminDashboard() {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">기술 스택 관리</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">포트폴리오 핵심/일반 마스터 기술 목록을 관리합니다.</p>
+                  <h2 className="text-xl font-black text-slate-950">기술 스택 관리</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">포트폴리오 핵심/일반 마스터 기술 목록을 관리합니다.</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1193,7 +1907,7 @@ export function AdminDashboard() {
                     <button
                       key={cat}
                       onClick={() => setSkillFilter(cat)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`px-3 py-1.5 text-sm font-bold rounded-lg transition ${
                         skillFilter === cat
                           ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
@@ -1221,14 +1935,14 @@ export function AdminDashboard() {
                     placeholder="기술명 검색..."
                     value={skillSearch}
                     onChange={(e) => setSkillSearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
                   />
                 </div>
               </div>
 
               {isSkillFormOpen && (
                 <form onSubmit={handleSkillSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-sm font-black text-slate-800">{skillEditingId !== null ? '기술 수정' : '새 기술 추가'}</h3>
+                  <h3 className="text-base font-black text-slate-800">{skillEditingId !== null ? '기술 수정' : '새 기술 추가'}</h3>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">기술 스택명</label>
@@ -1237,7 +1951,7 @@ export function AdminDashboard() {
                         required
                         placeholder="예: Java, React"
                         value={skillForm.name}
-                        onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
+                        onChange={(e) => handleSkillNameChange(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
@@ -1314,6 +2028,79 @@ export function AdminDashboard() {
                     </div>
                   </div>
 
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                      <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row">
+                        <div className="min-w-0 flex-1">
+                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">기술 뱃지</label>
+                          <select
+                            value={skillForm.badgeKey ?? ''}
+                            onChange={(event) => {
+                              if (event.target.value === 'none') {
+                                setSkillForm((current) => ({ ...current, badgeKey: 'none', badgeColor: '' }));
+                                return;
+                              }
+                              const option = findSkillBadge(event.target.value);
+                              setSkillForm((current) => ({
+                                ...current,
+                                badgeKey: option?.key ?? '',
+                                badgeColor: option?.color ?? '',
+                              }));
+                            }}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                          >
+                            <option value="">자동 추천 또는 글자 뱃지</option>
+                            <option value="none">뱃지 표시 안 함</option>
+                            {skillBadgeOptions.map((option) => (
+                              <option key={option.key} value={option.key}>{option.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="sm:w-44">
+                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">브랜드 색상</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={/^[0-9A-Fa-f]{6}$/.test(skillForm.badgeColor ?? '')
+                                ? `#${skillForm.badgeColor}`
+                                : '#64748B'}
+                              onChange={(event) => setSkillForm((current) => ({
+                                ...current,
+                                badgeColor: event.target.value.slice(1).toUpperCase(),
+                              }))}
+                              className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+                              aria-label="뱃지 색상 선택"
+                            />
+                            <input
+                              type="text"
+                              maxLength={6}
+                              value={skillForm.badgeColor ?? ''}
+                              placeholder="64748B"
+                              onChange={(event) => setSkillForm((current) => ({
+                                ...current,
+                                badgeColor: event.target.value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase(),
+                              }))}
+                              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-mono text-sm uppercase outline-none focus:border-slate-800"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex min-w-36 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <SkillBadgeIcon
+                          name={skillForm.name || '기술'}
+                          badgeKey={skillForm.badgeKey}
+                          badgeColor={skillForm.badgeColor}
+                          className="h-7 w-7"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">미리보기</p>
+                          <p className="truncate text-sm font-black text-slate-800">{skillForm.name || '기술명'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs font-medium text-slate-400">기술명과 일치하는 뱃지는 자동 추천되며, 없으면 첫 글자 뱃지로 표시됩니다.</p>
+                  </div>
+
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">코멘트</label>
                     <textarea
@@ -1323,6 +2110,101 @@ export function AdminDashboard() {
                       onChange={(e) => setSkillForm({ ...skillForm, comment: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        관련 Study · {skillForm.studyIds.length}개
+                      </label>
+                      <input
+                        type="search"
+                        value={skillStudySearch}
+                        onChange={(event) => setSkillStudySearch(event.target.value)}
+                        placeholder="Study 제목 검색"
+                        className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-800"
+                      />
+                      <div className="max-h-48 space-y-1.5 overflow-auto">
+                        {connectionStudies.map((study) => (
+                          <label key={study.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={skillForm.studyIds.includes(study.id)}
+                              onChange={() => setSkillForm((current) => ({
+                                ...current,
+                                studyIds: current.studyIds.includes(study.id)
+                                  ? current.studyIds.filter((id) => id !== study.id)
+                                  : [...current.studyIds, study.id],
+                              }))}
+                              className="mt-0.5"
+                            />
+                            <span className="font-semibold text-slate-700">{study.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        관련 프로젝트·이력 · {skillForm.experienceIds.length}개
+                      </label>
+                      <input
+                        type="search"
+                        value={skillExperienceSearch}
+                        onChange={(event) => setSkillExperienceSearch(event.target.value)}
+                        placeholder="제목 또는 유형 검색"
+                        className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-800"
+                      />
+                      <div className="max-h-48 space-y-1.5 overflow-auto">
+                        {connectionExperiences.map((experience) => (
+                          <label key={experience.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={skillForm.experienceIds.includes(experience.id)}
+                              onChange={() => setSkillForm((current) => ({
+                                ...current,
+                                experienceIds: current.experienceIds.includes(experience.id)
+                                  ? current.experienceIds.filter((id) => id !== experience.id)
+                                  : [...current.experienceIds, experience.id],
+                              }))}
+                              className="mt-0.5"
+                            />
+                            <span><b className="mr-1 text-slate-400">{experience.type}</b>{experience.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        관련 경력 상세 · {skillForm.experienceDetailIds.length}개
+                      </label>
+                      <input
+                        type="search"
+                        value={skillDetailSearch}
+                        onChange={(event) => setSkillDetailSearch(event.target.value)}
+                        placeholder="경력 또는 상세 내용 검색"
+                        className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-800"
+                      />
+                      <div className="max-h-48 space-y-1.5 overflow-auto">
+                        {connectionDetails.map((detail) => (
+                          <label key={detail.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={skillForm.experienceDetailIds.includes(detail.id)}
+                              onChange={() => setSkillForm((current) => ({
+                                ...current,
+                                experienceDetailIds: current.experienceDetailIds.includes(detail.id)
+                                  ? current.experienceDetailIds.filter((id) => id !== detail.id)
+                                  : [...current.experienceDetailIds, detail.id],
+                              }))}
+                              className="mt-0.5"
+                            />
+                            <span><b className="block text-slate-400">{detail.experienceTitle}</b>{detail.content}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex justify-end gap-3 pt-2">
@@ -1344,67 +2226,37 @@ export function AdminDashboard() {
                 </form>
               )}
 
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {filteredSkills?.map((skill) => (
-                  <div
-                    key={skill.id}
-                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="min-w-0 truncate font-mono text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                        {skill.category} {skill.skillLevel ? `· ${skill.skillLevel}` : ''}
-                        {skill.skillVersion ? ` · v${skill.skillVersion}` : ''}
-                      </p>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          title={`${skill.name} 수정`}
-                          aria-label={`${skill.name} 수정`}
-                          onClick={() => {
-                            setSkillEditingId(skill.id);
-                            setSkillForm({
-                              name: skill.name,
-                              category: skill.category,
-                              skillLevel: skill.skillLevel ?? '',
-                              skillVersion: skill.skillVersion ?? '',
-                              comment: skill.comment ?? '',
-                              usageType: skill.usageType ?? 'LEARNING',
-                              isCore: skill.isCore,
-                              displayOrder: skill.displayOrder,
-                            });
-                            setIsSkillFormOpen(true);
-                          }}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          title={`${skill.name} 삭제`}
-                          aria-label={`${skill.name} 삭제`}
-                          onClick={() => handleSkillDelete(skill.id)}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <h4 className="-mt-0.5 flex min-w-0 items-center gap-1.5 text-sm font-black text-slate-800">
-                      <span className="truncate">{skill.name}</span>
-                      {skill.isCore && (
-                        <span className="shrink-0 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-900">Core</span>
-                      )}
-                      <span className="shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
-                        {skillUsageOptions.find((option) => option.value === skill.usageType)?.label ?? skill.usageType}
-                      </span>
-                    </h4>
-                    {skill.comment && (
-                      <p className="mt-1 line-clamp-1 text-[11px] font-medium leading-4 text-slate-500">{skill.comment}</p>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs shadow-sm">
+                <span className="font-black text-slate-400">현재 결과</span>
+                <span className="rounded bg-slate-900 px-2 py-1 font-black text-white">전체 {filteredSkillSummary.total}</span>
+                <span className="border-l border-slate-200 pl-3 font-bold text-slate-600">Core <b className="text-slate-900">{filteredSkillSummary.core}</b></span>
+                <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">실무 경험 <b className="text-slate-800">{filteredSkillSummary.work}</b></span>
+                <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">프로젝트 활용 <b className="text-slate-800">{filteredSkillSummary.project}</b></span>
+                <span className="border-l border-slate-200 pl-3 font-bold text-slate-500">학습 <b className="text-slate-800">{filteredSkillSummary.learning}</b></span>
               </div>
+
+              {groupedFilteredSkills.length > 0 ? (
+                <div className="space-y-4">
+                  {groupedFilteredSkills.map(({ category, skills }) => (
+                    <SkillGroupSection
+                      key={category.key}
+                      category={category}
+                      skills={skills}
+                      onEdit={(skill) => { void openSkillEditor(skill); }}
+                      onDelete={handleSkillDelete}
+                      onToggleCore={(skill) => toggleCoreSkillMutation.mutate(skill)}
+                      updatingCoreSkillId={toggleCoreSkillMutation.isPending
+                        ? toggleCoreSkillMutation.variables?.id
+                        : undefined}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                  <p className="text-sm font-black text-slate-600">조건에 맞는 기술이 없습니다.</p>
+                  <p className="mt-1 text-xs text-slate-400">카테고리나 검색어를 변경해보세요.</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -1413,11 +2265,12 @@ export function AdminDashboard() {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">이력 및 경력 관리</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Career, Project, Education, Certificate 항목을 유형별로 관리합니다.</p>
+                  <h2 className="text-xl font-black text-slate-950">이력 및 경력 관리</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">Career, Project, Education, Certificate 항목을 유형별로 관리합니다.</p>
                 </div>
                 <button
                   onClick={() => {
+                    setSelectedExperienceId(null);
                     setExpEditingId(null);
                     setExpForm(emptyExperienceForm);
                     setIsExpFormOpen(true);
@@ -1430,13 +2283,14 @@ export function AdminDashboard() {
               </div>
 
               {/* FILTERS & SEARCH */}
+              {!isExpFormOpen && !selectedExperience && (
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
                 <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
                   {['ALL', 'CAREER', 'PROJECT', 'EDUCATION', 'CERTIFICATE'].map((cat) => (
                     <button
                       key={cat}
                       onClick={() => setExpFilter(cat)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`px-3 py-1.5 text-sm font-bold rounded-lg transition ${
                         expFilter === cat
                           ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
@@ -1460,14 +2314,15 @@ export function AdminDashboard() {
                     placeholder="이력명, 성과 검색..."
                     value={expSearch}
                     onChange={(e) => setExpSearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm transition focus:border-slate-800 focus:outline-none bg-slate-50/50"
                   />
                 </div>
               </div>
+              )}
 
               {isExpFormOpen && (
                 <form onSubmit={handleExpSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-sm font-black text-slate-800">{expEditingId !== null ? '이력 수정' : '새 이력 추가'}</h3>
+                  <h3 className="text-base font-black text-slate-800">{expEditingId !== null ? '이력 수정' : '새 이력 추가'}</h3>
                   
                   {/* Common: Type, Title, displayOrder */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1512,7 +2367,7 @@ export function AdminDashboard() {
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">종료일 (없으면 비워둠)</label>
                       <input
                         type="date"
-                        value={expForm.periodEnd}
+                        value={expForm.periodEnd ?? ''}
                         onChange={(e) => setExpForm({ ...expForm, periodEnd: e.target.value })}
                         className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       />
@@ -1540,11 +2395,34 @@ export function AdminDashboard() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 items-end rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                    <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={expForm.showOnTimeline}
+                        onChange={(e) => setExpForm({ ...expForm, showOnTimeline: e.target.checked })}
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-800"
+                      />
+                      커리어 & 학습 타임라인에 표시
+                    </label>
+                    <div className="sm:col-span-2">
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">타임라인 짧은 라벨 (선택, 비우면 제목 사용)</label>
+                      <input
+                        type="text"
+                        value={expForm.timelineLabel}
+                        onChange={(e) => setExpForm({ ...expForm, timelineLabel: e.target.value })}
+                        placeholder="예: CS, LogDr., AI면접"
+                        maxLength={60}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      />
+                    </div>
+                  </div>
+
                   {/* Subtype Conditional Fields */}
                   {expForm.type === 'CAREER' && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">회사명</label>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">회사명</label>
                         <input
                           type="text"
                           required
@@ -1554,7 +2432,7 @@ export function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">고용 형태</label>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">고용 형태</label>
                         <input
                           type="text"
                           required
@@ -1564,7 +2442,7 @@ export function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">부서명</label>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">부서명</label>
                         <input
                           type="text"
                           required
@@ -1574,7 +2452,7 @@ export function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">담당 직무 (역할)</label>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">담당 직무 (역할)</label>
                         <input
                           type="text"
                           required
@@ -1589,7 +2467,7 @@ export function AdminDashboard() {
                   {expForm.type === 'PROJECT' && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">프로젝트 식별자 (slug)</label>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">프로젝트 식별자 (slug)</label>
                         <input
                           type="text"
                           required
@@ -1600,7 +2478,7 @@ export function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">담당 직무 (역할)</label>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">담당 직무 (역할)</label>
                         <input
                           type="text"
                           required
@@ -1611,7 +2489,7 @@ export function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">기여도 (%)</label>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">기여도 (%)</label>
                         <input
                           type="number"
                           required
@@ -1622,12 +2500,24 @@ export function AdminDashboard() {
                           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
+                      <div className="sm:col-span-3">
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">GitHub 저장소 URL (선택)</label>
+                        <input
+                          type="url"
+                          maxLength={500}
+                          placeholder="https://github.com/사용자/저장소"
+                          value={expForm.repositoryUrl ?? ''}
+                          onChange={(e) => setExpForm({ ...expForm, repositoryUrl: e.target.value })}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                        />
+                        <p className="mt-1 text-xs text-slate-400">비공개 또는 저장소가 없는 프로젝트는 비워두세요.</p>
+                      </div>
                     </div>
                   )}
 
                   {expForm.type === 'EDUCATION' && (
                     <div className="rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
-                      <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">학교 또는 교육 기관명</label>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">학교 또는 교육 기관명</label>
                       <input
                         type="text"
                         required
@@ -1641,7 +2531,7 @@ export function AdminDashboard() {
 
                   {expForm.type === 'CERTIFICATE' && (
                     <div className="rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
-                      <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase tracking-widest">발급 기관</label>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">발급 기관</label>
                       <input
                         type="text"
                         required
@@ -1657,7 +2547,7 @@ export function AdminDashboard() {
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">한줄 요약 (Summary, 마크다운)</label>
                     <MarkdownEditor
-                      value={expForm.summary}
+                      value={expForm.summary ?? ''}
                       onChange={(summary) => setExpForm({ ...expForm, summary })}
                     />
                   </div>
@@ -1665,16 +2555,8 @@ export function AdminDashboard() {
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Takeaway (성과 및 배운점, 마크다운)</label>
                     <MarkdownEditor
-                      value={expForm.takeaway}
+                      value={expForm.takeaway ?? ''}
                       onChange={(takeaway) => setExpForm({ ...expForm, takeaway })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">역량 기술서 본문 내용 (Essay Content, 마크다운, Optional)</label>
-                    <MarkdownEditor
-                      value={expForm.essayContent}
-                      onChange={(essayContent) => setExpForm({ ...expForm, essayContent })}
                     />
                   </div>
 
@@ -1733,28 +2615,28 @@ export function AdminDashboard() {
                             {isDetailExpanded && (
                               <div className="space-y-2 border-t border-slate-100 p-3">
                                 <div>
-                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">상황 (Situation, 마크다운)</label>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">상황 (Situation, 마크다운)</label>
                                   <MarkdownEditor
                                     value={d.situation ?? ''}
                                     onChange={(value) => updateDetailField(idx, 'situation', value)}
                                   />
                                 </div>
                                 <div>
-                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">과정 (Action, 마크다운)</label>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">과정 (Action, 마크다운)</label>
                                   <MarkdownEditor
                                     value={d.actionDetail ?? ''}
                                     onChange={(value) => updateDetailField(idx, 'actionDetail', value)}
                                   />
                                 </div>
                                 <div>
-                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">성과 (Outcome, 마크다운)</label>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">성과 (Outcome, 마크다운)</label>
                                   <MarkdownEditor
                                     value={d.outcome ?? ''}
                                     onChange={(value) => updateDetailField(idx, 'outcome', value)}
                                   />
                                 </div>
                                 <div>
-                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">이 항목의 기술 태그</label>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">이 항목의 기술 태그</label>
                                   <div className="flex flex-wrap gap-1.5">
                                     {skillsList?.map((s) => {
                                       const isChecked = d.skillIds.includes(s.id);
@@ -1763,7 +2645,7 @@ export function AdminDashboard() {
                                           type="button"
                                           key={s.id}
                                           onClick={() => toggleDetailSkill(idx, s.id)}
-                                          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
+                                          className={`rounded-full border px-2 py-0.5 text-xs font-bold transition ${
                                             isChecked
                                               ? 'border-slate-300 bg-slate-100 text-slate-950'
                                               : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
@@ -1773,6 +2655,24 @@ export function AdminDashboard() {
                                         </button>
                                       );
                                     })}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    이 항목의 관련 Study · {d.studyIds.length}개
+                                  </label>
+                                  <div className="grid max-h-40 grid-cols-1 gap-1.5 overflow-auto sm:grid-cols-2">
+                                    {(studies ?? []).map((study) => (
+                                      <label key={study.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                                        <input
+                                          type="checkbox"
+                                          checked={d.studyIds.includes(study.id)}
+                                          onChange={() => toggleDetailStudy(idx, study.id)}
+                                          className="mt-0.5"
+                                        />
+                                        <span className="font-semibold text-slate-700">{study.title}</span>
+                                      </label>
+                                    ))}
                                   </div>
                                 </div>
                               </div>
@@ -1793,7 +2693,7 @@ export function AdminDashboard() {
                         value={expSkillSearch}
                         onChange={(event) => setExpSkillSearch(event.target.value)}
                         placeholder="기술명 또는 분류 검색"
-                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
                       />
                     </div>
                     <div className="grid max-h-56 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
@@ -1802,7 +2702,7 @@ export function AdminDashboard() {
                         return (
                           <label
                             key={s.id}
-                            className={`flex items-start gap-2 p-2 rounded-lg border transition cursor-pointer text-xs ${
+                            className={`flex items-start gap-2 p-2 rounded-lg border transition cursor-pointer text-sm ${
                               isChecked
                                 ? 'bg-slate-100 border-slate-300 text-slate-950 font-bold'
                                 : 'bg-white border-slate-200 hover:border-slate-300'
@@ -1816,7 +2716,7 @@ export function AdminDashboard() {
                             />
                             <span className="min-w-0">
                               <span className="block truncate">{s.name}</span>
-                              <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
+                              <span className="mt-0.5 block truncate text-xs font-semibold text-slate-400">
                                 {skillUsageOptions.find((option) => option.value === s.usageType)?.label ?? s.usageType}
                                 {s.skillVersion ? ` · v${s.skillVersion}` : ''}
                                 {s.skillLevel ? ` · ${s.skillLevel}` : ''}
@@ -1828,6 +2728,76 @@ export function AdminDashboard() {
                       {selectableExpSkills.length === 0 && (
                         <p className="col-span-full py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
                       )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        관련 Study · {expForm.studyIds.length}개
+                      </label>
+                      <div className="relative mb-2">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="search"
+                          value={expStudySearch}
+                          onChange={(event) => setExpStudySearch(event.target.value)}
+                          placeholder="Study 제목 검색"
+                          className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-800"
+                        />
+                      </div>
+                      <div className="grid max-h-52 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                        {selectableExpStudies.map((study) => (
+                          <label key={study.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={expForm.studyIds.includes(study.id)}
+                              onChange={() => setExpForm((current) => ({
+                                ...current,
+                                studyIds: current.studyIds.includes(study.id)
+                                  ? current.studyIds.filter((id) => id !== study.id)
+                                  : [...current.studyIds, study.id],
+                              }))}
+                              className="mt-0.5"
+                            />
+                            <span className="font-semibold text-slate-700">{study.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        관련 프로젝트·이력 · {expForm.relatedExperienceIds.length}개
+                      </label>
+                      <div className="relative mb-2">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="search"
+                          value={expRelatedSearch}
+                          onChange={(event) => setExpRelatedSearch(event.target.value)}
+                          placeholder="제목 또는 유형 검색"
+                          className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-800"
+                        />
+                      </div>
+                      <div className="grid max-h-52 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                        {selectableRelatedExperiences.map((experience) => (
+                          <label key={experience.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={expForm.relatedExperienceIds.includes(experience.id)}
+                              onChange={() => setExpForm((current) => ({
+                                ...current,
+                                relatedExperienceIds: current.relatedExperienceIds.includes(experience.id)
+                                  ? current.relatedExperienceIds.filter((id) => id !== experience.id)
+                                  : [...current.relatedExperienceIds, experience.id],
+                              }))}
+                              className="mt-0.5"
+                            />
+                            <span><b className="mr-1 text-slate-400">{experience.type}</b>{experience.title}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -1850,155 +2820,121 @@ export function AdminDashboard() {
                 </form>
               )}
 
-              {/* Experiences List */}
-              <div className="space-y-2.5">
-                {filteredExperiences?.map((exp) => {
-                  const isExpanded = expandedExpId === exp.id;
-                  return (
+              {!isExpFormOpen && selectedExperience && (
+                <ExperienceDetailPanel
+                  experience={selectedExperience}
+                  onBack={() => setSelectedExperienceId(null)}
+                  onEdit={(experience) => { void openExperienceEditor(experience); }}
+                  onDelete={handleExpDelete}
+                />
+              )}
+
+              {!isExpFormOpen && !selectedExperience && (
+                <div className="space-y-2.5">
+                  {filteredExperiences?.map((exp) => (
                     <div
                       key={exp.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                     >
                       <div className="flex items-center justify-between gap-4">
-                        <div
-                          className="min-w-0 flex-1 cursor-pointer"
-                          onClick={() => setExpandedExpId(isExpanded ? null : exp.id)}
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => setSelectedExperienceId(exp.id)}
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200">
-                              {exp.type}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-bold text-slate-500">{exp.type}</span>
+                            <p className="font-mono text-xs font-bold text-slate-400">정렬 {exp.displayOrder}</p>
+                            <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-bold ${exp.showOnTimeline ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>
+                              {exp.showOnTimeline ? <Pin className="h-2.5 w-2.5" /> : <PinOff className="h-2.5 w-2.5" />}
+                              타임라인
                             </span>
-                            <p className="font-mono text-xs font-bold text-slate-400">
-                              정렬 {exp.displayOrder}
-                            </p>
                           </div>
-                          <p className="text-sm font-black text-slate-800 mt-1 hover:text-slate-900 transition">{exp.title}</p>
-                        </div>
+                          <p className="mt-1 text-base font-black text-slate-800 transition hover:text-slate-950">{exp.title}</p>
+                          {exp.summary && <p className="mt-1 line-clamp-1 text-sm text-slate-500">{exp.summary}</p>}
+                        </button>
                         <div className="flex shrink-0 items-center gap-2">
                           <button
-                            onClick={() => {
-                              setExpEditingId(exp.id);
-                              setExpForm({
-                                type: exp.type,
-                                title: exp.title,
-                                periodStart: exp.periodStart,
-                                periodEnd: exp.periodEnd ?? '',
-                                summary: exp.summary ?? '',
-                                takeaway: exp.takeaway ?? '',
-                                essayContent: exp.essayContent ?? '',
-                                displayOrder: exp.displayOrder,
-                                details: (exp.details ?? []).map((d) => ({
-                                  id: d.id,
-                                  content: d.content,
-                                  situation: d.situation ?? '',
-                                  actionDetail: d.actionDetail ?? '',
-                                  outcome: d.outcome ?? '',
-                                  skillIds: d.skills?.map((s) => s.id) ?? [],
-                                })),
-                                skillIds: exp.skills?.map((s) => s.id) ?? [],
-                                tagNames: exp.tags?.map((t) => t.name).join(', ') ?? '',
-                                companyName: exp.companyName ?? '',
-                                employmentType: exp.employmentType ?? '정규직',
-                                department: exp.department ?? '',
-                                role: exp.role ?? '',
-                                slug: exp.slug ?? '',
-                                contributionRate: exp.contributionRate ?? 100,
-                                institutionName: exp.institutionName ?? '',
-                                issuer: exp.issuer ?? '',
-                              });
-                              setIsExpFormOpen(true);
-                            }}
+                            type="button"
+                            onClick={() => { void openExperienceEditor(exp); }}
+                            title="수정"
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleExpDelete(exp.id)}
+                            title="삭제"
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
-
-                      {isExpanded && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 text-xs space-y-3 text-slate-600">
-                          {exp.summary && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">한줄 요약</h5>
-                              <div className="font-medium text-slate-700"><ReactMarkdown components={markdownComponents}>{exp.summary}</ReactMarkdown></div>
-                            </div>
-                          )}
-                          {exp.takeaway && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">Takeaway (핵심 성과)</h5>
-                              <div className="font-medium text-slate-700"><ReactMarkdown components={markdownComponents}>{exp.takeaway}</ReactMarkdown></div>
-                            </div>
-                          )}
-                          {exp.details && exp.details.length > 0 && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">상세 항목 (Bullet Points)</h5>
-                              <div className="mt-1 space-y-2">
-                                {exp.details.map((d) => (
-                                  <div key={d.id} className="rounded-lg border border-slate-200 bg-slate-50/50 p-2">
-                                    <p className="font-bold text-slate-700">{d.content}</p>
-                                    {d.situation && <div className="mt-1 text-slate-500"><span className="font-bold">상황: </span><ReactMarkdown components={markdownComponents}>{d.situation}</ReactMarkdown></div>}
-                                    {d.actionDetail && <div className="mt-1 text-slate-500"><span className="font-bold">과정: </span><ReactMarkdown components={markdownComponents}>{d.actionDetail}</ReactMarkdown></div>}
-                                    {d.outcome && <div className="mt-1 text-slate-500"><span className="font-bold">성과: </span><ReactMarkdown components={markdownComponents}>{d.outcome}</ReactMarkdown></div>}
-                                    {d.skills.length > 0 && (
-                                      <div className="mt-1 flex flex-wrap gap-1">
-                                        {d.skills.map((s) => (
-                                          <span key={s.id} className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-900 border border-slate-200">
-                                            {s.name}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {exp.skills && exp.skills.length > 0 && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">연관 기술 스택</h5>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {exp.skills.map((s) => (
-                                  <span key={s.id} className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold text-slate-900 border border-slate-200">
-                                    {s.name}
-                                    {s.skillVersion ? ` v${s.skillVersion}` : ''}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {exp.tags && exp.tags.length > 0 && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">태그</h5>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {exp.tags.map((t) => (
-                                  <span key={t.id} className="bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold text-blue-700 border border-blue-100">
-                                    #{t.name}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {exp.essayContent && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">에세이 상세내용 (Essay Content)</h5>
-                              <div className="font-medium text-slate-700"><ReactMarkdown components={markdownComponents}>{exp.essayContent}</ReactMarkdown></div>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
+      </div>
+      </div>
+
+      {isPreviewOpen && (
+        <div
+          className={`relative shrink-0 self-start overflow-hidden border-l border-slate-200 bg-white lg:sticky lg:top-20 ${
+            isResizingPreview ? '' : 'transition-[width] duration-300 ease-in-out'
+          }`}
+          style={{
+            height: 'calc(100vh - 5rem)',
+            width: isPreviewVisible ? effectivePreviewWidth : 0,
+          }}
+        >
+          <div
+            onMouseDown={handlePreviewResizeStart}
+            className="absolute left-0 top-0 z-10 hidden h-full w-2.5 -translate-x-1/2 cursor-col-resize touch-none group sm:block"
+            title="드래그하여 너비 조절"
+          >
+            <div className="mx-auto h-full w-px bg-transparent transition group-hover:bg-slate-300 group-active:bg-slate-400" />
+          </div>
+          <div className="flex h-full w-full flex-col">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-black text-slate-900">메인페이지 미리보기</h3>
+                <p className="mt-0.5 text-xs text-slate-500">저장 전 변경사항이 반영된 화면입니다.</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={refreshPreview}
+                  title="새로고침"
+                  aria-label="미리보기 새로고침"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={closePreviewPanel}
+                  title="닫기"
+                  aria-label="미리보기 닫기"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <iframe
+              key={previewNonce}
+              src="/?preview=1"
+              title="메인페이지 미리보기"
+              className="w-full flex-1 border-0"
+            />
+          </div>
+        </div>
+      )}
       </div>
     </main>
   );

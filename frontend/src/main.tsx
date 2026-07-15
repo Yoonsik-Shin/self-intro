@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { AdminApp } from './admin/AdminApp';
 import { ExperienceDetailPage } from './ExperienceDetailPage';
+import { navigate } from './lib/navigation';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -16,18 +17,24 @@ const queryClient = new QueryClient({
 });
 
 function RootRouter() {
-  const [hash, setHash] = useState(() => window.location.hash);
+  const [pathname, setPathname] = useState(() => window.location.pathname);
 
   useEffect(() => {
-    const onHashChange = () => setHash(window.location.hash);
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const onPopState = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', onPopState);
+
+    const legacyRoute = window.location.hash.match(/^#\/(admin|experience-detail\/\d+)$/)?.[1];
+    if (legacyRoute) {
+      navigate(`/${legacyRoute}`, { replace: true });
+    }
+
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  if (hash.startsWith('#/admin')) {
+  if (pathname.startsWith('/admin')) {
     return <AdminApp />;
   }
-  if (hash.startsWith('#/experience-detail/')) {
+  if (pathname.startsWith('/experience-detail/')) {
     return <ExperienceDetailPage />;
   }
   return <App />;
