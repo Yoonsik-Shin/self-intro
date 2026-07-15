@@ -15,9 +15,12 @@ import {
   User,
   X,
   Calendar,
+  ChevronDown,
+  ArrowLeft,
+  ExternalLink,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { bffApi, type Skill, type StudyEntry, type ExperienceDetail } from './lib/api';
+import { bffApi, studyApi, type Skill, type ExperienceDetail } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
 import { markdownComponents } from './lib/markdown';
 
@@ -175,10 +178,12 @@ export function App() {
   const [search, setSearch] = useState('');
 
   const [activeSection, setActiveSection] = useState('intro-profile');
-  const [activePage, setActivePage] = useState<PageId>('intro');
+  const initialStudySlug = window.location.pathname.match(/^\/study\/(.+)$/)?.[1];
+  const [activePage, setActivePage] = useState<PageId>(initialStudySlug ? 'blog' : 'intro');
+  const [selectedStudySlug, setSelectedStudySlug] = useState(initialStudySlug ? decodeURIComponent(initialStudySlug) : null);
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
   const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
-  const [expandedCareerDetailId, setExpandedCareerDetailId] = useState<number | null>(null);
+  const [expandedCareerDetailIds, setExpandedCareerDetailIds] = useState<number[]>([]);
 
   useEffect(() => {
     const observerOptions = {
@@ -222,12 +227,37 @@ export function App() {
     queryFn: bffApi.getIntroduction,
   });
 
-  const { data: bffLearningData } = useQuery({
-    queryKey: ['learning'],
-    queryFn: bffApi.getLearning,
+  const { data: studyPage } = useQuery({
+    queryKey: ['studies', 'public', search, activeCategory],
+    queryFn: () => studyApi.list({
+      q: search || undefined,
+      category: activeCategory === 'ALL' ? undefined : activeCategory,
+      size: 100,
+    }),
   });
 
-  const studyEntries = bffLearningData?.studyEntries;
+  const studies = studyPage?.content ?? [];
+
+  const { data: studyCategories } = useQuery({
+    queryKey: ['studyCategories'],
+    queryFn: studyApi.categories,
+  });
+
+  const { data: selectedStudy } = useQuery({
+    queryKey: ['study', selectedStudySlug],
+    queryFn: () => studyApi.detail(selectedStudySlug!),
+    enabled: Boolean(selectedStudySlug),
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const slug = window.location.pathname.match(/^\/study\/(.+)$/)?.[1];
+      setSelectedStudySlug(slug ? decodeURIComponent(slug) : null);
+      if (slug) setActivePage('blog');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const fallbackProfile = {
     name: "신윤식",
@@ -383,6 +413,32 @@ export function App() {
     }];
   }, [introData]);
 
+  const toggleCareerDetail = (id: number) => {
+    setExpandedCareerDetailIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const expandableDetailIds = useMemo(() => {
+    return careerCards.flatMap(c =>
+      c.details
+        .filter(d => Boolean(d.situation || d.actionDetail || d.outcome || (d.skills && d.skills.length > 0)))
+        .map(d => d.id)
+    );
+  }, [careerCards]);
+
+  const isAllExpanded = useMemo(() => {
+    return expandableDetailIds.length > 0 && expandableDetailIds.every(id => expandedCareerDetailIds.includes(id));
+  }, [expandableDetailIds, expandedCareerDetailIds]);
+
+  const toggleExpandAll = () => {
+    if (isAllExpanded) {
+      setExpandedCareerDetailIds([]);
+    } else {
+      setExpandedCareerDetailIds(expandableDetailIds);
+    }
+  };
+
   const selectedMilestone = useMemo(() => {
     return activeMilestones.find(m => m.id === selectedMilestoneId) || activeMilestones[0];
   }, [selectedMilestoneId, activeMilestones]);
@@ -429,25 +485,30 @@ export function App() {
     return essays.STRENGTH.strengths;
   }, [introData]);
 
-  const filteredEntries = useMemo((): StudyEntry[] => {
-    const entries = studyEntries ?? [];
-    return entries.filter((entry: StudyEntry) => {
-      const matchCategory = activeCategory === 'ALL' || entry.category === activeCategory;
-      const matchSearch = entry.title.toLowerCase().includes(search.toLowerCase()) ||
-                          entry.description.toLowerCase().includes(search.toLowerCase()) ||
-                          entry.skills.some((s: string) => s.toLowerCase().includes(search.toLowerCase()));
-      return matchCategory && matchSearch;
-    });
-  }, [studyEntries, activeCategory, search]);
-
-
   const handlePrint = () => {
     window.print();
   };
 
   const goToPage = (pageId: PageId) => {
     setActivePage(pageId);
+    if (pageId !== 'blog' && selectedStudySlug) {
+      setSelectedStudySlug(null);
+      window.history.pushState({}, '', '/');
+    }
     setIsPageMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openStudy = (slug: string) => {
+    setSelectedStudySlug(slug);
+    setActivePage('blog');
+    window.history.pushState({}, '', `/study/${encodeURIComponent(slug)}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const closeStudy = () => {
+    setSelectedStudySlug(null);
+    window.history.pushState({}, '', '/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -995,9 +1056,20 @@ export function App() {
               <section id="career" className="scroll-mt-24 space-y-6">
                 {careerCards.map(career => (
                   <div key={career.id} className={cardStyle}>
-                    <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-                      <Briefcase className="h-5 w-5 text-slate-900" />
-                      직장 경력 (총 1년 11개월)
+                    <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                      <span className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-slate-900" />
+                        직장 경력 (총 1년 11개월)
+                      </span>
+                      {expandableDetailIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={toggleExpandAll}
+                          className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-950 transition bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs"
+                        >
+                          {isAllExpanded ? '모두 접기' : '모두 펼치기'}
+                        </button>
+                      )}
                     </h2>
                     <div>
                       <span className="inline-flex rounded bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
@@ -1007,16 +1079,28 @@ export function App() {
                       <p className="text-sm font-semibold text-slate-500">{career.department} / {career.role}</p>
                       <ul className="mt-4 space-y-2">
                         {career.details.map(detail => {
-                          const isExpanded = expandedCareerDetailId === detail.id;
+                          const isExpanded = expandedCareerDetailIds.includes(detail.id);
                           const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
                           return (
                             <li key={detail.id} className="list-none">
                               <div
-                                className="group flex items-start justify-between gap-3 cursor-pointer rounded-lg px-2 py-1 -mx-2 transition hover:bg-slate-50"
-                                onClick={() => hasDetailContent && setExpandedCareerDetailId(isExpanded ? null : detail.id)}
+                                className={`group flex items-start justify-between gap-3 rounded-lg px-2 py-1.5 -mx-2 transition-all duration-200 border border-transparent ${
+                                  hasDetailContent 
+                                    ? 'cursor-pointer hover:bg-slate-50/80 hover:border-slate-200/50 hover:shadow-xs' 
+                                    : 'cursor-default'
+                                } ${isExpanded ? 'bg-slate-50/60 border-slate-200/30' : ''}`}
+                                onClick={() => hasDetailContent && toggleCareerDetail(detail.id)}
                               >
-                                <span className="flex items-start gap-2 text-base text-slate-600 leading-relaxed font-normal">
-                                  <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                                <span className={`flex items-start gap-2.5 text-base leading-relaxed font-normal transition ${
+                                  hasDetailContent 
+                                    ? 'text-slate-700 group-hover:text-slate-900 group-hover:font-semibold' 
+                                    : 'text-slate-500'
+                                }`}>
+                                  {hasDetailContent ? (
+                                    <ChevronDown className={`mt-1.5 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`} />
+                                  ) : (
+                                    <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 ml-1.5 mr-1" />
+                                  )}
                                   {detail.content}
                                 </span>
                                 {detail.id > 0 && (
@@ -1405,126 +1489,90 @@ export function App() {
             </div>
           </div>
         ) : (
-          /* STUDY LOGS PAGE (공부 정리) */
+          /* STUDY PAGE */
           <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn pb-12 print:hidden">
-            {/* Page Title & Intro Banner */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-slate-800/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
-              <div className="relative z-10 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-1">
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900">공부 정리 (Study Logs)</h1>
-                    <p className="text-sm sm:text-base text-slate-500 font-normal leading-relaxed">
-                      학습내용, 사이드 프로젝트 구축 경험, 그리고 핵심 기술 개념을 기록하고 보관하는 기술 블로그 공간입니다.
-                    </p>
+            {selectedStudySlug ? (
+              <>
+                <button onClick={closeStudy} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
+                  <ArrowLeft className="h-4 w-4" /> Study 목록
+                </button>
+                {selectedStudy && (
+                  <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                    <div className="mb-8 border-b border-slate-100 pb-6">
+                      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{selectedStudy.category.name}</span>
+                        <span className="font-mono">{selectedStudy.learnedAt}</span>
+                      </div>
+                      <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{selectedStudy.title}</h1>
+                      <p className="mt-4 text-base leading-relaxed text-slate-500">{selectedStudy.summary}</p>
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {selectedStudy.tags.map((tag) => <span key={tag.id} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">#{tag.name}</span>)}
+                        {selectedStudy.skills.map((skill) => <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600">{skill.name}</span>)}
+                      </div>
+                    </div>
+                    <div className="space-y-4 text-base leading-8 text-slate-700">
+                      <ReactMarkdown components={markdownComponents}>{selectedStudy.contentMarkdown}</ReactMarkdown>
+                    </div>
+                    {(selectedStudy.experiences.length > 0 || selectedStudy.relatedStudies.length > 0) && (
+                      <div className="mt-10 grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2">
+                        {selectedStudy.experiences.length > 0 && (
+                          <div className="rounded-xl bg-slate-50 p-4">
+                            <h2 className="mb-3 text-sm font-black text-slate-900">관련 프로젝트·경력</h2>
+                            <div className="space-y-2">{selectedStudy.experiences.map((experience) => <p key={experience.id} className="text-xs text-slate-600"><span className="mr-2 font-mono text-slate-400">{experience.type}</span>{experience.title}</p>)}</div>
+                          </div>
+                        )}
+                        {selectedStudy.relatedStudies.length > 0 && (
+                          <div className="rounded-xl bg-slate-50 p-4">
+                            <h2 className="mb-3 text-sm font-black text-slate-900">관련 Study</h2>
+                            <div className="space-y-2">{selectedStudy.relatedStudies.map((related) => (
+                              <button key={`${related.id}-${related.type}`} onClick={() => openStudy(related.slug)} className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-slate-600 hover:text-slate-950">
+                                <span>{related.title}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                              </button>
+                            ))}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                  <div className="absolute right-0 top-0 h-80 w-80 -translate-y-16 translate-x-16 rounded-full bg-slate-800/5 blur-[50px]" />
+                  <div className="relative">
+                    <h1 className="text-3xl font-black tracking-tight text-slate-900">Study</h1>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">학습 내용과 실제 프로젝트 적용 경험을 연결해 기록하는 기술 아카이브입니다.</p>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* STUDY LOGS FEED & FILTERS */}
-            <div className="space-y-6">
-              {/* Filters Header (Pills on left, Search on right) */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
-                {/* Categories */}
-                <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-none">
-                  {[
-                    { key: 'ALL', label: '전체' },
-                    { key: 'PROJECT', label: '프로젝트' },
-                    { key: 'EDUCATION', label: '공부/학습' },
-                    { key: 'CERTIFICATE', label: '자격증' }
-                  ].map((item) => (
-                    <button
-                      key={item.key}
-                      onClick={() => setActiveCategory(item.key as any)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all shrink-0 ${
-                        activeCategory === item.key
-                          ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      {item.label}
+                <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map((category) => (
+                      <button key={category.slug} onClick={() => setActiveCategory(category.slug)} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeCategory === category.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{category.name}</button>
+                    ))}
+                  </div>
+                  <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="제목, 본문, 태그, 기술 검색..." className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72" />
+                </div>
+                <div className="space-y-5">
+                  {studies.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm font-semibold text-slate-400">검색 조건에 맞는 Study가 없습니다.</div>
+                  ) : studies.map((study) => (
+                    <button key={study.id} onClick={() => openStudy(study.slug)} className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8">
+                      <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <span className="rounded bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800">{study.category.name}</span>
+                        <span className="font-mono text-xs font-bold text-slate-400">{study.learnedAt}</span>
+                      </div>
+                      <h2 className="text-xl font-black text-slate-900">{study.title}</h2>
+                      <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">{study.summary}</p>
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {study.tags.map((tag) => <span key={tag.id} className="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">#{tag.name}</span>)}
+                        {study.skills.map((skill) => <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">{skill.name}</span>)}
+                      </div>
                     </button>
                   ))}
                 </div>
-
-                {/* Search Input */}
-                <div className="relative w-full sm:w-64">
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="기술명, 제목 검색..."
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
-                  />
-                </div>
-              </div>
-
-              {/* List of Study Logs */}
-              <div className="space-y-6">
-                {filteredEntries.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80">
-                    <p className="text-sm text-slate-400 font-semibold">
-                      {activeCategory === 'ALL' && !search
-                        ? '아직 작성된 공부 기록이 없습니다.'
-                        : '검색 조건에 맞는 공부 기록이 없습니다.'}
-                    </p>
-                  </div>
-                ) : (
-                  filteredEntries.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm hover:shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] transition duration-200 relative overflow-hidden">
-                      {/* Category Badge & Date */}
-                      <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
-                        <span className={`inline-flex rounded px-2.5 py-0.5 text-xs font-bold ${
-                          entry.category === 'PROJECT'
-                            ? 'bg-slate-100 border border-slate-200 text-slate-950'
-                            : entry.category === 'EDUCATION'
-                            ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
-                            : 'bg-amber-50 border border-amber-100 text-amber-700'
-                        }`}>
-                          {entry.category === 'PROJECT' ? 'PROJECT' : entry.category === 'EDUCATION' ? 'STUDY' : 'CERTIFICATE'}
-                        </span>
-                        <span className="text-xs font-bold text-slate-400 font-mono">{entry.learnedAt}</span>
-                      </div>
-
-                      {/* Post Title */}
-                      <h3 className="text-xl font-black text-slate-900 leading-snug hover:text-slate-900 transition mb-3">
-                        {entry.title}
-                      </h3>
-
-                      {/* Post Body Description */}
-                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal whitespace-pre-line mb-4">
-                        {entry.description}
-                      </p>
-
-                      {/* Tech Stack Badges */}
-                      {entry.skills && entry.skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {entry.skills.map((skill) => (
-                            <span key={skill} className="bg-slate-50 border border-slate-200/60 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-xs">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Takeaway / Lesson Learned block */}
-                      {entry.takeaway && (
-                        <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-1.5 shadow-inner">
-                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Lesson Learned / Key Takeaway
-                          </h4>
-                          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                            {entry.takeaway}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+              </>
+            )}
           </div>
         )}
         </div>
