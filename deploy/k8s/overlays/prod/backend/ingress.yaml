@@ -3,6 +3,11 @@ kind: Ingress
 metadata:
   name: self-intro-backend
   namespace: self-intro
+  annotations:
+    # SSE 스트리밍(핵심 역량 AI): 응답 버퍼링을 끄고 모델 응답 대기 구간을 견디도록 타임아웃 연장
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 spec:
   ingressClassName: nginx
   tls:

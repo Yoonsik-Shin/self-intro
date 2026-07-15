@@ -26,6 +26,8 @@ spec:
                 name: backend-config
             - secretRef:
                 name: backend-db-secret
+            - secretRef:
+                name: backend-ai-secret
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

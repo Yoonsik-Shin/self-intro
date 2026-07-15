@@ -7,6 +7,7 @@ resources:
   - ../../../base/backend
   - ingress.yaml
   - sealed-db-secret.yaml
+  - sealed-ai-secret.yaml
 
 images:
   - name: self-intro-backend
@@ -20,3 +21,7 @@ configMapGenerator:
       - JPA_DDL_AUTO=none
       - COOKIE_DOMAIN=unbrdn.me
       - VISITOR_COOKIE_SECURE=true
+      - COMPETENCY_AI_ENABLED=true
+      - NVIDIA_API_BASE_URL=https://integrate.api.nvidia.com
+      - NVIDIA_MODEL=qwen/qwen3.5-122b-a10b
+      - NVIDIA_MAX_OUTPUT_TOKENS=4096
