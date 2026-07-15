@@ -1,8 +1,8 @@
 package com.selfintro.bff.presentation.dto;
 
-import com.selfintro.study.dto.StudyEntryResponse;
+import com.selfintro.study.dto.StudyResponse;
 import java.util.List;
 
 public record LearningResponse(
-    List<StudyEntryResponse> studyEntries
+    List<StudyResponse> studies
 ) {}

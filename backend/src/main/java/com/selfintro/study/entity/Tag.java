@@ -12,20 +12,26 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "study_category")
+@Table(name = "tag")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StudyCategory {
+public class Tag {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 60)
+    @Column(nullable = false, unique = true, length = 80)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 80)
+    @Column(nullable = false, unique = true, length = 100)
     private String slug;
 
-    @Column(name = "display_order", nullable = false)
-    private int displayOrder;
+    private Tag(String name, String slug) {
+        this.name = name;
+        this.slug = slug;
+    }
+
+    public static Tag create(String name, String slug) {
+        return new Tag(name, slug);
+    }
 }

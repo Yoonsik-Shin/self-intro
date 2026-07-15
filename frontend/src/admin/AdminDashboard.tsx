@@ -13,7 +13,10 @@ import {
   PlusCircle,
   MinusCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Search,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import {
   ApiError,
@@ -22,25 +25,40 @@ import {
   skillApi,
   experienceApi,
   bffApi,
-  type CreateStudyEntryRequest,
-  type StudyEntry,
+  type StudyRequest,
+  type Study,
   type Skill,
   type Experience,
   type ExperienceRequest,
   type ExperienceDetailRequest
 } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
+import { MarkdownEditor } from './MarkdownEditor';
 
 type TabId = 'STUDY' | 'PROFILE' | 'SKILLS' | 'EXPERIENCE';
 
-const emptyStudyForm: CreateStudyEntryRequest = {
+type StudyForm = Omit<StudyRequest, 'tagNames'> & { tagNames: string };
+
+const emptyStudyForm: StudyForm = {
+  slug: '',
   title: '',
-  description: '',
-  category: 'PROJECT',
-  skills: '',
-  takeaway: '',
+  summary: '',
+  contentMarkdown: '',
+  status: 'DRAFT',
+  categoryId: 1,
+  tagNames: '',
+  skillIds: [],
+  experienceIds: [],
+  experienceDetailIds: [],
+  relatedStudies: [],
   learnedAt: new Date().toISOString().split('T')[0],
+  publishedAt: null,
 };
+
+const toStudyRequest = (form: StudyForm): StudyRequest => ({
+  ...form,
+  tagNames: form.tagNames.split(',').map((tag) => tag.trim()).filter(Boolean),
+});
 
 const emptyProfileForm = {
   name: '',
@@ -99,6 +117,7 @@ export function AdminDashboard() {
   const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
 
   const [activeTab, setActiveTab] = useState<TabId>('STUDY');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Unified API error handler for security expiration
   const handleMutationError = (error: unknown) => {
@@ -108,9 +127,16 @@ export function AdminDashboard() {
   };
 
   // --- QUERY HOOKS ---
-  const { data: studyEntries } = useQuery<StudyEntry[]>({
-    queryKey: ['studyEntries'],
-    queryFn: () => studyApi.list(),
+  const { data: studyPage } = useQuery({
+    queryKey: ['studies', 'admin'],
+    queryFn: () => studyApi.adminList(),
+  });
+
+  const studies = studyPage?.content;
+
+  const { data: studyCategories } = useQuery({
+    queryKey: ['studyCategories'],
+    queryFn: studyApi.categories,
   });
 
   const { data: introData } = useQuery({
@@ -128,11 +154,15 @@ export function AdminDashboard() {
     queryFn: () => experienceApi.list(),
   });
 
-  // --- TAB 1: STUDY ENTRY STATE & MUTATIONS ---
+  // --- TAB 1: STUDY STATE & MUTATIONS ---
   const [studyEditingId, setStudyEditingId] = useState<number | null>(null);
-  const [studyForm, setStudyForm] = useState<CreateStudyEntryRequest>(emptyStudyForm);
+  const [studyForm, setStudyForm] = useState<StudyForm>(emptyStudyForm);
   const [isStudyFormOpen, setIsStudyFormOpen] = useState(false);
   const [expandedStudyId, setExpandedStudyId] = useState<number | null>(null);
+  const [studySkillSearch, setStudySkillSearch] = useState('');
+  const [studyExperienceSearch, setStudyExperienceSearch] = useState('');
+  const [studyExperienceDetailSearch, setStudyExperienceDetailSearch] = useState('');
+  const [relatedStudySearch, setRelatedStudySearch] = useState('');
 
   // --- FILTER STATES ---
   const [studyFilter, setStudyFilter] = useState<string>('ALL');
@@ -145,17 +175,58 @@ export function AdminDashboard() {
   const [expSearch, setExpSearch] = useState<string>('');
 
   // --- FILTERED DATA MEMOS ---
-  const filteredStudyEntries = useMemo(() => {
-    return studyEntries?.filter((entry) => {
-      const matchesCategory = studyFilter === 'ALL' || entry.category === studyFilter;
+  const filteredStudies = useMemo(() => {
+    return studies?.filter((study) => {
+      const matchesCategory = studyFilter === 'ALL' || study.category.slug === studyFilter;
       const matchesSearch =
         !studySearch ||
-        entry.title.toLowerCase().includes(studySearch.toLowerCase()) ||
-        entry.description.toLowerCase().includes(studySearch.toLowerCase()) ||
-        entry.skills.some((s) => s.toLowerCase().includes(studySearch.toLowerCase()));
+        study.title.toLowerCase().includes(studySearch.toLowerCase()) ||
+        study.summary.toLowerCase().includes(studySearch.toLowerCase()) ||
+        study.contentMarkdown.toLowerCase().includes(studySearch.toLowerCase()) ||
+        study.tags.some((tag) => tag.name.toLowerCase().includes(studySearch.toLowerCase())) ||
+        study.skills.some((skill) => skill.name.toLowerCase().includes(studySearch.toLowerCase()));
       return matchesCategory && matchesSearch;
     });
-  }, [studyEntries, studyFilter, studySearch]);
+  }, [studies, studyFilter, studySearch]);
+
+  const selectableStudySkills = useMemo(() => {
+    const keyword = studySkillSearch.trim().toLowerCase();
+    if (!keyword) return skillsList ?? [];
+    return (skillsList ?? []).filter((skill) =>
+      skill.name.toLowerCase().includes(keyword) ||
+      skill.category.toLowerCase().includes(keyword));
+  }, [skillsList, studySkillSearch]);
+
+  const selectableStudyExperiences = useMemo(() => {
+    const keyword = studyExperienceSearch.trim().toLowerCase();
+    if (!keyword) return experiencesList ?? [];
+    return (experiencesList ?? []).filter((experience) =>
+      experience.title.toLowerCase().includes(keyword) ||
+      experience.type.toLowerCase().includes(keyword));
+  }, [experiencesList, studyExperienceSearch]);
+
+  const selectableStudyExperienceDetails = useMemo(() => {
+    const keyword = studyExperienceDetailSearch.trim().toLowerCase();
+    return (experiencesList ?? [])
+      .map((experience) => ({
+        experience,
+        details: experience.details.filter((detail) =>
+          !keyword ||
+          experience.title.toLowerCase().includes(keyword) ||
+          detail.content.toLowerCase().includes(keyword)),
+      }))
+      .filter((group) => group.details.length > 0);
+  }, [experiencesList, studyExperienceDetailSearch]);
+
+  const selectableRelatedStudies = useMemo(() => {
+    const keyword = relatedStudySearch.trim().toLowerCase();
+    return (studies ?? []).filter((study) => {
+      if (study.id === studyEditingId) return false;
+      return !keyword ||
+        study.title.toLowerCase().includes(keyword) ||
+        study.slug.toLowerCase().includes(keyword);
+    });
+  }, [studies, studyEditingId, relatedStudySearch]);
 
   const filteredSkills = useMemo(() => {
     return skillsList?.filter((skill) => {
@@ -181,10 +252,10 @@ export function AdminDashboard() {
   }, [experiencesList, expFilter, expSearch]);
 
   const createStudyMutation = useMutation({
-    mutationFn: studyApi.create,
+    mutationFn: (form: StudyForm) => studyApi.create(toStudyRequest(form)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['learning'] });
-      queryClient.invalidateQueries({ queryKey: ['studyEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['studies'] });
       setStudyForm(emptyStudyForm);
       setIsStudyFormOpen(false);
     },
@@ -192,11 +263,11 @@ export function AdminDashboard() {
   });
 
   const updateStudyMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: CreateStudyEntryRequest }) =>
-      studyApi.update(id, payload),
+    mutationFn: ({ id, payload }: { id: number; payload: StudyForm }) =>
+      studyApi.update(id, toStudyRequest(payload)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['learning'] });
-      queryClient.invalidateQueries({ queryKey: ['studyEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['studies'] });
       setStudyEditingId(null);
       setStudyForm(emptyStudyForm);
       setIsStudyFormOpen(false);
@@ -208,7 +279,7 @@ export function AdminDashboard() {
     mutationFn: studyApi.remove,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['learning'] });
-      queryClient.invalidateQueries({ queryKey: ['studyEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['studies'] });
     },
     onError: handleMutationError,
   });
@@ -467,65 +538,90 @@ export function AdminDashboard() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className={`grid w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:px-8 ${
+        isSidebarCollapsed
+          ? 'lg:grid-cols-[64px_minmax(0,1fr)]'
+          : 'lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]'
+      }`}>
         {/* SIDE BAR NAVIGATION */}
-        <aside className="space-y-1.5">
-          <p className="px-3 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">메뉴 목록</p>
+        <aside className={`min-w-0 space-y-1.5 transition-all duration-200 lg:sticky lg:top-20 lg:self-start ${
+          isSidebarCollapsed
+            ? 'lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:px-2 lg:py-3 lg:shadow-sm'
+            : ''
+        }`}>
+          <div className={`mb-2 flex h-8 items-center justify-between gap-2 px-2 ${isSidebarCollapsed ? 'lg:justify-center lg:px-0' : ''}`}>
+            <p className={`text-[10px] font-bold uppercase tracking-widest text-slate-400 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>메뉴 목록</p>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
+              aria-label={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
+              className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-900 lg:flex ${
+                isSidebarCollapsed ? 'lg:border-transparent lg:bg-slate-50 lg:shadow-none' : ''
+              }`}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+          </div>
           <button
             onClick={() => { setActiveTab('STUDY'); setIsStudyFormOpen(false); }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
+            title="공부 정리 관리"
+            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
               activeTab === 'STUDY'
                 ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <BookOpen className="h-4 w-4" />
-            공부 정리 관리
+            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>공부 정리 관리</span>
           </button>
           <button
             onClick={() => { setActiveTab('PROFILE'); }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
+            title="프로필 정보 관리"
+            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
               activeTab === 'PROFILE'
                 ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <User className="h-4 w-4" />
-            프로필 정보 관리
+            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>프로필 정보 관리</span>
           </button>
           <button
             onClick={() => { setActiveTab('SKILLS'); setIsSkillFormOpen(false); }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
+            title="기술 스택 관리"
+            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
               activeTab === 'SKILLS'
                 ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Cpu className="h-4 w-4" />
-            기술 스택 관리
+            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>기술 스택 관리</span>
           </button>
           <button
             onClick={() => { setActiveTab('EXPERIENCE'); setIsExpFormOpen(false); }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${
+            title="이력 및 경력 관리"
+            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
               activeTab === 'EXPERIENCE'
                 ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Briefcase className="h-4 w-4" />
-            이력 및 경력 관리
+            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>이력 및 경력 관리</span>
           </button>
         </aside>
 
         {/* MAIN PANEL CONTENT */}
-        <section className="col-span-1 md:col-span-3 space-y-6">
+        <section className="min-w-0 space-y-6">
           {/* ======================= STUDY TAB ======================= */}
           {activeTab === 'STUDY' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">공부 정리 관리</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">공부 정리(StudyEntry) 목록을 수정하거나 추가합니다.</p>
+                  <h2 className="text-lg font-black text-slate-950">Study 관리</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Markdown 학습 문서와 관련 기술·프로젝트·경력을 관리합니다.</p>
                 </div>
                 <button
                   onClick={() => {
@@ -543,23 +639,17 @@ export function AdminDashboard() {
               {/* FILTERS & SEARCH */}
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
                 <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
-                  {['ALL', 'PROJECT', 'EDUCATION', 'CERTIFICATE'].map((cat) => (
+                  {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map((category) => (
                     <button
-                      key={cat}
-                      onClick={() => setStudyFilter(cat)}
+                      key={category.slug}
+                      onClick={() => setStudyFilter(category.slug)}
                       className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
-                        studyFilter === cat
+                        studyFilter === category.slug
                           ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'
                       }`}
                     >
-                      {cat === 'ALL'
-                        ? '전체'
-                        : cat === 'PROJECT'
-                        ? '프로젝트'
-                        : cat === 'EDUCATION'
-                        ? '공부/학습'
-                        : '자격증'}
+                      {category.name}
                     </button>
                   ))}
                 </div>
@@ -589,50 +679,231 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">분류</label>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Slug</label>
+                      <input
+                        type="text"
+                        value={studyForm.slug}
+                        onChange={(e) => setStudyForm({ ...studyForm, slug: e.target.value })}
+                        placeholder="비워두면 제목으로 자동 생성"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">카테고리</label>
                       <select
-                        value={studyForm.category}
-                        onChange={(e) =>
-                          setStudyForm({ ...studyForm, category: e.target.value as CreateStudyEntryRequest['category'] })
-                        }
+                        value={studyForm.categoryId}
+                        onChange={(e) => setStudyForm({ ...studyForm, categoryId: Number(e.target.value) })}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
-                        <option value="PROJECT">프로젝트 (PROJECT)</option>
-                        <option value="EDUCATION">공부/학습 (STUDY)</option>
-                        <option value="CERTIFICATE">자격증 (CERTIFICATE)</option>
+                        {(studyCategories ?? []).map((category) => (
+                          <option key={category.id} value={category.id}>{category.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">공개 상태</label>
+                      <select
+                        value={studyForm.status}
+                        onChange={(e) => setStudyForm({ ...studyForm, status: e.target.value as StudyForm['status'] })}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      >
+                        <option value="DRAFT">임시 저장</option>
+                        <option value="PUBLISHED">공개</option>
                       </select>
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">기술 스택 (쉼표 구분)</label>
-                    <input
-                      type="text"
-                      value={studyForm.skills}
-                      onChange={(e) => setStudyForm({ ...studyForm, skills: e.target.value })}
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">목록 요약</label>
+                    <textarea
+                      required
+                      rows={2}
+                      maxLength={500}
+                      value={studyForm.summary}
+                      onChange={(e) => setStudyForm({ ...studyForm, summary: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">상세 설명</label>
-                    <textarea
-                      required
-                      rows={5}
-                      value={studyForm.description}
-                      onChange={(e) => setStudyForm({ ...studyForm, description: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">태그 (쉼표 구분)</label>
+                    <input
+                      type="text"
+                      value={studyForm.tagNames}
+                      onChange={(e) => setStudyForm({ ...studyForm, tagNames: e.target.value })}
+                      placeholder="트랜잭션, 동시성, 장애대응"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">기술 스택</label>
+                      <div className="relative mb-2">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="search"
+                          value={studySkillSearch}
+                          onChange={(event) => setStudySkillSearch(event.target.value)}
+                          placeholder="기술명 또는 분류 검색"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                        />
+                      </div>
+                      <div className="max-h-44 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
+                        {selectableStudySkills.map((skill) => (
+                          <label key={skill.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50">
+                            <input
+                              type="checkbox"
+                              checked={studyForm.skillIds.includes(skill.id)}
+                              onChange={(event) => setStudyForm({
+                                ...studyForm,
+                                skillIds: event.target.checked
+                                  ? [...studyForm.skillIds, skill.id]
+                                  : studyForm.skillIds.filter((id) => id !== skill.id),
+                              })}
+                            />
+                            {skill.name}
+                          </label>
+                        ))}
+                        {selectableStudySkills.length === 0 && (
+                          <p className="py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">관련 프로젝트·경력</label>
+                      <div className="relative mb-2">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="search"
+                          value={studyExperienceSearch}
+                          onChange={(event) => setStudyExperienceSearch(event.target.value)}
+                          placeholder="제목 또는 유형 검색"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                        />
+                      </div>
+                      <div className="max-h-44 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
+                        {selectableStudyExperiences.map((experience) => (
+                          <label key={experience.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50">
+                            <input
+                              type="checkbox"
+                              checked={studyForm.experienceIds.includes(experience.id)}
+                              onChange={(event) => setStudyForm({
+                                ...studyForm,
+                                experienceIds: event.target.checked
+                                  ? [...studyForm.experienceIds, experience.id]
+                                  : studyForm.experienceIds.filter((id) => id !== experience.id),
+                              })}
+                            />
+                            <span className="font-mono text-slate-400">{experience.type}</span>
+                            {experience.title}
+                          </label>
+                        ))}
+                        {selectableStudyExperiences.length === 0 && (
+                          <p className="py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">핵심 Lesson Learned / Takeaway</label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={studyForm.takeaway}
-                      onChange={(e) => setStudyForm({ ...studyForm, takeaway: e.target.value })}
-                      className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">관련 경력 상세 항목</label>
+                    <div className="relative mb-2">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="search"
+                        value={studyExperienceDetailSearch}
+                        onChange={(event) => setStudyExperienceDetailSearch(event.target.value)}
+                        placeholder="경력 제목 또는 항목 내용 검색"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                      />
+                    </div>
+                    <div className="max-h-52 space-y-3 overflow-auto rounded-xl border border-slate-200 p-3">
+                      {selectableStudyExperienceDetails.map(({ experience, details }) => (
+                        <div key={experience.id}>
+                          <p className="mb-1 px-2 text-[11px] font-bold text-slate-400">{experience.title}</p>
+                          {details.map((detail) => (
+                            <label key={detail.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50">
+                              <input
+                                type="checkbox"
+                                checked={studyForm.experienceDetailIds.includes(detail.id)}
+                                onChange={(event) => setStudyForm({
+                                  ...studyForm,
+                                  experienceDetailIds: event.target.checked
+                                    ? [...studyForm.experienceDetailIds, detail.id]
+                                    : studyForm.experienceDetailIds.filter((id) => id !== detail.id),
+                                })}
+                              />
+                              {detail.content}
+                            </label>
+                          ))}
+                        </div>
+                      ))}
+                      {selectableStudyExperienceDetails.length === 0 && (
+                        <p className="py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">관련 Study</label>
+                    <div className="relative mb-2">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="search"
+                        value={relatedStudySearch}
+                        onChange={(event) => setRelatedStudySearch(event.target.value)}
+                        placeholder="Study 제목 또는 slug 검색"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                      />
+                    </div>
+                    <div className="max-h-52 space-y-2 overflow-auto rounded-xl border border-slate-200 p-3">
+                      {selectableRelatedStudies.map((study) => {
+                        const relation = studyForm.relatedStudies.find((item) => item.studyId === study.id);
+                        return (
+                          <div key={study.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(relation)}
+                              onChange={(event) => setStudyForm({
+                                ...studyForm,
+                                relatedStudies: event.target.checked
+                                  ? [...studyForm.relatedStudies, { studyId: study.id, type: 'RELATED' }]
+                                  : studyForm.relatedStudies.filter((item) => item.studyId !== study.id),
+                              })}
+                            />
+                            <span className="min-w-0 flex-1 truncate text-xs font-semibold">{study.title}</span>
+                            {relation && (
+                              <select
+                                value={relation.type}
+                                onChange={(event) => setStudyForm({
+                                  ...studyForm,
+                                  relatedStudies: studyForm.relatedStudies.map((item) => item.studyId === study.id
+                                    ? { ...item, type: event.target.value as typeof item.type }
+                                    : item),
+                                })}
+                                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px]"
+                              >
+                                <option value="RELATED">일반 관련</option>
+                                <option value="PREREQUISITE">선행 학습</option>
+                                <option value="FOLLOW_UP">후속 학습</option>
+                                <option value="APPLIED_TO">적용 사례</option>
+                              </select>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {selectableRelatedStudies.length === 0 && (
+                        <p className="py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Markdown 본문</label>
+                    <MarkdownEditor
+                      value={studyForm.contentMarkdown}
+                      onChange={(contentMarkdown) => setStudyForm({ ...studyForm, contentMarkdown })}
                     />
                   </div>
 
@@ -667,34 +938,41 @@ export function AdminDashboard() {
               )}
 
               <div className="space-y-2.5">
-                {filteredStudyEntries?.map((entry) => {
-                  const isExpanded = expandedStudyId === entry.id;
+                {filteredStudies?.map((study) => {
+                  const isExpanded = expandedStudyId === study.id;
                   return (
                     <div
-                      key={entry.id}
+                      key={study.id}
                       className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div
                           className="min-w-0 flex-1 cursor-pointer"
-                          onClick={() => setExpandedStudyId(isExpanded ? null : entry.id)}
+                          onClick={() => setExpandedStudyId(isExpanded ? null : study.id)}
                         >
                           <p className="font-mono text-xs font-bold text-slate-400">
-                            {entry.learnedAt} · {entry.category}
+                            {study.learnedAt} · {study.category.name} · {study.status === 'PUBLISHED' ? '공개' : '초안'}
                           </p>
-                          <p className="text-sm font-black text-slate-800 hover:text-slate-900 transition">{entry.title}</p>
+                          <p className="text-sm font-black text-slate-800 hover:text-slate-900 transition">{study.title}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <button
                             onClick={() => {
-                              setStudyEditingId(entry.id);
+                              setStudyEditingId(study.id);
                               setStudyForm({
-                                title: entry.title,
-                                description: entry.description,
-                                category: entry.category,
-                                skills: entry.skills.join(', '),
-                                takeaway: entry.takeaway,
-                                learnedAt: entry.learnedAt,
+                                slug: study.slug,
+                                title: study.title,
+                                summary: study.summary,
+                                contentMarkdown: study.contentMarkdown,
+                                status: study.status,
+                                categoryId: study.category.id,
+                                tagNames: study.tags.map((tag) => tag.name).join(', '),
+                                skillIds: study.skills.map((skill) => skill.id),
+                                experienceIds: study.experiences.map((experience) => experience.id),
+                                experienceDetailIds: study.experienceDetails.map((detail) => detail.id),
+                                relatedStudies: study.relatedStudies.map((related) => ({ studyId: related.id, type: related.type })),
+                                learnedAt: study.learnedAt,
+                                publishedAt: study.publishedAt ?? null,
                               });
                               setIsStudyFormOpen(true);
                             }}
@@ -703,7 +981,7 @@ export function AdminDashboard() {
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => handleStudyDelete(entry.id)}
+                            onClick={() => handleStudyDelete(study.id)}
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -714,27 +992,22 @@ export function AdminDashboard() {
                       {isExpanded && (
                         <div className="mt-4 pt-4 border-t border-slate-100 text-xs space-y-3 text-slate-600">
                           <div>
-                            <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">상세 설명</h5>
-                            <p className="whitespace-pre-wrap font-medium">{entry.description}</p>
+                            <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">요약</h5>
+                            <p className="font-medium">{study.summary}</p>
                           </div>
-                          {entry.skills && entry.skills.length > 0 && (
+                          {study.tags.length > 0 && (
                             <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">기술 스택</h5>
+                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">태그</h5>
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {entry.skills.map((s) => (
-                                  <span key={s} className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600">
-                                    {s}
+                                {study.tags.map((tag) => (
+                                  <span key={tag.id} className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600">
+                                    #{tag.name}
                                   </span>
                                 ))}
                               </div>
                             </div>
                           )}
-                          {entry.takeaway && (
-                            <div>
-                              <h5 className="font-bold text-slate-400 uppercase tracking-wider mb-1">Lesson Learned / Takeaway</h5>
-                              <p className="whitespace-pre-wrap font-medium text-slate-900">{entry.takeaway}</p>
-                            </div>
-                          )}
+                          <p className="line-clamp-5 whitespace-pre-wrap font-mono text-[11px] text-slate-500">{study.contentMarkdown}</p>
                         </div>
                       )}
                     </div>
@@ -1058,57 +1331,64 @@ export function AdminDashboard() {
                 </form>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {filteredSkills?.map((skill) => (
                   <div
                     key={skill.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm"
+                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                   >
-                    <div>
-                      <p className="font-mono text-[10px] font-bold text-slate-400">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 truncate font-mono text-[9px] font-bold uppercase tracking-wide text-slate-400">
                         {skill.category} {skill.skillLevel ? `· ${skill.skillLevel}` : ''}
                         {skill.skillVersion ? ` · v${skill.skillVersion}` : ''}
                       </p>
-                      <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
-                        {skill.name}
-                        {skill.isCore && (
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-900 border border-slate-200">Core</span>
-                        )}
-                        <span className="rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 border border-slate-200">
-                          {skillUsageOptions.find((option) => option.value === skill.usageType)?.label ?? skill.usageType}
-                        </span>
-                      </h4>
-                      {skill.comment && (
-                        <p className="mt-1 line-clamp-2 text-xs font-medium text-slate-500">{skill.comment}</p>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          title={`${skill.name} 수정`}
+                          aria-label={`${skill.name} 수정`}
+                          onClick={() => {
+                            setSkillEditingId(skill.id);
+                            setSkillForm({
+                              name: skill.name,
+                              category: skill.category,
+                              skillLevel: skill.skillLevel ?? '',
+                              skillVersion: skill.skillVersion ?? '',
+                              comment: skill.comment ?? '',
+                              usageType: skill.usageType ?? 'LEARNING',
+                              isCore: skill.isCore,
+                              displayOrder: skill.displayOrder,
+                            });
+                            setIsSkillFormOpen(true);
+                          }}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          title={`${skill.name} 삭제`}
+                          aria-label={`${skill.name} 삭제`}
+                          onClick={() => handleSkillDelete(skill.id)}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <h4 className="-mt-0.5 flex min-w-0 items-center gap-1.5 text-sm font-black text-slate-800">
+                      <span className="truncate">{skill.name}</span>
+                      {skill.isCore && (
+                        <span className="shrink-0 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-900">Core</span>
                       )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setSkillEditingId(skill.id);
-                          setSkillForm({
-                            name: skill.name,
-                            category: skill.category,
-                            skillLevel: skill.skillLevel ?? '',
-                            skillVersion: skill.skillVersion ?? '',
-                            comment: skill.comment ?? '',
-                            usageType: skill.usageType ?? 'LEARNING',
-                            isCore: skill.isCore,
-                            displayOrder: skill.displayOrder,
-                          });
-                          setIsSkillFormOpen(true);
-                        }}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleSkillDelete(skill.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:text-red-600"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                      <span className="shrink-0 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                        {skillUsageOptions.find((option) => option.value === skill.usageType)?.label ?? skill.usageType}
+                      </span>
+                    </h4>
+                    {skill.comment && (
+                      <p className="mt-1 line-clamp-1 text-[11px] font-medium leading-4 text-slate-500">{skill.comment}</p>
+                    )}
                   </div>
                 ))}
               </div>

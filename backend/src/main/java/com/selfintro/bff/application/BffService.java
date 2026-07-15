@@ -8,8 +8,8 @@ import com.selfintro.modules.experience.application.ExperienceService;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import com.selfintro.modules.skill.application.SkillService;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
-import com.selfintro.study.service.StudyEntryService;
-import com.selfintro.study.dto.StudyEntryResponse;
+import com.selfintro.study.service.StudyService;
+import com.selfintro.study.dto.StudyPageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +23,7 @@ public class BffService {
     private final ProfileService profileService;
     private final ExperienceService experienceService;
     private final SkillService skillService;
-    private final StudyEntryService studyEntryService;
+    private final StudyService studyService;
 
     public IntroductionResponse getIntroduction() {
         ProfileResponse profile = profileService.getProfile()
@@ -42,7 +42,7 @@ public class BffService {
     }
 
     public LearningResponse getLearning() {
-        List<StudyEntryResponse> studyEntries = studyEntryService.findAll(null);
-        return new LearningResponse(studyEntries);
+        StudyPageResponse studies = studyService.searchPublished(null, null, null, null, null, null, 0, 100);
+        return new LearningResponse(studies.content());
     }
 }

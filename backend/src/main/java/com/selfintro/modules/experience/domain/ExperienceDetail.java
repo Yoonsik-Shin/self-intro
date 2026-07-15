@@ -13,6 +13,10 @@ public class ExperienceDetail {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "experience_id", insertable = false, updatable = false)
+    private Experience experience;
+
     @Column(nullable = false, length = 500)
     private String content;
 
@@ -78,6 +82,7 @@ public class ExperienceDetail {
 
     // Getters
     public Long getId() { return id; }
+    public Experience getExperience() { return experience; }
     public String getContent() { return content; }
     public String getSituation() { return situation; }
     public String getActionDetail() { return actionDetail; }

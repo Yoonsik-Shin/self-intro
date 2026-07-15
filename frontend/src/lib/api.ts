@@ -1,17 +1,60 @@
-export type StudyCategory = 'EDUCATION' | 'PROJECT' | 'CERTIFICATE';
+export type StudyStatus = 'DRAFT' | 'PUBLISHED';
+export type StudyRelationType = 'RELATED' | 'PREREQUISITE' | 'FOLLOW_UP' | 'APPLIED_TO';
 
-export type StudyEntry = {
+export type StudyCategory = {
   id: number;
-  title: string;
-  description: string;
-  category: StudyCategory;
-  skills: string[];
-  takeaway: string;
-  learnedAt: string;
+  name: string;
+  slug: string;
+  displayOrder: number;
 };
 
-export type CreateStudyEntryRequest = Omit<StudyEntry, 'id' | 'skills'> & {
-  skills: string;
+export type Tag = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+export type Study = {
+  id: number;
+  slug: string;
+  title: string;
+  summary: string;
+  contentMarkdown: string;
+  status: StudyStatus;
+  category: StudyCategory;
+  tags: Tag[];
+  skills: Skill[];
+  experiences: Array<Pick<Experience, 'id' | 'type' | 'title'>>;
+  experienceDetails: Array<{ id: number; content: string; experienceId: number; experienceTitle: string }>;
+  relatedStudies: Array<Pick<Study, 'id' | 'slug' | 'title'> & { type: StudyRelationType }>;
+  learnedAt: string;
+  publishedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StudyRequest = {
+  slug: string;
+  title: string;
+  summary: string;
+  contentMarkdown: string;
+  status: StudyStatus;
+  categoryId: number;
+  tagNames: string[];
+  skillIds: number[];
+  experienceIds: number[];
+  experienceDetailIds: number[];
+  relatedStudies: Array<{ studyId: number; type: StudyRelationType }>;
+  learnedAt: string;
+  publishedAt?: string | null;
+};
+
+export type StudyPage = {
+  content: Study[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 };
 
 export type Profile = {
@@ -88,7 +131,7 @@ export type IntroductionResponse = {
 };
 
 export type LearningResponse = {
-  studyEntries: StudyEntry[];
+  studies: Study[];
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -136,34 +179,37 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const studyApi = {
-  list: (category?: string) => {
-    const search = category && category !== 'ALL' ? `?category=${category}` : '';
-    return request<StudyEntry[]>(`/api/study-entries${search}`);
+  list: (params: { q?: string; category?: string; experienceDetailIds?: number[]; page?: number; size?: number } = {}) => {
+    const search = new URLSearchParams();
+    if (params.q) search.set('q', params.q);
+    if (params.category && params.category !== 'ALL') search.set('category', params.category);
+    params.experienceDetailIds?.forEach((id) => search.append('experienceDetailIds', String(id)));
+    search.set('page', String(params.page ?? 0));
+    search.set('size', String(params.size ?? 20));
+    return request<StudyPage>(`/api/studies?${search}`);
   },
-  create: (payload: CreateStudyEntryRequest) =>
-    request<StudyEntry>('/api/study-entries', {
+  detail: (slug: string) => request<Study>(`/api/studies/${encodeURIComponent(slug)}`),
+  adminList: (params: { q?: string; category?: string; status?: StudyStatus } = {}) => {
+    const search = new URLSearchParams({ size: '100' });
+    if (params.q) search.set('q', params.q);
+    if (params.category && params.category !== 'ALL') search.set('category', params.category);
+    if (params.status) search.set('status', params.status);
+    return request<StudyPage>(`/api/admin/studies?${search}`);
+  },
+  categories: () => request<StudyCategory[]>('/api/study-categories'),
+  tags: () => request<Tag[]>('/api/tags'),
+  create: (payload: StudyRequest) =>
+    request<Study>('/api/admin/studies', {
       method: 'POST',
-      body: JSON.stringify({
-        ...payload,
-        skills: payload.skills
-          .split(',')
-          .map((skill) => skill.trim())
-          .filter(Boolean),
-      }),
+      body: JSON.stringify(payload),
     }),
-  update: (id: number, payload: CreateStudyEntryRequest) =>
-    request<StudyEntry>(`/api/study-entries/${id}`, {
+  update: (id: number, payload: StudyRequest) =>
+    request<Study>(`/api/admin/studies/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({
-        ...payload,
-        skills: payload.skills
-          .split(',')
-          .map((skill) => skill.trim())
-          .filter(Boolean),
-      }),
+      body: JSON.stringify(payload),
     }),
   remove: (id: number) =>
-    request<void>(`/api/study-entries/${id}`, {
+    request<void>(`/api/admin/studies/${id}`, {
       method: 'DELETE',
     }),
 };
@@ -259,4 +305,3 @@ export const experienceApi = {
       method: 'DELETE',
     }),
 };
-

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { ArrowLeft, Briefcase } from 'lucide-react';
-import { bffApi, type Experience } from './lib/api';
+import { bffApi, studyApi, type Experience } from './lib/api';
 import { markdownComponents } from './lib/markdown';
 
 function parseDetailId(hash: string): number | null {
@@ -28,6 +28,13 @@ export function ExperienceDetailPage() {
     queryKey: ['introduction'],
     queryFn: bffApi.getIntroduction,
   });
+
+  const { data: relatedPage } = useQuery({
+    queryKey: ['studies', 'byExperienceDetail', detailId],
+    queryFn: () => studyApi.list({ experienceDetailIds: [detailId!] }),
+    enabled: detailId !== null,
+  });
+  const relatedStudies = relatedPage?.content ?? [];
 
   const found = useMemo(() => {
     if (!introData?.experiences || detailId === null) {
@@ -112,6 +119,23 @@ export function ExperienceDetailPage() {
                     >
                       {s.name}
                     </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {relatedStudies.length > 0 && (
+              <section className="rounded-xl border border-blue-100 bg-blue-50/30 p-4">
+                <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-blue-700">관련 기술노트</h2>
+                <div className="space-y-1.5">
+                  {relatedStudies.map((study) => (
+                    <a
+                      key={study.id}
+                      href={`/study/${encodeURIComponent(study.slug)}`}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
+                    >
+                      {study.title}
+                    </a>
                   ))}
                 </div>
               </section>

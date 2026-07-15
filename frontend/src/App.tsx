@@ -165,6 +165,37 @@ const fallbackCoreSkills: Skill[] = [
   { id: -6, name: 'RAG', category: 'AI_RAG', skillLevel: '학습/활용', comment: 'AI 면접 질문 생성과 로그 진단에 적용', usageType: 'LEARNING', isCore: true, displayOrder: 6 },
 ];
 
+function RelatedStudyNotes({ experienceDetailId, onOpenStudy }: { experienceDetailId: number; onOpenStudy: (slug: string) => void }) {
+  const { data: relatedPage } = useQuery({
+    queryKey: ['studies', 'byExperienceDetail', experienceDetailId],
+    queryFn: () => studyApi.list({ experienceDetailIds: [experienceDetailId] }),
+  });
+  const relatedStudies = relatedPage?.content ?? [];
+
+  if (relatedStudies.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="pt-1">
+      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-blue-600">관련 기술노트</p>
+      <div className="space-y-1.5">
+        {relatedStudies.map((study) => (
+          <button
+            key={study.id}
+            type="button"
+            onClick={() => onOpenStudy(study.slug)}
+            className="flex w-full items-center justify-between gap-2 rounded-lg bg-blue-50/60 px-2.5 py-1.5 text-left text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+          >
+            <span>{study.title}</span>
+            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const queryClient = useQueryClient();
   
@@ -1138,6 +1169,7 @@ export function App() {
                                       ))}
                                     </div>
                                   )}
+                                  {detail.id > 0 && <RelatedStudyNotes experienceDetailId={detail.id} onOpenStudy={openStudy} />}
                                 </div>
                               )}
                             </li>
@@ -1511,12 +1543,23 @@ export function App() {
                     <div className="space-y-4 text-base leading-8 text-slate-700">
                       <ReactMarkdown components={markdownComponents}>{selectedStudy.contentMarkdown}</ReactMarkdown>
                     </div>
-                    {(selectedStudy.experiences.length > 0 || selectedStudy.relatedStudies.length > 0) && (
+                    {(selectedStudy.experiences.length > 0 || selectedStudy.experienceDetails.length > 0 || selectedStudy.relatedStudies.length > 0) && (
                       <div className="mt-10 grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2">
                         {selectedStudy.experiences.length > 0 && (
                           <div className="rounded-xl bg-slate-50 p-4">
                             <h2 className="mb-3 text-sm font-black text-slate-900">관련 프로젝트·경력</h2>
                             <div className="space-y-2">{selectedStudy.experiences.map((experience) => <p key={experience.id} className="text-xs text-slate-600"><span className="mr-2 font-mono text-slate-400">{experience.type}</span>{experience.title}</p>)}</div>
+                          </div>
+                        )}
+                        {selectedStudy.experienceDetails.length > 0 && (
+                          <div className="rounded-xl bg-slate-50 p-4">
+                            <h2 className="mb-3 text-sm font-black text-slate-900">관련 경력 항목</h2>
+                            <div className="space-y-2">{selectedStudy.experienceDetails.map((detail) => (
+                              <button key={detail.id} onClick={() => { window.location.hash = `#/experience-detail/${detail.id}`; }} className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-slate-600 hover:text-slate-950">
+                                <span><span className="mr-1 text-slate-400">{detail.experienceTitle} ›</span>{detail.content}</span>
+                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                              </button>
+                            ))}</div>
                           </div>
                         )}
                         {selectedStudy.relatedStudies.length > 0 && (

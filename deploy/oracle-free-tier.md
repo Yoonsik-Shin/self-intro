@@ -169,7 +169,7 @@ spec:
 API 요청 흐름:
 
 ```text
-https://api.example.com/api/study-entries
+https://api.example.com/api/studies
   -> Cloudflare Proxy
   -> OCI Public NLB
   -> ingress-nginx
