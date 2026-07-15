@@ -1576,17 +1576,22 @@ export function App() {
           </div>
         ) : (
           /* STUDY PAGE */
-          <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_240px] print:block relative items-start animate-fadeIn pb-12">
-            
-            {/* Main Content Column */}
-            <div className="min-w-0 space-y-8">
-              {selectedStudySlug ? (
-                <>
-                  <button onClick={closeStudy} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
-                    <ArrowLeft className="h-4 w-4" /> {referrer ? '이전 화면으로' : 'Study 목록'}
-                  </button>
-                  {selectedStudy && (
-                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+          <div className="space-y-4 animate-fadeIn">
+            {selectedStudySlug && (
+              <div className="flex items-center justify-between pb-1">
+                <button onClick={closeStudy} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
+                  <ArrowLeft className="h-4 w-4" /> {referrer ? '이전 화면으로' : 'Study 목록'}
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_240px] print:block relative items-start pb-12">
+              
+              {/* Main Content Column */}
+              <div className="min-w-0 space-y-8">
+                {selectedStudySlug ? (
+                  <>
+                    {selectedStudy && (
+                      <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                       <div className="mb-8 border-b border-slate-100 pb-6">
                         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{selectedStudy.category.name}</span>
@@ -1775,6 +1780,7 @@ export function App() {
             </aside>
 
           </div>
+        </div>
         )}
         </div>
       </main>
