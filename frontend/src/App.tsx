@@ -22,7 +22,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { bffApi, studyApi, type Skill, type ExperienceDetail } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
-import { markdownComponents } from './lib/markdown';
+import { markdownComponents, experienceMarkdownComponents } from './lib/markdown';
 
 const milestones = [
   {
@@ -1156,7 +1156,15 @@ export function App() {
                           const isExpanded = expandedCareerDetailIds.includes(detail.id);
                           const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
                           return (
-                            <li key={detail.id} id={`experience-detail-${detail.id}`} className="list-none scroll-mt-24">
+                            <li
+                              key={detail.id}
+                              id={`experience-detail-${detail.id}`}
+                              className={`list-none scroll-mt-24 transition-all duration-300 ${
+                                isExpanded
+                                  ? 'pb-6 mb-6 border-b border-slate-200/50 last:border-0 last:pb-0 last:mb-0'
+                                  : 'border-b border-transparent'
+                              }`}
+                            >
                               <div
                                 className={`group flex items-start justify-between gap-3 rounded-lg px-2 py-1 -mx-2 transition hover:bg-slate-50 ${
                                   hasDetailContent ? 'cursor-pointer' : 'cursor-default'
@@ -1190,19 +1198,19 @@ export function App() {
                                   {detail.situation && (
                                     <div>
                                       <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">상황</p>
-                                      <ReactMarkdown components={markdownComponents}>{detail.situation}</ReactMarkdown>
+                                      <ReactMarkdown components={experienceMarkdownComponents}>{detail.situation}</ReactMarkdown>
                                     </div>
                                   )}
                                   {detail.actionDetail && (
                                     <div>
                                       <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
-                                      <ReactMarkdown components={markdownComponents}>{detail.actionDetail}</ReactMarkdown>
+                                      <ReactMarkdown components={experienceMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
                                     </div>
                                   )}
                                   {detail.outcome && (
                                     <div>
                                       <p className="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-600">성과</p>
-                                      <ReactMarkdown components={markdownComponents}>{detail.outcome}</ReactMarkdown>
+                                      <ReactMarkdown components={experienceMarkdownComponents}>{detail.outcome}</ReactMarkdown>
                                     </div>
                                   )}
                                   {detail.skills.length > 0 && (

@@ -23,3 +23,11 @@ export function createMarkdownComponents(onLanguageChange?: CodeLanguageChange):
 }
 
 export const markdownComponents = createMarkdownComponents();
+
+export const experienceMarkdownComponents: Components = {
+  ...baseMarkdownComponents,
+  p: ({ children }) => <p className="mb-2.5 text-[13.5px] sm:text-sm leading-relaxed text-slate-600">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-5 my-2.5 space-y-1.5 text-[13.5px] sm:text-sm leading-relaxed text-slate-600">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5 my-2.5 space-y-1.5 text-[13.5px] sm:text-sm leading-relaxed text-slate-600">{children}</ol>,
+  blockquote: ({ children }) => <blockquote className="my-3 border-l-4 border-slate-300 bg-slate-50/50 px-4 py-2 text-slate-500 italic rounded-r-lg text-[13.5px] sm:text-sm leading-relaxed">{children}</blockquote>,
+};
