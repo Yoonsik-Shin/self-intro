@@ -205,83 +205,83 @@ INSERT INTO certificate (experience_id, issuer) VALUES
 -- 5. Connect Experience Skills
 INSERT INTO experience_skill (experience_id, skill_id, list_order) VALUES
 -- Career (1)
-(1, 4, 1),   -- Node.js
-(1, 2, 2),   -- TypeScript
-(1, 8, 3),   -- NestJS
-(1, 9, 4),   -- Express
-(1, 16, 5),  -- MongoDB
-(1, 15, 6),  -- Redis
-(1, 5, 7),   -- Spring Boot
-(1, 30, 8),  -- AWS ECS/SQS
-(1, 31, 9),  -- Docker
-(1, 32, 10), -- Datadog
+(1, 4, 0),   -- Node.js
+(1, 2, 1),   -- TypeScript
+(1, 8, 2),   -- NestJS
+(1, 9, 3),   -- Express
+(1, 16, 4),  -- MongoDB
+(1, 15, 5),  -- Redis
+(1, 5, 6),   -- Spring Boot
+(1, 30, 7),  -- AWS ECS/SQS
+(1, 31, 8),  -- Docker
+(1, 32, 9),  -- Datadog
 -- CS Test Bed (2)
-(2, 1, 1),   -- Java
-(2, 5, 2),   -- Spring Boot
-(2, 13, 3),  -- QueryDSL
-(2, 22, 4),  -- Flyway
-(2, 23, 5),  -- Playwright
-(2, 24, 6),  -- n8n
-(2, 25, 7),  -- Nginx
-(2, 26, 8),  -- Docker Compose
-(2, 27, 9),  -- Grafana
-(2, 28, 10), -- Loki
-(2, 29, 11), -- Alloy
+(2, 1, 0),   -- Java
+(2, 5, 1),   -- Spring Boot
+(2, 13, 2),  -- QueryDSL
+(2, 22, 3),  -- Flyway
+(2, 23, 4),  -- Playwright
+(2, 24, 5),  -- n8n
+(2, 25, 6),  -- Nginx
+(2, 26, 7),  -- Docker Compose
+(2, 27, 8),  -- Grafana
+(2, 28, 9),  -- Loki
+(2, 29, 10), -- Alloy
 -- LogDoctor (3)
-(3, 3, 1),   -- Python
-(3, 7, 2),   -- FastAPI
-(3, 14, 3),  -- Cosmos DB
-(3, 36, 4),  -- Azure OpenAI
-(3, 37, 5),  -- Teams SDK
-(3, 34, 6),  -- Bicep
-(3, 33, 7),  -- IaC
-(3, 45, 8),  -- Azure Functions
-(3, 25, 9),  -- Nginx
-(3, 26, 10), -- Docker Compose
-(3, 27, 11), -- Grafana
-(3, 28, 12), -- Loki
-(3, 29, 13), -- Alloy
+(3, 3, 0),   -- Python
+(3, 7, 1),   -- FastAPI
+(3, 14, 2),  -- Cosmos DB
+(3, 36, 3),  -- Azure OpenAI
+(3, 37, 4),  -- Teams SDK
+(3, 34, 5),  -- Bicep
+(3, 33, 6),  -- IaC
+(3, 45, 7),  -- Azure Functions
+(3, 25, 8),  -- Nginx
+(3, 26, 9),  -- Docker Compose
+(3, 27, 10), -- Grafana
+(3, 28, 11), -- Loki
+(3, 29, 12), -- Alloy
 -- AI Interview (4)
-(4, 10, 1),  -- React
-(4, 15, 2),  -- Redis
-(4, 35, 3),  -- Kubernetes
-(4, 38, 4),  -- LLM
-(4, 39, 5),  -- STT/TTS
-(4, 40, 6),  -- RAG
+(4, 10, 0),  -- React
+(4, 15, 1),  -- Redis
+(4, 35, 2),  -- Kubernetes
+(4, 38, 3),  -- LLM
+(4, 39, 4),  -- STT/TTS
+(4, 40, 5),  -- RAG
 -- QA Helper (5)
-(5, 2, 1),   -- TypeScript
-(5, 4, 2),   -- Node.js
+(5, 2, 0),   -- TypeScript
+(5, 4, 1),   -- Node.js
 -- Edu 7
-(7, 41, 1),  -- ML/DL
-(7, 42, 2),  -- LangChain
-(7, 43, 3),  -- LangGraph
-(7, 40, 4),  -- RAG
-(7, 44, 5),  -- Azure
+(7, 41, 0),  -- ML/DL
+(7, 42, 1),  -- LangChain
+(7, 43, 2),  -- LangGraph
+(7, 40, 3),  -- RAG
+(7, 44, 4),  -- Azure
 -- Edu 8
-(8, 2, 1),   -- TypeScript
-(8, 4, 2),   -- Node.js
-(8, 10, 3),  -- React
-(8, 9, 4),   -- Express
+(8, 2, 0),   -- TypeScript
+(8, 4, 1),   -- Node.js
+(8, 10, 2),  -- React
+(8, 9, 3),   -- Express
 -- Edu 9
-(9, 3, 1),   -- Python
-(9, 12, 2),  -- Django
-(9, 52, 3),  -- HTML/CSS
-(9, 53, 4),  -- Git
+(9, 3, 0),   -- Python
+(9, 12, 1),  -- Django
+(9, 52, 2),  -- HTML/CSS
+(9, 53, 3),  -- Git
 -- Cert 10
-(10, 49, 1), -- Software Engineering
-(10, 50, 2), -- Database
-(10, 51, 3), -- Network
+(10, 49, 0), -- Software Engineering
+(10, 50, 1), -- Database
+(10, 51, 2), -- Network
 -- Cert 11
-(11, 17, 1), -- SQL
-(11, 18, 2), -- DB Modeling
-(11, 19, 3), -- Optimization
+(11, 17, 0), -- SQL
+(11, 18, 1), -- DB Modeling
+(11, 19, 2), -- Optimization
 -- Cert 12
-(12, 46, 1), -- Data Preprocessing
-(12, 47, 2), -- Statistics
-(12, 48, 3), -- Machine Learning
+(12, 46, 0), -- Data Preprocessing
+(12, 47, 1), -- Statistics
+(12, 48, 2), -- Machine Learning
 -- Cert 13
-(13, 20, 1), -- Excel
-(13, 21, 2); -- Access
+(13, 20, 0), -- Excel
+(13, 21, 1); -- Access -- Access
 
 -- 6. Experience Details Seeding
 INSERT INTO experience_detail (id, experience_id, content, display_order, situation, action_detail, outcome) VALUES
@@ -390,50 +390,50 @@ INSERT INTO experience_detail (id, experience_id, content, display_order, situat
 -- 7. Connect Experience Detail Skills
 INSERT INTO experience_detail_skill (experience_detail_id, skill_id, list_order) VALUES
 -- Career details (1-5)
-(1, 4, 1),   -- Node.js
-(1, 2, 2),   -- TypeScript
-(1, 9, 3),   -- Express
-(1, 16, 4),  -- MongoDB
-(2, 8, 1),   -- NestJS
-(2, 2, 2),   -- TypeScript
-(2, 15, 3),  -- Redis
-(3, 5, 1),   -- Spring Boot
-(3, 15, 2),  -- Redis
-(3, 31, 3),  -- Docker
-(4, 30, 1),  -- AWS ECS/SQS
-(4, 31, 2),  -- Docker
-(4, 32, 3),  -- Datadog
-(5, 8, 1),   -- NestJS
-(5, 2, 2),   -- TypeScript
-(5, 16, 3),  -- MongoDB
-(5, 31, 4),  -- Docker
+(1, 4, 0),   -- Node.js
+(1, 2, 1),   -- TypeScript
+(1, 9, 2),   -- Express
+(1, 16, 3),  -- MongoDB
+(2, 8, 0),   -- NestJS
+(2, 2, 1),   -- TypeScript
+(2, 15, 2),  -- Redis
+(3, 5, 0),   -- Spring Boot
+(3, 15, 1),  -- Redis
+(3, 31, 2),  -- Docker
+(4, 30, 0),  -- AWS ECS/SQS
+(4, 31, 1),  -- Docker
+(4, 32, 2),  -- Datadog
+(5, 8, 0),   -- NestJS
+(5, 2, 1),   -- TypeScript
+(5, 16, 2),  -- MongoDB
+(5, 31, 3),  -- Docker
 -- CS Test Bed details (6-10)
-(6, 23, 1),  -- Playwright
-(6, 26, 2),  -- Docker Compose
-(6, 25, 3),  -- Nginx
-(7, 1, 1),   -- Java
-(7, 5, 2),   -- Spring Boot
-(7, 13, 3),  -- QueryDSL
-(8, 1, 1),   -- Java
-(8, 5, 2),   -- Spring Boot
-(8, 22, 3),  -- Flyway
-(9, 5, 1),   -- Spring Boot
-(9, 24, 2),  -- n8n
-(9, 26, 3),  -- Docker Compose
-(10, 25, 1), -- Nginx
-(10, 27, 2), -- Grafana
-(10, 28, 3), -- Loki
-(10, 29, 4), -- Alloy
+(6, 23, 0),  -- Playwright
+(6, 26, 1),  -- Docker Compose
+(6, 25, 2),  -- Nginx
+(7, 1, 0),   -- Java
+(7, 5, 1),   -- Spring Boot
+(7, 13, 2),  -- QueryDSL
+(8, 1, 0),   -- Java
+(8, 5, 1),   -- Spring Boot
+(8, 22, 2),  -- Flyway
+(9, 5, 0),   -- Spring Boot
+(9, 24, 1),  -- n8n
+(9, 26, 2),  -- Docker Compose
+(10, 25, 0), -- Nginx
+(10, 27, 1), -- Grafana
+(10, 28, 2), -- Loki
+(10, 29, 3), -- Alloy
 -- LogDoctor details (11-14)
-(11, 3, 1),  -- Python
-(11, 17, 2), -- SQL
-(11, 19, 3), -- Optimization
-(12, 7, 1),  -- FastAPI
-(12, 14, 2), -- Cosmos DB
-(13, 45, 1), -- Azure Functions
-(13, 34, 2), -- Bicep
-(13, 33, 3), -- IaC
-(14, 37, 1); -- Teams SDK
+(11, 3, 0),  -- Python
+(11, 17, 1), -- SQL
+(11, 19, 2), -- Optimization
+(12, 7, 0),  -- FastAPI
+(12, 14, 1), -- Cosmos DB
+(13, 45, 0), -- Azure Functions
+(13, 34, 1), -- Bicep
+(13, 33, 2), -- IaC
+(14, 37, 0); -- Teams SDK
 
 -- 8. Tags Initialization
 INSERT INTO tag (id, name, slug) VALUES
