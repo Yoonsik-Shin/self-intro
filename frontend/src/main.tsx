@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { AdminApp } from './admin/AdminApp';
-import { ExperienceDetailPage } from './ExperienceDetailPage';
 import { navigate } from './lib/navigation';
 import './index.css';
 
@@ -33,9 +32,6 @@ function RootRouter() {
 
   if (pathname.startsWith('/admin')) {
     return <AdminApp />;
-  }
-  if (pathname.startsWith('/experience-detail/')) {
-    return <ExperienceDetailPage />;
   }
   return <App />;
 }

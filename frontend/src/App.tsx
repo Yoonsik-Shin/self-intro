@@ -16,6 +16,9 @@ import {
   X,
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUp,
   ArrowLeft,
   ExternalLink,
   FolderGit2,
@@ -24,7 +27,7 @@ import {
   Eye,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { bffApi, connectionApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
+import { architectureApi, bffApi, connectionApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
 import { markdownComponents, resumeMarkdownComponents } from './lib/markdown';
 import { SkillBadgeIcon } from './lib/SkillBadgeIcon';
@@ -41,6 +44,8 @@ const milestones = [
     role: 'Backend & DevOps Engineer',
     description: '고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. DB 기반 RBAC 및 PII 암호화, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.',
     takeaway: 'HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.',
+    contributionRate: 100,
+    details: [] as ExperienceDetail[],
     tags: [] as string[]
   },
   {
@@ -53,6 +58,8 @@ const milestones = [
     role: 'Fullstack & Cloud Developer',
     description: 'Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다. (팀 프로젝트)',
     takeaway: '쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 체득했습니다.',
+    contributionRate: 70,
+    details: [] as ExperienceDetail[],
     tags: [] as string[]
   },
   {
@@ -65,6 +72,8 @@ const milestones = [
     role: 'Core Architect & Developer',
     description: '실시간 AI 모의면접 및 역량 평가 서비스의 전체 시스템 아키텍처와 분산 메시징 처리 부분을 담당했습니다. gRPC 기반 실시간 음성 스트리밍 제어, Redis/Kafka 비동기 메시지 큐를 통한 음성 데이터 및 AI 상태 변경 큐잉, 이력서 RAG 질문 생성 기능 등을 구현하고 Kubernetes 환경에 배포했습니다. (개인 프로젝트)',
     takeaway: '비동기 메시징 및 대용량 음성 스트리밍 환경에서 발생할 수 있는 데이터 유실과 지연 병목을 제어하며 분산 인프라 설계 능력을 키웠습니다.',
+    contributionRate: 100,
+    details: [] as ExperienceDetail[],
     tags: [] as string[]
   },
   {
@@ -77,6 +86,8 @@ const milestones = [
     role: 'Backend & DevOps Engineer',
     description: '커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하였습니다. (에듀테크 스타트업 실무 경력)',
     takeaway: '실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.',
+    contributionRate: 43,
+    details: [] as ExperienceDetail[],
     tags: [] as string[]
   }
 ];
@@ -88,6 +99,13 @@ const pages = [
     shortLabel: '메인',
     description: '프로필, 경력, 프로젝트, 아키텍처',
     icon: Home,
+  },
+  {
+    id: 'experience' as const,
+    label: '경험',
+    shortLabel: '경험',
+    description: '경력, 프로젝트, 학력, 자격증 모음',
+    icon: Briefcase,
   },
   {
     id: 'blog' as const,
@@ -107,10 +125,26 @@ const pages = [
 
 type PageId = (typeof pages)[number]['id'];
 
+const experienceTypeTabs = [
+  { id: 'ALL' as const, label: '전체' },
+  { id: 'CAREER' as const, label: '경력' },
+  { id: 'PROJECT' as const, label: '프로젝트' },
+  { id: 'EDUCATION' as const, label: '학력' },
+  { id: 'CERTIFICATE' as const, label: '자격증' },
+];
+
+type ExperienceTypeFilter = (typeof experienceTypeTabs)[number]['id'];
+
 function getPageFromPath(pathname: string): PageId {
   if (pathname === '/architecture' || pathname.startsWith('/architecture/')) return 'architecture';
   if (pathname === '/study' || pathname.startsWith('/study/')) return 'blog';
+  if (pathname === '/experience' || pathname.startsWith('/experience-detail/')) return 'experience';
   return 'intro';
+}
+
+function getExperienceDetailIdFromPath(pathname: string): number | null {
+  const match = pathname.match(/^\/experience-detail\/(\d+)\/?$/)?.[1];
+  return match ? Number(match) : null;
 }
 
 function getStudySlugFromPath(pathname: string): string | null {
@@ -123,14 +157,28 @@ function getStudySlugFromPath(pathname: string): string | null {
   }
 }
 
+function experienceTypeLabel(type: Experience['type']): string {
+  switch (type) {
+    case 'CAREER': return '경력';
+    case 'PROJECT': return '프로젝트';
+    case 'EDUCATION': return '학력·교육';
+    case 'CERTIFICATE': return '자격증';
+    default: return type;
+  }
+}
+
+function experienceOrgName(exp: Experience): string {
+  return exp.companyName ?? exp.institutionName ?? exp.issuer ?? exp.role ?? '';
+}
+
 const mainSections = [
   { id: 'intro-profile', label: '프로필', icon: User },
   { id: 'timeline', label: '커리어 & 학습 타임라인', icon: Calendar },
   { id: 'skills', label: '기술 스택', icon: Cpu },
   { id: 'competencies', label: '핵심 역량', icon: Sparkles },
   { id: 'career', label: '직장 경력', icon: Briefcase },
-  { id: 'credentials', label: '학력·교육 및 자격증', icon: GraduationCap },
   { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
+  { id: 'credentials', label: '학력·교육 및 자격증', icon: GraduationCap },
 ];
 
 const architectureSections = [
@@ -299,7 +347,11 @@ export function App() {
     previewNav?.page ?? getPageFromPath(window.location.pathname),
   );
   const [selectedStudySlug, setSelectedStudySlug] = useState(initialStudySlug);
+  const [selectedExperienceDetailId, setSelectedExperienceDetailId] = useState(() => getExperienceDetailIdFromPath(window.location.pathname));
+  const [experienceTypeFilter, setExperienceTypeFilter] = useState<ExperienceTypeFilter>('ALL');
+  const [experienceSearch, setExperienceSearch] = useState('');
   const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
+  const [isSectionNavCollapsed, setIsSectionNavCollapsed] = useState(false);
   const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
   const [expandedCareerDetailIds, setExpandedCareerDetailIds] = useState<number[]>([]);
   const [selectedTimelineYear, setSelectedTimelineYear] = useState<number | null>(null);
@@ -431,15 +483,68 @@ export function App() {
     queryFn: studyApi.categories,
   });
 
+  const { data: architectureOverview } = useQuery({
+    queryKey: ['architecture-overview'],
+    queryFn: architectureApi.getOverview,
+  });
+
+  const { data: architectureLayers } = useQuery({
+    queryKey: ['architecture-layers'],
+    queryFn: architectureApi.getLayers,
+  });
+
   const { data: selectedStudy } = useQuery({
     queryKey: ['study', selectedStudySlug],
     queryFn: () => studyApi.detail(selectedStudySlug!),
     enabled: Boolean(selectedStudySlug),
   });
 
+  const allExperiences = useMemo(
+    () => [...(introData?.experiences ?? [])].sort((a, b) => b.periodStart.localeCompare(a.periodStart)),
+    [introData],
+  );
+
+  const allExperienceDetails = useMemo(() => {
+    return allExperiences.flatMap((exp) =>
+      [...exp.details]
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map((detail) => ({ detail, experience: exp })),
+    );
+  }, [allExperiences]);
+
+  const filteredExperienceDetails = useMemo(() => {
+    const q = experienceSearch.trim().toLowerCase();
+    return allExperienceDetails.filter(({ detail, experience }) => {
+      if (experienceTypeFilter !== 'ALL' && experience.type !== experienceTypeFilter) return false;
+      if (!q) return true;
+      const haystack = [
+        detail.content, detail.situation, detail.actionDetail, detail.outcome,
+        experience.title, experienceOrgName(experience),
+        ...detail.skills.map((s) => s.name),
+        ...experience.skills.map((s) => s.name),
+        ...experience.tags.map((t) => t.name),
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [allExperienceDetails, experienceTypeFilter, experienceSearch]);
+
+  const recentExperienceDetails = useMemo(() => allExperienceDetails.slice(0, 5), [allExperienceDetails]);
+
+  const selectedExperienceDetail = useMemo(
+    () => allExperienceDetails.find(({ detail }) => detail.id === selectedExperienceDetailId) ?? null,
+    [allExperienceDetails, selectedExperienceDetailId],
+  );
+
+  const { data: relatedStudiesForDetail } = useQuery({
+    queryKey: ['studies', 'byExperienceDetail', selectedExperienceDetailId],
+    queryFn: () => studyApi.list({ experienceDetailIds: [selectedExperienceDetailId!], size: 100 }),
+    enabled: selectedExperienceDetailId !== null,
+  });
+
   useEffect(() => {
     const handlePopState = () => {
       setSelectedStudySlug(getStudySlugFromPath(window.location.pathname));
+      setSelectedExperienceDetailId(getExperienceDetailIdFromPath(window.location.pathname));
       setActivePage(getPageFromPath(window.location.pathname));
       setReferrer(null);
     };
@@ -544,9 +649,8 @@ export function App() {
   }, [introData, selectedCoreSkill]);
 
   const activeMilestones = useMemo(() => {
-    if (introData?.experiences && introData.experiences.length > 0) {
-      return introData.experiences
-        .filter(exp => exp.type === 'PROJECT' || exp.type === 'CAREER')
+    if (introData) {
+      return (introData.coreProjects ?? [])
         .map(exp => {
           const formatPeriod = (start: string, end?: string) => {
             const format = (dateStr: string) => dateStr.replace(/-/g, '.').substring(0, 7);
@@ -575,6 +679,8 @@ export function App() {
             role: exp.role ?? '',
             description: exp.summary ?? '',
             takeaway: exp.takeaway ?? '',
+            contributionRate: exp.contributionRate,
+            details: [...exp.details].sort((a, b) => a.displayOrder - b.displayOrder),
             essayContent: exp.essayContent,
             repositoryUrl: exp.repositoryUrl,
             experienceId: exp.id,
@@ -756,6 +862,27 @@ export function App() {
     );
   };
 
+  const getExpandableDetailIds = (details: ExperienceDetail[]) => details
+    .filter(detail => Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0))
+    .map(detail => detail.id);
+
+  const areAllDetailsExpanded = (details: ExperienceDetail[]) => {
+    const detailIds = getExpandableDetailIds(details);
+    return detailIds.length > 0 && detailIds.every(id => expandedCareerDetailIds.includes(id));
+  };
+
+  const toggleAllDetails = (details: ExperienceDetail[]) => {
+    const detailIds = getExpandableDetailIds(details);
+    if (detailIds.length === 0) return;
+
+    setExpandedCareerDetailIds(current => {
+      const shouldCollapse = detailIds.every(id => current.includes(id));
+      return shouldCollapse
+        ? current.filter(id => !detailIds.includes(id))
+        : [...new Set([...current, ...detailIds])];
+    });
+  };
+
   const expandableDetailIds = useMemo(() => {
     return careerCards.flatMap(c =>
       c.details
@@ -787,9 +914,23 @@ export function App() {
   const goToPage = (pageId: PageId) => {
     setActivePage(pageId);
     setSelectedStudySlug(null);
+    setSelectedExperienceDetailId(null);
     setReferrer(null);
     navigate(pagePaths[pageId]);
     setIsPageMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openExperienceDetail = (id: number) => {
+    setSelectedExperienceDetailId(id);
+    setActivePage('experience');
+    navigate(pathForExperienceDetail(id));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const closeExperienceDetail = () => {
+    setSelectedExperienceDetailId(null);
+    navigate(pagePaths.experience);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -840,6 +981,29 @@ export function App() {
   // 공통 배지 스타일 통일
   const badgeStyle = "resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded-md shadow-sm";
 
+  const sidebarGridClass = `grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 relative items-start transition-[grid-template-columns] duration-300 ${
+    isSectionNavCollapsed
+      ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
+      : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
+  }`;
+
+  const renderSectionNavToggle = () => (
+    <button
+      type="button"
+      onClick={() => setIsSectionNavCollapsed((collapsed) => !collapsed)}
+      className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
+        isSectionNavCollapsed
+          ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-sm'
+          : 'absolute -right-[11px] top-7 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
+      }`}
+      title={isSectionNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
+      aria-label={isSectionNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
+      aria-expanded={!isSectionNavCollapsed}
+    >
+      {isSectionNavCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+    </button>
+  );
+
   return (
     <>
       <main className="min-h-screen bg-[#f8fafc] text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif] print:bg-white print:text-black pb-12">
@@ -854,7 +1018,7 @@ export function App() {
         <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-slate-800/3 rounded-full filter blur-[100px] pointer-events-none print:hidden" />
 
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 py-2 shadow-sm backdrop-blur-xl print:hidden relative">
+        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 py-2 shadow-sm backdrop-blur-xl print:hidden">
           <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-6">
               <button
@@ -965,10 +1129,10 @@ export function App() {
         <div className="resume-print-shell mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           
           {activePage === 'intro' ? (
-            <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_240px] print:block relative items-start">
+            <div className={`${sidebarGridClass} print:block`}>
             
             {/* Main Content Column */}
-            <div className="resume-page min-w-0 space-y-12">
+            <div className="resume-page flex min-w-0 flex-col gap-12">
               
               {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
               <div id="intro-profile" className="resume-profile-card scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
@@ -1546,8 +1710,8 @@ export function App() {
                                 onClick={() => hasDetailContent && toggleCareerDetail(detail.id)}
                               >
                                 <span className={`resume-body flex items-start gap-2.5 font-normal transition ${
-                                  hasDetailContent 
-                                    ? 'text-slate-700 group-hover:text-slate-900 group-hover:font-semibold' 
+                                  hasDetailContent
+                                    ? 'text-slate-700 group-hover:text-slate-900 group-hover:font-semibold'
                                     : 'text-slate-500'
                                 }`}>
                                   {hasDetailContent ? (
@@ -1560,15 +1724,19 @@ export function App() {
                                 {detail.id > 0 && (
                                   <button
                                     type="button"
+                                    aria-hidden={!isExpanded}
+                                    tabIndex={isExpanded ? 0 : -1}
                                     onClick={(e) => { e.stopPropagation(); navigate(pathForExperienceDetail(detail.id)); }}
-                                    className="resume-meta shrink-0 whitespace-nowrap font-bold text-slate-800 transition hover:text-slate-950 hover:underline print:hidden"
+                                    className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-800 transition-opacity duration-200 hover:text-slate-950 hover:underline print:hidden ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
                                   >
                                     자세히 보기
                                   </button>
                                 )}
                               </div>
                               {hasDetailContent && (
-                                <div className={`resume-career-detail resume-body mt-3 ml-6 space-y-3.5 text-slate-600 print:block print:ml-0 ${isExpanded ? 'block' : 'hidden'}`}>
+                                <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isExpanded ? 'mt-3 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'}`}>
+                                  <div className="min-h-0 overflow-hidden">
+                                    <div className="resume-career-detail resume-body ml-6 space-y-3.5 text-slate-600 print:ml-0">
                                   {detail.situation && (
                                     <div>
                                       <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">상황</p>
@@ -1595,6 +1763,8 @@ export function App() {
                                     </div>
                                   )}
                                   {detail.id > 0 && <RelatedStudyNotes experienceDetailId={detail.id} onOpenStudy={openStudy} />}
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </li>
@@ -1610,7 +1780,7 @@ export function App() {
               </section>
 
               {/* SECTION 3: 학력·교육 및 자격증 */}
-              <section id="credentials" className="resume-credentials-section scroll-mt-24 space-y-6">
+              <section id="credentials" className="resume-credentials-section order-2 scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="resume-credentials-header border-b border-slate-100 pb-4">
                     <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -1700,7 +1870,7 @@ export function App() {
               </section>
 
               {/* SECTION 4: 핵심 프로젝트 포트폴리오 */}
-              <section id="projects" className="scroll-mt-24 space-y-6">
+              <section id="projects" className="order-1 scroll-mt-24 space-y-6">
                 <div className={cardStyle}>
                   <div className="resume-projects-header border-b border-slate-100 pb-4">
                     <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -1710,22 +1880,27 @@ export function App() {
                     <p className="resume-section-description mt-1 text-slate-500">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
                   </div>
 
-                  <div className="resume-project-list mt-8 space-y-8 relative before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-[2px] before:bg-slate-200">
-                    {activeMilestones.map((m, idx) => (
+                  <div className={`resume-project-list relative mt-8 space-y-8 ${activeMilestones.length > 0 ? 'before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-[2px] before:bg-slate-200' : ''}`}>
+                    {activeMilestones.length === 0 && (
+                      <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm font-semibold text-slate-400">
+                        편성된 핵심 프로젝트가 없습니다.
+                      </p>
+                    )}
+                    {activeMilestones.map((m) => (
                       <div
                         key={m.id}
                         id={`project-experience-${m.experienceId ?? m.id}`}
                         className="resume-project-item relative pl-10 group cursor-pointer"
                         onClick={() => setSelectedMilestoneId(m.id)}
                       >
-                        
+
                         {/* Timeline Bullet node */}
                         <div className={`resume-project-bullet absolute left-[7px] top-1.5 w-[18px] h-[18px] rounded-full border-4 border-white transition-colors shadow-sm z-10 ${
                           selectedMilestoneId === m.id
                             ? 'bg-slate-900 scale-110'
                             : 'bg-slate-300 group-hover:bg-slate-500'
                         }`} />
-                        
+
                         <div className={`resume-project-card rounded-xl border p-6 space-y-4 transition-all duration-300 shadow-sm ${
                           selectedMilestoneId === m.id
                             ? 'border-slate-800 bg-white ring-2 ring-slate-100/50'
@@ -1740,37 +1915,18 @@ export function App() {
                                 {m.title}
                               </h3>
                             </div>
-                            <span className="resume-print-plain resume-meta shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-400">
-                              기여도 {idx === 0 || idx === 2 ? '100%' : idx === 1 ? '70%' : '43%'}
-                            </span>
+                            {m.contributionRate != null && (
+                              <span className="resume-print-plain resume-meta shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-400">
+                                기여도 {m.contributionRate}%
+                              </span>
+                            )}
                           </div>
 
-                          <div className="space-y-3.5">
+                          <div className="space-y-4">
                             <div>
                               <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
-                              <div className="resume-project-description resume-body mt-1 rounded-lg border border-slate-100 bg-white p-3 font-normal text-slate-600">
+                              <div className="resume-project-description resume-body mt-1 font-normal text-slate-600">
                                 <ReactMarkdown components={resumeMarkdownComponents}>{m.description}</ReactMarkdown>
-                              </div>
-                            </div>
-
-                            <div className="resume-project-takeaway rounded-lg border border-emerald-100 bg-emerald-50/30 p-3.5">
-                              <h4 className="resume-label flex items-center gap-1 font-bold text-emerald-700">
-                                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                                핵심 성과 & 배운 점 (Takeaway)
-                              </h4>
-                              <div className="resume-body mt-1 font-semibold text-emerald-800">
-                                <ReactMarkdown components={resumeMarkdownComponents}>{m.takeaway}</ReactMarkdown>
-                              </div>
-                            </div>
-
-                            <div>
-                              <h4 className="resume-label mb-1.5 font-bold text-slate-400 uppercase tracking-wider">활용 기술 스택</h4>
-                              <div className="flex flex-wrap gap-1">
-                                {m.skills.map((skill) => (
-                                  <span key={skill} className={badgeStyle}>
-                                    {skill}
-                                  </span>
-                                ))}
                               </div>
                             </div>
 
@@ -1803,12 +1959,145 @@ export function App() {
                               </div>
                             )}
 
+                            {m.details.length > 0 && (
+                              <div className="border-t border-slate-100 pt-3 print:break-inside-avoid">
+                                <div className="mb-2.5 flex items-center justify-between gap-3">
+                                  <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
+                                    <Briefcase className="h-3.5 w-3.5 text-slate-500" />
+                                    상세 경험
+                                  </h4>
+                                  {getExpandableDetailIds(m.details).length > 0 && (
+                                    <button
+                                      type="button"
+                                      aria-expanded={areAllDetailsExpanded(m.details)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        toggleAllDetails(m.details);
+                                      }}
+                                      className="group/expand inline-flex items-center gap-1 text-[0.6875rem] font-bold leading-4 text-slate-400 transition hover:text-slate-800 print:hidden"
+                                    >
+                                      <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${areAllDetailsExpanded(m.details) ? 'rotate-180' : ''}`} />
+                                      {areAllDetailsExpanded(m.details) ? '모두 접기' : '모두 펼치기'}
+                                    </button>
+                                  )}
+                                </div>
+                                <ul className="divide-y divide-slate-100">
+                                  {m.details.map((detail) => {
+                                    const isExpanded = expandedCareerDetailIds.includes(detail.id);
+                                    const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
+                                    return (
+                                      <li
+                                        key={detail.id}
+                                        id={`experience-detail-${detail.id}`}
+                                        className="resume-career-item list-none scroll-mt-24 py-1.5 first:pt-0.5 last:pb-0.5"
+                                      >
+                                        <div
+                                          className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-md py-1 transition ${
+                                            hasDetailContent ? 'cursor-pointer' : 'cursor-default'
+                                          }`}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            if (hasDetailContent) toggleCareerDetail(detail.id);
+                                          }}
+                                        >
+                                          <span className="flex h-5 items-center justify-center">
+                                            {hasDetailContent ? (
+                                              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 print:hidden ${isExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`} />
+                                            ) : (
+                                              <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                            )}
+                                          </span>
+                                          <span className={`min-w-0 text-sm leading-5 transition sm:text-[0.9375rem] ${
+                                            hasDetailContent
+                                              ? 'font-medium text-slate-700 group-hover:text-slate-900'
+                                              : 'text-slate-500'
+                                          }`}>
+                                            {detail.content}
+                                          </span>
+                                          {detail.id > 0 && (
+                                            <button
+                                              type="button"
+                                              aria-hidden={!isExpanded}
+                                              tabIndex={isExpanded ? 0 : -1}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                navigate(pathForExperienceDetail(detail.id));
+                                              }}
+                                              className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-600 transition-opacity duration-200 hover:text-slate-950 hover:underline print:hidden ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
+                                            >
+                                              자세히 보기
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        {hasDetailContent && (
+                                          <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isExpanded ? 'mt-2 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'}`}>
+                                            <div className="min-h-0 overflow-hidden">
+                                              <div className="resume-career-detail resume-body ml-[30px] space-y-2.5 text-slate-600 print:ml-0">
+                                            {detail.situation && (
+                                              <div>
+                                                <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">상황</p>
+                                                <ReactMarkdown components={resumeMarkdownComponents}>{detail.situation}</ReactMarkdown>
+                                              </div>
+                                            )}
+                                            {detail.actionDetail && (
+                                              <div>
+                                                <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
+                                                <ReactMarkdown components={resumeMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
+                                              </div>
+                                            )}
+                                            {detail.outcome && (
+                                              <div>
+                                                <p className="resume-label mb-1 font-bold uppercase tracking-wider text-emerald-600">성과</p>
+                                                <ReactMarkdown components={resumeMarkdownComponents}>{detail.outcome}</ReactMarkdown>
+                                              </div>
+                                            )}
+                                            {detail.skills.length > 0 && (
+                                              <div className="flex flex-wrap gap-1 pt-1">
+                                                {detail.skills.map((skill) => (
+                                                  <span key={skill.id} className={badgeStyle}>{skill.name}</span>
+                                                ))}
+                                              </div>
+                                            )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </div>
+                            )}
+
                             {m.experienceId && (
                               <>
-                                <RelatedStudyNotes experienceId={m.experienceId} onOpenStudy={openStudy} />
                                 <RelatedExperienceLinks experienceId={m.experienceId} onNavigate={navigateToRelatedExperience} />
                               </>
                             )}
+
+                            {m.takeaway && (
+                              <div className="resume-project-takeaway border-t border-slate-100 pt-3.5">
+                                <h4 className="resume-label flex items-center gap-1 font-bold text-emerald-700">
+                                  <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                                  핵심 성과 & 배운 점 (Takeaway)
+                                </h4>
+                                <div className="resume-body mt-1 font-semibold text-emerald-800">
+                                  <ReactMarkdown components={resumeMarkdownComponents}>{m.takeaway}</ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <h4 className="resume-label mb-1.5 font-bold uppercase tracking-wider text-slate-400">활용 기술 스택</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {m.skills.map((skill) => (
+                                  <span key={skill} className={badgeStyle}>
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
 
@@ -1822,15 +2111,9 @@ export function App() {
 
             {/* Right Sticky Sidebar Column */}
             <aside className="block print:hidden w-full sticky top-24 self-start">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-slate-300 min-[900px]:p-5 min-[900px]:space-y-5">
-                <div className="hidden min-[900px]:block">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">내비게이션</h3>
-                  <p className="text-sm text-slate-500 leading-none mt-0.5">
-                    클릭하면 해당 섹션으로 부드럽게 이동합니다.
-                  </p>
-                </div>
-                
-                <div className="hidden min-[900px]:block relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-200">
+              <div className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${isSectionNavCollapsed ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3' : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'}`}>
+                {renderSectionNavToggle()}
+                <div className={`hidden relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-200 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`}>
                   {mainSections.map((step) => (
                     <button
                       key={step.id}
@@ -1842,7 +2125,7 @@ export function App() {
                           ? 'bg-slate-900 scale-125 ring-4 ring-slate-200'
                           : 'bg-slate-300 group-hover:bg-slate-500'
                       }`} />
-                      
+
                       <span className={`rounded-lg px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${
                         activeSection === step.id
                           ? 'bg-slate-100 text-slate-900 font-extrabold'
@@ -1854,7 +2137,7 @@ export function App() {
                   ))}
                 </div>
 
-                <div className="relative flex flex-col items-center gap-2 py-1.5 min-[900px]:hidden before:absolute before:bottom-5 before:top-5 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-slate-200">
+                <div className={`relative flex flex-col items-center gap-2 py-1.5 before:absolute before:bottom-5 before:top-5 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-slate-200 ${isSectionNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}>
                   {mainSections.map((step) => {
                     const Icon = step.icon;
                     return (
@@ -1875,7 +2158,7 @@ export function App() {
                   })}
                 </div>
 
-                <hr className="hidden border-slate-100 min-[900px]:block" />
+                <hr className={`hidden border-slate-100 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`} />
 
                 <button
                   onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -1883,8 +2166,8 @@ export function App() {
                   title="위로 가기"
                   aria-label="위로 가기"
                 >
-                  <span className="min-[900px]:hidden">↑</span>
-                  <span className="hidden min-[900px]:inline">위로 가기</span>
+                  <ArrowUp className="h-4 w-4 shrink-0" />
+                  <span className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:inline'}`}>위로 가기</span>
                 </button>
               </div>
             </aside>
@@ -1892,127 +2175,345 @@ export function App() {
           </div>
         ) : activePage === 'architecture' ? (
           /* SYSTEM ARCHITECTURE PAGE */
-          <div className="mx-auto max-w-6xl space-y-8 animate-fadeIn pb-12 print:hidden">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-slate-800/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
-              <div className="relative z-10 border-b border-slate-100 pb-5">
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-                  <Terminal className="h-6 w-6 text-slate-900" />
-                  시스템 아키텍처 (Self-Intro Architecture)
-                </h1>
-                <p className="mt-2 text-sm sm:text-base text-slate-500 font-normal leading-relaxed">
-                  이 포트폴리오 웹앱을 구동하고 데이터를 서빙하는 풀스택 컨테이너 인프라 설계 명세입니다.
-                </p>
+          <div className={`${sidebarGridClass} print:hidden pb-12`}>
+
+            {/* Main Content Column */}
+            <div className="resume-page min-w-0 space-y-8">
+              <div id="architecture-components" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-slate-800/5 rounded-full filter blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+                <div className="relative z-10 border-b border-slate-100 pb-5">
+                  <h1 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                    <Terminal className="h-6 w-6 text-slate-900" />
+                    {architectureOverview?.heading ?? '시스템 아키텍처 (Self-Intro Architecture)'}
+                  </h1>
+                  <p className="resume-section-description mt-2 text-slate-500 font-normal leading-relaxed">
+                    {architectureOverview?.subheading ?? '이 포트폴리오 웹앱의 도메인 모듈 구조, DB 데이터 관리 방식, 그리고 Cloudflare·오라클 Free Tier 기반 배포 인프라까지 담은 설계 명세입니다.'}
+                  </p>
+                </div>
+
+                <div className="relative z-10 mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                  {!architectureLayers ? (
+                    <p className="py-10 text-center text-sm font-bold text-slate-400 md:col-span-3">구성 요소를 불러오는 중입니다...</p>
+                  ) : architectureLayers.length === 0 ? (
+                    <p className="py-10 text-center text-sm font-bold text-slate-400 md:col-span-3">등록된 아키텍처 구성 요소가 없습니다.</p>
+                  ) : architectureLayers.map((layer) => (
+                    <div key={layer.id} className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                      <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
+                        <span className="p-1.5 rounded bg-slate-100 leading-none">{layer.icon}</span>
+                        {layer.title}
+                      </h2>
+                      <ul className="resume-body text-slate-600 space-y-2 leading-relaxed font-normal [overflow-wrap:anywhere]">
+                        {layer.items.map((item) => (
+                          <li key={item.id}>
+                            {item.strongText && <strong className="text-slate-800 font-bold">{item.strongText}</strong>}
+                            {item.bodyText}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="relative z-10 mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
-                    <span className="p-1.5 rounded bg-slate-100 leading-none">💻</span>
-                    Backend Layer
-                  </h2>
-                  <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
-                    <li>
-                      <strong className="text-slate-800 font-bold">Java 21 & Spring Boot 3.3</strong> 기반의 안정적인 API 서비스 구축
-                    </li>
-                    <li>
-                      <strong className="text-slate-800 font-bold">Spring Data JPA</strong> 및 H2/MySQL 데이터베이스 통합 제어
-                    </li>
-                    <li>
-                      <strong className="text-slate-800 font-bold">Flyway 스키마 마이그레이션</strong>을 활용해 실행 시 DDL 데이터 자동 적재 및 버전 제어
-                    </li>
-                    <li>
-                      <strong className="text-slate-800 font-bold">SampleDataLoader</strong>를 통해 로컬/인메모리 시작 시 테스트용 개발 이력 시드 자동 세팅
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
-                    <span className="p-1.5 rounded bg-slate-100 leading-none">🎨</span>
-                    Frontend Layer
-                  </h2>
-                  <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
-                    <li>
-                      <strong className="text-slate-800 font-bold">React 19 & TypeScript & Vite</strong> 환경의 고성능 컴파일러 및 리플로우 최적화
-                    </li>
-                    <li>
-                      <strong className="text-slate-800 font-bold">Zustand & TanStack Query</strong>를 조합한 프론트 전역 상태 및 비동기 API 캐시 제어
-                    </li>
-                    <li>
-                      <strong className="text-slate-800 font-bold">Tailwind CSS (Vanilla CSS 폴백)</strong> 미드나잇 글래스모피즘 프리미엄 UI 디자인 테마
-                    </li>
-                    <li>
-                      <strong className="text-slate-800 font-bold">PDF 인쇄 미디어 쿼리</strong> 최적화로 브라우저 상의 인쇄 레이아웃 단일 이력서 규격화
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                  <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
-                    <span className="p-1.5 rounded bg-slate-100 leading-none">☸️</span>
-                    DevOps & GitOps
-                  </h2>
-                  <ul className="text-base sm:text-lg text-slate-600 space-y-2 leading-relaxed font-normal">
-                    <li>
-                      <strong className="text-slate-900 font-bold">Cloudflare Pages CDN</strong>: 프론트엔드 정적 빌드 파일을 전 세계 엣지 노드에 초고속 캐싱 및 배포
-                    </li>
-                    <li>
-                      <strong className="text-slate-900 font-bold">GitHub Actions & OCIR</strong>: 백엔드 푸시 시 ARM64 네이티브 컨테이너 이미지 자동 빌드 및 Oracle OCI Registry 배포
-                    </li>
-                    <li>
-                      <strong className="text-slate-900 font-bold">Argo CD 자동 동기화</strong>: k8s 배포 매니페스트 변경을 Argo CD가 실시간 감지하여 OKE 클러스터에 무중단 롤아웃 배포
-                    </li>
-                    <li>
-                      <strong className="text-slate-900 font-bold">Sealed Secrets 보안</strong>: DB 비밀번호 등 민감 데이터를 비대칭 키로 안전하게 암호화하여 Git에 안심하고 형상 관리
-                    </li>
-                  </ul>
+              <div id="architecture-diagram" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-slate-950 p-5 sm:p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.12)]">
+                <h2 className="text-base sm:text-lg font-black text-slate-100 mb-3 flex items-center gap-1.5">
+                  <span>☸️</span>
+                  <span>{architectureOverview?.diagramHeading ?? '실제 운영(Production) 시스템 아키텍처 및 배포 흐름도'}</span>
+                </h2>
+                <div className="text-[10px] xs:text-[11px] sm:text-[12.5px] md:text-[14px] lg:text-[12.5px] xl:text-[14px] print:text-[9px] font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-normal tracking-tight sm:tracking-normal print:leading-[1.15] print:tracking-tighter whitespace-pre overflow-x-auto border border-slate-800">
+                  {architectureOverview?.diagramText ?? '배포 흐름도를 불러오는 중입니다...'}
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-950 p-5 sm:p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.12)]">
-              <h2 className="text-base sm:text-lg font-black text-slate-100 mb-3 flex items-center gap-1.5">
-                <span>☸️</span>
-                <span>실제 운영(Production) 시스템 아키텍처 및 배포 흐름도</span>
-              </h2>
-              <div className="text-[8px] xs:text-[9.5px] sm:text-[11px] md:text-[13px] lg:text-[11px] xl:text-[12.5px] print:text-[8.5px] font-mono text-slate-300 bg-slate-900 p-4 rounded-lg leading-normal tracking-tight sm:tracking-normal print:leading-[1.15] print:tracking-tighter whitespace-pre overflow-x-auto border border-slate-800">
-{` +-----------------------------------------------------------------------------------------+
- |                                    [ Web Client User ]                                  |
- |                                             |                                           |
- |                       https://unbrdn.me     |     https://api.unbrdn.me                 |
- |                     +-----------------------+-----------------------+                   |
- |                     |                                               |                   |
- |                     v                                               v                   |
- |           [ Cloudflare Pages ]                            [ Cloudflare DNS Proxy ]      |
- |           - Frontend Static Hosting                                 |                   |
- |           - Worldwide Edge Caching                                  | OCI Load Balancer |
- |                                                                     v                   |
- |                                                          [ Ingress Nginx Controller ]   |
- |                                                                     | SSL / TLS Route   |
- |                                                                     v                   |
- |  +-----------------------------------------------------------------------------------+  |
- |  |                          Oracle Kubernetes Engine (OKE Cluster)                   |  |
- |  |                                                                                   |  |
- |  |   [ Argo CD Engine ]                 [ Sealed Secrets Controller ]                |  |
- |  |     - Watches GitHub Repository        - Decrypts encrypted DB Secrets            |  |
- |  |     - Automated git sync to cluster                                               |  |
- |  |                    |                                 |                            |  |
- |  |                    v                                 v                            |  |
- |  |        +-------------------------------------------------------+                  |  |
- |  |        |                  [ self-intro-backend-pod ]           |                  |  |
- |  |        |     - Spring Boot 3.3.3 API Server (Java 21 JRE)      |                  |  |
- |  |        |     - Runs on ARM64 Ampere A1 Compute Instance        |                  |  |
- |  |        +-------------------------------------------------------+                  |  |
- |  |                                    |                                              |  |
- |  +------------------------------------|----------------------------------------------+  |
- |                                       | JDBC Connector (OCI VCN Private Subnet)          |
- |                                       v                                                 |
- |                   [ MySQL HeatWave Database (Always Free) ]                             |
- |                     - Persistent relational database store                              |
- |                     - Flyway schema & SampleDataLoader automatic seeds                  |
- +-----------------------------------------------------------------------------------------+`}
+            {/* Right Sticky Sidebar Column */}
+            <aside className="block print:hidden w-full sticky top-24 self-start">
+              <div className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${isSectionNavCollapsed ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3' : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'}`}>
+                {renderSectionNavToggle()}
+                <div className={`hidden relative pl-4 before:absolute before:top-2.5 before:bottom-2.5 before:left-[4px] before:w-[2px] before:bg-slate-200 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                  {architectureSections.map((step) => (
+                    <button
+                      key={step.id}
+                      onClick={() => scrollToSection(step.id)}
+                      className="group flex items-start gap-3 w-full text-left py-2.5 relative transition-all duration-200"
+                    >
+                      <div className={`absolute left-[-15px] top-[14px] w-2 h-2 rounded-full border border-white transition-all duration-300 z-10 ${
+                        activeSection === step.id
+                          ? 'bg-slate-900 scale-125 ring-4 ring-slate-200'
+                          : 'bg-slate-300 group-hover:bg-slate-500'
+                      }`} />
+
+                      <span className={`rounded-lg px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${
+                        activeSection === step.id
+                          ? 'bg-slate-100 text-slate-900 font-extrabold'
+                          : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-950'
+                      }`}>
+                        {step.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className={`relative flex flex-col items-center gap-2 py-1.5 before:absolute before:bottom-5 before:top-5 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-slate-200 ${isSectionNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}>
+                  {architectureSections.map((step) => {
+                    const Icon = step.icon;
+                    return (
+                      <button
+                        key={step.id}
+                        onClick={() => scrollToSection(step.id)}
+                        title={step.label}
+                        aria-label={step.label}
+                        className={`relative z-10 grid h-8 w-8 place-items-center rounded-full border transition-all duration-200 ${
+                          activeSection === step.id
+                            ? 'border-slate-300 bg-slate-900 text-white shadow-sm shadow-slate-800/20 ring-4 ring-slate-200'
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <hr className={`hidden border-slate-100 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`} />
+
+                <button
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                  title="위로 가기"
+                  aria-label="위로 가기"
+                >
+                  <ArrowUp className="h-4 w-4 shrink-0" />
+                  <span className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:inline'}`}>위로 가기</span>
+                </button>
               </div>
+            </aside>
+
+          </div>
+        ) : activePage === 'experience' ? (
+          /* EXPERIENCE PAGE */
+          <div className="space-y-4 animate-fadeIn">
+            {selectedExperienceDetailId && (
+              <div className="flex items-center justify-between pb-1">
+                <button onClick={closeExperienceDetail} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
+                  <ArrowLeft className="h-4 w-4" /> 경험 목록
+                </button>
+              </div>
+            )}
+            <div className={`${sidebarGridClass} print:block pb-12`}>
+
+              {/* Main Content Column */}
+              <div className="min-w-0 space-y-8">
+                {selectedExperienceDetailId ? (
+                  <>
+                    {selectedExperienceDetail && (
+                      <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                        <div className="mb-8 border-b border-slate-100 pb-6">
+                          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{experienceTypeLabel(selectedExperienceDetail.experience.type)}</span>
+                            <span className="font-mono">{formatCredentialPeriod(selectedExperienceDetail.experience)}</span>
+                          </div>
+                          <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{selectedExperienceDetail.detail.content}</h1>
+                          <p className="mt-2 text-sm font-bold text-slate-500 sm:text-base">
+                            {selectedExperienceDetail.experience.title}
+                            {experienceOrgName(selectedExperienceDetail.experience) ? ` · ${experienceOrgName(selectedExperienceDetail.experience)}` : ''}
+                          </p>
+                        </div>
+
+                        <div className="space-y-6">
+                          {selectedExperienceDetail.detail.situation && (
+                            <div>
+                              <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">상황</h2>
+                              <div className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                                <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.situation}</ReactMarkdown>
+                              </div>
+                            </div>
+                          )}
+                          {selectedExperienceDetail.detail.actionDetail && (
+                            <div>
+                              <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">진행 과정</h2>
+                              <div className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                                <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.actionDetail}</ReactMarkdown>
+                              </div>
+                            </div>
+                          )}
+                          {selectedExperienceDetail.detail.outcome && (
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
+                              <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-emerald-700">성과</h2>
+                              <div className="text-base leading-relaxed text-emerald-800 sm:text-lg">
+                                <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.outcome}</ReactMarkdown>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-8 flex flex-wrap gap-1.5">
+                          {(selectedExperienceDetail.detail.skills.length > 0 ? selectedExperienceDetail.detail.skills : selectedExperienceDetail.experience.skills).map((skill) => (
+                            <span key={skill.id} className={badgeStyle}>{skill.name}</span>
+                          ))}
+                        </div>
+                      </article>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                      <div className="absolute right-0 top-0 h-80 w-80 -translate-y-16 translate-x-16 rounded-full bg-slate-800/5 blur-[50px]" />
+                      <div className="relative">
+                        <h1 className="text-3xl font-black tracking-tight text-slate-900">경험</h1>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">실무 경력, 프로젝트, 학력, 자격증에서의 세부 경험을 모아 정리했습니다.</p>
+                      </div>
+                    </div>
+                    <div className="sticky top-16 z-20 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {experienceTypeTabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            onClick={() => setExperienceTypeFilter(tab.id)}
+                            className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${experienceTypeFilter === tab.id ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="search"
+                        value={experienceSearch}
+                        onChange={(event) => setExperienceSearch(event.target.value)}
+                        placeholder="내용, 제목, 기관명, 기술 검색..."
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72"
+                      />
+                    </div>
+                    <div className="space-y-5">
+                      {filteredExperienceDetails.length === 0 ? (
+                        <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm font-semibold text-slate-400">검색 조건에 맞는 경험이 없습니다.</div>
+                      ) : filteredExperienceDetails.map(({ detail, experience }) => (
+                        <button
+                          key={detail.id}
+                          onClick={() => openExperienceDetail(detail.id)}
+                          className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8"
+                        >
+                          <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                            <span className="rounded bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800">{experienceTypeLabel(experience.type)}</span>
+                            <span className="font-mono text-xs font-bold text-slate-400">{formatCredentialPeriod(experience)}</span>
+                          </div>
+                          <p className="text-xs font-bold text-slate-400">
+                            {experience.title}{experienceOrgName(experience) ? ` · ${experienceOrgName(experience)}` : ''}
+                          </p>
+                          <h2 className="mt-1 text-xl font-black text-slate-900">{detail.content}</h2>
+                          {(detail.outcome || detail.actionDetail || detail.situation) && (
+                            <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+                              {detail.outcome || detail.actionDetail || detail.situation}
+                            </p>
+                          )}
+                          <div className="mt-4 flex flex-wrap gap-1.5">
+                            {(detail.skills.length > 0 ? detail.skills : experience.skills).map((skill) => (
+                              <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">{skill.name}</span>
+                            ))}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Right Sticky Sidebar Column */}
+              <aside className="block print:hidden w-full sticky top-24 self-start">
+                <div className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${isSectionNavCollapsed ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3' : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'}`}>
+                  {renderSectionNavToggle()}
+                  {selectedExperienceDetailId ? (
+                    /* Detail View Sidebar */
+                    <>
+                      <div className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}>
+                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">연결 항목</h3>
+                        <p className="text-sm text-slate-500 leading-none mt-0.5">
+                          이 경험과 연관된 학습 기록입니다.
+                        </p>
+                      </div>
+
+                      <div className={`hidden space-y-4 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                        {(relatedStudiesForDetail?.content?.length ?? 0) > 0 ? (
+                          <div>
+                            <h4 className="text-xs font-black uppercase text-slate-400 mb-1">관련 학습 · 기술노트</h4>
+                            <div className="space-y-1.5">
+                              {relatedStudiesForDetail!.content.map((study) => (
+                                <button
+                                  key={study.id}
+                                  onClick={() => openStudy(study.slug)}
+                                  className="flex w-full items-start gap-1 text-left text-xs font-semibold text-slate-600 hover:text-slate-950 leading-normal"
+                                >
+                                  <span className="mt-0.5 text-slate-400 font-bold shrink-0">›</span>
+                                  <span>{study.title}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs font-bold text-slate-400 italic">연결된 항목이 없습니다.</p>
+                        )}
+                      </div>
+
+                      <div className={`flex flex-col items-center gap-2 py-1 ${isSectionNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}>
+                        <button
+                          onClick={closeExperienceDetail}
+                          title="경험 목록"
+                          className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900 shadow-sm"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    /* List View Sidebar */
+                    <>
+                      <div className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}>
+                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">최근 경험</h3>
+                        <p className="text-sm text-slate-500 leading-none mt-0.5">
+                          최근 기간의 경험입니다.
+                        </p>
+                      </div>
+
+                      <div className={`hidden space-y-2 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                        {recentExperienceDetails.map(({ detail }) => (
+                          <button
+                            key={detail.id}
+                            onClick={() => openExperienceDetail(detail.id)}
+                            className="block w-full text-left text-xs font-semibold text-slate-600 hover:text-slate-900 transition truncate leading-relaxed"
+                            title={detail.content}
+                          >
+                            • {detail.content}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className={`flex flex-col items-center gap-2 py-1 ${isSectionNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}>
+                        <button
+                          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                          title="경험 목록 상단"
+                          aria-label="경험 목록 상단"
+                          className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-slate-900 text-white shadow-sm shadow-slate-800/20 ring-4 ring-slate-200"
+                        >
+                          <Briefcase className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  <hr className={`hidden border-slate-100 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`} />
+
+                  <button
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                    title="위로 가기"
+                    aria-label="위로 가기"
+                  >
+                    <ArrowUp className="h-4 w-4 shrink-0" />
+                    <span className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:inline'}`}>위로 가기</span>
+                  </button>
+                </div>
+              </aside>
+
             </div>
           </div>
         ) : (
@@ -2025,7 +2526,7 @@ export function App() {
                 </button>
               </div>
             )}
-            <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_240px] print:block relative items-start pb-12">
+            <div className={`${sidebarGridClass} print:block pb-12`}>
               
               {/* Main Content Column */}
               <div className="min-w-0 space-y-8">
@@ -2060,7 +2561,7 @@ export function App() {
                       <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">학습 내용과 실제 프로젝트 적용 경험을 연결해 기록하는 기술 아카이브입니다.</p>
                     </div>
                   </div>
-                  <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+                  <div className="sticky top-16 z-20 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map((category) => (
                         <button key={category.slug} onClick={() => setActiveCategory(category.slug)} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeCategory === category.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{category.name}</button>
@@ -2092,18 +2593,19 @@ export function App() {
 
             {/* Right Sticky Sidebar Column */}
             <aside className="block print:hidden w-full sticky top-24 self-start">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-slate-300 min-[900px]:p-5 min-[900px]:space-y-5">
+              <div className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${isSectionNavCollapsed ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3' : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'}`}>
+                {renderSectionNavToggle()}
                 {selectedStudySlug ? (
                   /* Detail View Sidebar */
                   <>
-                    <div className="hidden min-[900px]:block">
+                    <div className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}>
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">연결 항목</h3>
                       <p className="text-sm text-slate-500 leading-none mt-0.5">
                         이 학습과 연관된 이력 정보입니다.
                       </p>
                     </div>
 
-                    <div className="hidden min-[900px]:block space-y-4">
+                    <div className={`hidden space-y-4 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`}>
                       {selectedStudy && selectedStudy.experiences.length > 0 && (
                         <div>
                           <h4 className="text-xs font-black uppercase text-slate-400 mb-1">관련 프로젝트·경력</h4>
@@ -2159,7 +2661,7 @@ export function App() {
                       )}
                     </div>
 
-                    <div className="flex flex-col items-center gap-2 py-1 min-[900px]:hidden">
+                    <div className={`flex flex-col items-center gap-2 py-1 ${isSectionNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}>
                       <button
                         onClick={closeStudy}
                         title="Study 목록"
@@ -2172,14 +2674,14 @@ export function App() {
                 ) : (
                   /* List View Sidebar */
                   <>
-                    <div className="hidden min-[900px]:block">
+                    <div className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}>
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">최근 작성글</h3>
                       <p className="text-sm text-slate-500 leading-none mt-0.5">
                         최근 등록된 학습 기록입니다.
                       </p>
                     </div>
 
-                    <div className="hidden min-[900px]:block space-y-2">
+                    <div className={`hidden space-y-2 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`}>
                       {studies.slice(0, 5).map((study) => (
                         <button
                           key={study.id}
@@ -2194,16 +2696,27 @@ export function App() {
                         <p className="text-xs font-bold text-slate-400 italic">등록된 글이 없습니다.</p>
                       )}
                     </div>
+
+                    <div className={`flex flex-col items-center gap-2 py-1 ${isSectionNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}>
+                      <button
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        title="공부 정리 목록 상단"
+                        aria-label="공부 정리 목록 상단"
+                        className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-slate-900 text-white shadow-sm shadow-slate-800/20 ring-4 ring-slate-200"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                      </button>
+                    </div>
                   </>
                 )}
 
-                <hr className="hidden border-slate-100 min-[900px]:block" />
+                <hr className={`hidden border-slate-100 ${isSectionNavCollapsed ? '' : 'min-[900px]:block'}`} />
 
                 <div className="flex flex-col gap-2 w-full">
                   {selectedStudySlug && (
                     <button
                       onClick={closeStudy}
-                      className="hidden min-[900px]:flex h-8 w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                      className={`hidden h-8 w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 ${isSectionNavCollapsed ? '' : 'min-[900px]:flex'}`}
                     >
                       {referrer ? '이전 화면으로' : '목록으로'}
                     </button>
@@ -2212,9 +2725,10 @@ export function App() {
                     onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                     className="grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
                     title="위로 가기"
+                    aria-label="위로 가기"
                   >
-                    <span className="min-[900px]:hidden">↑</span>
-                    <span className="hidden min-[900px]:inline">위로 가기</span>
+                    <ArrowUp className="h-4 w-4 shrink-0" />
+                    <span className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:inline'}`}>위로 가기</span>
                   </button>
                 </div>
               </div>
