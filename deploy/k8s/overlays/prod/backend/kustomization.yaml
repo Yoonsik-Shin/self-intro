@@ -31,6 +31,10 @@ configMapGenerator:
       - STORAGE_BUCKET=self-intro-images
       - STORAGE_PATH_STYLE_ACCESS=true
       - STORAGE_PRESIGNED_TTL_SECONDS=300
-      # Cloudflare(cdn.unbrdn.me) 연동 전까지는 OCI 엔드포인트를 직접 가리킴.
-      # Cache Rule/Origin Rule 설정 후 https://cdn.unbrdn.me/self-intro-images 로 교체할 것.
+      # OCI 엔드포인트를 직접 가리킴 (Cloudflare Free 플랜은 Origin Rules의 Host Header
+      # rewrite가 유료 기능이라 cdn.unbrdn.me 프록시를 붙이지 못함 — 트래픽이 늘어나면
+      # Cloudflare Worker로 프록시하거나 플랜을 업그레이드하는 방안을 재검토할 것).
+      # objectKey만 DB에 저장되므로 이 값을 나중에 바꿔도 기존 갤러리 이미지는 그대로
+      # 새 URL로 나간다 (마크다운 본문에 삽입된 이미지는 절대경로가 텍스트에 그대로
+      # 박혀 있어 별도 SQL 치환이 필요함).
       - STORAGE_PUBLIC_BASE_URL=https://axrywc89b6lf.compat.objectstorage.ap-chuncheon-1.oraclecloud.com/self-intro-images
