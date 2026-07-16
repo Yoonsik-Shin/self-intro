@@ -5,6 +5,7 @@ namespace: argocd
 
 resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  - ingress.yaml
 
 # 무료 티어 노드(1대)의 리소스 고갈을 막기 위한 주요 컴포넌트 리소스 타이트 제어 패치
 patches:

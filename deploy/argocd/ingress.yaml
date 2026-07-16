@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    # argocd-server의 443 포트는 자체 서명 인증서를 쓰므로, edge(cloudflare-origin-tls)에서
+    # TLS를 종료한 뒤 백엔드로는 재암호화(HTTPS)로 전달한다.
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - argocd.unbrdn.me
+      secretName: cloudflare-origin-tls
+  rules:
+    - host: argocd.unbrdn.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 443
