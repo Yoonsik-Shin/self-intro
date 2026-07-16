@@ -14,6 +14,7 @@ frontend/node_modules/
 frontend/dist/
 .env
 .claude/
+.local-db-dump/
 
 # Personal Career Drafts
 경력정리.md
