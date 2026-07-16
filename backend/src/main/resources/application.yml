@@ -58,14 +58,18 @@ app:
     password: ${ADMIN_PASSWORD:}
     password-hash: ${ADMIN_PASSWORD_HASH:}
   ai:
+    base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
+    api-key: ${NVIDIA_API_KEY:}
+    model: ${NVIDIA_MODEL:qwen/qwen3.5-122b-a10b}
+    max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:8192}
+    # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환함 (지원 모델에서만 true)
+    json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
     competency:
       enabled: ${COMPETENCY_AI_ENABLED:false}
-      base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
-      api-key: ${NVIDIA_API_KEY:}
-      model: ${NVIDIA_MODEL:qwen/qwen3.5-122b-a10b}
-      max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:4096}
-      # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환함 (지원 모델에서만 true)
-      json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
+    study:
+      enabled: ${STUDY_AI_ENABLED:false}
+    experience:
+      enabled: ${EXPERIENCE_AI_ENABLED:false}
   storage:
     endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
     # 브라우저가 presigned URL로 직접 PUT할 때 접속할 호스트. 로컬(docker-compose)처럼

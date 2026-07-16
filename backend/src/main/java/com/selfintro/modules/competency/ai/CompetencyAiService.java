@@ -1,7 +1,18 @@
 package com.selfintro.modules.competency.ai;
 
+import static com.selfintro.modules.ai.AiJsonSupport.blankToNull;
+import static com.selfintro.modules.ai.AiJsonSupport.distinctBy;
+import static com.selfintro.modules.ai.AiJsonSupport.hasText;
+import static com.selfintro.modules.ai.AiJsonSupport.limit;
+import static com.selfintro.modules.ai.AiJsonSupport.safe;
+import static com.selfintro.modules.ai.AiJsonSupport.select;
+import static com.selfintro.modules.ai.AiJsonSupport.toIdSet;
+import static com.selfintro.modules.ai.AiJsonSupport.toLinkedSet;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfintro.modules.ai.AiJsonSupport;
+import com.selfintro.modules.ai.NvidiaNimClient;
 import com.selfintro.modules.competency.domain.Competency;
 import com.selfintro.modules.competency.domain.CompetencyRepository;
 import com.selfintro.modules.competency.presentation.dto.CompetencySuggestionRequest;
@@ -14,14 +25,11 @@ import com.selfintro.study.entity.Study;
 import com.selfintro.study.repository.StudyRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -31,7 +39,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CompetencyAiService {
     private static final String EVIDENCE_EXTRACTOR_PROMPT = """
@@ -67,9 +74,36 @@ public class CompetencyAiService {
     private final StudyRepository studyRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
+    private final boolean enabled;
     private final AtomicBoolean generating = new AtomicBoolean(false);
 
+    public CompetencyAiService(
+        CompetencyRepository competencyRepository,
+        SkillRepository skillRepository,
+        ExperienceRepository experienceRepository,
+        StudyRepository studyRepository,
+        NvidiaNimClient nvidiaNimClient,
+        ObjectMapper objectMapper,
+        @Value("${app.ai.competency.enabled:false}") boolean enabled
+    ) {
+        this.competencyRepository = competencyRepository;
+        this.skillRepository = skillRepository;
+        this.experienceRepository = experienceRepository;
+        this.studyRepository = studyRepository;
+        this.nvidiaNimClient = nvidiaNimClient;
+        this.objectMapper = objectMapper;
+        this.enabled = enabled;
+    }
+
+    private void ensureEnabled() {
+        if (!enabled) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "핵심 역량 AI 기능이 비활성화되어 있습니다. NVIDIA API 설정을 확인해주세요.");
+        }
+    }
+
     public CompetencySuggestionResponse suggest(CompetencySuggestionRequest request) {
+        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                 "이미 핵심 역량 AI 초안을 생성하고 있습니다.");
@@ -85,6 +119,7 @@ public class CompetencyAiService {
     }
 
     public SseEmitter suggestStream(CompetencySuggestionRequest request) {
+        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                 "이미 핵심 역량 AI 초안을 생성하고 있습니다.");
@@ -311,51 +346,7 @@ public class CompetencyAiService {
     }
 
     private <T> T parseJson(String raw, Class<T> type, String stage) throws JsonProcessingException {
-        int start = raw.indexOf('{');
-        int end = raw.lastIndexOf('}');
-        if (start < 0 || end <= start) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                stage + " 단계에서 AI가 올바른 JSON을 반환하지 않았습니다.");
-        }
-        return objectMapper.readValue(raw.substring(start, end + 1), type);
-    }
-
-    private static <T> List<T> select(
-        List<T> all,
-        List<Long> requestedIds,
-        Function<T, Long> idExtractor,
-        String label
-    ) {
-        if (requestedIds.isEmpty()) return all;
-        Set<Long> requested = new LinkedHashSet<>(requestedIds);
-        List<T> selected = all.stream().filter(item -> requested.contains(idExtractor.apply(item))).toList();
-        if (selected.size() != requested.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "존재하지 않는 " + label + " 항목이 포함되어 있습니다.");
-        }
-        return selected;
-    }
-
-    private static <T> Set<Long> toIdSet(List<T> items, Function<T, Long> idExtractor) {
-        return items.stream().map(idExtractor).collect(toLinkedSet());
-    }
-
-    private static <T, K> Predicate<T> distinctBy(Function<T, K> keyExtractor) {
-        Set<K> seen = new LinkedHashSet<>();
-        return value -> seen.add(keyExtractor.apply(value));
-    }
-
-    private static <T> java.util.stream.Collector<T, ?, Set<T>> toLinkedSet() {
-        return java.util.stream.Collectors.toCollection(LinkedHashSet::new);
-    }
-
-    private static <T> List<T> safe(List<T> values) { return values == null ? List.of() : values; }
-    private static boolean hasText(String value) { return value != null && !value.isBlank(); }
-    private static String blankToNull(String value) { return hasText(value) ? value.trim() : null; }
-    private static String limit(String value, int max) {
-        if (value == null) return "";
-        String trimmed = value.trim();
-        return trimmed.length() <= max ? trimmed : trimmed.substring(0, max);
+        return AiJsonSupport.parseJson(objectMapper, raw, type, stage);
     }
 
     private interface StreamSink {

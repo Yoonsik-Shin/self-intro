@@ -1,4 +1,4 @@
-package com.selfintro.modules.competency.ai;
+package com.selfintro.modules.ai;
 
 import java.util.function.Consumer;
 import org.springframework.ai.chat.client.ChatClient;
@@ -12,7 +12,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class NvidiaNimClient {
     private final ChatClient chatClient;
-    private final boolean enabled;
     private final String apiKey;
     private final String model;
     private final int maxOutputTokens;
@@ -20,14 +19,12 @@ public class NvidiaNimClient {
 
     public NvidiaNimClient(
         ChatClient.Builder chatClientBuilder,
-        @Value("${app.ai.competency.enabled:false}") boolean enabled,
-        @Value("${app.ai.competency.api-key:}") String apiKey,
-        @Value("${app.ai.competency.model:qwen/qwen3.5-122b-a10b}") String model,
-        @Value("${app.ai.competency.max-output-tokens:4096}") int maxOutputTokens,
-        @Value("${app.ai.competency.json-response-format:false}") boolean jsonResponseFormat
+        @Value("${app.ai.api-key:}") String apiKey,
+        @Value("${app.ai.model:qwen/qwen3.5-122b-a10b}") String model,
+        @Value("${app.ai.max-output-tokens:8192}") int maxOutputTokens,
+        @Value("${app.ai.json-response-format:false}") boolean jsonResponseFormat
     ) {
         this.chatClient = chatClientBuilder.build();
-        this.enabled = enabled;
         this.apiKey = apiKey;
         this.model = model;
         this.maxOutputTokens = maxOutputTokens;
@@ -75,9 +72,9 @@ public class NvidiaNimClient {
     }
 
     private void ensureAvailable() {
-        if (!enabled || apiKey.isBlank()) {
+        if (apiKey.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                "핵심 역량 AI 기능이 비활성화되어 있습니다. NVIDIA API 설정을 확인해주세요.");
+                "AI 기능을 사용하려면 NVIDIA API 키가 설정되어 있어야 합니다.");
         }
     }
 

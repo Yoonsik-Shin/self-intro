@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfintro.modules.ai.NvidiaNimClient;
 import com.selfintro.modules.competency.domain.CompetencyRepository;
 import com.selfintro.modules.competency.presentation.dto.CompetencySuggestionRequest;
 import com.selfintro.modules.experience.domain.Experience;
@@ -43,7 +44,8 @@ class CompetencyAiServiceTest {
             experienceRepository,
             studyRepository,
             nvidiaNimClient,
-            new ObjectMapper()
+            new ObjectMapper(),
+            true
         );
     }
 
