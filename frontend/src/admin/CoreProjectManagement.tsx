@@ -43,7 +43,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
   }, [placements]);
 
   const selectableExperiences = useMemo(() => experiences
-    .filter((experience) => experience.type === 'CAREER' || experience.type === 'PROJECT')
+    .filter((experience) => experience.type === 'PROJECT')
     .filter((experience) => !draft.some((item) => item.experienceId === experience.id)),
   [draft, experiences]);
 
@@ -51,6 +51,18 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
     () => new Map(experiences.map((experience) => [experience.id, experience])),
     [experiences],
   );
+
+  const careersById = useMemo(
+    () => new Map(experiences.filter((experience) => experience.type === 'CAREER').map((career) => [career.id, career])),
+    [experiences],
+  );
+
+  const projectContext = (experience: Experience) => {
+    const career = experience.careerId ? careersById.get(experience.careerId) : undefined;
+    return career
+      ? `${career.companyName || career.title} · ${experience.role || career.role || '역할 미입력'}`
+      : `독립·팀 프로젝트 · ${experience.role || '역할 미입력'}`;
+  };
 
   const saveMutation = useMutation({
     mutationFn: () => experiencePlacementApi.replaceCoreProjects(
@@ -142,7 +154,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
             <Briefcase className="h-5 w-5" /> 핵심 프로젝트 관리
           </h2>
           <p className="mt-0.5 text-sm text-slate-500">
-            기존 직장 경력과 프로젝트를 핵심 포트폴리오에 편성하고 노출 순서를 관리합니다.
+            독립 프로젝트와 직장 소속 프로젝트를 핵심 포트폴리오에 편성하고 노출 순서를 관리합니다.
           </p>
         </div>
         {isEditing ? (
@@ -253,7 +265,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                     <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-900 text-xs font-black text-white">{index + 1}</span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-slate-800">{experience.title}</p>
-                      <p className="mt-0.5 text-xs font-semibold text-slate-400">{experience.type} · {experience.role || experience.companyName || '역할 미입력'}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-400">{projectContext(experience)}</p>
                     </div>
                     {experience.details.length > 0 && (
                       <span className="inline-flex shrink-0 items-center gap-1 px-2 py-2 text-xs font-bold text-slate-500">
@@ -372,13 +384,13 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
 
       {isEditing && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4">
-          <h3 className="font-black text-slate-900">추가 가능한 이력</h3>
-          <p className="mt-0.5 text-xs text-slate-500">직장 경력과 프로젝트만 핵심 프로젝트로 편성할 수 있습니다.</p>
+          <h3 className="font-black text-slate-900">추가 가능한 프로젝트</h3>
+          <p className="mt-0.5 text-xs text-slate-500">등록된 프로젝트만 핵심 프로젝트로 편성할 수 있습니다.</p>
         </div>
         {selectableExperiences.length === 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 py-4">
             <div>
-              <p className="text-sm font-bold text-slate-600">등록된 모든 경력·프로젝트가 이미 편성되어 있습니다.</p>
+              <p className="text-sm font-bold text-slate-600">등록된 모든 프로젝트가 이미 편성되어 있습니다.</p>
               <p className="mt-0.5 text-xs text-slate-400">새 항목이 필요하면 프로젝트를 먼저 등록해 주세요.</p>
             </div>
             <button
@@ -401,7 +413,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                 <Plus className="h-4 w-4 shrink-0 text-slate-400" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-slate-700">{experience.title}</span>
-                  <span className="block text-xs text-slate-400">{experience.type}</span>
+                  <span className="block text-xs text-slate-400">{projectContext(experience)}</span>
                 </span>
               </button>
             ))}

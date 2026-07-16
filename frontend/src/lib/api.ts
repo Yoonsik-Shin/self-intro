@@ -174,6 +174,7 @@ export type Experience = {
   slug?: string;
   contributionRate?: number;
   repositoryUrl?: string;
+  careerId?: number;
 
   // Education specific
   institutionName?: string;
@@ -615,6 +616,7 @@ export type ExperienceRequest = {
   slug?: string;
   contributionRate?: number;
   repositoryUrl?: string;
+  careerId?: number;
   institutionName?: string;
   issuer?: string;
 };

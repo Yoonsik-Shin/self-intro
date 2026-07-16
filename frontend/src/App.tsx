@@ -354,8 +354,16 @@ export function App() {
   const [isSectionNavCollapsed, setIsSectionNavCollapsed] = useState(false);
   const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
   const [expandedCareerDetailIds, setExpandedCareerDetailIds] = useState<number[]>([]);
+  const [expandedCareerProjectIds, setExpandedCareerProjectIds] = useState<number[]>([]);
   const [selectedTimelineYear, setSelectedTimelineYear] = useState<number | null>(null);
-  const [referrer, setReferrer] = useState<{ page: PageId; sectionId?: string } | null>(null);
+  // Where to return to when the user leaves a detail view (study article or
+  // experience detail) via its own back button. Captured automatically from
+  // the current URL whenever such a detail is opened by clicking something
+  // in-app, so "뒤로가기" always lands back on whatever screen — intro
+  // section, another study, another experience detail, etc. — the user was
+  // actually on. Stays null when the detail was opened by a direct link /
+  // page refresh, since there is no meaningful in-app screen to return to.
+  const [referrer, setReferrer] = useState<{ path: string; sectionId?: string } | null>(null);
 
   useEffect(() => {
     const observerOptions = {
@@ -657,16 +665,10 @@ export function App() {
             return `${format(start)} - ${end ? format(end) : '진행 중'}`;
           };
           
-          let label = exp.title.split(' (')[0];
-          if (exp.type === 'CAREER') {
-             label = '에듀테크 플랫폼 핵심 서버/BFF';
-          } else if (exp.slug === 'project1') {
-             label = 'CS Test Bed';
-          } else if (exp.slug === 'project2') {
-             label = 'LogDoctor (SaaS)';
-          } else if (exp.slug === 'project3') {
-             label = 'AI 실시간 모의면접 플랫폼';
-          }
+          const label = exp.title.split(' (')[0];
+          const career = exp.careerId
+            ? introData.experiences.find((item) => item.id === exp.careerId && item.type === 'CAREER')
+            : undefined;
 
           return {
             id: exp.slug ?? exp.id.toString(),
@@ -676,7 +678,9 @@ export function App() {
             body: exp.details.map(d => d.content).join(', '),
             skills: exp.skills.map(s => s.name),
             tags: exp.tags?.map(t => t.name) ?? [],
-            role: exp.role ?? '',
+            role: career
+              ? `${career.companyName || career.title} · ${exp.role || career.role || ''}`
+              : exp.role ?? '',
             description: exp.summary ?? '',
             takeaway: exp.takeaway ?? '',
             contributionRate: exp.contributionRate,
@@ -713,6 +717,9 @@ export function App() {
     };
 
     if (introData?.experiences && introData.experiences.length > 0) {
+      const workProjects = introData.experiences
+        .filter((experience) => experience.type === 'PROJECT' && experience.careerId != null)
+        .sort((a, b) => a.displayOrder - b.displayOrder);
       return introData.experiences
         .filter(exp => exp.type === 'CAREER')
         .sort((a, b) => a.displayOrder - b.displayOrder)
@@ -724,6 +731,7 @@ export function App() {
           department: exp.department ?? '',
           role: exp.role ?? '',
           details: exp.details,
+          projects: workProjects.filter((project) => project.careerId === exp.id),
         }));
     }
 
@@ -741,6 +749,7 @@ export function App() {
       department: '개발팀',
       role: '백엔드 엔지니어',
       details: fallbackDetails,
+      projects: [] as Experience[],
     }];
   }, [introData]);
 
@@ -862,6 +871,12 @@ export function App() {
     );
   };
 
+  const toggleCareerProject = (id: number) => {
+    setExpandedCareerProjectIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  };
+
   const getExpandableDetailIds = (details: ExperienceDetail[]) => details
     .filter(detail => Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0))
     .map(detail => detail.id);
@@ -885,21 +900,31 @@ export function App() {
 
   const expandableDetailIds = useMemo(() => {
     return careerCards.flatMap(c =>
-      c.details
+      [...c.details, ...c.projects.flatMap((project) => project.details)]
         .filter(d => Boolean(d.situation || d.actionDetail || d.outcome || (d.skills && d.skills.length > 0)))
         .map(d => d.id)
     );
   }, [careerCards]);
 
+  const expandableCareerProjectIds = useMemo(
+    () => careerCards.flatMap((career) => career.projects.map((project) => project.id)),
+    [careerCards],
+  );
+
   const isAllExpanded = useMemo(() => {
-    return expandableDetailIds.length > 0 && expandableDetailIds.every(id => expandedCareerDetailIds.includes(id));
-  }, [expandableDetailIds, expandedCareerDetailIds]);
+    const hasExpandableContent = expandableDetailIds.length > 0 || expandableCareerProjectIds.length > 0;
+    return hasExpandableContent
+      && expandableDetailIds.every(id => expandedCareerDetailIds.includes(id))
+      && expandableCareerProjectIds.every(id => expandedCareerProjectIds.includes(id));
+  }, [expandableDetailIds, expandableCareerProjectIds, expandedCareerDetailIds, expandedCareerProjectIds]);
 
   const toggleExpandAll = () => {
     if (isAllExpanded) {
       setExpandedCareerDetailIds([]);
+      setExpandedCareerProjectIds([]);
     } else {
       setExpandedCareerDetailIds(expandableDetailIds);
+      setExpandedCareerProjectIds(expandableCareerProjectIds);
     }
   };
 
@@ -921,39 +946,21 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const openExperienceDetail = (id: number) => {
-    setSelectedExperienceDetailId(id);
-    setActivePage('experience');
-    navigate(pathForExperienceDetail(id));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // The exact path we're on right now (an intro anchor, another study,
+  // another experience detail, the plain list, whatever) — read *before*
+  // navigating away, so a detail view opened from here can return to it
+  // precisely. navigate() dispatches a synchronous popstate that clears
+  // `referrer`, so callers must apply this snapshot via setReferrer only
+  // after navigate() has run, not before.
+  const currentPath = () => `${window.location.pathname}${window.location.search}`;
 
-  const closeExperienceDetail = () => {
-    setSelectedExperienceDetailId(null);
-    navigate(pagePaths.experience);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const openStudy = (slug: string, refPage?: PageId, refSectionId?: string) => {
-    setSelectedStudySlug(slug);
-    setActivePage('blog');
-    navigate(pathForStudy(slug));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (refPage) {
-      setReferrer({ page: refPage, sectionId: refSectionId });
-    } else {
-      setReferrer(null);
-    }
-  };
-
-  const closeStudy = () => {
+  const returnToReferrer = (fallbackPath: string) => {
     if (referrer) {
-      setActivePage(referrer.page);
-      setSelectedStudySlug(null);
-      navigate(pagePaths[referrer.page]);
+      const targetPath = referrer.path;
       const targetId = referrer.sectionId;
       setReferrer(null);
-      
+      navigate(targetPath);
+
       setTimeout(() => {
         if (targetId) {
           const el = document.getElementById(targetId);
@@ -969,10 +976,37 @@ export function App() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 150);
     } else {
-      setSelectedStudySlug(null);
-      navigate(pagePaths.blog);
+      navigate(fallbackPath);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  const openExperienceDetail = (id: number, refSectionId?: string) => {
+    const fromPath = currentPath();
+    setSelectedExperienceDetailId(id);
+    setActivePage('experience');
+    navigate(pathForExperienceDetail(id));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setReferrer({ path: fromPath, sectionId: refSectionId });
+  };
+
+  const closeExperienceDetail = () => {
+    setSelectedExperienceDetailId(null);
+    returnToReferrer(pagePaths.experience);
+  };
+
+  const openStudy = (slug: string, refSectionId?: string) => {
+    const fromPath = currentPath();
+    setSelectedStudySlug(slug);
+    setActivePage('blog');
+    navigate(pathForStudy(slug));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setReferrer({ path: fromPath, sectionId: refSectionId });
+  };
+
+  const closeStudy = () => {
+    setSelectedStudySlug(null);
+    returnToReferrer(pagePaths.blog);
   };
 
   // 공통 카드 레이아웃 스타일 통일
@@ -1649,7 +1683,7 @@ export function App() {
                                 <button
                                   key={`study-${study.id}`}
                                   type="button"
-                                  onClick={() => openStudy(study.slug, 'intro', `competency-${competency.id}`)}
+                                  onClick={() => openStudy(study.slug, `competency-${competency.id}`)}
                                   className="font-bold text-blue-700 hover:underline"
                                 >
                                   {study.title}
@@ -1673,7 +1707,7 @@ export function App() {
                         <Briefcase className="h-5 w-5 text-slate-900" />
                         직장 경력 (총 {careerSummary})
                       </span>
-                      {expandableDetailIds.length > 0 && (
+                      {(expandableDetailIds.length > 0 || expandableCareerProjectIds.length > 0) && (
                         <button
                           type="button"
                           onClick={toggleExpandAll}
@@ -1690,6 +1724,109 @@ export function App() {
                       <p className="resume-item-title mt-2 font-black text-slate-800">{career.companyName} ({career.employmentType})</p>
                       <p className="resume-meta font-semibold text-slate-500">{career.department} / {career.role}</p>
                       <ul className="mt-4 space-y-2">
+                        {career.projects.map((project) => {
+                          const isProjectExpanded = expandedCareerProjectIds.includes(project.id);
+                          return (
+                            <li key={project.id} className="border-b border-slate-100 last:border-b-0">
+                              <button
+                                type="button"
+                                onClick={() => toggleCareerProject(project.id)}
+                                className="group flex w-full items-start gap-2.5 py-3 text-left"
+                              >
+                                <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-300 ${isProjectExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`} />
+                                <span className="min-w-0 flex-1">
+                                  <span className="resume-body block font-semibold text-slate-750 group-hover:text-slate-950">{project.title}</span>
+                                  <span className="resume-meta mt-0.5 block text-slate-400">
+                                    {project.periodStart.replace(/-/g, '.').substring(0, 7)} - {project.periodEnd ? project.periodEnd.replace(/-/g, '.').substring(0, 7) : '진행 중'}
+                                    {project.contributionRate != null ? ` · 기여도 ${project.contributionRate}%` : ''}
+                                  </span>
+                                </span>
+                              </button>
+
+                              <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isProjectExpanded ? 'mb-4 grid-rows-[1fr] opacity-100' : 'mb-0 grid-rows-[0fr] opacity-0'}`}>
+                                <div className="min-h-0 overflow-hidden">
+                                  <div className="ml-[26px] border-l-2 border-slate-200 pl-4 print:ml-0 print:border-l-0 print:pl-0">
+                                    {project.summary && (
+                                      <div className="resume-body mb-3 text-slate-600">
+                                        <ReactMarkdown components={resumeMarkdownComponents}>{project.summary}</ReactMarkdown>
+                                      </div>
+                                    )}
+                                    <ul className="divide-y divide-slate-100">
+                                      {project.details.map((detail) => {
+                                        const isExpanded = expandedCareerDetailIds.includes(detail.id);
+                                        const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
+                                        return (
+                                          <li key={detail.id} id={`experience-detail-${detail.id}`} className="scroll-mt-24 py-1.5 first:pt-0 last:pb-0">
+                                            <div
+                                              className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
+                                              onClick={() => hasDetailContent && toggleCareerDetail(detail.id)}
+                                            >
+                                              <span className="flex h-5 items-center justify-center">
+                                                {hasDetailContent ? (
+                                                  <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 print:hidden ${isExpanded ? 'rotate-180 text-slate-800' : ''}`} />
+                                                ) : (
+                                                  <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                                )}
+                                              </span>
+                                              <span className="resume-body min-w-0 text-slate-700">{detail.content}</span>
+                                              {detail.id > 0 && (
+                                                <button
+                                                  type="button"
+                                                  aria-hidden={!isExpanded}
+                                                  tabIndex={isExpanded ? 0 : -1}
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    openExperienceDetail(detail.id, `experience-detail-${detail.id}`);
+                                                  }}
+                                                  className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-600 transition-opacity hover:text-slate-950 hover:underline print:hidden ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
+                                                >
+                                                  자세히 보기
+                                                </button>
+                                              )}
+                                            </div>
+
+                                            {hasDetailContent && (
+                                              <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isExpanded ? 'mb-3 mt-2 grid-rows-[1fr] opacity-100' : 'mb-0 mt-0 grid-rows-[0fr] opacity-0'}`}>
+                                                <div className="min-h-0 overflow-hidden">
+                                                  <div className="resume-career-detail resume-body ml-7 space-y-2.5 text-slate-600 print:ml-0">
+                                                    {detail.situation && (
+                                                      <div>
+                                                        <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">상황</p>
+                                                        <ReactMarkdown components={resumeMarkdownComponents}>{detail.situation}</ReactMarkdown>
+                                                      </div>
+                                                    )}
+                                                    {detail.actionDetail && (
+                                                      <div>
+                                                        <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
+                                                        <ReactMarkdown components={resumeMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
+                                                      </div>
+                                                    )}
+                                                    {detail.outcome && (
+                                                      <div>
+                                                        <p className="resume-label mb-1 font-bold uppercase tracking-wider text-emerald-600">성과</p>
+                                                        <ReactMarkdown components={resumeMarkdownComponents}>{detail.outcome}</ReactMarkdown>
+                                                      </div>
+                                                    )}
+                                                    {detail.skills.length > 0 && (
+                                                      <div className="flex flex-wrap gap-1 pt-1">
+                                                        {detail.skills.map((skill) => <span key={skill.id} className={badgeStyle}>{skill.name}</span>)}
+                                                      </div>
+                                                    )}
+                                                    {detail.id > 0 && <RelatedStudyNotes experienceDetailId={detail.id} onOpenStudy={openStudy} />}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
                         {career.details.map(detail => {
                           const isExpanded = expandedCareerDetailIds.includes(detail.id);
                           const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
@@ -1726,7 +1863,7 @@ export function App() {
                                     type="button"
                                     aria-hidden={!isExpanded}
                                     tabIndex={isExpanded ? 0 : -1}
-                                    onClick={(e) => { e.stopPropagation(); navigate(pathForExperienceDetail(detail.id)); }}
+                                    onClick={(e) => { e.stopPropagation(); openExperienceDetail(detail.id, `experience-detail-${detail.id}`); }}
                                     className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-800 transition-opacity duration-200 hover:text-slate-950 hover:underline print:hidden ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
                                   >
                                     자세히 보기
@@ -1931,7 +2068,7 @@ export function App() {
                             </div>
 
                             {m.repositoryUrl && (
-                              <div>
+                              <div className="print:hidden">
                                 <a
                                   href={m.repositoryUrl}
                                   target="_blank"
@@ -1960,8 +2097,8 @@ export function App() {
                             )}
 
                             {m.details.length > 0 && (
-                              <div className="border-t border-slate-100 pt-3 print:break-inside-avoid">
-                                <div className="mb-2.5 flex items-center justify-between gap-3">
+                              <div className="border-t border-slate-100 pt-3">
+                                <div className="resume-detail-header mb-2.5 flex items-center justify-between gap-3">
                                   <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
                                     <Briefcase className="h-3.5 w-3.5 text-slate-500" />
                                     상세 경험
@@ -2021,7 +2158,7 @@ export function App() {
                                               tabIndex={isExpanded ? 0 : -1}
                                               onClick={(event) => {
                                                 event.stopPropagation();
-                                                navigate(pathForExperienceDetail(detail.id));
+                                                openExperienceDetail(detail.id, `experience-detail-${detail.id}`);
                                               }}
                                               className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-600 transition-opacity duration-200 hover:text-slate-950 hover:underline print:hidden ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
                                             >
@@ -2053,7 +2190,7 @@ export function App() {
                                               </div>
                                             )}
                                             {detail.skills.length > 0 && (
-                                              <div className="flex flex-wrap gap-1 pt-1">
+                                              <div className="flex flex-wrap gap-1 pt-1 print:hidden">
                                                 {detail.skills.map((skill) => (
                                                   <span key={skill.id} className={badgeStyle}>{skill.name}</span>
                                                 ))}
@@ -2296,7 +2433,7 @@ export function App() {
             {selectedExperienceDetailId && (
               <div className="flex items-center justify-between pb-1">
                 <button onClick={closeExperienceDetail} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
-                  <ArrowLeft className="h-4 w-4" /> 경험 목록
+                  <ArrowLeft className="h-4 w-4" /> {referrer ? '이전 화면으로' : '경험 목록'}
                 </button>
               </div>
             )}
@@ -2324,7 +2461,7 @@ export function App() {
                           {selectedExperienceDetail.detail.situation && (
                             <div>
                               <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">상황</h2>
-                              <div className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                              <div className="text-sm leading-relaxed text-slate-600 sm:text-base">
                                 <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.situation}</ReactMarkdown>
                               </div>
                             </div>
@@ -2332,7 +2469,7 @@ export function App() {
                           {selectedExperienceDetail.detail.actionDetail && (
                             <div>
                               <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">진행 과정</h2>
-                              <div className="text-base leading-relaxed text-slate-600 sm:text-lg">
+                              <div className="text-sm leading-relaxed text-slate-600 sm:text-base">
                                 <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.actionDetail}</ReactMarkdown>
                               </div>
                             </div>
@@ -2340,7 +2477,7 @@ export function App() {
                           {selectedExperienceDetail.detail.outcome && (
                             <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
                               <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-emerald-700">성과</h2>
-                              <div className="text-base leading-relaxed text-emerald-800 sm:text-lg">
+                              <div className="text-sm leading-relaxed text-emerald-800 sm:text-base">
                                 <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.outcome}</ReactMarkdown>
                               </div>
                             </div>
@@ -2457,7 +2594,7 @@ export function App() {
                       <div className={`flex flex-col items-center gap-2 py-1 ${isSectionNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}>
                         <button
                           onClick={closeExperienceDetail}
-                          title="경험 목록"
+                          title={referrer ? '이전 화면으로' : '경험 목록'}
                           className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900 shadow-sm"
                         >
                           <ArrowLeft className="h-4 w-4" />
@@ -2540,13 +2677,13 @@ export function App() {
                           <span className="font-mono">{selectedStudy.learnedAt}</span>
                         </div>
                         <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{selectedStudy.title}</h1>
-                        <p className="mt-4 text-base sm:text-lg leading-relaxed text-slate-500">{selectedStudy.summary}</p>
+                        <p className="mt-4 text-sm sm:text-base leading-relaxed text-slate-500">{selectedStudy.summary}</p>
                         <div className="mt-4 flex flex-wrap gap-1.5">
                           {selectedStudy.tags.map((tag) => <span key={tag.id} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">#{tag.name}</span>)}
                           {selectedStudy.skills.map((skill) => <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600">{skill.name}</span>)}
                         </div>
                       </div>
-                      <div className="space-y-4 text-base sm:text-lg leading-relaxed text-slate-700">
+                      <div className="space-y-4 text-sm sm:text-base leading-relaxed text-slate-700">
                         <ReactMarkdown components={markdownComponents}>{selectedStudy.contentMarkdown}</ReactMarkdown>
                       </div>
                     </article>
@@ -2627,7 +2764,7 @@ export function App() {
                             {selectedStudy.experienceDetails.map((detail) => (
                               <button
                                 key={detail.id}
-                                onClick={() => navigate(pathForExperienceDetail(detail.id))}
+                                onClick={() => openExperienceDetail(detail.id)}
                                 className="flex w-full items-start gap-1 text-left text-xs font-semibold text-slate-600 hover:text-slate-950 leading-normal"
                               >
                                 <span className="mt-0.5 text-slate-400 font-bold shrink-0">›</span>

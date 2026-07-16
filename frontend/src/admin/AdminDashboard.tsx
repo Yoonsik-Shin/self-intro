@@ -234,6 +234,7 @@ const emptyExperienceForm: AdminExperienceForm = {
   slug: '',
   contributionRate: 100,
   repositoryUrl: '',
+  careerId: undefined,
   institutionName: '',
   issuer: '',
   studyIds: [],
@@ -966,8 +967,11 @@ export function AdminDashboard() {
       department: expForm.type === 'CAREER' ? expForm.department : undefined,
       role: (expForm.type === 'CAREER' || expForm.type === 'PROJECT') ? expForm.role : undefined,
       slug: expForm.type === 'PROJECT' ? expForm.slug : undefined,
-      contributionRate: expForm.type === 'PROJECT' ? Number(expForm.contributionRate) : undefined,
+      contributionRate: expForm.type === 'PROJECT' && expForm.contributionRate != null
+        ? Number(expForm.contributionRate)
+        : undefined,
       repositoryUrl: expForm.type === 'PROJECT' ? expForm.repositoryUrl?.trim() || undefined : undefined,
+      careerId: expForm.type === 'PROJECT' ? expForm.careerId : undefined,
       institutionName: expForm.type === 'EDUCATION' ? expForm.institutionName : undefined,
       issuer: expForm.type === 'CERTIFICATE' ? expForm.issuer : undefined,
     };
@@ -1095,8 +1099,9 @@ export function AdminDashboard() {
         department: experience.department ?? '',
         role: experience.role ?? '',
         slug: experience.slug ?? '',
-        contributionRate: experience.contributionRate ?? 100,
+        contributionRate: experience.contributionRate,
         repositoryUrl: experience.repositoryUrl ?? '',
+        careerId: experience.careerId,
         institutionName: experience.institutionName ?? '',
         issuer: experience.issuer ?? '',
         studyIds: connections.studyIds,
@@ -1238,8 +1243,11 @@ export function AdminDashboard() {
         department: expForm.type === 'CAREER' ? expForm.department : undefined,
         role: (expForm.type === 'CAREER' || expForm.type === 'PROJECT') ? expForm.role : undefined,
         slug: expForm.type === 'PROJECT' ? expForm.slug : undefined,
-        contributionRate: expForm.type === 'PROJECT' ? Number(expForm.contributionRate) : undefined,
+        contributionRate: expForm.type === 'PROJECT' && expForm.contributionRate != null
+          ? Number(expForm.contributionRate)
+          : undefined,
         repositoryUrl: expForm.type === 'PROJECT' ? expForm.repositoryUrl?.trim() || undefined : undefined,
+        careerId: expForm.type === 'PROJECT' ? expForm.careerId : undefined,
         institutionName: expForm.type === 'EDUCATION' ? expForm.institutionName : undefined,
         issuer: expForm.type === 'CERTIFICATE' ? expForm.issuer : undefined,
       };
@@ -2836,7 +2844,10 @@ export function AdminDashboard() {
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이력 구분 (유형)</label>
                       <select
                         value={expForm.type}
-                        onChange={(e) => setExpForm({ ...expForm, type: e.target.value as any })}
+                        onChange={(e) => {
+                          const type = e.target.value as ExperienceRequest['type'];
+                          setExpForm({ ...expForm, type, careerId: type === 'PROJECT' ? expForm.careerId : undefined });
+                        }}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                       >
                         <option value="CAREER">회사 경력 (CAREER)</option>
@@ -2972,6 +2983,34 @@ export function AdminDashboard() {
 
                   {expForm.type === 'PROJECT' && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
+                      <div className="sm:col-span-3">
+                        <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">프로젝트 소속</label>
+                        <select
+                          value={expForm.careerId ?? ''}
+                          onChange={(e) => {
+                            const careerId = e.target.value ? Number(e.target.value) : undefined;
+                            const career = (experiencesList ?? []).find((item) => item.id === careerId && item.type === 'CAREER');
+                            setExpForm({
+                              ...expForm,
+                              careerId,
+                              periodStart: career?.periodStart ?? expForm.periodStart,
+                              periodEnd: career?.periodEnd ?? expForm.periodEnd,
+                              role: career?.role || expForm.role,
+                            });
+                          }}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                        >
+                          <option value="">독립·팀 프로젝트</option>
+                          {(experiencesList ?? [])
+                            .filter((item) => item.type === 'CAREER')
+                            .map((career) => (
+                              <option key={career.id} value={career.id}>
+                                {career.companyName || career.title} · {career.role || '역할 미입력'}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="mt-1 text-xs text-slate-400">직장 경력을 선택하면 해당 회사 아래에 소속 프로젝트로 표시됩니다.</p>
+                      </div>
                       <div>
                         <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">프로젝트 식별자 (slug)</label>
                         <input
@@ -2998,11 +3037,10 @@ export function AdminDashboard() {
                         <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">기여도 (%)</label>
                         <input
                           type="number"
-                          required
                           min={0}
                           max={100}
-                          value={expForm.contributionRate}
-                          onChange={(e) => setExpForm({ ...expForm, contributionRate: Number(e.target.value) })}
+                          value={expForm.contributionRate ?? ''}
+                          onChange={(e) => setExpForm({ ...expForm, contributionRate: e.target.value ? Number(e.target.value) : undefined })}
                           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
