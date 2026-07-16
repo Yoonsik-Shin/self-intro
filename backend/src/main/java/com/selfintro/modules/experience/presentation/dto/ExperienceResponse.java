@@ -4,7 +4,9 @@ import com.selfintro.modules.experience.domain.*;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.study.entity.Tag;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 public record ExperienceResponse(
@@ -41,6 +43,18 @@ public record ExperienceResponse(
     // Certificate
     String issuer
 ) {
+    public ExperienceResponse withSelectedDetails(List<Long> detailIds) {
+        Set<Long> selectedIds = new HashSet<>(detailIds);
+        return new ExperienceResponse(
+            id, type, title, periodStart, periodEnd, summary, takeaway, essayContent,
+            displayOrder, showOnTimeline, timelineLabel,
+            details.stream().filter(detail -> selectedIds.contains(detail.id())).toList(),
+            skills, tags, images,
+            companyName, employmentType, department, role,
+            slug, contributionRate, repositoryUrl, institutionName, issuer
+        );
+    }
+
     public static ExperienceResponse from(Experience exp, Function<String, String> imageUrlResolver) {
         List<ExperienceDetailResponse> detailResponses = exp.getDetails().stream()
             .map(ExperienceDetailResponse::from)

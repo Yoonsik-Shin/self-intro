@@ -5,6 +5,8 @@ import com.selfintro.bff.presentation.dto.LearningResponse;
 import com.selfintro.modules.profile.application.ProfileService;
 import com.selfintro.modules.profile.presentation.dto.ProfileResponse;
 import com.selfintro.modules.experience.application.ExperienceService;
+import com.selfintro.modules.experience.application.ExperiencePlacementService;
+import com.selfintro.modules.experience.domain.ExperiencePlacementType;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import com.selfintro.modules.skill.application.SkillService;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
@@ -26,6 +28,7 @@ public class BffService {
 
     private final ProfileService profileService;
     private final ExperienceService experienceService;
+    private final ExperiencePlacementService experiencePlacementService;
     private final SkillService skillService;
     private final StudyService studyService;
     private final CompetencyService competencyService;
@@ -43,8 +46,15 @@ public class BffService {
             .map(SkillResponse::from)
             .toList();
 
+        List<ExperienceResponse> coreProjects = experiencePlacementService
+            .getEnabledSelections(ExperiencePlacementType.CORE_PROJECT)
+            .stream()
+            .map(selection -> experienceService.toResponse(selection.experience())
+                .withSelectedDetails(selection.detailIds()))
+            .toList();
+
         return new IntroductionResponse(
-            profile, experiences, skills, calculateCareerSummary(experiences), competencyService.getVisible());
+            profile, experiences, coreProjects, skills, calculateCareerSummary(experiences), competencyService.getVisible());
     }
 
     private String calculateCareerSummary(List<ExperienceResponse> experiences) {

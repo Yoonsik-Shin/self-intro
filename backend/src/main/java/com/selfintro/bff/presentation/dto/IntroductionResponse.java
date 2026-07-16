@@ -9,6 +9,7 @@ import java.util.List;
 public record IntroductionResponse(
     ProfileResponse profile,
     List<ExperienceResponse> experiences,
+    List<ExperienceResponse> coreProjects,
     List<SkillResponse> skills,
     String careerSummary,
     List<CompetencyResponse> competencies

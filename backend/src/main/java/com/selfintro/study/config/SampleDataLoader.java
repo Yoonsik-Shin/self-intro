@@ -30,6 +30,8 @@ public class SampleDataLoader implements ApplicationRunner {
     private final ProfileRepository profileRepository;
     private final SkillRepository skillRepository;
     private final ExperienceRepository experienceRepository;
+    private final ExperiencePlacementRepository experiencePlacementRepository;
+    private final ExperiencePlacementDetailRepository experiencePlacementDetailRepository;
     private final StudyRepository studyRepository;
     private final StudyCategoryRepository studyCategoryRepository;
     private final TagRepository tagRepository;
@@ -68,6 +70,7 @@ public class SampleDataLoader implements ApplicationRunner {
 
     private void seedSkillsAndExperiencesAndStudies() {
         if (experienceRepository.count() > 0) {
+            seedCoreProjectPlacements();
             return;
         }
 
@@ -573,6 +576,36 @@ public class SampleDataLoader implements ApplicationRunner {
         study8.replaceSkills(getSkills(List.of("Java", "Spring Boot", "Spring Data JPA", "PostgreSQL", "Flyway"), skillMap));
         study8.replaceTags(getOrCreateTags(List.of("Backend", "Security", "Encryption", "Migration", "HMAC")));
         studyRepository.save(study8);
+
+        seedCoreProjectPlacements();
+    }
+
+    private void seedCoreProjectPlacements() {
+        List<ExperiencePlacement> placements;
+        if (experiencePlacementRepository.count() > 0) {
+            placements = experiencePlacementRepository.findAll();
+        } else {
+            placements = experienceRepository.findAllByOrderByDisplayOrderAsc().stream()
+                    .filter(experience -> "CAREER".equals(experience.getType()) || "PROJECT".equals(experience.getType()))
+                    .map(experience -> ExperiencePlacement.create(
+                            experience,
+                            ExperiencePlacementType.CORE_PROJECT,
+                            experience.getDisplayOrder(),
+                            true))
+                    .toList();
+            placements = experiencePlacementRepository.saveAll(placements);
+        }
+
+        if (experiencePlacementDetailRepository.count() == 0) {
+            List<ExperiencePlacementDetail> detailMappings = placements.stream()
+                    .flatMap(placement -> placement.getExperience().getDetails().stream()
+                            .map(detail -> ExperiencePlacementDetail.create(
+                                    placement,
+                                    detail,
+                                    detail.getDisplayOrder())))
+                    .toList();
+            experiencePlacementDetailRepository.saveAll(detailMappings);
+        }
     }
 
     private Skill getOrCreateSkill(String name, String category, String level, boolean isCore, int order) {
