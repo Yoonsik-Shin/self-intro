@@ -341,8 +341,12 @@ select {
     background: transparent !important;
     box-shadow: none !important;
     padding: 4mm 0 0 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    /* Intentionally no break-inside:avoid here — project cards can run
+       longer than one page, and forcing "avoid" on a block taller than a
+       page makes the browser jump it to a fresh page wholesale, wasting
+       the remainder of the previous page. Granular avoid rules below
+       (header row, each detail item) keep the pieces that must stay
+       together intact while letting the card flow to fill each page. */
   }
 
   .resume-project-item:first-child .resume-project-card {
@@ -377,7 +381,9 @@ select {
   .resume-section-title,
   .resume-item-title,
   .resume-competency-header,
-  .resume-project-card > div:first-child {
+  .resume-project-card > div:first-child,
+  .resume-detail-header,
+  .resume-label {
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
