@@ -28,6 +28,7 @@ import org.springframework.util.StringUtils;
 public class ExperienceService {
 
     private final ExperienceRepository experienceRepository;
+    private final ProjectRepository projectRepository;
     private final SkillRepository skillRepository;
     private final TagRepository tagRepository;
     private final StorageService storageService;
@@ -58,7 +59,8 @@ public class ExperienceService {
             case "PROJECT" -> exp = Project.create(
                 request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
-                request.slug(), request.role(), request.contributionRate(), normalizeOptionalText(request.repositoryUrl())
+                request.slug(), request.role(), request.contributionRate(), normalizeOptionalText(request.repositoryUrl()),
+                resolveCareer(request.careerId(), request.periodStart(), request.periodEnd())
             );
             case "EDUCATION" -> exp = Education.create(
                 request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
@@ -100,7 +102,8 @@ public class ExperienceService {
             project.update(
                 request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
-                request.slug(), request.role(), request.contributionRate(), normalizeOptionalText(request.repositoryUrl())
+                request.slug(), request.role(), request.contributionRate(), normalizeOptionalText(request.repositoryUrl()),
+                resolveCareer(request.careerId(), request.periodStart(), request.periodEnd())
             );
         } else if (exp instanceof Education edu && "EDUCATION".equalsIgnoreCase(request.type())) {
             edu.update(
@@ -136,6 +139,9 @@ public class ExperienceService {
     public void delete(Long id) {
         Experience exp = experienceRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력서 항목입니다."));
+        if (exp instanceof Career && projectRepository.existsByCareerId(id)) {
+            throw new IllegalArgumentException("연결된 직장 프로젝트를 먼저 다른 경력으로 옮기거나 삭제해주세요.");
+        }
         List<String> objectKeys = exp.getImages().stream().map(ExperienceImage::getObjectKey).toList();
         experienceRepository.delete(exp);
         storageService.deleteAll(objectKeys);
@@ -152,6 +158,28 @@ public class ExperienceService {
 
     private String normalizeOptionalText(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private Career resolveCareer(Long careerId, java.time.LocalDate projectStart, java.time.LocalDate projectEnd) {
+        if (careerId == null) {
+            return null;
+        }
+        Experience experience = experienceRepository.findById(careerId)
+            .orElseThrow(() -> new IllegalArgumentException("연결할 직장 경력을 찾을 수 없습니다."));
+        if (!(experience instanceof Career career)) {
+            throw new IllegalArgumentException("프로젝트는 직장 경력(CAREER)에만 연결할 수 있습니다.");
+        }
+        if (projectStart.isBefore(career.getPeriodStart())) {
+            throw new IllegalArgumentException("직장 프로젝트 시작일은 연결된 경력 시작일보다 빠를 수 없습니다.");
+        }
+        if (career.getPeriodEnd() != null
+            && (projectEnd == null || projectEnd.isAfter(career.getPeriodEnd()))) {
+            throw new IllegalArgumentException("직장 프로젝트 종료일은 연결된 경력 기간 안에 있어야 합니다.");
+        }
+        if (projectEnd != null && projectEnd.isBefore(projectStart)) {
+            throw new IllegalArgumentException("프로젝트 종료일은 시작일보다 빠를 수 없습니다.");
+        }
+        return career;
     }
 
     private List<Tag> resolveTags(List<String> tagNames) {

@@ -59,8 +59,8 @@ public class ExperiencePlacementService {
         }
 
         for (Experience experience : experiences.values()) {
-            if (!"CAREER".equals(experience.getType()) && !"PROJECT".equals(experience.getType())) {
-                throw new IllegalArgumentException("직장 경력과 프로젝트만 핵심 프로젝트로 편성할 수 있습니다.");
+            if (!"PROJECT".equals(experience.getType())) {
+                throw new IllegalArgumentException("프로젝트만 핵심 프로젝트로 편성할 수 있습니다.");
             }
         }
 
@@ -129,7 +129,7 @@ public class ExperiencePlacementService {
             throw new IllegalArgumentException("동일한 상세 경험을 중복 선택할 수 없습니다.");
         }
         if (!new HashSet<>(availableDetailIds).containsAll(selectedIds)) {
-            throw new IllegalArgumentException("해당 경력·프로젝트에 속하지 않은 상세 경험이 포함되어 있습니다.");
+            throw new IllegalArgumentException("해당 프로젝트에 속하지 않은 상세 경험이 포함되어 있습니다.");
         }
         return List.copyOf(selectedIds);
     }

@@ -173,16 +173,8 @@ public class SampleDataLoader implements ApplicationRunner {
         String essaySql = "데이터 모델 정규화 및 반정규화, 인덱스(Index) 설계 원리와 조인(Join) 메커니즘을 심도 있게 학습했습니다. Spring Boot 기반 백오피스 개발 시 8개 도메인 간의 유기적 관계(1:N, N:M)를 매핑하고, 복잡한 동적 필터 조회를 위해 QueryDSL을 연동하여 성능 향상을 이뤄냈습니다. N+1 문제를 방지하기 위해 Fetch Join과 인덱스 튜닝을 도입하여 조회 속도를 개선했습니다.";
         String essayBigdata = "대량 데이터 수집, 이상치 정제, 통계적 분석(가설 검정, 회귀 모형) 및 평가 메커니즘을 마이그레이션과 AI RAG 파이프라인에 접목했습니다. SubmittedProblem 통계 병합 마이그레이션 시 14개 집계 지표(제출수/정답수/소요시간 등)를 MongoDB 트랜잭션 내에서 정량 데이터로 가공·적재하는 파이프라인을 구축하였으며, AI 모의면접 플랫폼에서 PDF 이력서 RAG 질문 생성의 답변 정확도를 분석하는 통계 평가 체계에 응용했습니다.";
 
-        // Seed Experience - Career
-        Experience savedCareer = experienceRepository.save(Career.create(
-                "학습 플랫폼 핵심 API 및 BFF 구축 (기여도 43%)",
-                LocalDate.of(2023, 12, 1),
-                LocalDate.of(2025, 10, 31),
-                "커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하였습니다.",
-                "실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.",
-                essayCareer,
-                4,
-                List.of(
+        // Seed Career and the concrete work projects performed within it.
+        List<ExperienceDetail.Draft> workProjectDetails = List.of(
                         detail(
                                 "AI 튜터링 및 학습 플랫폼 핵심 API 서버 개발",
                                 "커리큘럼 기반 AI 학습 플랫폼에서 AI 튜터와 학생 간 실시간 메시징을 처리하는 핵심 Express API 서버가 필요했습니다. 튜터링 세션은 문제풀이·복습·챌린지·개념보강 4가지 컨텍스트로 나뉘어 있었지만 하나의 평평한 모델로 뒤섞여 있어 확장이 어려웠습니다.",
@@ -223,13 +215,75 @@ public class SampleDataLoader implements ApplicationRunner {
                                 4,
                                 getSkills(List.of("NestJS", "TypeScript", "MongoDB", "Docker"), skillMap)
                         )
-                ),
+                );
+
+        Career savedCareer = (Career) experienceRepository.save(Career.create(
+                "에듀테크 스타트업 Backend & DevOps 경력",
+                LocalDate.of(2023, 12, 1),
+                LocalDate.of(2025, 10, 31),
+                "커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하였습니다.",
+                "실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.",
+                essayCareer,
+                4,
+                List.of(),
                 getSkills(List.of("Node.js", "TypeScript", "NestJS", "Express", "MongoDB", "Redis", "Spring Boot", "Spring Data JPA", "Spring Security", "MySQL", "AWS ECS", "Amazon SQS", "Docker", "Datadog", "GitHub Actions"), skillMap),
                 true, "에듀테크 실무 (1년 11개월)",
                 "(주)에듀테크 스타트업",
                 "정규직",
                 "개발팀 백엔드 파트",
                 "Backend & DevOps Engineer"
+        ));
+
+        Project workApiBffProject = experienceRepository.save(Project.create(
+                "학습 플랫폼 핵심 API 및 BFF 구축",
+                savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
+                "AI 튜터링 세션을 4개 컨텍스트로 추상화한 Express API와 교사용·학생용 클라이언트를 중계하는 NestJS BFF를 설계·개발했습니다.",
+                "9,500여 개 커밋 중 약 43%를 담당하며 핵심 API, BFF, CQRS 리팩토링과 대규모 데이터 마이그레이션을 주도했습니다.",
+                essayCareer,
+                4,
+                List.of(workProjectDetails.get(0), workProjectDetails.get(1)),
+                getSkills(List.of("Node.js", "TypeScript", "Express", "MongoDB", "NestJS", "Redis"), skillMap),
+                false, null,
+                "work-learning-api-bff", savedCareer.getRole(), 43, null, savedCareer
+        ));
+
+        Project workBackofficeProject = experienceRepository.save(Project.create(
+                "Spring Boot 기반 사내 백오피스 구축",
+                savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
+                "여러 부서의 반복 수작업을 줄이기 위해 Spring Boot 3.2 기반 사내 백오피스와 알림·인증 자동화 흐름을 단독 구축했습니다.",
+                "6만여 개 문항 조회와 부서 공용 워크플로우를 자동화하며 독립적인 사내 서비스 설계·운영 경험을 확보했습니다.",
+                null,
+                5,
+                List.of(workProjectDetails.get(2)),
+                workProjectDetails.get(2).skills(),
+                false, null,
+                "work-spring-backoffice", savedCareer.getRole(), 100, null, savedCareer
+        ));
+
+        Project workInfraProject = experienceRepository.save(Project.create(
+                "AWS 인프라 및 CI/CD 파이프라인 구축·운영",
+                savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
+                "AWS ECS·SQS 기반 인프라와 Docker 배포 환경, GitHub Actions CI/CD 및 Datadog 모니터링 체계를 구축·운영했습니다.",
+                "배포 수작업과 환경 차이를 줄이고 장애를 조기에 발견할 수 있는 안정적인 서비스 운영 기반을 마련했습니다.",
+                null,
+                6,
+                List.of(workProjectDetails.get(3)),
+                workProjectDetails.get(3).skills(),
+                false, null,
+                "work-aws-cicd", savedCareer.getRole(), null, null, savedCareer
+        ));
+
+        Project workProblemProject = experienceRepository.save(Project.create(
+                "공용 Problem 서비스 및 모노레포 패키지 구축",
+                savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
+                "6만여 문항을 제공하는 NestJS 공용 문제 서비스와 npm workspaces 기반 공통 패키지 모노레포를 단독 구축했습니다.",
+                "마이크로서비스의 공통 아키텍처 패턴을 표준화하고 신규 서버 모듈의 초기 설정 시간을 단축했습니다.",
+                null,
+                7,
+                List.of(workProjectDetails.get(4)),
+                workProjectDetails.get(4).skills(),
+                false, null,
+                "work-problem-monorepo", savedCareer.getRole(), 100, null, savedCareer
         ));
 
         // Seed Experience - Projects
@@ -435,8 +489,14 @@ public class SampleDataLoader implements ApplicationRunner {
                 "대한상공회의소"
         ));
 
-        // Seed Studies (linked to saved Career / Projects / Details)
-        List<ExperienceDetail> careerDetails = savedCareer.getDetails();
+        // Seed Studies (linked to the work project that owns each detail)
+        List<ExperienceDetail> careerDetails = List.of(
+                workApiBffProject.getDetails().get(0),
+                workApiBffProject.getDetails().get(1),
+                workBackofficeProject.getDetails().get(0),
+                workInfraProject.getDetails().get(0),
+                workProblemProject.getDetails().get(0)
+        );
 
         // Study 1: AI 튜터링 세션 아키텍처
         Study study1 = studyRepository.save(Study.create(
@@ -449,7 +509,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2025, 9, 15),
                 LocalDateTime.of(2025, 9, 15, 18, 0)
         ));
-        study1.replaceExperiences(List.of(savedCareer));
+        study1.replaceExperiences(List.of(workApiBffProject));
         if (careerDetails.size() > 0) study1.replaceExperienceDetails(List.of(careerDetails.get(0)));
         study1.replaceSkills(getSkills(List.of("Node.js", "TypeScript", "Express", "MongoDB", "AWS ECS", "Amazon SQS", "NestJS"), skillMap));
         study1.replaceTags(getOrCreateTags(List.of("Backend", "MSA", "AI", "SQS", "Idempotence", "MongoDB")));
@@ -466,7 +526,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2025, 6, 26),
                 LocalDateTime.of(2025, 6, 26, 17, 0)
         ));
-        study2.replaceExperiences(List.of(savedCareer));
+        study2.replaceExperiences(List.of(workApiBffProject));
         if (careerDetails.size() > 1) study2.replaceExperienceDetails(List.of(careerDetails.get(1)));
         study2.replaceSkills(getSkills(List.of("TypeScript", "NestJS", "Redis", "AWS ECS", "Amazon SQS"), skillMap));
         study2.replaceTags(getOrCreateTags(List.of("Backend", "Presence", "Redis", "Telemetry", "SQS")));
@@ -483,7 +543,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2025, 1, 15),
                 LocalDateTime.of(2025, 1, 15, 15, 0)
         ));
-        study3.replaceExperiences(List.of(savedCareer));
+        study3.replaceExperiences(List.of(workApiBffProject));
         if (careerDetails.size() > 1) study3.replaceExperienceDetails(List.of(careerDetails.get(1)));
         study3.replaceSkills(getSkills(List.of("Node.js", "TypeScript", "MongoDB", "Database"), skillMap));
         study3.replaceTags(getOrCreateTags(List.of("Backend", "CQRS", "Database", "Migration", "MongoDB", "Transaction")));
@@ -500,7 +560,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2025, 6, 13),
                 LocalDateTime.of(2025, 6, 13, 11, 0)
         ));
-        study4.replaceExperiences(List.of(savedCareer));
+        study4.replaceExperiences(List.of(workBackofficeProject));
         if (careerDetails.size() > 2) study4.replaceExperienceDetails(List.of(careerDetails.get(2)));
         study4.replaceSkills(getSkills(List.of("Java", "Spring Boot", "Spring Data JPA", "Spring Security", "Redis", "MySQL", "Docker", "Nginx", "Grafana"), skillMap));
         study4.replaceTags(getOrCreateTags(List.of("Backend", "Spring", "Security", "Redis", "Session", "Nginx")));
@@ -517,7 +577,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2025, 9, 10),
                 LocalDateTime.of(2025, 9, 10, 19, 0)
         ));
-        study5.replaceExperiences(List.of(savedCareer));
+        study5.replaceExperiences(List.of(workProblemProject));
         if (careerDetails.size() > 4) study5.replaceExperienceDetails(List.of(careerDetails.get(4)));
         study5.replaceSkills(getSkills(List.of("Node.js", "TypeScript", "NestJS", "Docker", "AWS ECS", "Amazon SQS", "MongoDB"), skillMap));
         study5.replaceTags(getOrCreateTags(List.of("DevOps", "Monorepo", "CLI", "Scaffold", "Infrastructure", "NPM")));
@@ -586,7 +646,10 @@ public class SampleDataLoader implements ApplicationRunner {
             placements = experiencePlacementRepository.findAll();
         } else {
             placements = experienceRepository.findAllByOrderByDisplayOrderAsc().stream()
-                    .filter(experience -> "CAREER".equals(experience.getType()) || "PROJECT".equals(experience.getType()))
+                    .filter(experience -> "PROJECT".equals(experience.getType()))
+                    .filter(experience -> !(experience instanceof Project project)
+                            || project.getCareer() == null
+                            || "work-learning-api-bff".equals(project.getSlug()))
                     .map(experience -> ExperiencePlacement.create(
                             experience,
                             ExperiencePlacementType.CORE_PROJECT,

@@ -36,6 +36,7 @@ public record ExperienceResponse(
     String slug,
     Integer contributionRate,
     String repositoryUrl,
+    Long careerId,
 
     // Education
     String institutionName,
@@ -51,7 +52,7 @@ public record ExperienceResponse(
             details.stream().filter(detail -> selectedIds.contains(detail.id())).toList(),
             skills, tags, images,
             companyName, employmentType, department, role,
-            slug, contributionRate, repositoryUrl, institutionName, issuer
+            slug, contributionRate, repositoryUrl, careerId, institutionName, issuer
         );
     }
 
@@ -76,7 +77,7 @@ public record ExperienceResponse(
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 career.getCompanyName(), career.getEmploymentType(), career.getDepartment(), career.getRole(),
-                null, null, null, null, null
+                null, null, null, null, null, null
             );
         } else if (exp instanceof Project project) {
             return new ExperienceResponse(
@@ -85,7 +86,9 @@ public record ExperienceResponse(
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, project.getRole(),
-                project.getSlug(), project.getContributionRate(), project.getRepositoryUrl(), null, null
+                project.getSlug(), project.getContributionRate(), project.getRepositoryUrl(),
+                project.getCareer() != null ? project.getCareer().getId() : null,
+                null, null
             );
         } else if (exp instanceof Education edu) {
             return new ExperienceResponse(
@@ -94,7 +97,7 @@ public record ExperienceResponse(
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, null,
-                null, null, null, edu.getInstitutionName(), null
+                null, null, null, null, edu.getInstitutionName(), null
             );
         } else if (exp instanceof Certificate cert) {
             return new ExperienceResponse(
@@ -103,7 +106,7 @@ public record ExperienceResponse(
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, null,
-                null, null, null, null, cert.getIssuer()
+                null, null, null, null, null, cert.getIssuer()
             );
         }
         throw new IllegalArgumentException("지원하지 않는 이력 서브타입입니다.");

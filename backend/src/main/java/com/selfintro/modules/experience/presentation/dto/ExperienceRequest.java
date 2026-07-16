@@ -32,6 +32,7 @@ public record ExperienceRequest(
     @Size(max = 500)
     @Pattern(regexp = "^$|https?://\\S+$", message = "repositoryUrl은 http 또는 https URL이어야 합니다.")
     String repositoryUrl,
+    Long careerId,
 
     // Education specific fields
     String institutionName,

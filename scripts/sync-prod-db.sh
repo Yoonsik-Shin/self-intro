@@ -182,7 +182,7 @@ docker exec self-intro-db sh -c 'MYSQL_PWD=root mysql --user=root self_intro --e
   )
   SELECT id, '\''CORE_PROJECT'\'', display_order, TRUE, NOW(), NOW()
   FROM experience
-  WHERE type IN ('\''CAREER'\'', '\''PROJECT'\'')
+  WHERE type = '\''PROJECT'\''
     AND NOT EXISTS (SELECT 1 FROM experience_placement)
   ORDER BY display_order, id;
 "'

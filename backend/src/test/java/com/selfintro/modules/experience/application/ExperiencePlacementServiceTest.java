@@ -36,8 +36,8 @@ class ExperiencePlacementServiceTest {
     @Test
     void replacesCoreProjectPlacementsInRequestedOrder() {
         Experience project = mockExperience(10L, "PROJECT");
-        Experience career = mockExperience(20L, "CAREER");
-        when(experienceRepository.findAllById(Set.of(10L, 20L))).thenReturn(List.of(project, career));
+        Experience secondProject = mockExperience(20L, "PROJECT");
+        when(experienceRepository.findAllById(Set.of(10L, 20L))).thenReturn(List.of(project, secondProject));
         when(placementRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = service.replaceAll(
@@ -69,15 +69,15 @@ class ExperiencePlacementServiceTest {
     }
 
     @Test
-    void rejectsUnsupportedExperienceType() {
-        Experience education = mockExperience(30L, "EDUCATION");
-        when(experienceRepository.findAllById(Set.of(30L))).thenReturn(List.of(education));
+    void rejectsCareerAsCoreProject() {
+        Experience career = mockExperience(30L, "CAREER");
+        when(experienceRepository.findAllById(Set.of(30L))).thenReturn(List.of(career));
 
         assertThatThrownBy(() -> service.replaceAll(
             ExperiencePlacementType.CORE_PROJECT,
             List.of(new ExperiencePlacementRequest(30L, 0, true))))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("직장 경력과 프로젝트");
+            .hasMessageContaining("프로젝트만");
     }
 
     private Experience mockExperience(Long id, String type) {
