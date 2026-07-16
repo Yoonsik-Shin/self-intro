@@ -1,6 +1,7 @@
 package com.selfintro.modules.visitor.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,8 +38,8 @@ class VisitorControllerTest {
 
     @Test
     void issuesHttpOnlyCookieAndStoresOnlyHashForNewVisitor() {
-        VisitorSummaryResponse summary = new VisitorSummaryResponse(1, 1, 1);
-        when(visitorService.recordVisit(argThat(hash -> hash != null && hash.length() == 64)))
+        VisitorSummaryResponse summary = new VisitorSummaryResponse(1, 1, 1, 0);
+        when(visitorService.recordVisit(argThat(hash -> hash != null && hash.length() == 64), any()))
                 .thenReturn(summary);
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -52,12 +53,12 @@ class VisitorControllerTest {
                 .contains("Secure")
                 .contains("HttpOnly")
                 .contains("SameSite=Lax");
-        verify(visitorService).recordVisit(argThat(hash -> hash.matches("[0-9a-f]{64}")));
+        verify(visitorService).recordVisit(argThat(hash -> hash.matches("[0-9a-f]{64}")), any());
     }
 
     @Test
     void doesNotRecordAdminVisit() {
-        VisitorSummaryResponse summary = new VisitorSummaryResponse(3, 10, 20);
+        VisitorSummaryResponse summary = new VisitorSummaryResponse(3, 10, 20, 0);
         when(visitorService.getSummary()).thenReturn(summary);
         UsernamePasswordAuthenticationToken admin = new UsernamePasswordAuthenticationToken(
                 "admin", "", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -72,7 +73,7 @@ class VisitorControllerTest {
     @Test
     void doesNotRecordConfiguredForwardedIp() {
         ReflectionTestUtils.setField(controller, "excludedIps", "203.0.113.10, 2001:db8::10");
-        VisitorSummaryResponse summary = new VisitorSummaryResponse(3, 10, 20);
+        VisitorSummaryResponse summary = new VisitorSummaryResponse(3, 10, 20, 0);
         when(visitorService.getSummary()).thenReturn(summary);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("X-Forwarded-For", "203.0.113.10, 10.0.0.4");

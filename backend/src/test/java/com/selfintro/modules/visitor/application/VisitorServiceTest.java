@@ -56,26 +56,26 @@ class VisitorServiceTest {
         when(visitorRepository.countDistinctVisitors()).thenReturn(1L);
         when(visitorRepository.sumPageViews()).thenReturn(1L);
 
-        VisitorSummaryResponse response = visitorService.recordVisit(VISITOR_HASH);
+        VisitorSummaryResponse response = visitorService.recordVisit(VISITOR_HASH, "Mozilla/5.0");
 
         verify(visitorRepository).save(any(VisitorDailyVisit.class));
         verify(hourlyVisitorRepository).save(any(VisitorHourlyVisit.class));
         verify(visitorRepository).flush();
-        assertThat(response).isEqualTo(new VisitorSummaryResponse(1, 1, 1));
+        assertThat(response).isEqualTo(new VisitorSummaryResponse(1, 1, 1, 0));
     }
 
     @Test
     void incrementsPageViewsWithoutCreatingAnotherDailyVisitor() {
         LocalDate today = LocalDate.of(2026, 7, 15);
         VisitorDailyVisit existing = VisitorDailyVisit.firstVisit(
-                VISITOR_HASH, today, LocalDateTime.of(2026, 7, 15, 9, 0));
+                VISITOR_HASH, today, LocalDateTime.of(2026, 7, 15, 9, 0), "Mozilla/5.0", false);
         VisitorHourlyVisit existingHourly = VisitorHourlyVisit.firstVisit(VISITOR_HASH, today, 12);
         when(visitorRepository.findByVisitorHashAndVisitedDate(VISITOR_HASH, today))
                 .thenReturn(Optional.of(existing));
         when(hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(VISITOR_HASH, today, 12))
                 .thenReturn(Optional.of(existingHourly));
 
-        visitorService.recordVisit(VISITOR_HASH);
+        visitorService.recordVisit(VISITOR_HASH, "Mozilla/5.0");
 
         assertThat(existing.getPageViews()).isEqualTo(2);
         assertThat(existingHourly.getPageViews()).isEqualTo(2);

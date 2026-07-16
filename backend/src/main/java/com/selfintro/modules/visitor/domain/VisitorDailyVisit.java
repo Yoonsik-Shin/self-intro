@@ -38,20 +38,32 @@ public class VisitorDailyVisit {
     @Column(name = "page_views", nullable = false)
     private long pageViews;
 
-    private VisitorDailyVisit(String visitorHash, LocalDate visitedDate, LocalDateTime visitedAt) {
+    @Column(name = "user_agent", length = 255)
+    private String userAgent;
+
+    @Column(name = "is_bot", nullable = false)
+    private boolean bot;
+
+    private VisitorDailyVisit(
+            String visitorHash, LocalDate visitedDate, LocalDateTime visitedAt, String userAgent, boolean bot) {
         this.visitorHash = visitorHash;
         this.visitedDate = visitedDate;
         this.firstVisitedAt = visitedAt;
         this.lastVisitedAt = visitedAt;
         this.pageViews = 1;
+        this.userAgent = userAgent;
+        this.bot = bot;
     }
 
-    public static VisitorDailyVisit firstVisit(String visitorHash, LocalDate visitedDate, LocalDateTime visitedAt) {
-        return new VisitorDailyVisit(visitorHash, visitedDate, visitedAt);
+    public static VisitorDailyVisit firstVisit(
+            String visitorHash, LocalDate visitedDate, LocalDateTime visitedAt, String userAgent, boolean bot) {
+        return new VisitorDailyVisit(visitorHash, visitedDate, visitedAt, userAgent, bot);
     }
 
-    public void recordPageView(LocalDateTime visitedAt) {
+    public void recordPageView(LocalDateTime visitedAt, String userAgent, boolean bot) {
         this.lastVisitedAt = visitedAt;
         this.pageViews++;
+        this.userAgent = userAgent;
+        this.bot = bot;
     }
 }

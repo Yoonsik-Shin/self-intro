@@ -1,0 +1,3 @@
+ALTER TABLE visitor_daily_visit
+    ADD COLUMN user_agent VARCHAR(255) NULL,
+    ADD COLUMN is_bot BOOLEAN NOT NULL DEFAULT FALSE;

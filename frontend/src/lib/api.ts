@@ -245,6 +245,7 @@ export type VisitorSummary = {
   todayVisitors: number;
   totalVisitors: number;
   totalPageViews: number;
+  todayBotVisitors: number;
 };
 
 export type VisitorDaily = {

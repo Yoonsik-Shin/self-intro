@@ -27,7 +27,8 @@ import {
   MousePointerClick,
   CalendarDays,
   Clock,
-  Sparkles
+  Sparkles,
+  Bot
 } from 'lucide-react';
 import {
   ApiError,
@@ -1278,11 +1279,12 @@ export function AdminDashboard() {
                 <p className="mt-0.5 text-sm text-slate-500">브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.</p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {[
                   { label: '오늘 방문자', value: visitorSummary?.todayVisitors, icon: CalendarDays },
                   { label: '누적 방문자', value: visitorSummary?.totalVisitors, icon: Users },
                   { label: '누적 조회 수', value: visitorSummary?.totalPageViews, icon: MousePointerClick },
+                  { label: '오늘 봇 의심', value: visitorSummary?.todayBotVisitors, icon: Bot },
                 ].map(({ label, value, icon: Icon }) => (
                   <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-between">

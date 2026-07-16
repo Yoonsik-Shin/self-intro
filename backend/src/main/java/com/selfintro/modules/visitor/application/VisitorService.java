@@ -27,15 +27,17 @@ public class VisitorService {
     private final Clock visitorClock;
 
     @Transactional
-    public synchronized VisitorSummaryResponse recordVisit(String visitorHash) {
+    public synchronized VisitorSummaryResponse recordVisit(String visitorHash, String userAgent) {
         LocalDate visitedDate = LocalDate.now(visitorClock);
         LocalDateTime visitedAt = LocalDateTime.now(visitorClock);
+        boolean bot = BotDetector.isLikelyBot(userAgent);
+        String truncatedUserAgent = truncate(userAgent);
 
         visitorRepository.findByVisitorHashAndVisitedDate(visitorHash, visitedDate)
                 .ifPresentOrElse(
-                        visit -> visit.recordPageView(visitedAt),
+                        visit -> visit.recordPageView(visitedAt, truncatedUserAgent, bot),
                         () -> visitorRepository.save(VisitorDailyVisit.firstVisit(
-                                visitorHash, visitedDate, visitedAt)));
+                                visitorHash, visitedDate, visitedAt, truncatedUserAgent, bot)));
         hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(
                         visitorHash, visitedDate, visitedAt.getHour())
                 .ifPresentOrElse(
@@ -97,6 +99,12 @@ public class VisitorService {
         return new VisitorSummaryResponse(
                 visitorRepository.countByVisitedDate(date),
                 visitorRepository.countDistinctVisitors(),
-                visitorRepository.sumPageViews());
+                visitorRepository.sumPageViews(),
+                visitorRepository.countByVisitedDateAndBotTrue(date));
+    }
+
+    private String truncate(String value) {
+        if (value == null) return null;
+        return value.length() > 255 ? value.substring(0, 255) : value;
     }
 }

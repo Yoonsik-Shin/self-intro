@@ -12,6 +12,8 @@ public interface VisitorDailyVisitRepository extends JpaRepository<VisitorDailyV
 
     long countByVisitedDate(LocalDate visitedDate);
 
+    long countByVisitedDateAndBotTrue(LocalDate visitedDate);
+
     @Query("select count(distinct visit.visitorHash) from VisitorDailyVisit visit")
     long countDistinctVisitors();
 

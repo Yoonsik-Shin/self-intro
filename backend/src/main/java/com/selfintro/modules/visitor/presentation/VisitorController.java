@@ -57,7 +57,8 @@ public class VisitorController {
             resolvedVisitorId = UUID.randomUUID().toString();
             response.addHeader(HttpHeaders.SET_COOKIE, createVisitorCookie(resolvedVisitorId).toString());
         }
-        return ResponseEntity.ok(visitorService.recordVisit(hash(resolvedVisitorId)));
+        return ResponseEntity.ok(
+                visitorService.recordVisit(hash(resolvedVisitorId), request.getHeader("User-Agent")));
     }
 
     private boolean isAdmin(Authentication authentication) {
