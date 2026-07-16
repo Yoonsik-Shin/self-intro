@@ -15,8 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
   Pin,
   PinOff,
   Eye,
@@ -28,7 +28,10 @@ import {
   CalendarDays,
   Clock,
   Sparkles,
-  Bot
+  Bot,
+  Terminal,
+  WandSparkles,
+  Check
 } from 'lucide-react';
 import {
   ApiError,
@@ -36,16 +39,20 @@ import {
   profileApi,
   skillApi,
   experienceApi,
+  experiencePlacementApi,
   connectionApi,
   bffApi,
   visitorApi,
   type StudyRequest,
   type Study,
+  type StudySuggestion,
   type Skill,
   type Experience,
   type ExperienceRequest,
   type ExperienceDetailRequest,
   type ExperienceConnections,
+  type ExperienceSuggestion,
+  type ExperienceDetailSuggestion,
   type IntroductionResponse,
   type GalleryImage
 } from '../lib/api';
@@ -59,9 +66,61 @@ import { getSkillCategoryPresentation, skillCategoryPresentations } from './skil
 import { SkillBadgeIcon } from '../lib/SkillBadgeIcon';
 import { findSkillBadge, recommendSkillBadge, skillBadgeOptions } from '../lib/skillBadges';
 import { CompetencyManagement } from './CompetencyManagement';
+import { ArchitectureManagement } from './ArchitectureManagement';
+import { CoreProjectManagement } from './CoreProjectManagement';
 import { VisitorHourlyChart, VisitorTrendChart } from './VisitorCharts';
+import { AiStageBubble, useAiSuggestionStream } from './ai/AiDraftAssistant';
 
-type TabId = 'ANALYTICS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE';
+const STUDY_AI_FIELD_LABELS: Record<string, string> = {
+  text: '사실',
+  reason: '판단',
+  title: '제목',
+  summary: '요약',
+  contentMarkdown: '본문',
+};
+
+const EXPERIENCE_AI_FIELD_LABELS: Record<string, string> = {
+  text: '사실',
+  reason: '판단',
+  summary: '요약',
+  takeaway: '배운 점',
+  essayContent: '회고 본문',
+  content: '상세 항목',
+  situation: '상황',
+  actionDetail: '행동',
+  outcome: '성과',
+};
+
+type TabId = 'ANALYTICS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE' | 'CORE_PROJECTS' | 'ARCHITECTURE';
+
+const ADMIN_MENU_GROUPS = [
+  {
+    label: '콘텐츠 자산',
+    items: [
+      { id: 'STUDY', label: '공부 정리 관리', icon: BookOpen },
+      { id: 'SKILLS', label: '기술 스택 관리', icon: Cpu },
+      { id: 'EXPERIENCE', label: '이력 및 경력 관리', icon: Briefcase },
+    ],
+  },
+  {
+    label: '페이지 구성',
+    items: [
+      { id: 'PROFILE', label: '프로필 정보 관리', icon: User },
+      { id: 'COMPETENCIES', label: '핵심 역량 관리', icon: Sparkles },
+      { id: 'CORE_PROJECTS', label: '핵심 프로젝트 관리', icon: Pin },
+      { id: 'ARCHITECTURE', label: '시스템 아키텍처 관리', icon: Terminal },
+    ],
+  },
+  {
+    label: '방문 분석',
+    items: [
+      { id: 'ANALYTICS', label: '방문자 통계', icon: BarChart3 },
+    ],
+  },
+] satisfies Array<{
+  label: string;
+  items: Array<{ id: TabId; label: string; icon: typeof BookOpen }>;
+}>;
 
 const PREVIEW_MIN_WIDTH = 420;
 const PREVIEW_MAX_WIDTH = 960;
@@ -290,6 +349,19 @@ export function AdminDashboard() {
   const [studyExperienceSearch, setStudyExperienceSearch] = useState('');
   const [studyExperienceDetailSearch, setStudyExperienceDetailSearch] = useState('');
   const [relatedStudySearch, setRelatedStudySearch] = useState('');
+  const [studyAiInstruction, setStudyAiInstruction] = useState('');
+  const [studyAiSuggestions, setStudyAiSuggestions] = useState<StudySuggestion[]>([]);
+  const [studyAiFactCount, setStudyAiFactCount] = useState(0);
+  const {
+    aiStages: studyAiStages, aiError: studyAiError, setAiError: setStudyAiError,
+    isGenerating: isStudyAiGenerating, setIsGenerating: setIsStudyAiGenerating,
+    abortRef: studyAiAbortRef, chatRef: studyAiChatRef, reset: resetStudyAiStreamBase,
+    pushStage: pushStudyAiStage, appendToken: appendStudyAiToken, finishStages: finishStudyAiStages,
+  } = useAiSuggestionStream();
+  const resetStudyAiStream = () => {
+    resetStudyAiStreamBase();
+    setStudyAiFactCount(0);
+  };
 
   // --- FILTER STATES ---
   const [studyFilter, setStudyFilter] = useState<string>('ALL');
@@ -495,6 +567,63 @@ export function AdminDashboard() {
     }
   };
 
+  const requestStudyAiSuggestions = async () => {
+    resetStudyAiStream();
+    setStudyAiSuggestions([]);
+    setIsStudyAiGenerating(true);
+    const controller = new AbortController();
+    studyAiAbortRef.current = controller;
+    try {
+      await studyApi.suggestStream(
+        {
+          instruction: studyAiInstruction,
+          draftTitle: studyForm.title,
+          draftSummary: studyForm.summary,
+          skillIds: studyForm.skillIds,
+          experienceIds: studyForm.experienceIds,
+          experienceDetailIds: studyForm.experienceDetailIds,
+          relatedStudyIds: studyForm.relatedStudies.map((item) => item.studyId),
+        },
+        (event) => {
+          if (event.type === 'stage') {
+            pushStudyAiStage(event.stage, event.message);
+          } else if (event.type === 'token') {
+            appendStudyAiToken(event.stage, event.text);
+          } else if (event.type === 'facts') {
+            setStudyAiFactCount(event.factCount);
+          } else if (event.type === 'complete') {
+            finishStudyAiStages();
+            setStudyAiSuggestions(event.suggestions);
+          } else {
+            setStudyAiError(event.message);
+          }
+        },
+        controller.signal,
+      );
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setStudyAiError(error instanceof Error ? error.message : 'AI 초안 생성에 실패했습니다.');
+      }
+    } finally {
+      if (studyAiAbortRef.current === controller) {
+        studyAiAbortRef.current = null;
+        setIsStudyAiGenerating(false);
+      }
+    }
+  };
+
+  const applyStudyAiSuggestion = (suggestion: StudySuggestion) => {
+    if ((studyForm.title.trim() || studyForm.summary.trim() || studyForm.contentMarkdown.trim())
+      && !window.confirm('현재 작성한 제목·요약·본문을 AI 초안으로 바꾸시겠습니까?')) return;
+    setStudyForm({
+      ...studyForm,
+      title: suggestion.title,
+      summary: suggestion.summary,
+      contentMarkdown: suggestion.contentMarkdown,
+      tagNames: suggestion.tagNames.join(', '),
+    });
+  };
+
   const openStudyEditor = (study: Study) => {
     setStudyEditingId(study.id);
     setStudyForm({
@@ -513,6 +642,8 @@ export function AdminDashboard() {
       learnedAt: study.learnedAt,
       publishedAt: study.publishedAt ?? null,
     });
+    setStudyAiSuggestions([]);
+    resetStudyAiStream();
     setIsStudyFormOpen(true);
   };
 
@@ -695,9 +826,23 @@ export function AdminDashboard() {
   const [expEditingId, setExpEditingId] = useState<number | null>(null);
   const [expForm, setExpForm] = useState(emptyExperienceForm);
   const [isExpFormOpen, setIsExpFormOpen] = useState(false);
+  const [createAsCoreProject, setCreateAsCoreProject] = useState(false);
   const [detailInput, setDetailInput] = useState('');
   const [selectedExperienceId, setSelectedExperienceId] = useState<number | null>(null);
   const [expandedDetailIdx, setExpandedDetailIdx] = useState<number | null>(null);
+  const [expAiInstruction, setExpAiInstruction] = useState('');
+  const [expAiSuggestions, setExpAiSuggestions] = useState<ExperienceSuggestion[]>([]);
+  const [expAiFactCount, setExpAiFactCount] = useState(0);
+  const {
+    aiStages: expAiStages, aiError: expAiError, setAiError: setExpAiError,
+    isGenerating: isExpAiGenerating, setIsGenerating: setIsExpAiGenerating,
+    abortRef: expAiAbortRef, chatRef: expAiChatRef, reset: resetExpAiStreamBase,
+    pushStage: pushExpAiStage, appendToken: appendExpAiToken, finishStages: finishExpAiStages,
+  } = useAiSuggestionStream();
+  const resetExpAiStream = () => {
+    resetExpAiStreamBase();
+    setExpAiFactCount(0);
+  };
 
   const selectedExperience = useMemo(
     () => experiencesList?.find((experience) => experience.id === selectedExperienceId) ?? null,
@@ -727,17 +872,45 @@ export function AdminDashboard() {
   });
 
   const createExpMutation = useMutation({
-    mutationFn: async ({ payload, form }: { payload: ExperienceRequest; form: AdminExperienceForm }) => {
+    mutationFn: async ({
+      payload,
+      form,
+      addToCoreProjects,
+    }: {
+      payload: ExperienceRequest;
+      form: AdminExperienceForm;
+      addToCoreProjects: boolean;
+    }) => {
       const experience = await experienceApi.create(payload);
       await connectionApi.updateExperience(experience.id, buildExperienceConnections(experience, form));
-      return experience;
+      if (addToCoreProjects) {
+        const placements = await experiencePlacementApi.listCoreProjects();
+        await experiencePlacementApi.replaceCoreProjects([
+          ...placements.map((placement, index) => ({
+            experienceId: placement.experienceId,
+            displayOrder: index,
+            enabled: placement.enabled,
+            detailIds: placement.detailIds,
+          })),
+          {
+            experienceId: experience.id,
+            displayOrder: placements.length,
+            enabled: true,
+            detailIds: experience.details.map((detail) => detail.id),
+          },
+        ]);
+      }
+      return { experience, addToCoreProjects };
     },
-    onSuccess: () => {
+    onSuccess: ({ addToCoreProjects }) => {
       queryClient.invalidateQueries({ queryKey: ['experiences'] });
       queryClient.invalidateQueries({ queryKey: ['studies'] });
       queryClient.invalidateQueries({ queryKey: ['introduction'] });
+      queryClient.invalidateQueries({ queryKey: ['experience-placements', 'CORE_PROJECT'] });
       setExpForm(emptyExperienceForm);
       setIsExpFormOpen(false);
+      setCreateAsCoreProject(false);
+      if (addToCoreProjects) setActiveTab('CORE_PROJECTS');
     },
     onError: handleMutationError,
   });
@@ -802,7 +975,7 @@ export function AdminDashboard() {
     if (expEditingId !== null) {
       updateExpMutation.mutate({ id: expEditingId, payload, form: expForm });
     } else {
-      createExpMutation.mutate({ payload, form: expForm });
+      createExpMutation.mutate({ payload, form: expForm, addToCoreProjects: createAsCoreProject });
     }
   };
 
@@ -812,6 +985,80 @@ export function AdminDashboard() {
     }
   };
 
+  const requestExpAiSuggestions = async () => {
+    resetExpAiStream();
+    setExpAiSuggestions([]);
+    setIsExpAiGenerating(true);
+    const controller = new AbortController();
+    expAiAbortRef.current = controller;
+    try {
+      await experienceApi.suggestStream(
+        {
+          instruction: expAiInstruction,
+          type: expForm.type,
+          draftTitle: expForm.title,
+          companyName: expForm.type === 'CAREER' ? expForm.companyName : undefined,
+          role: (expForm.type === 'CAREER' || expForm.type === 'PROJECT') ? expForm.role : undefined,
+          institutionName: expForm.type === 'EDUCATION' ? expForm.institutionName : undefined,
+          issuer: expForm.type === 'CERTIFICATE' ? expForm.issuer : undefined,
+          repositoryUrl: expForm.type === 'PROJECT' ? expForm.repositoryUrl : undefined,
+          skillIds: expForm.skillIds,
+          studyIds: expForm.studyIds,
+          relatedExperienceIds: expForm.relatedExperienceIds,
+        },
+        (event) => {
+          if (event.type === 'stage') {
+            pushExpAiStage(event.stage, event.message);
+          } else if (event.type === 'token') {
+            appendExpAiToken(event.stage, event.text);
+          } else if (event.type === 'facts') {
+            setExpAiFactCount(event.factCount);
+          } else if (event.type === 'complete') {
+            finishExpAiStages();
+            setExpAiSuggestions(event.suggestions);
+          } else {
+            setExpAiError(event.message);
+          }
+        },
+        controller.signal,
+      );
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setExpAiError(error instanceof Error ? error.message : 'AI 초안 생성에 실패했습니다.');
+      }
+    } finally {
+      if (expAiAbortRef.current === controller) {
+        expAiAbortRef.current = null;
+        setIsExpAiGenerating(false);
+      }
+    }
+  };
+
+  const applyExpAiSummary = (suggestion: ExperienceSuggestion) => {
+    if ((expForm.summary?.trim() || expForm.takeaway?.trim() || expForm.essayContent?.trim())
+      && !window.confirm('현재 작성한 요약·배운 점·회고 본문을 AI 초안으로 바꾸시겠습니까?')) return;
+    setExpForm({
+      ...expForm,
+      summary: suggestion.summary,
+      takeaway: suggestion.takeaway,
+      essayContent: suggestion.essayContent,
+    });
+  };
+
+  const addExpAiDetailSuggestion = (detail: ExperienceDetailSuggestion) => {
+    setExpForm({
+      ...expForm,
+      details: [...expForm.details, {
+        content: detail.content,
+        situation: detail.situation,
+        actionDetail: detail.actionDetail,
+        outcome: detail.outcome,
+        skillIds: detail.skillIds,
+        studyIds: [],
+      }],
+    });
+  };
+
   const openExperienceEditor = async (experience: Experience) => {
     try {
       const connections = await connectionApi.getExperience(experience.id);
@@ -819,6 +1066,7 @@ export function AdminDashboard() {
         connections.detailStudies.map((connection) => [connection.detailId, connection.studyIds]),
       );
       setExpEditingId(experience.id);
+      setCreateAsCoreProject(false);
       setExpForm({
         type: experience.type,
         title: experience.title,
@@ -854,6 +1102,8 @@ export function AdminDashboard() {
         studyIds: connections.studyIds,
         relatedExperienceIds: connections.relatedExperiences.map((related) => related.experienceId),
       });
+      setExpAiSuggestions([]);
+      resetExpAiStream();
       setIsExpFormOpen(true);
     } catch (error) {
       handleMutationError(error);
@@ -1013,6 +1263,10 @@ export function AdminDashboard() {
         return { page: 'intro', section: 'skills' };
       case 'COMPETENCIES':
         return { page: 'intro', section: 'competencies' };
+      case 'ARCHITECTURE':
+        return { page: 'architecture', section: 'architecture-components' };
+      case 'CORE_PROJECTS':
+        return { page: 'intro', section: 'projects' };
       case 'EXPERIENCE': {
         const type = isExpFormOpen ? expForm.type : expFilter;
         const section =
@@ -1128,6 +1382,25 @@ export function AdminDashboard() {
     window.localStorage.setItem('admin-preview-width', String(previewWidth));
   }, [previewWidth]);
 
+  const handleMenuSelect = (tab: TabId) => {
+    setActiveTab(tab);
+
+    if (tab === 'STUDY') {
+      setIsStudyFormOpen(false);
+      setSelectedStudyId(null);
+    }
+
+    if (tab === 'SKILLS') {
+      setIsSkillFormOpen(false);
+    }
+
+    if (tab === 'EXPERIENCE') {
+      setIsExpFormOpen(false);
+      setSelectedExperienceId(null);
+      setCreateAsCoreProject(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#f8fafc] text-slate-800">
       {/* HEADER */}
@@ -1176,102 +1449,92 @@ export function AdminDashboard() {
           : 'lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]'
       }`}>
         {/* SIDE BAR NAVIGATION */}
-        <aside className={`min-w-0 space-y-1.5 transition-all duration-200 lg:sticky lg:top-20 lg:self-start ${
+        <aside className={`relative min-w-0 transition-all duration-200 lg:sticky lg:top-20 lg:self-start ${
           isSidebarCollapsed
             ? 'lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:px-2 lg:py-3 lg:shadow-sm'
             : ''
         }`}>
-          <div className={`mb-2 flex h-8 items-center justify-between gap-2 px-2 ${isSidebarCollapsed ? 'lg:justify-center lg:px-0' : ''}`}>
-            <p className={`text-xs font-bold uppercase tracking-widest text-slate-400 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>메뉴 목록</p>
-            <button
-              type="button"
-              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
-              title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
-              aria-label={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
-              className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-900 lg:flex ${
-                isSidebarCollapsed ? 'lg:border-transparent lg:bg-slate-50 lg:shadow-none' : ''
-              }`}
-            >
-              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </button>
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+            title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
+            aria-label={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
+            aria-expanded={!isSidebarCollapsed}
+            className={`z-20 hidden items-center justify-center text-slate-400 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 lg:flex ${
+              isSidebarCollapsed
+                ? 'relative mx-auto mb-3 h-8 w-8 shrink-0'
+                : 'absolute -right-4 top-1 !m-0 h-10 w-8'
+            }`}
+          >
+            {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+          <div className={`mb-3 flex h-8 items-center px-2 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">메뉴 목록</p>
           </div>
-          <button
-            onClick={() => setActiveTab('ANALYTICS')}
-            title="방문자 통계"
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
-              activeTab === 'ANALYTICS'
-                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>방문자 통계</span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('STUDY'); setIsStudyFormOpen(false); setSelectedStudyId(null); }}
-            title="공부 정리 관리"
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
-              activeTab === 'STUDY'
-                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <BookOpen className="h-4 w-4" />
-            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>공부 정리 관리</span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('PROFILE'); }}
-            title="프로필 정보 관리"
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
-              activeTab === 'PROFILE'
-                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <User className="h-4 w-4" />
-            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>프로필 정보 관리</span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('SKILLS'); setIsSkillFormOpen(false); }}
-            title="기술 스택 관리"
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
-              activeTab === 'SKILLS'
-                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Cpu className="h-4 w-4" />
-            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>기술 스택 관리</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('COMPETENCIES')}
-            title="핵심 역량 관리"
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
-              activeTab === 'COMPETENCIES'
-                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="h-4 w-4" />
-            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>핵심 역량 관리</span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('EXPERIENCE'); setIsExpFormOpen(false); setSelectedExperienceId(null); }}
-            title="이력 및 경력 관리"
-            className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-left transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
-              activeTab === 'EXPERIENCE'
-                ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Briefcase className="h-4 w-4" />
-            <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>이력 및 경력 관리</span>
-          </button>
+
+          <nav aria-label="관리자 메뉴" className="space-y-5">
+            {ADMIN_MENU_GROUPS.map((group, groupIndex) => (
+              <section
+                key={group.label}
+                aria-labelledby={`admin-menu-group-${groupIndex}`}
+                className={`${groupIndex > 0 && isSidebarCollapsed ? 'lg:border-t lg:border-slate-200 lg:pt-3' : ''}`}
+              >
+                <h2
+                  id={`admin-menu-group-${groupIndex}`}
+                  className={`mb-1.5 px-3 text-[11px] font-black tracking-[0.12em] text-slate-400 ${isSidebarCollapsed ? 'lg:sr-only' : ''}`}
+                >
+                  {group.label}
+                </h2>
+                <div className="space-y-1.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleMenuSelect(item.id)}
+                        title={item.label}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
+                          isActive
+                            ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </nav>
         </aside>
 
         {/* MAIN PANEL CONTENT */}
         <section className="min-w-0 space-y-6">
           {activeTab === 'COMPETENCIES' && <CompetencyManagement />}
+          {activeTab === 'ARCHITECTURE' && <ArchitectureManagement />}
+          {activeTab === 'CORE_PROJECTS' && (
+            <CoreProjectManagement
+              onCreateProject={() => {
+                const nextDisplayOrder = Math.max(-1, ...(experiencesList ?? []).map((experience) => experience.displayOrder)) + 1;
+                setActiveTab('EXPERIENCE');
+                setExpFilter('PROJECT');
+                setSelectedExperienceId(null);
+                setExpEditingId(null);
+                setExpForm({ ...emptyExperienceForm, type: 'PROJECT', displayOrder: nextDisplayOrder });
+                setExpAiInstruction('');
+                setExpAiSuggestions([]);
+                resetExpAiStream();
+                setCreateAsCoreProject(true);
+                setIsExpFormOpen(true);
+              }}
+            />
+          )}
           {activeTab === 'ANALYTICS' && (
             <div className="space-y-6">
               <div className="border-b border-slate-200 pb-3">
@@ -1387,6 +1650,9 @@ export function AdminDashboard() {
                     setSelectedStudyId(null);
                     setStudyEditingId(null);
                     setStudyForm(emptyStudyForm);
+                    setStudyAiInstruction('');
+                    setStudyAiSuggestions([]);
+                    resetStudyAiStream();
                     setIsStudyFormOpen(true);
                   }}
                   className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
@@ -1398,7 +1664,7 @@ export function AdminDashboard() {
 
               {/* FILTERS & SEARCH */}
               {!isStudyFormOpen && !selectedStudy && (
-              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
+              <div className="sticky top-14 z-20 flex flex-col sm:flex-row gap-3 items-center justify-between bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">
                 <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
                   {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map((category) => (
                     <button
@@ -1429,6 +1695,86 @@ export function AdminDashboard() {
               {isStudyFormOpen && (
                 <form onSubmit={handleStudySubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h3 className="text-base font-black text-slate-800">{studyEditingId !== null ? '글 수정' : '새 글 작성'}</h3>
+
+                  <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
+                        <WandSparkles className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-black text-violet-950">AI로 학습 정리 초안 만들기</h4>
+                        <p className="mt-1 text-xs leading-relaxed text-violet-700">
+                          AI가 1단계에서 선택한 기술·경력·관련 Study와 메모의 사실관계를 정리하고, 2단계에서 검증된 사실만 사용해 제목·요약·태그·본문 초안을 작성합니다.
+                        </p>
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                          <textarea
+                            rows={3}
+                            maxLength={1000}
+                            value={studyAiInstruction}
+                            onChange={(event) => setStudyAiInstruction(event.target.value)}
+                            placeholder="이 글에 담고 싶은 핵심 내용, 키워드, 있었던 일을 적어주세요."
+                            className="min-h-[88px] flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                          />
+                          <button
+                            type="button"
+                            onClick={requestStudyAiSuggestions}
+                            disabled={isStudyAiGenerating}
+                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
+                          >
+                            <WandSparkles className={`h-4 w-4 ${isStudyAiGenerating ? 'animate-pulse' : ''}`} />
+                            {isStudyAiGenerating ? '사실관계 정리·작성 중...' : studyAiSuggestions.length > 0 ? '다시 생성' : 'AI 초안 생성'}
+                          </button>
+                        </div>
+                        <p className="mt-2 text-[11px] leading-relaxed text-violet-500">선택한 기술·경력·Study 요약과 메모가 NVIDIA NIM API로 전송됩니다. AI 초안은 자동 저장되지 않으니 반드시 검토 후 저장하세요.</p>
+
+                        {(studyAiStages.length > 0 || studyAiError) && (
+                          <div ref={studyAiChatRef} className="mt-4 max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-violet-100 bg-white p-3">
+                            {studyAiStages.map((stageItem) => (
+                              <AiStageBubble
+                                key={stageItem.stage}
+                                stage={stageItem}
+                                fieldLabels={STUDY_AI_FIELD_LABELS}
+                                extra={stageItem.stage === 1 && studyAiFactCount > 0 ? (
+                                  <p className="mt-2 text-[11px] font-bold text-violet-600">검증된 사실 {studyAiFactCount}개</p>
+                                ) : undefined}
+                              />
+                            ))}
+                            {studyAiError && (
+                              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{studyAiError}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {studyAiSuggestions.length > 0 && (
+                          <div className="mt-4 space-y-3">
+                            {studyAiSuggestions.map((suggestion, index) => (
+                              <article key={`${suggestion.title}-${index}`} className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
+                                <h5 className="text-sm font-black leading-snug text-slate-900">{suggestion.title}</h5>
+                                <p className="mt-2 text-xs leading-relaxed text-slate-600">{suggestion.summary}</p>
+                                {suggestion.tagNames.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {suggestion.tagNames.map((tag) => (
+                                      <span key={tag} className="rounded bg-blue-50 px-1.5 py-1 text-[10px] font-bold text-blue-700">{tag}</span>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+                                  {suggestion.contentMarkdown}
+                                </div>
+                                {suggestion.reason && <p className="mt-3 rounded-lg bg-violet-50 px-2.5 py-2 text-[11px] leading-relaxed text-violet-700">{suggestion.reason}</p>}
+                                <div className="mt-3">
+                                  <button type="button" onClick={() => applyStudyAiSuggestion(suggestion)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50">
+                                    <Check className="h-3.5 w-3.5" /> 이 초안 적용
+                                  </button>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">제목</label>
@@ -1693,7 +2039,11 @@ export function AdminDashboard() {
                   <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="button"
-                      onClick={() => setIsStudyFormOpen(false)}
+                      onClick={() => {
+                        setIsStudyFormOpen(false);
+                        setStudyAiSuggestions([]);
+                        resetStudyAiStream();
+                      }}
                       className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                     >
                       취소
@@ -1957,7 +2307,7 @@ export function AdminDashboard() {
               </div>
 
               {/* FILTERS & SEARCH */}
-              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
+              <div className="sticky top-14 z-20 flex flex-col sm:flex-row gap-3 items-center justify-between bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">
                 <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
                   {['ALL', 'LANGUAGE', 'FRAMEWORK', 'DATABASE', 'DEVOPS', 'AI_RAG', 'ETC'].map((cat) => (
                     <button
@@ -2329,6 +2679,10 @@ export function AdminDashboard() {
                     setSelectedExperienceId(null);
                     setExpEditingId(null);
                     setExpForm(emptyExperienceForm);
+                    setCreateAsCoreProject(false);
+                    setExpAiInstruction('');
+                    setExpAiSuggestions([]);
+                    resetExpAiStream();
                     setIsExpFormOpen(true);
                   }}
                   className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
@@ -2340,7 +2694,7 @@ export function AdminDashboard() {
 
               {/* FILTERS & SEARCH */}
               {!isExpFormOpen && !selectedExperience && (
-              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn">
+              <div className="sticky top-14 z-20 flex flex-col sm:flex-row gap-3 items-center justify-between bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">
                 <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
                   {['ALL', 'CAREER', 'PROJECT', 'EDUCATION', 'CERTIFICATE'].map((cat) => (
                     <button
@@ -2379,7 +2733,103 @@ export function AdminDashboard() {
               {isExpFormOpen && (
                 <form onSubmit={handleExpSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h3 className="text-base font-black text-slate-800">{expEditingId !== null ? '이력 수정' : '새 이력 추가'}</h3>
-                  
+
+                  {createAsCoreProject && expEditingId === null && (
+                    <p className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
+                      프로젝트를 저장하면 핵심 프로젝트의 마지막 순서에 자동으로 편성됩니다.
+                    </p>
+                  )}
+
+                  <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
+                        <WandSparkles className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-black text-violet-950">AI로 경력 회고 초안 만들기</h4>
+                        <p className="mt-1 text-xs leading-relaxed text-violet-700">
+                          AI가 1단계에서 선택한 기술·관련 Study·관련 경력과 메모의 사실관계를 정리하고, 2단계에서 검증된 사실만 사용해 요약·배운 점·회고 본문과 상세 항목 초안을 작성합니다.
+                        </p>
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                          <textarea
+                            rows={3}
+                            maxLength={1000}
+                            value={expAiInstruction}
+                            onChange={(event) => setExpAiInstruction(event.target.value)}
+                            placeholder="이 경력·프로젝트에서 있었던 일, 맡은 역할, 핵심 키워드를 적어주세요."
+                            className="min-h-[88px] flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                          />
+                          <button
+                            type="button"
+                            onClick={requestExpAiSuggestions}
+                            disabled={isExpAiGenerating}
+                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
+                          >
+                            <WandSparkles className={`h-4 w-4 ${isExpAiGenerating ? 'animate-pulse' : ''}`} />
+                            {isExpAiGenerating ? '사실관계 정리·작성 중...' : expAiSuggestions.length > 0 ? '다시 생성' : 'AI 초안 생성'}
+                          </button>
+                        </div>
+                        <p className="mt-2 text-[11px] leading-relaxed text-violet-500">선택한 기술·관련 Study·경력 요약과 메모가 NVIDIA NIM API로 전송됩니다. AI 초안은 자동 저장되지 않으니 반드시 검토 후 저장하세요.</p>
+
+                        {(expAiStages.length > 0 || expAiError) && (
+                          <div ref={expAiChatRef} className="mt-4 max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-violet-100 bg-white p-3">
+                            {expAiStages.map((stageItem) => (
+                              <AiStageBubble
+                                key={stageItem.stage}
+                                stage={stageItem}
+                                fieldLabels={EXPERIENCE_AI_FIELD_LABELS}
+                                extra={stageItem.stage === 1 && expAiFactCount > 0 ? (
+                                  <p className="mt-2 text-[11px] font-bold text-violet-600">검증된 사실 {expAiFactCount}개</p>
+                                ) : undefined}
+                              />
+                            ))}
+                            {expAiError && (
+                              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{expAiError}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {expAiSuggestions.length > 0 && (
+                          <div className="mt-4 space-y-3">
+                            {expAiSuggestions.map((suggestion, index) => (
+                              <article key={index} className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
+                                <p className="text-xs leading-relaxed text-slate-600">{suggestion.summary}</p>
+                                {suggestion.takeaway && (
+                                  <p className="mt-2 text-xs leading-relaxed text-slate-500">배운 점: {suggestion.takeaway}</p>
+                                )}
+                                <div className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+                                  {suggestion.essayContent}
+                                </div>
+                                {suggestion.reason && <p className="mt-3 rounded-lg bg-violet-50 px-2.5 py-2 text-[11px] leading-relaxed text-violet-700">{suggestion.reason}</p>}
+                                <div className="mt-3">
+                                  <button type="button" onClick={() => applyExpAiSummary(suggestion)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50">
+                                    <Check className="h-3.5 w-3.5" /> 요약·회고 적용
+                                  </button>
+                                </div>
+                                {suggestion.details.length > 0 && (
+                                  <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">제안된 상세 항목</p>
+                                    {suggestion.details.map((detail, detailIndex) => (
+                                      <div key={detailIndex} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                        <p className="text-xs font-bold text-slate-700">{detail.content}</p>
+                                        {detail.situation && <p className="mt-1 text-[11px] text-slate-500">상황: {detail.situation}</p>}
+                                        {detail.actionDetail && <p className="text-[11px] text-slate-500">행동: {detail.actionDetail}</p>}
+                                        {detail.outcome && <p className="text-[11px] text-slate-500">성과: {detail.outcome}</p>}
+                                        <button type="button" onClick={() => addExpAiDetailSuggestion(detail)} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-violet-200 px-2.5 py-1.5 text-[11px] font-bold text-violet-700 transition hover:bg-violet-50">
+                                          <Check className="h-3 w-3" /> 상세 항목으로 추가
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </article>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+
                   {/* Common: Type, Title, displayOrder */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
@@ -2869,7 +3319,12 @@ export function AdminDashboard() {
                   <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="button"
-                      onClick={() => setIsExpFormOpen(false)}
+                      onClick={() => {
+                        setIsExpFormOpen(false);
+                        setCreateAsCoreProject(false);
+                        setExpAiSuggestions([]);
+                        resetExpAiStream();
+                      }}
                       className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                     >
                       취소
@@ -2879,7 +3334,7 @@ export function AdminDashboard() {
                       disabled={createExpMutation.isPending || updateExpMutation.isPending}
                       className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
                     >
-                      {expEditingId !== null ? '수정 완료' : '이력 생성'}
+                      {expEditingId !== null ? '수정 완료' : createAsCoreProject ? '핵심 프로젝트 생성' : '이력 생성'}
                     </button>
                   </div>
                 </form>

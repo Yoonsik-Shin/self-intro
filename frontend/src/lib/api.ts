@@ -80,6 +80,35 @@ export type StudyPage = {
   totalPages: number;
 };
 
+export type StudySuggestionRequest = {
+  instruction: string;
+  draftTitle: string;
+  draftSummary: string;
+  skillIds: number[];
+  experienceIds: number[];
+  experienceDetailIds: number[];
+  relatedStudyIds: number[];
+};
+
+export type StudySuggestion = {
+  title: string;
+  summary: string;
+  tagNames: string[];
+  contentMarkdown: string;
+  reason: string;
+};
+
+export type StudySuggestionResponse = {
+  suggestions: StudySuggestion[];
+};
+
+export type StudySuggestionStreamEvent =
+  | { type: 'stage'; stage: number; message: string }
+  | { type: 'token'; stage: number; text: string }
+  | { type: 'facts'; factCount: number }
+  | { type: 'complete'; suggestions: StudySuggestion[] }
+  | { type: 'error'; message: string };
+
 export type Profile = {
   id: number;
   name: string;
@@ -232,6 +261,7 @@ export type CompetencySuggestionStreamEvent =
 export type IntroductionResponse = {
   profile: Profile | null;
   experiences: Experience[];
+  coreProjects: Experience[];
   skills: Skill[];
   careerSummary: string;
   competencies: Competency[];
@@ -429,6 +459,18 @@ export const studyApi = {
     request<void>(`/api/admin/studies/${id}`, {
       method: 'DELETE',
     }),
+  suggest: (payload: StudySuggestionRequest) =>
+    request<StudySuggestionResponse>('/api/admin/studies/ai/suggestions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  suggestStream: (
+    payload: StudySuggestionRequest,
+    onEvent: (event: StudySuggestionStreamEvent) => void,
+    signal?: AbortSignal,
+  ) =>
+    requestEventStream<StudySuggestionStreamEvent>(
+      '/api/admin/studies/ai/suggestions/stream', payload, onEvent, signal),
 };
 
 export const imageApi = {
@@ -577,6 +619,47 @@ export type ExperienceRequest = {
   issuer?: string;
 };
 
+export type ExperienceSuggestionRequest = {
+  instruction: string;
+  type: 'CAREER' | 'PROJECT' | 'EDUCATION' | 'CERTIFICATE';
+  draftTitle: string;
+  companyName?: string;
+  role?: string;
+  institutionName?: string;
+  issuer?: string;
+  repositoryUrl?: string;
+  skillIds: number[];
+  studyIds: number[];
+  relatedExperienceIds: number[];
+};
+
+export type ExperienceDetailSuggestion = {
+  content: string;
+  situation: string;
+  actionDetail: string;
+  outcome: string;
+  skillIds: number[];
+};
+
+export type ExperienceSuggestion = {
+  summary: string;
+  takeaway: string;
+  essayContent: string;
+  details: ExperienceDetailSuggestion[];
+  reason: string;
+};
+
+export type ExperienceSuggestionResponse = {
+  suggestions: ExperienceSuggestion[];
+};
+
+export type ExperienceSuggestionStreamEvent =
+  | { type: 'stage'; stage: number; message: string }
+  | { type: 'token'; stage: number; text: string }
+  | { type: 'facts'; factCount: number }
+  | { type: 'complete'; suggestions: ExperienceSuggestion[] }
+  | { type: 'error'; message: string };
+
 export const experienceApi = {
   list: () => request<Experience[]>('/api/experiences'),
   create: (payload: ExperienceRequest) =>
@@ -592,6 +675,44 @@ export const experienceApi = {
   remove: (id: number) =>
     request<void>(`/api/experiences/${id}`, {
       method: 'DELETE',
+    }),
+  suggest: (payload: ExperienceSuggestionRequest) =>
+    request<ExperienceSuggestionResponse>('/api/admin/experiences/ai/suggestions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  suggestStream: (
+    payload: ExperienceSuggestionRequest,
+    onEvent: (event: ExperienceSuggestionStreamEvent) => void,
+    signal?: AbortSignal,
+  ) =>
+    requestEventStream<ExperienceSuggestionStreamEvent>(
+      '/api/admin/experiences/ai/suggestions/stream', payload, onEvent, signal),
+};
+
+export type ExperiencePlacement = {
+  id: number;
+  experienceId: number;
+  placementType: 'CORE_PROJECT';
+  displayOrder: number;
+  enabled: boolean;
+  detailIds: number[];
+};
+
+export type ExperiencePlacementRequest = {
+  experienceId: number;
+  displayOrder: number;
+  enabled: boolean;
+  detailIds: number[];
+};
+
+export const experiencePlacementApi = {
+  listCoreProjects: () =>
+    request<ExperiencePlacement[]>('/api/admin/experience-placements/CORE_PROJECT'),
+  replaceCoreProjects: (payload: ExperiencePlacementRequest[]) =>
+    request<ExperiencePlacement[]>('/api/admin/experience-placements/CORE_PROJECT', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
     }),
 };
 
@@ -612,4 +733,71 @@ export const connectionApi = {
     }),
   relatedExperiences: (id: number) =>
     request<RelatedExperience[]>(`/api/experiences/${id}/related`),
+};
+
+export type ArchitectureOverview = {
+  id: number;
+  heading: string;
+  subheading: string;
+  diagramHeading: string;
+  diagramText: string;
+};
+
+export type ArchitectureOverviewRequest = {
+  heading: string;
+  subheading: string;
+  diagramHeading: string;
+  diagramText: string;
+};
+
+export type ArchitectureLayerItem = {
+  id: number;
+  strongText?: string | null;
+  bodyText: string;
+  displayOrder: number;
+};
+
+export type ArchitectureLayer = {
+  id: number;
+  icon: string;
+  title: string;
+  displayOrder: number;
+  visible: boolean;
+  items: ArchitectureLayerItem[];
+};
+
+export type ArchitectureLayerRequest = {
+  icon: string;
+  title: string;
+  displayOrder: number;
+  visible: boolean;
+  items: Array<{
+    strongText?: string | null;
+    bodyText: string;
+  }>;
+};
+
+export const architectureApi = {
+  getOverview: () => request<ArchitectureOverview>('/api/architecture/overview'),
+  getLayers: () => request<ArchitectureLayer[]>('/api/architecture/layers'),
+  adminListLayers: () => request<ArchitectureLayer[]>('/api/admin/architecture/layers'),
+  updateOverview: (payload: ArchitectureOverviewRequest) =>
+    request<ArchitectureOverview>('/api/admin/architecture/overview', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  createLayer: (payload: ArchitectureLayerRequest) =>
+    request<ArchitectureLayer>('/api/admin/architecture/layers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateLayer: (id: number, payload: ArchitectureLayerRequest) =>
+    request<ArchitectureLayer>(`/api/admin/architecture/layers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  removeLayer: (id: number) =>
+    request<void>(`/api/admin/architecture/layers/${id}`, {
+      method: 'DELETE',
+    }),
 };
