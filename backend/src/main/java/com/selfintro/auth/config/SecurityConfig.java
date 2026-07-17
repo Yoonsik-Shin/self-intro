@@ -1,5 +1,6 @@
 package com.selfintro.auth.config;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -81,13 +82,21 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers(new AntPathRequestMatcher("/api/visits", "POST")))
+                        .ignoringRequestMatchers(
+                                new AntPathRequestMatcher("/api/visits", "POST"),
+                                // 페이앱 서버가 보내는 외부 콜백은 CSRF 토큰을 가질 수 없다 (linkval로 검증)
+                                new AntPathRequestMatcher("/api/donations/payapp/callback", "POST")))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
+                        // 에러 디스패치(/error)까지 인가를 적용하면 익명 사용자의 4xx/5xx 응답이
+                        // 전부 401로 덮여버린다 (Spring Security 6는 ERROR 디스패치도 검사함)
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/visits").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/donations").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/donations/payapp/callback").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .anyRequest().hasRole("ADMIN"))

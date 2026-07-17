@@ -545,6 +545,68 @@ export const competencyApi = {
       '/api/admin/competencies/ai/suggestions/stream', payload, onEvent, signal),
 };
 
+export type DonationStatus = 'PENDING' | 'PAID' | 'CANCELED' | 'FAILED';
+
+export type DonationCreateResponse = {
+  donationToken: string;
+  payUrl: string;
+};
+
+export type AdminDonation = {
+  id: number;
+  amount: number;
+  message: string | null;
+  status: DonationStatus;
+  mulNo: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  canceledAt: string | null;
+};
+
+export type AdminDonationSummary = {
+  paidTotal: number;
+  paidCount: number;
+  donations: AdminDonation[];
+};
+
+export type DonationEventType =
+  | 'CREATED'
+  | 'PAY_REQUESTED'
+  | 'PAY_FAILED'
+  | 'PAID'
+  | 'CANCELED'
+  | 'CALLBACK_REJECTED';
+
+export type DonationEventActor = 'VISITOR' | 'SYSTEM' | 'PAYAPP' | 'ADMIN';
+
+export type DonationEvent = {
+  id: number;
+  eventType: DonationEventType;
+  actor: DonationEventActor;
+  payState: string | null;
+  detail: string | null;
+  createdAt: string;
+};
+
+export const donationApi = {
+  config: () => request<{ enabled: boolean }>('/api/donations/config'),
+  create: (amount: number, message?: string) =>
+    request<DonationCreateResponse>('/api/donations', {
+      method: 'POST',
+      body: JSON.stringify({ amount, message: message || undefined }),
+    }),
+  status: (token: string) => request<{ status: DonationStatus }>(`/api/donations/${token}`),
+  adminList: () => request<AdminDonationSummary>('/api/admin/donations'),
+  adminEvents: (id: number) => request<DonationEvent[]>(`/api/admin/donations/${id}/events`),
+  adminUpdateSettings: (enabled: boolean) =>
+    request<{ enabled: boolean }>('/api/admin/donations/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
+  adminCancel: (id: number) =>
+    request<void>(`/api/admin/donations/${id}/cancel`, { method: 'POST' }),
+};
+
 export const visitorApi = {
   record: () => request<VisitorSummary>('/api/visits', { method: 'POST' }),
   adminSummary: () => request<VisitorSummary>('/api/admin/visits/summary'),
