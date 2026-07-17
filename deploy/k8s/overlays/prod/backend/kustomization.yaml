@@ -9,8 +9,7 @@ resources:
   - sealed-db-secret.yaml
   - sealed-ai-secret.yaml
   - sealed-storage-secret.yaml
-  # 페이앱 연동키 발급 후 generate-sealed-payapp-secret.sh를 실행해 파일을 만들고 주석 해제
-  # - sealed-payapp-secret.yaml
+  - sealed-payapp-secret.yaml
 
 images:
   - name: self-intro-backend
