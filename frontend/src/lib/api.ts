@@ -552,6 +552,23 @@ export type DonationCreateResponse = {
   payUrl: string;
 };
 
+export type AdminDonation = {
+  id: number;
+  amount: number;
+  message: string | null;
+  status: DonationStatus;
+  mulNo: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  canceledAt: string | null;
+};
+
+export type AdminDonationSummary = {
+  paidTotal: number;
+  paidCount: number;
+  donations: AdminDonation[];
+};
+
 export const donationApi = {
   create: (amount: number, message?: string) =>
     request<DonationCreateResponse>('/api/donations', {
@@ -559,6 +576,9 @@ export const donationApi = {
       body: JSON.stringify({ amount, message: message || undefined }),
     }),
   status: (token: string) => request<{ status: DonationStatus }>(`/api/donations/${token}`),
+  adminList: () => request<AdminDonationSummary>('/api/admin/donations'),
+  adminCancel: (id: number) =>
+    request<void>(`/api/admin/donations/${id}/cancel`, { method: 'POST' }),
 };
 
 export const visitorApi = {

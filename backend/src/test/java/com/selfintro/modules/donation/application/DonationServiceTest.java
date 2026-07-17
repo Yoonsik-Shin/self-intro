@@ -249,6 +249,50 @@ class DonationServiceTest {
     }
 
     @Test
+    void cancelPaidDonationCallsPayCancelAndMarksCanceled() {
+        Donation donation = pendingDonation("mul-123");
+        donation.markPaid(NOW, "4");
+        when(donationRepository.findWithLockById(1L)).thenReturn(Optional.of(donation));
+
+        donationService.cancel(1L);
+
+        verify(payAppClient).payCancel("mul-123", "관리자 환불");
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.CANCELED);
+    }
+
+    @Test
+    void cancelRejectsDonationThatIsNotPaid() {
+        Donation donation = pendingDonation("mul-123");
+        when(donationRepository.findWithLockById(1L)).thenReturn(Optional.of(donation));
+
+        assertThatThrownBy(() -> donationService.cancel(1L))
+                .isInstanceOf(IllegalStateException.class);
+        verify(payAppClient, never()).payCancel(anyString(), anyString());
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.PENDING);
+    }
+
+    @Test
+    void cancelKeepsPaidStatusWhenPayCancelFails() {
+        Donation donation = pendingDonation("mul-123");
+        donation.markPaid(NOW, "4");
+        when(donationRepository.findWithLockById(1L)).thenReturn(Optional.of(donation));
+        org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "취소 실패"))
+                .when(payAppClient).payCancel(anyString(), anyString());
+
+        assertThatThrownBy(() -> donationService.cancel(1L))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.PAID);
+    }
+
+    @Test
+    void cancelUnknownDonationThrowsNotFound() {
+        when(donationRepository.findWithLockById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> donationService.cancel(99L))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
     void assignMulNoKeepsFirstValue() {
         Donation donation = Donation.request(5000, null, NOW);
         donation.assignMulNo("first");

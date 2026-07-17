@@ -3,6 +3,9 @@ package com.selfintro.modules.donation.application;
 import com.selfintro.modules.donation.config.DonationProperties;
 import com.selfintro.modules.donation.domain.Donation;
 import com.selfintro.modules.donation.domain.DonationRepository;
+import com.selfintro.modules.donation.domain.DonationStatus;
+import com.selfintro.modules.donation.presentation.dto.AdminDonationResponse;
+import com.selfintro.modules.donation.presentation.dto.AdminDonationSummaryResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationCreateResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationStatusResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -133,6 +136,34 @@ public class DonationService {
         Donation donation = donationRepository.findByClientToken(clientToken)
                 .orElseThrow(() -> new EntityNotFoundException("후원 내역을 찾을 수 없습니다."));
         return new DonationStatusResponse(donation.getStatus());
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDonationSummaryResponse adminList() {
+        return new AdminDonationSummaryResponse(
+                donationRepository.sumAmountByStatus(DonationStatus.PAID),
+                donationRepository.countByStatus(DonationStatus.PAID),
+                donationRepository.findTop200ByOrderByIdDesc().stream()
+                        .map(AdminDonationResponse::from)
+                        .toList());
+    }
+
+    /**
+     * 관리자 환불(전액취소). 행 잠금 + PAID 재검증 후에만 paycancel을 호출하므로
+     * 더블클릭·동시 요청에도 페이앱 취소 요청은 한 번만 나간다. paycancel 실패 시
+     * 예외로 롤백되어 PAID가 유지되고, 페이앱 쪽에서 실제로 취소됐다면 취소 콜백이
+     * 도착해 자동으로 CANCELED로 수렴한다.
+     * 관리자 전용 저빈도 작업이라 HTTP 호출 동안 행 잠금을 유지해도 병목이 없다.
+     */
+    @Transactional
+    public void cancel(Long donationId) {
+        Donation donation = donationRepository.findWithLockById(donationId)
+                .orElseThrow(() -> new EntityNotFoundException("후원 내역을 찾을 수 없습니다."));
+        if (donation.getStatus() != DonationStatus.PAID) {
+            throw new IllegalStateException("결제완료 상태의 후원만 환불할 수 있습니다.");
+        }
+        payAppClient.payCancel(donation.getMulNo(), "관리자 환불");
+        donation.markCanceled(LocalDateTime.now(donationClock), "admin");
     }
 
     private void markFailed(Donation donation) {

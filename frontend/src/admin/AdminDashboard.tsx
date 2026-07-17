@@ -31,7 +31,8 @@ import {
   Bot,
   Terminal,
   WandSparkles,
-  Check
+  Check,
+  Heart
 } from 'lucide-react';
 import {
   ApiError,
@@ -43,6 +44,7 @@ import {
   connectionApi,
   bffApi,
   visitorApi,
+  donationApi,
   type StudyRequest,
   type Study,
   type StudySuggestion,
@@ -91,7 +93,7 @@ const EXPERIENCE_AI_FIELD_LABELS: Record<string, string> = {
   outcome: '성과',
 };
 
-type TabId = 'ANALYTICS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE' | 'CORE_PROJECTS' | 'ARCHITECTURE';
+type TabId = 'ANALYTICS' | 'DONATIONS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE' | 'CORE_PROJECTS' | 'ARCHITECTURE';
 
 const ADMIN_MENU_GROUPS = [
   {
@@ -115,6 +117,7 @@ const ADMIN_MENU_GROUPS = [
     label: '방문 분석',
     items: [
       { id: 'ANALYTICS', label: '방문자 통계', icon: BarChart3 },
+      { id: 'DONATIONS', label: '후원 내역', icon: Heart },
     ],
   },
 ] satisfies Array<{
@@ -340,6 +343,28 @@ export function AdminDashboard() {
     queryFn: () => visitorApi.adminHourly(visitorDateRange.to),
     enabled: activeTab === 'ANALYTICS',
   });
+
+  const { data: donationSummary, isLoading: isDonationLoading } = useQuery({
+    queryKey: ['donations', 'admin'],
+    queryFn: donationApi.adminList,
+    enabled: activeTab === 'DONATIONS',
+  });
+
+  const cancelDonationMutation = useMutation({
+    mutationFn: (id: number) => donationApi.adminCancel(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['donations', 'admin'] });
+      alert('환불 처리가 완료되었습니다.');
+    },
+    onError: (error) => {
+      alert(error instanceof ApiError ? error.message : '환불 처리에 실패했습니다.');
+    },
+  });
+
+  const handleCancelDonation = (id: number, amount: number) => {
+    if (!window.confirm(`${amount.toLocaleString()}원 후원을 환불(결제취소)하시겠습니까?`)) return;
+    cancelDonationMutation.mutate(id);
+  };
 
   // --- TAB 1: STUDY STATE & MUTATIONS ---
   const [studyEditingId, setStudyEditingId] = useState<number | null>(null);
@@ -1635,6 +1660,104 @@ export function AdminDashboard() {
                         <tr>
                           <td colSpan={3} className="px-5 py-10 text-center font-semibold text-slate-400">
                             통계를 불러오는 중입니다.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================= DONATIONS TAB ======================= */}
+          {activeTab === 'DONATIONS' && (
+            <div className="space-y-6">
+              <div className="border-b border-slate-200 pb-3">
+                <h2 className="text-xl font-black text-slate-950">후원 내역</h2>
+                <p className="mt-0.5 text-sm text-slate-500">페이앱 결제 기준 후원 내역입니다. 결제완료 건은 환불(전액취소)할 수 있습니다.</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  { label: '누적 후원금 (결제완료)', value: donationSummary?.paidTotal, suffix: '원', icon: Heart },
+                  { label: '결제완료 건수', value: donationSummary?.paidCount, suffix: '건', icon: Check },
+                ].map(({ label, value, suffix, icon: Icon }) => (
+                  <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-slate-500">{label}</p>
+                      <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                    </div>
+                    <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
+                      {isDonationLoading || value === undefined ? '—' : `${value.toLocaleString()}${suffix}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
+                      <tr>
+                        <th className="px-5 py-3 font-bold">일시</th>
+                        <th className="px-5 py-3 text-right font-bold">금액</th>
+                        <th className="px-5 py-3 font-bold">메시지</th>
+                        <th className="px-5 py-3 font-bold">상태</th>
+                        <th className="px-5 py-3 text-right font-bold">환불</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(donationSummary?.donations ?? []).map((donation) => (
+                        <tr key={donation.id} className="text-slate-600">
+                          <td className="px-5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                            {donation.createdAt.replace('T', ' ').slice(0, 16)}
+                          </td>
+                          <td className="px-5 py-3 text-right font-bold">{donation.amount.toLocaleString()}원</td>
+                          <td className="max-w-[240px] truncate px-5 py-3" title={donation.message ?? ''}>
+                            {donation.message ?? <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-5 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
+                              donation.status === 'PAID'
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : donation.status === 'CANCELED'
+                                  ? 'bg-amber-50 text-amber-600'
+                                  : donation.status === 'FAILED'
+                                    ? 'bg-rose-50 text-rose-600'
+                                    : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {donation.status === 'PAID' ? '결제완료'
+                                : donation.status === 'CANCELED' ? '취소됨'
+                                  : donation.status === 'FAILED' ? '실패' : '대기'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            {donation.status === 'PAID' && (
+                              <button
+                                onClick={() => handleCancelDonation(donation.id, donation.amount)}
+                                disabled={cancelDonationMutation.isPending}
+                                className="rounded-lg border border-rose-200 px-3 py-1 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                환불
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {!isDonationLoading && (donationSummary?.donations ?? []).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-5 py-10 text-center font-semibold text-slate-400">
+                            아직 후원 내역이 없습니다.
+                          </td>
+                        </tr>
+                      )}
+                      {isDonationLoading && (
+                        <tr>
+                          <td colSpan={5} className="px-5 py-10 text-center font-semibold text-slate-400">
+                            후원 내역을 불러오는 중입니다.
                           </td>
                         </tr>
                       )}
