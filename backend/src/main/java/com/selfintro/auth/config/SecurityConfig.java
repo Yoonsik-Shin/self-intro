@@ -81,7 +81,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers(new AntPathRequestMatcher("/api/visits", "POST")))
+                        .ignoringRequestMatchers(
+                                new AntPathRequestMatcher("/api/visits", "POST"),
+                                // 페이앱 서버가 보내는 외부 콜백은 CSRF 토큰을 가질 수 없다 (linkval로 검증)
+                                new AntPathRequestMatcher("/api/donations/payapp/callback", "POST")))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
@@ -89,6 +92,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/visits").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/donations").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/donations/payapp/callback").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .anyRequest().hasRole("ADMIN"))

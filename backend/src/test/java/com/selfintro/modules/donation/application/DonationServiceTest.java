@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -135,6 +136,96 @@ class DonationServiceTest {
         assertThat(donation.markCanceled(NOW.plusMinutes(3), "8")).isFalse();
         assertThat(donation.getCanceledAt()).isEqualTo(NOW.plusMinutes(2));
         assertThat(donation.getStatus()).isEqualTo(DonationStatus.CANCELED);
+    }
+
+    @Test
+    void callbackMarksDonationPaid() {
+        Donation donation = pendingDonation("mul-123");
+        when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
+
+        boolean accepted = donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
+
+        assertThat(accepted).isTrue();
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.PAID);
+        assertThat(donation.getPaidAt()).isNotNull();
+    }
+
+    @Test
+    void duplicatePaidCallbackIsIdempotentButStillAccepted() {
+        Donation donation = pendingDonation("mul-123");
+        when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
+
+        donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
+        LocalDateTime firstPaidAt = donation.getPaidAt();
+        boolean secondAccepted = donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
+
+        assertThat(secondAccepted).isTrue();
+        assertThat(donation.getPaidAt()).isEqualTo(firstPaidAt);
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.PAID);
+    }
+
+    @Test
+    void cancelCallbackMarksDonationCanceled() {
+        Donation donation = pendingDonation("mul-123");
+        donation.markPaid(NOW, "4");
+        when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
+
+        boolean accepted = donationService.handleCallback(callbackParams("mul-123", "8", "5000"));
+
+        assertThat(accepted).isTrue();
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.CANCELED);
+    }
+
+    @Test
+    void callbackRejectsWrongLinkValue() {
+        Map<String, String> params = new java.util.HashMap<>(callbackParams("mul-123", "4", "5000"));
+        params.put("linkval", "forged-value");
+
+        assertThat(donationService.handleCallback(params)).isFalse();
+        verify(donationRepository, never()).findWithLockByMulNo(anyString());
+    }
+
+    @Test
+    void callbackRejectsMissingLinkValue() {
+        Map<String, String> params = new java.util.HashMap<>(callbackParams("mul-123", "4", "5000"));
+        params.remove("linkval");
+
+        assertThat(donationService.handleCallback(params)).isFalse();
+    }
+
+    @Test
+    void callbackRejectsUnknownMulNo() {
+        when(donationRepository.findWithLockByMulNo("unknown")).thenReturn(Optional.empty());
+
+        assertThat(donationService.handleCallback(callbackParams("unknown", "4", "5000"))).isFalse();
+    }
+
+    @Test
+    void callbackRejectsPriceMismatch() {
+        Donation donation = pendingDonation("mul-123");
+        when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
+
+        assertThat(donationService.handleCallback(callbackParams("mul-123", "4", "9999"))).isFalse();
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.PENDING);
+    }
+
+    @Test
+    void callbackAcknowledgesUnknownPayStateWithoutTransition() {
+        Donation donation = pendingDonation("mul-123");
+        when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
+
+        assertThat(donationService.handleCallback(callbackParams("mul-123", "1", "5000"))).isTrue();
+        assertThat(donation.getStatus()).isEqualTo(DonationStatus.PENDING);
+    }
+
+    private Donation pendingDonation(String mulNo) {
+        Donation donation = Donation.request(5000, null, NOW);
+        donation.assignMulNo(mulNo);
+        return donation;
+    }
+
+    private Map<String, String> callbackParams(String mulNo, String payState, String price) {
+        return Map.of("mul_no", mulNo, "pay_state", payState, "price", price, "linkval", "link-value");
     }
 
     @Test
