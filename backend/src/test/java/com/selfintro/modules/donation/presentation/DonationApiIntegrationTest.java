@@ -5,8 +5,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -172,6 +174,47 @@ class DonationApiIntegrationTest {
                         .param("linkval", "test-link-value"))
                 .andReturn();
         return result.getResponse().getStatus();
+    }
+
+    @Test
+    void donationConfigIsPubliclyReadable() throws Exception {
+        mockMvc.perform(get("/api/donations/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(true));
+    }
+
+    @Test
+    void settingsUpdateRequiresAdmin() throws Exception {
+        mockMvc.perform(put("/api/admin/donations/settings").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\":false}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminToggleDisablesButtonAndBlocksCreate() throws Exception {
+        mockMvc.perform(put("/api/admin/donations/settings")
+                        .with(user("test-admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(false));
+
+        mockMvc.perform(get("/api/donations/config"))
+                .andExpect(jsonPath("$.enabled").value(false));
+
+        mockMvc.perform(post("/api/donations").with(csrf())
+                        .header("X-Forwarded-For", "10.1.0." + IP_SEQUENCE.incrementAndGet())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":3000}"))
+                .andExpect(status().isServiceUnavailable());
+
+        mockMvc.perform(put("/api/admin/donations/settings")
+                        .with(user("test-admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(true));
     }
 
     @Test

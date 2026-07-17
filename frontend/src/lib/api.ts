@@ -589,6 +589,7 @@ export type DonationEvent = {
 };
 
 export const donationApi = {
+  config: () => request<{ enabled: boolean }>('/api/donations/config'),
   create: (amount: number, message?: string) =>
     request<DonationCreateResponse>('/api/donations', {
       method: 'POST',
@@ -597,6 +598,11 @@ export const donationApi = {
   status: (token: string) => request<{ status: DonationStatus }>(`/api/donations/${token}`),
   adminList: () => request<AdminDonationSummary>('/api/admin/donations'),
   adminEvents: (id: number) => request<DonationEvent[]>(`/api/admin/donations/${id}/events`),
+  adminUpdateSettings: (enabled: boolean) =>
+    request<{ enabled: boolean }>('/api/admin/donations/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
   adminCancel: (id: number) =>
     request<void>(`/api/admin/donations/${id}/cancel`, { method: 'POST' }),
 };

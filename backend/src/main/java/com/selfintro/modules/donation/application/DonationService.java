@@ -7,6 +7,8 @@ import com.selfintro.modules.donation.domain.DonationEventActor;
 import com.selfintro.modules.donation.domain.DonationEventRepository;
 import com.selfintro.modules.donation.domain.DonationEventType;
 import com.selfintro.modules.donation.domain.DonationRepository;
+import com.selfintro.modules.donation.domain.DonationSetting;
+import com.selfintro.modules.donation.domain.DonationSettingRepository;
 import com.selfintro.modules.donation.domain.DonationStatus;
 import com.selfintro.modules.donation.presentation.dto.AdminDonationResponse;
 import com.selfintro.modules.donation.presentation.dto.AdminDonationSummaryResponse;
@@ -39,6 +41,7 @@ public class DonationService {
 
     private final DonationRepository donationRepository;
     private final DonationEventRepository donationEventRepository;
+    private final DonationSettingRepository donationSettingRepository;
     private final PayAppClient payAppClient;
     private final DonationProperties properties;
     private final DonationRateLimiter rateLimiter;
@@ -50,6 +53,9 @@ public class DonationService {
      * 이 메서드가 어느 지점에서 실패하든 "결제는 됐는데 기록이 없는" 상황은 생기지 않는다.
      */
     public DonationCreateResponse create(int amount, String message, String clientIp) {
+        if (!isDonationEnabled()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "지금은 후원을 받지 않고 있습니다.");
+        }
         if (!rateLimiter.tryAcquire(clientIp)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "후원 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.");
@@ -161,6 +167,22 @@ public class DonationService {
                 donationRepository.findTop200ByOrderByIdDesc().stream()
                         .map(AdminDonationResponse::from)
                         .toList());
+    }
+
+    /** 설정 행이 없으면(마이그레이션 전/테스트) 기본 노출로 간주한다. */
+    public boolean isDonationEnabled() {
+        return donationSettingRepository.findById(DonationSetting.SINGLETON_ID)
+                .map(DonationSetting::isDonationEnabled)
+                .orElse(true);
+    }
+
+    @Transactional
+    public boolean updateDonationEnabled(boolean enabled) {
+        LocalDateTime now = LocalDateTime.now(donationClock);
+        DonationSetting setting = donationSettingRepository.findById(DonationSetting.SINGLETON_ID)
+                .orElseGet(() -> donationSettingRepository.save(DonationSetting.defaults(now)));
+        setting.updateEnabled(enabled, now);
+        return setting.isDonationEnabled();
     }
 
     @Transactional(readOnly = true)

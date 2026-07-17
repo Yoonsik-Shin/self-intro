@@ -370,6 +370,22 @@ export function AdminDashboard() {
 
   const [expandedDonationId, setExpandedDonationId] = useState<number | null>(null);
 
+  const { data: donationConfig } = useQuery({
+    queryKey: ['donationConfig'],
+    queryFn: donationApi.config,
+    enabled: activeTab === 'DONATIONS',
+  });
+
+  const toggleDonationMutation = useMutation({
+    mutationFn: (enabled: boolean) => donationApi.adminUpdateSettings(enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['donationConfig'] });
+    },
+    onError: (error) => {
+      alert(error instanceof ApiError ? error.message : '설정 변경에 실패했습니다.');
+    },
+  });
+
   const { data: donationEvents = [], isLoading: isDonationEventsLoading } = useQuery({
     queryKey: ['donations', 'admin', 'events', expandedDonationId],
     queryFn: () => donationApi.adminEvents(expandedDonationId!),
@@ -1699,9 +1715,29 @@ export function AdminDashboard() {
           {/* ======================= DONATIONS TAB ======================= */}
           {activeTab === 'DONATIONS' && (
             <div className="space-y-6">
-              <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-xl font-black text-slate-950">후원 내역</h2>
-                <p className="mt-0.5 text-sm text-slate-500">페이앱 결제 기준 후원 내역입니다. 결제완료 건은 환불(전액취소)할 수 있습니다.</p>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div>
+                  <h2 className="text-xl font-black text-slate-950">후원 내역</h2>
+                  <p className="mt-0.5 text-sm text-slate-500">페이앱 결제 기준 후원 내역입니다. 결제완료 건은 환불(전액취소)할 수 있습니다.</p>
+                </div>
+                <label className="flex cursor-pointer items-center gap-3">
+                  <span className="text-sm font-bold text-slate-600">후원 버튼 노출</span>
+                  <button
+                    role="switch"
+                    aria-checked={donationConfig?.enabled === true}
+                    disabled={donationConfig === undefined || toggleDonationMutation.isPending}
+                    onClick={() => toggleDonationMutation.mutate(!(donationConfig?.enabled === true))}
+                    className={`relative h-7 w-12 rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      donationConfig?.enabled ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                        donationConfig?.enabled ? 'left-6' : 'left-1'
+                      }`}
+                    />
+                  </button>
+                </label>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

@@ -16,6 +16,8 @@ import com.selfintro.modules.donation.domain.DonationEventActor;
 import com.selfintro.modules.donation.domain.DonationEventRepository;
 import com.selfintro.modules.donation.domain.DonationEventType;
 import com.selfintro.modules.donation.domain.DonationRepository;
+import com.selfintro.modules.donation.domain.DonationSetting;
+import com.selfintro.modules.donation.domain.DonationSettingRepository;
 import com.selfintro.modules.donation.domain.DonationStatus;
 import com.selfintro.modules.donation.presentation.dto.DonationCreateResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -45,6 +47,9 @@ class DonationServiceTest {
     private DonationEventRepository donationEventRepository;
 
     @Mock
+    private DonationSettingRepository donationSettingRepository;
+
+    @Mock
     private PayAppClient payAppClient;
 
     @Mock
@@ -60,8 +65,8 @@ class DonationServiceTest {
                         "seller", "link-key", "link-value", "01000000000",
                         "http://localhost:8080/api/donations/payapp/callback",
                         "http://localhost:8080/api/donations/complete"));
-        donationService = new DonationService(
-                donationRepository, donationEventRepository, payAppClient, properties, rateLimiter, clock);
+        donationService = new DonationService(donationRepository, donationEventRepository,
+                donationSettingRepository, payAppClient, properties, rateLimiter, clock);
     }
 
     @Test
@@ -297,6 +302,38 @@ class DonationServiceTest {
 
         assertThatThrownBy(() -> donationService.cancel(99L))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void createRejectsWhenDonationDisabled() {
+        DonationSetting setting = DonationSetting.defaults(NOW);
+        setting.updateEnabled(false, NOW);
+        when(donationSettingRepository.findById(DonationSetting.SINGLETON_ID))
+                .thenReturn(Optional.of(setting));
+
+        assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(thrown -> assertThat(((ResponseStatusException) thrown).getStatusCode())
+                        .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
+        verify(donationRepository, never()).save(any());
+    }
+
+    @Test
+    void donationEnabledDefaultsToTrueWithoutSettingRow() {
+        when(donationSettingRepository.findById(DonationSetting.SINGLETON_ID))
+                .thenReturn(Optional.empty());
+
+        assertThat(donationService.isDonationEnabled()).isTrue();
+    }
+
+    @Test
+    void updateDonationEnabledCreatesRowWhenMissing() {
+        when(donationSettingRepository.findById(DonationSetting.SINGLETON_ID))
+                .thenReturn(Optional.empty());
+        when(donationSettingRepository.save(any(DonationSetting.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(donationService.updateDonationEnabled(false)).isFalse();
     }
 
     @Test

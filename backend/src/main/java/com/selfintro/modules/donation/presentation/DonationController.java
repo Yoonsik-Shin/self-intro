@@ -1,6 +1,7 @@
 package com.selfintro.modules.donation.presentation;
 
 import com.selfintro.modules.donation.application.DonationService;
+import com.selfintro.modules.donation.presentation.dto.DonationConfigResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationCreateRequest;
 import com.selfintro.modules.donation.presentation.dto.DonationCreateResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationStatusResponse;
@@ -53,6 +54,12 @@ public class DonationController {
     @GetMapping("/{clientToken}")
     public DonationStatusResponse getStatus(@PathVariable String clientToken) {
         return donationService.getStatus(clientToken);
+    }
+
+    /** 후원 버튼 노출 여부 등 공개 설정. */
+    @GetMapping("/config")
+    public DonationConfigResponse config() {
+        return new DonationConfigResponse(donationService.isDonationEnabled());
     }
 
     /** 페이앱 returnurl. 결제 완료 후 팝업이 이동해 오는 안내 페이지 (상태 갱신은 콜백이 담당). */
