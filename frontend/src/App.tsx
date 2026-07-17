@@ -25,10 +25,12 @@ import {
   Award,
   GraduationCap,
   Eye,
+  Heart,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { architectureApi, bffApi, connectionApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
+import { DonationModal } from './components/DonationModal';
 import { markdownComponents, resumeMarkdownComponents } from './lib/markdown';
 import { SkillBadgeIcon } from './lib/SkillBadgeIcon';
 import { navigate, pagePaths, pathForExperienceDetail, pathForStudy } from './lib/navigation';
@@ -324,6 +326,7 @@ export function App() {
   } = useIntroStore();
 
   const [search, setSearch] = useState('');
+  const [isDonationOpen, setDonationOpen] = useState(false);
 
   const isPreviewMode = useMemo(
     () => new URLSearchParams(window.location.search).get('preview') === '1',
@@ -2876,6 +2879,15 @@ export function App() {
         )}
         </div>
       </main>
+      <button
+        onClick={() => setDonationOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700 hover:shadow-xl print:hidden"
+        title="후원하기"
+      >
+        <Heart className="h-4 w-4" />
+        <span>후원하기</span>
+      </button>
+      {isDonationOpen && <DonationModal onClose={() => setDonationOpen(false)} />}
     </>
   );
 }

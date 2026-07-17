@@ -545,6 +545,22 @@ export const competencyApi = {
       '/api/admin/competencies/ai/suggestions/stream', payload, onEvent, signal),
 };
 
+export type DonationStatus = 'PENDING' | 'PAID' | 'CANCELED' | 'FAILED';
+
+export type DonationCreateResponse = {
+  donationToken: string;
+  payUrl: string;
+};
+
+export const donationApi = {
+  create: (amount: number, message?: string) =>
+    request<DonationCreateResponse>('/api/donations', {
+      method: 'POST',
+      body: JSON.stringify({ amount, message: message || undefined }),
+    }),
+  status: (token: string) => request<{ status: DonationStatus }>(`/api/donations/${token}`),
+};
+
 export const visitorApi = {
   record: () => request<VisitorSummary>('/api/visits', { method: 'POST' }),
   adminSummary: () => request<VisitorSummary>('/api/admin/visits/summary'),
