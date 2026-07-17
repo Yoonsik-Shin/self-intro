@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ExternalLink, Heart, Loader2, X } from 'lucide-react';
 import { ApiError, donationApi } from '../lib/api';
 
-const PRESET_AMOUNTS = [3000, 5000, 10000];
+const PRESET_AMOUNTS = [1000, 3000, 5000];
 const MIN_AMOUNT = 1000;
 const MAX_AMOUNT = 100000;
 const POLL_INTERVAL_MS = 2500;
