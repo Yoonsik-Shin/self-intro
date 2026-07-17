@@ -569,6 +569,25 @@ export type AdminDonationSummary = {
   donations: AdminDonation[];
 };
 
+export type DonationEventType =
+  | 'CREATED'
+  | 'PAY_REQUESTED'
+  | 'PAY_FAILED'
+  | 'PAID'
+  | 'CANCELED'
+  | 'CALLBACK_REJECTED';
+
+export type DonationEventActor = 'VISITOR' | 'SYSTEM' | 'PAYAPP' | 'ADMIN';
+
+export type DonationEvent = {
+  id: number;
+  eventType: DonationEventType;
+  actor: DonationEventActor;
+  payState: string | null;
+  detail: string | null;
+  createdAt: string;
+};
+
 export const donationApi = {
   create: (amount: number, message?: string) =>
     request<DonationCreateResponse>('/api/donations', {
@@ -577,6 +596,7 @@ export const donationApi = {
     }),
   status: (token: string) => request<{ status: DonationStatus }>(`/api/donations/${token}`),
   adminList: () => request<AdminDonationSummary>('/api/admin/donations'),
+  adminEvents: (id: number) => request<DonationEvent[]>(`/api/admin/donations/${id}/events`),
   adminCancel: (id: number) =>
     request<void>(`/api/admin/donations/${id}/cancel`, { method: 'POST' }),
 };

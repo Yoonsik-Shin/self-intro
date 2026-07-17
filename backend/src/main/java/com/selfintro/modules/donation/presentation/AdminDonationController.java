@@ -2,7 +2,9 @@ package com.selfintro.modules.donation.presentation;
 
 import com.selfintro.modules.donation.application.DonationService;
 import com.selfintro.modules.donation.presentation.dto.AdminDonationSummaryResponse;
+import com.selfintro.modules.donation.presentation.dto.DonationEventResponse;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,6 +23,11 @@ public class AdminDonationController {
     @GetMapping
     public AdminDonationSummaryResponse list() {
         return donationService.adminList();
+    }
+
+    @GetMapping("/{id}/events")
+    public List<DonationEventResponse> events(@PathVariable Long id) {
+        return donationService.adminEvents(id);
     }
 
     @PostMapping("/{id}/cancel")

@@ -11,6 +11,10 @@ import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.donation.config.DonationProperties;
 import com.selfintro.modules.donation.domain.Donation;
+import com.selfintro.modules.donation.domain.DonationEvent;
+import com.selfintro.modules.donation.domain.DonationEventActor;
+import com.selfintro.modules.donation.domain.DonationEventRepository;
+import com.selfintro.modules.donation.domain.DonationEventType;
 import com.selfintro.modules.donation.domain.DonationRepository;
 import com.selfintro.modules.donation.domain.DonationStatus;
 import com.selfintro.modules.donation.presentation.dto.DonationCreateResponse;
@@ -38,6 +42,9 @@ class DonationServiceTest {
     private DonationRepository donationRepository;
 
     @Mock
+    private DonationEventRepository donationEventRepository;
+
+    @Mock
     private PayAppClient payAppClient;
 
     @Mock
@@ -54,7 +61,7 @@ class DonationServiceTest {
                         "http://localhost:8080/api/donations/payapp/callback",
                         "http://localhost:8080/api/donations/complete"));
         donationService = new DonationService(
-                donationRepository, payAppClient, properties, rateLimiter, clock);
+                donationRepository, donationEventRepository, payAppClient, properties, rateLimiter, clock);
     }
 
     @Test
@@ -290,6 +297,91 @@ class DonationServiceTest {
 
         assertThatThrownBy(() -> donationService.cancel(99L))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void createRecordsCreatedAndPayRequestedEvents() {
+        when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
+        when(donationRepository.save(any(Donation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(payAppClient.payRequest(anyInt(), anyString()))
+                .thenReturn(PayAppPayRequestResult.ok("mul-123", "https://pay.example/123"));
+
+        donationService.create(5000, null, "1.2.3.4");
+
+        assertThat(capturedEventTypes()).containsExactly(
+                DonationEventType.CREATED, DonationEventType.PAY_REQUESTED);
+    }
+
+    @Test
+    void createFailureRecordsPayFailedEvent() {
+        when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
+        when(donationRepository.save(any(Donation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(payAppClient.payRequest(anyInt(), anyString()))
+                .thenReturn(PayAppPayRequestResult.fail("한도 초과"));
+
+        assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
+                .isInstanceOf(ResponseStatusException.class);
+
+        assertThat(capturedEventTypes()).containsExactly(
+                DonationEventType.CREATED, DonationEventType.PAY_FAILED);
+    }
+
+    @Test
+    void paidCallbackRecordsPaidEventOnceEvenWhenDuplicated() {
+        Donation donation = pendingDonation("mul-123");
+        when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
+
+        donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
+        donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
+
+        java.util.List<DonationEvent> events = capturedEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).getEventType()).isEqualTo(DonationEventType.PAID);
+        assertThat(events.get(0).getActor()).isEqualTo(DonationEventActor.PAYAPP);
+    }
+
+    @Test
+    void priceMismatchCallbackRecordsRejectedEvent() {
+        Donation donation = pendingDonation("mul-123");
+        when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
+
+        donationService.handleCallback(callbackParams("mul-123", "4", "9999"));
+
+        java.util.List<DonationEvent> events = capturedEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).getEventType()).isEqualTo(DonationEventType.CALLBACK_REJECTED);
+    }
+
+    @Test
+    void adminCancelRecordsCanceledEventWithAdminActor() {
+        Donation donation = pendingDonation("mul-123");
+        donation.markPaid(NOW, "4");
+        when(donationRepository.findWithLockById(1L)).thenReturn(Optional.of(donation));
+
+        donationService.cancel(1L);
+
+        java.util.List<DonationEvent> events = capturedEvents();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).getEventType()).isEqualTo(DonationEventType.CANCELED);
+        assertThat(events.get(0).getActor()).isEqualTo(DonationEventActor.ADMIN);
+    }
+
+    @Test
+    void adminEventsThrowsWhenDonationUnknown() {
+        when(donationRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> donationService.adminEvents(99L))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    private java.util.List<DonationEvent> capturedEvents() {
+        org.mockito.ArgumentCaptor<DonationEvent> captor = org.mockito.ArgumentCaptor.forClass(DonationEvent.class);
+        verify(donationEventRepository, org.mockito.Mockito.atLeast(0)).save(captor.capture());
+        return captor.getAllValues();
+    }
+
+    private java.util.List<DonationEventType> capturedEventTypes() {
+        return capturedEvents().stream().map(DonationEvent::getEventType).toList();
     }
 
     @Test

@@ -2,10 +2,15 @@ package com.selfintro.modules.donation.application;
 
 import com.selfintro.modules.donation.config.DonationProperties;
 import com.selfintro.modules.donation.domain.Donation;
+import com.selfintro.modules.donation.domain.DonationEvent;
+import com.selfintro.modules.donation.domain.DonationEventActor;
+import com.selfintro.modules.donation.domain.DonationEventRepository;
+import com.selfintro.modules.donation.domain.DonationEventType;
 import com.selfintro.modules.donation.domain.DonationRepository;
 import com.selfintro.modules.donation.domain.DonationStatus;
 import com.selfintro.modules.donation.presentation.dto.AdminDonationResponse;
 import com.selfintro.modules.donation.presentation.dto.AdminDonationSummaryResponse;
+import com.selfintro.modules.donation.presentation.dto.DonationEventResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationCreateResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationStatusResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -13,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -32,6 +38,7 @@ public class DonationService {
     private static final Set<String> PAY_STATE_CANCELED = Set.of("8", "16", "32", "64");
 
     private final DonationRepository donationRepository;
+    private final DonationEventRepository donationEventRepository;
     private final PayAppClient payAppClient;
     private final DonationProperties properties;
     private final DonationRateLimiter rateLimiter;
@@ -50,22 +57,24 @@ public class DonationService {
         validateAmount(amount);
         Donation donation = donationRepository.save(
                 Donation.request(amount, normalizeMessage(message), LocalDateTime.now(donationClock)));
+        recordEvent(donation.getId(), DonationEventType.CREATED, DonationEventActor.VISITOR, null, null);
 
         PayAppPayRequestResult result;
         try {
             result = payAppClient.payRequest(amount, donation.getClientToken());
         } catch (RuntimeException exception) {
-            markFailed(donation);
+            markFailed(donation, exception.getMessage());
             throw exception;
         }
         if (!result.success()) {
-            markFailed(donation);
+            markFailed(donation, result.errorMessage());
             log.warn("페이앱 payrequest 실패: donationId={}, error={}", donation.getId(), result.errorMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "결제 요청 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
         }
 
         donation.assignMulNo(result.mulNo());
         donationRepository.save(donation);
+        recordEvent(donation.getId(), DonationEventType.PAY_REQUESTED, DonationEventActor.SYSTEM, null, null);
         return new DonationCreateResponse(donation.getClientToken(), result.payUrl());
     }
 
@@ -93,17 +102,23 @@ public class DonationService {
         Donation donation = found.get();
         if (!matchesAmount(params.get("price"), donation.getAmount())) {
             log.warn("콜백 금액 불일치: donationId={}, price={}", donation.getId(), params.get("price"));
+            recordEvent(donation.getId(), DonationEventType.CALLBACK_REJECTED, DonationEventActor.PAYAPP,
+                    params.get("pay_state"), "금액 불일치: price=" + params.get("price"));
             return false;
         }
 
         String payState = params.get("pay_state");
         LocalDateTime now = LocalDateTime.now(donationClock);
         if (PAY_STATE_PAID.equals(payState)) {
-            donation.markPaid(now, payState);
+            if (donation.markPaid(now, payState)) {
+                recordEvent(donation.getId(), DonationEventType.PAID, DonationEventActor.PAYAPP, payState, null);
+            }
             return true;
         }
         if (payState != null && PAY_STATE_CANCELED.contains(payState)) {
-            donation.markCanceled(now, payState);
+            if (donation.markCanceled(now, payState)) {
+                recordEvent(donation.getId(), DonationEventType.CANCELED, DonationEventActor.PAYAPP, payState, null);
+            }
             return true;
         }
         // 알 수 없는 상태는 수신만 인정(SUCCESS)해 재전송 루프를 막고 로그로 추적한다.
@@ -148,6 +163,16 @@ public class DonationService {
                         .toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<DonationEventResponse> adminEvents(Long donationId) {
+        if (!donationRepository.existsById(donationId)) {
+            throw new EntityNotFoundException("후원 내역을 찾을 수 없습니다.");
+        }
+        return donationEventRepository.findByDonationIdOrderByIdAsc(donationId).stream()
+                .map(DonationEventResponse::from)
+                .toList();
+    }
+
     /**
      * 관리자 환불(전액취소). 행 잠금 + PAID 재검증 후에만 paycancel을 호출하므로
      * 더블클릭·동시 요청에도 페이앱 취소 요청은 한 번만 나간다. paycancel 실패 시
@@ -164,16 +189,24 @@ public class DonationService {
         }
         payAppClient.payCancel(donation.getMulNo(), "관리자 환불");
         donation.markCanceled(LocalDateTime.now(donationClock), "admin");
+        recordEvent(donation.getId(), DonationEventType.CANCELED, DonationEventActor.ADMIN, "admin", "관리자 환불");
     }
 
-    private void markFailed(Donation donation) {
+    private void markFailed(Donation donation, String detail) {
         try {
             donation.markFailed();
             donationRepository.save(donation);
+            recordEvent(donation.getId(), DonationEventType.PAY_FAILED, DonationEventActor.SYSTEM, null, detail);
         } catch (RuntimeException exception) {
             // 실패 마킹까지 실패해도 PENDING 고아 행만 남을 뿐 정합성 문제는 없다. 로그만 남긴다.
             log.warn("후원 실패 상태 저장에 실패했습니다: donationId={}", donation.getId(), exception);
         }
+    }
+
+    private void recordEvent(Long donationId, DonationEventType type, DonationEventActor actor,
+            String payState, String detail) {
+        donationEventRepository.save(DonationEvent.of(
+                donationId, type, actor, payState, detail, LocalDateTime.now(donationClock)));
     }
 
     private void validateAmount(int amount) {

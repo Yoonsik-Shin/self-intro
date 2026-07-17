@@ -1,4 +1,4 @@
-import { useState, type FormEvent, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Fragment, useState, type FormEvent, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Home,
@@ -45,6 +45,8 @@ import {
   bffApi,
   visitorApi,
   donationApi,
+  type DonationEventType,
+  type DonationEventActor,
   type StudyRequest,
   type Study,
   type StudySuggestion,
@@ -124,6 +126,22 @@ const ADMIN_MENU_GROUPS = [
   label: string;
   items: Array<{ id: TabId; label: string; icon: typeof BookOpen }>;
 }>;
+
+const DONATION_EVENT_LABELS: Record<DonationEventType, string> = {
+  CREATED: '후원 생성',
+  PAY_REQUESTED: '결제요청 발급',
+  PAY_FAILED: '결제요청 실패',
+  PAID: '결제완료',
+  CANCELED: '취소/환불',
+  CALLBACK_REJECTED: '콜백 거부',
+};
+
+const DONATION_ACTOR_LABELS: Record<DonationEventActor, string> = {
+  VISITOR: '방문자',
+  SYSTEM: '시스템',
+  PAYAPP: '페이앱',
+  ADMIN: '관리자',
+};
 
 const PREVIEW_MIN_WIDTH = 420;
 const PREVIEW_MAX_WIDTH = 960;
@@ -348,6 +366,14 @@ export function AdminDashboard() {
     queryKey: ['donations', 'admin'],
     queryFn: donationApi.adminList,
     enabled: activeTab === 'DONATIONS',
+  });
+
+  const [expandedDonationId, setExpandedDonationId] = useState<number | null>(null);
+
+  const { data: donationEvents = [], isLoading: isDonationEventsLoading } = useQuery({
+    queryKey: ['donations', 'admin', 'events', expandedDonationId],
+    queryFn: () => donationApi.adminEvents(expandedDonationId!),
+    enabled: activeTab === 'DONATIONS' && expandedDonationId !== null,
   });
 
   const cancelDonationMutation = useMutation({
@@ -1711,41 +1737,93 @@ export function AdminDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(donationSummary?.donations ?? []).map((donation) => (
-                        <tr key={donation.id} className="text-slate-600">
-                          <td className="px-5 py-3 font-semibold text-slate-700 whitespace-nowrap">
-                            {donation.createdAt.replace('T', ' ').slice(0, 16)}
-                          </td>
-                          <td className="px-5 py-3 text-right font-bold">{donation.amount.toLocaleString()}원</td>
-                          <td className="max-w-[240px] truncate px-5 py-3" title={donation.message ?? ''}>
-                            {donation.message ?? <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="px-5 py-3">
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
-                              donation.status === 'PAID'
-                                ? 'bg-emerald-50 text-emerald-600'
-                                : donation.status === 'CANCELED'
-                                  ? 'bg-amber-50 text-amber-600'
-                                  : donation.status === 'FAILED'
-                                    ? 'bg-rose-50 text-rose-600'
-                                    : 'bg-slate-100 text-slate-500'
-                            }`}>
-                              {donation.status === 'PAID' ? '결제완료'
-                                : donation.status === 'CANCELED' ? '취소됨'
-                                  : donation.status === 'FAILED' ? '실패' : '대기'}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3 text-right">
-                            {donation.status === 'PAID' && (
-                              <button
-                                onClick={() => handleCancelDonation(donation.id, donation.amount)}
-                                disabled={cancelDonationMutation.isPending}
-                                className="rounded-lg border border-rose-200 px-3 py-1 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                환불
-                              </button>
-                            )}
-                          </td>
-                        </tr>
+                        <Fragment key={donation.id}>
+                          <tr
+                            className="cursor-pointer text-slate-600 transition hover:bg-slate-50"
+                            onClick={() => setExpandedDonationId(
+                              expandedDonationId === donation.id ? null : donation.id)}
+                          >
+                            <td className="px-5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                              <span className="mr-2 inline-block text-slate-400">
+                                {expandedDonationId === donation.id ? '▾' : '▸'}
+                              </span>
+                              {donation.createdAt.replace('T', ' ').slice(0, 16)}
+                            </td>
+                            <td className="px-5 py-3 text-right font-bold">{donation.amount.toLocaleString()}원</td>
+                            <td className="max-w-[240px] truncate px-5 py-3" title={donation.message ?? ''}>
+                              {donation.message ?? <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="px-5 py-3">
+                              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
+                                donation.status === 'PAID'
+                                  ? 'bg-emerald-50 text-emerald-600'
+                                  : donation.status === 'CANCELED'
+                                    ? 'bg-amber-50 text-amber-600'
+                                    : donation.status === 'FAILED'
+                                      ? 'bg-rose-50 text-rose-600'
+                                      : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                {donation.status === 'PAID' ? '결제완료'
+                                  : donation.status === 'CANCELED' ? '취소됨'
+                                    : donation.status === 'FAILED' ? '실패' : '대기'}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              {donation.status === 'PAID' && (
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleCancelDonation(donation.id, donation.amount);
+                                  }}
+                                  disabled={cancelDonationMutation.isPending}
+                                  className="rounded-lg border border-rose-200 px-3 py-1 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  환불
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {expandedDonationId === donation.id && (
+                            <tr>
+                              <td colSpan={5} className="bg-slate-50 px-5 py-4">
+                                {isDonationEventsLoading ? (
+                                  <p className="text-sm font-semibold text-slate-400">이력을 불러오는 중입니다.</p>
+                                ) : donationEvents.length === 0 ? (
+                                  <p className="text-sm font-semibold text-slate-400">기록된 이력이 없습니다.</p>
+                                ) : (
+                                  <ol className="space-y-2">
+                                    {donationEvents.map((event) => (
+                                      <li key={event.id} className="flex items-baseline gap-3 text-sm">
+                                        <span className="whitespace-nowrap font-mono text-xs text-slate-400">
+                                          {event.createdAt.replace('T', ' ').slice(0, 19)}
+                                        </span>
+                                        <span className={`font-extrabold ${
+                                          event.eventType === 'PAID' ? 'text-emerald-600'
+                                            : event.eventType === 'CANCELED' ? 'text-amber-600'
+                                              : event.eventType === 'PAY_FAILED' || event.eventType === 'CALLBACK_REJECTED'
+                                                ? 'text-rose-600' : 'text-slate-700'
+                                        }`}>
+                                          {DONATION_EVENT_LABELS[event.eventType]}
+                                        </span>
+                                        <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs font-bold text-slate-600">
+                                          {DONATION_ACTOR_LABELS[event.actor]}
+                                        </span>
+                                        {event.payState && (
+                                          <span className="text-xs text-slate-400">pay_state={event.payState}</span>
+                                        )}
+                                        {event.detail && (
+                                          <span className="truncate text-xs text-slate-500" title={event.detail}>
+                                            {event.detail}
+                                          </span>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ol>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))}
                       {!isDonationLoading && (donationSummary?.donations ?? []).length === 0 && (
                         <tr>
