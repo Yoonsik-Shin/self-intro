@@ -31,6 +31,7 @@ public class DonationService {
     private final DonationRepository donationRepository;
     private final PayAppClient payAppClient;
     private final DonationProperties properties;
+    private final DonationRateLimiter rateLimiter;
     private final Clock donationClock;
 
     /**
@@ -38,7 +39,11 @@ public class DonationService {
      * (save가 각자 짧은 트랜잭션으로 커밋). payUrl은 mulNo가 커밋된 뒤에만 반환되므로,
      * 이 메서드가 어느 지점에서 실패하든 "결제는 됐는데 기록이 없는" 상황은 생기지 않는다.
      */
-    public DonationCreateResponse create(int amount, String message) {
+    public DonationCreateResponse create(int amount, String message, String clientIp) {
+        if (!rateLimiter.tryAcquire(clientIp)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "후원 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.");
+        }
         validateAmount(amount);
         Donation donation = donationRepository.save(
                 Donation.request(amount, normalizeMessage(message), LocalDateTime.now(donationClock)));

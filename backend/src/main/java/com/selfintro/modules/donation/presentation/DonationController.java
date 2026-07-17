@@ -5,6 +5,7 @@ import com.selfintro.modules.donation.presentation.dto.DonationCreateRequest;
 import com.selfintro.modules.donation.presentation.dto.DonationCreateResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationStatusResponse;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -35,8 +36,18 @@ public class DonationController {
     private final DonationService donationService;
 
     @PostMapping
-    public DonationCreateResponse create(@Valid @RequestBody DonationCreateRequest request) {
-        return donationService.create(request.amount(), request.message());
+    public DonationCreateResponse create(
+            @Valid @RequestBody DonationCreateRequest request, HttpServletRequest httpRequest) {
+        return donationService.create(request.amount(), request.message(), resolveClientIp(httpRequest));
+    }
+
+    /** rate limit 키로 쓸 클라이언트 IP. 프록시 뒤에서는 X-Forwarded-For의 첫 홉을 사용한다. */
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @GetMapping("/{clientToken}")

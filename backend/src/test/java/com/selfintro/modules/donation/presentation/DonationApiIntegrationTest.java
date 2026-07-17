@@ -174,12 +174,37 @@ class DonationApiIntegrationTest {
         return result.getResponse().getStatus();
     }
 
+    @Test
+    void createDonationIsRateLimitedPerIp() throws Exception {
+        when(payAppClient.payRequest(anyInt(), anyString()))
+                .thenAnswer(invocation -> PayAppPayRequestResult.ok(
+                        "mul-limit-" + IP_SEQUENCE.incrementAndGet(), "https://pay.example/5"));
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/donations").with(csrf())
+                            .header("X-Forwarded-For", "9.9.9.9")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"amount\":3000}"))
+                    .andExpect(status().isOk());
+        }
+        mockMvc.perform(post("/api/donations").with(csrf())
+                        .header("X-Forwarded-For", "9.9.9.9")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":3000}"))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    /** 테스트 간 공유되는 rate limiter에 걸리지 않도록 호출마다 서로 다른 IP를 쓴다. */
     private String createDonation(int amount) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/donations").with(csrf())
+                        .header("X-Forwarded-For", "10.0.0." + IP_SEQUENCE.incrementAndGet())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":" + amount + "}"))
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("donationToken").asText();
     }
+
+    private static final java.util.concurrent.atomic.AtomicInteger IP_SEQUENCE =
+            new java.util.concurrent.atomic.AtomicInteger();
 }

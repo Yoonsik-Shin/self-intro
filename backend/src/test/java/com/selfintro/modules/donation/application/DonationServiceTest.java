@@ -40,6 +40,9 @@ class DonationServiceTest {
     @Mock
     private PayAppClient payAppClient;
 
+    @Mock
+    private DonationRateLimiter rateLimiter;
+
     private DonationService donationService;
 
     @BeforeEach
@@ -50,43 +53,59 @@ class DonationServiceTest {
                         "seller", "link-key", "link-value", "01000000000",
                         "http://localhost:8080/api/donations/payapp/callback",
                         "http://localhost:8080/api/donations/complete"));
-        donationService = new DonationService(donationRepository, payAppClient, properties, clock);
+        donationService = new DonationService(
+                donationRepository, payAppClient, properties, rateLimiter, clock);
     }
 
     @Test
     void createReturnsPayUrlAndStoresMulNo() {
+        when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         when(donationRepository.save(any(Donation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(payAppClient.payRequest(anyInt(), anyString()))
                 .thenReturn(PayAppPayRequestResult.ok("mul-123", "https://pay.example/123"));
 
-        DonationCreateResponse response = donationService.create(5000, "화이팅!");
+        DonationCreateResponse response = donationService.create(5000, "화이팅!", "1.2.3.4");
 
         assertThat(response.payUrl()).isEqualTo("https://pay.example/123");
         assertThat(response.donationToken()).isNotBlank();
     }
 
     @Test
+    void createRejectsWhenRateLimited() {
+        when(rateLimiter.tryAcquire("1.2.3.4")).thenReturn(false);
+
+        assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(thrown -> assertThat(((ResponseStatusException) thrown).getStatusCode())
+                        .isEqualTo(HttpStatus.TOO_MANY_REQUESTS));
+        verify(donationRepository, never()).save(any());
+    }
+
+    @Test
     void createRejectsAmountBelowMinimum() {
-        assertThatThrownBy(() -> donationService.create(999, null))
+        when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
+        assertThatThrownBy(() -> donationService.create(999, null, "1.2.3.4"))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(donationRepository, never()).save(any());
     }
 
     @Test
     void createRejectsAmountAboveMaximum() {
-        assertThatThrownBy(() -> donationService.create(100001, null))
+        when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
+        assertThatThrownBy(() -> donationService.create(100001, null, "1.2.3.4"))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(donationRepository, never()).save(any());
     }
 
     @Test
     void createMarksFailedWhenPayAppRejects() {
+        when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         Donation donation = Donation.request(5000, null, NOW);
         when(donationRepository.save(any(Donation.class))).thenReturn(donation);
         when(payAppClient.payRequest(anyInt(), anyString()))
                 .thenReturn(PayAppPayRequestResult.fail("잘못된 요청"));
 
-        assertThatThrownBy(() -> donationService.create(5000, null))
+        assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(thrown -> assertThat(((ResponseStatusException) thrown).getStatusCode())
                         .isEqualTo(HttpStatus.BAD_GATEWAY));
@@ -95,12 +114,13 @@ class DonationServiceTest {
 
     @Test
     void createMarksFailedWhenPayAppThrows() {
+        when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         Donation donation = Donation.request(5000, null, NOW);
         when(donationRepository.save(any(Donation.class))).thenReturn(donation);
         when(payAppClient.payRequest(anyInt(), anyString()))
                 .thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "네트워크 오류"));
 
-        assertThatThrownBy(() -> donationService.create(5000, null))
+        assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
                 .isInstanceOf(ResponseStatusException.class);
         assertThat(donation.getStatus()).isEqualTo(DonationStatus.FAILED);
     }
