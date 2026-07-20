@@ -1837,7 +1837,7 @@ export function App() {
     const id = `field:merged:${detailIdKey}`;
     return (
       <Fragment key="merged">
-        <div className="resume-detail-text mt-1 text-[11px] text-slate-600 leading-relaxed">
+        <div className="resume-detail-text mt-1 text-[12px] text-slate-600 leading-relaxed">
           <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
         </div>
       </Fragment>
