@@ -497,8 +497,22 @@ select {
   }
 
   .print-competency-row .resume-item-title {
+    font-size: 10.7pt !important;
     word-break: keep-all !important;
     overflow-wrap: normal !important;
+  }
+
+  .print-competency-row .resume-body {
+    font-size: 9.2pt !important;
+    line-height: 1.45 !important;
+  }
+
+  .print-competency-row .resume-meta {
+    font-size: 8.2pt !important;
+  }
+
+  .print-competency-row .resume-label {
+    font-size: 7.5pt !important;
   }
 
   .resume-body p,
@@ -946,8 +960,22 @@ select {
 }
 
 .print-active .print-competency-row .resume-item-title {
+  font-size: 10.7pt !important;
   word-break: keep-all !important;
   overflow-wrap: normal !important;
+}
+
+.print-active .print-competency-row .resume-body {
+  font-size: 9.2pt !important;
+  line-height: 1.45 !important;
+}
+
+.print-active .print-competency-row .resume-meta {
+  font-size: 8.2pt !important;
+}
+
+.print-active .print-competency-row .resume-label {
+  font-size: 7.5pt !important;
 }
 
 .print-active .print-competency-section {
