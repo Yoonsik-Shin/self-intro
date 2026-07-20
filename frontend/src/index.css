@@ -567,6 +567,14 @@ select {
     line-height: 1.25 !important;
   }
 
+  .resume-detail-text,
+  .resume-detail-text p,
+  .resume-detail-text li {
+    font-size: 8.2pt !important;
+    line-height: 1.4 !important;
+    color: #475569 !important;
+  }
+
   .print-competency-section {
     page-break-inside: auto !important;
     break-inside: auto !important;
@@ -1005,6 +1013,14 @@ select {
 .print-active .resume-badge {
   font-size: 8.2pt !important;
   line-height: 1.25 !important;
+}
+
+.print-active .resume-detail-text,
+.print-active .resume-detail-text p,
+.print-active .resume-detail-text li {
+  font-size: 8.2pt !important;
+  line-height: 1.4 !important;
+  color: #475569 !important;
 }
 
 /* ── Section exclusion: 프리뷰·실제 인쇄 모두 완전히 숨김 ── */
