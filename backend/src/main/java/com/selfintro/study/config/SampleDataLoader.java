@@ -167,11 +167,6 @@ public class SampleDataLoader implements ApplicationRunner {
         studyCategoryRepository.findAll().forEach(cat -> categoryMap.put(cat.getSlug(), cat));
 
         // Essays
-        String essayCareer = "에듀테크 스타트업 실무 경력 (1년 11개월): 핵심 애플리케이션 및 BFF 서버 개발을 전담하며 전체 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로 활약했습니다. 특히 AI 튜터 메시징 대화 세션의 4개 컨텍스트 다형성(문제풀이/복습/챌린지/개념보강) 모델을 추상화하여 외부 AI 서버와의 SQS 비동기 연동을 주도했으며, MongoDB 트랜잭션을 적용해 상태 변화의 데이터 정합성을 보장했습니다. 또한 교사용 실시간 학생 Presence 추적과 이상행동(manageable-action) 감지, 제출문제(SubmittedProblem) 도메인의 CQRS 리팩토링 및 6만 건의 데이터 마이그레이션 스크립트를 작성하여 시스템 효율화를 이뤄냈습니다.\n\n백오피스 TF 및 공용 서비스 단독 구축: 무료체험 프로세스 개선을 위한 자발적 TF에서 Spring Boot 3.2 + Security + JPA 기반 백오피스 서버(144개 클래스) 전체를 단독 개발했습니다. NCP 카카오 알림톡(HMAC 서명 구현) 및 MS Teams 웹훅 연동을 통해 알림을 자동화했으며, Redis Session을 활용해 크로스도메인 쿠키 인증 이슈를 해결했습니다. 추가로 여러 부서가 공용하는 6만여 개의 문항 조회를 위한 NestJS 마이크로서비스를 단독 설계하고, 공통 DB/캐시 모듈을 사내 npm 패키지로 격리하며 신규 NestJS 프로젝트 생성용 CLI 도구까지 주도 개발했습니다.";
-        String essayProjects = "CS Test Bed 및 신규 프로젝트 개발: CS 문의 수집·답변 자동화 E2E 시스템(CS Test Bed)을 단독 구축했습니다. n8n 워크플로우로 카페 게시판과 이메일 문의를 수집하고, Playwright를 활용해 네이버 세션 만료 및 자동 답변 우회 로직을 구현했습니다. Nginx auth_request 및 HMAC 토큰을 활용한 보안 프록시 계층을 설계하여 MinIO/Grafana 등 내부 도구에 SSO를 연동했습니다. AI 실시간 모의면접 플랫폼에서는 gRPC/Redis/Kafka 기반의 음성 스트리밍 파이프라인을 설계해 비동기 상태 통제와 RAG Rerank 최적화 성능을 확보했습니다.";
-        String essayInfo = "정보처리기사 취득 과정에서 체화한 소프트웨어 개발 생명주기(SDLC), 모듈 설계 원칙(응집도와 결합도), 객체지향 설계(SOLID)를 실무에 직접 투영했습니다. 도메인의 경계를 명확히 분리하고 인프라 변경에 유연하게 대응하기 위해 헥사고날(포트-어댑터) 아키텍처와 DDD 4계층(adapter-application-domain-infrastructure) 구조를 에듀테크 서비스 전체에 일관 적용하여 코드 가독성과 확장성을 대폭 높였습니다.";
-        String essaySql = "데이터 모델 정규화 및 반정규화, 인덱스(Index) 설계 원리와 조인(Join) 메커니즘을 심도 있게 학습했습니다. Spring Boot 기반 백오피스 개발 시 8개 도메인 간의 유기적 관계(1:N, N:M)를 매핑하고, 복잡한 동적 필터 조회를 위해 QueryDSL을 연동하여 성능 향상을 이뤄냈습니다. N+1 문제를 방지하기 위해 Fetch Join과 인덱스 튜닝을 도입하여 조회 속도를 개선했습니다.";
-        String essayBigdata = "대량 데이터 수집, 이상치 정제, 통계적 분석(가설 검정, 회귀 모형) 및 평가 메커니즘을 마이그레이션과 AI RAG 파이프라인에 접목했습니다. SubmittedProblem 통계 병합 마이그레이션 시 14개 집계 지표(제출수/정답수/소요시간 등)를 MongoDB 트랜잭션 내에서 정량 데이터로 가공·적재하는 파이프라인을 구축하였으며, AI 모의면접 플랫폼에서 PDF 이력서 RAG 질문 생성의 답변 정확도를 분석하는 통계 평가 체계에 응용했습니다.";
 
         // Seed Career and the concrete work projects performed within it.
         List<ExperienceDetail.Draft> workProjectDetails = List.of(
@@ -223,7 +218,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2025, 10, 31),
                 "커리큘럼 기반 AI 학습 플랫폼의 핵심 Express API 서버와 NestJS 기반 BFF(Backend for Frontend) 서버를 부트스트랩하고 설계·개발을 전담했습니다. AI 튜터 메시징 대화 세션 모델 추상화 및 SQS 비동기 연동, 교사용 실시간 학생 관리(Presence) 모듈 설계, SubmittedProblem 도메인 CQRS 리팩토링 및 대형 마이그레이션을 총괄했습니다. Spring Boot 기반 백오피스 서비스도 1인 단독 구축하였습니다.",
                 "실무 서비스의 9,500여 개 커밋 중 약 43%를 담당한 최다 기여자로서 비즈니스 확장 시 도메인 관심사 격리, 성능 튜닝, 그리고 인프라 CI/CD 파이프라인 전반을 주도하는 리드 엔지니어로 성장했습니다.",
-                essayCareer,
                 4,
                 List.of(),
                 getSkills(List.of("Node.js", "TypeScript", "NestJS", "Express", "MongoDB", "Redis", "Spring Boot", "Spring Data JPA", "Spring Security", "MySQL", "AWS ECS", "Amazon SQS", "Docker", "Datadog", "GitHub Actions"), skillMap),
@@ -239,7 +233,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
                 "AI 튜터링 세션을 4개 컨텍스트로 추상화한 Express API와 교사용·학생용 클라이언트를 중계하는 NestJS BFF를 설계·개발했습니다.",
                 "9,500여 개 커밋 중 약 43%를 담당하며 핵심 API, BFF, CQRS 리팩토링과 대규모 데이터 마이그레이션을 주도했습니다.",
-                essayCareer,
                 4,
                 List.of(workProjectDetails.get(0), workProjectDetails.get(1)),
                 getSkills(List.of("Node.js", "TypeScript", "Express", "MongoDB", "NestJS", "Redis"), skillMap),
@@ -252,7 +245,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
                 "여러 부서의 반복 수작업을 줄이기 위해 Spring Boot 3.2 기반 사내 백오피스와 알림·인증 자동화 흐름을 단독 구축했습니다.",
                 "6만여 개 문항 조회와 부서 공용 워크플로우를 자동화하며 독립적인 사내 서비스 설계·운영 경험을 확보했습니다.",
-                null,
                 5,
                 List.of(workProjectDetails.get(2)),
                 workProjectDetails.get(2).skills(),
@@ -265,7 +257,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
                 "AWS ECS·SQS 기반 인프라와 Docker 배포 환경, GitHub Actions CI/CD 및 Datadog 모니터링 체계를 구축·운영했습니다.",
                 "배포 수작업과 환경 차이를 줄이고 장애를 조기에 발견할 수 있는 안정적인 서비스 운영 기반을 마련했습니다.",
-                null,
                 6,
                 List.of(workProjectDetails.get(3)),
                 workProjectDetails.get(3).skills(),
@@ -278,7 +269,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 savedCareer.getPeriodStart(), savedCareer.getPeriodEnd(),
                 "6만여 문항을 제공하는 NestJS 공용 문제 서비스와 npm workspaces 기반 공통 패키지 모노레포를 단독 구축했습니다.",
                 "마이크로서비스의 공통 아키텍처 패턴을 표준화하고 신규 서버 모듈의 초기 설정 시간을 단축했습니다.",
-                null,
                 7,
                 List.of(workProjectDetails.get(4)),
                 workProjectDetails.get(4).skills(),
@@ -293,7 +283,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2026, 7, 31),
                 "고객 문의 수집·관리 및 브라우저 자동화(Playwright)와 노코드 n8n 워크플로우를 활용해 네이버 카페, 이메일 등의 문의 수작업 처리 과정을 자동화한 E2E 테스트베드 시스템입니다. DB 기반 RBAC 및 PII 암호화, Nginx auth_request 인증 계층과 Loki/Grafana/Alloy로 실시간 모니터링 환경을 구성했습니다.",
                 "HMAC 인증 토큰과 Nginx auth_request를 활용해 내부 툴들의 보안 계층을 구축하고, n8n 분산 Lock 패턴과 무중단 개인정보(PII) 암호화 마이그레이션을 통해 운영 안정성을 하드닝했습니다.",
-                essayProjects,
                 1,
                 List.of(
                         detail(
@@ -353,7 +342,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2026, 3, 31),
                 "실시간 AI 모의면접 및 역량 평가 서비스의 전체 시스템 아키텍처와 분산 메시징 처리 부분을 담당했습니다. gRPC 기반 실시간 음성 스트리밍 제어, Redis/Kafka 비동기 메시지 큐를 통한 음성 데이터 및 AI 상태 변경 큐잉, 이력서 RAG 질문 생성 기능 등을 구현하고 Kubernetes 환경에 배포했습니다. (개인 프로젝트)",
                 "비동기 메시징 및 대용량 음성 스트리밍 환경에서 발생할 수 있는 데이터 유실과 지연 병목을 제어하며 분산 인프라 설계 능력을 키웠습니다.",
-                essayProjects,
                 3,
                 List.of(detail("gRPC/Redis/Kafka 기반 실시간 음성 스트리밍, 이력서 RAG 질문 생성 서비스를 설계했습니다.", null, null, null, 0, List.of())),
                 getSkills(List.of("React", "gRPC", "Redis", "Apache Kafka", "LLM", "STT/TTS", "RAG", "Kubernetes"), skillMap),
@@ -369,7 +357,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2024, 9, 21),
                 "실제 UI 상호작용 없이 대량의 학생 학습 시나리오(출석, 문제풀이 제출, 비디오 진행률 업데이트, 리뷰 복습 등)를 API 단에서 자동으로 시뮬레이션해 기능 이상 및 부하를 모니터링하는 테스팅 툴입니다. Axios 및 가중치 랜덤 알고리즘을 도입했습니다.",
                 "E2E 관점에서 전체 도메인의 핵심 비즈니스 흐름을 관통하는 통합 검증 지식을 체득하고 가중치 기반 시뮬레이션을 구현했습니다.",
-                null,
                 6,
                 List.of(detail("가중치 랜덤 기반 학습 행동 시뮬레이션 봇을 개발해 회귀 검증을 자동화했습니다.", null, null, null, 0, List.of())),
                 getSkills(List.of("TypeScript", "Node.js"), skillMap),
@@ -386,7 +373,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2022, 2, 25),
                 "IT 비전공자로서 개발 역량을 별도로 쌓았습니다.",
                 "스포츠의학을 전공한 뒤 개발 교육과 프로젝트, 실무 경험을 통해 소프트웨어 개발 역량을 쌓았습니다.",
-                null,
                 12,
                 List.of(detail("스포츠의학과 학사 학위 취득 (IT 비전공)", null, null, "차의과학대학교 스포츠의학과를 졸업했으며, IT 비전공자로서 개발 역량을 별도로 쌓았습니다.", 0, List.of())),
                 List.of(),
@@ -399,7 +385,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2026, 3, 15),
                 "ML/DL 기초학습, Agentic AI 구축 (LangChain, LangGraph), RAG 구축, AI Azure 기반의 클라우드 엔지니어 학습 (600시간)",
                 "Agentic AI와 RAG 아키텍처를 깊이 있게 다루고, 클라우드 환경에서 AI 인프라를 구축하고 운영하는 방법을 익혔습니다.",
-                null,
                 5,
                 List.of(detail("ML/DL 기초학습, Agentic AI 구축 (LangChain, LangGraph), RAG 구축, AI Azure 기반의 클라우드 엔지니어 학습", null, null, null, 0, List.of())),
                 getSkills(List.of("Machine Learning / Deep Learning", "LangChain", "LangGraph", "RAG", "Azure"), skillMap),
@@ -413,7 +398,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2023, 10, 31),
                 "TypeScript 기반 풀스택 교육으로 주로 JavaScript/TypeScript 언어에 대한 깊은 이해와 프레임워크 사용법 등을 학습 (265시간)",
                 "TypeScript와 React/Express 환경에서 웹 애플리케이션의 풀스택 개발 생태계와 협업 워크플로우를 체화했습니다.",
-                null,
                 6,
                 List.of(detail("TypeScript 기반 풀스택 교육, Express/React 풀스택 프로젝트 협업", null, null, null, 0, List.of())),
                 getSkills(List.of("TypeScript", "Node.js", "React", "Express"), skillMap),
@@ -427,7 +411,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2022, 12, 31),
                 "풀스택 교육으로 Git, HTML, CSS, Django Template Engine을 활용한 MVC 기반 웹사이트 구현 기초를 학습 (980시간)",
                 "소프트웨어 개발의 첫 단추인 MVC 아키텍처와 웹 표준, 협업을 위한 형상 관리 도구의 기초를 탄탄히 다졌습니다.",
-                null,
                 7,
                 List.of(detail("Git, HTML, CSS, Django Template Engine을 활용한 웹 사이트 구현 기초 학습", null, null, null, 0, List.of())),
                 getSkills(List.of("Python", "Django", "HTML/CSS", "Git"), skillMap),
@@ -442,7 +425,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2022, 6, 17),
                 "IT 전반의 핵심 이론 및 기술 자격 검증",
                 "개발 생명주기 전반에 걸친 기초 체력을 공인 자격을 통해 입증했습니다.",
-                essayInfo,
                 8,
                 List.of(detail("소프트웨어 공학, 데이터베이스, 네트워크 등 IT 핵심 이론 검증", null, null, null, 0, List.of())),
                 getSkills(List.of("Software Engineering", "Database", "Network"), skillMap),
@@ -455,7 +437,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2024, 9, 20),
                 "데이터베이스 모델링 및 SQL 작성 능력 검증",
                 "데이터베이스를 단순히 저장소로 쓰는 것을 넘어 성능과 무결성을 고려하여 쿼리하고 모델링할 수 있음을 검증했습니다.",
-                essaySql,
                 9,
                 List.of(detail("RDB 모델링, SQL 작성 및 쿼리 최적화 능력 검증", null, null, null, 0, List.of())),
                 getSkills(List.of("SQL", "Database Modeling", "SQL Query Optimization"), skillMap),
@@ -468,7 +449,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2022, 7, 15),
                 "데이터 수집, 전처리, 분석 모형 설계 및 평가 역량 검증",
                 "데이터를 수집하고 전처리하여 통계적 기법과 ML 모형으로 분석해 유의미한 가치를 추출할 수 있는 이론적 토대를 닦았습니다.",
-                essayBigdata,
                 10,
                 List.of(detail("데이터 전처리, 통계적 가설 검정, 머신러닝 모형 설계 역량 검증", null, null, null, 0, List.of())),
                 getSkills(List.of("Data Preprocessing", "Statistics", "Machine Learning / Deep Learning"), skillMap),
@@ -481,7 +461,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2018, 11, 16),
                 "스프레드시트 및 데이터베이스 활용 능력 자격 검증",
                 "정량적 데이터 정제 및 비즈니스 데이터 처리에 필요한 기본 오피스 역량을 인증받았습니다.",
-                null,
                 11,
                 List.of(detail("Excel 스프레드시트 및 Access 데이터베이스 활용 검증", null, null, null, 0, List.of())),
                 getSkills(List.of("Excel", "Access"), skillMap),
@@ -742,7 +721,7 @@ public class SampleDataLoader implements ApplicationRunner {
     }
 
     private ExperienceDetail.Draft detail(String content, String situation, String actionDetail, String outcome, int displayOrder, List<Skill> skills) {
-        return new ExperienceDetail.Draft(null, content, situation, actionDetail, outcome, displayOrder, skills);
+        return new ExperienceDetail.Draft(null, content, situation, actionDetail, outcome, null, displayOrder, skills);
     }
 
     private void seedLogDoctorProject(Map<String, Skill> skillMap, Map<String, StudyCategory> categoryMap) {
@@ -750,7 +729,6 @@ public class SampleDataLoader implements ApplicationRunner {
         skillMap.put("Azure Functions", getOrCreateSkill("Azure Functions", "DEVOPS", "중급", true, 45));
 
         // 1. LogDoctor Project Experience Seeding
-        String essayLogDoctor = "Azure Cloud 환경의 비용 최적화를 자동화하고 개발 생산성을 높이는 SaaS 솔루션 개발 전반을 담당하였습니다. 핵심 진단 엔진(4대 엔진, 11개 진단 수칙) 및 FastAPI 기반 비동기 Queue Worker 아키텍처를 단독 설계 및 구현하고, Cosmos DB와의 데이터 레이어를 연동하였습니다. 또한 Azure Functions 기반의 에이전트 구동 및 Teams Bot App 연동을 주도하였습니다.";
 
         Experience logDoctorProject = experienceRepository.save(Project.create(
                 "Azure 클라우드 로그 비용 진단 및 최적화 SaaS (LogDoctor) (기여도 70%)",
@@ -758,7 +736,6 @@ public class SampleDataLoader implements ApplicationRunner {
                 LocalDate.of(2026, 6, 30),
                 "Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다. (팀 프로젝트)",
                 "쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 구축 및 실전 검증했습니다.",
-                essayLogDoctor,
                 2,
                 List.of(
                         detail(

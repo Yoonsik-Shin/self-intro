@@ -10,6 +10,7 @@ public record ExperienceDetailResponse(
     String situation,
     String actionDetail,
     String outcome,
+    String narrative,
     int displayOrder,
     List<SkillResponse> skills
 ) {
@@ -20,6 +21,7 @@ public record ExperienceDetailResponse(
             detail.getSituation(),
             detail.getActionDetail(),
             detail.getOutcome(),
+            detail.getNarrative(),
             detail.getDisplayOrder(),
             detail.getSkills().stream().map(SkillResponse::from).toList()
         );

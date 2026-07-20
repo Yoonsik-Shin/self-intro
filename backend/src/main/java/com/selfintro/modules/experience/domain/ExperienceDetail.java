@@ -29,6 +29,9 @@ public class ExperienceDetail {
     @Column(columnDefinition = "TEXT")
     private String outcome;
 
+    @Column(columnDefinition = "TEXT")
+    private String narrative;
+
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
@@ -45,18 +48,19 @@ public class ExperienceDetail {
         // JPA standard constructor
     }
 
-    private ExperienceDetail(Long id, String content, String situation, String actionDetail, String outcome, int displayOrder, List<Skill> skills) {
+    private ExperienceDetail(Long id, String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {
         this.id = id;
         this.content = content;
         this.situation = situation;
         this.actionDetail = actionDetail;
         this.outcome = outcome;
+        this.narrative = narrative;
         this.displayOrder = displayOrder;
         this.skills = skills != null ? skills : new ArrayList<>();
     }
 
-    public static ExperienceDetail create(String content, String situation, String actionDetail, String outcome, int displayOrder, List<Skill> skills) {
-        return new ExperienceDetail(null, content, situation, actionDetail, outcome, displayOrder, skills);
+    public static ExperienceDetail create(String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {
+        return new ExperienceDetail(null, content, situation, actionDetail, outcome, narrative, displayOrder, skills);
     }
 
     /**
@@ -65,13 +69,14 @@ public class ExperienceDetail {
      * against an existing {@link ExperienceDetail} so that row keeps its identity instead of being
      * deleted and re-inserted.
      */
-    public record Draft(Long id, String content, String situation, String actionDetail, String outcome, int displayOrder, List<Skill> skills) {}
+    public record Draft(Long id, String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {}
 
-    public void update(String content, String situation, String actionDetail, String outcome, int displayOrder, List<Skill> skills) {
+    public void update(String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {
         this.content = content;
         this.situation = situation;
         this.actionDetail = actionDetail;
         this.outcome = outcome;
+        this.narrative = narrative;
         this.displayOrder = displayOrder;
 
         this.skills.clear();
@@ -96,6 +101,7 @@ public class ExperienceDetail {
     public String getSituation() { return situation; }
     public String getActionDetail() { return actionDetail; }
     public String getOutcome() { return outcome; }
+    public String getNarrative() { return narrative; }
     public int getDisplayOrder() { return displayOrder; }
     public List<Skill> getSkills() { return skills; }
 }

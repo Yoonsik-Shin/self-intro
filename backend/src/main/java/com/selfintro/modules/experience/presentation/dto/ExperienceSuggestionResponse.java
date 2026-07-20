@@ -6,7 +6,6 @@ public record ExperienceSuggestionResponse(List<Suggestion> suggestions) {
     public record Suggestion(
         String summary,
         String takeaway,
-        String essayContent,
         List<DetailSuggestion> details,
         String reason
     ) {}

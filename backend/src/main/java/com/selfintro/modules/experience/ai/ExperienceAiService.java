@@ -12,6 +12,8 @@ import com.selfintro.modules.ai.AiJsonSupport;
 import com.selfintro.modules.ai.NvidiaNimClient;
 import com.selfintro.modules.experience.domain.Experience;
 import com.selfintro.modules.experience.domain.ExperienceRepository;
+import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeRequest;
+import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionResponse;
 import com.selfintro.modules.skill.domain.Skill;
@@ -51,12 +53,20 @@ public class ExperienceAiService {
         당신은 한국어로 개발자 이력서의 경력 회고를 작성하는 편집자입니다.
         입력으로 전달된 검증 완료 facts만 근거로 사용하세요. 새로운 사실을 추측하거나 만들지 마세요.
         summary는 300자 이하, takeaway는 500자 이하로 핵심 배운 점을 요약하세요.
-        essayContent는 600~1500자 내외의 마크다운 회고 본문으로 작성하세요.
         details는 상황(situation)-행동(actionDetail)-성과(outcome) 구조의 불릿을 최대 3개 작성하고,
         각 불릿의 content는 한 줄 요약이어야 하며 skillIds는 facts에 등장한 관련 기술 ID만 포함하세요.
         후보는 1개만 작성하세요. 충분한 근거가 없으면 suggestions를 빈 배열로 반환하세요.
         설명이나 마크다운 펜스 없이 반드시 아래 JSON 구조만 반환하세요.
-        {"suggestions":[{"summary":"","takeaway":"","essayContent":"","details":[{"content":"","situation":"","actionDetail":"","outcome":"","skillIds":[1]}],"reason":""}]}
+        {"suggestions":[{"summary":"","takeaway":"","details":[{"content":"","situation":"","actionDetail":"","outcome":"","skillIds":[1]}],"reason":""}]}
+        """;
+
+    private static final String NARRATIVE_PROMPT = """
+        당신은 한국어로 개발자 이력서의 경력 상세 항목을 자연스러운 한 문단으로 다듬는 편집자입니다.
+        입력으로 한 줄 요약(content)과 상황(situation)·진행 과정(actionDetail)·성과(outcome) 텍스트가 주어집니다. 일부 필드는 비어 있을 수 있습니다.
+        주어진 사실만 사용해 새로운 사실이나 수치를 추가하지 말고, 상황-과정-성과가 자연스럽게 이어지는 하나의 문단으로 재작성하세요.
+        소제목, 글머리 기호, 마크다운 서식 없이 순수한 문장으로만 작성하고 400자 이내로 작성하세요.
+        설명이나 마크다운 펜스 없이 반드시 아래 JSON 구조만 반환하세요.
+        {"narrative":""}
         """;
 
     private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
@@ -253,7 +263,7 @@ public class ExperienceAiService {
     ) {
         List<ExperienceSuggestionResponse.Suggestion> suggestions = safe(response.suggestions()).stream()
             .limit(1)
-            .filter(item -> item != null && hasText(item.summary()) && hasText(item.essayContent()))
+            .filter(item -> item != null && hasText(item.summary()))
             .map(item -> normalizeSuggestion(item, allowedSkillIds))
             .toList();
         if (suggestions.isEmpty()) {
@@ -280,7 +290,6 @@ public class ExperienceAiService {
         return new ExperienceSuggestionResponse.Suggestion(
             limit(item.summary(), 300),
             limit(item.takeaway(), 500),
-            limit(item.essayContent(), 1500),
             details,
             limit(item.reason(), 500)
         );
@@ -289,6 +298,32 @@ public class ExperienceAiService {
     private <T> T parseJson(String raw, Class<T> type, String stage) throws JsonProcessingException {
         return AiJsonSupport.parseJson(objectMapper, raw, type, stage);
     }
+
+    public ExperienceDetailNarrativeResponse generateNarrative(ExperienceDetailNarrativeRequest request) {
+        ensureEnabled();
+        if (!hasText(request.situation()) && !hasText(request.actionDetail()) && !hasText(request.outcome())) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "병합할 상황/진행 과정/성과 내용이 없습니다.");
+        }
+        NarrativeInput input = new NarrativeInput(
+            request.content(), blankToNull(request.situation()),
+            blankToNull(request.actionDetail()), blankToNull(request.outcome()));
+        try {
+            String raw = nvidiaNimClient.generate(NARRATIVE_PROMPT, objectMapper.writeValueAsString(input));
+            NarrativeResponse parsed = parseJson(raw, NarrativeResponse.class, "서술 재작성");
+            if (!hasText(parsed.narrative())) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "AI가 서술 초안을 만들지 못했습니다.");
+            }
+            return new ExperienceDetailNarrativeResponse(limit(parsed.narrative(), 500));
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                "AI 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
+        }
+    }
+
+    private record NarrativeInput(String content, String situation, String actionDetail, String outcome) {}
+    private record NarrativeResponse(String narrative) {}
 
     private interface StreamSink {
         void stage(int stage, String message);

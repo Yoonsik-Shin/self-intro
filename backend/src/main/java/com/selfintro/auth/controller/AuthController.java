@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -47,6 +48,10 @@ public class AuthController {
 
     @GetMapping("/me")
     public MeResponse me(Authentication authentication) {
+        // 익명 사용자는 서블릿 스펙상 principal이 null로 전달된다 (인증된 사용자만 getUserPrincipal()에 값이 참).
+        if (authentication == null) {
+            throw new InsufficientAuthenticationException("로그인이 필요합니다.");
+        }
         return new MeResponse(authentication.getName());
     }
 

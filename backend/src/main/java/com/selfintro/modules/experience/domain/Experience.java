@@ -36,9 +36,6 @@ public abstract class Experience {
     @Column(length = 500)
     private String takeaway;
 
-    @Column(name = "essay_content", columnDefinition = "TEXT")
-    private String essayContent;
-
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
@@ -80,13 +77,12 @@ public abstract class Experience {
         // JPA standard constructor
     }
 
-    protected Experience(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
+    protected Experience(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
         this.summary = summary;
         this.takeaway = takeaway;
-        this.essayContent = essayContent;
         this.displayOrder = displayOrder;
         this.details = toEntities(details);
         this.skills = skills != null ? skills : new ArrayList<>();
@@ -94,13 +90,12 @@ public abstract class Experience {
         this.timelineLabel = timelineLabel;
     }
 
-    public void updateCommonFields(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, String essayContent, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
+    public void updateCommonFields(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
         this.summary = summary;
         this.takeaway = takeaway;
-        this.essayContent = essayContent;
         this.displayOrder = displayOrder;
         this.showOnTimeline = showOnTimeline;
         this.timelineLabel = timelineLabel;
@@ -118,7 +113,7 @@ public abstract class Experience {
             return new ArrayList<>();
         }
         return drafts.stream()
-            .map(d -> ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.displayOrder(), d.skills()))
+            .map(d -> ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.narrative(), d.displayOrder(), d.skills()))
             .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
@@ -137,9 +132,9 @@ public abstract class Experience {
                 this.details.stream()
                     .filter(existing -> d.id().equals(existing.getId()))
                     .findFirst()
-                    .ifPresent(existing -> existing.update(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.displayOrder(), d.skills()));
+                    .ifPresent(existing -> existing.update(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.narrative(), d.displayOrder(), d.skills()));
             } else {
-                this.details.add(ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.displayOrder(), d.skills()));
+                this.details.add(ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.narrative(), d.displayOrder(), d.skills()));
             }
         }
 
@@ -192,7 +187,6 @@ public abstract class Experience {
     public LocalDate getPeriodEnd() { return periodEnd; }
     public String getSummary() { return summary; }
     public String getTakeaway() { return takeaway; }
-    public String getEssayContent() { return essayContent; }
     public int getDisplayOrder() { return displayOrder; }
     public boolean isShowOnTimeline() { return showOnTimeline; }
     public String getTimelineLabel() { return timelineLabel; }

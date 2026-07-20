@@ -1,6 +1,8 @@
 package com.selfintro.modules.experience.presentation;
 
 import com.selfintro.modules.experience.ai.ExperienceAiService;
+import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeRequest;
+import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionResponse;
 import jakarta.validation.Valid;
@@ -31,5 +33,12 @@ public class ExperienceAiController {
         @Valid @RequestBody ExperienceSuggestionRequest request
     ) {
         return experienceAiService.suggestStream(request);
+    }
+
+    @PostMapping("/details/narrative")
+    public ResponseEntity<ExperienceDetailNarrativeResponse> generateNarrative(
+        @Valid @RequestBody ExperienceDetailNarrativeRequest request
+    ) {
+        return ResponseEntity.ok(experienceAiService.generateNarrative(request));
     }
 }

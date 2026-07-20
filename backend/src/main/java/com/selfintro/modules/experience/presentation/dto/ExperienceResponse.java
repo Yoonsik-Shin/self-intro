@@ -17,7 +17,6 @@ public record ExperienceResponse(
     LocalDate periodEnd,
     String summary,
     String takeaway,
-    String essayContent,
     int displayOrder,
     boolean showOnTimeline,
     String timelineLabel,
@@ -47,7 +46,7 @@ public record ExperienceResponse(
     public ExperienceResponse withSelectedDetails(List<Long> detailIds) {
         Set<Long> selectedIds = new HashSet<>(detailIds);
         return new ExperienceResponse(
-            id, type, title, periodStart, periodEnd, summary, takeaway, essayContent,
+            id, type, title, periodStart, periodEnd, summary, takeaway,
             displayOrder, showOnTimeline, timelineLabel,
             details.stream().filter(detail -> selectedIds.contains(detail.id())).toList(),
             skills, tags, images,
@@ -73,7 +72,7 @@ public record ExperienceResponse(
         if (exp instanceof Career career) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
-                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.getSummary(), exp.getTakeaway(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 career.getCompanyName(), career.getEmploymentType(), career.getDepartment(), career.getRole(),
@@ -82,7 +81,7 @@ public record ExperienceResponse(
         } else if (exp instanceof Project project) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
-                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.getSummary(), exp.getTakeaway(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, project.getRole(),
@@ -93,7 +92,7 @@ public record ExperienceResponse(
         } else if (exp instanceof Education edu) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
-                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.getSummary(), exp.getTakeaway(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, null,
@@ -102,7 +101,7 @@ public record ExperienceResponse(
         } else if (exp instanceof Certificate cert) {
             return new ExperienceResponse(
                 exp.getId(), exp.getType(), exp.getTitle(), exp.getPeriodStart(), exp.getPeriodEnd(),
-                exp.getSummary(), exp.getTakeaway(), exp.getEssayContent(), exp.getDisplayOrder(),
+                exp.getSummary(), exp.getTakeaway(), exp.getDisplayOrder(),
                 exp.isShowOnTimeline(), exp.getTimelineLabel(),
                 detailResponses, skillResponses, tagResponses, imageResponses,
                 null, null, null, null,

@@ -88,8 +88,13 @@ public class PortfolioConnectionService {
                     .toList()))
             .toList();
         List<RelatedExperienceRequest> related = experienceRelationRepository
-            .findBySourceIdOrderByDisplayOrderAsc(experienceId).stream()
-            .map(relation -> new RelatedExperienceRequest(relation.getTarget().getId(), relation.getType()))
+            .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId).stream()
+            .map(relation -> {
+                Experience other = relation.getSource().getId().equals(experienceId)
+                    ? relation.getTarget()
+                    : relation.getSource();
+                return new RelatedExperienceRequest(other.getId(), relation.getType());
+            })
             .toList();
         return new ExperienceConnections(studyIds, detailStudies, related);
     }
@@ -130,15 +135,40 @@ public class PortfolioConnectionService {
         }
         validateIds("Related experience", targetIds, experienceRepository.findAllById(targetIds).size());
 
-        experienceRelationRepository.deleteBySourceId(experienceId);
-        experienceRelationRepository.flush();
-        List<ExperienceRelation> relations = new ArrayList<>();
-        for (int index = 0; index < relatedRequests.size(); index++) {
-            RelatedExperienceRequest related = relatedRequests.get(index);
-            Experience target = requireExperience(related.experienceId());
-            relations.add(ExperienceRelation.create(experience, target, related.type(), index));
+        // 관계는 어느 쪽 experience를 편집하든 동일하게 보여야 하므로, source/target 방향에 상관없이
+        // 이 experience가 걸린 관계를 모두 대상으로 정리한다: 더 이상 선택되지 않은 것만 삭제하고,
+        // 반대 방향으로 이미 존재하는 관계는 그대로 두어 상대방 화면의 데이터를 건드리지 않는다.
+        List<ExperienceRelation> existingRelations = experienceRelationRepository
+            .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId);
+        Map<Long, ExperienceRelation> existingByOtherId = new LinkedHashMap<>();
+        for (ExperienceRelation relation : existingRelations) {
+            Long otherId = relation.getSource().getId().equals(experienceId)
+                ? relation.getTarget().getId()
+                : relation.getSource().getId();
+            existingByOtherId.put(otherId, relation);
         }
-        experienceRelationRepository.saveAll(relations);
+
+        List<ExperienceRelation> toDelete = existingRelations.stream()
+            .filter(relation -> {
+                Long otherId = relation.getSource().getId().equals(experienceId)
+                    ? relation.getTarget().getId()
+                    : relation.getSource().getId();
+                return !targetIds.contains(otherId);
+            })
+            .toList();
+        experienceRelationRepository.deleteAll(toDelete);
+        experienceRelationRepository.flush();
+
+        List<ExperienceRelation> toCreate = new ArrayList<>();
+        int order = 0;
+        for (RelatedExperienceRequest related : relatedRequests) {
+            if (!existingByOtherId.containsKey(related.experienceId())) {
+                Experience target = requireExperience(related.experienceId());
+                toCreate.add(ExperienceRelation.create(experience, target, related.type(), order));
+            }
+            order++;
+        }
+        experienceRelationRepository.saveAll(toCreate);
 
         return getExperienceConnections(experienceId);
     }

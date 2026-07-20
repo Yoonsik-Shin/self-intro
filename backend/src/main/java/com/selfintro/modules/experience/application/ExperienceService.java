@@ -52,23 +52,23 @@ public class ExperienceService {
         Experience exp;
         switch (request.type().toUpperCase()) {
             case "CAREER" -> exp = Career.create(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.companyName(), request.employmentType(), request.department(), request.role()
             );
             case "PROJECT" -> exp = Project.create(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.slug(), request.role(), request.contributionRate(), normalizeOptionalText(request.repositoryUrl()),
                 resolveCareer(request.careerId(), request.periodStart(), request.periodEnd())
             );
             case "EDUCATION" -> exp = Education.create(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.institutionName()
             );
             case "CERTIFICATE" -> exp = Certificate.create(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.issuer()
             );
@@ -94,26 +94,26 @@ public class ExperienceService {
 
         if (exp instanceof Career career && "CAREER".equalsIgnoreCase(request.type())) {
             career.update(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.companyName(), request.employmentType(), request.department(), request.role()
             );
         } else if (exp instanceof Project project && "PROJECT".equalsIgnoreCase(request.type())) {
             project.update(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.slug(), request.role(), request.contributionRate(), normalizeOptionalText(request.repositoryUrl()),
                 resolveCareer(request.careerId(), request.periodStart(), request.periodEnd())
             );
         } else if (exp instanceof Education edu && "EDUCATION".equalsIgnoreCase(request.type())) {
             edu.update(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.institutionName()
             );
         } else if (exp instanceof Certificate cert && "CERTIFICATE".equalsIgnoreCase(request.type())) {
             cert.update(
-                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.essayContent(), request.displayOrder(), details, skills,
+                request.title(), request.periodStart(), request.periodEnd(), request.summary(), request.takeaway(), request.displayOrder(), details, skills,
                 request.showOnTimeline(), request.timelineLabel(),
                 request.issuer()
             );
@@ -231,7 +231,7 @@ public class ExperienceService {
                 List<Skill> detailSkills = dr.skillIds() != null
                     ? skillRepository.findAllById(dr.skillIds())
                     : List.of();
-                return new ExperienceDetail.Draft(dr.id(), dr.content(), dr.situation(), dr.actionDetail(), dr.outcome(), i, detailSkills);
+                return new ExperienceDetail.Draft(dr.id(), dr.content(), dr.situation(), dr.actionDetail(), dr.outcome(), dr.narrative(), i, detailSkills);
             })
             .toList();
     }

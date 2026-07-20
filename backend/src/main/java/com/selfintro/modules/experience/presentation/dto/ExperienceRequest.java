@@ -11,7 +11,6 @@ public record ExperienceRequest(
     LocalDate periodEnd,
     @Size(max = 300) String summary,
     @Size(max = 500) String takeaway,
-    String essayContent,
     int displayOrder,
     List<ExperienceDetailRequest> details, // Bullet points with per-item detail content
     List<Long> skillIds,  // Mapping to Skill entities

@@ -62,7 +62,6 @@ class ExperienceAiServiceTest {
                 {"suggestions":[{
                   "summary":"Redis 캐시 도입으로 응답 속도를 개선했습니다.",
                   "takeaway":"캐시 전략 설계 경험을 얻었습니다.",
-                  "essayContent":"## 배경\\n\\n내용",
                   "details":[{"content":"Redis 캐시 적용","situation":"응답 지연","actionDetail":"캐시 도입","outcome":"속도 개선","skillIds":[10,999]}],
                   "reason":"검증된 근거 기반 작성"
                 }]}
