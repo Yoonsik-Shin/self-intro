@@ -71,6 +71,13 @@ select {
   line-height: 1.45;
 }
 
+/* 기술 스택의 그룹 제목(예: "핵심 기술스택")을 그 아래 배지 목록보다 한 단계 위 계층으로
+   분명히 보이게: 배지보다 글자를 키우고 진하게, 왼쪽에 작은 강조 바를 붙인다. */
+.resume-skill-group-title {
+  font-size: 1.0625rem;
+  color: #0f172a;
+}
+
 .resume-meta {
   font-size: 0.8125rem;
   line-height: 1.45;
@@ -101,79 +108,110 @@ select {
   background: linear-gradient(180deg, transparent, rgba(232, 232, 232, 0.95), transparent);
 }
 
+/* ── 피그마 스타일 A4 낱장 독립 프레임 카드 ───────────────────── */
+.print-page-frame {
+  width: 210mm;
+  height: 297mm;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  padding: 14mm 14mm 16mm 14mm;
+}
+
 @media print {
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 0 !important;
   }
 
   html, body, #root, main {
     width: 210mm !important;
-    max-width: none !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: white !important;
   }
 
   body {
-    background: white !important;
     color: black !important;
     zoom: 100% !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
   
-  header, footer, aside, .print\:hidden {
+  header, footer, aside, .print\:hidden, [data-print-preview-ui] {
     display: none !important;
   }
 
-  .resume-print-shell {
+  .pdf-canvas, .resume-print-shell {
     width: 210mm !important;
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: transparent !important;
+    display: block !important;
+  }
+
+  .pdf-page-layer {
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    box-sizing: border-box !important;
+    padding: 12mm 14mm !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    overflow: hidden !important;
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  /* 화면 프리뷰 페이징 파서와 1:1 완벽 100% 동기화:
+     프리뷰에서 페이지 분할 마커(data-print-break)가 지정된 모든 항목은
+     실제 PDF 인쇄 시에도 바로 그 위치에서 1px 오차 없이 break-before: page 를 강제 실행한다. */
+  [data-print-break] {
+    page-break-before: always !important;
+    break-before: page !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
 
   .resume-page {
-    width: 210mm !important;
+    width: 100% !important;
     box-sizing: border-box !important;
-    padding: 12mm 14mm !important;
+    /* 페이지 여백은 @page가 담당해 모든 장의 콘텐츠 영역을 182×273mm로 고정한다. */
+    padding: 0 !important;
     font-size: 9.5pt;
     line-height: 1.5;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
+    gap: 0 !important;
   }
 
   .resume-page > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 6mm !important;
+    margin-top: 3mm; /* !important 금지: 자동 패킹 인라인 margin이 이겨야 함 */
   }
 
   .resume-page section {
-    margin-top: 6mm !important;
-    padding-top: 4mm !important;
+    margin-top: 3mm;
+    padding-top: 2mm !important;
     border-top: 0 !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
   }
 
-  .resume-page #competencies,
-  .resume-page #career {
-    page-break-before: always !important;
-    break-before: page !important;
+  /* 강제 페이지 나눔 없음 — 콘텐츠가 A4 높이에 맞춰 자연스럽게 흐르고,
+     사용자가 프리뷰에서 간격 스페이서(.print-gap-spacer)로 넘김 위치를 조절한다 */
+  .print-gap-spacer {
+    background: none !important;
+    break-inside: auto !important;
   }
 
-  .resume-page #credentials {
-    margin-top: 0 !important;
-    page-break-before: always !important;
-    break-before: page !important;
-  }
-
-  .resume-page #projects {
-    margin-top: 0 !important;
-    page-break-before: always !important;
-    break-before: page !important;
-  }
-
-  .resume-projects-header {
+  .resume-projects-header,
+  .resume-item-title,
+  .resume-detail-header,
+  .resume-competency-header {
     page-break-after: avoid !important;
     break-after: avoid-page !important;
   }
@@ -187,11 +225,11 @@ select {
 
   .resume-credential-groups {
     display: block !important;
-    margin-top: 4mm !important;
+    margin-top: 2mm !important;
   }
 
   .resume-credential-group {
-    margin-top: 5mm !important;
+    margin-top: 3mm !important;
   }
 
   .resume-credential-group:first-child {
@@ -218,7 +256,7 @@ select {
   }
 
   .resume-credential-list > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0 !important;
+    margin-top: 0; /* !important 금지: 자동 패킹 인라인 margin이 이겨야 함 */
   }
 
   .resume-credential-item {
@@ -227,7 +265,7 @@ select {
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding: 2.5mm 0 !important;
+    padding: 1.5mm 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
@@ -256,7 +294,7 @@ select {
   }
 
   .resume-profile-card {
-    padding: 0 0 6mm !important;
+    padding: 0 0 3mm !important;
     border-bottom: 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
@@ -269,6 +307,11 @@ select {
   .resume-print-contact {
     font-size: 8.5pt !important;
     line-height: 1.35 !important;
+    margin-top: 0 !important;
+  }
+
+  .resume-profile-toprow {
+    padding-bottom: 2mm !important;
   }
 
   .resume-summary-item {
@@ -317,7 +360,7 @@ select {
   }
 
   .resume-project-list {
-    margin-top: 4mm !important;
+    margin-top: 2mm !important;
   }
 
   .resume-project-list::before,
@@ -326,7 +369,7 @@ select {
   }
 
   .resume-project-list > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 5mm !important;
+    margin-top: 3mm !important;
   }
 
   .resume-project-item {
@@ -340,7 +383,7 @@ select {
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding: 4mm 0 0 !important;
+    padding: 2mm 0 0 !important;
     /* Intentionally no break-inside:avoid here — project cards can run
        longer than one page, and forcing "avoid" on a block taller than a
        page makes the browser jump it to a fresh page wholesale, wasting
@@ -394,8 +437,8 @@ select {
   }
 
   .resume-career-item {
-    margin-bottom: 4mm !important;
-    padding-bottom: 4mm !important;
+    margin-bottom: 2mm !important;
+    padding-bottom: 2mm !important;
     border-bottom: 0.5pt solid #e2e8f0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
@@ -424,6 +467,22 @@ select {
 
   .resume-page #skills h4 {
     border-bottom: 0 !important;
+  }
+
+  .resume-skill-group-title {
+    font-size: 11.5pt !important;
+  }
+
+  .resume-skill-groups {
+    margin-top: 2mm !important;
+  }
+
+  .resume-skill-groups > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 3mm !important;
+  }
+
+  .resume-skill-group > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1.5mm !important;
   }
 
   .resume-page .resume-label {
@@ -514,6 +573,582 @@ select {
   .whitespace-pre {
     overflow: visible !important;
     overflow-x: visible !important;
+  }
+
+  /* 방문자가 선택 해제한 섹션 숨김 */
+  [data-print-exclude] {
+    display: none !important;
+  }
+}
+
+/* ── 인쇄 프리뷰 모드: 화면에서 PDF 레이아웃 미리보기 ──────────────── */
+/* @media print의 시각적 스타일을 .print-active 클래스에 완벽 복제.      */
+/* @page, page-break, orphans/widows 등 페이지 매체 전용은 제외.       */
+
+/* 프리뷰 복제 규칙이 실제 paged-media 규칙을 덮지 않도록 화면에서만 활성화한다. */
+@media screen {
+
+/* Preview shell: gray desk + A4-paper feel */
+.print-active {
+  background: #d1d5db !important;
+}
+
+.print-active main {
+  background: transparent !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Tailwind print: utility emulation */
+.print-active .print\:hidden:not([data-print-preview-ui]) {
+  display: none !important;
+}
+.print-active .print\:block {
+  display: block !important;
+}
+.print-active .print\:flex {
+  display: flex !important;
+}
+.print-active .print\:opacity-100 {
+  opacity: 1 !important;
+}
+.print-active .print\:bg-white {
+  background: white !important;
+}
+.print-active .print\:text-black {
+  color: black !important;
+}
+.print-active .print\:ml-0 {
+  margin-left: 0 !important;
+}
+.print-active .print\:pl-0 {
+  padding-left: 0 !important;
+}
+.print-active .print\:border-l-0 {
+  border-left-width: 0 !important;
+}
+.print-active .print\:mt-1 {
+  margin-top: 0.25rem !important;
+}
+.print-active .print\:mt-1\.5 {
+  margin-top: 0.375rem !important;
+}
+.print-active .print\:pb-2 {
+  padding-bottom: 0.5rem !important;
+}
+.print-active .print\:py-3 {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+.print-active .print\:gap-4 {
+  gap: 1rem !important;
+}
+.print-active .print\:grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.print-active .print\:grid-cols-\[31\%_69\%\] {
+  grid-template-columns: 31% 69% !important;
+}
+.print-active .print\:pointer-events-none {
+  pointer-events: none !important;
+}
+.print-active .print\:rounded-none {
+  border-radius: 0 !important;
+}
+.print-active .print\:border-x-0 {
+  border-left-width: 0 !important;
+  border-right-width: 0 !important;
+}
+.print-active .print\:border-t-0 {
+  border-top-width: 0 !important;
+}
+.print-active .print\:p-0 {
+  padding: 0 !important;
+}
+.print-active .print\:shadow-none {
+  box-shadow: none !important;
+}
+.print-active .print\:text-\[9px\] {
+  font-size: 9px !important;
+}
+.print-active .print\:leading-\[1\.15\] {
+  line-height: 1.15 !important;
+}
+.print-active .print\:tracking-tighter {
+  letter-spacing: -0.05em !important;
+}
+
+/* ── Core layout & PDF Page Layer ── */
+.print-active .resume-print-shell {
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  background: transparent;
+}
+
+.pdf-page-layer {
+  font-size: 9.5pt;
+  line-height: 1.5;
+}
+
+.pdf-page-layer section {
+  margin-top: 3mm;
+  padding-top: 2mm !important;
+  border-top: 0 !important;
+}
+
+/* ── Card decoration reset ── */
+.print-active .resume-profile-card,
+.print-active .resume-section-card {
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.print-active .resume-profile-card {
+  padding: 0 0 3mm !important;
+  border-bottom: 0 !important;
+}
+
+.print-active .resume-section-card {
+  padding: 0 !important;
+}
+
+.print-active .resume-print-contact {
+  font-size: 8.5pt !important;
+  line-height: 1.35 !important;
+  margin-top: 0 !important;
+}
+
+.print-active .resume-profile-toprow {
+  padding-bottom: 2mm !important;
+}
+
+.print-active .resume-summary-item {
+  pointer-events: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.print-active .resume-summary-item > div:first-child {
+  width: 7mm !important;
+  height: 7mm !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 기술 배지 버튼 평탄화 — 단, 프리뷰 컨트롤(.pp-controls) 안의 버튼은 제외해야 눈 버튼이 클릭된다 */
+.print-active .resume-page #skills button:not(.pp-controls button) {
+  pointer-events: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 2mm 0 0 !important;
+  color: #334155 !important;
+}
+
+.print-active .resume-badge {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 1.5mm 0 0 !important;
+}
+
+.print-active .resume-print-plain {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: #475569 !important;
+}
+
+/* ── Project list ── */
+.print-active .resume-project-list {
+  margin-top: 2mm !important;
+}
+
+.print-active .resume-project-list::before,
+.print-active .resume-project-bullet {
+  display: none !important;
+}
+
+.print-active .resume-project-list > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 3mm !important;
+}
+
+.print-active .resume-project-item {
+  padding-left: 0 !important;
+  cursor: default !important;
+}
+
+.print-active .resume-project-card {
+  border: 0 !important;
+  border-top: 0.5pt solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 2mm 0 0 !important;
+}
+
+.print-active .resume-project-item:first-child .resume-project-card {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.print-active .resume-project-description {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.print-active .resume-project-takeaway {
+  border: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.print-active .resume-project-takeaway,
+.print-active .resume-project-takeaway * {
+  color: #334155 !important;
+}
+
+.print-active .resume-project-card .resume-badge {
+  color: #475569 !important;
+}
+
+/* ── Credentials ── */
+.print-active .resume-credentials-header {
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.print-active .resume-credential-groups {
+  display: block !important;
+  margin-top: 2mm !important;
+}
+
+.print-active .resume-credential-group {
+  margin-top: 3mm !important;
+}
+
+.print-active .resume-credential-group:first-child {
+  margin-top: 0 !important;
+}
+
+.print-active .resume-credential-group-title {
+  margin-bottom: 2mm !important;
+  color: #0f172a !important;
+}
+
+.print-active .resume-credential-group-title svg {
+  color: #475569 !important;
+}
+
+.print-active .resume-credential-count {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: #64748b !important;
+}
+
+.print-active .resume-credential-list > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0;
+}
+
+.print-active .resume-credential-item {
+  border: 0 !important;
+  border-bottom: 0.5pt solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 1.5mm 0 !important;
+}
+
+.print-active .resume-credential-item:first-child {
+  padding-top: 0 !important;
+}
+
+.print-active .resume-credential-item:last-child {
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* ── Career ── */
+.print-active .resume-career-item {
+  margin-bottom: 2mm !important;
+  padding-bottom: 2mm !important;
+  border-bottom: 0.5pt solid #e2e8f0 !important;
+}
+
+.print-active .resume-career-item:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
+}
+
+.print-active .resume-page #career .resume-career-detail {
+  display: block !important;
+  margin-left: 0 !important;
+}
+
+.print-active .resume-page #skills h4 {
+  border-bottom: 0 !important;
+}
+
+.print-active .resume-skill-group-title {
+  font-size: 11.5pt !important;
+}
+
+.print-active .resume-skill-groups {
+  margin-top: 2mm !important;
+}
+
+.print-active .resume-skill-groups > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 3mm !important;
+}
+
+.print-active .resume-skill-group > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.5mm !important;
+}
+
+.print-active .resume-page .resume-label {
+  color: #64748b !important;
+}
+
+.print-active .print-competency-row {
+  grid-template-columns: 34% 66% !important;
+}
+
+.print-active .print-competency-row .resume-item-title {
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.print-active .print-competency-section {
+  /* no break-inside on screen */
+}
+
+/* ── Typography ── */
+.print-active .resume-profile-role {
+  font-size: 15pt !important;
+  line-height: 1.15 !important;
+  background: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+.print-active .resume-profile-name {
+  font-size: 20pt !important;
+  line-height: 1.1 !important;
+}
+
+.print-active .resume-profile-name-en {
+  font-size: 10.5pt !important;
+  line-height: 1.2 !important;
+}
+
+.print-active .resume-section-title {
+  font-size: 14pt !important;
+  line-height: 1.25 !important;
+}
+
+.print-active .resume-section-description {
+  font-size: 9pt !important;
+  line-height: 1.45 !important;
+}
+
+.print-active .resume-item-title {
+  font-size: 11pt !important;
+  line-height: 1.3 !important;
+}
+
+.print-active .resume-body {
+  font-size: 9.5pt !important;
+  line-height: 1.5 !important;
+}
+
+.print-active .resume-subtitle {
+  font-size: 9pt !important;
+  line-height: 1.35 !important;
+}
+
+.print-active .resume-meta {
+  font-size: 8.5pt !important;
+  line-height: 1.35 !important;
+}
+
+.print-active .resume-label,
+.print-active .resume-page [class*="text-[10px]"],
+.print-active .resume-page [class*="text-[11px]"] {
+  font-size: 7.8pt !important;
+  line-height: 1.3 !important;
+}
+
+.print-active .resume-badge {
+  font-size: 8.2pt !important;
+  line-height: 1.25 !important;
+}
+
+/* ── Section exclusion: 프리뷰·실제 인쇄 모두 완전히 숨김 ── */
+/* 재포함은 우측 인쇄 프리뷰 네비게이션(PrintPreviewNav)에서만 가능 */
+.print-active [data-print-exclude] {
+  display: none !important;
+}
+
+/* ── 호버 기반 요소 컨트롤 ──────────────────────────────────────── */
+/* 평소에는 아무것도 안 보이고, 요소에 마우스를 올리면 점선 테두리와 왼편 컨트롤이 나타난다.
+   중첩된 경우(:has) 가장 안쪽 요소만 활성화되어 섹션/아이템 테두리가 겹쳐 보이지 않는다. */
+.print-active [data-print-el] {
+  position: relative;
+}
+
+.print-active [data-print-el]:hover:not(:has([data-print-el]:hover)) {
+  cursor: grab;
+}
+
+/* 이 요소 자신이 push(border-top)를 받은 경우, 그 border는 이미 이 요소의 패딩 박스(=이 ::after의
+   containing block)를 push만큼 아래로 밀어둔 상태다. 그래서 top에 push 값을 또 더하면(예전 버전:
+   calc(push - 8px)) 실제 콘텐츠 시작점보다 push만큼 더 내려가 버려 박스가 엉뚱한 곳(대개 화면 밖 텅 빈
+   공간)에 그려지는 버그가 있었다 — .pp-controls에서 이미 겪고 고친 것과 동일한 문제. top은 상수 -8px면
+   충분하다(이 요소가 push를 받았든 안 받았든 콘텐츠 시작점은 이미 패딩 박스 맨 위와 일치한다). */
+/* 호버 시 해당 요소를 세련되고 은은하게 감싸주는 블루 하이라이트 테두리 박스 */
+.print-active [data-print-el]:hover:not(:has([data-print-el]:hover)) {
+  border: 2px dashed #3b82f6 !important;
+  border-radius: 8px;
+  background-color: rgba(59, 130, 246, 0.03);
+}
+
+.print-active [data-print-el] > .pp-controls {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-in-out;
+  z-index: 40;
+}
+
+.print-active [data-print-el]:hover:not(:has([data-print-el]:hover)) > .pp-controls,
+.print-active .pp-controls:hover {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* ── 자동 패킹 push ──────────────────────────────────────────────
+   경계에 걸린 원자는 투명 border-top으로 다음 장 시작점까지 밀린다.
+   (margin은 접힘·인쇄 절단 문제가 있어 border 사용. 프리뷰/인쇄 값은 변수로 분리) */
+.print-active .resume-page [data-print-pushed] {
+  border-top: var(--pp-preview-push, 0px) solid transparent !important;
+}
+
+/* 주의: .pp-controls는 position:absolute라 이미 조상(=push 적용 대상)의 "패딩 박스" 기준으로 배치된다.
+   패딩 박스 자체가 border-top(push)만큼 이미 아래로 밀려 있으므로 top에 push 값을 또 더하면
+   실제 콘텐츠 시작점보다 push만큼 더 아래(2배)로 밀려나 버튼이 엉뚱한 위치에 떠서 클릭이 안 되는
+   버그가 있었다. top은 기본값 0(=패딩 박스 맨 위=콘텐츠 시작점)이면 충분하다. */
+
+/* .pp-controls는 position:absolute라 시각적으로는 공간을 차지하지 않지만, Tailwind의 space-y-*
+   유틸리티는 :not([hidden]) 형제 셀렉터로 margin-top을 계산하기 때문에 실제로 있는 것처럼 카운트되어
+   버튼 뒤에 이어지는 진짜 콘텐츠(카드)에 원치 않는 margin-top(space-y-6=24px 등)이 붙는다.
+   섹션/아이템 모두 .pp-controls가 항상 첫 자식이므로 바로 다음 형제의 margin만 0으로 되돌린다. */
+.print-active .pp-controls + * {
+  margin-top: 0 !important;
+}
+
+/* 상세 행: chevron 컬럼(과 chevron 자체)을 없애 제목이 본문과 같은 왼쪽 라인에 정렬되게 한다.
+   주의: 첫 span을 display:none 하면 grid 자동 배치가 한 칸씩 밀리므로 컬럼 정의도 2개로 줄여야 한다. */
+.print-active .print-detail-row {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+}
+
+.print-active .print-detail-row > span:first-child {
+  display: none !important;
+}
+
+/* 섹션 간격 스페이서: 프리뷰에서만 빗금으로 표시 (실제 인쇄에서는 빈 공간) */
+.print-active .print-gap-spacer {
+  background: repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.18) 0 6px, transparent 6px 12px);
+  border-radius: 6px;
+}
+
+/* Prevent scrolling and force visibility of diagram whitespace */
+.print-active .whitespace-pre {
+  overflow: visible !important;
+  overflow-x: visible !important;
+}
+
+}
+
+/* ── 실제 인쇄 시 프리뷰 전용 장식 무효화 ──────────────────────────
+   화면 전용 규칙은 @media screen으로 분리했고, 여기서는 실제 페이지 분할만 보정한다. */
+@media print {
+  body.print-active {
+    background: white !important;
+  }
+
+  .print-active main {
+    padding: 0 !important;
+  }
+
+  .print-active .resume-print-shell {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pdf-page-layer {
+    page-break-after: always !important;
+    break-after: page !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    padding: 12mm 14mm !important;
+  }
+
+  .print-active [data-print-el] {
+    outline: none !important;
+  }
+
+  /* 프리뷰 컨트롤이 숨어도 Tailwind space-y 형제 셀렉터의 계산에서는 남는다. */
+  .pp-controls + * {
+    margin-top: 0 !important;
+  }
+
+  /* 프리뷰와 실제 PDF의 상세 행 컬럼 구조를 같게 유지한다. */
+  .print-detail-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .print-detail-row > span:first-child {
+    display: none !important;
   }
 }
 

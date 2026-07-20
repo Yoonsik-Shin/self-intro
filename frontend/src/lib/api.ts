@@ -143,6 +143,7 @@ export type ExperienceDetail = {
   situation?: string;
   actionDetail?: string;
   outcome?: string;
+  narrative?: string;
   displayOrder: number;
   skills: Skill[];
 };
@@ -155,7 +156,6 @@ export type Experience = {
   periodEnd?: string;
   summary?: string;
   takeaway?: string;
-  essayContent?: string;
   displayOrder: number;
   showOnTimeline: boolean;
   timelineLabel?: string;
@@ -653,6 +653,7 @@ export type ExperienceDetailRequest = {
   situation?: string;
   actionDetail?: string;
   outcome?: string;
+  narrative?: string;
   skillIds: number[];
 };
 
@@ -663,7 +664,6 @@ export type ExperienceRequest = {
   periodEnd?: string | null;
   summary?: string;
   takeaway?: string;
-  essayContent?: string;
   displayOrder: number;
   showOnTimeline: boolean;
   timelineLabel?: string;
@@ -708,7 +708,6 @@ export type ExperienceDetailSuggestion = {
 export type ExperienceSuggestion = {
   summary: string;
   takeaway: string;
-  essayContent: string;
   details: ExperienceDetailSuggestion[];
   reason: string;
 };
@@ -723,6 +722,17 @@ export type ExperienceSuggestionStreamEvent =
   | { type: 'facts'; factCount: number }
   | { type: 'complete'; suggestions: ExperienceSuggestion[] }
   | { type: 'error'; message: string };
+
+export type ExperienceDetailNarrativeRequest = {
+  content: string;
+  situation?: string;
+  actionDetail?: string;
+  outcome?: string;
+};
+
+export type ExperienceDetailNarrativeResponse = {
+  narrative: string;
+};
 
 export const experienceApi = {
   list: () => request<Experience[]>('/api/experiences'),
@@ -752,6 +762,11 @@ export const experienceApi = {
   ) =>
     requestEventStream<ExperienceSuggestionStreamEvent>(
       '/api/admin/experiences/ai/suggestions/stream', payload, onEvent, signal),
+  generateNarrative: (payload: ExperienceDetailNarrativeRequest) =>
+    request<ExperienceDetailNarrativeResponse>('/api/admin/experiences/ai/details/narrative', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export type ExperiencePlacement = {
@@ -864,4 +879,76 @@ export const architectureApi = {
     request<void>(`/api/admin/architecture/layers/${id}`, {
       method: 'DELETE',
     }),
+};
+
+// ── Print Template ──────────────────────────────────────────────────
+
+/** 서버에서 반환되는 원본(JSON 문자열 필드 그대로) */
+type PrintTemplateRaw = {
+  id: number;
+  name: string;
+  excludedIds: string;   // JSON array string
+  sectionOrder: string;  // JSON array string
+  sectionGaps: string;   // JSON object string
+  visible: boolean;
+  displayOrder: number;
+};
+
+/** 프론트에서 사용하는 파싱된 형태 */
+export type PrintTemplate = {
+  id: number;
+  name: string;
+  excludedIds: string[];
+  sectionOrder: string[];
+  sectionGaps: Record<string, number>;
+  visible: boolean;
+  displayOrder: number;
+};
+
+export type PrintTemplateRequest = {
+  name: string;
+  excludedIds: string;
+  sectionOrder: string;
+  sectionGaps: string;
+  visible: boolean;
+  displayOrder: number;
+};
+
+function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
+  return {
+    id: raw.id,
+    name: raw.name,
+    excludedIds: JSON.parse(raw.excludedIds) as string[],
+    sectionOrder: JSON.parse(raw.sectionOrder) as string[],
+    sectionGaps: JSON.parse(raw.sectionGaps) as Record<string, number>,
+    visible: raw.visible,
+    displayOrder: raw.displayOrder,
+  };
+}
+
+export const printTemplateApi = {
+  list: async () => {
+    const raws = await request<PrintTemplateRaw[]>('/api/print-templates');
+    return raws.map(parsePrintTemplate);
+  },
+  adminList: async () => {
+    const raws = await request<PrintTemplateRaw[]>('/api/admin/print-templates');
+    return raws.map(parsePrintTemplate);
+  },
+  create: async (t: PrintTemplateRequest) => {
+    const raw = await request<PrintTemplateRaw>('/api/admin/print-templates', {
+      method: 'POST',
+      body: JSON.stringify(t),
+    });
+    return parsePrintTemplate(raw);
+  },
+  update: async (id: number, t: PrintTemplateRequest) => {
+    const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(t),
+    });
+    return parsePrintTemplate(raw);
+  },
+  remove: (id: number) =>
+    request<void>(`/api/admin/print-templates/${id}`, { method: 'DELETE' }),
 };

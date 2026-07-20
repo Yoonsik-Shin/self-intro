@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { Fragment, useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles,
@@ -19,21 +19,34 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUp,
+  ArrowDown,
   ArrowLeft,
   ExternalLink,
   FolderGit2,
   Award,
   GraduationCap,
   Eye,
+  EyeOff,
+  Pin,
+  PinOff,
   Heart,
+  GripVertical,
+  MoveVertical,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { architectureApi, bffApi, connectionApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
+import { architectureApi, bffApi, connectionApi, donationApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
 import { DonationModal } from './components/DonationModal';
+import { PrintModeModal } from './components/PrintModeModal';
+import { PrintPreviewBar } from './components/PrintPreviewBar';
+import { PrintPreviewNav } from './components/PrintPreviewNav';
+import { SaveServerTemplateModal } from './components/SaveServerTemplateModal';
 import { markdownComponents, resumeMarkdownComponents } from './lib/markdown';
 import { SkillBadgeIcon } from './lib/SkillBadgeIcon';
 import { navigate, pagePaths, pathForExperienceDetail, pathForStudy } from './lib/navigation';
+import { saveLocal, generateUniqueLocalName, getLocalSaves } from './lib/printTemplateLocal';
+import { PdfPageLayer } from './components/PdfPageLayer';
+import { partitionAtomsIntoPages, type PrintAtomItem } from './lib/pdfLayoutEngine';
 
 const milestones = [
   {
@@ -169,6 +182,12 @@ function experienceTypeLabel(type: Experience['type']): string {
   }
 }
 
+function credentialKindLabel(experience: Experience): '학력' | '교육' | '자격증' {
+  if (experience.type === 'CERTIFICATE') return '자격증';
+  // 현재 EDUCATION 데이터에는 별도 하위 유형이 없어 학위 표현으로 정규 학력을 구분한다.
+  return /(학사|석사|박사|학위|졸업)/.test(experience.title) ? '학력' : '교육';
+}
+
 function experienceOrgName(exp: Experience): string {
   return exp.companyName ?? exp.institutionName ?? exp.issuer ?? exp.role ?? '';
 }
@@ -183,10 +202,24 @@ const mainSections = [
   { id: 'credentials', label: '학력·교육 및 자격증', icon: GraduationCap },
 ];
 
-const architectureSections = [
-  { id: 'architecture-components', label: '구성 요소', icon: Cpu },
-  { id: 'architecture-diagram', label: '배포 흐름도', icon: Terminal },
-];
+const printableSections = mainSections.filter((s) => s.id !== 'timeline');
+/** 프로필은 인쇄 프리뷰에서 제외/이동이 불가능하게 고정된다 */
+const LOCKED_PRINT_SECTION_ID = 'intro-profile';
+const reorderablePrintSections = printableSections.filter((s) => s.id !== LOCKED_PRINT_SECTION_ID);
+
+/**
+ * A4 페이지 계산 상수.
+ * 실제 출력은 @page의 12mm/14mm 여백으로 동일한 182×273mm 콘텐츠 영역을 사용한다.
+ */
+const MM_TO_PX = 96 / 25.4;
+/** 상단 12mm, 하단 12mm 칼대칭으로 가용 높이를 273mm(297 - 12 - 12)로 정확히 보정 */
+const PRINT_PAGE_CONTENT_PX = 273 * MM_TO_PX;
+const PRINT_PAGE_PAD_TOP_PX = 12 * MM_TO_PX;
+const PRINT_SHEET_H_PX = 297 * MM_TO_PX;
+/** 프리뷰에서 A4 낱장 사이 회색 책상 간격(px) */
+const PRINT_DESK_GAP_PX = 28;
+/** 페이지가 넘어갈 때 프리뷰 흐름에 삽입되는 추가 높이 = 이전 장 하단여백 + 책상 + 다음 장 상단여백 */
+const PRINT_PAGE_JUMP_EXTRA_PX = PRINT_SHEET_H_PX - PRINT_PAGE_CONTENT_PX + PRINT_DESK_GAP_PX;
 
 function getDisplayCategory(skill: Skill): string {
   const nameLower = skill.name.toLowerCase();
@@ -207,6 +240,11 @@ function getDisplayCategory(skill: Skill): string {
   }
   return 'Others';
 }
+
+const architectureSections = [
+  { id: 'architecture-components', label: '구성 요소', icon: Cpu },
+  { id: 'architecture-diagram', label: '배포 흐름도', icon: Terminal },
+];
 
 const fallbackCoreSkills: Skill[] = [
   { id: -1, name: 'Java', category: 'LANGUAGE', skillLevel: '중급', skillVersion: '21', comment: 'Spring Boot 기반 백엔드 주력 언어', usageType: 'WORK_EXPERIENCE', isCore: true, displayOrder: 1 },
@@ -315,6 +353,74 @@ function RelatedExperienceLinks({
   );
 }
 
+/**
+ * 인쇄 프리뷰 컨트롤 컴포넌트들.
+ * 주의: App 내부에 인라인으로 정의하면 렌더마다 컴포넌트 identity가 바뀌어 React가 매번
+ * 언마운트/리마운트하고, 드래그 도중 state가 바뀌면 드래그 중인 DOM이 사라져
+ * 네이티브 드래그 세션이 죽는 버그가 있었다. 반드시 모듈 스코프에 둔다.
+ */
+
+/** 호버 시 요소 왼편에 나타나는 핀 고정/제외 토글 버튼 (스크린샷 82 핀 기능 복원) */
+function PrintEyeButton({ id, excluded, onToggle }: { id: string; excluded: boolean; onToggle: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onToggle(id); }}
+      title={excluded ? '핀 고정하여 인쇄 포함' : '핀 해제하여 인쇄 제외'}
+      className={`grid h-7 w-7 place-items-center rounded-full shadow-xl transition-all duration-200 ${
+        excluded
+          ? 'bg-slate-700/90 text-white hover:bg-slate-800 hover:scale-110'
+          : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-110'
+      }`}
+    >
+      {excluded ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
+/** 스크린샷 97 피그마 캔버스 100% 직대응 낱장 A4 프레임 카드 렌더러. 상하단 페이지 이동 기준 가이드라인 표시 */
+function PrintSheets({ contentTop, pages }: { contentTop: number; pages: number }) {
+  return (
+    <div data-print-preview-ui aria-hidden className="pointer-events-none absolute inset-x-0 top-0 print:hidden">
+      {Array.from({ length: pages }, (_, i) => (
+        <div
+          key={i}
+          className="print-page-frame-card absolute inset-x-0 rounded-md bg-white shadow-[0_12px_40px_rgba(0,0,0,0.15)] border border-slate-300/90"
+          style={{
+            top: contentTop - PRINT_PAGE_PAD_TOP_PX + i * (PRINT_SHEET_H_PX + PRINT_DESK_GAP_PX),
+            height: PRINT_SHEET_H_PX,
+          }}
+        >
+          {/* 피그마 프레임 라벨 (스크린샷 97 1페이지, 2페이지, 3페이지...) */}
+          <div className="absolute -top-7 left-0 flex items-center gap-1.5 rounded-t-md bg-slate-900/90 px-3 py-1 text-[11px] font-extrabold text-white shadow-md backdrop-blur-md">
+            <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
+            <span>{i + 1}페이지 (A4)</span>
+          </div>
+
+          {/* 상단 페이지 시작 경계 가이드라인 (12mm) */}
+          <div className="absolute inset-x-0 top-[12mm] border-b border-dashed border-blue-400/60 pointer-events-none">
+            <span className="absolute -top-2.5 left-4 bg-blue-500 text-white px-1.5 py-0.5 text-[8px] font-bold rounded shadow-sm opacity-70">
+              TOP (12mm)
+            </span>
+          </div>
+
+          {/* 하단 페이지 이동 분할 기준선 (285mm = 하단 12mm 대칭 여백 지점) */}
+          <div className="absolute inset-x-0 top-[285mm] border-b-2 border-dashed border-rose-500/80 pointer-events-none">
+            <span className="absolute -top-2.5 right-16 bg-rose-500 text-white px-2 py-0.5 text-[9px] font-extrabold rounded shadow-md animate-pulse">
+              BOTTOM BOUNDARY (285mm / 하단 12mm)
+            </span>
+          </div>
+
+          {/* 우하단 페이지 번호 */}
+          <span className="absolute bottom-3 right-4 text-[10px] font-black tracking-wide text-slate-400">
+            {i + 1} / {pages}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function App() {
   const queryClient = useQueryClient();
   
@@ -327,11 +433,137 @@ export function App() {
 
   const [search, setSearch] = useState('');
   const [isDonationOpen, setDonationOpen] = useState(false);
+  const { data: donationConfig } = useQuery({
+    queryKey: ['donationConfig'],
+    queryFn: donationApi.config,
+    staleTime: 5 * 60 * 1000,
+  });
+  const isDonationEnabled = donationConfig?.enabled === true;
+  const [isPrintPreviewMode, setPrintPreviewMode] = useState(() => {
+    return new URLSearchParams(window.location.search).get('mode') === 'print';
+  });
+  const [zoom, setZoom] = useState(1.0);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+
+  // URL mode parameter sync
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const currentMode = params.get('mode');
+    if (isPrintPreviewMode) {
+      if (currentMode !== 'print') {
+        params.set('mode', 'print');
+        window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}${window.location.hash}`);
+      }
+    } else {
+      if (currentMode === 'print') {
+        params.delete('mode');
+        const qs = params.toString();
+        window.history.pushState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+      }
+    }
+  }, [isPrintPreviewMode]);
+
+  // Handle back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const isPrint = new URLSearchParams(window.location.search).get('mode') === 'print';
+      setPrintPreviewMode(isPrint);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // 캔버스 마우스 휠 및 트랙패드 핀치 줌 리스너
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isPrintPreviewMode) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Ctrl 또는 Cmd 키를 누른 채 휠 동작 시 줌 렌더링 제어
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = -e.deltaY;
+        setZoom((prev) => {
+          const next = prev + (delta > 0 ? 0.05 : -0.05);
+          return Math.min(Math.max(next, 0.3), 2.0); // 30% ~ 200%
+        });
+      }
+    };
+
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel);
+    };
+  }, [isPrintPreviewMode]);
+
+  const handleZoomFit = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const canvasWidth = canvas.clientWidth;
+    const padding = 64; // 안전 여백
+    const fitZoom = (canvasWidth - padding) / 794;
+    setZoom(Math.min(Math.max(fitZoom, 0.3), 2.0));
+  };
+
+  const [printExcludedIds, setPrintExcludedIds] = useState<string[]>([]);
+  const [printSectionOrder, setPrintSectionOrder] = useState<string[]>(() => reorderablePrintSections.map((s) => s.id));
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | null>(null);
+  /**
+   * 현재 드래그 중인 섹션의 "진짜" 상태 — React state(위 draggedSectionId)는 setState 직후
+   * 리렌더가 끝나야 반영되는데, dragstart→dragover가 그 전에 연달아 발생하면 아직 갱신 전 값(null 등)을
+   * 참조해 onDragOver가 조기 return하며 preventDefault를 건너뛰어 드롭 자체가 막히는 문제가 있었다.
+   * ref는 동기적으로 즉시 갱신되므로 onDragOver/onDrop의 판정은 반드시 이 ref만 본다.
+   */
+  const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
+  /** 섹션 위쪽에 삽입되는 여백(px). 실제 인쇄에도 반영되어 페이지 넘김 위치를 조절한다. */
+  const [sectionGaps, setSectionGaps] = useState<Record<string, number>>({});
+  /** 특정 원자 항목의 강제 페이지 지정 오버라이드 ({ [atomId]: forcedPageIndex }) */
+  const [forcedPageOverrides, setForcedPageOverrides] = useState<Record<string, number>>({});
+  /** A4 페이지 오버레이 계산 결과 (총 페이지 수, 오버레이 시작 y, 마지막 페이지 채움 높이) */
+  const [printPageMetrics, setPrintPageMetrics] = useState<{ pages: number; contentTop: number } | null>(null);
+  const [printPending, setPrintPending] = useState(false);
+  /** print 미디어로 전환되는 동안 ResizeObserver가 화면용 페이지 마커를 다시 쓰지 못하게 잠근다. */
+  const printLayoutFrozenRef = useRef(false);
+  /** 폰트·이미지 로딩 직후 최신 좌표로 한 번 더 동기 패킹하기 위한 콜백. */
+  const recomputePrintLayoutRef = useRef<(() => void) | null>(null);
+  /** xl 미만 화면에서 구성 관리 패널을 드로어로 여닫는 상태 (넓은 화면에서는 무시하고 항상 표시) */
+  const [navPanelOpen, setNavPanelOpen] = useState(false);
+  const [isPrintModeDialogOpen, setPrintModeDialogOpen] = useState(false);
+  const [isSaveServerModalOpen, setSaveServerModalOpen] = useState(false);
 
   const isPreviewMode = useMemo(
     () => new URLSearchParams(window.location.search).get('preview') === '1',
     [],
   );
+
+  const isPrintModeParam = useMemo(
+    () => new URLSearchParams(window.location.search).get('printMode') === '1',
+    [],
+  );
+
+  const isAdminEditParam = useMemo(
+    () => new URLSearchParams(window.location.search).get('adminEdit') === '1',
+    [],
+  );
+
+  const [adminTemplateName, setAdminTemplateName] = useState('test');
+  const [adminTemplateVisible, setAdminTemplateVisible] = useState(true);
+
+  // printMode=1 인 경우 페이지 진입 시 자동으로 인쇄 프리뷰 모드 켬
+  useEffect(() => {
+    if (isPrintModeParam) {
+      setPrintPreviewMode(true);
+      setPrintExcludedIds([]);
+      setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
+      setSectionGaps({});
+      setExpandedCareerDetailIds(expandableDetailIds);
+      setExpandedCareerProjectIds(expandableCareerProjectIds);
+      setExpandedCompetencyIds(orderedCompetencies.map((c) => c.id));
+      setNavPanelOpen(true); // 어드민 및 기본 프리뷰 진입 시 우측 구성관리 사이드바 자동 열림
+    }
+  }, [isPrintModeParam]);
 
   // 관리자 대시보드가 현재 선택된 메뉴에 맞춰 미리보기 위치를 지정할 수 있도록 sessionStorage에서 초기 목표 지점을 읽어온다.
   const [previewNav, setPreviewNav] = useState<{ page: PageId; section?: string } | null>(() => {
@@ -358,6 +590,7 @@ export function App() {
   const [selectedCoreSkillId, setSelectedCoreSkillId] = useState<number | null>(null);
   const [expandedCareerDetailIds, setExpandedCareerDetailIds] = useState<number[]>([]);
   const [expandedCareerProjectIds, setExpandedCareerProjectIds] = useState<number[]>([]);
+  const [expandedCompetencyIds, setExpandedCompetencyIds] = useState<number[]>([]);
   const [selectedTimelineYear, setSelectedTimelineYear] = useState<number | null>(null);
   // Where to return to when the user leaves a detail view (study article or
   // experience detail) via its own back button. Captured automatically from
@@ -566,11 +799,15 @@ export function App() {
   useEffect(() => {
     let titleBeforePrint = document.title;
     const clearPrintTitle = () => {
+      // 메뉴/Cmd+P로 직접 인쇄한 경우에도 print 미디어 전환 중 패킹 마커를 보존한다.
+      printLayoutFrozenRef.current = true;
       titleBeforePrint = document.title;
       document.title = '';
     };
     const restorePrintTitle = () => {
       document.title = titleBeforePrint;
+      printLayoutFrozenRef.current = false;
+      setPrintPending(false);
     };
 
     window.addEventListener('beforeprint', clearPrintTitle);
@@ -580,6 +817,26 @@ export function App() {
       window.removeEventListener('afterprint', restorePrintTitle);
     };
   }, []);
+
+  // 프리뷰 모드에서 body에 .print-active 클래스를 토글하여 인쇄 CSS를 적용 및 화면 좁아짐 시 자동 접기
+  useEffect(() => {
+    if (isPrintPreviewMode) {
+      document.body.classList.add('print-active');
+      const handleResize = () => {
+        if (window.innerWidth < 1150) {
+          setNavPanelOpen(false);
+        }
+      };
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => {
+        document.body.classList.remove('print-active');
+        window.removeEventListener('resize', handleResize);
+      };
+    } else {
+      document.body.classList.remove('print-active');
+    }
+  }, [isPrintPreviewMode]);
 
   const fallbackProfile = {
     name: "신윤식",
@@ -688,7 +945,6 @@ export function App() {
             takeaway: exp.takeaway ?? '',
             contributionRate: exp.contributionRate,
             details: [...exp.details].sort((a, b) => a.displayOrder - b.displayOrder),
-            essayContent: exp.essayContent,
             repositoryUrl: exp.repositoryUrl,
             experienceId: exp.id,
           };
@@ -701,6 +957,8 @@ export function App() {
     }));
   }, [introData]);
 
+  const orderedMilestones = activeMilestones;
+
   const navigateToRelatedExperience = (experience: RelatedExperience) => {
     if (experience.type === 'PROJECT') {
       const milestone = activeMilestones.find((item) => item.experienceId === experience.id);
@@ -712,6 +970,7 @@ export function App() {
   };
 
   const coreCompetencies = introData?.competencies ?? [];
+  const orderedCompetencies = coreCompetencies;
 
   const careerCards = useMemo(() => {
     const formatPeriod = (start: string, end?: string) => {
@@ -733,6 +992,7 @@ export function App() {
           employmentType: exp.employmentType ?? '',
           department: exp.department ?? '',
           role: exp.role ?? '',
+          summary: exp.summary ?? '',
           details: exp.details,
           projects: workProjects.filter((project) => project.careerId === exp.id),
         }));
@@ -751,10 +1011,13 @@ export function App() {
       employmentType: '정규직',
       department: '개발팀',
       role: '백엔드 엔지니어',
+      summary: '',
       details: fallbackDetails,
       projects: [] as Experience[],
     }];
   }, [introData]);
+
+  const orderedCareerCards = careerCards;
 
   const educationExperiences = useMemo(() => {
     return (introData?.experiences ?? [])
@@ -766,6 +1029,28 @@ export function App() {
     return (introData?.experiences ?? [])
       .filter((experience) => experience.type === 'CERTIFICATE')
       .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
+  }, [introData]);
+
+  const orderedCredentialExperiences = useMemo(() => {
+    const allCreds = (introData?.experiences ?? [])
+      .filter((exp) => exp.type === 'EDUCATION' || exp.type === 'CERTIFICATE');
+
+    const rank = (exp: Experience) => {
+      const kind = credentialKindLabel(exp);
+      if (kind === '교육') return 1;
+      if (kind === '자격증') return 2;
+      if (kind === '학력') return 3;
+      return 4;
+    };
+
+    return [...allCreds].sort((a, b) => {
+      const rankA = rank(a);
+      const rankB = rank(b);
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      return b.periodStart.localeCompare(a.periodStart);
+    });
   }, [introData]);
 
   const formatCredentialDate = (date: string) => date.replace(/-/g, '.');
@@ -880,6 +1165,28 @@ export function App() {
     );
   };
 
+  const toggleCompetencyEvidence = (id: number) => {
+    setExpandedCompetencyIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  };
+
+  const expandableCompetencyIds = useMemo(
+    () => orderedCompetencies
+      .filter((c) => c.evidences.length > 0 || c.relatedStudies.length > 0)
+      .map((c) => c.id),
+    [orderedCompetencies],
+  );
+
+  const isAllCompetenciesExpanded = useMemo(
+    () => expandableCompetencyIds.length > 0 && expandableCompetencyIds.every((id) => expandedCompetencyIds.includes(id)),
+    [expandableCompetencyIds, expandedCompetencyIds],
+  );
+
+  const toggleExpandAllCompetencies = () => {
+    setExpandedCompetencyIds(isAllCompetenciesExpanded ? [] : expandableCompetencyIds);
+  };
+
   const getExpandableDetailIds = (details: ExperienceDetail[]) => details
     .filter(detail => Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0))
     .map(detail => detail.id);
@@ -914,6 +1221,11 @@ export function App() {
     [careerCards],
   );
 
+  const allMilestoneDetails = useMemo(
+    () => orderedMilestones.flatMap((m) => m.details),
+    [orderedMilestones],
+  );
+
   const isAllExpanded = useMemo(() => {
     const hasExpandableContent = expandableDetailIds.length > 0 || expandableCareerProjectIds.length > 0;
     return hasExpandableContent
@@ -935,9 +1247,739 @@ export function App() {
     return activeMilestones.find(m => m.id === selectedMilestoneId) || activeMilestones[0];
   }, [selectedMilestoneId, activeMilestones]);
 
-  const handlePrint = () => {
-    window.print();
+  /** 인쇄 프리뷰 우측 네비게이션에서 섹션별로 개별 포함/제외할 수 있는 하위 항목 목록 */
+  const printItemGroups: { sectionId: string; items: { id: string; label: string }[] }[] = [
+    {
+      sectionId: 'competencies',
+      items: orderedCompetencies.map((c) => ({ id: `competency:${c.id}`, label: c.title })),
+    },
+    {
+      sectionId: 'career',
+      items: orderedCareerCards.flatMap((career) =>
+        career.projects.map((p) => ({ id: `career-project:${p.id}`, label: p.title })),
+      ),
+    },
+    {
+      sectionId: 'credentials',
+      items: orderedCredentialExperiences.map((credential) => ({
+        id: `credential:${credential.id}`,
+        label: credential.title,
+      })),
+    },
+    {
+      sectionId: 'projects',
+      items: orderedMilestones.map((m) => ({ id: `project:${m.id}`, label: m.title })),
+    },
+  ];
+
+  const orderedReorderableSections = printSectionOrder
+    .map((id) => reorderablePrintSections.find((s) => s.id === id))
+    .filter((s): s is (typeof reorderablePrintSections)[number] => Boolean(s));
+  const lockedPrintSection = printableSections.find((s) => s.id === LOCKED_PRINT_SECTION_ID)!;
+  const orderedPrintableSections = [lockedPrintSection, ...orderedReorderableSections];
+
+  const [atomHeights, setAtomHeights] = useState<Map<string, number>>(new Map());
+
+  const printableAtoms = useMemo(() => {
+    const atoms: PrintAtomItem[] = [];
+
+    orderedPrintableSections.forEach((section) => {
+      if (printExcludedIds.includes(section.id)) return;
+
+      if (section.id === 'intro-profile') {
+        atoms.push({ id: 'intro-profile', type: 'intro-profile', sectionId: 'intro-profile' });
+      } else if (section.id === 'skills') {
+        atoms.push({ id: 'skills-header', type: 'skills', sectionId: 'skills', isHeader: true });
+        groupedCoreSkills.forEach((group) => {
+          const groupId = `skills-group:${group.value}`;
+          if (!printExcludedIds.includes(groupId)) {
+            atoms.push({ id: groupId, type: 'skills-group', sectionId: 'skills', dataId: group.value });
+          }
+        });
+      } else if (section.id === 'competencies') {
+        atoms.push({ id: 'competencies-header', type: 'competency-header', sectionId: 'competencies', isHeader: true });
+        orderedCompetencies.forEach((c) => {
+          const id = `competency:${c.id}`;
+          if (!printExcludedIds.includes(id)) {
+            atoms.push({ id, type: 'competency-item', sectionId: 'competencies', dataId: c.id });
+          }
+        });
+      } else if (section.id === 'career') {
+        atoms.push({ id: 'career-header', type: 'career-header', sectionId: 'career', isHeader: true });
+        orderedCareerCards.forEach((career) => {
+          atoms.push({ id: `career-company:${career.id}`, type: 'career-company', sectionId: 'career', dataId: career.id });
+          career.projects.forEach((p) => {
+            const headerId = `career-project:${p.id}`;
+            if (!printExcludedIds.includes(headerId)) {
+              atoms.push({ id: headerId, type: 'career-item', sectionId: 'career', dataId: p.id });
+              if (p.details && p.details.length > 0) {
+                p.details.forEach((detail) => {
+                  const detailId = `career-detail:${detail.id}`;
+                  if (!printExcludedIds.includes(detailId)) {
+                    atoms.push({ id: detailId, type: 'career-detail-item', sectionId: 'career', dataId: detail.id, title: detail.content });
+                  }
+                });
+              }
+            }
+          });
+        });
+      } else if (section.id === 'credentials') {
+        atoms.push({ id: 'credentials-header', type: 'credentials-header', sectionId: 'credentials', isHeader: true });
+        orderedCredentialExperiences.forEach((cred) => {
+          const id = `credential:${cred.id}`;
+          if (!printExcludedIds.includes(id)) {
+            atoms.push({ id, type: 'credential-item', sectionId: 'credentials', dataId: cred.id });
+          }
+        });
+      } else if (section.id === 'projects') {
+        atoms.push({ id: 'projects-header', type: 'projects-header', sectionId: 'projects', isHeader: true });
+        orderedMilestones.forEach((m) => {
+          const headerId = `project:${m.id}`;
+          if (!printExcludedIds.includes(headerId)) {
+            atoms.push({ id: headerId, type: 'project-item', sectionId: 'projects', dataId: m.id });
+            if (m.details && m.details.length > 0) {
+              m.details.forEach((detail) => {
+                const detailId = `project-detail:${detail.id}`;
+                if (!printExcludedIds.includes(detailId)) {
+                  atoms.push({ id: detailId, type: 'project-detail-item', sectionId: 'projects', dataId: detail.id, title: detail.content });
+                }
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return atoms;
+  }, [orderedPrintableSections, printExcludedIds, orderedCompetencies, orderedCareerCards, orderedCredentialExperiences, orderedMilestones]);
+
+  useLayoutEffect(() => {
+    if (!isPrintPreviewMode) return;
+    const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-atom-id]'));
+    const newHeights = new Map<string, number>();
+    const scale = zoom || 1;
+    elements.forEach((el) => {
+      const atomId = el.getAttribute('data-atom-id');
+      if (atomId) {
+        const target = el.querySelector<HTMLElement>('[data-print-el]') || (el.firstElementChild as HTMLElement) || el;
+        newHeights.set(atomId, target.getBoundingClientRect().height / scale);
+      }
+    });
+
+    setAtomHeights((prev) => {
+      if (prev.size !== newHeights.size) return newHeights;
+      for (const [id, h] of newHeights) {
+        const prevH = prev.get(id);
+        if (prevH === undefined || Math.abs(prevH - h) > 3) {
+          return newHeights;
+        }
+      }
+      return prev;
+    });
+  }, [
+    isPrintPreviewMode,
+    zoom,
+    printableAtoms,
+    sectionGaps,
+    expandedCareerDetailIds,
+    expandedCareerProjectIds,
+    selectedCoreSkillId,
+    selectedMilestoneId,
+  ]);
+
+  const pageLayers = useMemo(() => {
+    return partitionAtomsIntoPages(printableAtoms, atomHeights, sectionGaps, forcedPageOverrides);
+  }, [printableAtoms, atomHeights, sectionGaps, forcedPageOverrides]);
+
+  const printSectionProps = (id: string) => {
+    if (!isPrintPreviewMode) return {};
+    const locked = id === LOCKED_PRINT_SECTION_ID;
+    const isDragOver = !locked && dragOverSectionId === id && draggedSectionId !== null && draggedSectionId !== id;
+    return {
+      'data-print-exclude': printExcludedIds.includes(id) ? '' : undefined,
+      'data-print-el': locked ? undefined : '',
+      // 프로필/기술스택은 통짜 원자, 나머지 섹션은 내부 원자(헤더/항목)로 패킹
+      'data-print-atom': locked || id === 'skills' ? '' : undefined,
+      draggable: !locked,
+      style: {
+        order: locked ? -1 : printSectionOrder.indexOf(id),
+        ...(isDragOver
+          ? {
+              boxShadow: dragOverPosition === 'after'
+                ? 'inset 0 -3px 0 0 #3b82f6'
+                : 'inset 0 3px 0 0 #3b82f6',
+            }
+          : {}),
+      },
+      onDragStart: locked
+        ? undefined
+        : (e: React.DragEvent<HTMLElement>) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', id);
+            dragRef.current = { kind: 'section', id };
+            setDraggedSectionId(id);
+          },
+      onDragEnd: () => {
+        dragRef.current = null;
+        setDraggedSectionId(null);
+        setDragOverSectionId(null);
+        setDragOverPosition(null);
+      },
+      onDragOver: (e: React.DragEvent<HTMLElement>) => {
+        // ref는 dragstart에서 동기적으로 세팅되므로 리렌더 타이밍과 무관하게 항상 최신값이다.
+        if (locked || dragRef.current?.kind !== 'section') return;
+        e.preventDefault();
+        const rect = e.currentTarget.getBoundingClientRect();
+        const pos: 'before' | 'after' = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+        if (dragOverSectionId !== id) setDragOverSectionId(id);
+        if (dragOverPosition !== pos) setDragOverPosition(pos);
+      },
+      onDrop: (e: React.DragEvent<HTMLElement>) => {
+        if (locked || dragRef.current?.kind !== 'section') return;
+        e.preventDefault();
+        // ref에서 드래그 대상 id를 직접 읽고, 드롭 시점 커서 위치로 앞/뒤를 다시 계산한다.
+        const rect = e.currentTarget.getBoundingClientRect();
+        const pos: 'before' | 'after' = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+        const dragged = dragRef.current.id;
+        reorderPrintSections(dragged, id, pos);
+        dragRef.current = null;
+        setDraggedSectionId(null);
+        setDragOverSectionId(null);
+        setDragOverPosition(null);
+      },
+    };
   };
+
+  /** 프리뷰 모드 시 섹션에 추가할 CSS 클래스. 기존 className 뒤에 concat해서 사용. */
+  const printSectionClass = (id: string) => {
+    if (!isPrintPreviewMode) return '';
+    // 드래그 중에는 transition을 끈다 — box-shadow가 dragover마다 바뀌는데 transition이 걸려있으면
+    // 브라우저가 계속 "애니메이션 중"으로 보고, 특히 Playwright 등에서 요소 안정성 대기가 멈추는 문제가 있었다.
+    // transition-all은 안 된다: inline style의 order도 transition-property: all에 포함되어
+    // Chromium이 order 변경을 즉시 반영하지 않고 300ms에 걸쳐 애니메이션(중간에서 flip)한다.
+    // 패커의 useLayoutEffect는 그 순간(t=0) 좌표를 측정하므로 아직 옛 위치를 읽어 페이지 분배가 틀어진다.
+    let cls = draggedSectionId ? ' relative' : ' relative transition-[box-shadow,opacity] duration-300';
+    if (draggedSectionId === id) cls += ' opacity-40';
+    return cls;
+  };
+
+  /** 섹션/아이템 위 간격(px) 드래그 조절 시작. 최소 0px까지만 줄어들며 절대 상위 요소와 겹치지 않는다. */
+  const startGapDrag = (id: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startY = e.clientY;
+    const startGap = Math.max(0, sectionGaps[id] ?? 0);
+    const onMove = (me: MouseEvent) => {
+      const next = Math.max(0, Math.round(startGap + (me.clientY - startY)));
+      setSectionGaps((prev) => ((prev[id] ?? 0) === next ? prev : { ...prev, [id]: next }));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  /** 페이지 층 레이어 기반 원자 위치 맵 */
+  const atomPageMap = useMemo(() => {
+    const map = new Map<string, number>();
+    pageLayers.forEach((page) => {
+      page.items.forEach((item) => {
+        map.set(item.id, page.pageIndex);
+      });
+    });
+    return map;
+  }, [pageLayers]);
+
+  /** 2개 이상의 페이지에 걸쳐 분할된 섹션 ID 목록 */
+  const splitSectionIds = useMemo(() => {
+    const sectionPagesMap = new Map<string, Set<number>>();
+    printableAtoms.forEach((atom) => {
+      const page = atomPageMap.get(atom.id);
+      if (page !== undefined) {
+        if (!sectionPagesMap.has(atom.sectionId)) {
+          sectionPagesMap.set(atom.sectionId, new Set());
+        }
+        sectionPagesMap.get(atom.sectionId)!.add(page);
+      }
+    });
+    const splitSet = new Set<string>();
+    sectionPagesMap.forEach((pages, sectionId) => {
+      if (pages.size > 1) {
+        splitSet.add(sectionId);
+      }
+    });
+    return splitSet;
+  }, [printableAtoms, atomPageMap]);
+
+  /** 페이지가 넘어가는 첫번째 경계 항목 ID 목록 (분할 지점) */
+  const pageBreakBoundaryAtomIds = useMemo(() => {
+    const set = new Set<string>();
+    for (let p = 1; p < pageLayers.length; p++) {
+      const prevPageItems = pageLayers[p - 1].items;
+      const currentPageItems = pageLayers[p].items;
+      if (currentPageItems.length > 0) {
+        const firstAtomOnNewPage = currentPageItems[0];
+        const sectionId = firstAtomOnNewPage.sectionId;
+        const hasPrevItemsInSameSection = prevPageItems.some((it) => it.sectionId === sectionId);
+        if (hasPrevItemsInSameSection) {
+          set.add(firstAtomOnNewPage.id);
+        }
+      }
+    }
+    return set;
+  }, [pageLayers]);
+
+  /** 헤더 또는 항목과 연관된 세부 항목 atom ID 목록을 반환한다 (예: 상세경험 헤더 선택 시 하위 세부 경험 전체 동시 제어) */
+  const getAssociatedAtomIds = (id: string): string[] => {
+    if (id.startsWith('project-details-header:')) {
+      const milestoneId = id.replace('project-details-header:', '');
+      const m = orderedMilestones.find((item) => String(item.id) === milestoneId);
+      if (m && m.details) {
+        return [id, ...m.details.map((d) => `project-detail:${d.id}`)];
+      }
+    }
+    if (id.startsWith('career-details-header:')) {
+      const projectId = id.replace('career-details-header:', '');
+      const allProjects = orderedCareerCards.flatMap((c) => c.projects);
+      const p = allProjects.find((item) => String(item.id) === projectId);
+      if (p && p.details) {
+        return [id, ...p.details.map((d) => `career-detail:${d.id}`)];
+      }
+    }
+    return [id];
+  };
+
+  /** 분할된 지점에서만 활성화되는 페이지 경계 이동/여백 조절 컨트롤 렌더링 (플로팅 렌더링으로 본문 높이 왜곡 방지) */
+  const renderPageBreakControl = (id: string, sectionId: string) => {
+    if (!isPrintPreviewMode) return null;
+    const isSplit = splitSectionIds.has(sectionId);
+    const isBoundary = pageBreakBoundaryAtomIds.has(id);
+    const currentGap = sectionGaps[id] ?? 0;
+    const forcedPage = forcedPageOverrides[id];
+    const currentPage = atomPageMap.get(id);
+
+    // 강제 페이지 고정 상태일 때: 본문 레이아웃 높이를 소비하지 않는 오버레이 배지 및 내리기 버튼
+    if (forcedPage !== undefined) {
+      // 부모 details-header가 이미 강제 고정된 상태라면 하위 세부 항목에는 중복 배지를 렌더링하지 않는다
+      const isChildDetail = id.startsWith('project-detail:') || id.startsWith('career-detail:');
+      if (isChildDetail) {
+        let parentHeaderId: string | null = null;
+        if (id.startsWith('project-detail:')) {
+          const detailId = id.replace('project-detail:', '');
+          const m = orderedMilestones.find((item) => item.details.some((d) => String(d.id) === detailId));
+          if (m) parentHeaderId = `project-details-header:${m.id}`;
+        } else if (id.startsWith('career-detail:')) {
+          const detailId = id.replace('career-detail:', '');
+          const p = orderedCareerCards.flatMap((c) => c.projects).find((proj) => proj.details.some((d) => String(d.id) === detailId));
+          if (p) parentHeaderId = `career-details-header:${p.id}`;
+        }
+        if (parentHeaderId && forcedPageOverrides[parentHeaderId] !== undefined) {
+          return null;
+        }
+      }
+
+      const nextPageNum = forcedPage + 2;
+      const isHeaderBlock = id.startsWith('project-details-header:') || id.startsWith('career-details-header:');
+      const labelText = isHeaderBlock
+        ? `상세 경험 및 세부 내용 전체가 ${forcedPage + 1}페이지로 강제 배치되었습니다.`
+        : `이 항목은 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
+
+      return (
+        <div
+          data-print-preview-ui
+          className="absolute -top-7 left-0 right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto"
+        >
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+              강제 위치 배치됨
+            </span>
+            <span className="text-[11px] text-indigo-100 font-semibold">
+              {labelText}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const idsToClear = getAssociatedAtomIds(id);
+              setForcedPageOverrides((prev) => {
+                const next = { ...prev };
+                idsToClear.forEach((atomId) => delete next[atomId]);
+                return next;
+              });
+            }}
+            className="flex items-center gap-1 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+            <span>원래대로 내리기 ({nextPageNum}페이지)</span>
+          </button>
+        </div>
+      );
+    }
+
+    if (!isBoundary && currentGap === 0) return null;
+
+    const targetPrevPage = (currentPage ?? 1) - 1;
+
+    // 페이지 경계 컨트롤: 상단 여백 공간에 플로팅되어 본문 레이아웃 높이를 1px도 차지하지 않음
+    return (
+      <div
+        data-print-preview-ui
+        className="absolute -top-7 left-0 right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto"
+      >
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+            페이지 분할 지점
+          </span>
+          <span className="text-[11px] text-slate-200 font-semibold">
+            {isBoundary
+              ? '이 항목부터 다음 페이지로 분할되었습니다.'
+              : '페이지 이동 간격 세밀 조절 중'}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {isBoundary && targetPrevPage >= 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const idsToForce = getAssociatedAtomIds(id);
+                setForcedPageOverrides((prev) => {
+                  const next = { ...prev };
+                  idsToForce.forEach((atomId) => {
+                    next[atomId] = targetPrevPage;
+                  });
+                  return next;
+                });
+              }}
+              className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer"
+            >
+              <ArrowUp className="h-3.5 w-3.5" />
+              <span>강제로 {targetPrevPage + 1}페이지로 올리기</span>
+            </button>
+          )}
+          <div
+            onMouseDown={startGapDrag(id)}
+            title="마우스로 위아래 여백을 끌어서 조절 (다음 페이지 위치 세밀 조절)"
+            className="flex cursor-ns-resize items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm"
+          >
+            <MoveVertical className="h-3.5 w-3.5" />
+            <span>위치/여백 조절</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /** 호버 시 섹션 왼편에 나타나는 컨트롤 (포함/제외 + 위 간격 조절 + 드래그 안내) */
+  const renderSectionControls = (id: string) => {
+    if (!isPrintPreviewMode) return null;
+    return (
+      <div data-print-preview-ui className="pp-controls print:hidden">
+        <PrintEyeButton id={id} excluded={printExcludedIds.includes(id)} onToggle={togglePrintSection} />
+        <div
+          onMouseDown={startGapDrag(id)}
+          draggable
+          onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          title="위쪽 간격 조절 (아래로 끌면 넓어짐)"
+          className="grid h-7 w-7 cursor-ns-resize place-items-center rounded-full bg-slate-900/90 text-white shadow-lg transition hover:bg-slate-900"
+        >
+          <MoveVertical className="h-3.5 w-3.5" />
+        </div>
+        <div title="요소 자체를 드래그해서 순서 이동" className="grid h-7 w-7 cursor-grab place-items-center rounded-full bg-slate-900/60 text-white shadow-lg">
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+      </div>
+    );
+  };
+
+  /** 호버 시 우상단에 뜨는 컨트롤 툴바 (핀 고정/해제 + 수직 간격 마우스 드래그 조절 + 내리기 버튼) */
+  const renderItemControls = (id: string) => {
+    if (!isPrintPreviewMode) return null;
+    const isForced = forcedPageOverrides[id] !== undefined;
+    const forcedPage = forcedPageOverrides[id];
+    const nextPageNum = (forcedPage ?? 0) + 2;
+
+    return (
+      <div data-print-preview-ui className="pp-controls print:hidden flex items-center gap-1 bg-slate-900/90 p-1 rounded-full shadow-lg backdrop-blur-md z-40">
+        <PrintEyeButton id={id} excluded={printExcludedIds.includes(id)} onToggle={togglePrintSection} />
+
+        {isForced && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const idsToClear = getAssociatedAtomIds(id);
+              setForcedPageOverrides((prev) => {
+                const next = { ...prev };
+                idsToClear.forEach((atomId) => delete next[atomId]);
+                return next;
+              });
+            }}
+            title={`원래 위치(${nextPageNum}페이지)로 다시 내리기`}
+            className="flex h-6 items-center gap-1 rounded-full bg-rose-600 px-2.5 text-[10px] font-black text-white hover:bg-rose-700 transition cursor-pointer shadow-sm"
+          >
+            <ArrowDown className="h-3 w-3" />
+            <span>{nextPageNum}p로 내리기</span>
+          </button>
+        )}
+
+        {/* 마우스 미세 드래그로 위아래 간격 조절 */}
+        <div
+          onMouseDown={startGapDrag(id)}
+          title="마우스를 위아래로 끌어서 간격 세밀 조절"
+          className="grid h-6 w-6 cursor-ns-resize place-items-center rounded-full bg-slate-700/90 text-white transition hover:bg-blue-600 hover:scale-110"
+        >
+          <MoveVertical className="h-3 w-3" />
+        </div>
+      </div>
+    );
+  };
+
+  /** 아이템/필드 위쪽 간격 스페이서 (페이지 분할 시에만 분할 조절 컨트롤 활성화) */
+  const renderItemGap = (id: string, sectionId?: string) => {
+    if (!isPrintPreviewMode) return null;
+    const h = Math.max(0, sectionGaps[id] ?? 0);
+
+    return (
+      <Fragment key={`gap:${id}`}>
+        {sectionId && renderPageBreakControl(id, sectionId)}
+        {h > 0 && (
+          <div
+            aria-hidden
+            data-print-gap
+            className="print-gap-spacer shrink-0 w-full"
+            style={{ height: `${h}px` }}
+          />
+        )}
+      </Fragment>
+    );
+  };
+
+  /** 상세 경험 항목의 서술(narrative, 없으면 상황/진행 과정/성과를 합친 값)을 하나의 페이징 원자로 렌더링한다. */
+  const renderDetailFields = (detail: ExperienceDetail, detailIdKey: string) => {
+    const merged = detail.narrative
+      || [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
+    if (!merged) return null;
+    const id = `field:merged:${detailIdKey}`;
+    return (
+      <Fragment key="merged">
+        <div className="resume-detail-text">
+          <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
+        </div>
+      </Fragment>
+    );
+  };
+
+  /** 섹션 위쪽 간격 스페이서 (최소 0px 안전 보장으로 겹침 방지) */
+  const renderSectionGap = (id: string) => {
+    if (!isPrintPreviewMode) return null;
+    const h = Math.max(0, sectionGaps[id] ?? 0);
+    if (h === 0 || printExcludedIds.includes(id)) return null;
+    return (
+      <div
+        aria-hidden
+        data-print-gap
+        className="print-gap-spacer shrink-0 w-full"
+        style={{ height: `${h}px` }}
+      />
+    );
+  };
+
+  /** 아이템 레벨: 제외/호버/드래그 순서교체 props. groupKey와 현재 순서 배열을 함께 넘긴다. */
+  /** 아이템 레벨: 제외/호버/페이지 간격 제어 props. 순서 변경 드래그는 제공하지 않는다. */
+  const printItemProps = (id: string) => {
+    if (!isPrintPreviewMode) return {};
+    return {
+      'data-print-exclude': printExcludedIds.includes(id) ? '' : undefined,
+      'data-print-id': id,
+      'data-print-el': '',
+      'data-print-atom': '',
+      style: { position: 'relative' as const },
+    };
+  };
+
+  const handlePrint = () => {
+    setPrintModeDialogOpen(true);
+  };
+
+  /** 모달에서 "직접 조정하기" 선택 시 — 빈 상태로 프리뷰 진입 */
+  const handlePrintManual = () => {
+    setPrintModeDialogOpen(false);
+    printLayoutFrozenRef.current = false;
+    setPrintPreviewMode(true);
+    setPrintExcludedIds([]);
+    setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
+    setSectionGaps({});
+    setPrintPending(false);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** 모달에서 템플릿/로컬 저장 선택 시 — 해당 설정으로 프리뷰 진입 */
+  const handlePrintApplyTemplate = (settings: {
+    excludedIds: string[];
+    sectionOrder: string[];
+    sectionGaps: Record<string, number>;
+    forcedPageOverrides?: Record<string, number>;
+  }) => {
+    setPrintModeDialogOpen(false);
+    printLayoutFrozenRef.current = false;
+    setPrintPreviewMode(true);
+    setPrintExcludedIds(settings.excludedIds);
+    // 템플릿의 sectionOrder에 새로 추가된 섹션이 누락될 수 있으므로, 기존 섹션 중 누락된 것을 뒤에 추가
+    const allIds = reorderablePrintSections.map((s) => s.id);
+    const merged = [...settings.sectionOrder.filter((id) => allIds.includes(id)), ...allIds.filter((id) => !settings.sectionOrder.includes(id))];
+    setPrintSectionOrder(merged);
+    setSectionGaps(settings.sectionGaps);
+    setForcedPageOverrides(settings.forcedPageOverrides ?? {});
+    setPrintPending(false);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** 현재 조정된 프리뷰 설정을 브라우저 localStorage에 저장 */
+  const handleSaveLocalPrintConfig = () => {
+    const defaultName = generateUniqueLocalName('내 맞춤 인쇄 설정');
+    const memo = window.prompt('현재 인쇄 설정에 대한 설명/메모를 입력하세요:', defaultName);
+    if (memo === null) return; // 취소
+    const trimmed = memo.trim() || defaultName;
+
+    const existingSaves = getLocalSaves();
+    const isDuplicate = existingSaves.some((s) => s.memo.trim() === trimmed);
+
+    if (isDuplicate) {
+      const confirmed = window.confirm(`'${trimmed}' 이름의 인쇄 설정이 이미 존재합니다.\n\n기존 설정을 덮어쓰시겠습니까?`);
+      if (!confirmed) return; // 취소
+    }
+
+    saveLocal({
+      memo: trimmed,
+      excludedIds: printExcludedIds,
+      sectionOrder: printSectionOrder,
+      sectionGaps,
+      forcedPageOverrides,
+    });
+    alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
+  };
+
+  /** 구성 관리 패널에서 섹션/항목을 클릭했을 때 본문의 실제 위치로 스크롤한다. */
+  const scrollToPrintElement = (id: string) => {
+    const el = document.getElementById(id) ?? document.querySelector<HTMLElement>(`[data-print-id="${CSS.escape(id)}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const togglePrintSection = (id: string) => {
+    if (id === LOCKED_PRINT_SECTION_ID) return;
+    setPrintExcludedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const toggleAllPrintSections = () => {
+    setPrintExcludedIds((prev) =>
+      prev.length === 0 ? reorderablePrintSections.map((s) => s.id) : [],
+    );
+  };
+
+  const reorderPrintSections = (draggedId: string, targetId: string, position: 'before' | 'after' = 'before') => {
+    if (draggedId === targetId) return;
+    if (draggedId === LOCKED_PRINT_SECTION_ID || targetId === LOCKED_PRINT_SECTION_ID) return;
+    setPrintSectionOrder((prev) => {
+      const next = prev.filter((id) => id !== draggedId);
+      let targetIndex = next.indexOf(targetId);
+      if (position === 'after') targetIndex += 1;
+      next.splice(targetIndex, 0, draggedId);
+      return next;
+    });
+  };
+
+  const handlePrintConfirm = () => {
+    printLayoutFrozenRef.current = false;
+    setPrintPending(true);
+  };
+
+  const handlePrintCancel = () => {
+    printLayoutFrozenRef.current = false;
+    setPrintPreviewMode(false);
+    setPrintExcludedIds([]);
+    setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
+    setSectionGaps({});
+    setPrintPending(false);
+    setNavPanelOpen(false);
+
+    if (isAdminEditParam) {
+      window.parent.postMessage({ type: 'CLOSE_ADMIN_EDIT' }, '*');
+    }
+  };
+
+  useEffect(() => {
+    if (!printPending || !isPrintPreviewMode) return;
+
+    let cancelled = false;
+    const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const waitAtMost = async (promise: Promise<unknown>, timeoutMs = 5000) => {
+      let timer = 0;
+      await Promise.race([
+        promise.catch(() => undefined),
+        new Promise<void>((resolve) => {
+          timer = window.setTimeout(resolve, timeoutMs);
+        }),
+      ]);
+      window.clearTimeout(timer);
+    };
+    const printWhenLayoutIsStable = async () => {
+      // 웹폰트 적용과 ResizeObserver 재패킹이 끝난 뒤의 DOM을 인쇄해야
+      // 화면에서 계산한 줄바꿈·페이지 시작점과 PDF가 달라지지 않는다.
+      await waitAtMost(document.fonts.ready);
+      if (cancelled) return;
+      await Promise.all(
+        Array.from(document.querySelectorAll<HTMLImageElement>('.resume-page img')).map(async (image) => {
+          if (!image.complete) {
+            await new Promise<void>((resolve) => {
+              let timer = 0;
+              const finish = () => {
+                window.clearTimeout(timer);
+                image.removeEventListener('load', finish);
+                image.removeEventListener('error', finish);
+                resolve();
+              };
+              image.addEventListener('load', finish);
+              image.addEventListener('error', finish);
+              timer = window.setTimeout(finish, 5000);
+              // complete가 이벤트 리스너 등록 직전에 바뀐 경우를 놓치지 않는다.
+              if (image.complete) finish();
+            });
+          }
+          // decode() 자체가 멈추거나 실패한 이미지 하나가 인쇄 전체를 막지 않도록 한다.
+          await waitAtMost(image.decode());
+        }),
+      );
+      await nextFrame();
+      await nextFrame();
+      if (cancelled) return;
+
+      // 마지막 좌표를 동기 반영한 직후 레이아웃을 잠가, beforeprint의 미디어 전환이
+      // ResizeObserver를 깨워 data-print-break를 지우는 경쟁 조건을 없앤다.
+      recomputePrintLayoutRef.current?.();
+      printLayoutFrozenRef.current = true;
+      try {
+        window.print();
+      } catch {
+        // print()가 차단되면 afterprint가 오지 않으므로 여기서 잠금을 직접 해제한다.
+        printLayoutFrozenRef.current = false;
+      } finally {
+        if (!cancelled) setPrintPending(false);
+      }
+    };
+
+    void printWhenLayoutIsStable();
+    return () => {
+      cancelled = true;
+    };
+  }, [isPrintPreviewMode, printPending]);
 
   const goToPage = (pageId: PageId) => {
     setActivePage(pageId);
@@ -1018,11 +2060,13 @@ export function App() {
   // 공통 배지 스타일 통일
   const badgeStyle = "resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded-md shadow-sm";
 
-  const sidebarGridClass = `grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 relative items-start transition-[grid-template-columns] duration-300 ${
-    isSectionNavCollapsed
-      ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-      : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
-  }`;
+  const sidebarGridClass = isPrintPreviewMode
+    ? 'block w-[820px] max-w-full mx-auto z-[1]'
+    : `grid grid-cols-[minmax(0,1fr)_52px] gap-4 sm:gap-6 relative items-start transition-[grid-template-columns] duration-300 ${
+        isSectionNavCollapsed
+          ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
+          : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
+      }`;
 
   const renderSectionNavToggle = () => (
     <button
@@ -1041,9 +2085,432 @@ export function App() {
     </button>
   );
 
+  const renderAtomContent = (atom: PrintAtomItem) => {
+    switch (atom.type) {
+      case 'intro-profile':
+        return (
+          <div id="intro-profile" data-print-el className={`resume-profile-card relative ${isPrintPreviewMode ? 'p-0 pb-3 border-b border-slate-200 shadow-none rounded-none bg-transparent' : 'rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md'}`}>
+            {renderSectionGap('intro-profile')}
+            {renderSectionControls('intro-profile')}
+            <div className="relative z-10 space-y-4">
+              <div className="resume-profile-toprow flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="space-y-1 shrink-0">
+                  <h2 className="resume-profile-role font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 whitespace-nowrap text-sm">
+                    {profile.jobTitle}
+                  </h2>
+                  <div className="flex items-baseline gap-2 whitespace-nowrap">
+                    <h1 className="resume-profile-name font-black text-slate-900 whitespace-nowrap text-lg sm:text-xl">{profile.name}</h1>
+                    <span className="resume-profile-name-en font-bold text-slate-400 font-mono whitespace-nowrap text-xs">{profile.nameEn}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="resume-print-contact flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-200 pb-2 text-slate-600 text-xs font-mono">
+                <span>{profile.email}</span>
+                <span>{profile.phone}</span>
+                <span>{profile.githubUrl.replace(/^https?:\/\//, '')}</span>
+                <span>unbrdn.me</span>
+              </div>
+              <div>
+                <p className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs leading-relaxed">
+                  {profile.bio}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'skills':
+        return (
+          <div data-print-el className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
+            {renderSectionGap('skills')}
+            {renderSectionControls('skills')}
+            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                <Cpu className="h-4 w-4 text-slate-900" />
+                기술 스택
+              </h2>
+            </div>
+          </div>
+        );
+
+      case 'skills-group': {
+        const group = groupedCoreSkills.find((g) => g.value === atom.dataId);
+        if (!group) return null;
+        const itemId = `skills-group:${group.value}`;
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'skills')}
+            <div data-print-el className="py-3.5 border-b border-slate-100 last:border-b-0 w-full relative">
+              {renderItemControls(itemId)}
+              <div className="resume-skill-group space-y-1.5">
+                <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 border-b border-slate-100 pb-0.5 font-black text-slate-500 text-xs">
+                  <span className="resume-skill-group-bar h-3 w-1 shrink-0 rounded-full bg-slate-900" aria-hidden />
+                  {group.label}
+                </h4>
+                <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2">
+                  {group.skills.map((skill) => (
+                    <span key={skill.id} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-black text-slate-800">
+                      {skill.name}
+                      {skill.skillVersion && (
+                        <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500">
+                          v{skill.skillVersion}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Fragment>
+        );
+      }
+
+      case 'competency-header':
+        return (
+          <div data-print-el className="resume-competency-header flex flex-col w-full mt-6 pt-2 relative">
+            {renderSectionGap('competencies')}
+            {renderSectionControls('competencies')}
+            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                <Sparkles className="h-4 w-4 text-slate-900" />
+                핵심 역량
+              </h2>
+            </div>
+          </div>
+        );
+
+      case 'competency-item': {
+        const competency = orderedCompetencies.find((c) => c.id === atom.dataId);
+        if (!competency) return null;
+        const index = orderedCompetencies.indexOf(competency);
+        const itemId = `competency:${competency.id}`;
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'competencies')}
+            <div data-print-el className="relative w-full">
+              {renderItemControls(itemId)}
+              <article
+                className="print-competency-row grid gap-3 py-3.5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6 print:grid-cols-[31%_69%] print:gap-4 print:py-3.5 border-b border-slate-100 last:border-b-0 w-full"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400 text-xs">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <h3 className="resume-item-title font-black text-slate-900 text-xs">
+                      {competency.title}
+                    </h3>
+                  </div>
+                  {competency.skills.length > 0 && (
+                    <p className="resume-meta mt-1 pl-9 font-bold text-slate-500 text-[10px]">
+                      {competency.skills.slice(0, 6).map((skill) => skill.name).join(' · ')}
+                    </p>
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="resume-body font-semibold text-slate-700 text-xs leading-relaxed">
+                    {competency.summary}
+                  </p>
+                </div>
+              </article>
+            </div>
+          </Fragment>
+        );
+      }
+
+      case 'career-header':
+        return (
+          <div data-print-el className="mb-2 flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
+            {renderSectionGap('career')}
+            {renderSectionControls('career')}
+            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                <Briefcase className="h-4 w-4 text-slate-900" />
+                직장 경력 (총 {careerSummary})
+              </h2>
+            </div>
+          </div>
+        );
+
+      case 'career-company': {
+        const career = orderedCareerCards.find((c) => c.id === atom.dataId);
+        if (!career) return null;
+        const itemId = `career-company:${career.id}`;
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'career')}
+            <div data-print-el className="border-b border-slate-100 py-3.5 w-full relative">
+              {renderItemControls(itemId)}
+              <span className="resume-print-plain resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950 text-xs">
+                {career.period}
+              </span>
+              <p className="resume-item-title mt-1.5 font-black text-slate-800 text-sm">{career.companyName} ({career.employmentType})</p>
+              <p className="resume-meta font-semibold text-slate-500 text-xs">{career.department} / {career.role}</p>
+              {career.summary && (
+                <div className="resume-body mt-2 text-xs text-slate-600">
+                  <ReactMarkdown components={resumeMarkdownComponents}>{career.summary}</ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </Fragment>
+        );
+      }
+
+      case 'career-item': {
+        const career = orderedCareerCards.find((c) => c.projects.some((p) => p.id === atom.dataId));
+        const project = career?.projects.find((p) => p.id === atom.dataId);
+        if (!project || !career) return null;
+        const itemId = `career-project:${project.id}`;
+        const hasDetails = project.details && project.details.length > 0;
+
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'career')}
+            <div data-print-el className={`w-full relative ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}>
+              {renderItemControls(itemId)}
+
+              {/* Project Header */}
+              <div className="flex w-full items-start gap-2.5 text-left">
+                <span className="min-w-0 flex-1">
+                  <span className="resume-body block font-bold text-slate-900 text-xs">{project.title}</span>
+                  <span className="resume-meta mt-0.5 block text-slate-400 text-[10px]">
+                    {project.periodStart.replace(/-/g, '.').substring(0, 7)} - {project.periodEnd ? project.periodEnd.replace(/-/g, '.').substring(0, 7) : '진행 중'}
+                    {project.contributionRate != null ? ` · 기여도 ${project.contributionRate}%` : ''}
+                  </span>
+                </span>
+              </div>
+
+              {/* Project Summary */}
+              {project.summary && (
+                <div className="mt-1.5">
+                  <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider text-[10px]">프로젝트 설명 및 역할</h4>
+                  <div className="resume-body mt-0.5 text-xs text-slate-600">
+                    <ReactMarkdown components={resumeMarkdownComponents}>{project.summary}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+
+              {/* Project Tech Stack Badges */}
+              {project.skills && project.skills.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {project.skills.map((s) => (
+                    <span key={s.id} className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Fragment>
+        );
+      }
+
+      case 'career-details-header': {
+        const career = orderedCareerCards.find((c) => c.projects.some((p) => p.id === atom.dataId));
+        const project = career?.projects.find((p) => p.id === atom.dataId);
+        if (!project || !career || !project.details || project.details.length === 0) return null;
+        const itemId = `career-details-header:${project.id}`;
+
+        return (
+          <div data-print-el className="pt-2 pb-1 w-full relative">
+            {renderItemGap(itemId, 'career')}
+            {renderItemControls(itemId)}
+            <div className="resume-detail-header flex items-center gap-1.5">
+              <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
+                <Briefcase className="h-3 w-3 text-slate-500" />
+                상세 경험
+              </h4>
+            </div>
+          </div>
+        );
+      }
+
+      case 'career-detail-item': {
+        const allProjects = orderedCareerCards.flatMap((c) => c.projects);
+        const p = allProjects.find((proj) => proj.details?.some((d) => d.id === atom.dataId));
+        const detail = p?.details?.find((d) => d.id === atom.dataId);
+        if (!detail || !p) return null;
+        const itemId = `career-detail:${detail.id}`;
+        const isFirst = p.details[0]?.id === detail.id;
+
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'career')}
+            <div data-print-el className="py-2 pl-3 border-l-2 border-slate-200 border-b border-slate-100/60 last:border-b-0 w-full relative">
+              {renderItemControls(itemId)}
+              {isFirst && (
+                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
+                  <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
+                    <Briefcase className="h-3 w-3 text-slate-500" />
+                    상세 경험
+                  </h4>
+                </div>
+              )}
+              <span className="font-bold text-slate-900 block text-xs">• {detail.content}</span>
+              {renderDetailFields(detail, `${detail.id}`)}
+            </div>
+          </Fragment>
+        );
+      }
+
+      case 'credentials-header':
+        return (
+          <div data-print-el className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
+            {renderSectionGap('credentials')}
+            {renderSectionControls('credentials')}
+            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                <GraduationCap className="h-4 w-4 text-slate-900" />
+                학력·교육 및 자격증
+              </h2>
+            </div>
+          </div>
+        );
+
+      case 'credential-item': {
+        const cred = orderedCredentialExperiences.find((c) => c.id === atom.dataId);
+        if (!cred) return null;
+        const itemId = `credential:${cred.id}`;
+        const kind = credentialKindLabel(cred);
+
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'credentials')}
+            <article data-print-el className="py-2.5 border-b border-slate-100 last:border-b-0 w-full relative flex flex-col">
+              {renderItemControls(itemId)}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="resume-label rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 shrink-0">
+                    {kind}
+                  </span>
+                  <h3 className="font-bold text-slate-900 text-xs truncate">{cred.title}</h3>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono shrink-0">{formatCredentialPeriod(cred)}</span>
+              </div>
+              
+              {/* 교육 항목: 설명글 및 기술 스택 배지 유지 */}
+              {kind === '교육' && cred.summary && (
+                <p className="mt-1 text-xs text-slate-600 leading-relaxed">{cred.summary}</p>
+              )}
+              {kind === '교육' && cred.skills && cred.skills.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {cred.skills.map((s) => (
+                    <span key={s.id} className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </article>
+          </Fragment>
+        );
+      }
+
+      case 'projects-header':
+        return (
+          <div data-print-el className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
+            {renderSectionGap('projects')}
+            {renderSectionControls('projects')}
+            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                <FolderGit2 className="h-4 w-4 text-slate-900" />
+                핵심 프로젝트 포트폴리오
+              </h2>
+            </div>
+          </div>
+        );
+
+      case 'project-item': {
+        const m = orderedMilestones.find((item) => item.id === atom.dataId);
+        if (!m) return null;
+        const itemId = `project:${m.id}`;
+        const hasDetails = (m.details && m.details.length > 0);
+
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'projects')}
+            <article data-print-el className={`w-full relative flex flex-col ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}>
+              {renderItemControls(itemId)}
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 className="font-black text-slate-900 text-xs">{m.title}</h3>
+                <span className="text-[10px] text-slate-400 font-mono shrink-0">{m.period}</span>
+              </div>
+              {m.role && <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{m.role}</p>}
+              {m.description && <p className="mt-1 text-xs text-slate-600">{m.description}</p>}
+              {m.skills && m.skills.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {m.skills.map((s) => (
+                    <span key={s} className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </article>
+          </Fragment>
+        );
+      }
+
+      case 'project-detail-item': {
+        const m = orderedMilestones.find((item) => item.details?.some((d) => d.id === atom.dataId));
+        const detail = m?.details?.find((d) => d.id === atom.dataId);
+        if (!detail || !m) return null;
+        const itemId = `project-detail:${detail.id}`;
+        const isFirst = m.details[0]?.id === detail.id;
+
+        return (
+          <Fragment key={atom.id}>
+            {renderItemGap(itemId, 'projects')}
+            <div data-print-el className="py-2 pl-3 border-l-2 border-slate-200 border-b border-slate-100/60 last:border-b-0 w-full relative">
+              {renderItemControls(itemId)}
+              {isFirst && (
+                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
+                  <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
+                    <Briefcase className="h-3 w-3 text-slate-500" />
+                    상세 경험
+                  </h4>
+                </div>
+              )}
+              <span className="font-bold text-slate-900 block text-xs">• {detail.content}</span>
+              {renderDetailFields(detail, `${detail.id}`)}
+            </div>
+          </Fragment>
+        );
+      }
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <>
-      <main className="min-h-screen bg-[#f8fafc] text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif] print:bg-white print:text-black pb-12">
+      <main className={`text-slate-800 font-['Plus_Jakarta_Sans',Pretendard,sans-serif] print:bg-white print:text-black ${isPrintPreviewMode ? 'h-screen overflow-hidden flex flex-col bg-slate-900 pb-0 print:h-auto print:overflow-visible print:bg-white print:pb-0' : 'min-h-screen pb-12 bg-[#f8fafc]'}`}>
+        {isPrintPreviewMode && (
+          <PrintPreviewBar
+            excludedCount={printExcludedIds.length}
+            totalPages={pageLayers.length}
+            navOpen={navPanelOpen}
+            onToggleAll={toggleAllPrintSections}
+            onToggleNav={() => setNavPanelOpen((prev) => !prev)}
+            onSaveLocal={isAdminEditParam ? undefined : handleSaveLocalPrintConfig}
+            onSaveServer={undefined}
+            onPrint={handlePrintConfirm}
+            onCancel={handlePrintCancel}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            onZoomFit={handleZoomFit}
+            isAdminEditMode={isAdminEditParam}
+            adminTemplateName={adminTemplateName}
+            onAdminTemplateNameChange={setAdminTemplateName}
+            adminTemplateVisible={adminTemplateVisible}
+            onAdminTemplateVisibleChange={setAdminTemplateVisible}
+            onAdminSaveTemplate={() => {
+              alert(`'${adminTemplateName}' 템플릿이 저장되었습니다.`);
+            }}
+          />
+        )}
         {isPreviewMode && (
           <div className="flex items-center justify-center gap-2 bg-amber-400 px-4 py-1.5 text-xs font-black text-amber-950 print:hidden">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-900" />
@@ -1055,7 +2522,7 @@ export function App() {
         <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-slate-800/3 rounded-full filter blur-[100px] pointer-events-none print:hidden" />
 
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 py-2 shadow-sm backdrop-blur-xl print:hidden">
+        <header className={`sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 py-2 shadow-sm backdrop-blur-xl print:hidden ${isPrintPreviewMode ? 'hidden' : ''}`}>
           <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-6">
               <button
@@ -1163,23 +2630,48 @@ export function App() {
         </header>
 
         {/* Main Body Layout */}
-        <div className="resume-print-shell mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-          
-          {activePage === 'intro' ? (
-            <div className={`${sidebarGridClass} print:block`}>
-            
+        {isPrintPreviewMode ? (
+          <div
+            ref={canvasRef}
+            className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center py-8 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
+            style={{ paddingRight: navPanelOpen ? 256 : 56 }}
+          >
+            <div
+              className="resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
+              style={{ zoom: zoom }}
+            >
+              {pageLayers.map((page, pageIdx) => (
+                <PdfPageLayer
+                  key={pageIdx}
+                  pageIndex={pageIdx}
+                  totalPages={pageLayers.length}
+                >
+                  {page.items.map((atom) => (
+                    <div key={atom.id} data-atom-id={atom.id} className="w-full">
+                      {renderAtomContent(atom)}
+                    </div>
+                  ))}
+                </PdfPageLayer>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="relative max-w-[1500px] mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            {activePage === 'intro' ? (
+              <div className={`${sidebarGridClass} print:block z-[1]`}>
+
             {/* Main Content Column */}
-            <div className="resume-page flex min-w-0 flex-col gap-12">
+            <div className={isPrintPreviewMode ? 'resume-page flex min-w-0 flex-col gap-0 space-y-0 relative z-10' : 'resume-page flex min-w-0 flex-col gap-12'}>
               
               {/* General Career Summary Banner (Hero) / Combined Profile Banner */}
-              <div id="intro-profile" className="resume-profile-card scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md">
+              <div id="intro-profile" {...printSectionProps('intro-profile')} className={`resume-profile-card scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 relative overflow-hidden shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md${printSectionClass('intro-profile')}`}>
             <div className="absolute top-0 right-0 w-96 h-96 bg-slate-800/5 rounded-full filter blur-[60px] -mr-20 -mt-20 pointer-events-none print:hidden" />
-            
+
             <div className="relative z-10 space-y-6">
               
               {/* Top Row: Name, English Name, Social Links, and Deploy Badge */}
               {/* Top Row: Name, English Name, Job Title and Social Links */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
+              <div className="resume-profile-toprow flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
                 <div className="space-y-2 shrink-0">
                   <h2 className="resume-profile-role font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 whitespace-nowrap">
                     {profile.jobTitle}
@@ -1228,6 +2720,7 @@ export function App() {
                 <span>{profile.email}</span>
                 <span>{profile.phone}</span>
                 <span>{profile.githubUrl.replace(/^https?:\/\//, '')}</span>
+                <span>unbrdn.me</span>
               </div>
 
               {/* Bio & Personal Info */}
@@ -1237,62 +2730,6 @@ export function App() {
                     {profile.bio}
                   </p>
                 </div>
-
-                    <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2 print:grid-cols-2">
-                      <button
-                        onClick={() => scrollToSection('career')}
-                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
-                      >
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
-                          <Briefcase className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">실무 경력</span>
-                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{careerSummary}</span>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => scrollToSection('skills')}
-                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
-                      >
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
-                          <Cpu className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">핵심 스택</span>
-                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{profile.coreStackSummary}</span>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => scrollToSection('credentials')}
-                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
-                      >
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
-                          <GraduationCap className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">학력 · 교육</span>
-                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{educationExperiences.length}건</span>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => scrollToSection('credentials')}
-                        className="resume-summary-item flex-1 flex items-center gap-3.5 text-left bg-slate-50/50 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 p-4 rounded-xl transition group shadow-sm"
-                      >
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-500 shrink-0 group-hover:text-slate-900 group-hover:border-slate-300 transition shadow-sm">
-                          <Award className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <span className="resume-label block font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-800 transition">보유 자격증</span>
-                          <span className="resume-subtitle mt-0.5 block font-black text-slate-800 group-hover:text-slate-950 transition">{certificateExperiences.length}개</span>
-                        </div>
-                      </button>
-                    </div>
-
-
 
               </div>
             </div>
@@ -1463,17 +2900,54 @@ export function App() {
               </section>
 
               {/* SECTION 1.5: 기술 스택 */}
-              <section id="skills" className="scroll-mt-24 space-y-6">
+              {renderSectionGap('skills')}
+              <section id="skills" {...printSectionProps('skills')} className={`scroll-mt-24 space-y-6${printSectionClass('skills')}`}>
+                {renderSectionControls('skills')}
                 <div className={cardStyle}>
                   <h2 className="resume-section-title mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 font-black text-slate-900">
                     <Cpu className="h-5 w-5 text-slate-900" />
                     기술 스택
                   </h2>
-                  <div className="space-y-5">
+                  <div className="resume-skill-groups space-y-5">
                     {groupedCoreSkills.map((group) => (
-                      <div key={group.value} className="space-y-4">
-                        <h4 className="resume-subtitle border-b border-slate-100 pb-1.5 font-black text-slate-500">{group.label}</h4>
-                        {group.skills.length > 0 ? (
+                      <div key={group.value} className="resume-skill-group space-y-4">
+                        <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 border-b border-slate-100 pb-1.5 font-black text-slate-500">
+                          <span className="resume-skill-group-bar h-4 w-1 shrink-0 rounded-full bg-slate-900" aria-hidden />
+                          {group.label}
+                        </h4>
+                        {group.skills.length === 0 ? (
+                          <p className="border-l-4 border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-400">
+                            선택된 기술이 없습니다.
+                          </p>
+                        ) : isPrintPreviewMode ? (
+                          // PDF 인쇄 프리뷰: 서브카테고리·아이콘 없이 배지만 나열
+                          <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-3">
+                            {group.skills.map((skill) => (
+                              <button
+                                type="button"
+                                key={skill.id}
+                                onClick={() => setSelectedCoreSkillId((current) => (current === skill.id ? null : skill.id))}
+                                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left transition ${
+                                  selectedCoreSkillId === skill.id
+                                    ? 'border-slate-500 bg-slate-900 text-white shadow-sm shadow-slate-800/20'
+                                    : 'border-slate-200 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-100/50'
+                                }`}
+                              >
+                                <span className="resume-badge font-black">{skill.name}</span>
+                                {skill.skillVersion && (
+                                  <span className={`shrink-0 rounded-md border px-1 py-0.5 text-[10px] font-black leading-none ${
+                                    selectedCoreSkillId === skill.id
+                                      ? 'border-white/25 bg-white/15 text-white'
+                                      : 'border-slate-200 bg-slate-50 text-slate-500'
+                                  }`}>
+                                    v{skill.skillVersion}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          // 일반 화면: 서브카테고리 + 아이콘 표시
                           <div className="space-y-4 pl-1">
                             {['Backend & Language', 'Frontend', 'Database', 'DevOps & Infra', 'AI / RAG', 'Others'].map((cat) => {
                               const catSkills = group.skills.filter(s => getDisplayCategory(s) === cat);
@@ -1516,10 +2990,6 @@ export function App() {
                               );
                             })}
                           </div>
-                        ) : (
-                          <p className="border-l-4 border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-400">
-                            선택된 기술이 없습니다.
-                          </p>
                         )}
                       </div>
                     ))}
@@ -1546,6 +3016,10 @@ export function App() {
                             연결된 경험 {selectedCoreSkillExperiences.length}개
                           </span>
                         </div>
+
+                        {selectedCoreSkill.comment && (
+                          <p className="resume-body mt-3 text-slate-600">{selectedCoreSkill.comment}</p>
+                        )}
 
                         <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
                           {selectedCoreSkillExperiences.length > 0 ? (
@@ -1599,28 +3073,41 @@ export function App() {
               </section>
 
               {/* SECTION 1.6: 핵심 역량 */}
-              <section id="competencies" className="print-competency-section scroll-mt-24 space-y-6">
+              {renderSectionGap('competencies')}
+              <section id="competencies" {...printSectionProps('competencies')} className={`print-competency-section scroll-mt-24 space-y-6${printSectionClass('competencies')}`}>
+                {renderSectionControls('competencies')}
                 <div className={`${cardStyle} print:rounded-none print:border-x-0 print:border-t-0 print:p-0 print:shadow-none`}>
-                  <div className="resume-competency-header border-b border-slate-200 pb-4 print:pb-2">
+                  <div data-print-atom="" className="resume-competency-header flex items-center justify-between gap-2 border-b border-slate-200 pb-4 print:pb-2">
                     <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                       <Sparkles className="h-5 w-5 text-slate-900" />
                       핵심 역량
                     </h2>
-                    <p className="resume-section-description mt-1 text-slate-500">
-                      실무 경력과 프로젝트 성과를 기준으로 정리한 문제 해결 역량입니다.
-                    </p>
+                    {expandableCompetencyIds.length > 0 && (
+                      <button
+                        type="button"
+                        aria-expanded={isAllCompetenciesExpanded}
+                        onClick={toggleExpandAllCompetencies}
+                        className="group/expand inline-flex items-center gap-1 text-[0.6875rem] font-bold leading-4 text-slate-400 transition hover:text-slate-800 print:hidden"
+                      >
+                        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isAllCompetenciesExpanded ? 'rotate-180' : ''}`} />
+                        {isAllCompetenciesExpanded ? '모두 접기' : '모두 펼치기'}
+                      </button>
+                    )}
                   </div>
 
                   <div className="mt-2 divide-y divide-slate-200 border-b border-slate-200">
-                    {coreCompetencies.map((competency, index) => (
+                    {orderedCompetencies.map((competency, index) => (
+                      <Fragment key={competency.id}>
+                      {renderItemGap(`competency:${competency.id}`)}
                       <article
-                        key={competency.id}
                         id={`competency-${competency.id}`}
+                        {...printItemProps(`competency:${competency.id}`)}
                         className="print-competency-row scroll-mt-24 grid gap-3 py-5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6 print:grid-cols-[31%_69%] print:gap-4 print:py-3"
                       >
+                        {renderItemControls(`competency:${competency.id}`)}
                         <div className="min-w-0">
                           <div className="flex items-baseline gap-2">
-                            <span className="resume-label font-black tabular-nums tracking-[0.14em] text-slate-400">
+                            <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400">
                               {String(index + 1).padStart(2, '0')}
                             </span>
                             <h3 className="resume-item-title font-black text-slate-900">
@@ -1628,7 +3115,7 @@ export function App() {
                             </h3>
                           </div>
                           {competency.skills.length > 0 && (
-                            <p className="resume-meta mt-2 font-bold text-slate-500 print:mt-1">
+                            <p className="resume-meta mt-2 pl-9 font-bold text-slate-500 print:mt-1 print:pl-9">
                               {competency.skills.slice(0, 6).map((skill) => skill.name).join(' · ')}
                             </p>
                           )}
@@ -1639,73 +3126,70 @@ export function App() {
                             {competency.summary}
                           </p>
 
-                          {competency.evidences.length > 0 ? (
-                            <div className="mt-3 print:mt-1.5">
-                              <p className="resume-label font-black uppercase tracking-[0.14em] text-slate-400">
-                                대표 실무 근거
-                              </p>
+                          {!isPrintPreviewMode && (competency.evidences.length > 0 || competency.relatedStudies.length > 0) && (
+                            <div className="mt-3 print:hidden">
                               <button
                                 type="button"
-                                title={competency.evidences[0].experienceTitle}
-                                onClick={() => {
-                                  const evidence = competency.evidences[0];
-                                  if (evidence.experienceType === 'PROJECT') {
-                                    const milestone = activeMilestones.find((item) => item.experienceId === evidence.experienceId);
-                                    if (milestone) setSelectedMilestoneId(milestone.id);
-                                    document.getElementById(`project-experience-${evidence.experienceId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  } else {
-                                    scrollToSection('career');
-                                  }
-                                }}
-                                className="resume-body mt-1 block w-full text-left text-slate-700 transition hover:text-slate-950 print:pointer-events-none"
+                                onClick={() => toggleCompetencyEvidence(competency.id)}
+                                aria-expanded={expandedCompetencyIds.includes(competency.id)}
+                                className="flex items-center gap-1.5 text-left print:hidden"
                               >
-                                <span className="font-black text-slate-900">
-                                  {competency.evidences[0].experienceType === 'CAREER' ? '경력' : '프로젝트'} · {competency.evidences[0].experienceTitle}
+                                <span className="resume-label font-black uppercase tracking-[0.14em] text-slate-400">
+                                  근거
                                 </span>
-                                {competency.evidences[0].evidenceSummary && (
-                                  <span className="mt-0.5 block font-medium text-slate-600">
-                                    {competency.evidences[0].evidenceSummary}
-                                  </span>
-                                )}
+                                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${expandedCompetencyIds.includes(competency.id) ? 'rotate-180 text-slate-800' : ''}`} />
                               </button>
 
-                              {competency.evidences.length > 1 && (
-                                <p className="resume-meta mt-1.5 font-semibold text-slate-500">
-                                  추가 검증 사례 · {competency.evidences.slice(1).map((evidence) => evidence.experienceTitle).join(' · ')}
-                                </p>
+                              {expandedCompetencyIds.includes(competency.id) && (
+                                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                                  {competency.evidences.map((evidence) => (
+                                    <button
+                                      key={`evidence-${evidence.id}`}
+                                      type="button"
+                                      title={evidence.experienceTitle}
+                                      onClick={() => {
+                                        if (evidence.experienceType === 'PROJECT') {
+                                          const milestone = activeMilestones.find((item) => item.experienceId === evidence.experienceId);
+                                          if (milestone) setSelectedMilestoneId(milestone.id);
+                                          document.getElementById(`project-experience-${evidence.experienceId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        } else {
+                                          scrollToSection('career');
+                                        }
+                                      }}
+                                      className="font-semibold text-slate-600 hover:text-slate-900 hover:underline"
+                                    >
+                                      {evidence.experienceType === 'CAREER' ? '경력' : '프로젝트'} · {evidence.experienceTitle}
+                                    </button>
+                                  ))}
+                                  {competency.relatedStudies.map((study) => (
+                                    <button
+                                      key={`study-${study.id}`}
+                                      type="button"
+                                      onClick={() => openStudy(study.slug, `competency-${competency.id}`)}
+                                      className="font-bold text-blue-700 hover:underline"
+                                    >
+                                      {study.title}
+                                    </button>
+                                  ))}
+                                </div>
                               )}
-                            </div>
-                          ) : (
-                            <p className="mt-2 text-xs font-semibold text-slate-400">연결된 실무 근거가 없습니다.</p>
-                          )}
-
-                          {competency.relatedStudies.length > 0 && (
-                            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs print:hidden">
-                              <span className="font-black text-slate-400">관련 학습</span>
-                              {competency.relatedStudies.map((study) => (
-                                <button
-                                  key={`study-${study.id}`}
-                                  type="button"
-                                  onClick={() => openStudy(study.slug, `competency-${competency.id}`)}
-                                  className="font-bold text-blue-700 hover:underline"
-                                >
-                                  {study.title}
-                                </button>
-                              ))}
                             </div>
                           )}
                         </div>
                       </article>
+                      </Fragment>
                     ))}
                   </div>
                 </div>
               </section>
 
               {/* SECTION 2: 직장 경력 */}
-              <section id="career" className="scroll-mt-24 space-y-6">
-                {careerCards.map(career => (
+              {renderSectionGap('career')}
+              <section id="career" {...printSectionProps('career')} className={`scroll-mt-24 space-y-6${printSectionClass('career')}`}>
+                {renderSectionControls('career')}
+                {orderedCareerCards.map(career => (
                   <div key={career.id} className={cardStyle}>
-                    <h2 className="resume-section-title mb-4 flex items-center justify-between gap-2 border-b border-slate-100 pb-3 font-black text-slate-900">
+                    <h2 data-print-atom="" className="resume-section-title mb-4 flex items-center justify-between gap-2 border-b border-slate-100 pb-3 font-black text-slate-900">
                       <span className="flex items-center gap-2">
                         <Briefcase className="h-5 w-5 text-slate-900" />
                         직장 경력 (총 {careerSummary})
@@ -1713,30 +3197,43 @@ export function App() {
                       {(expandableDetailIds.length > 0 || expandableCareerProjectIds.length > 0) && (
                         <button
                           type="button"
+                          aria-expanded={isAllExpanded}
                           onClick={toggleExpandAll}
-                          className="resume-meta flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-bold text-slate-500 shadow-xs transition hover:bg-slate-100 hover:text-slate-950 print:hidden"
+                          className="group/expand inline-flex items-center gap-1 text-[0.6875rem] font-bold leading-4 text-slate-400 transition hover:text-slate-800 print:hidden"
                         >
+                          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isAllExpanded ? 'rotate-180' : ''}`} />
                           {isAllExpanded ? '모두 접기' : '모두 펼치기'}
                         </button>
                       )}
                     </h2>
                     <div>
-                      <span className="resume-print-plain resume-meta inline-flex rounded border border-emerald-100 bg-emerald-50 px-2 py-0.5 font-bold text-emerald-700">
-                        {career.period}
-                      </span>
-                      <p className="resume-item-title mt-2 font-black text-slate-800">{career.companyName} ({career.employmentType})</p>
-                      <p className="resume-meta font-semibold text-slate-500">{career.department} / {career.role}</p>
+                      <div data-print-atom="">
+                        <span className="resume-print-plain resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950">
+                          {career.period}
+                        </span>
+                        <p className="resume-item-title mt-2 font-black text-slate-800">{career.companyName} ({career.employmentType})</p>
+                        <p className="resume-meta font-semibold text-slate-500">{career.department} / {career.role}</p>
+                        {career.summary && (
+                          <div className="resume-body mt-3 text-slate-600">
+                            <ReactMarkdown components={resumeMarkdownComponents}>{career.summary}</ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
                       <ul className="mt-4 space-y-2">
-                        {career.projects.map((project) => {
+                        {(() => {
+                          return career.projects.map((project) => {
                           const isProjectExpanded = expandedCareerProjectIds.includes(project.id);
                           return (
-                            <li key={project.id} className="border-b border-slate-100 last:border-b-0">
+                            <Fragment key={project.id}>
+                            {renderItemGap(`career-project:${project.id}`)}
+                            <li {...printItemProps(`career-project:${project.id}`)} className="border-b border-slate-100 last:border-b-0">
+                              {renderItemControls(`career-project:${project.id}`)}
                               <button
                                 type="button"
                                 onClick={() => toggleCareerProject(project.id)}
-                                className="group flex w-full items-start gap-2.5 py-3 text-left"
+                                data-print-atom="" className="group flex w-full items-start gap-2.5 py-3 text-left"
                               >
-                                <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-300 ${isProjectExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`} />
+                                <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-300 print:hidden ${isProjectExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`} />
                                 <span className="min-w-0 flex-1">
                                   <span className="resume-body block font-semibold text-slate-750 group-hover:text-slate-950">{project.title}</span>
                                   <span className="resume-meta mt-0.5 block text-slate-400">
@@ -1748,20 +3245,40 @@ export function App() {
 
                               <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isProjectExpanded ? 'mb-4 grid-rows-[1fr] opacity-100' : 'mb-0 grid-rows-[0fr] opacity-0'}`}>
                                 <div className="min-h-0 overflow-hidden">
-                                  <div className="ml-[26px] border-l-2 border-slate-200 pl-4 print:ml-0 print:border-l-0 print:pl-0">
+                                  <div className="ml-2 border-l-2 border-slate-200 pl-3 print:ml-0 print:border-l-0 print:pl-0">
                                     {project.summary && (
-                                      <div className="resume-body mb-3 text-slate-600">
-                                        <ReactMarkdown components={resumeMarkdownComponents}>{project.summary}</ReactMarkdown>
+                                      <div className="mb-3">
+                                        <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
+                                        <div data-print-atom="" className="resume-body mt-1 text-slate-600">
+                                          <ReactMarkdown components={resumeMarkdownComponents}>{project.summary}</ReactMarkdown>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {project.details.length > 0 && (
+                                      <div data-print-atom="" className="resume-detail-header mb-1.5 mt-1 flex items-center gap-1.5">
+                                        <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
+                                          <Briefcase className="h-3.5 w-3.5 text-slate-500" />
+                                          상세 경험
+                                        </h4>
                                       </div>
                                     )}
                                     <ul className="divide-y divide-slate-100">
-                                      {project.details.map((detail) => {
+                                      {(() => {
+                                        return project.details.map((detail) => {
                                         const isExpanded = expandedCareerDetailIds.includes(detail.id);
-                                        const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
+                                        const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome);
                                         return (
-                                          <li key={detail.id} id={`experience-detail-${detail.id}`} className="scroll-mt-24 py-1.5 first:pt-0 last:pb-0">
+                                          <Fragment key={detail.id}>
+                                          {renderItemGap(`detail:${detail.id}`)}
+                                          <li
+                                            id={`experience-detail-${detail.id}`}
+                                            {...printItemProps(`detail:${detail.id}`)}
+                                            data-print-atom=""
+                                            className="scroll-mt-24 py-1.5 first:pt-0 last:pb-0"
+                                          >
+                                            {renderItemControls(`detail:${detail.id}`)}
                                             <div
-                                              className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
+                                              className={`print-detail-row group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
                                               onClick={() => hasDetailContent && toggleCareerDetail(detail.id)}
                                             >
                                               <span className="flex h-5 items-center justify-center">
@@ -1792,24 +3309,7 @@ export function App() {
                                               <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isExpanded ? 'mb-3 mt-2 grid-rows-[1fr] opacity-100' : 'mb-0 mt-0 grid-rows-[0fr] opacity-0'}`}>
                                                 <div className="min-h-0 overflow-hidden">
                                                   <div className="resume-career-detail resume-body ml-7 space-y-2.5 text-slate-600 print:ml-0">
-                                                    {detail.situation && (
-                                                      <div>
-                                                        <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">상황</p>
-                                                        <ReactMarkdown components={resumeMarkdownComponents}>{detail.situation}</ReactMarkdown>
-                                                      </div>
-                                                    )}
-                                                    {detail.actionDetail && (
-                                                      <div>
-                                                        <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
-                                                        <ReactMarkdown components={resumeMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
-                                                      </div>
-                                                    )}
-                                                    {detail.outcome && (
-                                                      <div>
-                                                        <p className="resume-label mb-1 font-bold uppercase tracking-wider text-emerald-600">성과</p>
-                                                        <ReactMarkdown components={resumeMarkdownComponents}>{detail.outcome}</ReactMarkdown>
-                                                      </div>
-                                                    )}
+                                                    {renderDetailFields(detail, `${detail.id}`)}
                                                     {detail.skills.length > 0 && (
                                                       <div className="flex flex-wrap gap-1 pt-1">
                                                         {detail.skills.map((skill) => <span key={skill.id} className={badgeStyle}>{skill.name}</span>)}
@@ -1821,29 +3321,38 @@ export function App() {
                                               </div>
                                             )}
                                           </li>
+                                          </Fragment>
                                         );
-                                      })}
+                                        });
+                                      })()}
                                     </ul>
                                   </div>
                                 </div>
                               </div>
                             </li>
+                            </Fragment>
                           );
-                        })}
+                        });
+                        })()}
                         {career.details.map(detail => {
                           const isExpanded = expandedCareerDetailIds.includes(detail.id);
                           const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
                           return (
+                            <Fragment key={detail.id}>
+                            {renderItemGap(`detail:${detail.id}`)}
                             <li
-                              key={detail.id}
                               id={`experience-detail-${detail.id}`}
+                              {...printItemProps(`detail:${detail.id}`)}
                               className={`resume-career-item list-none scroll-mt-24 transition-all duration-300 ${
                                 isExpanded
                                   ? 'pb-6 mb-6 border-b border-slate-200/50 last:border-0 last:pb-0 last:mb-0'
                                   : 'border-b border-transparent'
                               }`}
                             >
+                              {renderItemControls(`detail:${detail.id}`)}
                               <div
+                                data-print-atom=""
+                                data-print-break-parent=""
                                 className={`group flex items-start justify-between gap-3 rounded-lg px-2 py-1 -mx-2 transition hover:bg-slate-50 ${
                                   hasDetailContent ? 'cursor-pointer' : 'cursor-default'
                                 }`}
@@ -1877,24 +3386,7 @@ export function App() {
                                 <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isExpanded ? 'mt-3 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'}`}>
                                   <div className="min-h-0 overflow-hidden">
                                     <div className="resume-career-detail resume-body ml-6 space-y-3.5 text-slate-600 print:ml-0">
-                                  {detail.situation && (
-                                    <div>
-                                      <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">상황</p>
-                                      <ReactMarkdown components={resumeMarkdownComponents}>{detail.situation}</ReactMarkdown>
-                                    </div>
-                                  )}
-                                  {detail.actionDetail && (
-                                    <div>
-                                      <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
-                                      <ReactMarkdown components={resumeMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
-                                    </div>
-                                  )}
-                                  {detail.outcome && (
-                                    <div>
-                                      <p className="resume-label mb-1 font-bold uppercase tracking-wider text-emerald-600">성과</p>
-                                      <ReactMarkdown components={resumeMarkdownComponents}>{detail.outcome}</ReactMarkdown>
-                                    </div>
-                                  )}
+                                  {renderDetailFields(detail, `${detail.id}`)}
                                   {detail.skills.length > 0 && (
                                     <div className="flex flex-wrap gap-1 pt-1">
                                       {detail.skills.map(s => (
@@ -1908,6 +3400,7 @@ export function App() {
                                 </div>
                               )}
                             </li>
+                            </Fragment>
                           );
                         })}
                       </ul>
@@ -1920,102 +3413,209 @@ export function App() {
               </section>
 
               {/* SECTION 3: 학력·교육 및 자격증 */}
-              <section id="credentials" className="resume-credentials-section order-2 scroll-mt-24 space-y-6">
+              {renderSectionGap('credentials')}
+              <section id="credentials" {...printSectionProps('credentials')} className={`resume-credentials-section order-2 scroll-mt-24 space-y-6${printSectionClass('credentials')}`}>
+                {renderSectionControls('credentials')}
                 <div className={cardStyle}>
-                  <div className="resume-credentials-header border-b border-slate-100 pb-4">
+                  <div data-print-atom="" className="resume-credentials-header border-b border-slate-100 pb-4">
                     <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                       <GraduationCap className="h-5 w-5 text-slate-900" />
                       학력 · 교육 및 자격증
                     </h2>
-                    <p className="resume-section-description mt-1 text-slate-500">
-                      전공 학력과 직무 교육 이수 내역, 보유 자격을 정리했습니다.
-                    </p>
                   </div>
 
-                  <div className="resume-credential-groups mt-6 grid gap-8 lg:grid-cols-2">
-                    <div className="resume-credential-group">
-                      <h3 className="resume-credential-group-title resume-item-title mb-4 flex items-center gap-2 font-black text-slate-800">
-                        <GraduationCap className="h-4 w-4 text-blue-600" />
-                        학력 · 교육
-                        <span className="resume-credential-count resume-meta rounded-full bg-blue-50 px-2 py-0.5 font-bold text-blue-700">{educationExperiences.length}건</span>
-                      </h3>
-
-                      {educationExperiences.length > 0 ? (
+                  <div className="resume-credential-groups mt-6">
+                    {isPrintPreviewMode ? (
+                      orderedCredentialExperiences.length > 0 ? (
                         <div className="resume-credential-list space-y-3">
-                          {educationExperiences.map((education) => (
-                            <article id={`credential-experience-${education.id}`} key={education.id} className="resume-credential-item scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
-                              <div className="flex flex-wrap items-start justify-between gap-2">
-                                <div>
-                                  <h4 className="resume-subtitle font-black text-slate-800">{education.title}</h4>
-                                  <p className="resume-meta mt-0.5 font-semibold text-slate-500">{education.institutionName}</p>
-                                </div>
-                                <span className="resume-print-plain resume-label shrink-0 rounded border border-blue-100 bg-blue-50 px-2 py-1 font-bold text-blue-700">
-                                  {formatCredentialPeriod(education)}
-                                </span>
-                              </div>
-                              {education.summary && (
-                                <div className="resume-body mt-3 text-slate-600">
-                                  <ReactMarkdown components={resumeMarkdownComponents}>{education.summary}</ReactMarkdown>
-                                </div>
-                              )}
-                              {education.skills.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-1">
-                                  {education.skills.map((skill) => <span key={skill.id} className={badgeStyle}>{skill.name}</span>)}
-                                </div>
-                              )}
-                              <RelatedStudyNotes experienceId={education.id} refSectionId={`credential-experience-${education.id}`} onOpenStudy={openStudy} />
-                            </article>
-                          ))}
+                          {orderedCredentialExperiences.map((credential) => {
+                            const kind = credentialKindLabel(credential);
+                            const isCertificate = credential.type === 'CERTIFICATE';
+                            const kindStyle = kind === '학력'
+                              ? 'border-blue-200 bg-blue-50 text-blue-700'
+                              : kind === '교육'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-amber-200 bg-amber-50 text-amber-700';
+                            return (
+                              <Fragment key={credential.id}>
+                                {renderItemGap(`credential:${credential.id}`)}
+                                {kind === '교육' ? (
+                                  /* 교육 항목: 상세 설명, 기술스택, 기간, 관련 노트 생생하게 유지 */
+                                  <article
+                                    id={`credential-experience-${credential.id}`}
+                                    {...printItemProps(`credential:${credential.id}`)}
+                                    className="resume-credential-item scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm relative"
+                                  >
+                                    {renderItemControls(`credential:${credential.id}`)}
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <span className={`resume-credential-kind resume-label shrink-0 rounded-full border px-2 py-0.5 font-black ${kindStyle}`}>
+                                            {kind}
+                                          </span>
+                                          <h4 className="resume-subtitle min-w-0 font-black text-slate-800">{credential.title}</h4>
+                                        </div>
+                                        {credential.institutionName && (
+                                          <p className="resume-meta mt-1 font-semibold text-slate-500">
+                                            {credential.institutionName}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <span className="resume-print-plain resume-label shrink-0 rounded border border-slate-200 bg-white px-2 py-1 font-bold text-slate-600">
+                                        {formatCredentialPeriod(credential)}
+                                      </span>
+                                    </div>
+                                    {credential.summary && (
+                                      <div className="resume-body mt-3 text-slate-600">
+                                        <ReactMarkdown components={resumeMarkdownComponents}>{credential.summary}</ReactMarkdown>
+                                      </div>
+                                    )}
+                                    {credential.skills.length > 0 && (
+                                      <div className="mt-3 flex flex-wrap gap-1">
+                                        {credential.skills.map((skill) => <span key={skill.id} className={badgeStyle}>{skill.name}</span>)}
+                                      </div>
+                                    )}
+                                    <RelatedStudyNotes experienceId={credential.id} refSectionId={`credential-experience-${credential.id}`} onOpenStudy={openStudy} />
+                                  </article>
+                                ) : (
+                                  /* 자격증 및 학력 항목: 깔끔하게 단 1줄 컴팩트 처리 */
+                                  <article
+                                    id={`credential-experience-${credential.id}`}
+                                    {...printItemProps(`credential:${credential.id}`)}
+                                    className="resume-credential-item scroll-mt-24 rounded-lg border border-slate-200/80 bg-white p-2.5 px-3 shadow-none flex items-center justify-between gap-3 text-xs"
+                                  >
+                                    {renderItemControls(`credential:${credential.id}`)}
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <span className={`resume-credential-kind resume-label shrink-0 rounded-full border px-2 py-0.5 font-black text-[10px] ${kindStyle}`}>
+                                        {kind}
+                                      </span>
+                                      <h4 className="resume-subtitle font-bold text-slate-800 truncate">{credential.title}</h4>
+                                      {(isCertificate ? credential.issuer : credential.institutionName) && (
+                                        <>
+                                          <span className="text-slate-300 shrink-0">|</span>
+                                          <span className="resume-meta font-medium text-slate-500 truncate">
+                                            {isCertificate ? credential.issuer : credential.institutionName}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                    <span className="resume-print-plain resume-label shrink-0 font-bold text-slate-500 text-[11px] whitespace-nowrap">
+                                      {formatCredentialPeriod(credential)}{isCertificate ? ' 취득' : ''}
+                                    </span>
+                                  </article>
+                                )}
+                              </Fragment>
+                            );
+                          })}
                         </div>
                       ) : (
-                        <p className="resume-body rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">등록된 학력·교육 정보가 없습니다.</p>
-                      )}
-                    </div>
-
-                    <div className="resume-credential-group">
-                      <h3 className="resume-credential-group-title resume-item-title mb-4 flex items-center gap-2 font-black text-slate-800">
-                        <Award className="h-4 w-4 text-amber-600" />
-                        자격증
-                        <span className="resume-credential-count resume-meta rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700">{certificateExperiences.length}개</span>
-                      </h3>
-
-                      {certificateExperiences.length > 0 ? (
-                        <div className="resume-credential-list space-y-3">
-                          {certificateExperiences.map((certificate) => (
-                            <article id={`credential-experience-${certificate.id}`} key={certificate.id} className="resume-credential-item scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
-                              <div className="flex flex-wrap items-start justify-between gap-2">
-                                <div>
-                                  <h4 className="resume-subtitle font-black text-slate-800">{certificate.title}</h4>
-                                  <p className="resume-meta mt-0.5 font-semibold text-slate-500">{certificate.issuer}</p>
-                                </div>
-                                <span className="resume-print-plain resume-label shrink-0 rounded border border-amber-100 bg-amber-50 px-2 py-1 font-bold text-amber-700">
-                                  {formatCredentialPeriod(certificate)} 취득
-                                </span>
-                              </div>
-                              {certificate.summary && (
-                                <div className="resume-body mt-3 text-slate-600">
-                                  <ReactMarkdown components={resumeMarkdownComponents}>{certificate.summary}</ReactMarkdown>
-                                </div>
-                              )}
-                              <RelatedStudyNotes experienceId={certificate.id} refSectionId={`credential-experience-${certificate.id}`} onOpenStudy={openStudy} />
-                            </article>
-                          ))}
+                        <p className="resume-body rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">등록된 학력·교육·자격 정보가 없습니다.</p>
+                      )
+                    ) : (
+                      <div className="grid gap-8 lg:grid-cols-2">
+                        <div className="resume-credential-group">
+                          <h3 className="resume-credential-group-title resume-item-title mb-4 flex items-center gap-2 font-black text-slate-800">
+                            <GraduationCap className="h-4 w-4 text-blue-600" />
+                            학력 · 교육
+                            <span className="resume-credential-count resume-meta rounded-full bg-blue-50 px-2 py-0.5 font-bold text-blue-700">{educationExperiences.length}건</span>
+                          </h3>
+                          {educationExperiences.length > 0 ? (
+                            <div className="resume-credential-list space-y-3">
+                              {educationExperiences.map((education) => (
+                                <article id={`credential-experience-${education.id}`} key={education.id} className="resume-credential-item scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
+                                  <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div>
+                                      <h4 className="resume-subtitle font-black text-slate-800">{education.title}</h4>
+                                      <p className="resume-meta mt-0.5 font-semibold text-slate-500">{education.institutionName}</p>
+                                    </div>
+                                    <span className="resume-print-plain resume-label shrink-0 rounded border border-blue-100 bg-blue-50 px-2 py-1 font-bold text-blue-700">
+                                      {formatCredentialPeriod(education)}
+                                    </span>
+                                  </div>
+                                  {education.summary && (
+                                    <div className="resume-body mt-3 text-slate-600">
+                                      <ReactMarkdown components={resumeMarkdownComponents}>{education.summary}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                  {education.skills.length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-1">
+                                      {education.skills.map((skill) => <span key={skill.id} className={badgeStyle}>{skill.name}</span>)}
+                                    </div>
+                                  )}
+                                  <RelatedStudyNotes experienceId={education.id} refSectionId={`credential-experience-${education.id}`} onOpenStudy={openStudy} />
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="resume-body rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">등록된 학력·교육 정보가 없습니다.</p>
+                          )}
                         </div>
-                      ) : (
-                        <p className="resume-body rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">등록된 자격증 정보가 없습니다.</p>
-                      )}
-                    </div>
+
+                        <div className="resume-credential-group">
+                          <h3 className="resume-credential-group-title resume-item-title mb-4 flex items-center gap-2 font-black text-slate-800">
+                            <Award className="h-4 w-4 text-amber-600" />
+                            자격증
+                            <span className="resume-credential-count resume-meta rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700">{certificateExperiences.length}개</span>
+                          </h3>
+                          {certificateExperiences.length > 0 ? (
+                            <div className="resume-credential-list space-y-3">
+                              {certificateExperiences.map((certificate) => (
+                                <article id={`credential-experience-${certificate.id}`} key={certificate.id} className="resume-credential-item scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
+                                  <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div>
+                                      <h4 className="resume-subtitle font-black text-slate-800">{certificate.title}</h4>
+                                      <p className="resume-meta mt-0.5 font-semibold text-slate-500">{certificate.issuer}</p>
+                                    </div>
+                                    <span className="resume-print-plain resume-label shrink-0 rounded border border-amber-100 bg-amber-50 px-2 py-1 font-bold text-amber-700">
+                                      {formatCredentialPeriod(certificate)} 취득
+                                    </span>
+                                  </div>
+                                  {certificate.summary && (
+                                    <div className="resume-body mt-3 text-slate-600">
+                                      <ReactMarkdown components={resumeMarkdownComponents}>{certificate.summary}</ReactMarkdown>
+                                    </div>
+                                  )}
+                                  {certificate.skills.length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-1">
+                                      {certificate.skills.map((skill) => <span key={skill.id} className={badgeStyle}>{skill.name}</span>)}
+                                    </div>
+                                  )}
+                                  <RelatedStudyNotes experienceId={certificate.id} refSectionId={`credential-experience-${certificate.id}`} onOpenStudy={openStudy} />
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="resume-body rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">등록된 자격증 정보가 없습니다.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>
 
               {/* SECTION 4: 핵심 프로젝트 포트폴리오 */}
-              <section id="projects" className="order-1 scroll-mt-24 space-y-6">
+              {renderSectionGap('projects')}
+              <section id="projects" {...printSectionProps('projects')} className={`order-1 scroll-mt-24 space-y-6${printSectionClass('projects')}`}>
+                {renderSectionControls('projects')}
                 <div className={cardStyle}>
-                  <div className="resume-projects-header border-b border-slate-100 pb-4">
-                    <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                      <Briefcase className="h-5 w-5 text-slate-900" />
-                      핵심 프로젝트 포트폴리오
+                  <div data-print-atom="" className="resume-projects-header border-b border-slate-100 pb-4">
+                    <h2 className="resume-section-title flex items-center justify-between gap-2 font-black text-slate-900">
+                      <span className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-slate-900" />
+                        핵심 프로젝트 포트폴리오
+                      </span>
+                      {getExpandableDetailIds(allMilestoneDetails).length > 0 && (
+                        <button
+                          type="button"
+                          aria-expanded={areAllDetailsExpanded(allMilestoneDetails)}
+                          onClick={() => toggleAllDetails(allMilestoneDetails)}
+                          className="group/expand inline-flex items-center gap-1 text-[0.6875rem] font-bold leading-4 text-slate-400 transition hover:text-slate-800 print:hidden"
+                        >
+                          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${areAllDetailsExpanded(allMilestoneDetails) ? 'rotate-180' : ''}`} />
+                          {areAllDetailsExpanded(allMilestoneDetails) ? '모두 접기' : '모두 펼치기'}
+                        </button>
+                      )}
                     </h2>
                     <p className="resume-section-description mt-1 text-slate-500">담당 역할, 설계 세부 사항, 핵심 성과 및 실무 성과에 대한 타임라인 상세입니다.</p>
                   </div>
@@ -2026,13 +3626,16 @@ export function App() {
                         편성된 핵심 프로젝트가 없습니다.
                       </p>
                     )}
-                    {activeMilestones.map((m) => (
+                    {orderedMilestones.map((m) => (
+                      <Fragment key={m.id}>
+                      {renderItemGap(`project:${m.id}`)}
                       <div
-                        key={m.id}
                         id={`project-experience-${m.experienceId ?? m.id}`}
+                        {...printItemProps(`project:${m.id}`)}
                         className="resume-project-item relative pl-10 group cursor-pointer"
                         onClick={() => setSelectedMilestoneId(m.id)}
                       >
+                        {renderItemControls(`project:${m.id}`)}
 
                         {/* Timeline Bullet node */}
                         <div className={`resume-project-bullet absolute left-[7px] top-1.5 w-[18px] h-[18px] rounded-full border-4 border-white transition-colors shadow-sm z-10 ${
@@ -2046,7 +3649,7 @@ export function App() {
                             ? 'border-slate-800 bg-white ring-2 ring-slate-100/50'
                             : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-400 hover:bg-white'
                         }`}>
-                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                          <div data-print-atom="" className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                             <div>
                               <span className="resume-print-plain resume-meta inline-flex rounded bg-slate-100 px-2 py-0.5 font-bold text-slate-950 border border-slate-200">
                                 {m.role} ({m.period})
@@ -2055,39 +3658,33 @@ export function App() {
                                 {m.title}
                               </h3>
                             </div>
-                            {m.contributionRate != null && (
-                              <span className="resume-print-plain resume-meta shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-400">
-                                기여도 {m.contributionRate}%
-                              </span>
+                            {m.repositoryUrl && (
+                              <a
+                                href={m.repositoryUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 print:hidden"
+                              >
+                                <Github className="h-4 w-4" />
+                                GitHub 저장소
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
                             )}
                           </div>
 
                           <div className="space-y-4">
                             <div>
-                              <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider">프로젝트 설명 및 역할</h4>
-                              <div className="resume-project-description resume-body mt-1 font-normal text-slate-600">
+                              <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider">
+                                프로젝트 설명 및 역할{m.contributionRate != null ? ` · 기여도 ${m.contributionRate}%` : ''}
+                              </h4>
+                              <div data-print-atom="" className="resume-project-description resume-body mt-1 font-normal text-slate-600">
                                 <ReactMarkdown components={resumeMarkdownComponents}>{m.description}</ReactMarkdown>
                               </div>
                             </div>
 
-                            {m.repositoryUrl && (
-                              <div className="print:hidden">
-                                <a
-                                  href={m.repositoryUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(event) => event.stopPropagation()}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
-                                >
-                                  <Github className="h-4 w-4" />
-                                  GitHub 저장소
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
-                              </div>
-                            )}
-
                             {m.tags.length > 0 && (
-                              <div>
+                              <div className="print:hidden">
                                 <h4 className="resume-label mb-1.5 font-bold text-slate-400 uppercase tracking-wider">태그</h4>
                                 <div className="flex flex-wrap gap-1">
                                   {m.tags.map((tag) => (
@@ -2101,7 +3698,7 @@ export function App() {
 
                             {m.details.length > 0 && (
                               <div className="border-t border-slate-100 pt-3">
-                                <div className="resume-detail-header mb-2.5 flex items-center justify-between gap-3">
+                                <div data-print-atom="" className="resume-detail-header mb-2.5 flex items-center justify-between gap-3">
                                   <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
                                     <Briefcase className="h-3.5 w-3.5 text-slate-500" />
                                     상세 경험
@@ -2122,17 +3719,23 @@ export function App() {
                                   )}
                                 </div>
                                 <ul className="divide-y divide-slate-100">
-                                  {m.details.map((detail) => {
+                                  {(() => {
+                                    return m.details.map((detail) => {
                                     const isExpanded = expandedCareerDetailIds.includes(detail.id);
                                     const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
                                     return (
+                                      <Fragment key={detail.id}>
+                                      {renderItemGap(`detail:${detail.id}`)}
                                       <li
-                                        key={detail.id}
                                         id={`experience-detail-${detail.id}`}
+                                        {...printItemProps(`detail:${detail.id}`)}
                                         className="resume-career-item list-none scroll-mt-24 py-1.5 first:pt-0.5 last:pb-0.5"
                                       >
+                                        {renderItemControls(`detail:${detail.id}`)}
                                         <div
-                                          className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-md py-1 transition ${
+                                          data-print-atom=""
+                                          data-print-break-parent=""
+                                          className={`print-detail-row group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-md py-1 transition ${
                                             hasDetailContent ? 'cursor-pointer' : 'cursor-default'
                                           }`}
                                           onClick={(event) => {
@@ -2174,24 +3777,7 @@ export function App() {
                                           <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out print:block print:opacity-100 ${isExpanded ? 'mt-2 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'}`}>
                                             <div className="min-h-0 overflow-hidden">
                                               <div className="resume-career-detail resume-body ml-[30px] space-y-2.5 text-slate-600 print:ml-0">
-                                            {detail.situation && (
-                                              <div>
-                                                <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">상황</p>
-                                                <ReactMarkdown components={resumeMarkdownComponents}>{detail.situation}</ReactMarkdown>
-                                              </div>
-                                            )}
-                                            {detail.actionDetail && (
-                                              <div>
-                                                <p className="resume-label mb-1 font-bold uppercase tracking-wider text-slate-400">진행 과정</p>
-                                                <ReactMarkdown components={resumeMarkdownComponents}>{detail.actionDetail}</ReactMarkdown>
-                                              </div>
-                                            )}
-                                            {detail.outcome && (
-                                              <div>
-                                                <p className="resume-label mb-1 font-bold uppercase tracking-wider text-emerald-600">성과</p>
-                                                <ReactMarkdown components={resumeMarkdownComponents}>{detail.outcome}</ReactMarkdown>
-                                              </div>
-                                            )}
+                                            {renderDetailFields(detail, `${detail.id}`)}
                                             {detail.skills.length > 0 && (
                                               <div className="flex flex-wrap gap-1 pt-1 print:hidden">
                                                 {detail.skills.map((skill) => (
@@ -2199,13 +3785,16 @@ export function App() {
                                                 ))}
                                               </div>
                                             )}
+                                            {detail.id > 0 && <RelatedStudyNotes experienceDetailId={detail.id} onOpenStudy={openStudy} />}
                                               </div>
                                             </div>
                                           </div>
                                         )}
                                       </li>
+                                      </Fragment>
                                     );
-                                  })}
+                                    });
+                                  })()}
                                 </ul>
                               </div>
                             )}
@@ -2217,7 +3806,7 @@ export function App() {
                             )}
 
                             {m.takeaway && (
-                              <div className="resume-project-takeaway border-t border-slate-100 pt-3.5">
+                              <div data-print-atom="" className="resume-project-takeaway border-t border-slate-100 pt-3.5">
                                 <h4 className="resume-label flex items-center gap-1 font-bold text-emerald-700">
                                   <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                                   핵심 성과 & 배운 점 (Takeaway)
@@ -2242,6 +3831,7 @@ export function App() {
                         </div>
 
                       </div>
+                      </Fragment>
                     ))}
                   </div>
                 </div>
@@ -2461,30 +4051,16 @@ export function App() {
                         </div>
 
                         <div className="space-y-6">
-                          {selectedExperienceDetail.detail.situation && (
-                            <div>
-                              <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">상황</h2>
+                          {(() => {
+                            const detail = selectedExperienceDetail.detail;
+                            const merged = detail.narrative
+                              || [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
+                            return merged ? (
                               <div className="text-sm leading-relaxed text-slate-600 sm:text-base">
-                                <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.situation}</ReactMarkdown>
+                                <ReactMarkdown components={markdownComponents}>{merged}</ReactMarkdown>
                               </div>
-                            </div>
-                          )}
-                          {selectedExperienceDetail.detail.actionDetail && (
-                            <div>
-                              <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">진행 과정</h2>
-                              <div className="text-sm leading-relaxed text-slate-600 sm:text-base">
-                                <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.actionDetail}</ReactMarkdown>
-                              </div>
-                            </div>
-                          )}
-                          {selectedExperienceDetail.detail.outcome && (
-                            <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
-                              <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-emerald-700">성과</h2>
-                              <div className="text-sm leading-relaxed text-emerald-800 sm:text-base">
-                                <ReactMarkdown components={markdownComponents}>{selectedExperienceDetail.detail.outcome}</ReactMarkdown>
-                              </div>
-                            </div>
-                          )}
+                            ) : null;
+                          })()}
                         </div>
 
                         <div className="mt-8 flex flex-wrap gap-1.5">
@@ -2868,26 +4444,65 @@ export function App() {
                     aria-label="위로 가기"
                   >
                     <ArrowUp className="h-4 w-4 shrink-0" />
-                    <span className={`hidden ${isSectionNavCollapsed ? '' : 'min-[900px]:inline'}`}>위로 가기</span>
                   </button>
                 </div>
               </div>
             </aside>
-
+            </div>
           </div>
-        </div>
         )}
-        </div>
-      </main>
-      <button
-        onClick={() => setDonationOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700 hover:shadow-xl print:hidden"
-        title="후원하기"
-      >
-        <Heart className="h-4 w-4" />
-        <span>후원하기</span>
-      </button>
-      {isDonationOpen && <DonationModal onClose={() => setDonationOpen(false)} />}
+      </div>
+    )}
+  </main>
+      {isDonationEnabled && (
+        <button
+          onClick={() => setDonationOpen(true)}
+          className={`fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700 hover:shadow-xl print:hidden ${isPrintPreviewMode ? 'hidden' : ''}`}
+          title="후원하기"
+        >
+          <Heart className="h-4 w-4" />
+          <span>후원하기</span>
+        </button>
+      )}
+      {isDonationEnabled && isDonationOpen && <DonationModal onClose={() => setDonationOpen(false)} />}
+
+      {isPrintPreviewMode && (
+        <aside
+          data-print-preview-ui
+          className={`fixed right-0 top-14 bottom-0 z-[60] bg-slate-900 border-l border-slate-800 shadow-2xl transition-all duration-300 print:hidden ${
+            navPanelOpen ? 'w-64' : 'w-14'
+          }`}
+        >
+          <PrintPreviewNav
+            sections={orderedPrintableSections}
+            excludedIds={printExcludedIds}
+            itemGroups={printItemGroups}
+            lockedSectionIds={[LOCKED_PRINT_SECTION_ID]}
+            open={navPanelOpen}
+            onRequestToggle={() => setNavPanelOpen((prev) => !prev)}
+            onToggle={togglePrintSection}
+            onReorder={reorderPrintSections}
+            onNavigate={scrollToPrintElement}
+            onToggleAll={toggleAllPrintSections}
+            excludedCount={printExcludedIds.length}
+          />
+        </aside>
+      )}
+      <PrintModeModal
+        open={isPrintModeDialogOpen}
+        onClose={() => setPrintModeDialogOpen(false)}
+        onManual={handlePrintManual}
+        onApplyTemplate={handlePrintApplyTemplate}
+      />
+      <SaveServerTemplateModal
+        open={isSaveServerModalOpen}
+        onClose={() => setSaveServerModalOpen(false)}
+        currentSettings={{
+          excludedIds: printExcludedIds,
+          sectionOrder: printSectionOrder,
+          sectionGaps,
+        }}
+      />
     </>
   );
 }
