@@ -274,6 +274,14 @@ export function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<TabId>('STUDY');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isTemplateEditing, setIsTemplateEditing] = useState(false);
+
+  const handleTemplateEditingChange = (editing: boolean) => {
+    setIsTemplateEditing(editing);
+    if (editing) {
+      setIsSidebarCollapsed(true);
+    }
+  };
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const stored = typeof window !== 'undefined' ? window.localStorage.getItem('admin-sidebar-width') : null;
     const parsed = stored ? parseInt(stored, 10) : NaN;
@@ -1622,7 +1630,11 @@ export function AdminDashboard() {
       <div className="flex items-start">
       <div className="min-w-0 flex-1">
       <div
-        className="grid w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:px-8"
+        className={`grid w-full grid-cols-1 transition-all duration-200 ${
+          isTemplateEditing
+            ? 'gap-2.5 px-2 py-1.5 sm:px-2.5 lg:px-3'
+            : 'gap-6 px-4 py-6 sm:px-6 lg:px-8'
+        }`}
         style={{
           gridTemplateColumns: isSidebarCollapsed
             ? '64px minmax(0, 1fr)'
@@ -1709,7 +1721,7 @@ export function AdminDashboard() {
         <section className="min-w-0 space-y-6">
           {activeTab === 'COMPETENCIES' && <CompetencyManagement />}
           {activeTab === 'ARCHITECTURE' && <ArchitectureManagement />}
-          {activeTab === 'PRINT_TEMPLATES' && <PrintTemplateManagement />}
+          {activeTab === 'PRINT_TEMPLATES' && <PrintTemplateManagement onEditingChange={handleTemplateEditingChange} />}
           {activeTab === 'CORE_PROJECTS' && (
             <CoreProjectManagement
               onCreateProject={() => {

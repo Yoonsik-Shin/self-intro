@@ -15,7 +15,11 @@ import {
 } from 'lucide-react';
 import { printTemplateApi, type PrintTemplate, type PrintTemplateRequest } from '../lib/api';
 
-export function PrintTemplateManagement() {
+type PrintTemplateManagementProps = {
+  onEditingChange?: (isEditing: boolean) => void;
+};
+
+export function PrintTemplateManagement({ onEditingChange }: PrintTemplateManagementProps) {
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -30,11 +34,12 @@ export function PrintTemplateManagement() {
         queryClient.invalidateQueries({ queryKey: ['printTemplates'] });
         setIsEditing(false);
         setEditingTemplate(null);
+        onEditingChange?.(false);
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [queryClient]);
+  }, [queryClient, onEditingChange]);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['printTemplates', 'admin'],
@@ -74,6 +79,7 @@ export function PrintTemplateManagement() {
     setFormName('');
     setFormVisible(true);
     setIsEditing(true);
+    onEditingChange?.(true);
   };
 
   const handleStartEdit = (t: PrintTemplate) => {
@@ -81,6 +87,7 @@ export function PrintTemplateManagement() {
     setFormName(t.name);
     setFormVisible(t.visible);
     setIsEditing(true);
+    onEditingChange?.(true);
   };
 
   const handleDelete = (t: PrintTemplate) => {
@@ -162,7 +169,7 @@ export function PrintTemplateManagement() {
   if (isEditing) {
     const templateQuery = editingTemplate?.id ? `&templateId=${editingTemplate.id}` : '';
     return (
-      <div className="relative h-[calc(100vh-140px)] min-h-[600px] w-full rounded-2xl border border-slate-200 bg-slate-100 overflow-hidden shadow-inner">
+      <div className="relative h-[calc(100vh-74px)] min-h-[640px] w-full rounded-2xl border border-slate-200 bg-slate-900 overflow-hidden shadow-sm">
         <iframe
           src={`/?mode=print&adminEdit=1${templateQuery}`}
           title="PDF 템플릿 인쇄 편집기"
