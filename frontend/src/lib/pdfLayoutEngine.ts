@@ -113,8 +113,8 @@ export function partitionAtomsIntoPages(
   const pages: PageLayerData[] = [];
   let currentPageItems: PrintAtomItem[] = [];
   let currentHeight = 0;
-  // Use ~1027px threshold (273mm = 1032px) so Item 04 fits on Page 1 by default
-  const maxContentHeight = CONTENT_HEIGHT_PX - 5;
+  // 20px 안전 여유 버퍼를 확보하여(1012px), 인쇄 시 벡터 폰트 커닝 오차(+10~15px)가 발생해도 글자가 짤리지 않도록 100% 일치시킴
+  const maxContentHeight = CONTENT_HEIGHT_PX - 20;
 
   const startNewPage = () => {
     if (currentPageItems.length > 0) {
