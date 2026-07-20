@@ -14,6 +14,8 @@ import {
   MinusCircle,
   ChevronDown,
   ChevronUp,
+  ArrowUp,
+  ArrowDown,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -32,8 +34,12 @@ import {
   Terminal,
   WandSparkles,
   Check,
-  Heart
+  Heart,
+  Wrench,
+  ListChecks,
+  Printer
 } from 'lucide-react';
+import { PrintTemplateManagement } from './PrintTemplateManagement';
 import {
   ApiError,
   studyApi,
@@ -88,14 +94,13 @@ const EXPERIENCE_AI_FIELD_LABELS: Record<string, string> = {
   reason: '판단',
   summary: '요약',
   takeaway: '배운 점',
-  essayContent: '회고 본문',
   content: '상세 항목',
   situation: '상황',
   actionDetail: '행동',
   outcome: '성과',
 };
 
-type TabId = 'ANALYTICS' | 'DONATIONS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE' | 'CORE_PROJECTS' | 'ARCHITECTURE';
+type TabId = 'ANALYTICS' | 'DONATIONS' | 'STUDY' | 'PROFILE' | 'SKILLS' | 'COMPETENCIES' | 'EXPERIENCE' | 'CORE_PROJECTS' | 'ARCHITECTURE' | 'PRINT_TEMPLATES';
 
 const ADMIN_MENU_GROUPS = [
   {
@@ -113,6 +118,7 @@ const ADMIN_MENU_GROUPS = [
       { id: 'COMPETENCIES', label: '핵심 역량 관리', icon: Sparkles },
       { id: 'CORE_PROJECTS', label: '핵심 프로젝트 관리', icon: Pin },
       { id: 'ARCHITECTURE', label: '시스템 아키텍처 관리', icon: Terminal },
+      { id: 'PRINT_TEMPLATES', label: 'PDF 템플릿 관리', icon: Printer },
     ],
   },
   {
@@ -240,7 +246,6 @@ const emptyExperienceForm: AdminExperienceForm = {
   periodEnd: '',
   summary: '',
   takeaway: '',
-  essayContent: '',
   displayOrder: 0,
   showOnTimeline: true,
   timelineLabel: '',
@@ -269,6 +274,45 @@ export function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<TabId>('STUDY');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const stored = typeof window !== 'undefined' ? window.localStorage.getItem('admin-sidebar-width') : null;
+    const parsed = stored ? parseInt(stored, 10) : NaN;
+    return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 170), 380) : 200;
+  });
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const sidebarResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const handleSidebarMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+    sidebarResizeRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+  };
+
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!sidebarResizeRef.current) return;
+      const deltaX = e.clientX - sidebarResizeRef.current.startX;
+      const newWidth = Math.min(Math.max(sidebarResizeRef.current.startWidth + deltaX, 170), 380);
+      setSidebarWidth(newWidth);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('admin-sidebar-width', String(newWidth));
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false);
+      sidebarResizeRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingSidebar]);
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [previewNonce, setPreviewNonce] = useState(0);
@@ -441,6 +485,8 @@ export function AdminDashboard() {
   const [expFilter, setExpFilter] = useState<string>('ALL');
   const [expSearch, setExpSearch] = useState<string>('');
   const [expSkillSearch, setExpSkillSearch] = useState<string>('');
+  const [detailSkillSearch, setDetailSkillSearch] = useState('');
+  const [detailStudySearch, setDetailStudySearch] = useState('');
   const [skillStudySearch, setSkillStudySearch] = useState('');
   const [skillExperienceSearch, setSkillExperienceSearch] = useState('');
   const [skillDetailSearch, setSkillDetailSearch] = useState('');
@@ -474,6 +520,19 @@ export function AdminDashboard() {
       skill.name.toLowerCase().includes(keyword) ||
       skill.category.toLowerCase().includes(keyword));
   }, [skillsList, expSkillSearch]);
+
+  const selectableDetailSkills = useMemo(() => {
+    const keyword = detailSkillSearch.trim().toLowerCase();
+    if (!keyword) return skillsList ?? [];
+    return (skillsList ?? []).filter((skill) =>
+      skill.name.toLowerCase().includes(keyword) ||
+      skill.category.toLowerCase().includes(keyword));
+  }, [skillsList, detailSkillSearch]);
+
+  const selectableDetailStudies = useMemo(() => {
+    const keyword = detailStudySearch.trim().toLowerCase();
+    return (studies ?? []).filter((study) => !keyword || study.title.toLowerCase().includes(keyword));
+  }, [studies, detailStudySearch]);
 
   const selectableStudySkills = useMemo(() => {
     const keyword = studySkillSearch.trim().toLowerCase();
@@ -896,8 +955,11 @@ export function AdminDashboard() {
   const [isExpFormOpen, setIsExpFormOpen] = useState(false);
   const [createAsCoreProject, setCreateAsCoreProject] = useState(false);
   const [detailInput, setDetailInput] = useState('');
+  const [detailListSearch, setDetailListSearch] = useState('');
   const [selectedExperienceId, setSelectedExperienceId] = useState<number | null>(null);
   const [expandedDetailIdx, setExpandedDetailIdx] = useState<number | null>(null);
+  const [isNarrativeGenerating, setIsNarrativeGenerating] = useState(false);
+  const [narrativeError, setNarrativeError] = useState<string | null>(null);
   const [expAiInstruction, setExpAiInstruction] = useState('');
   const [expAiSuggestions, setExpAiSuggestions] = useState<ExperienceSuggestion[]>([]);
   const [expAiFactCount, setExpAiFactCount] = useState(0);
@@ -1021,7 +1083,6 @@ export function AdminDashboard() {
       periodEnd: expForm.periodEnd ? expForm.periodEnd : null,
       summary: expForm.summary,
       takeaway: expForm.takeaway,
-      essayContent: expForm.essayContent,
       displayOrder: Number(expForm.displayOrder),
       showOnTimeline: expForm.showOnTimeline,
       timelineLabel: expForm.timelineLabel?.trim() || undefined,
@@ -1106,13 +1167,12 @@ export function AdminDashboard() {
   };
 
   const applyExpAiSummary = (suggestion: ExperienceSuggestion) => {
-    if ((expForm.summary?.trim() || expForm.takeaway?.trim() || expForm.essayContent?.trim())
-      && !window.confirm('현재 작성한 요약·배운 점·회고 본문을 AI 초안으로 바꾸시겠습니까?')) return;
+    if ((expForm.summary?.trim() || expForm.takeaway?.trim())
+      && !window.confirm('현재 작성한 요약·배운 점을 AI 초안으로 바꾸시겠습니까?')) return;
     setExpForm({
       ...expForm,
       summary: suggestion.summary,
       takeaway: suggestion.takeaway,
-      essayContent: suggestion.essayContent,
     });
   };
 
@@ -1138,6 +1198,8 @@ export function AdminDashboard() {
       );
       setExpEditingId(experience.id);
       setCreateAsCoreProject(false);
+      setExpandedDetailIdx(null);
+      setDetailListSearch('');
       setExpForm({
         type: experience.type,
         title: experience.title,
@@ -1145,7 +1207,6 @@ export function AdminDashboard() {
         periodEnd: experience.periodEnd ?? '',
         summary: experience.summary ?? '',
         takeaway: experience.takeaway ?? '',
-        essayContent: experience.essayContent ?? '',
         displayOrder: experience.displayOrder,
         showOnTimeline: experience.showOnTimeline,
         timelineLabel: experience.timelineLabel ?? '',
@@ -1155,6 +1216,7 @@ export function AdminDashboard() {
           situation: detail.situation ?? '',
           actionDetail: detail.actionDetail ?? '',
           outcome: detail.outcome ?? '',
+          narrative: detail.narrative ?? '',
           skillIds: detail.skills?.map((skill) => skill.id) ?? [],
           studyIds: detailStudies.get(detail.id) ?? [],
         })),
@@ -1186,7 +1248,7 @@ export function AdminDashboard() {
     if (detailInput.trim()) {
       setExpForm({
         ...expForm,
-        details: [...expForm.details, { content: detailInput.trim(), situation: '', actionDetail: '', outcome: '', skillIds: [], studyIds: [] }],
+        details: [...expForm.details, { content: detailInput.trim(), situation: '', actionDetail: '', outcome: '', narrative: '', skillIds: [], studyIds: [] }],
       });
       setDetailInput('');
     }
@@ -1199,11 +1261,46 @@ export function AdminDashboard() {
     });
   };
 
-  const updateDetailField = (idx: number, field: 'content' | 'situation' | 'actionDetail' | 'outcome', value: string) => {
+  const updateDetailField = (idx: number, field: 'content' | 'situation' | 'actionDetail' | 'outcome' | 'narrative', value: string) => {
     setExpForm({
       ...expForm,
       details: expForm.details.map((d, i) => (i === idx ? { ...d, [field]: value } : d)),
     });
+  };
+
+  const moveDetailPoint = (idx: number, direction: -1 | 1) => {
+    const target = idx + direction;
+    if (target < 0 || target >= expForm.details.length) return;
+    const details = [...expForm.details];
+    [details[idx], details[target]] = [details[target], details[idx]];
+    setExpForm({ ...expForm, details });
+    setExpandedDetailIdx((current) => (
+      current === idx ? target : current === target ? idx : current
+    ));
+  };
+
+  const generateDetailNarrative = async (idx: number) => {
+    const detail = expForm.details[idx];
+    if (!detail.situation?.trim() && !detail.actionDetail?.trim() && !detail.outcome?.trim()) {
+      setNarrativeError('상황/진행 과정/성과 중 최소 하나는 입력해야 합니다.');
+      return;
+    }
+    setNarrativeError(null);
+    setIsNarrativeGenerating(true);
+    try {
+      const { narrative } = await experienceApi.generateNarrative({
+        content: detail.content,
+        situation: detail.situation,
+        actionDetail: detail.actionDetail,
+        outcome: detail.outcome,
+      });
+      updateDetailField(idx, 'narrative', narrative);
+    } catch (error) {
+      handleMutationError(error);
+      setNarrativeError(error instanceof Error ? error.message : 'AI 재작성에 실패했습니다.');
+    } finally {
+      setIsNarrativeGenerating(false);
+    }
   };
 
   const toggleDetailSkill = (idx: number, skillId: number) => {
@@ -1289,7 +1386,6 @@ export function AdminDashboard() {
         periodEnd: expForm.periodEnd ? expForm.periodEnd : undefined,
         summary: expForm.summary,
         takeaway: expForm.takeaway,
-        essayContent: expForm.essayContent,
         displayOrder: Number(expForm.displayOrder),
         showOnTimeline: expForm.showOnTimeline,
         timelineLabel: expForm.timelineLabel?.trim() || undefined,
@@ -1400,6 +1496,13 @@ export function AdminDashboard() {
     setIsPreviewOpen(true);
     requestAnimationFrame(() => setIsPreviewVisible(true));
   };
+
+  // PRINT_TEMPLATES 탭으로 오면 기본적으로 미리보기 패널을 닫아두고 템플릿 목록에 집중하도록 함
+  useEffect(() => {
+    if (activeTab === 'PRINT_TEMPLATES' && isPreviewOpen) {
+      closePreviewPanel();
+    }
+  }, [activeTab]);
 
   const closePreviewPanel = () => {
     setIsPreviewVisible(false);
@@ -1518,17 +1621,30 @@ export function AdminDashboard() {
 
       <div className="flex items-start">
       <div className="min-w-0 flex-1">
-      <div className={`grid w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:px-8 ${
-        isSidebarCollapsed
-          ? 'lg:grid-cols-[64px_minmax(0,1fr)]'
-          : 'lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]'
-      }`}>
+      <div
+        className="grid w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:px-8"
+        style={{
+          gridTemplateColumns: isSidebarCollapsed
+            ? '64px minmax(0, 1fr)'
+            : `${sidebarWidth}px minmax(0, 1fr)`,
+        }}
+      >
         {/* SIDE BAR NAVIGATION */}
         <aside className={`relative min-w-0 transition-all duration-200 lg:sticky lg:top-20 lg:self-start ${
           isSidebarCollapsed
             ? 'lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:px-2 lg:py-3 lg:shadow-sm'
             : ''
         }`}>
+          {/* Resize Handle for Sidebar */}
+          {!isSidebarCollapsed && (
+            <div
+              onMouseDown={handleSidebarMouseDown}
+              className="absolute -right-2 top-0 bottom-0 w-3 cursor-col-resize z-30 group flex items-center justify-center select-none"
+              title="사이드바 너비 조절 (드래그)"
+            >
+              <div className="w-1 h-12 rounded-full bg-slate-200 group-hover:bg-blue-500 transition-colors shadow-sm" />
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
@@ -1593,6 +1709,7 @@ export function AdminDashboard() {
         <section className="min-w-0 space-y-6">
           {activeTab === 'COMPETENCIES' && <CompetencyManagement />}
           {activeTab === 'ARCHITECTURE' && <ArchitectureManagement />}
+          {activeTab === 'PRINT_TEMPLATES' && <PrintTemplateManagement />}
           {activeTab === 'CORE_PROJECTS' && (
             <CoreProjectManagement
               onCreateProject={() => {
@@ -1602,6 +1719,8 @@ export function AdminDashboard() {
                 setSelectedExperienceId(null);
                 setExpEditingId(null);
                 setExpForm({ ...emptyExperienceForm, type: 'PROJECT', displayOrder: nextDisplayOrder });
+                setExpandedDetailIdx(null);
+                setDetailListSearch('');
                 setExpAiInstruction('');
                 setExpAiSuggestions([]);
                 resetExpAiStream();
@@ -2925,6 +3044,8 @@ export function AdminDashboard() {
                     setExpEditingId(null);
                     setExpForm(emptyExperienceForm);
                     setCreateAsCoreProject(false);
+                    setExpandedDetailIdx(null);
+                    setDetailListSearch('');
                     setExpAiInstruction('');
                     setExpAiSuggestions([]);
                     resetExpAiStream();
@@ -2993,7 +3114,7 @@ export function AdminDashboard() {
                       <div className="min-w-0 flex-1">
                         <h4 className="font-black text-violet-950">AI로 경력 회고 초안 만들기</h4>
                         <p className="mt-1 text-xs leading-relaxed text-violet-700">
-                          AI가 1단계에서 선택한 기술·관련 Study·관련 경력과 메모의 사실관계를 정리하고, 2단계에서 검증된 사실만 사용해 요약·배운 점·회고 본문과 상세 항목 초안을 작성합니다.
+                          AI가 1단계에서 선택한 기술·관련 Study·관련 경력과 메모의 사실관계를 정리하고, 2단계에서 검증된 사실만 사용해 요약·배운 점과 상세 항목 초안을 작성합니다.
                         </p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                           <textarea
@@ -3042,13 +3163,10 @@ export function AdminDashboard() {
                                 {suggestion.takeaway && (
                                   <p className="mt-2 text-xs leading-relaxed text-slate-500">배운 점: {suggestion.takeaway}</p>
                                 )}
-                                <div className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-                                  {suggestion.essayContent}
-                                </div>
                                 {suggestion.reason && <p className="mt-3 rounded-lg bg-violet-50 px-2.5 py-2 text-[11px] leading-relaxed text-violet-700">{suggestion.reason}</p>}
                                 <div className="mt-3">
                                   <button type="button" onClick={() => applyExpAiSummary(suggestion)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50">
-                                    <Check className="h-3.5 w-3.5" /> 요약·회고 적용
+                                    <Check className="h-3.5 w-3.5" /> 요약·배운 점 적용
                                   </button>
                                 </div>
                                 {suggestion.details.length > 0 && (
@@ -3075,7 +3193,11 @@ export function AdminDashboard() {
                     </div>
                   </section>
 
-                  {/* Common: Type, Title, displayOrder */}
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
+                    <Briefcase className="h-4 w-4 text-slate-500" />
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">기본 정보</h4>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
                       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이력 구분 (유형)</label>
@@ -3333,7 +3455,11 @@ export function AdminDashboard() {
                     />
                   </div>
 
-                  {/* Common Text Areas */}
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
+                    <BookOpen className="h-4 w-4 text-slate-500" />
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">본문 내용</h4>
+                  </div>
+
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">한줄 요약 (Summary, 마크다운)</label>
                     <MarkdownEditor
@@ -3350,130 +3476,11 @@ export function AdminDashboard() {
                     />
                   </div>
 
-                  {/* Dynamic Details List (Bullet Points) */}
-                  <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이력 상세 항목 (Bullet Points)</label>
-                    
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        type="text"
-                        placeholder="새로운 불릿 항목 상세 입력..."
-                        value={detailInput}
-                        onChange={(e) => setDetailInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDetailPoint(); } }}
-                        className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:border-slate-800 bg-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={addDetailPoint}
-                        className="rounded-lg bg-slate-100 border border-slate-300 text-slate-900 p-2 hover:bg-slate-200 text-xs font-bold flex items-center gap-1"
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                        추가
-                      </button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {expForm.details.map((d, idx) => {
-                        const isDetailExpanded = expandedDetailIdx === idx;
-                        return (
-                          <div key={idx} className="bg-white rounded-lg border border-slate-200 text-sm">
-                            <div className="flex items-center justify-between gap-2 p-2">
-                              <input
-                                type="text"
-                                value={d.content}
-                                onChange={(e) => updateDetailField(idx, 'content', e.target.value)}
-                                placeholder="불릿 한 줄 요약"
-                                className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-slate-400 focus:bg-slate-100/30 focus:outline-none"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setExpandedDetailIdx(isDetailExpanded ? null : idx)}
-                                className="text-slate-400 transition hover:text-slate-900"
-                              >
-                                {isDetailExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeDetailPoint(idx)}
-                                className="text-red-500 transition hover:text-red-700"
-                              >
-                                <MinusCircle className="h-4 w-4" />
-                              </button>
-                            </div>
-
-                            {isDetailExpanded && (
-                              <div className="space-y-2 border-t border-slate-100 p-3">
-                                <div>
-                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">상황 (Situation, 마크다운)</label>
-                                  <MarkdownEditor
-                                    value={d.situation ?? ''}
-                                    onChange={(value) => updateDetailField(idx, 'situation', value)}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">과정 (Action, 마크다운)</label>
-                                  <MarkdownEditor
-                                    value={d.actionDetail ?? ''}
-                                    onChange={(value) => updateDetailField(idx, 'actionDetail', value)}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">성과 (Outcome, 마크다운)</label>
-                                  <MarkdownEditor
-                                    value={d.outcome ?? ''}
-                                    onChange={(value) => updateDetailField(idx, 'outcome', value)}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">이 항목의 기술 태그</label>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {skillsList?.map((s) => {
-                                      const isChecked = d.skillIds.includes(s.id);
-                                      return (
-                                        <button
-                                          type="button"
-                                          key={s.id}
-                                          onClick={() => toggleDetailSkill(idx, s.id)}
-                                          className={`rounded-full border px-2 py-0.5 text-xs font-bold transition ${
-                                            isChecked
-                                              ? 'border-slate-300 bg-slate-100 text-slate-950'
-                                              : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                                          }`}
-                                        >
-                                          {s.name}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                    이 항목의 관련 Study · {d.studyIds.length}개
-                                  </label>
-                                  <div className="grid max-h-40 grid-cols-1 gap-1.5 overflow-auto sm:grid-cols-2">
-                                    {(studies ?? []).map((study) => (
-                                      <label key={study.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
-                                        <input
-                                          type="checkbox"
-                                          checked={d.studyIds.includes(study.id)}
-                                          onChange={() => toggleDetailStudy(idx, study.id)}
-                                          className="mt-0.5"
-                                        />
-                                        <span className="font-semibold text-slate-700">{study.title}</span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
+                    <Wrench className="h-4 w-4 text-slate-500" />
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">기술 · 관련 자료</h4>
                   </div>
 
-                  {/* Skills Tagger */}
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">사용 기술 매핑</label>
                     <div className="relative mb-2">
@@ -3588,6 +3595,216 @@ export function AdminDashboard() {
                           </label>
                         ))}
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
+                    <ListChecks className="h-4 w-4 text-slate-500" />
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      이력 상세 항목 (Bullet Points) · {expForm.details.length}개
+                    </h4>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="text"
+                        placeholder="새로운 불릿 항목 상세 입력..."
+                        value={detailInput}
+                        onChange={(e) => setDetailInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDetailPoint(); } }}
+                        className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:border-slate-800 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={addDetailPoint}
+                        className="rounded-lg bg-slate-100 border border-slate-300 text-slate-900 p-2 hover:bg-slate-200 text-xs font-bold flex items-center gap-1"
+                      >
+                        <PlusCircle className="h-4 w-4" />
+                        추가
+                      </button>
+                    </div>
+
+                    {expForm.details.length > 0 && (
+                      <div className="relative mb-3">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="search"
+                          value={detailListSearch}
+                          onChange={(event) => setDetailListSearch(event.target.value)}
+                          placeholder="상세 항목 내용 검색..."
+                          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      {expForm.details
+                        .map((d, idx) => ({ d, idx }))
+                        .filter(({ d }) => !detailListSearch.trim()
+                          || d.content.toLowerCase().includes(detailListSearch.trim().toLowerCase()))
+                        .map(({ d, idx }) => {
+                        const isDetailExpanded = expandedDetailIdx === idx;
+                        return (
+                          <div key={idx} className="bg-white rounded-lg border border-slate-200 text-sm">
+                            <div className="flex items-center justify-between gap-1 p-2">
+                              <div className="flex shrink-0 flex-col">
+                                <button
+                                  type="button"
+                                  onClick={() => moveDetailPoint(idx, -1)}
+                                  disabled={idx === 0 || detailListSearch.trim() !== ''}
+                                  title="위로 이동"
+                                  className="grid h-4 w-5 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
+                                >
+                                  <ArrowUp className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveDetailPoint(idx, 1)}
+                                  disabled={idx === expForm.details.length - 1 || detailListSearch.trim() !== ''}
+                                  title="아래로 이동"
+                                  className="grid h-4 w-5 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
+                                >
+                                  <ArrowDown className="h-3 w-3" />
+                                </button>
+                              </div>
+                              <input
+                                type="text"
+                                value={d.content}
+                                onChange={(e) => updateDetailField(idx, 'content', e.target.value)}
+                                placeholder="불릿 한 줄 요약"
+                                className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-slate-400 focus:bg-slate-100/30 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExpandedDetailIdx(isDetailExpanded ? null : idx);
+                                  setDetailSkillSearch('');
+                                  setDetailStudySearch('');
+                                  setNarrativeError(null);
+                                }}
+                                className="text-slate-400 transition hover:text-slate-900"
+                              >
+                                {isDetailExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeDetailPoint(idx)}
+                                className="text-red-500 transition hover:text-red-700"
+                              >
+                                <MinusCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            {isDetailExpanded && (
+                              <div className="space-y-2 border-t border-slate-100 p-3">
+                                <div>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">상황 (Situation, 마크다운)</label>
+                                  <MarkdownEditor
+                                    value={d.situation ?? ''}
+                                    onChange={(value) => updateDetailField(idx, 'situation', value)}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">과정 (Action, 마크다운)</label>
+                                  <MarkdownEditor
+                                    value={d.actionDetail ?? ''}
+                                    onChange={(value) => updateDetailField(idx, 'actionDetail', value)}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">성과 (Outcome, 마크다운)</label>
+                                  <MarkdownEditor
+                                    value={d.outcome ?? ''}
+                                    onChange={(value) => updateDetailField(idx, 'outcome', value)}
+                                  />
+                                </div>
+                                <div>
+                                  <div className="mb-1 flex items-center justify-between gap-2">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">서술 (Narrative, AI 병합 문단)</label>
+                                    <button
+                                      type="button"
+                                      onClick={() => generateDetailNarrative(idx)}
+                                      disabled={isNarrativeGenerating}
+                                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-wait disabled:opacity-60"
+                                    >
+                                      {isNarrativeGenerating
+                                        ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                        : <WandSparkles className="h-3.5 w-3.5" />}
+                                      {isNarrativeGenerating ? '재작성 중...' : 'AI로 재작성'}
+                                    </button>
+                                  </div>
+                                  {narrativeError && <p className="mb-1 text-[11px] font-semibold text-red-500">{narrativeError}</p>}
+                                  <MarkdownEditor
+                                    value={d.narrative ?? ''}
+                                    onChange={(value) => updateDetailField(idx, 'narrative', value)}
+                                  />
+                                </div>
+                                <div className="grid gap-3 lg:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">이 항목의 기술 태그</label>
+                                    <div className="relative mb-2">
+                                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                      <input
+                                        type="search"
+                                        value={detailSkillSearch}
+                                        onChange={(event) => setDetailSkillSearch(event.target.value)}
+                                        placeholder="기술명 또는 분류 검색"
+                                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                                      />
+                                    </div>
+                                    <div className="max-h-52 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
+                                      {selectableDetailSkills.map((s) => (
+                                        <label key={s.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
+                                          <input
+                                            type="checkbox"
+                                            checked={d.skillIds.includes(s.id)}
+                                            onChange={() => toggleDetailSkill(idx, s.id)}
+                                          />
+                                          {s.name}
+                                        </label>
+                                      ))}
+                                      {selectableDetailSkills.length === 0 && (
+                                        <p className="py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                      이 항목의 관련 Study · {d.studyIds.length}개
+                                    </label>
+                                    <div className="relative mb-2">
+                                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                      <input
+                                        type="search"
+                                        value={detailStudySearch}
+                                        onChange={(event) => setDetailStudySearch(event.target.value)}
+                                        placeholder="Study 제목 검색"
+                                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                                      />
+                                    </div>
+                                    <div className="max-h-52 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
+                                      {selectableDetailStudies.map((study) => (
+                                        <label key={study.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
+                                          <input
+                                            type="checkbox"
+                                            checked={d.studyIds.includes(study.id)}
+                                            onChange={() => toggleDetailStudy(idx, study.id)}
+                                          />
+                                          {study.title}
+                                        </label>
+                                      ))}
+                                      {selectableDetailStudies.length === 0 && (
+                                        <p className="py-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -3722,8 +3939,8 @@ export function AdminDashboard() {
               </div>
             </div>
             <iframe
-              key={previewNonce}
-              src="/?preview=1"
+              key={`${previewNonce}-${activeTab === 'PRINT_TEMPLATES' ? 'print' : 'normal'}`}
+              src={activeTab === 'PRINT_TEMPLATES' ? '/?preview=1&printMode=1' : '/?preview=1'}
               title="메인페이지 미리보기"
               className="w-full flex-1 border-0"
             />

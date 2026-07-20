@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Bold, Code2, Eye, Heading2, ImagePlus, Italic, Link, List, ListOrdered, Loader2, Workflow } from 'lucide-react';
 import { createMarkdownComponents } from '../lib/markdown';
@@ -29,6 +29,14 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // 내용 길이에 맞춰 높이가 늘어나도록 — min-h는 바닥값일 뿐, 실제 높이는 매 변경마다 다시 잰다.
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value]);
 
   const editorMarkdownComponents = useMemo(() => createMarkdownComponents(({ start, end }, language) => {
     const codeBlock = value.slice(start, end);
@@ -126,7 +134,7 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
           <Eye className="h-3.5 w-3.5" /> 실시간 미리보기
         </span>
       </div>
-      <div className="grid min-h-[420px] grid-cols-1 lg:grid-cols-2">
+      <div className="grid min-h-[140px] grid-cols-1 lg:grid-cols-2">
         <textarea
           ref={textareaRef}
           required
@@ -134,9 +142,9 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
           onChange={(event) => onChange(event.target.value)}
           spellCheck={false}
           placeholder="# 학습 내용\n\nMarkdown으로 기록해 보세요."
-          className="min-h-[420px] resize-y border-0 bg-slate-950 p-5 font-mono text-sm leading-7 text-slate-100 outline-none lg:border-r lg:border-slate-200"
+          className="min-h-[140px] resize-none overflow-hidden border-0 bg-slate-950 p-5 font-mono text-sm leading-7 text-slate-100 outline-none lg:border-r lg:border-slate-200"
         />
-        <article className="min-h-[420px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
+        <article className="min-h-[140px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
           {value ? (
             <ReactMarkdown components={editorMarkdownComponents}>{value}</ReactMarkdown>
           ) : (

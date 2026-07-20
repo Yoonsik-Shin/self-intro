@@ -316,7 +316,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                             <div className="divide-y divide-slate-100">
                               {displayedDetails.map((detail) => {
                                 const isDetailExpanded = expandedDetailId === detail.id;
-                                const hasDetailContent = Boolean(detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
+                                const hasDetailContent = Boolean(detail.narrative || detail.situation || detail.actionDetail || detail.outcome || detail.skills.length > 0);
                                 return (
                                   <div key={detail.id}>
                                     <button
@@ -346,15 +346,11 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                                       <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out ${isDetailExpanded ? 'mb-3 grid-rows-[1fr] opacity-100' : 'mb-0 grid-rows-[0fr] opacity-0'}`}>
                                         <div className="min-h-0 overflow-hidden">
                                           <div className={`${isEditing ? 'ml-6' : 'ml-0'} space-y-3 border-l-2 border-slate-200 py-1 pl-4 text-xs leading-relaxed text-slate-600`}>
-                                            {detail.situation && (
-                                              <div><p className="mb-1 font-black text-slate-400">상황</p><p className="whitespace-pre-line">{detail.situation}</p></div>
-                                            )}
-                                            {detail.actionDetail && (
-                                              <div><p className="mb-1 font-black text-slate-400">진행 과정</p><p className="whitespace-pre-line">{detail.actionDetail}</p></div>
-                                            )}
-                                            {detail.outcome && (
-                                              <div><p className="mb-1 font-black text-emerald-600">성과</p><p className="whitespace-pre-line">{detail.outcome}</p></div>
-                                            )}
+                                            {(() => {
+                                              const merged = detail.narrative
+                                                || [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
+                                              return merged ? <p className="whitespace-pre-line">{merged}</p> : null;
+                                            })()}
                                             {detail.skills.length > 0 && (
                                               <div className="flex flex-wrap gap-1 pt-0.5">
                                                 {detail.skills.map((skill) => (

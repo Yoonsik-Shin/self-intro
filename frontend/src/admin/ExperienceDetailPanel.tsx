@@ -1,21 +1,24 @@
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Github,
-  GraduationCap,
   Pencil,
   Pin,
   PinOff,
+  Search,
   Tags,
   Trash2,
   Wrench,
 } from 'lucide-react';
 import type { Experience } from '../lib/api';
-import { adminDetailMarkdownComponents, markdownComponents } from '../lib/markdown';
+import { adminDetailMarkdownComponents } from '../lib/markdown';
 
 type ExperienceDetailPanelProps = {
   experience: Experience;
@@ -37,6 +40,8 @@ function formatPeriod(start: string, end?: string) {
 
 export function ExperienceDetailPanel({ experience, onBack, onEdit, onDelete }: ExperienceDetailPanelProps) {
   const organization = experience.companyName ?? experience.institutionName ?? experience.issuer;
+  const [expandedDetailId, setExpandedDetailId] = useState<number | null>(null);
+  const [detailSearch, setDetailSearch] = useState('');
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-fadeIn">
@@ -125,41 +130,71 @@ export function ExperienceDetailPanel({ experience, onBack, onEdit, onDelete }: 
             <section>
               <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
                 <BriefcaseBusiness className="h-4 w-4 text-slate-500" />
-                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">상세 경험</h4>
+                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                  상세 경험 · {experience.details.length}개
+                </h4>
               </div>
-              <div className="space-y-4">
-                {experience.details.map((detail, index) => (
-                  <div key={detail.id} className="rounded-xl border border-slate-200 p-4">
-                    <div className="flex gap-3">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">{index + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black leading-snug text-slate-800">{detail.content}</p>
-                        <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-600">
-                          {detail.situation && <div><p className="mb-1 text-xs font-black text-slate-400">상황</p><ReactMarkdown components={adminDetailMarkdownComponents}>{detail.situation}</ReactMarkdown></div>}
-                          {detail.actionDetail && <div><p className="mb-1 text-xs font-black text-slate-400">과정</p><ReactMarkdown components={adminDetailMarkdownComponents}>{detail.actionDetail}</ReactMarkdown></div>}
-                          {detail.outcome && <div><p className="mb-1 text-xs font-black text-slate-400">성과</p><ReactMarkdown components={adminDetailMarkdownComponents}>{detail.outcome}</ReactMarkdown></div>}
-                        </div>
-                        {detail.skills.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {detail.skills.map((skill) => <span key={skill.id} className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{skill.name}</span>)}
+
+              {experience.details.length > 1 && (
+                <div className="relative mb-3">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={detailSearch}
+                    onChange={(event) => setDetailSearch(event.target.value)}
+                    placeholder="상세 경험 내용 검색..."
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {experience.details
+                  .map((detail, index) => ({ detail, index }))
+                  .filter(({ detail }) => !detailSearch.trim()
+                    || detail.content.toLowerCase().includes(detailSearch.trim().toLowerCase()))
+                  .map(({ detail, index }) => {
+                    const isExpanded = expandedDetailId === detail.id;
+                    const merged = detail.narrative
+                      || [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
+                    const hasContent = Boolean(merged) || detail.skills.length > 0;
+                    return (
+                      <div key={detail.id} className="rounded-xl border border-slate-200 p-4">
+                        <button
+                          type="button"
+                          onClick={() => hasContent && setExpandedDetailId(isExpanded ? null : detail.id)}
+                          className={`flex w-full items-start gap-3 text-left ${hasContent ? 'cursor-pointer' : 'cursor-default'}`}
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">{index + 1}</span>
+                          <span className="min-w-0 flex-1 font-black leading-snug text-slate-800">{detail.content}</span>
+                          {hasContent && (
+                            isExpanded
+                              ? <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                              : <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                          )}
+                        </button>
+
+                        {isExpanded && (
+                          <div className="ml-9 mt-3">
+                            {merged && (
+                              <div className="space-y-3 text-sm leading-relaxed text-slate-600">
+                                <ReactMarkdown components={adminDetailMarkdownComponents}>{merged}</ReactMarkdown>
+                              </div>
+                            )}
+                            {detail.skills.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {detail.skills.map((skill) => <span key={skill.id} className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{skill.name}</span>)}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {experience.essayContent && (
-            <section>
-              <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-                <GraduationCap className="h-4 w-4 text-slate-500" />
-                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">상세 기술서</h4>
-              </div>
-              <div className="min-w-0 break-words">
-                <ReactMarkdown components={markdownComponents}>{experience.essayContent}</ReactMarkdown>
+                    );
+                  })}
+                {experience.details.length > 0 && detailSearch.trim()
+                  && !experience.details.some((detail) => detail.content.toLowerCase().includes(detailSearch.trim().toLowerCase())) && (
+                  <p className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                )}
               </div>
             </section>
           )}

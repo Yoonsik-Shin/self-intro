@@ -30,7 +30,7 @@ export function SkillBadgeIcon({ name, badgeKey, badgeColor, className = 'h-5 w-
   return (
     <span className={`inline-flex shrink-0 items-center justify-center rounded bg-white p-0.5 ${className}`} aria-hidden="true">
       <img
-        src={buildSkillBadgeUrl(badge.key, badge.color)}
+        src={badge.iconUrl ?? buildSkillBadgeUrl(badge.key, badge.color)}
         alt=""
         loading="lazy"
         referrerPolicy="no-referrer"
