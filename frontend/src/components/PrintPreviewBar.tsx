@@ -1,4 +1,4 @@
-import { Check, ListChecks, Printer, Save, X } from 'lucide-react';
+import { Check, Eye, EyeOff, ListChecks, Printer, Save, X } from 'lucide-react';
 
 type PrintPreviewBarProps = {
   excludedCount: number;
@@ -14,6 +14,9 @@ type PrintPreviewBarProps = {
   zoom: number;
   onZoomChange: (zoom: number) => void;
   onZoomFit: () => void;
+  // 순수 A4 가이드 가리기 Props
+  hideGuides?: boolean;
+  onToggleHideGuides?: () => void;
   // 관리자 대시보드 템플릿 편집 전용 Props
   isAdminEditMode?: boolean;
   adminTemplateName?: string;
@@ -37,6 +40,8 @@ export function PrintPreviewBar({
   zoom,
   onZoomChange,
   onZoomFit,
+  hideGuides = false,
+  onToggleHideGuides,
   isAdminEditMode = false,
   adminTemplateName = '',
   onAdminTemplateNameChange,
@@ -120,6 +125,21 @@ export function PrintPreviewBar({
         {/* Right: Actions */}
         <div className="flex items-center gap-2 shrink-0">
           {zoomControl}
+          {onToggleHideGuides && (
+            <button
+              onClick={onToggleHideGuides}
+              aria-pressed={hideGuides}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                hideGuides
+                  ? 'border-indigo-400/80 bg-indigo-600 text-white shadow-sm'
+                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
+              }`}
+              title={hideGuides ? '가이드 및 UI 표시하기' : 'A4 순수 콘텐츠만 보기 (UI 가리기)'}
+            >
+              {hideGuides ? <Eye className="h-3.5 w-3.5 text-white" /> : <EyeOff className="h-3.5 w-3.5" />}
+              <span>{hideGuides ? '가이드 표시' : '순수 A4만 보기'}</span>
+            </button>
+          )}
           <button
             onClick={onToggleNav}
             aria-pressed={navOpen}
@@ -182,6 +202,21 @@ export function PrintPreviewBar({
       {/* Right: actions */}
       <div className="flex items-center gap-2 shrink-0">
         {zoomControl}
+        {onToggleHideGuides && (
+          <button
+            onClick={onToggleHideGuides}
+            aria-pressed={hideGuides}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+              hideGuides
+                ? 'border-indigo-400/80 bg-indigo-600 text-white shadow-sm'
+                : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
+            }`}
+            title={hideGuides ? '가이드 및 UI 표시하기' : 'A4 순수 콘텐츠만 보기 (UI 가리기)'}
+          >
+            {hideGuides ? <Eye className="h-3.5 w-3.5 text-white" /> : <EyeOff className="h-3.5 w-3.5" />}
+            <span>{hideGuides ? '가이드 표시' : '순수 A4만 보기'}</span>
+          </button>
+        )}
         <button
           onClick={onToggleNav}
           aria-pressed={navOpen}

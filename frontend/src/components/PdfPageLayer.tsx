@@ -4,6 +4,7 @@ type PdfPageLayerProps = {
   pageIndex: number;
   totalPages: number;
   children: React.ReactNode;
+  hideGuides?: boolean;
 };
 
 /**
@@ -12,7 +13,7 @@ type PdfPageLayerProps = {
  * Provides a Figma-style frame in screen preview mode,
  * and exact 1:1 physical A4 page rendering when exported to PDF or printed.
  */
-export function PdfPageLayer({ pageIndex, totalPages, children }: PdfPageLayerProps) {
+export function PdfPageLayer({ pageIndex, totalPages, children, hideGuides = false }: PdfPageLayerProps) {
   return (
     <div
       data-pdf-page-layer
@@ -23,46 +24,50 @@ export function PdfPageLayer({ pageIndex, totalPages, children }: PdfPageLayerPr
         pageBreakAfter: 'always',
       }}
     >
-      {/* 피그마 프레임 라벨 (화면 프리뷰 전용) */}
-      <div
-        data-print-preview-ui
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-7 left-0 flex items-center gap-1.5 rounded-t-md bg-slate-900/90 px-3 py-1 text-[11px] font-extrabold text-white shadow-md backdrop-blur-md print:hidden"
-      >
-        <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
-        <span>{pageIndex + 1}페이지 (A4)</span>
-      </div>
+      {!hideGuides && (
+        <>
+          {/* 피그마 프레임 라벨 (화면 프리뷰 전용) */}
+          <div
+            data-print-preview-ui
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-7 left-0 flex items-center gap-1.5 rounded-t-md bg-slate-900/90 px-3 py-1 text-[11px] font-extrabold text-white shadow-md backdrop-blur-md print:hidden"
+          >
+            <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
+            <span>{pageIndex + 1}페이지 (A4)</span>
+          </div>
 
-      {/* 상단 12mm 가이드라인 (화면 프리뷰 전용) */}
-      <div
-        data-print-preview-ui
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-[12mm] border-b border-dashed border-blue-400/50 print:hidden"
-      >
-        <span className="absolute -top-2.5 left-4 bg-blue-500 text-white px-1.5 py-0.5 text-[8px] font-bold rounded shadow-sm opacity-75">
-          TOP (12mm)
-        </span>
-      </div>
+          {/* 상단 12mm 가이드라인 (화면 프리뷰 전용) */}
+          <div
+            data-print-preview-ui
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-[12mm] border-b border-dashed border-blue-400/50 print:hidden"
+          >
+            <span className="absolute -top-2.5 left-4 bg-blue-500 text-white px-1.5 py-0.5 text-[8px] font-bold rounded shadow-sm opacity-75">
+              TOP (12mm)
+            </span>
+          </div>
 
-      {/* 하단 285mm 가이드라인 (화면 프리뷰 전용) */}
-      <div
-        data-print-preview-ui
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-[285mm] border-b-2 border-dashed border-rose-500/70 print:hidden"
-      >
-        <span className="absolute -top-2.5 right-16 bg-rose-500 text-white px-2 py-0.5 text-[9px] font-extrabold rounded shadow-md opacity-85">
-          BOTTOM BOUNDARY (285mm / 하단 12mm)
-        </span>
-      </div>
+          {/* 하단 285mm 가이드라인 (화면 프리뷰 전용) */}
+          <div
+            data-print-preview-ui
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-[285mm] border-b-2 border-dashed border-rose-500/70 print:hidden"
+          >
+            <span className="absolute -top-2.5 right-16 bg-rose-500 text-white px-2 py-0.5 text-[9px] font-extrabold rounded shadow-md opacity-85">
+              BOTTOM BOUNDARY (285mm / 하단 12mm)
+            </span>
+          </div>
 
-      {/* 우하단 페이지 번호 (화면 프리뷰 전용) */}
-      <span
-        data-print-preview-ui
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-3 right-4 text-[10px] font-black tracking-wide text-slate-400 print:hidden"
-      >
-        {pageIndex + 1} / {totalPages}
-      </span>
+          {/* 우하단 페이지 번호 (화면 프리뷰 전용) */}
+          <span
+            data-print-preview-ui
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-3 right-4 text-[10px] font-black tracking-wide text-slate-400 print:hidden"
+          >
+            {pageIndex + 1} / {totalPages}
+          </span>
+        </>
+      )}
 
       {/* 페이지 내부 콘텐츠 레이어 (100% 균일 좌우 정렬 컨테이너) */}
       <div className="pdf-page-content w-full h-full flex flex-col justify-start items-stretch space-y-0 text-slate-900 box-border overflow-visible print:overflow-hidden">

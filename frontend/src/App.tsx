@@ -533,6 +533,25 @@ export function App() {
   const [isPrintModeDialogOpen, setPrintModeDialogOpen] = useState(false);
   const [isSaveServerModalOpen, setSaveServerModalOpen] = useState(false);
 
+  /** 순수 A4 콘텐츠만 보기 (가이드라인/페이지 배지/조절 UI 가리기) 상태 — localStorage 저장 */
+  const [hidePrintGuides, setHidePrintGuides] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('print_hide_guides') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleHidePrintGuides = () => {
+    setHidePrintGuides((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('print_hide_guides', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const isPreviewMode = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('preview') === '1' && params.get('adminEdit') !== '1';
@@ -1641,7 +1660,7 @@ export function App() {
 
   /** 분할된 지점에서만 활성화되는 페이지 경계 이동/여백 조절 컨트롤 렌더링 (플로팅 렌더링으로 본문 높이 왜곡 방지) */
   const renderPageBreakControl = (id: string, sectionId: string) => {
-    if (!isPrintPreviewMode) return null;
+    if (!isPrintPreviewMode || hidePrintGuides) return null;
     const isSplit = splitSectionIds.has(sectionId);
     const isBoundary = pageBreakBoundaryAtomIds.has(id);
     const currentGap = sectionGaps[id] ?? 0;
@@ -1763,7 +1782,7 @@ export function App() {
 
   /** 호버 시 섹션 왼편에 나타나는 컨트롤 (포함/제외 + 위 간격 조절 + 드래그 안내) */
   const renderSectionControls = (id: string) => {
-    if (!isPrintPreviewMode) return null;
+    if (!isPrintPreviewMode || hidePrintGuides) return null;
     return (
       <div data-print-preview-ui className="pp-controls print:hidden">
         <PrintEyeButton id={id} excluded={printExcludedIds.includes(id)} onToggle={togglePrintSection} />
@@ -2598,6 +2617,8 @@ export function App() {
             zoom={zoom}
             onZoomChange={setZoom}
             onZoomFit={handleZoomFit}
+            hideGuides={hidePrintGuides}
+            onToggleHideGuides={toggleHidePrintGuides}
             isAdminEditMode={isAdminEditParam}
             adminTemplateName={adminTemplateName}
             onAdminTemplateNameChange={setAdminTemplateName}
@@ -2740,6 +2761,7 @@ export function App() {
                   key={pageIdx}
                   pageIndex={pageIdx}
                   totalPages={pageLayers.length}
+                  hideGuides={hidePrintGuides}
                 >
                   {page.items.map((atom) => (
                     <div key={atom.id} data-atom-id={atom.id} className="w-full">
