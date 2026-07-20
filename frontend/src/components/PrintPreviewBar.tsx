@@ -76,7 +76,7 @@ export function PrintPreviewBar({
     return (
       <div
         data-print-preview-ui
-        className="relative z-50 flex h-14 w-full shrink-0 items-center justify-between gap-4 bg-slate-900/95 backdrop-blur-md px-4 shadow-xl print:hidden sm:px-6 border-b border-slate-800"
+        className="relative z-50 flex h-14 w-full shrink-0 items-center justify-between gap-4 bg-slate-900 px-4 shadow-xl print:hidden sm:px-6 border-b border-slate-800"
       >
         {/* Left: icon + label + page count */}
         <div className="flex items-center gap-3 min-w-0">
@@ -163,7 +163,7 @@ export function PrintPreviewBar({
   return (
     <div
       data-print-preview-ui
-      className="relative z-50 flex h-14 w-full shrink-0 items-center justify-between gap-4 bg-slate-900/95 backdrop-blur-md px-4 shadow-xl print:hidden sm:px-6 border-b border-slate-800"
+      className="relative z-50 flex h-14 w-full shrink-0 items-center justify-between gap-4 bg-slate-900 px-4 shadow-xl print:hidden sm:px-6 border-b border-slate-800"
     >
       {/* Left: label + count */}
       <div className="flex items-center gap-3 min-w-0">
