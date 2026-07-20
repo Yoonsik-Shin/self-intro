@@ -917,7 +917,7 @@ public class SampleDataLoader implements ApplicationRunner {
             "[\"intro-profile\", \"skills\", \"career\", \"credentials\"]",
             "{\"skills\": 16, \"career\": 24, \"credentials\": 20}",
             true,
-            1
+            2
         ));
 
         printTemplateRepository.save(PrintTemplate.create(
@@ -926,7 +926,7 @@ public class SampleDataLoader implements ApplicationRunner {
             "[\"intro-profile\", \"competencies\", \"skills\", \"career\", \"projects\", \"credentials\"]",
             "{\"competencies\": 20, \"skills\": 20, \"career\": 24, \"projects\": 24, \"credentials\": 20}",
             true,
-            2
+            3
         ));
 
         printTemplateRepository.save(PrintTemplate.create(
@@ -935,7 +935,7 @@ public class SampleDataLoader implements ApplicationRunner {
             "[\"intro-profile\", \"skills\", \"career\", \"projects\", \"architecture-diagram\", \"credentials\"]",
             "{\"skills\": 16, \"career\": 24, \"projects\": 24, \"architecture-diagram\": 28}",
             true,
-            3
+            4
         ));
     }
 }
