@@ -1660,13 +1660,13 @@ export function App() {
       return (
         <div
           data-print-preview-ui
-          className="absolute -top-7 left-0 right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto"
+          className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto"
         >
           <div className="flex items-center gap-2">
             <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white">
               강제 위치 배치됨
             </span>
-            <span className="text-[11px] text-indigo-100 font-semibold">
+            <span className="text-[11px] text-indigo-100 font-semibold truncate max-w-[280px]">
               {labelText}
             </span>
           </div>
@@ -1681,7 +1681,7 @@ export function App() {
                 return next;
               });
             }}
-            className="flex items-center gap-1 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
+            className="flex items-center gap-1 shrink-0 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
           >
             <ArrowDown className="h-3.5 w-3.5" />
             <span>원래대로 내리기 ({nextPageNum}페이지)</span>
@@ -1698,7 +1698,7 @@ export function App() {
     return (
       <div
         data-print-preview-ui
-        className="absolute -top-7 left-0 right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto"
+        className={`absolute -top-7 ${isBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto`}
       >
         <div className="flex items-center gap-2">
           <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">
