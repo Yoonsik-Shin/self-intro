@@ -55,19 +55,22 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
   };
 
   const handleSelectServer = (t: PrintTemplate) => {
+    const rawGaps = (t.sectionGaps || {}) as Record<string, any>;
+    const { __forcedPageOverrides, ...pureGaps } = rawGaps;
     onApplyTemplate({
-      excludedIds: t.excludedIds,
-      sectionOrder: t.sectionOrder,
-      sectionGaps: t.sectionGaps,
+      excludedIds: t.excludedIds || [],
+      sectionOrder: t.sectionOrder || [],
+      sectionGaps: pureGaps || {},
+      forcedPageOverrides: __forcedPageOverrides && typeof __forcedPageOverrides === 'object' ? __forcedPageOverrides : {},
     });
   };
 
   const handleSelectLocal = (s: LocalPrintSave) => {
     onApplyTemplate({
-      excludedIds: s.excludedIds,
-      sectionOrder: s.sectionOrder,
-      sectionGaps: s.sectionGaps,
-      forcedPageOverrides: s.forcedPageOverrides,
+      excludedIds: s.excludedIds || [],
+      sectionOrder: s.sectionOrder || [],
+      sectionGaps: s.sectionGaps || {},
+      forcedPageOverrides: s.forcedPageOverrides || {},
     });
   };
 

@@ -1901,6 +1901,7 @@ export function App() {
     setPrintExcludedIds([]);
     setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
     setSectionGaps({});
+    setForcedPageOverrides({});
     setPrintPending(false);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1916,13 +1917,21 @@ export function App() {
     setPrintModeDialogOpen(false);
     printLayoutFrozenRef.current = false;
     setPrintPreviewMode(true);
-    setPrintExcludedIds(settings.excludedIds);
+    setPrintExcludedIds(settings.excludedIds || []);
     // 템플릿의 sectionOrder에 새로 추가된 섹션이 누락될 수 있으므로, 기존 섹션 중 누락된 것을 뒤에 추가
     const allIds = reorderablePrintSections.map((s) => s.id);
-    const merged = [...settings.sectionOrder.filter((id) => allIds.includes(id)), ...allIds.filter((id) => !settings.sectionOrder.includes(id))];
+    const orderList = settings.sectionOrder || [];
+    const merged = [...orderList.filter((id) => allIds.includes(id)), ...allIds.filter((id) => !orderList.includes(id))];
     setPrintSectionOrder(merged);
-    setSectionGaps(settings.sectionGaps);
-    setForcedPageOverrides(settings.forcedPageOverrides ?? {});
+
+    const rawGaps = (settings.sectionGaps || {}) as Record<string, any>;
+    const { __forcedPageOverrides, ...pureGaps } = rawGaps;
+    const finalForcedPage = settings.forcedPageOverrides && Object.keys(settings.forcedPageOverrides).length > 0
+      ? settings.forcedPageOverrides
+      : (__forcedPageOverrides && typeof __forcedPageOverrides === 'object' ? __forcedPageOverrides : {});
+
+    setSectionGaps(pureGaps || {});
+    setForcedPageOverrides(finalForcedPage || {});
     setPrintPending(false);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
