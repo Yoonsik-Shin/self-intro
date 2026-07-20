@@ -914,13 +914,22 @@ export type PrintTemplateRequest = {
   displayOrder: number;
 };
 
+function safeParseJson<T>(rawStr: string | null | undefined, fallback: T): T {
+  if (!rawStr) return fallback;
+  try {
+    return JSON.parse(rawStr) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
   return {
     id: raw.id,
     name: raw.name,
-    excludedIds: JSON.parse(raw.excludedIds) as string[],
-    sectionOrder: JSON.parse(raw.sectionOrder) as string[],
-    sectionGaps: JSON.parse(raw.sectionGaps) as Record<string, number>,
+    excludedIds: safeParseJson(raw.excludedIds, []),
+    sectionOrder: safeParseJson(raw.sectionOrder, []),
+    sectionGaps: safeParseJson(raw.sectionGaps, {}),
     visible: raw.visible,
     displayOrder: raw.displayOrder,
   };

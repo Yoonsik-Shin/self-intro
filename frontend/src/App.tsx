@@ -567,9 +567,11 @@ export function App() {
           if (found) {
             setAdminTemplateName(found.name);
             setAdminTemplateVisible(found.visible);
-            setPrintExcludedIds(found.excludedIds);
+            setPrintExcludedIds(found.excludedIds || []);
             if (found.sectionOrder && found.sectionOrder.length > 0) {
-              setPrintSectionOrder(found.sectionOrder);
+              const allIds = reorderablePrintSections.map((s) => s.id);
+              const merged = [...found.sectionOrder.filter((id) => allIds.includes(id)), ...allIds.filter((id) => !found.sectionOrder.includes(id))];
+              setPrintSectionOrder(merged);
             }
             if (found.sectionGaps) {
               setSectionGaps(found.sectionGaps);
@@ -587,15 +589,19 @@ export function App() {
   useEffect(() => {
     if (isPrintModeParam) {
       setPrintPreviewMode(true);
-      setPrintExcludedIds([]);
-      setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
-      setSectionGaps({});
       setExpandedCareerDetailIds(expandableDetailIds);
       setExpandedCareerProjectIds(expandableCareerProjectIds);
       setExpandedCompetencyIds(orderedCompetencies.map((c) => c.id));
       setNavPanelOpen(true); // 어드민 및 기본 프리뷰 진입 시 우측 구성관리 사이드바 자동 열림
+
+      // 신규 작성이나 기본 인쇄 진입 시에만 초기화 진행 (기존 템플릿 수정이 아닐 때)
+      if (!adminTemplateIdParam) {
+        setPrintExcludedIds([]);
+        setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
+        setSectionGaps({});
+      }
     }
-  }, [isPrintModeParam]);
+  }, [isPrintModeParam, adminTemplateIdParam]);
 
   /** 관리자 템플릿 저장 (서버 DB에 POST/PUT 처리 후 부모 창에 알림) */
   const handleAdminSaveServerTemplate = async () => {
