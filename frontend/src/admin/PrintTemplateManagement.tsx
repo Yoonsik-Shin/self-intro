@@ -23,17 +23,18 @@ export function PrintTemplateManagement() {
   const [formName, setFormName] = useState('');
   const [formVisible, setFormVisible] = useState(true);
 
-  // iframe 편집기 내 상단 X(닫기) 버튼 클릭 메시지 수신 연동
+  // iframe 편집기 내 상단 X(닫기) 버튼 또는 저장 성공 메시지 수신 연동
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'CLOSE_ADMIN_EDIT') {
+      if (event.data?.type === 'CLOSE_ADMIN_EDIT' || event.data?.type === 'SAVE_ADMIN_TEMPLATE_SUCCESS') {
+        queryClient.invalidateQueries({ queryKey: ['printTemplates'] });
         setIsEditing(false);
         setEditingTemplate(null);
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [queryClient]);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['printTemplates', 'admin'],
@@ -159,10 +160,11 @@ export function PrintTemplateManagement() {
 
   // ── 1. 편집 모드 (어드민 메인 영역 안에서 단일 통합 툴바 기반 실시간 인쇄 편집기) ──
   if (isEditing) {
+    const templateQuery = editingTemplate?.id ? `&templateId=${editingTemplate.id}` : '';
     return (
       <div className="relative h-[calc(100vh-140px)] min-h-[600px] w-full rounded-2xl border border-slate-200 bg-slate-100 overflow-hidden shadow-inner">
         <iframe
-          src="/?mode=print&adminEdit=1"
+          src={`/?mode=print&adminEdit=1${templateQuery}`}
           title="PDF 템플릿 인쇄 편집기"
           className="h-full w-full border-0"
         />

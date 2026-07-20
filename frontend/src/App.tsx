@@ -34,7 +34,7 @@ import {
   MoveVertical,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { architectureApi, bffApi, connectionApi, donationApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
+import { architectureApi, bffApi, connectionApi, donationApi, printTemplateApi, studyApi, visitorApi, type Skill, type ExperienceDetail, type Experience, type IntroductionResponse, type RelatedExperience } from './lib/api';
 import { useIntroStore } from './store/useIntroStore';
 import { DonationModal } from './components/DonationModal';
 import { PrintModeModal } from './components/PrintModeModal';
@@ -548,8 +548,40 @@ export function App() {
     [],
   );
 
-  const [adminTemplateName, setAdminTemplateName] = useState('test');
+  const adminTemplateIdParam = useMemo(
+    () => new URLSearchParams(window.location.search).get('templateId'),
+    [],
+  );
+
+  const [adminTemplateName, setAdminTemplateName] = useState('새 인쇄 템플릿');
   const [adminTemplateVisible, setAdminTemplateVisible] = useState(true);
+
+  // 어드민 템플릿 수정 진입 시 기존 템플릿 정보 로드
+  useEffect(() => {
+    if (!isAdminEditParam) return;
+    if (adminTemplateIdParam) {
+      printTemplateApi
+        .adminList()
+        .then((list) => {
+          const found = list.find((t) => t.id === Number(adminTemplateIdParam));
+          if (found) {
+            setAdminTemplateName(found.name);
+            setAdminTemplateVisible(found.visible);
+            setPrintExcludedIds(found.excludedIds);
+            if (found.sectionOrder && found.sectionOrder.length > 0) {
+              setPrintSectionOrder(found.sectionOrder);
+            }
+            if (found.sectionGaps) {
+              setSectionGaps(found.sectionGaps);
+            }
+          }
+        })
+        .catch(console.error);
+    } else {
+      setAdminTemplateName('새 인쇄 템플릿');
+      setAdminTemplateVisible(true);
+    }
+  }, [isAdminEditParam, adminTemplateIdParam]);
 
   // printMode=1 인 경우 페이지 진입 시 자동으로 인쇄 프리뷰 모드 켬
   useEffect(() => {
@@ -564,6 +596,38 @@ export function App() {
       setNavPanelOpen(true); // 어드민 및 기본 프리뷰 진입 시 우측 구성관리 사이드바 자동 열림
     }
   }, [isPrintModeParam]);
+
+  /** 관리자 템플릿 저장 (서버 DB에 POST/PUT 처리 후 부모 창에 알림) */
+  const handleAdminSaveServerTemplate = async () => {
+    const trimmed = adminTemplateName.trim();
+    if (!trimmed) {
+      alert('템플릿 이름을 입력해 주세요.');
+      return;
+    }
+
+    const payload = {
+      name: trimmed,
+      excludedIds: JSON.stringify(printExcludedIds),
+      sectionOrder: JSON.stringify(printSectionOrder),
+      sectionGaps: JSON.stringify(sectionGaps),
+      visible: adminTemplateVisible,
+      displayOrder: 1,
+    };
+
+    try {
+      if (adminTemplateIdParam) {
+        await printTemplateApi.update(Number(adminTemplateIdParam), payload);
+        alert(`'${trimmed}' 템플릿이 성공적으로 수정되었습니다.`);
+      } else {
+        await printTemplateApi.create(payload);
+        alert(`'${trimmed}' 템플릿이 성공적으로 저장되었습니다.`);
+      }
+      window.parent.postMessage({ type: 'SAVE_ADMIN_TEMPLATE_SUCCESS' }, '*');
+    } catch (err) {
+      console.error(err);
+      alert('템플릿 저장 중 오류가 발생했습니다.');
+    }
+  };
 
   // 관리자 대시보드가 현재 선택된 메뉴에 맞춰 미리보기 위치를 지정할 수 있도록 sessionStorage에서 초기 목표 지점을 읽어온다.
   const [previewNav, setPreviewNav] = useState<{ page: PageId; section?: string } | null>(() => {
@@ -2507,9 +2571,7 @@ export function App() {
             onAdminTemplateNameChange={setAdminTemplateName}
             adminTemplateVisible={adminTemplateVisible}
             onAdminTemplateVisibleChange={setAdminTemplateVisible}
-            onAdminSaveTemplate={() => {
-              alert(`'${adminTemplateName}' 템플릿이 저장되었습니다.`);
-            }}
+            onAdminSaveTemplate={handleAdminSaveServerTemplate}
           />
         )}
         {isPreviewMode && (
