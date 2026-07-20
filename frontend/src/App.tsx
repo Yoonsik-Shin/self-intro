@@ -1357,12 +1357,14 @@ export function App() {
     if (!isPrintPreviewMode) return;
     const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-atom-id]'));
     const newHeights = new Map<string, number>();
-    const scale = zoom || 1;
     elements.forEach((el) => {
       const atomId = el.getAttribute('data-atom-id');
       if (atomId) {
         const target = el.querySelector<HTMLElement>('[data-print-el]') || (el.firstElementChild as HTMLElement) || el;
-        newHeights.set(atomId, target.getBoundingClientRect().height / scale);
+        const h = target.offsetHeight || Math.round(target.getBoundingClientRect().height / (zoom || 1));
+        if (h > 0) {
+          newHeights.set(atomId, h);
+        }
       }
     });
 
@@ -1378,7 +1380,6 @@ export function App() {
     });
   }, [
     isPrintPreviewMode,
-    zoom,
     printableAtoms,
     sectionGaps,
     expandedCareerDetailIds,
