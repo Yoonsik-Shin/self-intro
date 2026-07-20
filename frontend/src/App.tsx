@@ -533,10 +533,10 @@ export function App() {
   const [isPrintModeDialogOpen, setPrintModeDialogOpen] = useState(false);
   const [isSaveServerModalOpen, setSaveServerModalOpen] = useState(false);
 
-  const isPreviewMode = useMemo(
-    () => new URLSearchParams(window.location.search).get('preview') === '1',
-    [],
-  );
+  const isPreviewMode = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('preview') === '1' && params.get('adminEdit') !== '1';
+  }, []);
 
   const isPrintModeParam = useMemo(
     () => new URLSearchParams(window.location.search).get('printMode') === '1',

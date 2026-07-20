@@ -162,7 +162,7 @@ export function PrintTemplateManagement() {
     return (
       <div className="relative h-[calc(100vh-140px)] min-h-[600px] w-full rounded-2xl border border-slate-200 bg-slate-100 overflow-hidden shadow-inner">
         <iframe
-          src="/?preview=1&printMode=1&adminEdit=1"
+          src="/?mode=print&adminEdit=1"
           title="PDF 템플릿 인쇄 편집기"
           className="h-full w-full border-0"
         />
