@@ -51,6 +51,7 @@ CONTENT_TABLES=(
   experience_relation
   experience_skill
   experience_tag
+  print_template
   profile
   project
   skill
