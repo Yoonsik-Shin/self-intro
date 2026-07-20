@@ -2702,7 +2702,7 @@ export function App() {
         {isPrintPreviewMode ? (
           <div
             ref={canvasRef}
-            className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center py-8 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
+            className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-14 pb-16 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
             style={{ paddingRight: navPanelOpen ? 256 : 56 }}
           >
             <div
