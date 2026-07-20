@@ -133,12 +133,6 @@ export function PrintPreviewBar({
             <span>구성 관리</span>
           </button>
           <button
-            onClick={onToggleAll}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:border-slate-500 hover:text-white"
-          >
-            <span>{excludedCount > 0 ? '모두 포함' : '모두 제외'}</span>
-          </button>
-          <button
             onClick={onAdminSaveTemplate}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-blue-500"
           >
