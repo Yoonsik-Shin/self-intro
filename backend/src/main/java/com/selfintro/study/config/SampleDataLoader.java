@@ -1,6 +1,8 @@
 package com.selfintro.study.config;
 
 import com.selfintro.modules.profile.domain.ProfileRepository;
+import com.selfintro.modules.printtemplate.domain.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.PrintTemplateRepository;
 import com.selfintro.modules.skill.domain.Skill;
 import com.selfintro.modules.skill.domain.SkillRepository;
 import com.selfintro.modules.experience.domain.*;
@@ -35,6 +37,7 @@ public class SampleDataLoader implements ApplicationRunner {
     private final StudyRepository studyRepository;
     private final StudyCategoryRepository studyCategoryRepository;
     private final TagRepository tagRepository;
+    private final PrintTemplateRepository printTemplateRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Override
@@ -48,6 +51,9 @@ public class SampleDataLoader implements ApplicationRunner {
 
         // 2. Skills, Experiences & Studies Seeding
         seedSkillsAndExperiencesAndStudies();
+
+        // 3. Print Templates Seeding
+        seedPrintTemplates();
     }
 
     private void seedProfile() {
@@ -898,5 +904,38 @@ public class SampleDataLoader implements ApplicationRunner {
             s.update(s.getName(), s.getCategory(), s.getSkillLevel(), "20", s.getComment(), s.getUsageType(), s.isCore(), s.getDisplayOrder());
             skillRepository.save(s);
         });
+    }
+
+    private void seedPrintTemplates() {
+        if (printTemplateRepository.count() > 0) {
+            return;
+        }
+
+        printTemplateRepository.save(PrintTemplate.create(
+            "[기본] 1장 요약 이력서",
+            "[\"competencies\", \"projects\", \"architecture-components\", \"architecture-diagram\"]",
+            "[\"intro-profile\", \"skills\", \"career\", \"credentials\"]",
+            "{\"skills\": 16, \"career\": 24, \"credentials\": 20}",
+            true,
+            1
+        ));
+
+        printTemplateRepository.save(PrintTemplate.create(
+            "[상세] 백엔드 개발자 경력기술서",
+            "[]",
+            "[\"intro-profile\", \"competencies\", \"skills\", \"career\", \"projects\", \"credentials\"]",
+            "{\"competencies\": 20, \"skills\": 20, \"career\": 24, \"projects\": 24, \"credentials\": 20}",
+            true,
+            2
+        ));
+
+        printTemplateRepository.save(PrintTemplate.create(
+            "[시각화] 아키텍처 포트폴리오",
+            "[\"competencies\"]",
+            "[\"intro-profile\", \"skills\", \"career\", \"projects\", \"architecture-diagram\", \"credentials\"]",
+            "{\"skills\": 16, \"career\": 24, \"projects\": 24, \"architecture-diagram\": 28}",
+            true,
+            3
+        ));
     }
 }
