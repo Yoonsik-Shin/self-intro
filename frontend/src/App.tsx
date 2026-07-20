@@ -570,11 +570,21 @@ export function App() {
             setPrintExcludedIds(found.excludedIds || []);
             if (found.sectionOrder && found.sectionOrder.length > 0) {
               const allIds = reorderablePrintSections.map((s) => s.id);
-              const merged = [...found.sectionOrder.filter((id) => allIds.includes(id)), ...allIds.filter((id) => !found.sectionOrder.includes(id))];
+              const merged = [
+                ...found.sectionOrder.filter((id) => allIds.includes(id)),
+                ...allIds.filter((id) => !found.sectionOrder.includes(id)),
+              ];
               setPrintSectionOrder(merged);
             }
             if (found.sectionGaps) {
-              setSectionGaps(found.sectionGaps);
+              const rawGaps = found.sectionGaps as Record<string, any>;
+              const { __forcedPageOverrides, ...pureGaps } = rawGaps;
+              setSectionGaps(pureGaps || {});
+              if (__forcedPageOverrides && typeof __forcedPageOverrides === 'object') {
+                setForcedPageOverrides(__forcedPageOverrides);
+              } else {
+                setForcedPageOverrides({});
+              }
             }
           }
         })
@@ -582,26 +592,19 @@ export function App() {
     } else {
       setAdminTemplateName('새 인쇄 템플릿');
       setAdminTemplateVisible(true);
+      setPrintExcludedIds([]);
+      setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
+      setSectionGaps({});
+      setForcedPageOverrides({});
     }
   }, [isAdminEditParam, adminTemplateIdParam]);
 
-  // printMode=1 인 경우 페이지 진입 시 자동으로 인쇄 프리뷰 모드 켬
+  // 어드민 편집기 및 일반 인쇄 프리뷰 진입 시 자동 초기화 방지
   useEffect(() => {
-    if (isPrintModeParam) {
-      setPrintPreviewMode(true);
-      setExpandedCareerDetailIds(expandableDetailIds);
-      setExpandedCareerProjectIds(expandableCareerProjectIds);
-      setExpandedCompetencyIds(orderedCompetencies.map((c) => c.id));
-      setNavPanelOpen(true); // 어드민 및 기본 프리뷰 진입 시 우측 구성관리 사이드바 자동 열림
-
-      // 신규 작성이나 기본 인쇄 진입 시에만 초기화 진행 (기존 템플릿 수정이 아닐 때)
-      if (!adminTemplateIdParam) {
-        setPrintExcludedIds([]);
-        setPrintSectionOrder(reorderablePrintSections.map((s) => s.id));
-        setSectionGaps({});
-      }
+    if (isPrintModeParam || isAdminEditParam || isPrintPreviewMode) {
+      setNavPanelOpen(true);
     }
-  }, [isPrintModeParam, adminTemplateIdParam]);
+  }, [isPrintModeParam, isAdminEditParam, isPrintPreviewMode]);
 
   /** 관리자 템플릿 저장 (서버 DB에 POST/PUT 처리 후 부모 창에 알림) */
   const handleAdminSaveServerTemplate = async () => {
@@ -611,11 +614,16 @@ export function App() {
       return;
     }
 
+    const combinedGaps = {
+      ...sectionGaps,
+      ...(Object.keys(forcedPageOverrides).length > 0 ? { __forcedPageOverrides: forcedPageOverrides } : {}),
+    };
+
     const payload = {
       name: trimmed,
       excludedIds: JSON.stringify(printExcludedIds),
       sectionOrder: JSON.stringify(printSectionOrder),
-      sectionGaps: JSON.stringify(sectionGaps),
+      sectionGaps: JSON.stringify(combinedGaps),
       visible: adminTemplateVisible,
       displayOrder: 1,
     };
@@ -1312,6 +1320,15 @@ export function App() {
       setExpandedCareerProjectIds(expandableCareerProjectIds);
     }
   };
+
+  // 어드민 편집기 및 일반 인쇄 프리뷰 진입 시 세부 경험/역량 항목 자동 펼침
+  useEffect(() => {
+    if (isPrintModeParam || isAdminEditParam || isPrintPreviewMode) {
+      if (expandableDetailIds.length > 0) setExpandedCareerDetailIds(expandableDetailIds);
+      if (expandableCareerProjectIds.length > 0) setExpandedCareerProjectIds(expandableCareerProjectIds);
+      if (orderedCompetencies.length > 0) setExpandedCompetencyIds(orderedCompetencies.map((c) => c.id));
+    }
+  }, [isPrintModeParam, isAdminEditParam, isPrintPreviewMode, expandableDetailIds, expandableCareerProjectIds, orderedCompetencies]);
 
   const selectedMilestone = useMemo(() => {
     return activeMilestones.find(m => m.id === selectedMilestoneId) || activeMilestones[0];

@@ -1644,7 +1644,7 @@ export function AdminDashboard() {
         {/* SIDE BAR NAVIGATION */}
         <aside className={`relative min-w-0 transition-all duration-200 lg:sticky lg:top-20 lg:self-start ${
           isSidebarCollapsed
-            ? 'lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:px-2 lg:py-3 lg:shadow-sm'
+            ? 'rounded-2xl border border-slate-200 bg-white px-2 py-3 shadow-sm'
             : ''
         }`}>
           {/* Resize Handle for Sidebar */}
@@ -1663,7 +1663,7 @@ export function AdminDashboard() {
             title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
             aria-label={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
             aria-expanded={!isSidebarCollapsed}
-            className={`z-20 hidden items-center justify-center text-slate-400 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 lg:flex ${
+            className={`z-20 flex items-center justify-center text-slate-400 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
               isSidebarCollapsed
                 ? 'relative mx-auto mb-3 h-8 w-8 shrink-0'
                 : 'absolute -right-4 top-1 !m-0 h-10 w-8'
@@ -1671,7 +1671,7 @@ export function AdminDashboard() {
           >
             {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
-          <div className={`mb-3 flex h-8 items-center px-2 ${isSidebarCollapsed ? 'lg:hidden' : ''}`}>
+          <div className={`mb-3 flex h-8 items-center px-2 ${isSidebarCollapsed ? 'hidden' : ''}`}>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">메뉴 목록</p>
           </div>
 
@@ -1680,11 +1680,11 @@ export function AdminDashboard() {
               <section
                 key={group.label}
                 aria-labelledby={`admin-menu-group-${groupIndex}`}
-                className={`${groupIndex > 0 && isSidebarCollapsed ? 'lg:border-t lg:border-slate-200 lg:pt-3' : ''}`}
+                className={`${groupIndex > 0 && isSidebarCollapsed ? 'border-t border-slate-200 pt-3' : ''}`}
               >
                 <h2
                   id={`admin-menu-group-${groupIndex}`}
-                  className={`mb-1.5 px-3 text-[11px] font-black tracking-[0.12em] text-slate-400 ${isSidebarCollapsed ? 'lg:sr-only' : ''}`}
+                  className={`mb-1.5 px-3 text-[11px] font-black tracking-[0.12em] text-slate-400 ${isSidebarCollapsed ? 'sr-only' : ''}`}
                 >
                   {group.label}
                 </h2>
@@ -1700,14 +1700,14 @@ export function AdminDashboard() {
                         onClick={() => handleMenuSelect(item.id)}
                         title={item.label}
                         aria-current={isActive ? 'page' : undefined}
-                        className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${isSidebarCollapsed ? 'lg:mx-auto lg:h-11 lg:w-11 lg:justify-center lg:gap-0 lg:p-0' : ''} ${
+                        className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${isSidebarCollapsed ? 'mx-auto h-11 w-11 justify-center gap-0 p-0' : ''} ${
                           isActive
                             ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         }`}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
-                        <span className={isSidebarCollapsed ? 'lg:hidden' : ''}>{item.label}</span>
+                        <span className={isSidebarCollapsed ? 'hidden' : 'truncate'}>{item.label}</span>
                       </button>
                     );
                   })}
