@@ -128,7 +128,7 @@ kubectl exec -n "$NAMESPACE" "$DUMP_POD" -- sh -c '
     --host="$HOST" --port="$PORT" --user="$DB_USERNAME" \
     --default-character-set=utf8mb4 --no-tablespaces \
     --single-transaction --quick --hex-blob --set-gtid-purged=OFF \
-    --skip-lock-tables self_intro
+    --lock-tables=false --skip-add-locks self_intro
 ' > "$PROD_FULL_BACKUP"
 
 PROD_BACKUP_LINES=$(wc -l < "$PROD_FULL_BACKUP")
