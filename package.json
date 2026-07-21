@@ -1,0 +1,16 @@
+{
+  "name": "self-intro-root",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.5.3"
+  },
+  "lint-staged": {
+    "frontend-next/**/*.{js,jsx,ts,tsx,json,css,md}": "prettier --write",
+    "backend/src/**/*.java": "bash -c 'cd backend && ./gradlew spotlessApply'"
+  }
+}
