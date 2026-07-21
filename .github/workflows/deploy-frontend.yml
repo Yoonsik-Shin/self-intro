@@ -7,6 +7,7 @@ on:
     paths:
       - 'frontend-next/**'
       - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch: {}
 
 permissions:
   contents: write
