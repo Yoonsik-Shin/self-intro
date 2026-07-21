@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
-import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, ExternalLink, Github, Sparkles, Image as ImageIcon } from 'lucide-react';
 import type { Experience, ExperienceDetail, Study } from '@/lib/api/types';
 import { markdownComponents } from '@/lib/markdown';
 import { experienceOrgName, experienceTypeLabel, formatCredentialPeriod } from '@/lib/format';
@@ -18,9 +18,11 @@ type Props = {
 export function ExperienceDetailClient({ experience, detail, relatedStudies }: Props) {
   const router = useRouter();
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const merged = detail.narrative || [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
   const skills = detail.skills.length > 0 ? detail.skills : experience.skills;
+  const siblingDetails = experience.details.filter((d) => d.id !== detail.id);
 
   return (
     <div className="space-y-4">
@@ -38,9 +40,23 @@ export function ExperienceDetailClient({ experience, detail, relatedStudies }: P
         <div className="min-w-0 space-y-8">
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
             <div className="mb-8 border-b border-slate-100 pb-6">
-              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{experienceTypeLabel(experience.type)}</span>
-                <span className="font-mono">{formatCredentialPeriod(experience)}</span>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{experienceTypeLabel(experience.type)}</span>
+                  <span className="font-mono">{formatCredentialPeriod(experience)}</span>
+                </div>
+                {experience.repositoryUrl && (
+                  <a
+                    href={experience.repositoryUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 shadow-sm"
+                  >
+                    <Github className="h-4 w-4" />
+                    GitHub 저장소
+                    <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+                  </a>
+                )}
               </div>
               <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{detail.content}</h1>
               <p className="mt-2 text-sm font-bold text-slate-500 sm:text-base">
@@ -49,15 +65,55 @@ export function ExperienceDetailClient({ experience, detail, relatedStudies }: P
               </p>
             </div>
 
+            {/* Main Narrative / STAR Section */}
             {merged && (
-              <div className="text-sm leading-relaxed text-slate-600 sm:text-base">
+              <div className="text-sm leading-relaxed text-slate-600 sm:text-base space-y-4">
                 <ReactMarkdown components={markdownComponents}>{merged}</ReactMarkdown>
               </div>
             )}
 
-            <div className="mt-8 flex flex-wrap gap-1.5">
+            {/* System / Architecture Images Gallery */}
+            {experience.images && experience.images.length > 0 && (
+              <div className="mt-8 border-t border-slate-100 pt-6">
+                <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-500 mb-3">
+                  <ImageIcon className="h-4 w-4 text-slate-600" />
+                  아키텍처 다이어그램 & 시스템 캡처
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {experience.images.map((img) => (
+                    <div
+                      key={img.id || img.objectKey}
+                      onClick={() => setSelectedImage(img.url)}
+                      className="group cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition hover:border-slate-400 hover:shadow-md"
+                    >
+                      <img
+                        src={img.url}
+                        alt="Architecture diagram or screenshot"
+                        className="h-48 w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Key Takeaways */}
+            {experience.takeaway && (
+              <div className="mt-8 rounded-xl border border-emerald-100 bg-emerald-50/40 p-5">
+                <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-800 mb-1.5">
+                  <Sparkles className="h-4 w-4 text-emerald-600" />
+                  핵심 성과 & 배운 점 (Takeaway)
+                </h3>
+                <div className="text-xs sm:text-sm font-medium leading-relaxed text-emerald-950">
+                  <ReactMarkdown components={markdownComponents}>{experience.takeaway}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {/* Skills & Tags */}
+            <div className="mt-8 flex flex-wrap gap-1.5 border-t border-slate-100 pt-6">
               {skills.map((skill) => (
-                <span key={skill.id} className="resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded-md shadow-sm">
+                <span key={skill.id} className="resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2.5 py-1 rounded-md shadow-sm text-xs">
                   {skill.name}
                 </span>
               ))}
@@ -65,6 +121,7 @@ export function ExperienceDetailClient({ experience, detail, relatedStudies }: P
           </article>
         </div>
 
+        {/* Right Navigation Sidebar */}
         <aside className="block w-full sticky top-24 self-start">
           <div
             className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${
@@ -84,6 +141,7 @@ export function ExperienceDetailClient({ experience, detail, relatedStudies }: P
               {isNavCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
 
+            {/* Related Studies */}
             <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}>
               <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">연결 항목</h3>
               <p className="mt-0.5 text-sm leading-none text-slate-500">이 경험과 연관된 학습 기록입니다.</p>
@@ -108,6 +166,24 @@ export function ExperienceDetailClient({ experience, detail, relatedStudies }: P
                 </div>
               ) : (
                 <p className="text-xs font-bold italic text-slate-400">연결된 항목이 없습니다.</p>
+              )}
+
+              {siblingDetails.length > 0 && (
+                <div className="border-t border-slate-100 pt-3">
+                  <h4 className="mb-1 text-xs font-black uppercase text-slate-400">이 이력의 다른 경험 불릿</h4>
+                  <div className="space-y-1.5">
+                    {siblingDetails.map((sibling) => (
+                      <Link
+                        key={sibling.id}
+                        href={`/experience-detail/${sibling.id}`}
+                        className="block w-full truncate text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950"
+                        title={sibling.content}
+                      >
+                        • {sibling.content}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -136,6 +212,18 @@ export function ExperienceDetailClient({ experience, detail, relatedStudies }: P
             </button>
           </div>
         </aside>
+
+        {/* Modal preview for full size image */}
+        {selectedImage && (
+          <div
+            onClick={() => setSelectedImage(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+          >
+            <div className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-2xl bg-white p-2">
+              <img src={selectedImage} alt="Expanded preview" className="max-h-[85vh] max-w-[85vw] object-contain rounded-xl" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
