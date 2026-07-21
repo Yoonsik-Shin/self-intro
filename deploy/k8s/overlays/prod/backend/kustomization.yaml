@@ -19,7 +19,9 @@ images:
 configMapGenerator:
   - name: backend-config
     literals:
-      - CORS_ALLOWED_ORIGINS=https://unbrdn.me,https://www.unbrdn.me
+      # TODO: frontend-next를 staging.unbrdn.me에서 검증하는 동안만 임시로 추가함.
+      # 컷오버 끝나고 staging 검증이 더 이상 필요 없어지면 이 origin은 제거할 것.
+      - CORS_ALLOWED_ORIGINS=https://unbrdn.me,https://www.unbrdn.me,https://staging.unbrdn.me
       - JPA_DDL_AUTO=none
       - COOKIE_DOMAIN=unbrdn.me
       - VISITOR_COOKIE_SECURE=true
