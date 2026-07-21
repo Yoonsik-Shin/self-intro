@@ -32,7 +32,7 @@ export function CompetenciesSection({ competencies, milestones, onSelectMileston
     <section id="competencies" className="scroll-mt-24 space-y-6">
       <div className={cardStyle}>
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-4">
-          <h2 className="flex items-center gap-2 font-black text-slate-900">
+          <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
             <Sparkles className="h-5 w-5 text-slate-900" />
             핵심 역량
           </h2>
@@ -54,21 +54,21 @@ export function CompetenciesSection({ competencies, milestones, onSelectMileston
             <article key={competency.id} id={`competency-${competency.id}`} className="scroll-mt-24 grid gap-3 py-5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6">
               <div className="min-w-0">
                 <div className="flex items-baseline gap-2">
-                  <span className="inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400">{String(index + 1).padStart(2, '0')}</span>
-                  <h3 className="font-black text-slate-900">{competency.title}</h3>
+                  <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400">{String(index + 1).padStart(2, '0')}</span>
+                  <h3 className="resume-item-title font-black text-slate-900">{competency.title}</h3>
                 </div>
                 {competency.skills.length > 0 && (
-                  <p className="mt-2 pl-9 font-bold text-slate-500">{competency.skills.slice(0, 6).map((skill) => skill.name).join(' · ')}</p>
+                  <p className="resume-meta mt-2 pl-9 font-bold text-slate-500">{competency.skills.slice(0, 6).map((skill) => skill.name).join(' · ')}</p>
                 )}
               </div>
 
               <div className="min-w-0">
-                <p className="font-semibold text-slate-700">{competency.summary}</p>
+                <p className="resume-body font-semibold text-slate-700">{competency.summary}</p>
 
                 {(competency.evidences.length > 0 || competency.relatedStudies.length > 0) && (
                   <div className="mt-3">
                     <button type="button" onClick={() => toggle(competency.id)} aria-expanded={expandedIds.includes(competency.id)} className="flex items-center gap-1.5 text-left">
-                      <span className="font-black uppercase tracking-[0.14em] text-slate-400">근거</span>
+                      <span className="resume-label font-black uppercase tracking-[0.14em] text-slate-400">근거</span>
                       <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${expandedIds.includes(competency.id) ? 'rotate-180 text-slate-800' : ''}`} />
                     </button>
 

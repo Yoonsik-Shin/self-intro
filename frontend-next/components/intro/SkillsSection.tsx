@@ -50,11 +50,11 @@ export function SkillsSection({ skills, experiences, milestones, onSelectMilesto
           <Cpu className="h-5 w-5 text-slate-900" />
           기술 스택
         </h2>
-        <div className="space-y-5">
+        <div className="resume-skill-groups space-y-5">
           {groups.map((group) => (
-            <div key={group.value} className="space-y-4">
-              <h4 className="flex items-center gap-2 border-b border-slate-100 pb-1.5 font-black text-slate-500">
-                <span className="h-4 w-1 shrink-0 rounded-full bg-slate-900" aria-hidden />
+            <div key={group.value} className="resume-skill-group space-y-4">
+              <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 border-b border-slate-100 pb-1.5 font-black text-slate-500">
+                <span className="resume-skill-group-bar h-4 w-1 shrink-0 rounded-full bg-slate-900" aria-hidden />
                 {group.label}
               </h4>
               {group.skills.length === 0 ? (
@@ -66,7 +66,7 @@ export function SkillsSection({ skills, experiences, milestones, onSelectMilesto
                     if (catSkills.length === 0) return null;
                     return (
                       <div key={cat} className="space-y-2">
-                        <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">{cat}</h5>
+                        <h5 className="resume-label font-black uppercase tracking-wider text-slate-400">{cat}</h5>
                         <div className="flex flex-wrap gap-1.5">
                           {catSkills.map((skill) => (
                             <button
@@ -80,7 +80,7 @@ export function SkillsSection({ skills, experiences, milestones, onSelectMilesto
                               }`}
                             >
                               <SkillBadgeIcon name={skill.name} badgeKey={skill.badgeKey} badgeColor={skill.badgeColor} className="h-5 w-5" />
-                              <span className="font-black">{skill.name}</span>
+                              <span className="resume-badge font-black">{skill.name}</span>
                               {skill.skillVersion && (
                                 <span
                                   className={`shrink-0 rounded-md border px-1 py-0.5 text-[10px] font-black leading-none ${
@@ -107,15 +107,15 @@ export function SkillsSection({ skills, experiences, milestones, onSelectMilesto
                 <div className="flex min-w-0 items-center gap-3">
                   <SkillBadgeIcon name={selectedSkill.name} badgeKey={selectedSkill.badgeKey} badgeColor={selectedSkill.badgeColor} className="h-9 w-9" />
                   <div className="min-w-0">
-                    <span className="font-black text-slate-900">이 기술을 사용한 경험</span>
-                    <h4 className="mt-0.5 font-black text-slate-900">{selectedSkill.name}</h4>
-                    {selectedSkill.skillVersion && <p className="mt-0.5 font-bold text-slate-500">v{selectedSkill.skillVersion}</p>}
+                    <span className="resume-label font-black text-slate-900">이 기술을 사용한 경험</span>
+                    <h4 className="resume-item-title mt-0.5 font-black text-slate-900">{selectedSkill.name}</h4>
+                    {selectedSkill.skillVersion && <p className="resume-meta mt-0.5 font-bold text-slate-500">v{selectedSkill.skillVersion}</p>}
                   </div>
                 </div>
-                <span className="rounded-md bg-slate-100 px-2.5 py-1 font-black text-slate-900">연결된 경험 {selectedSkillExperiences.length}개</span>
+                <span className="resume-meta rounded-md bg-slate-100 px-2.5 py-1 font-black text-slate-900">연결된 경험 {selectedSkillExperiences.length}개</span>
               </div>
 
-              {selectedSkill.comment && <p className="mt-3 text-slate-600">{selectedSkill.comment}</p>}
+              {selectedSkill.comment && <p className="resume-body mt-3 text-slate-600">{selectedSkill.comment}</p>}
 
               <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
                 {selectedSkillExperiences.length > 0 ? (
@@ -131,13 +131,13 @@ export function SkillsSection({ skills, experiences, milestones, onSelectMilesto
                       className="w-full px-1 py-3.5 text-left transition hover:bg-slate-100/40 sm:px-2"
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-black text-slate-500">{experience.type}</span>
-                        <span className="font-black text-slate-400">{experience.period}</span>
+                        <span className="resume-label rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-black text-slate-500">{experience.type}</span>
+                        <span className="resume-meta font-black text-slate-400">{experience.period}</span>
                       </div>
-                      <p className="mt-1.5 font-black text-slate-900">{experience.title}</p>
-                      {experience.role && <p className="mt-0.5 font-black text-slate-900">{experience.role}</p>}
+                      <p className="resume-subtitle mt-1.5 font-black text-slate-900">{experience.title}</p>
+                      {experience.role && <p className="resume-meta mt-0.5 font-black text-slate-900">{experience.role}</p>}
                       {experience.summary && (
-                        <div className="mt-1.5 line-clamp-2 font-semibold text-slate-600">
+                        <div className="resume-meta mt-1.5 line-clamp-2 font-semibold text-slate-600">
                           <ReactMarkdown components={resumeMarkdownComponents}>{experience.summary}</ReactMarkdown>
                         </div>
                       )}

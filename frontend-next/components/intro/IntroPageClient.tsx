@@ -1,15 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Github, Mail, Phone, Printer } from 'lucide-react';
+import { Briefcase, Calendar, Cpu, GraduationCap, Github, Mail, Phone, Sparkles, User } from 'lucide-react';
 import type { IntroductionResponse } from '@/lib/api/types';
 import { scrollToSection } from '@/lib/scroll';
+import { SectionNavSidebar, type SectionNavItem } from '@/components/nav/SectionNavSidebar';
 import { ResumeSections } from './ResumeSections';
 
 type Props = {
   introData: IntroductionResponse;
 };
+
+const mainSections: SectionNavItem[] = [
+  { id: 'intro-profile', label: '프로필', icon: User },
+  { id: 'timeline', label: '커리어 & 학습 타임라인', icon: Calendar },
+  { id: 'skills', label: '기술 스택', icon: Cpu },
+  { id: 'competencies', label: '핵심 역량', icon: Sparkles },
+  { id: 'career', label: '직장 경력', icon: Briefcase },
+  { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
+  { id: 'credentials', label: '학력·교육 및 자격증', icon: GraduationCap },
+];
 
 // 관리자 대시보드의 라이브 프리뷰 패널은 이 페이지를 `/?preview=1`로 iframe에 띄우고,
 // sessionStorage(admin-preview-intro-override / admin-preview-nav)를 통해 저장 전 초안과
@@ -17,11 +27,10 @@ type Props = {
 // 렌더링된 SEO용 HTML(initial introData)에는 영향이 없다.
 export function IntroPageClient({ introData: initialIntroData }: Props) {
   const [introData, setIntroData] = useState(initialIntroData);
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isSectionNavCollapsed, setIsSectionNavCollapsed] = useState(false);
 
   useEffect(() => {
     const previewMode = new URLSearchParams(window.location.search).get('preview') === '1';
-    setIsPreviewMode(previewMode);
     if (!previewMode) return;
 
     const applyOverride = () => {
@@ -65,66 +74,69 @@ export function IntroPageClient({ introData: initialIntroData }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 sm:px-6">
-      <div id="intro-profile" className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md sm:p-8">
-        <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 -translate-y-20 translate-x-20 rounded-full bg-slate-800/5 blur-[60px]" />
-        <div className="relative z-10 space-y-6">
-          <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <h2 className="font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950">{profile.jobTitle}</h2>
-              <div className="flex items-baseline gap-2.5">
-                <h1 className="text-3xl font-black text-slate-900 sm:text-4xl">{profile.name}</h1>
-                <span className="font-mono font-bold text-slate-400">{profile.nameEn}</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700 shadow-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                {profile.statusBadgeText}
-              </span>
-              <div className="flex items-center gap-2">
-                <a
-                  href={profile.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                  title="GitHub"
-                >
-                  <Github className="h-4 w-4" />
-                </a>
-                <a
-                  href={`mailto:${profile.email}`}
-                  className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                  title="이메일 보내기"
-                >
-                  <Mail className="h-4 w-4" />
-                </a>
-                <a
-                  href={`tel:${profile.phone}`}
-                  className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                  title="전화 걸기"
-                >
-                  <Phone className="h-4 w-4" />
-                </a>
-              </div>
-            </div>
-          </div>
-          <p className="max-w-4xl whitespace-pre-line break-words text-sm leading-relaxed text-slate-600 sm:text-base">{profile.bio}</p>
-        </div>
-        {!isPreviewMode && (
-          <div className="relative z-10 mt-4 flex justify-end">
-            <Link
-              href="/print"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-slate-900 to-slate-950 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:from-slate-800 hover:to-slate-900"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              PDF 인쇄
-            </Link>
-          </div>
-        )}
-      </div>
+    <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+      <div
+        className={`grid grid-cols-[minmax(0,1fr)_52px] items-start gap-4 transition-[grid-template-columns] duration-300 sm:gap-6 ${
+          isSectionNavCollapsed ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]' : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
+        }`}
+      >
+        <div className="min-w-0 space-y-8">
+          <div id="intro-profile" className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md sm:p-8">
+            <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 -translate-y-20 translate-x-20 rounded-full bg-slate-800/5 blur-[60px]" />
+            <div className="relative z-10 space-y-6">
+              <div className="resume-profile-toprow flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
+                <div className="shrink-0 space-y-2">
+                  <h2 className="resume-profile-role whitespace-nowrap bg-gradient-to-r from-slate-900 to-slate-950 bg-clip-text font-black tracking-tight text-transparent">{profile.jobTitle}</h2>
+                  <div className="flex items-baseline gap-2.5 whitespace-nowrap">
+                    <h1 className="resume-profile-name whitespace-nowrap font-black text-slate-900">{profile.name}</h1>
+                    <span className="resume-profile-name-en whitespace-nowrap font-mono font-bold text-slate-400">{profile.nameEn}</span>
+                  </div>
+                </div>
 
-      <ResumeSections introData={introData} />
+                <div className="mt-2 flex flex-wrap items-center gap-3.5 md:mt-0">
+                  <span className="resume-meta inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700 shadow-sm animate-pulse print:hidden">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    {profile.statusBadgeText} (v{process.env.NEXT_PUBLIC_APP_VERSION} - {process.env.NEXT_PUBLIC_BUILD_DATE} 배포)
+                  </span>
+                  <div className="flex items-center gap-2 print:hidden">
+                    <a
+                      href={profile.githubUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                      title="GitHub"
+                    >
+                      <Github className="h-4 w-4" />
+                    </a>
+                    <a
+                      href={`mailto:${profile.email}`}
+                      className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                      title="이메일 보내기"
+                    >
+                      <Mail className="h-4 w-4" />
+                    </a>
+                    <a
+                      href={`tel:${profile.phone}`}
+                      className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                      title="전화 걸기"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <p className="resume-body mt-2 max-w-4xl whitespace-pre-line break-words text-slate-600">{profile.bio}</p>
+              </div>
+            </div>
+          </div>
+
+          <ResumeSections introData={introData} />
+        </div>
+
+        <SectionNavSidebar sections={mainSections} isCollapsed={isSectionNavCollapsed} onToggleCollapse={() => setIsSectionNavCollapsed((collapsed) => !collapsed)} />
+      </div>
     </div>
   );
 }
