@@ -21,7 +21,7 @@ public class Project extends Experience {
     @Column(nullable = false, length = 80)
     private String role;
 
-    @Column(name = "contribution_rate", nullable = false)
+    @Column(name = "contribution_rate")
     private Integer contributionRate;
 
     @Column(name = "repository_url", length = 500)
