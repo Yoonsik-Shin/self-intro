@@ -3991,6 +3991,7 @@ export function AdminDashboard() {
                   onBack={() => setSelectedExperienceId(null)}
                   onEdit={(experience) => { void openExperienceEditor(experience); }}
                   onDelete={handleExpDelete}
+                  onSelectExperience={(exp) => setSelectedExperienceId(exp.id)}
                 />
               )}
 

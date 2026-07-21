@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   ArrowLeft,
+  ArrowRight,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -26,6 +27,7 @@ type ExperienceDetailPanelProps = {
   onBack: () => void;
   onEdit: (experience: Experience) => void;
   onDelete: (id: number) => void;
+  onSelectExperience?: (experience: Experience) => void;
 };
 
 const typeLabels: Record<Experience['type'], string> = {
@@ -39,7 +41,7 @@ function formatPeriod(start: string, end?: string) {
   return `${start} — ${end ?? '진행 중'}`;
 }
 
-export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEdit, onDelete }: ExperienceDetailPanelProps) {
+export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEdit, onDelete, onSelectExperience }: ExperienceDetailPanelProps) {
   const organization = experience.companyName ?? experience.institutionName ?? experience.issuer;
   const [expandedDetailId, setExpandedDetailId] = useState<number | null>(null);
   const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
@@ -183,11 +185,27 @@ export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEd
                               {project.role && <span>· {project.role}</span>}
                             </div>
                           </div>
-                          {isExpanded ? (
-                            <ChevronUp className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
-                          ) : (
-                            <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
-                          )}
+                          <div className="flex items-center gap-2">
+                            {onSelectExperience && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSelectExperience(project);
+                                }}
+                                title="이 프로젝트 상세 페이지로 이동"
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:bg-white"
+                              >
+                                <span>상세 이동</span>
+                                <ArrowRight className="h-3 w-3" />
+                              </button>
+                            )}
+                            {isExpanded ? (
+                              <ChevronUp className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
+                            )}
+                          </div>
                         </button>
 
                         {isExpanded && (
@@ -230,8 +248,8 @@ export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEd
                               </div>
                             )}
 
-                            {project.repositoryUrl && (
-                              <div>
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                              {project.repositoryUrl ? (
                                 <a
                                   href={project.repositoryUrl}
                                   target="_blank"
@@ -240,8 +258,22 @@ export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEd
                                 >
                                   <Github className="h-3.5 w-3.5" /> 저장소 바로가기 <ExternalLink className="h-3 w-3" />
                                 </a>
-                              </div>
-                            )}
+                              ) : <div />}
+
+                              {onSelectExperience && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelectExperience(project);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800"
+                                >
+                                  <span>프로젝트 페이지로 이동</span>
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
