@@ -22,6 +22,7 @@ import { adminDetailMarkdownComponents } from '../lib/markdown';
 
 type ExperienceDetailPanelProps = {
   experience: Experience;
+  allExperiences?: Experience[];
   onBack: () => void;
   onEdit: (experience: Experience) => void;
   onDelete: (id: number) => void;
@@ -38,10 +39,14 @@ function formatPeriod(start: string, end?: string) {
   return `${start} — ${end ?? '진행 중'}`;
 }
 
-export function ExperienceDetailPanel({ experience, onBack, onEdit, onDelete }: ExperienceDetailPanelProps) {
+export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEdit, onDelete }: ExperienceDetailPanelProps) {
   const organization = experience.companyName ?? experience.institutionName ?? experience.issuer;
   const [expandedDetailId, setExpandedDetailId] = useState<number | null>(null);
   const [detailSearch, setDetailSearch] = useState('');
+
+  const childProjects = experience.type === 'CAREER'
+    ? (allExperiences ?? []).filter((item) => item.type === 'PROJECT' && item.careerId === experience.id)
+    : [];
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-fadeIn">
@@ -122,6 +127,27 @@ export function ExperienceDetailPanel({ experience, onBack, onEdit, onDelete }: 
               <h4 className="text-xs font-black uppercase tracking-wider text-emerald-700">핵심 성과 및 배운 점</h4>
               <div className="mt-2 text-sm leading-relaxed text-emerald-900">
                 <ReactMarkdown components={adminDetailMarkdownComponents}>{experience.takeaway}</ReactMarkdown>
+              </div>
+            </section>
+          )}
+
+          {experience.type === 'CAREER' && childProjects.length > 0 && (
+            <section className="rounded-xl border border-blue-200 bg-blue-50/40 p-4">
+              <h4 className="text-xs font-black uppercase tracking-wider text-blue-900">
+                소속 직장 프로젝트 · {childProjects.length}개
+              </h4>
+              <div className="mt-3 space-y-2">
+                {childProjects.map((project) => (
+                  <div key={project.id} className="rounded-lg border border-blue-200 bg-white p-3 shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-slate-900">{project.title}</span>
+                      <span className="text-xs font-medium text-slate-500">{project.periodStart} ~ {project.periodEnd ?? '진행중'}</span>
+                    </div>
+                    {project.summary && (
+                      <p className="mt-1 text-xs text-slate-600 line-clamp-2 font-medium">{project.summary}</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </section>
           )}
