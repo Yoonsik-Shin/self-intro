@@ -42,7 +42,9 @@ function formatPeriod(start: string, end?: string) {
 export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEdit, onDelete }: ExperienceDetailPanelProps) {
   const organization = experience.companyName ?? experience.institutionName ?? experience.issuer;
   const [expandedDetailId, setExpandedDetailId] = useState<number | null>(null);
+  const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
   const [detailSearch, setDetailSearch] = useState('');
+  const [projectSearch, setProjectSearch] = useState('');
 
   const childProjects = experience.type === 'CAREER'
     ? (allExperiences ?? []).filter((item) => item.type === 'PROJECT' && item.careerId === experience.id)
@@ -132,22 +134,123 @@ export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEd
           )}
 
           {experience.type === 'CAREER' && childProjects.length > 0 && (
-            <section className="rounded-xl border border-blue-200 bg-blue-50/40 p-4">
-              <h4 className="text-xs font-black uppercase tracking-wider text-blue-900">
-                소속 직장 프로젝트 · {childProjects.length}개
-              </h4>
-              <div className="mt-3 space-y-2">
-                {childProjects.map((project) => (
-                  <div key={project.id} className="rounded-lg border border-blue-200 bg-white p-3 shadow-xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-bold text-slate-900">{project.title}</span>
-                      <span className="text-xs font-medium text-slate-500">{project.periodStart} ~ {project.periodEnd ?? '진행중'}</span>
-                    </div>
-                    {project.summary && (
-                      <p className="mt-1 text-xs text-slate-600 line-clamp-2 font-medium">{project.summary}</p>
-                    )}
-                  </div>
-                ))}
+            <section>
+              <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                <BriefcaseBusiness className="h-4 w-4 text-slate-500" />
+                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                  소속 직장 프로젝트 · {childProjects.length}개
+                </h4>
+              </div>
+
+              {childProjects.length > 1 && (
+                <div className="relative mb-3">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={projectSearch}
+                    onChange={(event) => setProjectSearch(event.target.value)}
+                    placeholder="소속 프로젝트 검색..."
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {childProjects
+                  .map((project, index) => ({ project, index }))
+                  .filter(({ project }) => !projectSearch.trim()
+                    || project.title.toLowerCase().includes(projectSearch.trim().toLowerCase())
+                    || (project.summary && project.summary.toLowerCase().includes(projectSearch.trim().toLowerCase())))
+                  .map(({ project, index }) => {
+                    const isExpanded = expandedProjectId === project.id;
+                    return (
+                      <div key={project.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-slate-300">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedProjectId(isExpanded ? null : project.id)}
+                          className="flex w-full items-start gap-3 text-left cursor-pointer"
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-black leading-snug text-slate-800 text-base sm:text-lg block">
+                              {project.title}
+                            </span>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
+                              <span>{formatPeriod(project.periodStart, project.periodEnd)}</span>
+                              {project.contributionRate != null && <span>· 기여도 {project.contributionRate}%</span>}
+                              {project.role && <span>· {project.role}</span>}
+                            </div>
+                          </div>
+                          {isExpanded ? (
+                            <ChevronUp className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
+                          ) : (
+                            <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
+                          )}
+                        </button>
+
+                        {isExpanded && (
+                          <div className="ml-9 mt-4 space-y-4 border-t border-slate-100 pt-3">
+                            {project.summary && (
+                              <div className="text-sm leading-relaxed text-slate-600">
+                                <ReactMarkdown components={adminDetailMarkdownComponents}>{project.summary}</ReactMarkdown>
+                              </div>
+                            )}
+
+                            {project.takeaway && (
+                              <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+                                <h5 className="text-[11px] font-black uppercase tracking-wider text-emerald-700">핵심 성과 & 배운 점</h5>
+                                <div className="mt-1 text-xs leading-relaxed text-emerald-900">
+                                  <ReactMarkdown components={adminDetailMarkdownComponents}>{project.takeaway}</ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+
+                            {project.details && project.details.length > 0 && (
+                              <div className="space-y-2 rounded-xl bg-slate-50 p-3 border border-slate-200/70">
+                                <p className="text-xs font-black uppercase tracking-wider text-slate-500">세부 이력 (Bullet Points) · {project.details.length}개</p>
+                                <ul className="space-y-1.5 list-disc pl-4 text-xs font-medium text-slate-700">
+                                  {project.details.map((detail) => (
+                                    <li key={detail.id} className="leading-relaxed">
+                                      <span className="font-semibold text-slate-800">{detail.content}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {project.skills && project.skills.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {project.skills.map((skill) => (
+                                  <span key={skill.id} className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+                                    {skill.name}{skill.skillVersion ? ` v${skill.skillVersion}` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {project.repositoryUrl && (
+                              <div>
+                                <a
+                                  href={project.repositoryUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 transition hover:text-slate-950 underline"
+                                >
+                                  <Github className="h-3.5 w-3.5" /> 저장소 바로가기 <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                {childProjects.length > 0 && projectSearch.trim()
+                  && !childProjects.some((project) => project.title.toLowerCase().includes(projectSearch.trim().toLowerCase()) || (project.summary && project.summary.toLowerCase().includes(projectSearch.trim().toLowerCase()))) && (
+                  <p className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs font-semibold text-slate-400">검색 결과가 없습니다.</p>
+                )}
               </div>
             </section>
           )}
