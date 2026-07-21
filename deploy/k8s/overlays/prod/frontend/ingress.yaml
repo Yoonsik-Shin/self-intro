@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: self-intro-frontend
+  namespace: self-intro
+spec:
+  ingressClassName: nginx
+  tls:
+    # 주의: 아래 secretName은 backend ingress가 쓰는 것과 동일한 이름을 그대로 참조한다.
+    # 이 Origin CA 인증서가 api.unbrdn.me만을 위해 발급된 것이라면 unbrdn.me/www.unbrdn.me
+    # 요청에서 TLS 핸드셰이크가 실패한다. 컷오버 전 Cloudflare 대시보드(SSL/TLS → Origin
+    # Server)에서 SAN 목록을 확인하고, 없으면 재발급 후 kubeseal로 암호화해 별도 secret으로
+    # 등록하고 여기 secretName을 그 이름으로 바꿔야 한다.
+    - hosts:
+        - unbrdn.me
+        - www.unbrdn.me
+      secretName: cloudflare-origin-tls
+  rules:
+    - host: unbrdn.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: self-intro-frontend
+                port:
+                  number: 3000
+    - host: www.unbrdn.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: self-intro-frontend
+                port:
+                  number: 3000

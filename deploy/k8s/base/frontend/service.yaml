@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: self-intro-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: self-intro-frontend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
