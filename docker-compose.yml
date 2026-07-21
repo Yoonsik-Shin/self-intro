@@ -33,7 +33,7 @@ services:
       - DB_PASSWORD=password123
       - DB_DRIVER=com.mysql.cj.jdbc.Driver
       - JPA_DDL_AUTO=update
-      - CORS_ALLOWED_ORIGINS=http://localhost:5173
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
       - STORAGE_ENDPOINT=http://minio:9000
       - STORAGE_PRESIGNED_ENDPOINT=http://localhost:9000
       - STORAGE_REGION=us-east-1
@@ -93,6 +93,27 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_PROXY_TARGET=http://backend:8080
+    depends_on:
+      - backend
+
+  frontend-next:
+    build:
+      context: ./frontend-next
+      dockerfile: Dockerfile
+      target: deps
+    container_name: self-intro-frontend-next
+    command: sh -c "npm install --prefer-offline && npm run dev"
+    volumes:
+      - ./frontend-next:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      # 브라우저(호스트)는 이 주소로 API를 호출한다.
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+      # SSR(컨테이너 내부)은 도커 네트워크 안에서 backend 서비스명으로 접근한다.
+      - API_INTERNAL_BASE_URL=http://backend:8080
     depends_on:
       - backend
 
