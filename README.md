@@ -15,8 +15,7 @@
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Framework & Language**: `React 19`, `TypeScript`
-- **Build Tool**: `Vite`
+- **Framework & Language**: `Next.js 16 (App Router)`, `React 19`, `TypeScript`
 - **Styling**: `Tailwind CSS`
 - **State Management & Data Fetching**: `Zustand`, `TanStack Query (React Query)`
 
@@ -31,13 +30,14 @@
 - **Registry**: `OCIR (Oracle Cloud Infrastructure Registry)`
 - **Continuous Integration (CI)**: `GitHub Actions`
 - **Continuous Deployment (CD/GitOps)**: `ArgoCD`
-- **Frontend Hosting**: `Cloudflare Pages` (정적 배포)
+- **Frontend Hosting**: `OKE 컨테이너` (Next.js SSR, 백엔드와 동일한 GitOps 파이프라인)
+- **DNS/CDN/TLS**: `Cloudflare` (프록시 및 Origin CA 인증서)
 
 ---
 
 ## 📐 System Architecture
 
-이 프로젝트는 자원의 효율성과 배포 안전성을 극대화하기 위해 **프론트엔드 정적 호스팅**과 **백엔드 컨테이너 GitOps** 파이프라인으로 구성되어 있습니다.
+이 프로젝트는 프론트엔드(Next.js)와 백엔드(Spring Boot) 모두 OKE 컨테이너 + GitOps(ArgoCD) 파이프라인으로 배포됩니다. Cloudflare는 DNS/CDN 프록시와 오리진 구간 TLS만 담당합니다.
 
 ```mermaid
 flowchart TD
@@ -45,20 +45,24 @@ flowchart TD
         User["사용자"]
     end
 
-    subgraph CDN ["Frontend Delivery"]
-        CF["Cloudflare Pages"]
+    subgraph CF_Edge ["Cloudflare (DNS/CDN/TLS)"]
+        CF["Proxy + Origin CA"]
     end
 
     subgraph Cloud ["Oracle Cloud Infrastructure (OCI)"]
         subgraph K8s ["OKE Cluster (Kubernetes)"]
             Ingress["ingress-nginx"]
+            Frontend["Next.js Pods (SSR)"]
             Backend["Spring Boot Pods (Java 21)"]
         end
         DB[("MySQL HeatWave DB")]
     end
 
-    User -->|1. React 앱 로드| CF
-    User -->|2. API 요청 (api.example.com)| Ingress
+    User -->|1. 페이지 요청 (unbrdn.me)| CF
+    CF -->|프록시| Ingress
+    Ingress -->|라우팅| Frontend
+    User -->|2. API 요청 (api.unbrdn.me)| CF
+    CF -->|프록시| Ingress
     Ingress -->|라우팅| Backend
     Backend -->|데이터 CRUD| DB
 ```
@@ -74,14 +78,16 @@ sequenceDiagram
     participant Argo as ArgoCD
     participant OKE as OKE Cluster
 
-    Developer->>Git: 1. 코드 Push (backend/ 또는 deploy/)
+    Developer->>Git: 1. 코드 Push (backend/, frontend-next/ 또는 deploy/)
     Git->>GHA: 2. 워크플로우 실행
-    GHA->>GHA: 3. Spring Boot 빌드 & Docker 이미지 생성
+    GHA->>GHA: 3. Spring Boot/Next.js 빌드 & Docker 이미지 생성
     GHA->>OCIR: 4. Docker 이미지 Push (SHA 태그)
     GHA->>Git: 5. Kustomize 이미지 태그 업데이트 (Auto-Commit)
     Argo->>Git: 6. 변경 사항 감지 (Polling/Webhook)
-    Argo->>OKE: 7. 최신 백엔드 Pod 롤링 업데이트 배포
+    Argo->>OKE: 7. 최신 Pod 롤링 업데이트 배포
 ```
+
+프론트엔드(`deploy-frontend.yml`)와 백엔드(`deploy.yml`) 모두 동일한 흐름을 각자의 경로(`frontend-next/**`, `backend/**`)와 오버레이(`deploy/k8s/overlays/prod/frontend`, `.../backend`)로 독립적으로 수행합니다.
 
 ---
 
@@ -115,11 +121,11 @@ NVIDIA 호스팅 NIM API는 프로토타이핑 용도로 제공되므로, 운영
 
 ### 2. Frontend Run
 ```bash
-cd frontend
+cd frontend-next
 npm install
 npm run dev
 ```
-*프론트엔드 개발 서버는 `http://localhost:5173`에서 구동되며, Vite dev proxy가 `/api` 요청을 로컬 백엔드로 위임합니다.*
+*프론트엔드 개발 서버는 `http://localhost:3000`에서 구동됩니다. `NEXT_PUBLIC_API_BASE_URL`로 백엔드 주소를 지정합니다(`.env.local`).*
 
 ---
 
@@ -130,7 +136,7 @@ npm run dev
 ├── .github/workflows/     # CI/CD 자동화 배포 정의 (GHA)
 ├── backend/               # 학습 내용 관리 API 서버 (Spring Boot)
 │   └── src/main/resources/db/migration/ # Flyway DB 초기 스키마
-├── frontend/              # 포트폴리오 및 학습 등록 React 앱
+├── frontend-next/         # 포트폴리오 및 학습 등록 Next.js 앱
 ├── deploy/                # 인프라 배포 설정 파일
 │   ├── k8s/               # OKE 환경 쿠버네티스 매니페스트 (Kustomize)
 │   ├── argocd/            # ArgoCD 배포 애플리케이션 정의
