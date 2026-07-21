@@ -1,12 +1,8 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
-import { ArrowLeft } from 'lucide-react';
 import { serverGet } from '@/lib/api/server';
-import type { Experience, ExperienceDetail } from '@/lib/api/types';
-import { markdownComponents } from '@/lib/markdown';
-import { experienceOrgName, experienceTypeLabel, formatCredentialPeriod } from '@/lib/format';
+import type { Experience, ExperienceDetail, Study, StudyPage } from '@/lib/api/types';
+import { ExperienceDetailClient } from '@/components/experience/ExperienceDetailClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,47 +44,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+async function findRelatedStudies(experienceDetailId: number): Promise<Study[]> {
+  const search = new URLSearchParams();
+  search.append('experienceDetailIds', String(experienceDetailId));
+  search.set('page', '0');
+  search.set('size', '100');
+  const result = await serverGet<StudyPage>(`/api/studies?${search}`);
+  return result.content;
+}
+
 export default async function ExperienceDetailPage({ params }: Props) {
   const { id } = await params;
   const found = await findExperienceDetail(Number(id));
   if (!found) notFound();
 
   const { experience, detail } = found;
-  const merged = detail.narrative || [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
-  const skills = detail.skills.length > 0 ? detail.skills : experience.skills;
+  const relatedStudies = await findRelatedStudies(detail.id);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-10 sm:px-6">
-      <Link href="/experience" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950">
-        <ArrowLeft className="h-4 w-4" /> 경험 목록
-      </Link>
-      <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
-        <div className="mb-8 border-b border-slate-100 pb-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">{experienceTypeLabel(experience.type)}</span>
-            <span className="font-mono">{formatCredentialPeriod(experience)}</span>
-          </div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{detail.content}</h1>
-          <p className="mt-2 text-sm font-bold text-slate-500 sm:text-base">
-            {experience.title}
-            {experienceOrgName(experience) ? ` · ${experienceOrgName(experience)}` : ''}
-          </p>
-        </div>
-
-        {merged && (
-          <div className="text-sm leading-relaxed text-slate-600 sm:text-base">
-            <ReactMarkdown components={markdownComponents}>{merged}</ReactMarkdown>
-          </div>
-        )}
-
-        <div className="mt-8 flex flex-wrap gap-1.5">
-          {skills.map((skill) => (
-            <span key={skill.id} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600">
-              {skill.name}
-            </span>
-          ))}
-        </div>
-      </article>
+    <div className="relative mx-auto max-w-[1500px] space-y-1 px-4 py-6 sm:px-6 lg:px-8">
+      <ExperienceDetailClient experience={experience} detail={detail} relatedStudies={relatedStudies} />
     </div>
   );
 }
