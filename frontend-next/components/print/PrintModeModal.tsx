@@ -194,10 +194,18 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
                     </div>
                     <div className="space-y-2">
                       {localSaves.map((s) => (
-                        <button
+                        <div
                           key={s.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => handleSelectLocal(s)}
-                          className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleSelectLocal(s);
+                            }
+                          }}
+                          className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-sm cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600 transition group-hover:bg-amber-100">
@@ -219,7 +227,7 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>

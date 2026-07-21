@@ -139,7 +139,18 @@ export function ExperienceDetailPanel({ experience, allExperiences, parentExperi
                     const isExpanded = expandedProjectId === project.id;
                     return (
                       <div key={project.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-slate-300">
-                        <button type="button" onClick={() => setExpandedProjectId(isExpanded ? null : project.id)} className="flex w-full items-start gap-3 text-left cursor-pointer">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setExpandedProjectId(isExpanded ? null : project.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setExpandedProjectId(isExpanded ? null : project.id);
+                            }
+                          }}
+                          className="flex w-full items-start gap-3 text-left cursor-pointer"
+                        >
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">{index + 1}</span>
                           <div className="min-w-0 flex-1">
                             <span className="font-black leading-snug text-slate-800 text-base sm:text-lg block">{project.title}</span>
@@ -166,7 +177,7 @@ export function ExperienceDetailPanel({ experience, allExperiences, parentExperi
                             )}
                             {isExpanded ? <ChevronUp className="mt-1 h-4 w-4 shrink-0 text-slate-400" /> : <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-slate-400" />}
                           </div>
-                        </button>
+                        </div>
 
                         {isExpanded && (
                           <div className="ml-9 mt-4 space-y-4 border-t border-slate-100 pt-3">
