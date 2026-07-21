@@ -237,6 +237,7 @@ type AdminExperienceForm = Omit<ExperienceRequest, 'details' | 'tagNames' | 'ima
   images: GalleryImage[];
   studyIds: number[];
   relatedExperienceIds: number[];
+  childProjectIds: number[];
 };
 
 const emptyExperienceForm: AdminExperienceForm = {
@@ -265,6 +266,7 @@ const emptyExperienceForm: AdminExperienceForm = {
   issuer: '',
   studyIds: [],
   relatedExperienceIds: [],
+  childProjectIds: [],
 };
 
 export function AdminDashboard() {
@@ -500,6 +502,7 @@ export function AdminDashboard() {
   const [skillDetailSearch, setSkillDetailSearch] = useState('');
   const [expStudySearch, setExpStudySearch] = useState('');
   const [expRelatedSearch, setExpRelatedSearch] = useState('');
+  const [expChildProjectSearch, setExpChildProjectSearch] = useState('');
 
   // --- FILTERED DATA MEMOS ---
   const filteredStudies = useMemo(() => {
@@ -1009,6 +1012,74 @@ export function AdminDashboard() {
     })),
   });
 
+  const syncChildProjectsForCareer = async (careerId: number, childProjectIds: number[], currentList: Experience[]) => {
+    const projects = currentList.filter((item) => item.type === 'PROJECT');
+    for (const proj of projects) {
+      const isSelected = childProjectIds.includes(proj.id);
+      const isCurrentlyLinked = proj.careerId === careerId;
+
+      if (isSelected && !isCurrentlyLinked) {
+        await experienceApi.update(proj.id, {
+          type: proj.type,
+          title: proj.title,
+          periodStart: proj.periodStart,
+          periodEnd: proj.periodEnd ?? null,
+          summary: proj.summary ?? '',
+          takeaway: proj.takeaway ?? '',
+          displayOrder: proj.displayOrder,
+          showOnTimeline: proj.showOnTimeline,
+          timelineLabel: proj.timelineLabel ?? undefined,
+          details: (proj.details ?? []).map((detail) => ({
+            id: detail.id,
+            content: detail.content,
+            situation: detail.situation ?? '',
+            actionDetail: detail.actionDetail ?? '',
+            outcome: detail.outcome ?? '',
+            narrative: detail.narrative ?? '',
+            skillIds: detail.skills?.map((s) => s.id) ?? [],
+          })),
+          skillIds: proj.skills?.map((s) => s.id) ?? [],
+          tagNames: proj.tags?.map((t) => t.name) ?? [],
+          images: proj.images?.map((img) => ({ id: img.id, objectKey: img.objectKey, displayOrder: img.displayOrder })) ?? [],
+          role: proj.role ?? undefined,
+          slug: proj.slug ?? undefined,
+          contributionRate: proj.contributionRate ?? undefined,
+          repositoryUrl: proj.repositoryUrl ?? undefined,
+          careerId: careerId,
+        });
+      } else if (!isSelected && isCurrentlyLinked) {
+        await experienceApi.update(proj.id, {
+          type: proj.type,
+          title: proj.title,
+          periodStart: proj.periodStart,
+          periodEnd: proj.periodEnd ?? null,
+          summary: proj.summary ?? '',
+          takeaway: proj.takeaway ?? '',
+          displayOrder: proj.displayOrder,
+          showOnTimeline: proj.showOnTimeline,
+          timelineLabel: proj.timelineLabel ?? undefined,
+          details: (proj.details ?? []).map((detail) => ({
+            id: detail.id,
+            content: detail.content,
+            situation: detail.situation ?? '',
+            actionDetail: detail.actionDetail ?? '',
+            outcome: detail.outcome ?? '',
+            narrative: detail.narrative ?? '',
+            skillIds: detail.skills?.map((s) => s.id) ?? [],
+          })),
+          skillIds: proj.skills?.map((s) => s.id) ?? [],
+          tagNames: proj.tags?.map((t) => t.name) ?? [],
+          images: proj.images?.map((img) => ({ id: img.id, objectKey: img.objectKey, displayOrder: img.displayOrder })) ?? [],
+          role: proj.role ?? undefined,
+          slug: proj.slug ?? undefined,
+          contributionRate: proj.contributionRate ?? undefined,
+          repositoryUrl: proj.repositoryUrl ?? undefined,
+          careerId: undefined,
+        });
+      }
+    }
+  };
+
   const createExpMutation = useMutation({
     mutationFn: async ({
       payload,
@@ -1021,6 +1092,9 @@ export function AdminDashboard() {
     }) => {
       const experience = await experienceApi.create(payload);
       await connectionApi.updateExperience(experience.id, buildExperienceConnections(experience, form));
+      if (form.type === 'CAREER' && form.childProjectIds) {
+        await syncChildProjectsForCareer(experience.id, form.childProjectIds, experiencesList ?? []);
+      }
       if (addToCoreProjects) {
         const placements = await experiencePlacementApi.listCoreProjects();
         await experiencePlacementApi.replaceCoreProjects([
@@ -1057,6 +1131,9 @@ export function AdminDashboard() {
     mutationFn: async ({ id, payload, form }: { id: number; payload: ExperienceRequest; form: AdminExperienceForm }) => {
       const experience = await experienceApi.update(id, payload);
       await connectionApi.updateExperience(experience.id, buildExperienceConnections(experience, form));
+      if (form.type === 'CAREER' && form.childProjectIds) {
+        await syncChildProjectsForCareer(experience.id, form.childProjectIds, experiencesList ?? []);
+      }
       return experience;
     },
     onSuccess: () => {
@@ -1243,6 +1320,9 @@ export function AdminDashboard() {
         issuer: experience.issuer ?? '',
         studyIds: connections.studyIds,
         relatedExperienceIds: connections.relatedExperiences.map((related) => related.experienceId),
+        childProjectIds: (experiencesList ?? [])
+          .filter((item) => item.type === 'PROJECT' && item.careerId === experience.id)
+          .map((item) => item.id),
       });
       setExpAiSuggestions([]);
       resetExpAiStream();
@@ -3575,10 +3655,66 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
+                    {expForm.type === 'CAREER' && (
+                      <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4">
+                        <div className="mb-2">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-blue-900">
+                            소속 직장 프로젝트 (Child Projects) · {expForm.childProjectIds.length}개
+                          </label>
+                          <p className="mt-0.5 text-xs text-blue-700 font-medium">
+                            이 직장 경력(CAREER) 기간 중 진행된 프로젝트 목록입니다. 선택 시 해당 프로젝트의 소속 경력(careerId)으로 연결됩니다.
+                          </p>
+                        </div>
+                        <div className="relative mb-2">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="search"
+                            value={expChildProjectSearch}
+                            onChange={(event) => setExpChildProjectSearch(event.target.value)}
+                            placeholder="프로젝트 제목 검색..."
+                            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-600"
+                          />
+                        </div>
+                        <div className="grid max-h-52 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                          {(experiencesList ?? [])
+                            .filter((exp) => exp.type === 'PROJECT' && (!expChildProjectSearch || exp.title.toLowerCase().includes(expChildProjectSearch.toLowerCase())))
+                            .map((project) => (
+                              <label key={project.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 text-xs hover:border-blue-300 transition">
+                                <input
+                                  type="checkbox"
+                                  checked={expForm.childProjectIds.includes(project.id)}
+                                  onChange={() => setExpForm((current) => ({
+                                    ...current,
+                                    childProjectIds: current.childProjectIds.includes(project.id)
+                                      ? current.childProjectIds.filter((id) => id !== project.id)
+                                      : [...current.childProjectIds, project.id],
+                                  }))}
+                                  className="mt-0.5"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-bold text-slate-800">{project.title}</span>
+                                  <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+                                    <span>{project.periodStart} ~ {project.periodEnd ?? '진행중'}</span>
+                                    {project.contributionRate != null && <span>· 기여도 {project.contributionRate}%</span>}
+                                  </div>
+                                </div>
+                              </label>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                      <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                        관련 프로젝트·이력 · {expForm.relatedExperienceIds.length}개
-                      </label>
+                      <div className="mb-2">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                          기타 연관 이력·참고 링크 (Cross References) · {expForm.relatedExperienceIds.length}개
+                        </label>
+                        <p className="mt-0.5 text-xs text-slate-400 font-medium">
+                          {expForm.type === 'CAREER'
+                            ? '직접 소속된 실무 프로젝트는 위의 "소속 직장 프로젝트"에서 지정해 주세요. 이 섹션은 기타 참고 이력 링크를 설정할 때 사용합니다.'
+                            : '이 항목과 연관된 다른 이력이나 경력을 연결합니다.'}
+                        </p>
+                      </div>
                       <div className="relative mb-2">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                         <input
@@ -3847,6 +3983,7 @@ export function AdminDashboard() {
               {!isExpFormOpen && selectedExperience && (
                 <ExperienceDetailPanel
                   experience={selectedExperience}
+                  allExperiences={experiencesList ?? []}
                   onBack={() => setSelectedExperienceId(null)}
                   onEdit={(experience) => { void openExperienceEditor(experience); }}
                   onDelete={handleExpDelete}
