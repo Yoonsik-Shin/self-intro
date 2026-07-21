@@ -22,6 +22,28 @@ body {
   scrollbar-width: none; /* Firefox */
 }
 
+/* 브라우저 기본 스크롤바 대신 사이트 톤(slate)에 맞춘 얇은 커스텀 스크롤바 */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
 /* ── 이력서 인쇄(PDF) 전용 타이포그래피 — /print 페이지에서만 사용됨 ──────────
    화면 프리뷰 기본값(rem)과 실제 인쇄 시 @media print의 pt 오버라이드로 나뉜다.
    pdfLayoutEngine.ts의 getAtomEstimatedHeight() 폴백 높이가 이 폰트 크기를
@@ -137,12 +159,119 @@ body {
     page-break-after: always !important;
   }
 
+  /* 화면 프리뷰 페이징 파서와 1:1 완벽 100% 동기화:
+     프리뷰에서 페이지 분할 마커(data-print-break)가 지정된 모든 항목은
+     실제 PDF 인쇄 시에도 바로 그 위치에서 1px 오차 없이 break-before: page 를 강제 실행한다. */
+  [data-print-break] {
+    page-break-before: always !important;
+    break-before: page !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .resume-page {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    /* 페이지 여백은 @page가 담당해 모든 장의 콘텐츠 영역을 182×273mm로 고정한다. */
+    padding: 0 !important;
+    font-size: 9.5pt;
+    line-height: 1.5;
+    gap: 0 !important;
+  }
+
+  .resume-page > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 3mm; /* !important 금지: 자동 패킹 인라인 margin이 이겨야 함 */
+  }
+
+  .resume-page section {
+    margin-top: 3mm;
+    padding-top: 2mm !important;
+    border-top: 0 !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  /* 강제 페이지 나눔 없음 — 콘텐츠가 A4 높이에 맞춰 자연스럽게 흐르고,
+     사용자가 프리뷰에서 간격 스페이서(.print-gap-spacer)로 넘김 위치를 조절한다 */
+  .print-gap-spacer {
+    background: none !important;
+    break-inside: auto !important;
+  }
+
   .resume-projects-header,
   .resume-item-title,
   .resume-detail-header,
   .resume-competency-header {
     page-break-after: avoid !important;
     break-after: avoid-page !important;
+  }
+
+  .resume-credentials-header {
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .resume-credential-groups {
+    display: block !important;
+    margin-top: 2mm !important;
+  }
+
+  .resume-credential-group {
+    margin-top: 3mm !important;
+  }
+
+  .resume-credential-group:first-child {
+    margin-top: 0 !important;
+  }
+
+  .resume-credential-group-title {
+    margin-bottom: 2mm !important;
+    color: #0f172a !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .resume-credential-group-title svg {
+    color: #475569 !important;
+  }
+
+  .resume-credential-count {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: #64748b !important;
+  }
+
+  .resume-credential-list > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0; /* !important 금지: 자동 패킹 인라인 margin이 이겨야 함 */
+  }
+
+  .resume-credential-item {
+    border: 0 !important;
+    border-bottom: 0.5pt solid #e2e8f0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 1.5mm 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .resume-credential-item:first-child {
+    padding-top: 0 !important;
+  }
+
+  .resume-credential-item:last-child {
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .resume-credential-item > div:first-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   .resume-profile-card,
@@ -161,6 +290,10 @@ body {
     break-inside: avoid !important;
   }
 
+  .resume-section-card {
+    padding: 0 !important;
+  }
+
   .resume-print-contact {
     font-size: 8.5pt !important;
     line-height: 1.35 !important;
@@ -169,6 +302,34 @@ body {
 
   .resume-profile-toprow {
     padding-bottom: 2mm !important;
+  }
+
+  .resume-summary-item {
+    pointer-events: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .resume-summary-item > div:first-child {
+    width: 7mm !important;
+    height: 7mm !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .resume-page #skills button {
+    pointer-events: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 2mm 0 0 !important;
+    color: #334155 !important;
   }
 
   .resume-badge {
@@ -188,9 +349,132 @@ body {
     color: #475569 !important;
   }
 
+  .resume-project-list {
+    margin-top: 2mm !important;
+  }
+
+  .resume-project-list::before,
+  .resume-project-bullet {
+    display: none !important;
+  }
+
+  .resume-project-list > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 3mm !important;
+  }
+
+  .resume-project-item {
+    padding-left: 0 !important;
+    cursor: default !important;
+  }
+
+  .resume-project-card {
+    border: 0 !important;
+    border-top: 0.5pt solid #e2e8f0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 2mm 0 0 !important;
+    /* 프로젝트 카드는 한 페이지보다 길어질 수 있어 일부러 break-inside:avoid를 걸지 않는다 —
+       그러면 카드 하나가 다음 페이지 통째로 밀려서 이전 페이지 나머지 공간이 낭비된다.
+       대신 아래 세부 avoid 규칙들(헤더, 항목별)로 붙어있어야 할 조각만 보호한다. */
+  }
+
+  .resume-project-item:first-child .resume-project-card {
+    border-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .resume-project-description {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .resume-project-takeaway {
+    border: 0 !important;
+    border-left: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .resume-project-takeaway,
+  .resume-project-takeaway * {
+    color: #334155 !important;
+  }
+
+  .resume-project-card .resume-badge {
+    color: #475569 !important;
+  }
+
+  .resume-section-title,
+  .resume-item-title,
+  .resume-competency-header,
+  .resume-project-card > div:first-child,
+  .resume-detail-header,
+  .resume-label {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
   .print-competency-row {
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
     grid-template-columns: 34% 66% !important;
+  }
+
+  .resume-career-item {
+    margin-bottom: 2mm !important;
+    padding-bottom: 2mm !important;
+    border-bottom: 0.5pt solid #e2e8f0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .resume-career-item:last-child {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .resume-career-item > div:first-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .resume-career-detail > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .resume-page #career .resume-career-detail {
+    display: block !important;
+    margin-left: 0 !important;
+  }
+
+  .resume-page #skills h4 {
+    border-bottom: 0 !important;
+  }
+
+  .resume-skill-group-title {
+    font-size: 11.5pt !important;
+  }
+
+  .resume-skill-groups {
+    margin-top: 2mm !important;
+  }
+
+  .resume-skill-groups > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 3mm !important;
+  }
+
+  .resume-skill-group > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1.5mm !important;
+  }
+
+  .resume-page .resume-label {
+    color: #64748b !important;
   }
 
   .print-competency-row .resume-item-title {
@@ -266,7 +550,9 @@ body {
     line-height: 1.35 !important;
   }
 
-  .resume-label {
+  .resume-label,
+  .resume-page [class*="text-[10px]"],
+  .resume-page [class*="text-[11px]"] {
     font-size: 8.5pt !important;
     line-height: 1.3 !important;
   }
@@ -284,6 +570,11 @@ body {
     color: #475569 !important;
   }
 
+  .print-competency-section {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
   .whitespace-pre {
     overflow: visible !important;
     overflow-x: visible !important;
@@ -295,8 +586,412 @@ body {
   }
 
   /* 프리뷰 전용 컨트롤(핀/여백 조절/페이지 배치 배지)은 실제 인쇄에 노출되지 않는다 */
-  .pp-controls,
-  .print-gap-spacer {
+  .pp-controls {
     display: none !important;
   }
+
+  /* 프리뷰 컨트롤이 숨어도 Tailwind space-y 형제 셀렉터의 계산에서는 남는다. */
+  .pp-controls + * {
+    margin-top: 0 !important;
+  }
+
+  /* 프리뷰와 실제 PDF의 상세 행 컬럼 구조를 같게 유지한다. */
+  .print-detail-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .print-detail-row > span:first-child {
+    display: none !important;
+  }
+}
+
+/* ── /print 화면(스크린) 전용: 호버 기반 요소 컨트롤 ──────────────────
+   원본(Vite)은 같은 SPA 안에서 .print-active 클래스 + @media screen으로 이 규칙을
+   토글했지만, 여기서는 /print가 별도 라우트라 항상 "미리보기" 상태이므로 클래스 토글 없이
+   플레인 셀렉터로 이식한다. 평소에는 아무것도 안 보이고, 요소에 마우스를 올리면 점선 테두리와
+   왼편/우상단 컨트롤(핀/간격조절/드래그)이 나타난다. 중첩된 경우(:has) 가장 안쪽 요소만
+   활성화되어 섹션/아이템 테두리가 겹쳐 보이지 않는다. */
+[data-print-el] {
+  position: relative;
+}
+
+[data-print-el]:hover:not(:has([data-print-el]:hover)) {
+  cursor: grab;
+  border: 2px dashed #3b82f6 !important;
+  border-radius: 8px;
+  background-color: rgba(59, 130, 246, 0.03);
+}
+
+[data-print-el] > .pp-controls {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-in-out;
+  z-index: 40;
+}
+
+[data-print-el]:hover:not(:has([data-print-el]:hover)) > .pp-controls,
+.pp-controls:hover {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* .pp-controls는 position:absolute라 시각적으로는 공간을 차지하지 않지만, Tailwind의 space-y-*
+   유틸리티는 :not([hidden]) 형제 셀렉터로 margin-top을 계산하기 때문에 실제로 있는 것처럼 카운트되어
+   버튼 뒤에 이어지는 진짜 콘텐츠(카드)에 원치 않는 margin-top이 붙는다.
+   섹션/아이템 모두 .pp-controls가 항상 첫 자식이므로 바로 다음 형제의 margin만 0으로 되돌린다. */
+.pp-controls + * {
+  margin-top: 0 !important;
+}
+
+/* 섹션 간격 스페이서: 화면 미리보기에서만 빗금으로 표시(실제 인쇄에서는 빈 공간) */
+.print-gap-spacer {
+  background: repeating-linear-gradient(-45deg, rgba(148, 163, 184, 0.18) 0 6px, transparent 6px 12px);
+  border-radius: 6px;
+}
+
+/* ── /print 화면(스크린) 전용: 실제 인쇄(@media print)와 동일한 비율로 보이도록 폰트 크기/여백을
+   그대로 복제한다. 원본(Vite)은 .print-active + @media screen으로 @media print 규칙을 화면에도
+   동일하게 적용했는데, 여기서는 그 축소 비율을 이식하지 않아 화면 미리보기가 실제 인쇄 크기보다
+   훨씬 크게 렌더링되어(레이아웃/페이지 수까지 달라짐) 있었다. .resume-page(PrintCanvas 루트)로
+   스코프를 잡아 메인 페이지 등 다른 곳에는 영향이 없도록 한다. */
+.pdf-page-layer {
+  font-size: 9.5pt;
+  line-height: 1.5;
+}
+
+.pdf-page-layer section {
+  margin-top: 3mm;
+  padding-top: 2mm !important;
+  border-top: 0 !important;
+}
+
+.resume-page .resume-profile-card,
+.resume-page .resume-section-card {
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.resume-page .resume-profile-card {
+  padding: 0 0 3mm !important;
+  border-bottom: 0 !important;
+}
+
+.resume-page .resume-section-card {
+  padding: 0 !important;
+}
+
+.resume-page .resume-print-contact {
+  font-size: 8.5pt !important;
+  line-height: 1.35 !important;
+  margin-top: 0 !important;
+}
+
+.resume-page .resume-profile-toprow {
+  padding-bottom: 2mm !important;
+}
+
+.resume-page .resume-summary-item {
+  pointer-events: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.resume-page .resume-summary-item > div:first-child {
+  width: 7mm !important;
+  height: 7mm !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.resume-page #skills button:not(.pp-controls button) {
+  pointer-events: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 2mm 0 0 !important;
+  color: #334155 !important;
+}
+
+.resume-page .resume-badge {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 1.5mm 0 0 !important;
+}
+
+.resume-page .resume-print-plain {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: #475569 !important;
+}
+
+.resume-page .resume-project-list {
+  margin-top: 2mm !important;
+}
+
+.resume-page .resume-project-list::before,
+.resume-page .resume-project-bullet {
+  display: none !important;
+}
+
+.resume-page .resume-project-list > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 3mm !important;
+}
+
+.resume-page .resume-project-item {
+  padding-left: 0 !important;
+  cursor: default !important;
+}
+
+.resume-page .resume-project-card {
+  border: 0 !important;
+  border-top: 0.5pt solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 2mm 0 0 !important;
+}
+
+.resume-page .resume-project-item:first-child .resume-project-card {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.resume-page .resume-project-description {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.resume-page .resume-project-takeaway {
+  border: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.resume-page .resume-project-takeaway,
+.resume-page .resume-project-takeaway * {
+  color: #334155 !important;
+}
+
+.resume-page .resume-project-card .resume-badge {
+  color: #475569 !important;
+}
+
+.resume-page .resume-credentials-header {
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.resume-page .resume-credential-groups {
+  display: block !important;
+  margin-top: 2mm !important;
+}
+
+.resume-page .resume-credential-group {
+  margin-top: 3mm !important;
+}
+
+.resume-page .resume-credential-group:first-child {
+  margin-top: 0 !important;
+}
+
+.resume-page .resume-credential-group-title {
+  margin-bottom: 2mm !important;
+  color: #0f172a !important;
+}
+
+.resume-page .resume-credential-group-title svg {
+  color: #475569 !important;
+}
+
+.resume-page .resume-credential-count {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: #64748b !important;
+}
+
+.resume-page .resume-credential-list > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0;
+}
+
+.resume-page .resume-credential-item {
+  border: 0 !important;
+  border-bottom: 0.5pt solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 1.5mm 0 !important;
+}
+
+.resume-page .resume-credential-item:first-child {
+  padding-top: 0 !important;
+}
+
+.resume-page .resume-credential-item:last-child {
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.resume-page .resume-career-item {
+  margin-bottom: 2mm !important;
+  padding-bottom: 2mm !important;
+  border-bottom: 0.5pt solid #e2e8f0 !important;
+}
+
+.resume-page .resume-career-item:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
+}
+
+.resume-page #career .resume-career-detail {
+  display: block !important;
+  margin-left: 0 !important;
+}
+
+.resume-page #skills h4 {
+  border-bottom: 0 !important;
+}
+
+.resume-page .resume-skill-group-title {
+  font-size: 11.5pt !important;
+}
+
+.resume-page .resume-skill-groups {
+  margin-top: 2mm !important;
+}
+
+.resume-page .resume-skill-groups > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 3mm !important;
+}
+
+.resume-page .resume-skill-group > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.5mm !important;
+}
+
+.resume-page .resume-label {
+  color: #64748b !important;
+}
+
+.resume-page .print-competency-row {
+  grid-template-columns: 34% 66% !important;
+}
+
+.resume-page .print-competency-row .resume-item-title {
+  font-size: 10.7pt !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.resume-page .print-competency-row .resume-body {
+  font-size: 9.2pt !important;
+  line-height: 1.45 !important;
+}
+
+.resume-page .print-competency-row .resume-meta {
+  font-size: 8.2pt !important;
+}
+
+.resume-page .print-competency-row .resume-label {
+  font-size: 7.5pt !important;
+}
+
+.resume-page .resume-profile-role {
+  font-size: 15pt !important;
+  line-height: 1.15 !important;
+  background: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+.resume-page .resume-profile-name {
+  font-size: 20pt !important;
+  line-height: 1.1 !important;
+}
+
+.resume-page .resume-profile-name-en {
+  font-size: 10.5pt !important;
+  line-height: 1.2 !important;
+}
+
+.resume-page .resume-section-title {
+  font-size: 14pt !important;
+  line-height: 1.25 !important;
+}
+
+.resume-page .resume-section-description {
+  font-size: 9pt !important;
+  line-height: 1.45 !important;
+}
+
+.resume-page .resume-item-title {
+  font-size: 11.6pt !important;
+  line-height: 1.3 !important;
+}
+
+.resume-page .resume-body {
+  font-size: 10pt !important;
+  line-height: 1.5 !important;
+}
+
+.resume-page .resume-subtitle {
+  font-size: 9.6pt !important;
+  line-height: 1.35 !important;
+}
+
+.resume-page .resume-meta {
+  font-size: 9.2pt !important;
+  line-height: 1.35 !important;
+}
+
+.resume-page .resume-label,
+.resume-page [class*="text-[10px]"],
+.resume-page [class*="text-[11px]"] {
+  font-size: 8.5pt !important;
+  line-height: 1.3 !important;
+}
+
+.resume-page .resume-badge {
+  font-size: 8.8pt !important;
+  line-height: 1.25 !important;
+}
+
+.resume-page .resume-detail-text,
+.resume-page .resume-detail-text p,
+.resume-page .resume-detail-text li {
+  font-size: 8.8pt !important;
+  line-height: 1.4 !important;
+  color: #475569 !important;
 }
