@@ -28,39 +28,55 @@ public class ArchitectureService {
 
     @Transactional
     public ArchitectureOverviewResponse upsertOverview(ArchitectureOverviewRequest request) {
-        ArchitectureOverview overview = overviewRepository.findFirstOverview()
-            .map(existing -> {
-                existing.update(request.heading(), request.subheading(), request.diagramHeading(), request.diagramText());
-                return existing;
-            })
-            .orElseGet(() -> ArchitectureOverview.create(
-                request.heading(), request.subheading(), request.diagramHeading(), request.diagramText()));
+        ArchitectureOverview overview =
+                overviewRepository
+                        .findFirstOverview()
+                        .map(
+                                existing -> {
+                                    existing.update(
+                                            request.heading(),
+                                            request.subheading(),
+                                            request.diagramHeading(),
+                                            request.diagramText());
+                                    return existing;
+                                })
+                        .orElseGet(
+                                () ->
+                                        ArchitectureOverview.create(
+                                                request.heading(),
+                                                request.subheading(),
+                                                request.diagramHeading(),
+                                                request.diagramText()));
         return ArchitectureOverviewResponse.from(overviewRepository.save(overview));
     }
 
     public List<ArchitectureLayerResponse> getAllLayers() {
         return layerRepository.findAllByOrderByDisplayOrderAsc().stream()
-            .map(ArchitectureLayerResponse::from)
-            .toList();
+                .map(ArchitectureLayerResponse::from)
+                .toList();
     }
 
     public List<ArchitectureLayerResponse> getVisibleLayers() {
         return layerRepository.findAllByVisibleTrueOrderByDisplayOrderAsc().stream()
-            .map(ArchitectureLayerResponse::from)
-            .toList();
+                .map(ArchitectureLayerResponse::from)
+                .toList();
     }
 
     @Transactional
     public ArchitectureLayerResponse createLayer(ArchitectureLayerRequest request) {
-        ArchitectureLayer layer = ArchitectureLayer.create(request.icon(), request.title(), request.displayOrder(), request.visible());
+        ArchitectureLayer layer =
+                ArchitectureLayer.create(
+                        request.icon(), request.title(), request.displayOrder(), request.visible());
         layer.replaceItems(toDrafts(request));
         return ArchitectureLayerResponse.from(layerRepository.save(layer));
     }
 
     @Transactional
     public ArchitectureLayerResponse updateLayer(Long id, ArchitectureLayerRequest request) {
-        ArchitectureLayer layer = layerRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 아키텍처 레이어입니다."));
+        ArchitectureLayer layer =
+                layerRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 아키텍처 레이어입니다."));
         layer.update(request.icon(), request.title(), request.displayOrder(), request.visible());
         layer.replaceItems(toDrafts(request));
         layerRepository.flush();
@@ -77,7 +93,7 @@ public class ArchitectureService {
 
     private List<ArchitectureLayer.ItemDraft> toDrafts(ArchitectureLayerRequest request) {
         return request.items().stream()
-            .map(item -> new ArchitectureLayer.ItemDraft(item.strongText(), item.bodyText()))
-            .toList();
+                .map(item -> new ArchitectureLayer.ItemDraft(item.strongText(), item.bodyText()))
+                .toList();
     }
 }

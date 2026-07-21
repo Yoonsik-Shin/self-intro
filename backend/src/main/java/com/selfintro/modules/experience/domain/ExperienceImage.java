@@ -42,11 +42,10 @@ public class ExperienceImage {
     /**
      * Incoming image data from a request, before it's known whether it maps to a new row or an
      * existing one. {@code id} is null for a newly uploaded image; non-null lets {@link Experience}
-     * match it against an existing {@link ExperienceImage} so that row keeps its identity instead of
-     * being deleted and re-inserted.
+     * match it against an existing {@link ExperienceImage} so that row keeps its identity instead
+     * of being deleted and re-inserted.
      */
-    public record Draft(Long id, String objectKey, int displayOrder) {
-    }
+    public record Draft(Long id, String objectKey, int displayOrder) {}
 
     public void updateDisplayOrder(int displayOrder) {
         this.displayOrder = displayOrder;

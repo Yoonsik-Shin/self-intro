@@ -21,15 +21,12 @@ public class CompetencyAiController {
 
     @PostMapping("/suggestions")
     public ResponseEntity<CompetencySuggestionResponse> suggest(
-        @Valid @RequestBody CompetencySuggestionRequest request
-    ) {
+            @Valid @RequestBody CompetencySuggestionRequest request) {
         return ResponseEntity.ok(competencyAiService.suggest(request));
     }
 
     @PostMapping(value = "/suggestions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter suggestStream(
-        @Valid @RequestBody CompetencySuggestionRequest request
-    ) {
+    public SseEmitter suggestStream(@Valid @RequestBody CompetencySuggestionRequest request) {
         return competencyAiService.suggestStream(request);
     }
 }

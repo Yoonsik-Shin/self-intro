@@ -19,16 +19,14 @@ public class ExperiencePlacementController {
 
     @GetMapping("/{placementType}")
     public ResponseEntity<List<ExperiencePlacementResponse>> list(
-        @PathVariable ExperiencePlacementType placementType
-    ) {
+            @PathVariable ExperiencePlacementType placementType) {
         return ResponseEntity.ok(placementService.getAll(placementType));
     }
 
     @PutMapping("/{placementType}")
     public ResponseEntity<List<ExperiencePlacementResponse>> replaceAll(
-        @PathVariable ExperiencePlacementType placementType,
-        @Valid @RequestBody List<ExperiencePlacementRequest> requests
-    ) {
+            @PathVariable ExperiencePlacementType placementType,
+            @Valid @RequestBody List<ExperiencePlacementRequest> requests) {
         return ResponseEntity.ok(placementService.replaceAll(placementType, requests));
     }
 

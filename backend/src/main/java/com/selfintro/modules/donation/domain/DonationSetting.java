@@ -17,8 +17,7 @@ import lombok.NoArgsConstructor;
 public class DonationSetting {
     public static final long SINGLETON_ID = 1L;
 
-    @Id
-    private Long id;
+    @Id private Long id;
 
     @Column(name = "donation_enabled", nullable = false)
     private boolean donationEnabled;

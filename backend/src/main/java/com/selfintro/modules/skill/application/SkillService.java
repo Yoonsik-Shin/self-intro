@@ -3,10 +3,10 @@ package com.selfintro.modules.skill.application;
 import com.selfintro.modules.skill.domain.Skill;
 import com.selfintro.modules.skill.domain.SkillRepository;
 import com.selfintro.modules.skill.presentation.dto.SkillRequest;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,37 +25,38 @@ public class SkillService {
 
     @Transactional
     public Skill create(SkillRequest request) {
-        Skill skill = Skill.create(
-            request.name(),
-            request.category(),
-            request.skillLevel(),
-            request.skillVersion(),
-            request.comment(),
-            request.usageType(),
-            request.badgeKey(),
-            request.badgeColor(),
-            request.isCore(),
-            request.displayOrder()
-        );
+        Skill skill =
+                Skill.create(
+                        request.name(),
+                        request.category(),
+                        request.skillLevel(),
+                        request.skillVersion(),
+                        request.comment(),
+                        request.usageType(),
+                        request.badgeKey(),
+                        request.badgeColor(),
+                        request.isCore(),
+                        request.displayOrder());
         return skillRepository.save(skill);
     }
 
     @Transactional
     public Skill update(Long id, SkillRequest request) {
-        Skill skill = skillRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기술 스택입니다."));
+        Skill skill =
+                skillRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기술 스택입니다."));
         skill.update(
-            request.name(),
-            request.category(),
-            request.skillLevel(),
-            request.skillVersion(),
-            request.comment(),
-            request.usageType(),
-            request.badgeKey(),
-            request.badgeColor(),
-            request.isCore(),
-            request.displayOrder()
-        );
+                request.name(),
+                request.category(),
+                request.skillLevel(),
+                request.skillVersion(),
+                request.comment(),
+                request.usageType(),
+                request.badgeKey(),
+                request.badgeColor(),
+                request.isCore(),
+                request.displayOrder());
         return skillRepository.save(skill);
     }
 

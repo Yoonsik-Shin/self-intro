@@ -11,7 +11,8 @@ import lombok.NoArgsConstructor;
 @Table(name = "competency_study")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CompetencyStudy {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

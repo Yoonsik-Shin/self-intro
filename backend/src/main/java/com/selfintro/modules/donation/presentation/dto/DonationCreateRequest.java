@@ -6,6 +6,4 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record DonationCreateRequest(
-        @NotNull @Min(1000) @Max(100000) Integer amount,
-        @Size(max = 200) String message) {
-}
+        @NotNull @Min(1000) @Max(100000) Integer amount, @Size(max = 200) String message) {}

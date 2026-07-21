@@ -49,7 +49,8 @@ public class ArchitectureLayer {
         this.updatedAt = createdAt;
     }
 
-    public static ArchitectureLayer create(String icon, String title, int displayOrder, boolean visible) {
+    public static ArchitectureLayer create(
+            String icon, String title, int displayOrder, boolean visible) {
         return new ArchitectureLayer(icon, title, displayOrder, visible);
     }
 

@@ -47,7 +47,8 @@ public class StudyRelation {
         this.displayOrder = displayOrder;
     }
 
-    public static StudyRelation create(Study source, Study target, StudyRelationType type, int displayOrder) {
+    public static StudyRelation create(
+            Study source, Study target, StudyRelationType type, int displayOrder) {
         return new StudyRelation(source, target, type, displayOrder);
     }
 

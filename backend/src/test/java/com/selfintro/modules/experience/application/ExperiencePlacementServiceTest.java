@@ -26,27 +26,26 @@ class ExperiencePlacementServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ExperiencePlacementService(
-            placementRepository,
-            placementDetailRepository,
-            experienceRepository
-        );
+        service =
+                new ExperiencePlacementService(
+                        placementRepository, placementDetailRepository, experienceRepository);
     }
 
     @Test
     void replacesCoreProjectPlacementsInRequestedOrder() {
         Experience project = mockExperience(10L, "PROJECT");
         Experience secondProject = mockExperience(20L, "PROJECT");
-        when(experienceRepository.findAllById(Set.of(10L, 20L))).thenReturn(List.of(project, secondProject));
-        when(placementRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(experienceRepository.findAllById(Set.of(10L, 20L)))
+                .thenReturn(List.of(project, secondProject));
+        when(placementRepository.saveAll(anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = service.replaceAll(
-            ExperiencePlacementType.CORE_PROJECT,
-            List.of(
-                new ExperiencePlacementRequest(20L, 0, true),
-                new ExperiencePlacementRequest(10L, 1, false)
-            )
-        );
+        var response =
+                service.replaceAll(
+                        ExperiencePlacementType.CORE_PROJECT,
+                        List.of(
+                                new ExperiencePlacementRequest(20L, 0, true),
+                                new ExperiencePlacementRequest(10L, 1, false)));
 
         assertThat(response).extracting(item -> item.experienceId()).containsExactly(20L, 10L);
         assertThat(response).extracting(item -> item.enabled()).containsExactly(true, false);
@@ -56,14 +55,14 @@ class ExperiencePlacementServiceTest {
 
     @Test
     void rejectsDuplicateExperienceRouting() {
-        var requests = List.of(
-            new ExperiencePlacementRequest(10L, 0, true),
-            new ExperiencePlacementRequest(10L, 1, true)
-        );
+        var requests =
+                List.of(
+                        new ExperiencePlacementRequest(10L, 0, true),
+                        new ExperiencePlacementRequest(10L, 1, true));
 
         assertThatThrownBy(() -> service.replaceAll(ExperiencePlacementType.CORE_PROJECT, requests))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("중복");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("중복");
 
         verifyNoInteractions(experienceRepository, placementRepository);
     }
@@ -73,11 +72,13 @@ class ExperiencePlacementServiceTest {
         Experience career = mockExperience(30L, "CAREER");
         when(experienceRepository.findAllById(Set.of(30L))).thenReturn(List.of(career));
 
-        assertThatThrownBy(() -> service.replaceAll(
-            ExperiencePlacementType.CORE_PROJECT,
-            List.of(new ExperiencePlacementRequest(30L, 0, true))))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("프로젝트만");
+        assertThatThrownBy(
+                        () ->
+                                service.replaceAll(
+                                        ExperiencePlacementType.CORE_PROJECT,
+                                        List.of(new ExperiencePlacementRequest(30L, 0, true))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("프로젝트만");
     }
 
     private Experience mockExperience(Long id, String type) {

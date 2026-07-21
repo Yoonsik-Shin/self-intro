@@ -52,19 +52,17 @@ public abstract class Experience {
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-        name = "experience_skill",
-        joinColumns = @JoinColumn(name = "experience_id"),
-        inverseJoinColumns = @JoinColumn(name = "skill_id")
-    )
+            name = "experience_skill",
+            joinColumns = @JoinColumn(name = "experience_id"),
+            inverseJoinColumns = @JoinColumn(name = "skill_id"))
     @OrderColumn(name = "list_order")
     private List<Skill> skills = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-        name = "experience_tag",
-        joinColumns = @JoinColumn(name = "experience_id"),
-        inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
+            name = "experience_tag",
+            joinColumns = @JoinColumn(name = "experience_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
     @OrderBy("name ASC")
     private List<Tag> tags = new ArrayList<>();
 
@@ -77,7 +75,17 @@ public abstract class Experience {
         // JPA standard constructor
     }
 
-    protected Experience(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
+    protected Experience(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
@@ -90,7 +98,17 @@ public abstract class Experience {
         this.timelineLabel = timelineLabel;
     }
 
-    public void updateCommonFields(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel) {
+    public void updateCommonFields(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel) {
         this.title = title;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
@@ -113,28 +131,57 @@ public abstract class Experience {
             return new ArrayList<>();
         }
         return drafts.stream()
-            .map(d -> ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.narrative(), d.displayOrder(), d.skills()))
-            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+                .map(
+                        d ->
+                                ExperienceDetail.create(
+                                        d.content(),
+                                        d.situation(),
+                                        d.actionDetail(),
+                                        d.outcome(),
+                                        d.narrative(),
+                                        d.displayOrder(),
+                                        d.skills()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     /**
      * Merges incoming detail data into the existing collection in place instead of clearing and
      * re-adding, so that unchanged/edited items keep their IDENTITY-generated id (detail pages link
-     * to these ids, and a clear()+addAll() on this unidirectional bag would otherwise cause Hibernate
-     * to delete and re-insert every row on every save).
+     * to these ids, and a clear()+addAll() on this unidirectional bag would otherwise cause
+     * Hibernate to delete and re-insert every row on every save).
      */
     private void reconcileDetails(List<ExperienceDetail.Draft> incoming) {
-        this.details.removeIf(existing -> existing.getId() == null
-            || incoming.stream().noneMatch(d -> existing.getId().equals(d.id())));
+        this.details.removeIf(
+                existing ->
+                        existing.getId() == null
+                                || incoming.stream()
+                                        .noneMatch(d -> existing.getId().equals(d.id())));
 
         for (ExperienceDetail.Draft d : incoming) {
             if (d.id() != null) {
                 this.details.stream()
-                    .filter(existing -> d.id().equals(existing.getId()))
-                    .findFirst()
-                    .ifPresent(existing -> existing.update(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.narrative(), d.displayOrder(), d.skills()));
+                        .filter(existing -> d.id().equals(existing.getId()))
+                        .findFirst()
+                        .ifPresent(
+                                existing ->
+                                        existing.update(
+                                                d.content(),
+                                                d.situation(),
+                                                d.actionDetail(),
+                                                d.outcome(),
+                                                d.narrative(),
+                                                d.displayOrder(),
+                                                d.skills()));
             } else {
-                this.details.add(ExperienceDetail.create(d.content(), d.situation(), d.actionDetail(), d.outcome(), d.narrative(), d.displayOrder(), d.skills()));
+                this.details.add(
+                        ExperienceDetail.create(
+                                d.content(),
+                                d.situation(),
+                                d.actionDetail(),
+                                d.outcome(),
+                                d.narrative(),
+                                d.displayOrder(),
+                                d.skills()));
             }
         }
 
@@ -147,7 +194,8 @@ public abstract class Experience {
     }
 
     public void setSkillLinked(Skill skill, boolean linked) {
-        boolean alreadyLinked = skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
+        boolean alreadyLinked =
+                skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
         if (linked && !alreadyLinked) {
             skills.add(skill);
         } else if (!linked && alreadyLinked) {
@@ -157,20 +205,25 @@ public abstract class Experience {
 
     public List<String> imageObjectKeysNotIn(List<ExperienceImage.Draft> incoming) {
         return images.stream()
-            .filter(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())))
-            .map(ExperienceImage::getObjectKey)
-            .toList();
+                .filter(
+                        existing ->
+                                incoming.stream()
+                                        .noneMatch(draft -> existing.getId().equals(draft.id())))
+                .map(ExperienceImage::getObjectKey)
+                .toList();
     }
 
     public void reconcileImages(List<ExperienceImage.Draft> incoming) {
-        images.removeIf(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())));
+        images.removeIf(
+                existing ->
+                        incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())));
 
         for (ExperienceImage.Draft draft : incoming) {
             if (draft.id() != null) {
                 images.stream()
-                    .filter(existing -> draft.id().equals(existing.getId()))
-                    .findFirst()
-                    .ifPresent(existing -> existing.updateDisplayOrder(draft.displayOrder()));
+                        .filter(existing -> draft.id().equals(existing.getId()))
+                        .findFirst()
+                        .ifPresent(existing -> existing.updateDisplayOrder(draft.displayOrder()));
             } else {
                 images.add(ExperienceImage.create(draft.objectKey(), draft.displayOrder()));
             }
@@ -180,18 +233,59 @@ public abstract class Experience {
     }
 
     // Getters
-    public Long getId() { return id; }
-    public String getType() { return type; }
-    public String getTitle() { return title; }
-    public LocalDate getPeriodStart() { return periodStart; }
-    public LocalDate getPeriodEnd() { return periodEnd; }
-    public String getSummary() { return summary; }
-    public String getTakeaway() { return takeaway; }
-    public int getDisplayOrder() { return displayOrder; }
-    public boolean isShowOnTimeline() { return showOnTimeline; }
-    public String getTimelineLabel() { return timelineLabel; }
-    public List<ExperienceDetail> getDetails() { return details; }
-    public List<Skill> getSkills() { return skills; }
-    public List<Tag> getTags() { return tags; }
-    public List<ExperienceImage> getImages() { return images; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public LocalDate getPeriodStart() {
+        return periodStart;
+    }
+
+    public LocalDate getPeriodEnd() {
+        return periodEnd;
+    }
+
+    public String getSummary() {
+        return summary;
+    }
+
+    public String getTakeaway() {
+        return takeaway;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public boolean isShowOnTimeline() {
+        return showOnTimeline;
+    }
+
+    public String getTimelineLabel() {
+        return timelineLabel;
+    }
+
+    public List<ExperienceDetail> getDetails() {
+        return details;
+    }
+
+    public List<Skill> getSkills() {
+        return skills;
+    }
+
+    public List<Tag> getTags() {
+        return tags;
+    }
+
+    public List<ExperienceImage> getImages() {
+        return images;
+    }
 }

@@ -1,6 +1,7 @@
 package com.selfintro.modules.donation.application;
 
-public record PayAppPayRequestResult(boolean success, String mulNo, String payUrl, String errorMessage) {
+public record PayAppPayRequestResult(
+        boolean success, String mulNo, String payUrl, String errorMessage) {
 
     public static PayAppPayRequestResult ok(String mulNo, String payUrl) {
         return new PayAppPayRequestResult(true, mulNo, payUrl, null);

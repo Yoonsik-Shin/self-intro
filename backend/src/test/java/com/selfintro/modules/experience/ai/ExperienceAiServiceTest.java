@@ -32,14 +32,19 @@ class ExperienceAiServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ExperienceAiService(
-            skillRepository, experienceRepository, studyRepository, nvidiaNimClient, new ObjectMapper(), true
-        );
+        service =
+                new ExperienceAiService(
+                        skillRepository,
+                        experienceRepository,
+                        studyRepository,
+                        nvidiaNimClient,
+                        new ObjectMapper(),
+                        true);
     }
 
     private ExperienceSuggestionRequest emptyRequest() {
         return new ExperienceSuggestionRequest(
-            "", "PROJECT", "", null, null, null, null, null, List.of(), List.of(), List.of());
+                "", "PROJECT", "", null, null, null, null, null, List.of(), List.of(), List.of());
     }
 
     @Test
@@ -52,21 +57,21 @@ class ExperienceAiServiceTest {
         when(studyRepository.findAll()).thenReturn(List.of());
         when(experienceRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of());
 
-        when(nvidiaNimClient.generate(anyString(), anyString())).thenReturn(
-            """
+        when(nvidiaNimClient.generate(anyString(), anyString()))
+                .thenReturn(
+                        """
                 {"facts":[
                   {"skillId":10,"studyId":null,"experienceId":null,"aspect":"action","text":"Redis 캐시로 응답 속도를 개선했다"}
                 ],"reason":"근거 충분"}
                 """,
-            """
+                        """
                 {"suggestions":[{
                   "summary":"Redis 캐시 도입으로 응답 속도를 개선했습니다.",
                   "takeaway":"캐시 전략 설계 경험을 얻었습니다.",
                   "details":[{"content":"Redis 캐시 적용","situation":"응답 지연","actionDetail":"캐시 도입","outcome":"속도 개선","skillIds":[10,999]}],
                   "reason":"검증된 근거 기반 작성"
                 }]}
-                """
-        );
+                """);
 
         var response = service.suggest(emptyRequest());
 
@@ -79,11 +84,16 @@ class ExperienceAiServiceTest {
 
     @Test
     void rejectsWhenDisabled() {
-        ExperienceAiService disabled = new ExperienceAiService(
-            skillRepository, experienceRepository, studyRepository, nvidiaNimClient, new ObjectMapper(), false
-        );
+        ExperienceAiService disabled =
+                new ExperienceAiService(
+                        skillRepository,
+                        experienceRepository,
+                        studyRepository,
+                        nvidiaNimClient,
+                        new ObjectMapper(),
+                        false);
         assertThatThrownBy(() -> disabled.suggest(emptyRequest()))
-            .isInstanceOf(ResponseStatusException.class)
-            .hasMessageContaining("비활성화");
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("비활성화");
     }
 }

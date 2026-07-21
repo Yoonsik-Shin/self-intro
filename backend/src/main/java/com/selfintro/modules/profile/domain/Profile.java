@@ -45,7 +45,16 @@ public class Profile {
         // JPA standard constructor
     }
 
-    private Profile(String name, String nameEn, String jobTitle, String bio, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
+    private Profile(
+            String name,
+            String nameEn,
+            String jobTitle,
+            String bio,
+            String coreStackSummary,
+            String statusBadgeText,
+            String githubUrl,
+            String email,
+            String phone) {
         this.name = name;
         this.nameEn = nameEn;
         this.jobTitle = jobTitle;
@@ -58,11 +67,38 @@ public class Profile {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public static Profile create(String name, String nameEn, String jobTitle, String bio, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
-        return new Profile(name, nameEn, jobTitle, bio, coreStackSummary, statusBadgeText, githubUrl, email, phone);
+    public static Profile create(
+            String name,
+            String nameEn,
+            String jobTitle,
+            String bio,
+            String coreStackSummary,
+            String statusBadgeText,
+            String githubUrl,
+            String email,
+            String phone) {
+        return new Profile(
+                name,
+                nameEn,
+                jobTitle,
+                bio,
+                coreStackSummary,
+                statusBadgeText,
+                githubUrl,
+                email,
+                phone);
     }
 
-    public void update(String name, String nameEn, String jobTitle, String bio, String coreStackSummary, String statusBadgeText, String githubUrl, String email, String phone) {
+    public void update(
+            String name,
+            String nameEn,
+            String jobTitle,
+            String bio,
+            String coreStackSummary,
+            String statusBadgeText,
+            String githubUrl,
+            String email,
+            String phone) {
         this.name = name;
         this.nameEn = nameEn;
         this.jobTitle = jobTitle;
@@ -76,15 +112,47 @@ public class Profile {
     }
 
     // Standard Java Getters
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getNameEn() { return nameEn; }
-    public String getJobTitle() { return jobTitle; }
-    public String getBio() { return bio; }
-    public String getCoreStackSummary() { return coreStackSummary; }
-    public String getStatusBadgeText() { return statusBadgeText; }
-    public String getGithubUrl() { return githubUrl; }
-    public String getEmail() { return email; }
-    public String getPhone() { return phone; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getNameEn() {
+        return nameEn;
+    }
+
+    public String getJobTitle() {
+        return jobTitle;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public String getCoreStackSummary() {
+        return coreStackSummary;
+    }
+
+    public String getStatusBadgeText() {
+        return statusBadgeText;
+    }
+
+    public String getGithubUrl() {
+        return githubUrl;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
 }

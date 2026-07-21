@@ -58,29 +58,32 @@ public class PayAppClient {
         form.add("cancelmemo", memo);
         Map<String, String> response = post(form);
         if (!"1".equals(response.get("state"))) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
                     "페이앱 결제취소에 실패했습니다: " + response.getOrDefault("errorMessage", "unknown"));
         }
     }
 
     private Map<String, String> post(MultiValueMap<String, String> form) {
         try {
-            String body = payAppRestClient.post()
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(form)
-                    .retrieve()
-                    .body(String.class);
+            String body =
+                    payAppRestClient
+                            .post()
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .body(form)
+                            .retrieve()
+                            .body(String.class);
             return parse(body);
         } catch (RestClientException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "페이앱 API 호출에 실패했습니다.", exception);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY, "페이앱 API 호출에 실패했습니다.", exception);
         }
     }
 
     private void ensureConfigured() {
         if (!properties.payapp().isConfigured()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "후원 기능을 사용하려면 페이앱 연동 정보가 설정되어 있어야 합니다.");
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "후원 기능을 사용하려면 페이앱 연동 정보가 설정되어 있어야 합니다.");
         }
     }
 

@@ -18,12 +18,11 @@ public class NvidiaNimClient {
     private final boolean jsonResponseFormat;
 
     public NvidiaNimClient(
-        ChatClient.Builder chatClientBuilder,
-        @Value("${app.ai.api-key:}") String apiKey,
-        @Value("${app.ai.model:qwen/qwen3.5-122b-a10b}") String model,
-        @Value("${app.ai.max-output-tokens:8192}") int maxOutputTokens,
-        @Value("${app.ai.json-response-format:false}") boolean jsonResponseFormat
-    ) {
+            ChatClient.Builder chatClientBuilder,
+            @Value("${app.ai.api-key:}") String apiKey,
+            @Value("${app.ai.model:qwen/qwen3.5-122b-a10b}") String model,
+            @Value("${app.ai.max-output-tokens:8192}") int maxOutputTokens,
+            @Value("${app.ai.json-response-format:false}") boolean jsonResponseFormat) {
         this.chatClient = chatClientBuilder.build();
         this.apiKey = apiKey;
         this.model = model;
@@ -34,12 +33,14 @@ public class NvidiaNimClient {
     public String generate(String systemPrompt, String userPrompt) {
         ensureAvailable();
         try {
-            String content = chatClient.prompt()
-                .system(systemPrompt)
-                .user(userPrompt)
-                .options(buildOptions())
-                .call()
-                .content();
+            String content =
+                    chatClient
+                            .prompt()
+                            .system(systemPrompt)
+                            .user(userPrompt)
+                            .options(buildOptions())
+                            .call()
+                            .content();
             return requireContent(content);
         } catch (ResponseStatusException exception) {
             throw exception;
@@ -48,21 +49,24 @@ public class NvidiaNimClient {
         }
     }
 
-    public String generateStreaming(String systemPrompt, String userPrompt, Consumer<String> onToken) {
+    public String generateStreaming(
+            String systemPrompt, String userPrompt, Consumer<String> onToken) {
         ensureAvailable();
         try {
             StringBuilder content = new StringBuilder();
-            chatClient.prompt()
-                .system(systemPrompt)
-                .user(userPrompt)
-                .options(buildOptions())
-                .stream()
-                .content()
-                .doOnNext(token -> {
-                    content.append(token);
-                    onToken.accept(token);
-                })
-                .blockLast();
+            chatClient
+                    .prompt()
+                    .system(systemPrompt)
+                    .user(userPrompt)
+                    .options(buildOptions())
+                    .stream()
+                    .content()
+                    .doOnNext(
+                            token -> {
+                                content.append(token);
+                                onToken.accept(token);
+                            })
+                    .blockLast();
             return requireContent(content.toString());
         } catch (ResponseStatusException exception) {
             throw exception;
@@ -73,17 +77,18 @@ public class NvidiaNimClient {
 
     private void ensureAvailable() {
         if (apiKey.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                "AI 기능을 사용하려면 NVIDIA API 키가 설정되어 있어야 합니다.");
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "AI 기능을 사용하려면 NVIDIA API 키가 설정되어 있어야 합니다.");
         }
     }
 
     private OpenAiChatOptions buildOptions() {
-        OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder()
-            .model(model)
-            .temperature(0.2)
-            .topP(0.9)
-            .maxTokens(maxOutputTokens);
+        OpenAiChatOptions.Builder builder =
+                OpenAiChatOptions.builder()
+                        .model(model)
+                        .temperature(0.2)
+                        .topP(0.9)
+                        .maxTokens(maxOutputTokens);
         if (jsonResponseFormat) {
             // NVIDIA NIM의 Qwen3.5 엔드포인트는 response_format 지정 시 빈 응답을 반환하므로 기본값은 비활성이다.
             builder.responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_OBJECT, null));
@@ -93,8 +98,7 @@ public class NvidiaNimClient {
 
     private static String requireContent(String content) {
         if (content == null || content.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                "NVIDIA API가 빈 응답을 반환했습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "NVIDIA API가 빈 응답을 반환했습니다.");
         }
         return content;
     }
@@ -102,14 +106,18 @@ public class NvidiaNimClient {
     private static ResponseStatusException translate(Exception exception) {
         String message = exception.getMessage() == null ? "" : exception.getMessage().toLowerCase();
         if (message.contains("429") || message.contains("rate limit")) {
-            return new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                "NVIDIA API 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요.", exception);
+            return new ResponseStatusException(
+                    HttpStatus.TOO_MANY_REQUESTS,
+                    "NVIDIA API 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
+                    exception);
         }
         if (message.contains("timeout") || message.contains("timed out")) {
-            return new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,
-                "NVIDIA API 응답 시간이 초과되었습니다.", exception);
+            return new ResponseStatusException(
+                    HttpStatus.GATEWAY_TIMEOUT, "NVIDIA API 응답 시간이 초과되었습니다.", exception);
         }
-        return new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-            "Spring AI를 통한 NVIDIA API 호출에 실패했습니다. API 키와 모델 설정을 확인해주세요.", exception);
+        return new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Spring AI를 통한 NVIDIA API 호출에 실패했습니다. API 키와 모델 설정을 확인해주세요.",
+                exception);
     }
 }

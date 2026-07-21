@@ -5,12 +5,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-    name = "experience_placement",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_experience_placement",
-        columnNames = {"experience_id", "placement_type"}
-    )
-)
+        name = "experience_placement",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_experience_placement",
+                        columnNames = {"experience_id", "placement_type"}))
 public class ExperiencePlacement {
 
     @Id
@@ -37,15 +36,13 @@ public class ExperiencePlacement {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    protected ExperiencePlacement() {
-    }
+    protected ExperiencePlacement() {}
 
     private ExperiencePlacement(
-        Experience experience,
-        ExperiencePlacementType placementType,
-        int displayOrder,
-        boolean enabled
-    ) {
+            Experience experience,
+            ExperiencePlacementType placementType,
+            int displayOrder,
+            boolean enabled) {
         this.experience = experience;
         this.placementType = placementType;
         this.displayOrder = displayOrder;
@@ -53,11 +50,10 @@ public class ExperiencePlacement {
     }
 
     public static ExperiencePlacement create(
-        Experience experience,
-        ExperiencePlacementType placementType,
-        int displayOrder,
-        boolean enabled
-    ) {
+            Experience experience,
+            ExperiencePlacementType placementType,
+            int displayOrder,
+            boolean enabled) {
         return new ExperiencePlacement(experience, placementType, displayOrder, enabled);
     }
 
@@ -73,9 +69,23 @@ public class ExperiencePlacement {
         updatedAt = LocalDateTime.now();
     }
 
-    public Long getId() { return id; }
-    public Experience getExperience() { return experience; }
-    public ExperiencePlacementType getPlacementType() { return placementType; }
-    public int getDisplayOrder() { return displayOrder; }
-    public boolean isEnabled() { return enabled; }
+    public Long getId() {
+        return id;
+    }
+
+    public Experience getExperience() {
+        return experience;
+    }
+
+    public ExperiencePlacementType getPlacementType() {
+        return placementType;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
 }

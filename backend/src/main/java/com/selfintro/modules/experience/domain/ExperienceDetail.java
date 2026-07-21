@@ -37,10 +37,9 @@ public class ExperienceDetail {
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-        name = "experience_detail_skill",
-        joinColumns = @JoinColumn(name = "experience_detail_id"),
-        inverseJoinColumns = @JoinColumn(name = "skill_id")
-    )
+            name = "experience_detail_skill",
+            joinColumns = @JoinColumn(name = "experience_detail_id"),
+            inverseJoinColumns = @JoinColumn(name = "skill_id"))
     @OrderColumn(name = "list_order")
     private List<Skill> skills = new ArrayList<>();
 
@@ -48,7 +47,15 @@ public class ExperienceDetail {
         // JPA standard constructor
     }
 
-    private ExperienceDetail(Long id, String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {
+    private ExperienceDetail(
+            Long id,
+            String content,
+            String situation,
+            String actionDetail,
+            String outcome,
+            String narrative,
+            int displayOrder,
+            List<Skill> skills) {
         this.id = id;
         this.content = content;
         this.situation = situation;
@@ -59,8 +66,16 @@ public class ExperienceDetail {
         this.skills = skills != null ? skills : new ArrayList<>();
     }
 
-    public static ExperienceDetail create(String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {
-        return new ExperienceDetail(null, content, situation, actionDetail, outcome, narrative, displayOrder, skills);
+    public static ExperienceDetail create(
+            String content,
+            String situation,
+            String actionDetail,
+            String outcome,
+            String narrative,
+            int displayOrder,
+            List<Skill> skills) {
+        return new ExperienceDetail(
+                null, content, situation, actionDetail, outcome, narrative, displayOrder, skills);
     }
 
     /**
@@ -69,9 +84,24 @@ public class ExperienceDetail {
      * against an existing {@link ExperienceDetail} so that row keeps its identity instead of being
      * deleted and re-inserted.
      */
-    public record Draft(Long id, String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {}
+    public record Draft(
+            Long id,
+            String content,
+            String situation,
+            String actionDetail,
+            String outcome,
+            String narrative,
+            int displayOrder,
+            List<Skill> skills) {}
 
-    public void update(String content, String situation, String actionDetail, String outcome, String narrative, int displayOrder, List<Skill> skills) {
+    public void update(
+            String content,
+            String situation,
+            String actionDetail,
+            String outcome,
+            String narrative,
+            int displayOrder,
+            List<Skill> skills) {
         this.content = content;
         this.situation = situation;
         this.actionDetail = actionDetail;
@@ -86,7 +116,8 @@ public class ExperienceDetail {
     }
 
     public void setSkillLinked(Skill skill, boolean linked) {
-        boolean alreadyLinked = skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
+        boolean alreadyLinked =
+                skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
         if (linked && !alreadyLinked) {
             skills.add(skill);
         } else if (!linked && alreadyLinked) {
@@ -95,13 +126,39 @@ public class ExperienceDetail {
     }
 
     // Getters
-    public Long getId() { return id; }
-    public Experience getExperience() { return experience; }
-    public String getContent() { return content; }
-    public String getSituation() { return situation; }
-    public String getActionDetail() { return actionDetail; }
-    public String getOutcome() { return outcome; }
-    public String getNarrative() { return narrative; }
-    public int getDisplayOrder() { return displayOrder; }
-    public List<Skill> getSkills() { return skills; }
+    public Long getId() {
+        return id;
+    }
+
+    public Experience getExperience() {
+        return experience;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public String getSituation() {
+        return situation;
+    }
+
+    public String getActionDetail() {
+        return actionDetail;
+    }
+
+    public String getOutcome() {
+        return outcome;
+    }
+
+    public String getNarrative() {
+        return narrative;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public List<Skill> getSkills() {
+        return skills;
+    }
 }

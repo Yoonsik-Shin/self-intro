@@ -5,12 +5,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-    name = "experience_placement_detail",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_experience_placement_detail",
-        columnNames = {"placement_id", "experience_detail_id"}
-    )
-)
+        name = "experience_placement_detail",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_experience_placement_detail",
+                        columnNames = {"placement_id", "experience_detail_id"}))
 public class ExperiencePlacementDetail {
 
     @Id
@@ -31,24 +30,17 @@ public class ExperiencePlacementDetail {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    protected ExperiencePlacementDetail() {
-    }
+    protected ExperiencePlacementDetail() {}
 
     private ExperiencePlacementDetail(
-        ExperiencePlacement placement,
-        ExperienceDetail detail,
-        int displayOrder
-    ) {
+            ExperiencePlacement placement, ExperienceDetail detail, int displayOrder) {
         this.placement = placement;
         this.detail = detail;
         this.displayOrder = displayOrder;
     }
 
     public static ExperiencePlacementDetail create(
-        ExperiencePlacement placement,
-        ExperienceDetail detail,
-        int displayOrder
-    ) {
+            ExperiencePlacement placement, ExperienceDetail detail, int displayOrder) {
         return new ExperiencePlacementDetail(placement, detail, displayOrder);
     }
 
@@ -57,8 +49,19 @@ public class ExperiencePlacementDetail {
         createdAt = LocalDateTime.now();
     }
 
-    public Long getId() { return id; }
-    public ExperiencePlacement getPlacement() { return placement; }
-    public ExperienceDetail getDetail() { return detail; }
-    public int getDisplayOrder() { return displayOrder; }
+    public Long getId() {
+        return id;
+    }
+
+    public ExperiencePlacement getPlacement() {
+        return placement;
+    }
+
+    public ExperienceDetail getDetail() {
+        return detail;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
 }

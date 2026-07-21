@@ -14,9 +14,12 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "visitor_hourly_visit", uniqueConstraints = @UniqueConstraint(
-        name = "uk_visitor_hourly_visit_hash_date_hour",
-        columnNames = {"visitor_hash", "visited_date", "visited_hour"}))
+@Table(
+        name = "visitor_hourly_visit",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_visitor_hourly_visit_hash_date_hour",
+                        columnNames = {"visitor_hash", "visited_date", "visited_hour"}))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class VisitorHourlyVisit {
     @Id
@@ -42,7 +45,8 @@ public class VisitorHourlyVisit {
         this.pageViews = 1;
     }
 
-    public static VisitorHourlyVisit firstVisit(String visitorHash, LocalDate visitedDate, int visitedHour) {
+    public static VisitorHourlyVisit firstVisit(
+            String visitorHash, LocalDate visitedDate, int visitedHour) {
         return new VisitorHourlyVisit(visitorHash, visitedDate, visitedHour);
     }
 

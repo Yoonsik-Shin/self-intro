@@ -33,17 +33,27 @@ public class VisitorService {
         boolean bot = BotDetector.isLikelyBot(userAgent);
         String truncatedUserAgent = truncate(userAgent);
 
-        visitorRepository.findByVisitorHashAndVisitedDate(visitorHash, visitedDate)
+        visitorRepository
+                .findByVisitorHashAndVisitedDate(visitorHash, visitedDate)
                 .ifPresentOrElse(
                         visit -> visit.recordPageView(visitedAt, truncatedUserAgent, bot),
-                        () -> visitorRepository.save(VisitorDailyVisit.firstVisit(
-                                visitorHash, visitedDate, visitedAt, truncatedUserAgent, bot)));
-        hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(
+                        () ->
+                                visitorRepository.save(
+                                        VisitorDailyVisit.firstVisit(
+                                                visitorHash,
+                                                visitedDate,
+                                                visitedAt,
+                                                truncatedUserAgent,
+                                                bot)));
+        hourlyVisitorRepository
+                .findByVisitorHashAndVisitedDateAndVisitedHour(
                         visitorHash, visitedDate, visitedAt.getHour())
                 .ifPresentOrElse(
                         VisitorHourlyVisit::recordPageView,
-                        () -> hourlyVisitorRepository.save(VisitorHourlyVisit.firstVisit(
-                                visitorHash, visitedDate, visitedAt.getHour())));
+                        () ->
+                                hourlyVisitorRepository.save(
+                                        VisitorHourlyVisit.firstVisit(
+                                                visitorHash, visitedDate, visitedAt.getHour())));
         visitorRepository.flush();
         return getSummaryFor(visitedDate);
     }
@@ -63,17 +73,22 @@ public class VisitorService {
         }
         Map<LocalDate, VisitorDailyVisitRepository.DailyAggregation> aggregations =
                 visitorRepository.aggregateDaily(from, to).stream()
-                        .collect(Collectors.toMap(
-                                VisitorDailyVisitRepository.DailyAggregation::getVisitedDate,
-                                Function.identity()));
+                        .collect(
+                                Collectors.toMap(
+                                        VisitorDailyVisitRepository.DailyAggregation
+                                                ::getVisitedDate,
+                                        Function.identity()));
 
         return from.datesUntil(to.plusDays(1))
-                .map(date -> {
-                    VisitorDailyVisitRepository.DailyAggregation value = aggregations.get(date);
-                    return value == null
-                            ? new VisitorDailyResponse(date, 0, 0)
-                            : new VisitorDailyResponse(date, value.getVisitors(), value.getPageViews());
-                })
+                .map(
+                        date -> {
+                            VisitorDailyVisitRepository.DailyAggregation value =
+                                    aggregations.get(date);
+                            return value == null
+                                    ? new VisitorDailyResponse(date, 0, 0)
+                                    : new VisitorDailyResponse(
+                                            date, value.getVisitors(), value.getPageViews());
+                        })
                 .toList();
     }
 
@@ -81,17 +96,22 @@ public class VisitorService {
     public List<VisitorHourlyResponse> getHourly(LocalDate date) {
         Map<Integer, VisitorHourlyVisitRepository.HourlyAggregation> aggregations =
                 hourlyVisitorRepository.aggregateHourly(date).stream()
-                        .collect(Collectors.toMap(
-                                VisitorHourlyVisitRepository.HourlyAggregation::getVisitedHour,
-                                Function.identity()));
+                        .collect(
+                                Collectors.toMap(
+                                        VisitorHourlyVisitRepository.HourlyAggregation
+                                                ::getVisitedHour,
+                                        Function.identity()));
 
         return IntStream.rangeClosed(0, 23)
-                .mapToObj(hour -> {
-                    VisitorHourlyVisitRepository.HourlyAggregation value = aggregations.get(hour);
-                    return value == null
-                            ? new VisitorHourlyResponse(hour, 0, 0)
-                            : new VisitorHourlyResponse(hour, value.getVisitors(), value.getPageViews());
-                })
+                .mapToObj(
+                        hour -> {
+                            VisitorHourlyVisitRepository.HourlyAggregation value =
+                                    aggregations.get(hour);
+                            return value == null
+                                    ? new VisitorHourlyResponse(hour, 0, 0)
+                                    : new VisitorHourlyResponse(
+                                            hour, value.getVisitors(), value.getPageViews());
+                        })
                 .toList();
     }
 

@@ -55,23 +55,26 @@ public class VisitorController {
         String resolvedVisitorId = visitorId;
         if (!isValidVisitorId(resolvedVisitorId)) {
             resolvedVisitorId = UUID.randomUUID().toString();
-            response.addHeader(HttpHeaders.SET_COOKIE, createVisitorCookie(resolvedVisitorId).toString());
+            response.addHeader(
+                    HttpHeaders.SET_COOKIE, createVisitorCookie(resolvedVisitorId).toString());
         }
         return ResponseEntity.ok(
-                visitorService.recordVisit(hash(resolvedVisitorId), request.getHeader("User-Agent")));
+                visitorService.recordVisit(
+                        hash(resolvedVisitorId), request.getHeader("User-Agent")));
     }
 
     private boolean isAdmin(Authentication authentication) {
         return authentication != null
                 && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+                        .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
 
     private boolean isExcludedIp(HttpServletRequest request) {
-        Set<String> excluded = Arrays.stream(excludedIps.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isEmpty())
-                .collect(Collectors.toSet());
+        Set<String> excluded =
+                Arrays.stream(excludedIps.split(","))
+                        .map(String::trim)
+                        .filter(value -> !value.isEmpty())
+                        .collect(Collectors.toSet());
         if (excluded.isEmpty()) return false;
 
         String forwardedFor = request.getHeader("X-Forwarded-For");
@@ -99,12 +102,13 @@ public class VisitorController {
     }
 
     private ResponseCookie createVisitorCookie(String visitorId) {
-        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(VISITOR_COOKIE, visitorId)
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(COOKIE_MAX_AGE);
+        ResponseCookie.ResponseCookieBuilder builder =
+                ResponseCookie.from(VISITOR_COOKIE, visitorId)
+                        .httpOnly(true)
+                        .secure(cookieSecure)
+                        .sameSite("Lax")
+                        .path("/")
+                        .maxAge(COOKIE_MAX_AGE);
         if (!cookieDomain.isBlank()) {
             builder.domain(cookieDomain);
         }

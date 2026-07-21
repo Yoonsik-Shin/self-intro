@@ -22,8 +22,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,15 +38,15 @@ class CompetencyAiServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CompetencyAiService(
-            competencyRepository,
-            skillRepository,
-            experienceRepository,
-            studyRepository,
-            nvidiaNimClient,
-            new ObjectMapper(),
-            true
-        );
+        service =
+                new CompetencyAiService(
+                        competencyRepository,
+                        skillRepository,
+                        experienceRepository,
+                        studyRepository,
+                        nvidiaNimClient,
+                        new ObjectMapper(),
+                        true);
     }
 
     @Test
@@ -62,7 +62,8 @@ class CompetencyAiServiceTest {
         when(experience.getType()).thenReturn("PROJECT");
         when(experience.getTitle()).thenReturn("포트폴리오 프로젝트");
         when(experience.getSkills()).thenReturn(List.of(skill));
-        when(experienceRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of(experience));
+        when(experienceRepository.findAllByOrderByDisplayOrderAsc())
+                .thenReturn(List.of(experience));
 
         Study study = mock(Study.class);
         when(study.getId()).thenReturn(30L);
@@ -72,8 +73,9 @@ class CompetencyAiServiceTest {
         when(studyRepository.findAll()).thenReturn(List.of(study));
         when(competencyRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of());
 
-        when(nvidiaNimClient.generate(anyString(), anyString())).thenReturn(
-            """
+        when(nvidiaNimClient.generate(anyString(), anyString()))
+                .thenReturn(
+                        """
                 {"evidenceGroups":[{
                   "theme":"안정적인 백엔드 설계",
                   "skillIds":[10,999],
@@ -85,7 +87,7 @@ class CompetencyAiServiceTest {
                   "reason":"프로젝트와 학습에서 반복 확인됩니다."
                 }]}
                 """,
-            """
+                        """
                 {"suggestions":[{
                   "title":"안정적인 백엔드 설계",
                   "summary":"검증 가능한 프로젝트 경험을 기반으로 안정적인 구조를 설계합니다.",
@@ -97,10 +99,12 @@ class CompetencyAiServiceTest {
                   "studyIds":[30,999],
                   "reason":"프로젝트와 학습에서 확인됩니다."
                 }]}
-                """
-        );
+                """);
 
-        var response = service.suggest(new CompetencySuggestionRequest("", "", "", List.of(), List.of(), List.of()));
+        var response =
+                service.suggest(
+                        new CompetencySuggestionRequest(
+                                "", "", "", List.of(), List.of(), List.of()));
 
         assertThat(response.suggestions()).hasSize(1);
         var suggestion = response.suggestions().getFirst();
@@ -116,7 +120,7 @@ class CompetencyAiServiceTest {
         assertThat(systemPrompt.getAllValues().get(0)).contains("검증 담당자");
         assertThat(systemPrompt.getAllValues().get(1)).contains("편집자");
         assertThat(userPrompt.getAllValues().get(1))
-            .contains("evidenceGroups", "실제 프로젝트에서 검증된 근거")
-            .doesNotContain("포트폴리오 프로젝트");
+                .contains("evidenceGroups", "실제 프로젝트에서 검증된 근거")
+                .doesNotContain("포트폴리오 프로젝트");
     }
 }

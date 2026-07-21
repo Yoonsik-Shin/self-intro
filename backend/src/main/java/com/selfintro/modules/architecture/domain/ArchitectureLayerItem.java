@@ -28,14 +28,16 @@ public class ArchitectureLayerItem {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    private ArchitectureLayerItem(ArchitectureLayer layer, String strongText, String bodyText, int displayOrder) {
+    private ArchitectureLayerItem(
+            ArchitectureLayer layer, String strongText, String bodyText, int displayOrder) {
         this.layer = layer;
         this.strongText = strongText == null || strongText.isBlank() ? null : strongText.trim();
         this.bodyText = bodyText;
         this.displayOrder = displayOrder;
     }
 
-    static ArchitectureLayerItem create(ArchitectureLayer layer, String strongText, String bodyText, int displayOrder) {
+    static ArchitectureLayerItem create(
+            ArchitectureLayer layer, String strongText, String bodyText, int displayOrder) {
         return new ArchitectureLayerItem(layer, strongText, bodyText, displayOrder);
     }
 }

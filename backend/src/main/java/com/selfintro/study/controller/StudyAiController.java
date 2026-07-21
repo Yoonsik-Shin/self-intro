@@ -21,15 +21,12 @@ public class StudyAiController {
 
     @PostMapping("/suggestions")
     public ResponseEntity<StudySuggestionResponse> suggest(
-        @Valid @RequestBody StudySuggestionRequest request
-    ) {
+            @Valid @RequestBody StudySuggestionRequest request) {
         return ResponseEntity.ok(studyAiService.suggest(request));
     }
 
     @PostMapping(value = "/suggestions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter suggestStream(
-        @Valid @RequestBody StudySuggestionRequest request
-    ) {
+    public SseEmitter suggestStream(@Valid @RequestBody StudySuggestionRequest request) {
         return studyAiService.suggestStream(request);
     }
 }

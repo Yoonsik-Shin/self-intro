@@ -29,7 +29,8 @@ public class StorageService {
             S3Client s3Client,
             S3Presigner s3Presigner,
             @Value("${app.storage.bucket}") String bucket,
-            @Value("${app.storage.presigned-upload-ttl-seconds:300}") long presignedUploadTtlSeconds,
+            @Value("${app.storage.presigned-upload-ttl-seconds:300}")
+                    long presignedUploadTtlSeconds,
             @Value("${app.storage.public-base-url}") String publicBaseUrl) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
@@ -45,15 +46,19 @@ public class StorageService {
 
         String objectKey = buildObjectKey(scope, extractExtension(fileName, contentType));
 
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(bucket)
-                .key(objectKey)
-                .contentType(contentType)
-                .build();
+        PutObjectRequest putObjectRequest =
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(objectKey)
+                        .contentType(contentType)
+                        .build();
 
-        PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(builder -> builder
-                .signatureDuration(Duration.ofSeconds(presignedUploadTtlSeconds))
-                .putObjectRequest(putObjectRequest));
+        PresignedPutObjectRequest presigned =
+                s3Presigner.presignPutObject(
+                        builder ->
+                                builder.signatureDuration(
+                                                Duration.ofSeconds(presignedUploadTtlSeconds))
+                                        .putObjectRequest(putObjectRequest));
 
         return new PresignedUpload(objectKey, presigned.url().toString(), toPublicUrl(objectKey));
     }
@@ -72,8 +77,13 @@ public class StorageService {
 
     private String buildObjectKey(ImageScope scope, String extension) {
         LocalDate now = LocalDate.now();
-        return "%s/%04d/%02d/%s%s".formatted(
-                scope.prefix(), now.getYear(), now.getMonthValue(), UUID.randomUUID(), extension);
+        return "%s/%04d/%02d/%s%s"
+                .formatted(
+                        scope.prefix(),
+                        now.getYear(),
+                        now.getMonthValue(),
+                        UUID.randomUUID(),
+                        extension);
     }
 
     private String extractExtension(String fileName, String contentType) {
@@ -93,6 +103,5 @@ public class StorageService {
         };
     }
 
-    public record PresignedUpload(String objectKey, String uploadUrl, String publicUrl) {
-    }
+    public record PresignedUpload(String objectKey, String uploadUrl, String publicUrl) {}
 }

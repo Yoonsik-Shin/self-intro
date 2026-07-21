@@ -41,19 +41,17 @@ public class StudyRepositoryImpl implements StudyRepositoryCustom {
             where.and(study.status.eq(condition.status()));
         }
 
-        List<Study> content = queryFactory
-                .selectFrom(study)
-                .where(where)
-                .orderBy(study.learnedAt.desc(), study.id.desc())
-                .offset(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .fetch();
+        List<Study> content =
+                queryFactory
+                        .selectFrom(study)
+                        .where(where)
+                        .orderBy(study.learnedAt.desc(), study.id.desc())
+                        .offset(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .fetch();
 
-        Long total = queryFactory
-                .select(study.id.countDistinct())
-                .from(study)
-                .where(where)
-                .fetchOne();
+        Long total =
+                queryFactory.select(study.id.countDistinct()).from(study).where(where).fetchOne();
 
         return new PageImpl<>(content, pageable, total == null ? 0 : total);
     }
@@ -63,7 +61,8 @@ public class StudyRepositoryImpl implements StudyRepositoryCustom {
             return null;
         }
         String value = keyword.trim();
-        return study.title.containsIgnoreCase(value)
+        return study.title
+                .containsIgnoreCase(value)
                 .or(study.summary.containsIgnoreCase(value))
                 .or(study.contentMarkdown.containsIgnoreCase(value))
                 .or(study.tags.any().name.containsIgnoreCase(value))

@@ -44,8 +44,17 @@ public class Skill {
         // JPA standard constructor
     }
 
-    private Skill(String name, String category, String skillLevel, String skillVersion, String comment,
-                  String usageType, String badgeKey, String badgeColor, boolean isCore, int displayOrder) {
+    private Skill(
+            String name,
+            String category,
+            String skillLevel,
+            String skillVersion,
+            String comment,
+            String usageType,
+            String badgeKey,
+            String badgeColor,
+            boolean isCore,
+            int displayOrder) {
         this.name = name;
         this.category = category;
         this.skillLevel = skillLevel;
@@ -58,27 +67,100 @@ public class Skill {
         this.displayOrder = displayOrder;
     }
 
-    public static Skill create(String name, String category, String skillLevel, boolean isCore, int displayOrder) {
-        return new Skill(name, category, skillLevel, null, null, "LEARNING", null, null, isCore, displayOrder);
+    public static Skill create(
+            String name, String category, String skillLevel, boolean isCore, int displayOrder) {
+        return new Skill(
+                name,
+                category,
+                skillLevel,
+                null,
+                null,
+                "LEARNING",
+                null,
+                null,
+                isCore,
+                displayOrder);
     }
 
-    public static Skill create(String name, String category, String skillLevel, String skillVersion, String comment, String usageType, boolean isCore, int displayOrder) {
-        return new Skill(name, category, skillLevel, skillVersion, comment, usageType, null, null, isCore, displayOrder);
+    public static Skill create(
+            String name,
+            String category,
+            String skillLevel,
+            String skillVersion,
+            String comment,
+            String usageType,
+            boolean isCore,
+            int displayOrder) {
+        return new Skill(
+                name,
+                category,
+                skillLevel,
+                skillVersion,
+                comment,
+                usageType,
+                null,
+                null,
+                isCore,
+                displayOrder);
     }
 
-    public static Skill create(String name, String category, String skillLevel, String skillVersion, String comment,
-                               String usageType, String badgeKey, String badgeColor, boolean isCore, int displayOrder) {
-        return new Skill(name, category, skillLevel, skillVersion, comment, usageType, badgeKey, badgeColor, isCore, displayOrder);
+    public static Skill create(
+            String name,
+            String category,
+            String skillLevel,
+            String skillVersion,
+            String comment,
+            String usageType,
+            String badgeKey,
+            String badgeColor,
+            boolean isCore,
+            int displayOrder) {
+        return new Skill(
+                name,
+                category,
+                skillLevel,
+                skillVersion,
+                comment,
+                usageType,
+                badgeKey,
+                badgeColor,
+                isCore,
+                displayOrder);
     }
 
-    public void update(String name, String category, String skillLevel, String skillVersion, String comment,
-                       String usageType, boolean isCore, int displayOrder) {
-        update(name, category, skillLevel, skillVersion, comment, usageType,
-                this.badgeKey, this.badgeColor, isCore, displayOrder);
+    public void update(
+            String name,
+            String category,
+            String skillLevel,
+            String skillVersion,
+            String comment,
+            String usageType,
+            boolean isCore,
+            int displayOrder) {
+        update(
+                name,
+                category,
+                skillLevel,
+                skillVersion,
+                comment,
+                usageType,
+                this.badgeKey,
+                this.badgeColor,
+                isCore,
+                displayOrder);
     }
 
-    public void update(String name, String category, String skillLevel, String skillVersion, String comment,
-                       String usageType, String badgeKey, String badgeColor, boolean isCore, int displayOrder) {
+    public void update(
+            String name,
+            String category,
+            String skillLevel,
+            String skillVersion,
+            String comment,
+            String usageType,
+            String badgeKey,
+            String badgeColor,
+            boolean isCore,
+            int displayOrder) {
         this.name = name;
         this.category = category;
         this.skillLevel = skillLevel;
@@ -100,15 +182,47 @@ public class Skill {
     }
 
     // Getters
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getCategory() { return category; }
-    public String getSkillLevel() { return skillLevel; }
-    public String getSkillVersion() { return skillVersion; }
-    public String getComment() { return comment; }
-    public String getUsageType() { return usageType; }
-    public String getBadgeKey() { return badgeKey; }
-    public String getBadgeColor() { return badgeColor; }
-    public boolean isCore() { return isCore; }
-    public int getDisplayOrder() { return displayOrder; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public String getSkillLevel() {
+        return skillLevel;
+    }
+
+    public String getSkillVersion() {
+        return skillVersion;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public String getUsageType() {
+        return usageType;
+    }
+
+    public String getBadgeKey() {
+        return badgeKey;
+    }
+
+    public String getBadgeColor() {
+        return badgeColor;
+    }
+
+    public boolean isCore() {
+        return isCore;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
 }

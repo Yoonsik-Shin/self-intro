@@ -46,8 +46,7 @@ public class StudyImage {
      * match it against an existing {@link StudyImage} so that row keeps its identity instead of
      * being deleted and re-inserted.
      */
-    public record Draft(Long id, String objectKey, int displayOrder) {
-    }
+    public record Draft(Long id, String objectKey, int displayOrder) {}
 
     public void updateDisplayOrder(int displayOrder) {
         this.displayOrder = displayOrder;

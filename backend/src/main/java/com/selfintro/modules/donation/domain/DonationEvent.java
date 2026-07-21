@@ -43,8 +43,13 @@ public class DonationEvent {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    private DonationEvent(Long donationId, DonationEventType eventType, DonationEventActor actor,
-            String payState, String detail, LocalDateTime createdAt) {
+    private DonationEvent(
+            Long donationId,
+            DonationEventType eventType,
+            DonationEventActor actor,
+            String payState,
+            String detail,
+            LocalDateTime createdAt) {
         this.donationId = donationId;
         this.eventType = eventType;
         this.actor = actor;
@@ -53,9 +58,15 @@ public class DonationEvent {
         this.createdAt = createdAt;
     }
 
-    public static DonationEvent of(Long donationId, DonationEventType eventType, DonationEventActor actor,
-            String payState, String detail, LocalDateTime createdAt) {
-        return new DonationEvent(donationId, eventType, actor, payState, truncateDetail(detail), createdAt);
+    public static DonationEvent of(
+            Long donationId,
+            DonationEventType eventType,
+            DonationEventActor actor,
+            String payState,
+            String detail,
+            LocalDateTime createdAt) {
+        return new DonationEvent(
+                donationId, eventType, actor, payState, truncateDetail(detail), createdAt);
     }
 
     private static String truncateDetail(String detail) {

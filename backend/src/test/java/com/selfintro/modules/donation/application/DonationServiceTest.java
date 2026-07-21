@@ -40,39 +40,49 @@ class DonationServiceTest {
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 7, 17, 12, 0);
 
-    @Mock
-    private DonationRepository donationRepository;
+    @Mock private DonationRepository donationRepository;
 
-    @Mock
-    private DonationEventRepository donationEventRepository;
+    @Mock private DonationEventRepository donationEventRepository;
 
-    @Mock
-    private DonationSettingRepository donationSettingRepository;
+    @Mock private DonationSettingRepository donationSettingRepository;
 
-    @Mock
-    private PayAppClient payAppClient;
+    @Mock private PayAppClient payAppClient;
 
-    @Mock
-    private DonationRateLimiter rateLimiter;
+    @Mock private DonationRateLimiter rateLimiter;
 
     private DonationService donationService;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-07-17T03:00:00Z"), SEOUL);
-        DonationProperties properties = new DonationProperties(1000, 100000,
-                new DonationProperties.PayApp("https://api.payapp.kr/oapi/apiLoad.html",
-                        "seller", "link-key", "link-value", "01000000000",
-                        "http://localhost:8080/api/donations/payapp/callback",
-                        "http://localhost:8080/api/donations/complete"));
-        donationService = new DonationService(donationRepository, donationEventRepository,
-                donationSettingRepository, payAppClient, properties, rateLimiter, clock);
+        DonationProperties properties =
+                new DonationProperties(
+                        1000,
+                        100000,
+                        new DonationProperties.PayApp(
+                                "https://api.payapp.kr/oapi/apiLoad.html",
+                                "seller",
+                                "link-key",
+                                "link-value",
+                                "01000000000",
+                                "http://localhost:8080/api/donations/payapp/callback",
+                                "http://localhost:8080/api/donations/complete"));
+        donationService =
+                new DonationService(
+                        donationRepository,
+                        donationEventRepository,
+                        donationSettingRepository,
+                        payAppClient,
+                        properties,
+                        rateLimiter,
+                        clock);
     }
 
     @Test
     void createReturnsPayUrlAndStoresMulNo() {
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
-        when(donationRepository.save(any(Donation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(donationRepository.save(any(Donation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(payAppClient.payRequest(anyInt(), anyString()))
                 .thenReturn(PayAppPayRequestResult.ok("mul-123", "https://pay.example/123"));
 
@@ -88,8 +98,10 @@ class DonationServiceTest {
 
         assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
                 .isInstanceOf(ResponseStatusException.class)
-                .satisfies(thrown -> assertThat(((ResponseStatusException) thrown).getStatusCode())
-                        .isEqualTo(HttpStatus.TOO_MANY_REQUESTS));
+                .satisfies(
+                        thrown ->
+                                assertThat(((ResponseStatusException) thrown).getStatusCode())
+                                        .isEqualTo(HttpStatus.TOO_MANY_REQUESTS));
         verify(donationRepository, never()).save(any());
     }
 
@@ -119,8 +131,10 @@ class DonationServiceTest {
 
         assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
                 .isInstanceOf(ResponseStatusException.class)
-                .satisfies(thrown -> assertThat(((ResponseStatusException) thrown).getStatusCode())
-                        .isEqualTo(HttpStatus.BAD_GATEWAY));
+                .satisfies(
+                        thrown ->
+                                assertThat(((ResponseStatusException) thrown).getStatusCode())
+                                        .isEqualTo(HttpStatus.BAD_GATEWAY));
         assertThat(donation.getStatus()).isEqualTo(DonationStatus.FAILED);
     }
 
@@ -189,7 +203,8 @@ class DonationServiceTest {
 
         donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
         LocalDateTime firstPaidAt = donation.getPaidAt();
-        boolean secondAccepted = donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
+        boolean secondAccepted =
+                donationService.handleCallback(callbackParams("mul-123", "4", "5000"));
 
         assertThat(secondAccepted).isTrue();
         assertThat(donation.getPaidAt()).isEqualTo(firstPaidAt);
@@ -210,7 +225,8 @@ class DonationServiceTest {
 
     @Test
     void callbackRejectsWrongLinkValue() {
-        Map<String, String> params = new java.util.HashMap<>(callbackParams("mul-123", "4", "5000"));
+        Map<String, String> params =
+                new java.util.HashMap<>(callbackParams("mul-123", "4", "5000"));
         params.put("linkval", "forged-value");
 
         assertThat(donationService.handleCallback(params)).isFalse();
@@ -219,7 +235,8 @@ class DonationServiceTest {
 
     @Test
     void callbackRejectsMissingLinkValue() {
-        Map<String, String> params = new java.util.HashMap<>(callbackParams("mul-123", "4", "5000"));
+        Map<String, String> params =
+                new java.util.HashMap<>(callbackParams("mul-123", "4", "5000"));
         params.remove("linkval");
 
         assertThat(donationService.handleCallback(params)).isFalse();
@@ -229,7 +246,8 @@ class DonationServiceTest {
     void callbackRejectsUnknownMulNo() {
         when(donationRepository.findWithLockByMulNo("unknown")).thenReturn(Optional.empty());
 
-        assertThat(donationService.handleCallback(callbackParams("unknown", "4", "5000"))).isFalse();
+        assertThat(donationService.handleCallback(callbackParams("unknown", "4", "5000")))
+                .isFalse();
     }
 
     @Test
@@ -237,7 +255,8 @@ class DonationServiceTest {
         Donation donation = pendingDonation("mul-123");
         when(donationRepository.findWithLockByMulNo("mul-123")).thenReturn(Optional.of(donation));
 
-        assertThat(donationService.handleCallback(callbackParams("mul-123", "4", "9999"))).isFalse();
+        assertThat(donationService.handleCallback(callbackParams("mul-123", "4", "9999")))
+                .isFalse();
         assertThat(donation.getStatus()).isEqualTo(DonationStatus.PENDING);
     }
 
@@ -257,7 +276,8 @@ class DonationServiceTest {
     }
 
     private Map<String, String> callbackParams(String mulNo, String payState, String price) {
-        return Map.of("mul_no", mulNo, "pay_state", payState, "price", price, "linkval", "link-value");
+        return Map.of(
+                "mul_no", mulNo, "pay_state", payState, "price", price, "linkval", "link-value");
     }
 
     @Test
@@ -289,7 +309,8 @@ class DonationServiceTest {
         donation.markPaid(NOW, "4");
         when(donationRepository.findWithLockById(1L)).thenReturn(Optional.of(donation));
         org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "취소 실패"))
-                .when(payAppClient).payCancel(anyString(), anyString());
+                .when(payAppClient)
+                .payCancel(anyString(), anyString());
 
         assertThatThrownBy(() -> donationService.cancel(1L))
                 .isInstanceOf(ResponseStatusException.class);
@@ -313,8 +334,10 @@ class DonationServiceTest {
 
         assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
                 .isInstanceOf(ResponseStatusException.class)
-                .satisfies(thrown -> assertThat(((ResponseStatusException) thrown).getStatusCode())
-                        .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
+                .satisfies(
+                        thrown ->
+                                assertThat(((ResponseStatusException) thrown).getStatusCode())
+                                        .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
         verify(donationRepository, never()).save(any());
     }
 
@@ -339,28 +362,30 @@ class DonationServiceTest {
     @Test
     void createRecordsCreatedAndPayRequestedEvents() {
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
-        when(donationRepository.save(any(Donation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(donationRepository.save(any(Donation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(payAppClient.payRequest(anyInt(), anyString()))
                 .thenReturn(PayAppPayRequestResult.ok("mul-123", "https://pay.example/123"));
 
         donationService.create(5000, null, "1.2.3.4");
 
-        assertThat(capturedEventTypes()).containsExactly(
-                DonationEventType.CREATED, DonationEventType.PAY_REQUESTED);
+        assertThat(capturedEventTypes())
+                .containsExactly(DonationEventType.CREATED, DonationEventType.PAY_REQUESTED);
     }
 
     @Test
     void createFailureRecordsPayFailedEvent() {
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
-        when(donationRepository.save(any(Donation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(donationRepository.save(any(Donation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(payAppClient.payRequest(anyInt(), anyString()))
                 .thenReturn(PayAppPayRequestResult.fail("한도 초과"));
 
         assertThatThrownBy(() -> donationService.create(5000, null, "1.2.3.4"))
                 .isInstanceOf(ResponseStatusException.class);
 
-        assertThat(capturedEventTypes()).containsExactly(
-                DonationEventType.CREATED, DonationEventType.PAY_FAILED);
+        assertThat(capturedEventTypes())
+                .containsExactly(DonationEventType.CREATED, DonationEventType.PAY_FAILED);
     }
 
     @Test
@@ -412,7 +437,8 @@ class DonationServiceTest {
     }
 
     private java.util.List<DonationEvent> capturedEvents() {
-        org.mockito.ArgumentCaptor<DonationEvent> captor = org.mockito.ArgumentCaptor.forClass(DonationEvent.class);
+        org.mockito.ArgumentCaptor<DonationEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(DonationEvent.class);
         verify(donationEventRepository, org.mockito.Mockito.atLeast(0)).save(captor.capture());
         return captor.getAllValues();
     }

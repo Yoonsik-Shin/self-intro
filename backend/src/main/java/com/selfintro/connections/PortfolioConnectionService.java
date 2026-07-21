@@ -38,18 +38,21 @@ public class PortfolioConnectionService {
 
     public SkillConnections getSkillConnections(Long skillId) {
         requireSkill(skillId);
-        List<Long> studyIds = studyRepository.findAll().stream()
-            .filter(study -> containsId(study.getSkills(), skillId))
-            .map(Study::getId)
-            .toList();
-        List<Long> experienceIds = experienceRepository.findAll().stream()
-            .filter(experience -> containsId(experience.getSkills(), skillId))
-            .map(Experience::getId)
-            .toList();
-        List<Long> detailIds = experienceDetailRepository.findAll().stream()
-            .filter(detail -> containsId(detail.getSkills(), skillId))
-            .map(ExperienceDetail::getId)
-            .toList();
+        List<Long> studyIds =
+                studyRepository.findAll().stream()
+                        .filter(study -> containsId(study.getSkills(), skillId))
+                        .map(Study::getId)
+                        .toList();
+        List<Long> experienceIds =
+                experienceRepository.findAll().stream()
+                        .filter(experience -> containsId(experience.getSkills(), skillId))
+                        .map(Experience::getId)
+                        .toList();
+        List<Long> detailIds =
+                experienceDetailRepository.findAll().stream()
+                        .filter(detail -> containsId(detail.getSkills(), skillId))
+                        .map(ExperienceDetail::getId)
+                        .toList();
         return new SkillConnections(studyIds, experienceIds, detailIds);
     }
 
@@ -60,14 +63,28 @@ public class PortfolioConnectionService {
         Set<Long> experienceIds = ids(request.experienceIds());
         Set<Long> detailIds = ids(request.experienceDetailIds());
         validateIds("Study", studyIds, studyRepository.findAllById(studyIds).size());
-        validateIds("Experience", experienceIds, experienceRepository.findAllById(experienceIds).size());
-        validateIds("Experience detail", detailIds, experienceDetailRepository.findAllById(detailIds).size());
+        validateIds(
+                "Experience",
+                experienceIds,
+                experienceRepository.findAllById(experienceIds).size());
+        validateIds(
+                "Experience detail",
+                detailIds,
+                experienceDetailRepository.findAllById(detailIds).size());
 
-        studyRepository.findAll().forEach(study -> study.setSkillLinked(skill, studyIds.contains(study.getId())));
-        experienceRepository.findAll().forEach(experience ->
-            experience.setSkillLinked(skill, experienceIds.contains(experience.getId())));
-        experienceDetailRepository.findAll().forEach(detail ->
-            detail.setSkillLinked(skill, detailIds.contains(detail.getId())));
+        studyRepository
+                .findAll()
+                .forEach(study -> study.setSkillLinked(skill, studyIds.contains(study.getId())));
+        experienceRepository
+                .findAll()
+                .forEach(
+                        experience ->
+                                experience.setSkillLinked(
+                                        skill, experienceIds.contains(experience.getId())));
+        experienceDetailRepository
+                .findAll()
+                .forEach(
+                        detail -> detail.setSkillLinked(skill, detailIds.contains(detail.getId())));
 
         return getSkillConnections(skillId);
     }
@@ -75,87 +92,123 @@ public class PortfolioConnectionService {
     public ExperienceConnections getExperienceConnections(Long experienceId) {
         Experience experience = requireExperience(experienceId);
         List<Study> studies = studyRepository.findAll();
-        List<Long> studyIds = studies.stream()
-            .filter(study -> containsId(study.getExperiences(), experienceId))
-            .map(Study::getId)
-            .toList();
-        List<DetailStudies> detailStudies = experience.getDetails().stream()
-            .map(detail -> new DetailStudies(
-                detail.getId(),
+        List<Long> studyIds =
                 studies.stream()
-                    .filter(study -> containsId(study.getExperienceDetails(), detail.getId()))
-                    .map(Study::getId)
-                    .toList()))
-            .toList();
-        List<RelatedExperienceRequest> related = experienceRelationRepository
-            .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId).stream()
-            .map(relation -> {
-                Experience other = relation.getSource().getId().equals(experienceId)
-                    ? relation.getTarget()
-                    : relation.getSource();
-                return new RelatedExperienceRequest(other.getId(), relation.getType());
-            })
-            .toList();
+                        .filter(study -> containsId(study.getExperiences(), experienceId))
+                        .map(Study::getId)
+                        .toList();
+        List<DetailStudies> detailStudies =
+                experience.getDetails().stream()
+                        .map(
+                                detail ->
+                                        new DetailStudies(
+                                                detail.getId(),
+                                                studies.stream()
+                                                        .filter(
+                                                                study ->
+                                                                        containsId(
+                                                                                study
+                                                                                        .getExperienceDetails(),
+                                                                                detail.getId()))
+                                                        .map(Study::getId)
+                                                        .toList()))
+                        .toList();
+        List<RelatedExperienceRequest> related =
+                experienceRelationRepository
+                        .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId)
+                        .stream()
+                        .map(
+                                relation -> {
+                                    Experience other =
+                                            relation.getSource().getId().equals(experienceId)
+                                                    ? relation.getTarget()
+                                                    : relation.getSource();
+                                    return new RelatedExperienceRequest(
+                                            other.getId(), relation.getType());
+                                })
+                        .toList();
         return new ExperienceConnections(studyIds, detailStudies, related);
     }
 
     @Transactional
-    public ExperienceConnections updateExperienceConnections(Long experienceId, ExperienceConnections request) {
+    public ExperienceConnections updateExperienceConnections(
+            Long experienceId, ExperienceConnections request) {
         Experience experience = requireExperience(experienceId);
         Set<Long> studyIds = ids(request.studyIds());
         validateIds("Study", studyIds, studyRepository.findAllById(studyIds).size());
 
         Map<Long, Set<Long>> detailStudyIds = new LinkedHashMap<>();
         for (DetailStudies detailConnection : safe(request.detailStudies())) {
-            ExperienceDetail detail = experienceDetailRepository.findById(detailConnection.detailId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                    "존재하지 않는 이력 상세 항목입니다: " + detailConnection.detailId()));
-            if (detail.getExperience() == null || !experienceId.equals(detail.getExperience().getId())) {
+            ExperienceDetail detail =
+                    experienceDetailRepository
+                            .findById(detailConnection.detailId())
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "존재하지 않는 이력 상세 항목입니다: "
+                                                            + detailConnection.detailId()));
+            if (detail.getExperience() == null
+                    || !experienceId.equals(detail.getExperience().getId())) {
                 throw new IllegalArgumentException("다른 이력의 상세 항목은 연결할 수 없습니다.");
             }
             Set<Long> connectedStudyIds = ids(detailConnection.studyIds());
-            validateIds("Study", connectedStudyIds, studyRepository.findAllById(connectedStudyIds).size());
+            validateIds(
+                    "Study",
+                    connectedStudyIds,
+                    studyRepository.findAllById(connectedStudyIds).size());
             detailStudyIds.put(detail.getId(), connectedStudyIds);
         }
 
         List<Study> studies = studyRepository.findAll();
-        studies.forEach(study -> study.setExperienceLinked(experience, studyIds.contains(study.getId())));
+        studies.forEach(
+                study -> study.setExperienceLinked(experience, studyIds.contains(study.getId())));
         for (ExperienceDetail detail : experience.getDetails()) {
             Set<Long> connectedStudyIds = detailStudyIds.getOrDefault(detail.getId(), Set.of());
-            studies.forEach(study ->
-                study.setExperienceDetailLinked(detail, connectedStudyIds.contains(study.getId())));
+            studies.forEach(
+                    study ->
+                            study.setExperienceDetailLinked(
+                                    detail, connectedStudyIds.contains(study.getId())));
         }
 
         List<RelatedExperienceRequest> relatedRequests = safe(request.relatedExperiences());
-        Set<Long> targetIds = relatedRequests.stream()
-            .map(RelatedExperienceRequest::experienceId)
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<Long> targetIds =
+                relatedRequests.stream()
+                        .map(RelatedExperienceRequest::experienceId)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         if (targetIds.contains(experienceId)) {
             throw new IllegalArgumentException("이력은 자기 자신과 연결할 수 없습니다.");
         }
-        validateIds("Related experience", targetIds, experienceRepository.findAllById(targetIds).size());
+        validateIds(
+                "Related experience",
+                targetIds,
+                experienceRepository.findAllById(targetIds).size());
 
         // 관계는 어느 쪽 experience를 편집하든 동일하게 보여야 하므로, source/target 방향에 상관없이
         // 이 experience가 걸린 관계를 모두 대상으로 정리한다: 더 이상 선택되지 않은 것만 삭제하고,
         // 반대 방향으로 이미 존재하는 관계는 그대로 두어 상대방 화면의 데이터를 건드리지 않는다.
-        List<ExperienceRelation> existingRelations = experienceRelationRepository
-            .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId);
+        List<ExperienceRelation> existingRelations =
+                experienceRelationRepository.findBySourceIdOrTargetIdOrderByDisplayOrderAsc(
+                        experienceId, experienceId);
         Map<Long, ExperienceRelation> existingByOtherId = new LinkedHashMap<>();
         for (ExperienceRelation relation : existingRelations) {
-            Long otherId = relation.getSource().getId().equals(experienceId)
-                ? relation.getTarget().getId()
-                : relation.getSource().getId();
+            Long otherId =
+                    relation.getSource().getId().equals(experienceId)
+                            ? relation.getTarget().getId()
+                            : relation.getSource().getId();
             existingByOtherId.put(otherId, relation);
         }
 
-        List<ExperienceRelation> toDelete = existingRelations.stream()
-            .filter(relation -> {
-                Long otherId = relation.getSource().getId().equals(experienceId)
-                    ? relation.getTarget().getId()
-                    : relation.getSource().getId();
-                return !targetIds.contains(otherId);
-            })
-            .toList();
+        List<ExperienceRelation> toDelete =
+                existingRelations.stream()
+                        .filter(
+                                relation -> {
+                                    Long otherId =
+                                            relation.getSource().getId().equals(experienceId)
+                                                    ? relation.getTarget().getId()
+                                                    : relation.getSource().getId();
+                                    return !targetIds.contains(otherId);
+                                })
+                        .toList();
         experienceRelationRepository.deleteAll(toDelete);
         experienceRelationRepository.flush();
 
@@ -176,24 +229,31 @@ public class PortfolioConnectionService {
     public List<RelatedExperienceResponse> getRelatedExperiences(Long experienceId) {
         requireExperience(experienceId);
         Map<Long, RelatedExperienceResponse> unique = new LinkedHashMap<>();
-        experienceRelationRepository.findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId)
-            .forEach(relation -> {
-                Experience other = relation.getSource().getId().equals(experienceId)
-                    ? relation.getTarget()
-                    : relation.getSource();
-                unique.putIfAbsent(other.getId(), RelatedExperienceResponse.from(other, relation.getType()));
-            });
+        experienceRelationRepository
+                .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId)
+                .forEach(
+                        relation -> {
+                            Experience other =
+                                    relation.getSource().getId().equals(experienceId)
+                                            ? relation.getTarget()
+                                            : relation.getSource();
+                            unique.putIfAbsent(
+                                    other.getId(),
+                                    RelatedExperienceResponse.from(other, relation.getType()));
+                        });
         return List.copyOf(unique.values());
     }
 
     private Skill requireSkill(Long id) {
-        return skillRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기술 스택입니다: " + id));
+        return skillRepository
+                .findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기술 스택입니다: " + id));
     }
 
     private Experience requireExperience(Long id) {
-        return experienceRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id));
+        return experienceRepository
+                .findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id));
     }
 
     private Set<Long> ids(List<Long> values) {
@@ -211,11 +271,15 @@ public class PortfolioConnectionService {
     }
 
     private boolean containsId(List<? extends Object> values, Long id) {
-        return values.stream().anyMatch(value -> {
-            if (value instanceof Skill skill) return id.equals(skill.getId());
-            if (value instanceof Experience experience) return id.equals(experience.getId());
-            if (value instanceof ExperienceDetail detail) return id.equals(detail.getId());
-            return false;
-        });
+        return values.stream()
+                .anyMatch(
+                        value -> {
+                            if (value instanceof Skill skill) return id.equals(skill.getId());
+                            if (value instanceof Experience experience)
+                                return id.equals(experience.getId());
+                            if (value instanceof ExperienceDetail detail)
+                                return id.equals(detail.getId());
+                            return false;
+                        });
     }
 }

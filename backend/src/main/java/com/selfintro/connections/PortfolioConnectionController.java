@@ -25,9 +25,7 @@ public class PortfolioConnectionController {
 
     @PutMapping("/api/admin/skills/{id}/connections")
     public SkillConnections updateSkillConnections(
-        @PathVariable Long id,
-        @Valid @RequestBody SkillConnections request
-    ) {
+            @PathVariable Long id, @Valid @RequestBody SkillConnections request) {
         return connectionService.updateSkillConnections(id, request);
     }
 
@@ -38,9 +36,7 @@ public class PortfolioConnectionController {
 
     @PutMapping("/api/admin/experiences/{id}/connections")
     public ExperienceConnections updateExperienceConnections(
-        @PathVariable Long id,
-        @Valid @RequestBody ExperienceConnections request
-    ) {
+            @PathVariable Long id, @Valid @RequestBody ExperienceConnections request) {
         return connectionService.updateExperienceConnections(id, request);
     }
 

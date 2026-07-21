@@ -21,12 +21,14 @@ public class CompetencyController {
     }
 
     @PostMapping
-    public ResponseEntity<CompetencyResponse> create(@Valid @RequestBody CompetencyRequest request) {
+    public ResponseEntity<CompetencyResponse> create(
+            @Valid @RequestBody CompetencyRequest request) {
         return ResponseEntity.ok(competencyService.create(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CompetencyResponse> update(@PathVariable Long id, @Valid @RequestBody CompetencyRequest request) {
+    public ResponseEntity<CompetencyResponse> update(
+            @PathVariable Long id, @Valid @RequestBody CompetencyRequest request) {
         return ResponseEntity.ok(competencyService.update(id, request));
     }
 

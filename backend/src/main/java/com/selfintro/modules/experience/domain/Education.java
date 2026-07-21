@@ -18,24 +18,110 @@ public class Education extends Experience {
         // JPA standard constructor
     }
 
-    private Education(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String institutionName) {
-        super(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, showOnTimeline, timelineLabel);
+    private Education(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel,
+            String institutionName) {
+        super(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                showOnTimeline,
+                timelineLabel);
         this.institutionName = institutionName;
     }
 
-    public static Education create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String institutionName) {
-        return new Education(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, showOnTimeline, timelineLabel, institutionName);
+    public static Education create(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel,
+            String institutionName) {
+        return new Education(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                showOnTimeline,
+                timelineLabel,
+                institutionName);
     }
 
-    public static Education create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String institutionName) {
-        return create(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, true, null, institutionName);
+    public static Education create(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            String institutionName) {
+        return create(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                true,
+                null,
+                institutionName);
     }
 
-    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String institutionName) {
-        super.updateCommonFields(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, showOnTimeline, timelineLabel);
+    public void update(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel,
+            String institutionName) {
+        super.updateCommonFields(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                showOnTimeline,
+                timelineLabel);
         this.institutionName = institutionName;
     }
 
     // Getters
-    public String getInstitutionName() { return institutionName; }
+    public String getInstitutionName() {
+        return institutionName;
+    }
 }

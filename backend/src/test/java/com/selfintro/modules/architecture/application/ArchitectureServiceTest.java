@@ -34,8 +34,10 @@ class ArchitectureServiceTest {
     @Test
     void createsOverviewWhenNoneExists() {
         when(overviewRepository.findFirstOverview()).thenReturn(Optional.empty());
-        when(overviewRepository.save(any(ArchitectureOverview.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        ArchitectureOverviewRequest request = new ArchitectureOverviewRequest("헤딩", "서브헤딩", "다이어그램", "diagram text");
+        when(overviewRepository.save(any(ArchitectureOverview.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ArchitectureOverviewRequest request =
+                new ArchitectureOverviewRequest("헤딩", "서브헤딩", "다이어그램", "diagram text");
 
         var response = service.upsertOverview(request);
 
@@ -45,10 +47,13 @@ class ArchitectureServiceTest {
 
     @Test
     void updatesExistingOverviewInPlace() {
-        ArchitectureOverview existing = ArchitectureOverview.create("옛 헤딩", "옛 서브헤딩", "옛 다이어그램", "old text");
+        ArchitectureOverview existing =
+                ArchitectureOverview.create("옛 헤딩", "옛 서브헤딩", "옛 다이어그램", "old text");
         when(overviewRepository.findFirstOverview()).thenReturn(Optional.of(existing));
-        when(overviewRepository.save(any(ArchitectureOverview.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        ArchitectureOverviewRequest request = new ArchitectureOverviewRequest("새 헤딩", "새 서브헤딩", "새 다이어그램", "new text");
+        when(overviewRepository.save(any(ArchitectureOverview.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ArchitectureOverviewRequest request =
+                new ArchitectureOverviewRequest("새 헤딩", "새 서브헤딩", "새 다이어그램", "new text");
 
         var response = service.upsertOverview(request);
 
@@ -58,12 +63,18 @@ class ArchitectureServiceTest {
 
     @Test
     void createsLayerWithOrderedItems() {
-        when(layerRepository.save(any(ArchitectureLayer.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        ArchitectureLayerRequest request = new ArchitectureLayerRequest(
-            "💻", "Backend Layer", 1, true,
-            List.of(
-                new ArchitectureLayerRequest.ItemRequest("Java 21", "기반의 API 서비스"),
-                new ArchitectureLayerRequest.ItemRequest(null, "Flyway 마이그레이션 적용")));
+        when(layerRepository.save(any(ArchitectureLayer.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ArchitectureLayerRequest request =
+                new ArchitectureLayerRequest(
+                        "💻",
+                        "Backend Layer",
+                        1,
+                        true,
+                        List.of(
+                                new ArchitectureLayerRequest.ItemRequest("Java 21", "기반의 API 서비스"),
+                                new ArchitectureLayerRequest.ItemRequest(
+                                        null, "Flyway 마이그레이션 적용")));
 
         var response = service.createLayer(request);
 
@@ -78,7 +89,7 @@ class ArchitectureServiceTest {
         when(layerRepository.existsById(99L)).thenReturn(false);
 
         assertThatThrownBy(() -> service.deleteLayer(99L))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("존재하지 않는");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("존재하지 않는");
     }
 }

@@ -31,7 +31,8 @@ public class AdminDonationController {
     }
 
     @PutMapping("/settings")
-    public DonationConfigResponse updateSettings(@Valid @RequestBody DonationSettingRequest request) {
+    public DonationConfigResponse updateSettings(
+            @Valid @RequestBody DonationSettingRequest request) {
         return new DonationConfigResponse(donationService.updateDonationEnabled(request.enabled()));
     }
 

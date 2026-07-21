@@ -1,7 +1,7 @@
 package com.selfintro.modules.printtemplate.domain;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PrintTemplateRepository extends JpaRepository<PrintTemplate, Long> {
 

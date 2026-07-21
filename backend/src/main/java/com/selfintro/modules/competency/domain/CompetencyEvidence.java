@@ -11,7 +11,8 @@ import lombok.NoArgsConstructor;
 @Table(name = "competency_evidence")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CompetencyEvidence {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -31,17 +32,29 @@ public class CompetencyEvidence {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    private CompetencyEvidence(Competency competency, Experience experience, String evidenceSummary,
-                               boolean primary, int displayOrder) {
+    private CompetencyEvidence(
+            Competency competency,
+            Experience experience,
+            String evidenceSummary,
+            boolean primary,
+            int displayOrder) {
         this.competency = competency;
         this.experience = experience;
-        this.evidenceSummary = evidenceSummary == null || evidenceSummary.isBlank() ? null : evidenceSummary.trim();
+        this.evidenceSummary =
+                evidenceSummary == null || evidenceSummary.isBlank()
+                        ? null
+                        : evidenceSummary.trim();
         this.primary = primary;
         this.displayOrder = displayOrder;
     }
 
-    static CompetencyEvidence create(Competency competency, Experience experience, String evidenceSummary,
-                                     boolean primary, int displayOrder) {
-        return new CompetencyEvidence(competency, experience, evidenceSummary, primary, displayOrder);
+    static CompetencyEvidence create(
+            Competency competency,
+            Experience experience,
+            String evidenceSummary,
+            boolean primary,
+            int displayOrder) {
+        return new CompetencyEvidence(
+                competency, experience, evidenceSummary, primary, displayOrder);
     }
 }

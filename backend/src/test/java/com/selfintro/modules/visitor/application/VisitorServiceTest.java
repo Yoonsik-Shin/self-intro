@@ -18,8 +18,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,11 +31,9 @@ class VisitorServiceTest {
     private static final String VISITOR_HASH = "a".repeat(64);
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
-    @Mock
-    private VisitorDailyVisitRepository visitorRepository;
+    @Mock private VisitorDailyVisitRepository visitorRepository;
 
-    @Mock
-    private VisitorHourlyVisitRepository hourlyVisitorRepository;
+    @Mock private VisitorHourlyVisitRepository hourlyVisitorRepository;
 
     private VisitorService visitorService;
 
@@ -50,7 +48,8 @@ class VisitorServiceTest {
         LocalDate today = LocalDate.of(2026, 7, 15);
         when(visitorRepository.findByVisitorHashAndVisitedDate(VISITOR_HASH, today))
                 .thenReturn(Optional.empty());
-        when(hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(VISITOR_HASH, today, 12))
+        when(hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(
+                        VISITOR_HASH, today, 12))
                 .thenReturn(Optional.empty());
         when(visitorRepository.countByVisitedDate(today)).thenReturn(1L);
         when(visitorRepository.countDistinctVisitors()).thenReturn(1L);
@@ -67,12 +66,18 @@ class VisitorServiceTest {
     @Test
     void incrementsPageViewsWithoutCreatingAnotherDailyVisitor() {
         LocalDate today = LocalDate.of(2026, 7, 15);
-        VisitorDailyVisit existing = VisitorDailyVisit.firstVisit(
-                VISITOR_HASH, today, LocalDateTime.of(2026, 7, 15, 9, 0), "Mozilla/5.0", false);
+        VisitorDailyVisit existing =
+                VisitorDailyVisit.firstVisit(
+                        VISITOR_HASH,
+                        today,
+                        LocalDateTime.of(2026, 7, 15, 9, 0),
+                        "Mozilla/5.0",
+                        false);
         VisitorHourlyVisit existingHourly = VisitorHourlyVisit.firstVisit(VISITOR_HASH, today, 12);
         when(visitorRepository.findByVisitorHashAndVisitedDate(VISITOR_HASH, today))
                 .thenReturn(Optional.of(existing));
-        when(hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(VISITOR_HASH, today, 12))
+        when(hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(
+                        VISITOR_HASH, today, 12))
                 .thenReturn(Optional.of(existingHourly));
 
         visitorService.recordVisit(VISITOR_HASH, "Mozilla/5.0");
@@ -85,8 +90,10 @@ class VisitorServiceTest {
 
     @Test
     void rejectsInvalidDailyRange() {
-        assertThatThrownBy(() -> visitorService.getDaily(
-                LocalDate.of(2026, 7, 15), LocalDate.of(2026, 7, 14)))
+        assertThatThrownBy(
+                        () ->
+                                visitorService.getDaily(
+                                        LocalDate.of(2026, 7, 15), LocalDate.of(2026, 7, 14)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -98,27 +105,29 @@ class VisitorServiceTest {
 
         assertThat(visitorService.getDaily(from, to))
                 .hasSize(3)
-                .allSatisfy(day -> {
-                    assertThat(day.visitors()).isZero();
-                    assertThat(day.pageViews()).isZero();
-                });
+                .allSatisfy(
+                        day -> {
+                            assertThat(day.visitors()).isZero();
+                            assertThat(day.pageViews()).isZero();
+                        });
     }
 
     @Test
     void fillsHoursWithoutVisitsWithZero() {
         LocalDate today = LocalDate.of(2026, 7, 15);
-        when(hourlyVisitorRepository.aggregateHourly(today)).thenReturn(List.of(
-                hourlyAggregation(9, 2, 5)));
+        when(hourlyVisitorRepository.aggregateHourly(today))
+                .thenReturn(List.of(hourlyAggregation(9, 2, 5)));
 
         List<VisitorHourlyResponse> hourly = visitorService.getHourly(today);
 
         assertThat(hourly).hasSize(24);
         assertThat(hourly.get(9)).isEqualTo(new VisitorHourlyResponse(9, 2, 5));
         assertThat(hourly.stream().filter(hour -> hour.hour() != 9))
-                .allSatisfy(hour -> {
-                    assertThat(hour.visitors()).isZero();
-                    assertThat(hour.pageViews()).isZero();
-                });
+                .allSatisfy(
+                        hour -> {
+                            assertThat(hour.visitors()).isZero();
+                            assertThat(hour.pageViews()).isZero();
+                        });
     }
 
     private VisitorHourlyVisitRepository.HourlyAggregation hourlyAggregation(

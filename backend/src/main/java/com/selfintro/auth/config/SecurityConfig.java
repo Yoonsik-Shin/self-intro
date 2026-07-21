@@ -46,10 +46,8 @@ public class SecurityConfig {
                     "ADMIN_PASSWORD 또는 ADMIN_PASSWORD_HASH 환경변수 중 하나는 반드시 설정해야 합니다.");
         }
 
-        UserDetails admin = User.withUsername(username)
-                .password(encodedPassword)
-                .roles("ADMIN")
-                .build();
+        UserDetails admin =
+                User.withUsername(username).password(encodedPassword).roles("ADMIN").build();
         return new InMemoryUserDetailsManager(admin);
     }
 
@@ -59,7 +57,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)
+            throws Exception {
         return configuration.getAuthenticationManager();
     }
 
@@ -72,42 +71,66 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             CorsConfigurationSource corsConfigurationSource,
-            @Value("${app.cookie-domain:}") String cookieDomain) throws Exception {
-        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+            @Value("${app.cookie-domain:}") String cookieDomain)
+            throws Exception {
+        CookieCsrfTokenRepository csrfTokenRepository =
+                CookieCsrfTokenRepository.withHttpOnlyFalse();
         if (!cookieDomain.isBlank()) {
             csrfTokenRepository.setCookieCustomizer(cookie -> cookie.domain(cookieDomain));
         }
 
-        http
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(csrfTokenRepository)
-                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers(
-                                new AntPathRequestMatcher("/api/visits", "POST"),
-                                // 페이앱 서버가 보내는 외부 콜백은 CSRF 토큰을 가질 수 없다 (linkval로 검증)
-                                new AntPathRequestMatcher("/api/donations/payapp/callback", "POST")))
+        http.csrf(
+                        csrf ->
+                                csrf.csrfTokenRepository(csrfTokenRepository)
+                                        .csrfTokenRequestHandler(
+                                                new CsrfTokenRequestAttributeHandler())
+                                        .ignoringRequestMatchers(
+                                                new AntPathRequestMatcher("/api/visits", "POST"),
+                                                // 페이앱 서버가 보내는 외부 콜백은 CSRF 토큰을 가질 수 없다 (linkval로 검증)
+                                                new AntPathRequestMatcher(
+                                                        "/api/donations/payapp/callback", "POST")))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                .authorizeHttpRequests(auth -> auth
-                        // 에러 디스패치(/error)까지 인가를 적용하면 익명 사용자의 4xx/5xx 응답이
-                        // 전부 401로 덮여버린다 (Spring Security 6는 ERROR 디스패치도 검사함)
-                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/visits").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/donations").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/donations/payapp/callback").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers("/actuator/health/**").permitAll()
-                        .anyRequest().hasRole("ADMIN"))
-                .exceptionHandling(exceptionHandling -> exceptionHandling.authenticationEntryPoint(
-                        (request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
-                .logout(logout -> logout
-                        .logoutUrl("/api/auth/logout")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
-                        .logoutSuccessHandler((request, response, authentication) ->
-                                response.setStatus(HttpServletResponse.SC_NO_CONTENT)))
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .authorizeHttpRequests(
+                        auth ->
+                                auth
+                                        // 에러 디스패치(/error)까지 인가를 적용하면 익명 사용자의 4xx/5xx 응답이
+                                        // 전부 401로 덮여버린다 (Spring Security 6는 ERROR 디스패치도 검사함)
+                                        .dispatcherTypeMatchers(DispatcherType.ERROR)
+                                        .permitAll()
+                                        .requestMatchers("/api/admin/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers(HttpMethod.GET, "/api/**")
+                                        .permitAll()
+                                        .requestMatchers(HttpMethod.POST, "/api/visits")
+                                        .permitAll()
+                                        .requestMatchers(HttpMethod.POST, "/api/donations")
+                                        .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.POST, "/api/donations/payapp/callback")
+                                        .permitAll()
+                                        .requestMatchers(HttpMethod.POST, "/api/auth/login")
+                                        .permitAll()
+                                        .requestMatchers("/actuator/health/**")
+                                        .permitAll()
+                                        .anyRequest()
+                                        .hasRole("ADMIN"))
+                .exceptionHandling(
+                        exceptionHandling ->
+                                exceptionHandling.authenticationEntryPoint(
+                                        (request, response, authException) ->
+                                                response.sendError(
+                                                        HttpServletResponse.SC_UNAUTHORIZED)))
+                .logout(
+                        logout ->
+                                logout.logoutUrl("/api/auth/logout")
+                                        .invalidateHttpSession(true)
+                                        .deleteCookies("JSESSIONID")
+                                        .logoutSuccessHandler(
+                                                (request, response, authentication) ->
+                                                        response.setStatus(
+                                                                HttpServletResponse.SC_NO_CONTENT)))
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
         return http.build();

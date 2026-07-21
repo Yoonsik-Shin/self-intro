@@ -31,7 +31,8 @@ public class ArchitectureOverview {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private ArchitectureOverview(String heading, String subheading, String diagramHeading, String diagramText) {
+    private ArchitectureOverview(
+            String heading, String subheading, String diagramHeading, String diagramText) {
         this.heading = heading;
         this.subheading = subheading;
         this.diagramHeading = diagramHeading;
@@ -39,11 +40,13 @@ public class ArchitectureOverview {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public static ArchitectureOverview create(String heading, String subheading, String diagramHeading, String diagramText) {
+    public static ArchitectureOverview create(
+            String heading, String subheading, String diagramHeading, String diagramText) {
         return new ArchitectureOverview(heading, subheading, diagramHeading, diagramText);
     }
 
-    public void update(String heading, String subheading, String diagramHeading, String diagramText) {
+    public void update(
+            String heading, String subheading, String diagramHeading, String diagramText) {
         this.heading = heading;
         this.subheading = subheading;
         this.diagramHeading = diagramHeading;

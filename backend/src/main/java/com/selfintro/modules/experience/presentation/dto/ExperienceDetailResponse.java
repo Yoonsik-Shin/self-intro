@@ -5,25 +5,23 @@ import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import java.util.List;
 
 public record ExperienceDetailResponse(
-    Long id,
-    String content,
-    String situation,
-    String actionDetail,
-    String outcome,
-    String narrative,
-    int displayOrder,
-    List<SkillResponse> skills
-) {
+        Long id,
+        String content,
+        String situation,
+        String actionDetail,
+        String outcome,
+        String narrative,
+        int displayOrder,
+        List<SkillResponse> skills) {
     public static ExperienceDetailResponse from(ExperienceDetail detail) {
         return new ExperienceDetailResponse(
-            detail.getId(),
-            detail.getContent(),
-            detail.getSituation(),
-            detail.getActionDetail(),
-            detail.getOutcome(),
-            detail.getNarrative(),
-            detail.getDisplayOrder(),
-            detail.getSkills().stream().map(SkillResponse::from).toList()
-        );
+                detail.getId(),
+                detail.getContent(),
+                detail.getSituation(),
+                detail.getActionDetail(),
+                detail.getOutcome(),
+                detail.getNarrative(),
+                detail.getDisplayOrder(),
+                detail.getSkills().stream().map(SkillResponse::from).toList());
     }
 }

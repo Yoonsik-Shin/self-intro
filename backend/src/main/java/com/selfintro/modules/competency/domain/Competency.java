@@ -61,7 +61,8 @@ public class Competency {
         this.updatedAt = createdAt;
     }
 
-    public static Competency create(String title, String summary, int displayOrder, boolean visible) {
+    public static Competency create(
+            String title, String summary, int displayOrder, boolean visible) {
         return new Competency(title, summary, displayOrder, visible);
     }
 
@@ -83,9 +84,16 @@ public class Competency {
     public void replaceEvidences(List<EvidenceDraft> drafts) {
         evidences.clear();
         drafts.stream()
-            .sorted(Comparator.comparingInt(EvidenceDraft::displayOrder))
-            .forEach(draft -> evidences.add(CompetencyEvidence.create(
-                this, draft.experience(), draft.evidenceSummary(), draft.primary(), draft.displayOrder())));
+                .sorted(Comparator.comparingInt(EvidenceDraft::displayOrder))
+                .forEach(
+                        draft ->
+                                evidences.add(
+                                        CompetencyEvidence.create(
+                                                this,
+                                                draft.experience(),
+                                                draft.evidenceSummary(),
+                                                draft.primary(),
+                                                draft.displayOrder())));
     }
 
     public void replaceStudies(List<Study> studies) {
@@ -96,9 +104,5 @@ public class Competency {
     }
 
     public record EvidenceDraft(
-        Experience experience,
-        String evidenceSummary,
-        boolean primary,
-        int displayOrder
-    ) {}
+            Experience experience, String evidenceSummary, boolean primary, int displayOrder) {}
 }

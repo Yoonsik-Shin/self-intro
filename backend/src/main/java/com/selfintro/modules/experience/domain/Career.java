@@ -27,24 +27,126 @@ public class Career extends Experience {
         // JPA standard constructor
     }
 
-    private Career(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String companyName, String employmentType, String department, String role) {
-        super(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, showOnTimeline, timelineLabel);
+    private Career(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel,
+            String companyName,
+            String employmentType,
+            String department,
+            String role) {
+        super(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                showOnTimeline,
+                timelineLabel);
         this.companyName = companyName;
         this.employmentType = employmentType;
         this.department = department;
         this.role = role;
     }
 
-    public static Career create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String companyName, String employmentType, String department, String role) {
-        return new Career(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, showOnTimeline, timelineLabel, companyName, employmentType, department, role);
+    public static Career create(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel,
+            String companyName,
+            String employmentType,
+            String department,
+            String role) {
+        return new Career(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                showOnTimeline,
+                timelineLabel,
+                companyName,
+                employmentType,
+                department,
+                role);
     }
 
-    public static Career create(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, String companyName, String employmentType, String department, String role) {
-        return create(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, true, null, companyName, employmentType, department, role);
+    public static Career create(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            String companyName,
+            String employmentType,
+            String department,
+            String role) {
+        return create(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                true,
+                null,
+                companyName,
+                employmentType,
+                department,
+                role);
     }
 
-    public void update(String title, LocalDate periodStart, LocalDate periodEnd, String summary, String takeaway, int displayOrder, List<ExperienceDetail.Draft> details, List<Skill> skills, boolean showOnTimeline, String timelineLabel, String companyName, String employmentType, String department, String role) {
-        super.updateCommonFields(title, periodStart, periodEnd, summary, takeaway, displayOrder, details, skills, showOnTimeline, timelineLabel);
+    public void update(
+            String title,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            String summary,
+            String takeaway,
+            int displayOrder,
+            List<ExperienceDetail.Draft> details,
+            List<Skill> skills,
+            boolean showOnTimeline,
+            String timelineLabel,
+            String companyName,
+            String employmentType,
+            String department,
+            String role) {
+        super.updateCommonFields(
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                details,
+                skills,
+                showOnTimeline,
+                timelineLabel);
         this.companyName = companyName;
         this.employmentType = employmentType;
         this.department = department;
@@ -52,8 +154,19 @@ public class Career extends Experience {
     }
 
     // Getters
-    public String getCompanyName() { return companyName; }
-    public String getEmploymentType() { return employmentType; }
-    public String getDepartment() { return department; }
-    public String getRole() { return role; }
+    public String getCompanyName() {
+        return companyName;
+    }
+
+    public String getEmploymentType() {
+        return employmentType;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public String getRole() {
+        return role;
+    }
 }

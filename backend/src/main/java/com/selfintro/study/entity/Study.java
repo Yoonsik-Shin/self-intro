@@ -111,9 +111,15 @@ public class Study {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private Study(String slug, String title, String summary, String contentMarkdown,
-                  StudyStatus status, StudyCategory category, LocalDate learnedAt,
-                  LocalDateTime publishedAt) {
+    private Study(
+            String slug,
+            String title,
+            String summary,
+            String contentMarkdown,
+            StudyStatus status,
+            StudyCategory category,
+            LocalDate learnedAt,
+            LocalDateTime publishedAt) {
         this.slug = slug;
         this.title = title;
         this.summary = summary;
@@ -126,15 +132,28 @@ public class Study {
         this.updatedAt = this.createdAt;
     }
 
-    public static Study create(String slug, String title, String summary, String contentMarkdown,
-                               StudyStatus status, StudyCategory category, LocalDate learnedAt,
-                               LocalDateTime publishedAt) {
-        return new Study(slug, title, summary, contentMarkdown, status, category, learnedAt, publishedAt);
+    public static Study create(
+            String slug,
+            String title,
+            String summary,
+            String contentMarkdown,
+            StudyStatus status,
+            StudyCategory category,
+            LocalDate learnedAt,
+            LocalDateTime publishedAt) {
+        return new Study(
+                slug, title, summary, contentMarkdown, status, category, learnedAt, publishedAt);
     }
 
-    public void update(String slug, String title, String summary, String contentMarkdown,
-                       StudyStatus status, StudyCategory category, LocalDate learnedAt,
-                       LocalDateTime publishedAt) {
+    public void update(
+            String slug,
+            String title,
+            String summary,
+            String contentMarkdown,
+            StudyStatus status,
+            StudyCategory category,
+            LocalDate learnedAt,
+            LocalDateTime publishedAt) {
         this.slug = slug;
         this.title = title;
         this.summary = summary;
@@ -167,7 +186,10 @@ public class Study {
     }
 
     public void replaceRelations(Collection<StudyRelation> values) {
-        relations.removeIf(existing -> values.stream().noneMatch(incoming -> existing.sameTargetAndType(incoming)));
+        relations.removeIf(
+                existing ->
+                        values.stream()
+                                .noneMatch(incoming -> existing.sameTargetAndType(incoming)));
         for (StudyRelation incoming : values) {
             relations.stream()
                     .filter(existing -> existing.sameTargetAndType(incoming))
@@ -180,7 +202,8 @@ public class Study {
     }
 
     public void setSkillLinked(Skill skill, boolean linked) {
-        boolean alreadyLinked = skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
+        boolean alreadyLinked =
+                skills.stream().anyMatch(value -> value.getId().equals(skill.getId()));
         if (linked && !alreadyLinked) {
             skills.add(skill);
         } else if (!linked && alreadyLinked) {
@@ -189,7 +212,8 @@ public class Study {
     }
 
     public void setExperienceLinked(Experience experience, boolean linked) {
-        boolean alreadyLinked = experiences.stream().anyMatch(value -> value.getId().equals(experience.getId()));
+        boolean alreadyLinked =
+                experiences.stream().anyMatch(value -> value.getId().equals(experience.getId()));
         if (linked && !alreadyLinked) {
             experiences.add(experience);
         } else if (!linked && alreadyLinked) {
@@ -198,7 +222,8 @@ public class Study {
     }
 
     public void setExperienceDetailLinked(ExperienceDetail detail, boolean linked) {
-        boolean alreadyLinked = experienceDetails.stream().anyMatch(value -> value.getId().equals(detail.getId()));
+        boolean alreadyLinked =
+                experienceDetails.stream().anyMatch(value -> value.getId().equals(detail.getId()));
         if (linked && !alreadyLinked) {
             experienceDetails.add(detail);
         } else if (!linked && alreadyLinked) {
@@ -208,13 +233,18 @@ public class Study {
 
     public List<String> imageObjectKeysNotIn(List<StudyImage.Draft> incoming) {
         return images.stream()
-                .filter(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())))
+                .filter(
+                        existing ->
+                                incoming.stream()
+                                        .noneMatch(draft -> existing.getId().equals(draft.id())))
                 .map(StudyImage::getObjectKey)
                 .toList();
     }
 
     public void reconcileImages(List<StudyImage.Draft> incoming) {
-        images.removeIf(existing -> incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())));
+        images.removeIf(
+                existing ->
+                        incoming.stream().noneMatch(draft -> existing.getId().equals(draft.id())));
 
         for (StudyImage.Draft draft : incoming) {
             if (draft.id() != null) {

@@ -14,18 +14,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest(classes = SelfIntroApplication.class, properties = {
-        "app.admin.username=test-admin",
-        "app.admin.password=test-password",
-        "app.visitor.cookie-secure=false",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-})
+@SpringBootTest(
+        classes = SelfIntroApplication.class,
+        properties = {
+            "app.admin.username=test-admin",
+            "app.admin.password=test-password",
+            "app.visitor.cookie-secure=false",
+            "spring.flyway.enabled=false",
+            "spring.jpa.hibernate.ddl-auto=create-drop"
+        })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class VisitorApiIntegrationTest {
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
     @Test
     void anonymousVisitorCanBeRecordedWithoutCsrfToken() throws Exception {
@@ -39,7 +40,6 @@ class VisitorApiIntegrationTest {
 
     @Test
     void visitorAnalyticsRequiresAdminAuthentication() throws Exception {
-        mockMvc.perform(get("/api/admin/visits/summary"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/visits/summary")).andExpect(status().isUnauthorized());
     }
 }

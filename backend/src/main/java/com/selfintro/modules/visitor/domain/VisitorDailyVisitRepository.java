@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface VisitorDailyVisitRepository extends JpaRepository<VisitorDailyVisit, Long> {
-    Optional<VisitorDailyVisit> findByVisitorHashAndVisitedDate(String visitorHash, LocalDate visitedDate);
+    Optional<VisitorDailyVisit> findByVisitorHashAndVisitedDate(
+            String visitorHash, LocalDate visitedDate);
 
     long countByVisitedDate(LocalDate visitedDate);
 
@@ -20,7 +21,8 @@ public interface VisitorDailyVisitRepository extends JpaRepository<VisitorDailyV
     @Query("select coalesce(sum(visit.pageViews), 0) from VisitorDailyVisit visit")
     long sumPageViews();
 
-    @Query("""
+    @Query(
+            """
             select visit.visitedDate as visitedDate,
                    count(visit) as visitors,
                    sum(visit.pageViews) as pageViews
@@ -33,7 +35,9 @@ public interface VisitorDailyVisitRepository extends JpaRepository<VisitorDailyV
 
     interface DailyAggregation {
         LocalDate getVisitedDate();
+
         long getVisitors();
+
         long getPageViews();
     }
 }

@@ -19,12 +19,15 @@ import lombok.NoArgsConstructor;
 @Getter
 @Entity
 @Table(
-    name = "experience_relation",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_experience_relation",
-        columnNames = {"source_experience_id", "target_experience_id", "relation_type"}
-    )
-)
+        name = "experience_relation",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_experience_relation",
+                        columnNames = {
+                            "source_experience_id",
+                            "target_experience_id",
+                            "relation_type"
+                        }))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ExperienceRelation {
 
@@ -47,7 +50,8 @@ public class ExperienceRelation {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    private ExperienceRelation(Experience source, Experience target, ExperienceRelationType type, int displayOrder) {
+    private ExperienceRelation(
+            Experience source, Experience target, ExperienceRelationType type, int displayOrder) {
         this.source = source;
         this.target = target;
         this.type = type;
@@ -55,11 +59,7 @@ public class ExperienceRelation {
     }
 
     public static ExperienceRelation create(
-        Experience source,
-        Experience target,
-        ExperienceRelationType type,
-        int displayOrder
-    ) {
+            Experience source, Experience target, ExperienceRelationType type, int displayOrder) {
         return new ExperienceRelation(source, target, type, displayOrder);
     }
 }

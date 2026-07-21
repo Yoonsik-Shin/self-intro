@@ -30,8 +30,7 @@ public record StudyResponse(
         LocalDate learnedAt,
         LocalDateTime publishedAt,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {
+        LocalDateTime updatedAt) {
     public static StudyResponse from(Study study, Function<String, String> imageUrlResolver) {
         return new StudyResponse(
                 study.getId(),
@@ -44,9 +43,13 @@ public record StudyResponse(
                 study.getTags().stream().map(TagResponse::from).toList(),
                 study.getSkills().stream().map(SkillResponse::from).toList(),
                 study.getExperiences().stream().map(ExperienceReferenceResponse::from).toList(),
-                study.getExperienceDetails().stream().map(ExperienceDetailReferenceResponse::from).toList(),
+                study.getExperienceDetails().stream()
+                        .map(ExperienceDetailReferenceResponse::from)
+                        .toList(),
                 study.getRelations().stream().map(RelatedStudyResponse::from).toList(),
-                study.getImages().stream().map(image -> ImageResponse.from(image, imageUrlResolver)).toList(),
+                study.getImages().stream()
+                        .map(image -> ImageResponse.from(image, imageUrlResolver))
+                        .toList(),
                 study.getLearnedAt(),
                 study.getPublishedAt(),
                 study.getCreatedAt(),
@@ -54,14 +57,23 @@ public record StudyResponse(
     }
 
     public record ImageResponse(Long id, String objectKey, String url, int displayOrder) {
-        public static ImageResponse from(StudyImage image, Function<String, String> imageUrlResolver) {
-            return new ImageResponse(image.getId(), image.getObjectKey(), imageUrlResolver.apply(image.getObjectKey()), image.getDisplayOrder());
+        public static ImageResponse from(
+                StudyImage image, Function<String, String> imageUrlResolver) {
+            return new ImageResponse(
+                    image.getId(),
+                    image.getObjectKey(),
+                    imageUrlResolver.apply(image.getObjectKey()),
+                    image.getDisplayOrder());
         }
     }
 
     public record CategoryResponse(Long id, String name, String slug, int displayOrder) {
         public static CategoryResponse from(com.selfintro.study.entity.StudyCategory category) {
-            return new CategoryResponse(category.getId(), category.getName(), category.getSlug(), category.getDisplayOrder());
+            return new CategoryResponse(
+                    category.getId(),
+                    category.getName(),
+                    category.getSlug(),
+                    category.getDisplayOrder());
         }
     }
 
@@ -73,11 +85,13 @@ public record StudyResponse(
 
     public record ExperienceReferenceResponse(Long id, String type, String title) {
         public static ExperienceReferenceResponse from(Experience experience) {
-            return new ExperienceReferenceResponse(experience.getId(), experience.getType(), experience.getTitle());
+            return new ExperienceReferenceResponse(
+                    experience.getId(), experience.getType(), experience.getTitle());
         }
     }
 
-    public record ExperienceDetailReferenceResponse(Long id, String content, Long experienceId, String experienceTitle) {
+    public record ExperienceDetailReferenceResponse(
+            Long id, String content, Long experienceId, String experienceTitle) {
         public static ExperienceDetailReferenceResponse from(ExperienceDetail detail) {
             return new ExperienceDetailReferenceResponse(
                     detail.getId(), detail.getContent(),
@@ -88,7 +102,8 @@ public record StudyResponse(
     public record RelatedStudyResponse(Long id, String slug, String title, StudyRelationType type) {
         public static RelatedStudyResponse from(StudyRelation relation) {
             Study target = relation.getTarget();
-            return new RelatedStudyResponse(target.getId(), target.getSlug(), target.getTitle(), relation.getType());
+            return new RelatedStudyResponse(
+                    target.getId(), target.getSlug(), target.getTitle(), relation.getType());
         }
     }
 }

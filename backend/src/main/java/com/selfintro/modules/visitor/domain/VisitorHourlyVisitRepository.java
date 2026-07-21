@@ -11,7 +11,8 @@ public interface VisitorHourlyVisitRepository extends JpaRepository<VisitorHourl
     Optional<VisitorHourlyVisit> findByVisitorHashAndVisitedDateAndVisitedHour(
             String visitorHash, LocalDate visitedDate, int visitedHour);
 
-    @Query("""
+    @Query(
+            """
             select visit.visitedHour as visitedHour,
                    count(visit) as visitors,
                    sum(visit.pageViews) as pageViews
@@ -24,7 +25,9 @@ public interface VisitorHourlyVisitRepository extends JpaRepository<VisitorHourl
 
     interface HourlyAggregation {
         int getVisitedHour();
+
         long getVisitors();
+
         long getPageViews();
     }
 }

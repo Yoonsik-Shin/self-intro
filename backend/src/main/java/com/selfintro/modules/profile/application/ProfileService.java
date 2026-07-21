@@ -3,10 +3,10 @@ package com.selfintro.modules.profile.application;
 import com.selfintro.modules.profile.domain.Profile;
 import com.selfintro.modules.profile.domain.ProfileRepository;
 import com.selfintro.modules.profile.presentation.dto.ProfileRequest;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,29 +25,28 @@ public class ProfileService {
         if (existing.isPresent()) {
             Profile profile = existing.get();
             profile.update(
-                request.name(),
-                request.nameEn(),
-                request.jobTitle(),
-                request.bio(),
-                request.coreStackSummary(),
-                request.statusBadgeText(),
-                request.githubUrl(),
-                request.email(),
-                request.phone()
-            );
+                    request.name(),
+                    request.nameEn(),
+                    request.jobTitle(),
+                    request.bio(),
+                    request.coreStackSummary(),
+                    request.statusBadgeText(),
+                    request.githubUrl(),
+                    request.email(),
+                    request.phone());
             return profileRepository.save(profile);
         } else {
-            Profile profile = Profile.create(
-                request.name(),
-                request.nameEn(),
-                request.jobTitle(),
-                request.bio(),
-                request.coreStackSummary(),
-                request.statusBadgeText(),
-                request.githubUrl(),
-                request.email(),
-                request.phone()
-            );
+            Profile profile =
+                    Profile.create(
+                            request.name(),
+                            request.nameEn(),
+                            request.jobTitle(),
+                            request.bio(),
+                            request.coreStackSummary(),
+                            request.statusBadgeText(),
+                            request.githubUrl(),
+                            request.email(),
+                            request.phone());
             return profileRepository.save(profile);
         }
     }

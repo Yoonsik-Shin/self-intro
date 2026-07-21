@@ -18,10 +18,13 @@ public class ImageUploadController {
     private final StorageService storageService;
 
     @PostMapping("/api/admin/images/presigned-upload")
-    public PresignedUploadResponse presignUpload(@Valid @RequestBody PresignedUploadRequest request) {
+    public PresignedUploadResponse presignUpload(
+            @Valid @RequestBody PresignedUploadRequest request) {
         StorageService.PresignedUpload presigned =
-                storageService.presignUpload(request.scope(), request.fileName(), request.contentType());
-        return new PresignedUploadResponse(presigned.objectKey(), presigned.uploadUrl(), presigned.publicUrl());
+                storageService.presignUpload(
+                        request.scope(), request.fileName(), request.contentType());
+        return new PresignedUploadResponse(
+                presigned.objectKey(), presigned.uploadUrl(), presigned.publicUrl());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

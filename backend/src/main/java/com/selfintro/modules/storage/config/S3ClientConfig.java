@@ -25,8 +25,11 @@ public class S3ClientConfig {
         return S3Client.builder()
                 .endpointOverride(URI.create(endpoint))
                 .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(pathStyleAccess).build())
+                .credentialsProvider(
+                        StaticCredentialsProvider.create(
+                                AwsBasicCredentials.create(accessKey, secretKey)))
+                .serviceConfiguration(
+                        S3Configuration.builder().pathStyleAccessEnabled(pathStyleAccess).build())
                 .httpClientBuilder(UrlConnectionHttpClient.builder())
                 .build();
     }
@@ -44,8 +47,11 @@ public class S3ClientConfig {
         return S3Presigner.builder()
                 .endpointOverride(URI.create(presignedEndpoint))
                 .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(pathStyleAccess).build())
+                .credentialsProvider(
+                        StaticCredentialsProvider.create(
+                                AwsBasicCredentials.create(accessKey, secretKey)))
+                .serviceConfiguration(
+                        S3Configuration.builder().pathStyleAccessEnabled(pathStyleAccess).build())
                 .build();
     }
 }

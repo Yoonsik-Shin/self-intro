@@ -18,9 +18,12 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "donation", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_donation_client_token", columnNames = "client_token"),
-        @UniqueConstraint(name = "uk_donation_mul_no", columnNames = "mul_no")})
+@Table(
+        name = "donation",
+        uniqueConstraints = {
+            @UniqueConstraint(name = "uk_donation_client_token", columnNames = "client_token"),
+            @UniqueConstraint(name = "uk_donation_mul_no", columnNames = "mul_no")
+        })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Donation {
     @Id

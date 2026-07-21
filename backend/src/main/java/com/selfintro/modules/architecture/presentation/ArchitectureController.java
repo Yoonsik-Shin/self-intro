@@ -19,9 +19,10 @@ public class ArchitectureController {
 
     @GetMapping("/api/architecture/overview")
     public ResponseEntity<ArchitectureOverviewResponse> getOverview() {
-        return architectureService.getOverview()
-            .map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.notFound().build());
+        return architectureService
+                .getOverview()
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/api/architecture/layers")
@@ -30,7 +31,8 @@ public class ArchitectureController {
     }
 
     @PutMapping("/api/admin/architecture/overview")
-    public ResponseEntity<ArchitectureOverviewResponse> updateOverview(@Valid @RequestBody ArchitectureOverviewRequest request) {
+    public ResponseEntity<ArchitectureOverviewResponse> updateOverview(
+            @Valid @RequestBody ArchitectureOverviewRequest request) {
         return ResponseEntity.ok(architectureService.upsertOverview(request));
     }
 
@@ -40,12 +42,14 @@ public class ArchitectureController {
     }
 
     @PostMapping("/api/admin/architecture/layers")
-    public ResponseEntity<ArchitectureLayerResponse> createLayer(@Valid @RequestBody ArchitectureLayerRequest request) {
+    public ResponseEntity<ArchitectureLayerResponse> createLayer(
+            @Valid @RequestBody ArchitectureLayerRequest request) {
         return ResponseEntity.ok(architectureService.createLayer(request));
     }
 
     @PutMapping("/api/admin/architecture/layers/{id}")
-    public ResponseEntity<ArchitectureLayerResponse> updateLayer(@PathVariable Long id, @Valid @RequestBody ArchitectureLayerRequest request) {
+    public ResponseEntity<ArchitectureLayerResponse> updateLayer(
+            @PathVariable Long id, @Valid @RequestBody ArchitectureLayerRequest request) {
         return ResponseEntity.ok(architectureService.updateLayer(id, request));
     }
 

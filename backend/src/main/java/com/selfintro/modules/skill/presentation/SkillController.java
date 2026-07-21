@@ -4,10 +4,10 @@ import com.selfintro.modules.skill.application.SkillService;
 import com.selfintro.modules.skill.presentation.dto.SkillRequest;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/skills")
@@ -18,9 +18,8 @@ public class SkillController {
 
     @GetMapping
     public ResponseEntity<List<SkillResponse>> list() {
-        List<SkillResponse> responses = skillService.getAllSkills().stream()
-            .map(SkillResponse::from)
-            .toList();
+        List<SkillResponse> responses =
+                skillService.getAllSkills().stream().map(SkillResponse::from).toList();
         return ResponseEntity.ok(responses);
     }
 
@@ -30,7 +29,8 @@ public class SkillController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SkillResponse> update(@PathVariable Long id, @Valid @RequestBody SkillRequest request) {
+    public ResponseEntity<SkillResponse> update(
+            @PathVariable Long id, @Valid @RequestBody SkillRequest request) {
         return ResponseEntity.ok(SkillResponse.from(skillService.update(id, request)));
     }
 

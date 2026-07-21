@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/donations")
 @RequiredArgsConstructor
 public class DonationController {
-    private static final String COMPLETE_PAGE = """
+    private static final String COMPLETE_PAGE =
+            """
             <!doctype html>
             <html lang="ko">
             <head><meta charset="utf-8"><title>후원 완료</title></head>
@@ -39,7 +40,8 @@ public class DonationController {
     @PostMapping
     public DonationCreateResponse create(
             @Valid @RequestBody DonationCreateRequest request, HttpServletRequest httpRequest) {
-        return donationService.create(request.amount(), request.message(), resolveClientIp(httpRequest));
+        return donationService.create(
+                request.amount(), request.message(), resolveClientIp(httpRequest));
     }
 
     /** rate limit 키로 쓸 클라이언트 IP. 프록시 뒤에서는 X-Forwarded-For의 첫 홉을 사용한다. */

@@ -23,22 +23,18 @@ public class ExperienceAiController {
 
     @PostMapping("/suggestions")
     public ResponseEntity<ExperienceSuggestionResponse> suggest(
-        @Valid @RequestBody ExperienceSuggestionRequest request
-    ) {
+            @Valid @RequestBody ExperienceSuggestionRequest request) {
         return ResponseEntity.ok(experienceAiService.suggest(request));
     }
 
     @PostMapping(value = "/suggestions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter suggestStream(
-        @Valid @RequestBody ExperienceSuggestionRequest request
-    ) {
+    public SseEmitter suggestStream(@Valid @RequestBody ExperienceSuggestionRequest request) {
         return experienceAiService.suggestStream(request);
     }
 
     @PostMapping("/details/narrative")
     public ResponseEntity<ExperienceDetailNarrativeResponse> generateNarrative(
-        @Valid @RequestBody ExperienceDetailNarrativeRequest request
-    ) {
+            @Valid @RequestBody ExperienceDetailNarrativeRequest request) {
         return ResponseEntity.ok(experienceAiService.generateNarrative(request));
     }
 }

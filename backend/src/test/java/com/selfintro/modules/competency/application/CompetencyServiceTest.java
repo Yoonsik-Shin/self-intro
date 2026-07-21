@@ -29,14 +29,21 @@ class CompetencyServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CompetencyService(competencyRepository, skillRepository, experienceRepository, studyRepository);
+        service =
+                new CompetencyService(
+                        competencyRepository,
+                        skillRepository,
+                        experienceRepository,
+                        studyRepository);
     }
 
     @Test
     void createsCompetencyWithoutFrontendMatchingConfiguration() {
-        when(competencyRepository.save(any(Competency.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        CompetencyRequest request = new CompetencyRequest(
-            "백엔드 아키텍처", "도메인 경계를 설계합니다.", 1, true, List.of(), List.of(), List.of());
+        when(competencyRepository.save(any(Competency.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        CompetencyRequest request =
+                new CompetencyRequest(
+                        "백엔드 아키텍처", "도메인 경계를 설계합니다.", 1, true, List.of(), List.of(), List.of());
 
         var response = service.create(request);
 
@@ -48,15 +55,20 @@ class CompetencyServiceTest {
 
     @Test
     void rejectsMoreThanOnePrimaryEvidence() {
-        CompetencyRequest request = new CompetencyRequest(
-            "분산 시스템", "신뢰성을 확보합니다.", 1, true, List.of(),
-            List.of(
-                new CompetencyRequest.EvidenceRequest(1L, "첫 번째", true, 0),
-                new CompetencyRequest.EvidenceRequest(2L, "두 번째", true, 1)),
-            List.of());
+        CompetencyRequest request =
+                new CompetencyRequest(
+                        "분산 시스템",
+                        "신뢰성을 확보합니다.",
+                        1,
+                        true,
+                        List.of(),
+                        List.of(
+                                new CompetencyRequest.EvidenceRequest(1L, "첫 번째", true, 0),
+                                new CompetencyRequest.EvidenceRequest(2L, "두 번째", true, 1)),
+                        List.of());
 
         assertThatThrownBy(() -> service.create(request))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("대표 실무 근거");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("대표 실무 근거");
     }
 }

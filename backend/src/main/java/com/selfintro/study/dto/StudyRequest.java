@@ -23,6 +23,4 @@ public record StudyRequest(
         List<@Valid StudyRelationRequest> relatedStudies,
         List<@Valid StudyImageRequest> images,
         @NotNull LocalDate learnedAt,
-        LocalDateTime publishedAt
-) {
-}
+        LocalDateTime publishedAt) {}

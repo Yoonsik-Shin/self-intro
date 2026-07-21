@@ -4,5 +4,6 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ExperienceRelationRepository extends JpaRepository<ExperienceRelation, Long> {
-    List<ExperienceRelation> findBySourceIdOrTargetIdOrderByDisplayOrderAsc(Long sourceId, Long targetId);
+    List<ExperienceRelation> findBySourceIdOrTargetIdOrderByDisplayOrderAsc(
+            Long sourceId, Long targetId);
 }

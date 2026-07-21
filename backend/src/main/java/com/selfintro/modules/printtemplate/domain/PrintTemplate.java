@@ -39,7 +39,13 @@ public class PrintTemplate {
         // JPA standard constructor
     }
 
-    private PrintTemplate(String name, String excludedIds, String sectionOrder, String sectionGaps, boolean visible, int displayOrder) {
+    private PrintTemplate(
+            String name,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            boolean visible,
+            int displayOrder) {
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
@@ -50,11 +56,24 @@ public class PrintTemplate {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public static PrintTemplate create(String name, String excludedIds, String sectionOrder, String sectionGaps, boolean visible, int displayOrder) {
-        return new PrintTemplate(name, excludedIds, sectionOrder, sectionGaps, visible, displayOrder);
+    public static PrintTemplate create(
+            String name,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            boolean visible,
+            int displayOrder) {
+        return new PrintTemplate(
+                name, excludedIds, sectionOrder, sectionGaps, visible, displayOrder);
     }
 
-    public void update(String name, String excludedIds, String sectionOrder, String sectionGaps, boolean visible, int displayOrder) {
+    public void update(
+            String name,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            boolean visible,
+            int displayOrder) {
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
@@ -65,13 +84,39 @@ public class PrintTemplate {
     }
 
     // Standard Java Getters
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getExcludedIds() { return excludedIds; }
-    public String getSectionOrder() { return sectionOrder; }
-    public String getSectionGaps() { return sectionGaps; }
-    public boolean isVisible() { return visible; }
-    public int getDisplayOrder() { return displayOrder; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getExcludedIds() {
+        return excludedIds;
+    }
+
+    public String getSectionOrder() {
+        return sectionOrder;
+    }
+
+    public String getSectionGaps() {
+        return sectionGaps;
+    }
+
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
 }
