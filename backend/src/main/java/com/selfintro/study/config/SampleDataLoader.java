@@ -912,7 +912,16 @@ public class SampleDataLoader implements ApplicationRunner {
         }
 
         printTemplateRepository.save(PrintTemplate.create(
-            "[기본] 1장 요약 이력서",
+            "[대표] 이력서 & 경력기술서",
+            "[]",
+            "[\"intro-profile\", \"competencies\", \"skills\", \"career\", \"projects\", \"credentials\"]",
+            "{\"competencies\": 20, \"skills\": 20, \"career\": 24, \"projects\": 24, \"credentials\": 20}",
+            true,
+            1
+        ));
+
+        printTemplateRepository.save(PrintTemplate.create(
+            "[요약] 1장 간이 이력서",
             "[\"competencies\", \"projects\", \"architecture-components\", \"architecture-diagram\"]",
             "[\"intro-profile\", \"skills\", \"career\", \"credentials\"]",
             "{\"skills\": 16, \"career\": 24, \"credentials\": 20}",
@@ -921,21 +930,12 @@ public class SampleDataLoader implements ApplicationRunner {
         ));
 
         printTemplateRepository.save(PrintTemplate.create(
-            "[상세] 백엔드 개발자 경력기술서",
-            "[]",
-            "[\"intro-profile\", \"competencies\", \"skills\", \"career\", \"projects\", \"credentials\"]",
-            "{\"competencies\": 20, \"skills\": 20, \"career\": 24, \"projects\": 24, \"credentials\": 20}",
-            true,
-            3
-        ));
-
-        printTemplateRepository.save(PrintTemplate.create(
-            "[시각화] 아키텍처 포트폴리오",
+            "[포트폴리오] 아키텍처 포함 통합서류",
             "[\"competencies\"]",
             "[\"intro-profile\", \"skills\", \"career\", \"projects\", \"architecture-diagram\", \"credentials\"]",
             "{\"skills\": 16, \"career\": 24, \"projects\": 24, \"architecture-diagram\": 28}",
             true,
-            4
+            3
         ));
     }
 }
