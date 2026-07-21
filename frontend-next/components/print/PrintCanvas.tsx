@@ -2,13 +2,31 @@
 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ArrowDown, ArrowUp, Briefcase, Cpu, FolderGit2, GraduationCap, MoveVertical, Sparkles } from 'lucide-react';
+import {
+    ArrowDown,
+    ArrowUp,
+    Briefcase,
+    Cpu,
+    FolderGit2,
+    GraduationCap,
+    MoveVertical,
+    Sparkles,
+} from 'lucide-react';
 import type { IntroductionResponse } from '@/lib/api/types';
-import { buildCareerCards, buildMilestones, buildOrderedCredentials, groupCoreSkills } from '@/lib/introDerivations';
+import {
+    buildCareerCards,
+    buildMilestones,
+    buildOrderedCredentials,
+    groupCoreSkills,
+} from '@/lib/introDerivations';
 import { credentialKindLabel, formatCredentialPeriod } from '@/lib/format';
 import { resumeMarkdownComponents } from '@/lib/markdown';
 import { partitionAtomsIntoPages, type PrintAtomItem } from '@/lib/pdfLayoutEngine';
-import { printableSections, LOCKED_PRINT_SECTION_ID, reorderablePrintSections } from '@/lib/printSections';
+import {
+    printableSections,
+    LOCKED_PRINT_SECTION_ID,
+    reorderablePrintSections,
+} from '@/lib/printSections';
 import { generateUniqueLocalName, getLocalSaves, saveLocal } from '@/lib/printTemplateLocal';
 import { usePrintStore } from '@/store/usePrintStore';
 import { PdfPageLayer } from './PdfPageLayer';
@@ -19,905 +37,1249 @@ import { PrintModeModal } from './PrintModeModal';
 import { SaveServerTemplateModal } from './SaveServerTemplateModal';
 
 type Props = {
-  introData: IntroductionResponse;
-  onExit: () => void;
+    introData: IntroductionResponse;
+    onExit: () => void;
 };
 
-function renderDetailFields(detail: { narrative?: string; situation?: string; actionDetail?: string; outcome?: string }) {
-  const merged = detail.narrative || [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
-  if (!merged) return null;
-  return (
-    <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
-      <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
-    </div>
-  );
+function renderDetailFields(detail: {
+    narrative?: string;
+    situation?: string;
+    actionDetail?: string;
+    outcome?: string;
+}) {
+    const merged =
+        detail.narrative ||
+        [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
+    if (!merged) return null;
+    return (
+        <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
+            <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
+        </div>
+    );
 }
 
 export function PrintCanvas({ introData, onExit }: Props) {
-  const store = usePrintStore();
-  const canvasRef = useRef<HTMLDivElement | null>(null);
-  const printLayoutFrozenRef = useRef(false);
-  const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
-  const [modeModalOpen, setModeModalOpen] = useState(() => !store.printModeResolved);
+    const store = usePrintStore();
+    const canvasRef = useRef<HTMLDivElement | null>(null);
+    const printLayoutFrozenRef = useRef(false);
+    const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
+    const [modeModalOpen, setModeModalOpen] = useState(() => !store.printModeResolved);
 
-  const profile = introData.profile;
-  const careerSummary = introData.careerSummary;
-  const groupedCoreSkills = useMemo(() => groupCoreSkills(introData.skills), [introData]);
-  const orderedCareerCards = useMemo(() => buildCareerCards(introData.experiences), [introData]);
-  const orderedCompetencies = useMemo(() => introData.competencies.filter((c) => c.visible), [introData]);
-  const orderedMilestones = useMemo(() => buildMilestones(introData), [introData]);
-  const orderedCredentialExperiences = useMemo(() => buildOrderedCredentials(introData.experiences), [introData]);
+    const profile = introData.profile;
+    const careerSummary = introData.careerSummary;
+    const groupedCoreSkills = useMemo(() => groupCoreSkills(introData.skills), [introData]);
+    const orderedCareerCards = useMemo(() => buildCareerCards(introData.experiences), [introData]);
+    const orderedCompetencies = useMemo(
+        () => introData.competencies.filter((c) => c.visible),
+        [introData]
+    );
+    const orderedMilestones = useMemo(() => buildMilestones(introData), [introData]);
+    const orderedCredentialExperiences = useMemo(
+        () => buildOrderedCredentials(introData.experiences),
+        [introData]
+    );
 
-  // 캔버스 마우스 휠 + Ctrl/Cmd로 줌 조절
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const delta = -e.deltaY;
-        store.setZoom(store.zoom + (delta > 0 ? 0.05 : -0.05));
-      }
-    };
-    canvas.addEventListener('wheel', handleWheel, { passive: false });
-    return () => canvas.removeEventListener('wheel', handleWheel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.zoom]);
-
-  const handleZoomFit = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const canvasWidth = canvas.clientWidth;
-    const padding = 64;
-    const fitZoom = (canvasWidth - padding) / 794;
-    store.setZoom(fitZoom);
-  };
-
-  useEffect(() => {
-    const clearPrintTitle = () => {
-      printLayoutFrozenRef.current = true;
-    };
-    const restorePrintTitle = () => {
-      printLayoutFrozenRef.current = false;
-      store.setPrintPending(false);
-    };
-    window.addEventListener('beforeprint', clearPrintTitle);
-    window.addEventListener('afterprint', restorePrintTitle);
-    return () => {
-      window.removeEventListener('beforeprint', clearPrintTitle);
-      window.removeEventListener('afterprint', restorePrintTitle);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const orderedReorderableSections = store.printSectionOrder.map((id) => reorderablePrintSections.find((s) => s.id === id)).filter((s): s is (typeof reorderablePrintSections)[number] => Boolean(s));
-  const lockedPrintSection = printableSections.find((s) => s.id === LOCKED_PRINT_SECTION_ID)!;
-  const orderedPrintableSections = [lockedPrintSection, ...orderedReorderableSections];
-
-  const printableAtoms = useMemo(() => {
-    const atoms: PrintAtomItem[] = [];
-    orderedPrintableSections.forEach((section) => {
-      if (store.printExcludedIds.includes(section.id)) return;
-
-      if (section.id === 'intro-profile') {
-        atoms.push({ id: 'intro-profile', type: 'intro-profile', sectionId: 'intro-profile' });
-      } else if (section.id === 'skills') {
-        atoms.push({ id: 'skills-header', type: 'skills', sectionId: 'skills', isHeader: true });
-        groupedCoreSkills.forEach((group) => {
-          const groupId = `skills-group:${group.value}`;
-          if (!store.printExcludedIds.includes(groupId)) {
-            atoms.push({ id: groupId, type: 'skills-group', sectionId: 'skills', dataId: group.value });
-          }
-        });
-      } else if (section.id === 'competencies') {
-        atoms.push({ id: 'competencies-header', type: 'competency-header', sectionId: 'competencies', isHeader: true });
-        orderedCompetencies.forEach((c) => {
-          const id = `competency:${c.id}`;
-          if (!store.printExcludedIds.includes(id)) {
-            atoms.push({ id, type: 'competency-item', sectionId: 'competencies', dataId: c.id });
-          }
-        });
-      } else if (section.id === 'career') {
-        atoms.push({ id: 'career-header', type: 'career-header', sectionId: 'career', isHeader: true });
-        orderedCareerCards.forEach((career) => {
-          atoms.push({ id: `career-company:${career.id}`, type: 'career-company', sectionId: 'career', dataId: career.id });
-          career.projects.forEach((p) => {
-            const headerId = `career-project:${p.id}`;
-            if (!store.printExcludedIds.includes(headerId)) {
-              atoms.push({ id: headerId, type: 'career-item', sectionId: 'career', dataId: p.id });
-              p.details?.forEach((detail) => {
-                const detailId = `career-detail:${detail.id}`;
-                if (!store.printExcludedIds.includes(detailId)) {
-                  atoms.push({ id: detailId, type: 'career-detail-item', sectionId: 'career', dataId: detail.id, title: detail.content });
-                }
-              });
+    // 캔버스 마우스 휠 + Ctrl/Cmd로 줌 조절
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const handleWheel = (e: WheelEvent) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                const delta = -e.deltaY;
+                store.setZoom(store.zoom + (delta > 0 ? 0.05 : -0.05));
             }
-          });
-        });
-      } else if (section.id === 'credentials') {
-        atoms.push({ id: 'credentials-header', type: 'credentials-header', sectionId: 'credentials', isHeader: true });
-        orderedCredentialExperiences.forEach((cred) => {
-          const id = `credential:${cred.id}`;
-          if (!store.printExcludedIds.includes(id)) {
-            atoms.push({ id, type: 'credential-item', sectionId: 'credentials', dataId: cred.id });
-          }
-        });
-      } else if (section.id === 'projects') {
-        atoms.push({ id: 'projects-header', type: 'projects-header', sectionId: 'projects', isHeader: true });
-        orderedMilestones.forEach((m) => {
-          const headerId = `project:${m.id}`;
-          if (!store.printExcludedIds.includes(headerId)) {
-            atoms.push({ id: headerId, type: 'project-item', sectionId: 'projects', dataId: m.id });
-            m.details?.forEach((detail) => {
-              const detailId = `project-detail:${detail.id}`;
-              if (!store.printExcludedIds.includes(detailId)) {
-                atoms.push({ id: detailId, type: 'project-detail-item', sectionId: 'projects', dataId: detail.id, title: detail.content });
-              }
-            });
-          }
-        });
-      }
-    });
-    return atoms;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.printExcludedIds, orderedPrintableSections.map((s) => s.id).join(','), groupedCoreSkills, orderedCompetencies, orderedCareerCards, orderedCredentialExperiences, orderedMilestones]);
+        };
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+        return () => canvas.removeEventListener('wheel', handleWheel);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [store.zoom]);
 
-  useLayoutEffect(() => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-atom-id]'));
-    const newHeights = new Map<string, number>();
-    elements.forEach((el) => {
-      const atomId = el.getAttribute('data-atom-id');
-      if (atomId) {
-        const target = el.querySelector<HTMLElement>('[data-print-el]') || (el.firstElementChild as HTMLElement) || el;
-        const h = target.offsetHeight || Math.round(target.getBoundingClientRect().height / (store.zoom || 1));
-        if (h > 0) newHeights.set(atomId, h);
-      }
-    });
-
-    const prev = store.atomHeights;
-    if (prev.size !== newHeights.size) {
-      store.setAtomHeights(newHeights);
-      return;
-    }
-    for (const [id, h] of newHeights) {
-      const prevH = prev.get(id);
-      if (prevH === undefined || Math.abs(prevH - h) > 3) {
-        store.setAtomHeights(newHeights);
-        return;
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [printableAtoms, store.sectionGaps]);
-
-  const pageLayers = useMemo(
-    () => partitionAtomsIntoPages(printableAtoms, store.atomHeights, store.sectionGaps, store.forcedPageOverrides),
-    [printableAtoms, store.atomHeights, store.sectionGaps, store.forcedPageOverrides],
-  );
-
-  const atomPageMap = useMemo(() => {
-    const map = new Map<string, number>();
-    pageLayers.forEach((page) => page.items.forEach((item) => map.set(item.id, page.pageIndex)));
-    return map;
-  }, [pageLayers]);
-
-  const splitSectionIds = useMemo(() => {
-    const sectionPagesMap = new Map<string, Set<number>>();
-    printableAtoms.forEach((atom) => {
-      const page = atomPageMap.get(atom.id);
-      if (page !== undefined) {
-        if (!sectionPagesMap.has(atom.sectionId)) sectionPagesMap.set(atom.sectionId, new Set());
-        sectionPagesMap.get(atom.sectionId)!.add(page);
-      }
-    });
-    const splitSet = new Set<string>();
-    sectionPagesMap.forEach((pages, sectionId) => {
-      if (pages.size > 1) splitSet.add(sectionId);
-    });
-    return splitSet;
-  }, [printableAtoms, atomPageMap]);
-
-  const pageBreakBoundaryAtomIds = useMemo(() => {
-    const set = new Set<string>();
-    for (let p = 1; p < pageLayers.length; p++) {
-      const prevPageItems = pageLayers[p - 1].items;
-      const currentPageItems = pageLayers[p].items;
-      if (currentPageItems.length > 0) {
-        const firstAtomOnNewPage = currentPageItems[0];
-        const sectionId = firstAtomOnNewPage.sectionId;
-        const hasPrevItemsInSameSection = prevPageItems.some((it) => it.sectionId === sectionId);
-        if (hasPrevItemsInSameSection) set.add(firstAtomOnNewPage.id);
-      }
-    }
-    return set;
-  }, [pageLayers]);
-
-  const getAssociatedAtomIds = (id: string): string[] => {
-    if (id.startsWith('project-details-header:')) {
-      const milestoneId = id.replace('project-details-header:', '');
-      const m = orderedMilestones.find((item) => String(item.id) === milestoneId);
-      if (m) return [id, ...m.details.map((d) => `project-detail:${d.id}`)];
-    }
-    if (id.startsWith('career-details-header:')) {
-      const projectId = id.replace('career-details-header:', '');
-      const p = orderedCareerCards.flatMap((c) => c.projects).find((item) => String(item.id) === projectId);
-      if (p) return [id, ...p.details.map((d) => `career-detail:${d.id}`)];
-    }
-    return [id];
-  };
-
-  const startGapDrag = (id: string) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startY = e.clientY;
-    const startGap = Math.max(0, store.sectionGaps[id] ?? 0);
-    const onMove = (me: MouseEvent) => {
-      const next = Math.max(0, Math.round(startGap + (me.clientY - startY)));
-      store.setGap(id, next);
+    const handleZoomFit = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const canvasWidth = canvas.clientWidth;
+        const padding = 64;
+        const fitZoom = (canvasWidth - padding) / 794;
+        store.setZoom(fitZoom);
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
 
-  const renderPageBreakControl = (id: string, sectionId: string) => {
-    if (store.hidePrintGuides) return null;
-    const isSplit = splitSectionIds.has(sectionId);
-    const isBoundary = pageBreakBoundaryAtomIds.has(id);
-    const currentGap = store.sectionGaps[id] ?? 0;
-    const forcedPage = store.forcedPageOverrides[id];
-    const currentPage = atomPageMap.get(id);
-    void isSplit;
+    useEffect(() => {
+        const clearPrintTitle = () => {
+            printLayoutFrozenRef.current = true;
+        };
+        const restorePrintTitle = () => {
+            printLayoutFrozenRef.current = false;
+            store.setPrintPending(false);
+        };
+        window.addEventListener('beforeprint', clearPrintTitle);
+        window.addEventListener('afterprint', restorePrintTitle);
+        return () => {
+            window.removeEventListener('beforeprint', clearPrintTitle);
+            window.removeEventListener('afterprint', restorePrintTitle);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    if (forcedPage !== undefined) {
-      const isChildDetail = id.startsWith('project-detail:') || id.startsWith('career-detail:');
-      if (isChildDetail) {
-        let parentHeaderId: string | null = null;
-        if (id.startsWith('project-detail:')) {
-          const detailId = id.replace('project-detail:', '');
-          const m = orderedMilestones.find((item) => item.details.some((d) => String(d.id) === detailId));
-          if (m) parentHeaderId = `project-details-header:${m.id}`;
-        } else if (id.startsWith('career-detail:')) {
-          const detailId = id.replace('career-detail:', '');
-          const p = orderedCareerCards.flatMap((c) => c.projects).find((proj) => proj.details.some((d) => String(d.id) === detailId));
-          if (p) parentHeaderId = `career-details-header:${p.id}`;
+    const orderedReorderableSections = store.printSectionOrder
+        .map((id) => reorderablePrintSections.find((s) => s.id === id))
+        .filter((s): s is (typeof reorderablePrintSections)[number] => Boolean(s));
+    const lockedPrintSection = printableSections.find((s) => s.id === LOCKED_PRINT_SECTION_ID)!;
+    const orderedPrintableSections = [lockedPrintSection, ...orderedReorderableSections];
+
+    const printableAtoms = useMemo(() => {
+        const atoms: PrintAtomItem[] = [];
+        orderedPrintableSections.forEach((section) => {
+            if (store.printExcludedIds.includes(section.id)) return;
+
+            if (section.id === 'intro-profile') {
+                atoms.push({
+                    id: 'intro-profile',
+                    type: 'intro-profile',
+                    sectionId: 'intro-profile',
+                });
+            } else if (section.id === 'skills') {
+                atoms.push({
+                    id: 'skills-header',
+                    type: 'skills',
+                    sectionId: 'skills',
+                    isHeader: true,
+                });
+                groupedCoreSkills.forEach((group) => {
+                    const groupId = `skills-group:${group.value}`;
+                    if (!store.printExcludedIds.includes(groupId)) {
+                        atoms.push({
+                            id: groupId,
+                            type: 'skills-group',
+                            sectionId: 'skills',
+                            dataId: group.value,
+                        });
+                    }
+                });
+            } else if (section.id === 'competencies') {
+                atoms.push({
+                    id: 'competencies-header',
+                    type: 'competency-header',
+                    sectionId: 'competencies',
+                    isHeader: true,
+                });
+                orderedCompetencies.forEach((c) => {
+                    const id = `competency:${c.id}`;
+                    if (!store.printExcludedIds.includes(id)) {
+                        atoms.push({
+                            id,
+                            type: 'competency-item',
+                            sectionId: 'competencies',
+                            dataId: c.id,
+                        });
+                    }
+                });
+            } else if (section.id === 'career') {
+                atoms.push({
+                    id: 'career-header',
+                    type: 'career-header',
+                    sectionId: 'career',
+                    isHeader: true,
+                });
+                orderedCareerCards.forEach((career) => {
+                    atoms.push({
+                        id: `career-company:${career.id}`,
+                        type: 'career-company',
+                        sectionId: 'career',
+                        dataId: career.id,
+                    });
+                    career.projects.forEach((p) => {
+                        const headerId = `career-project:${p.id}`;
+                        if (!store.printExcludedIds.includes(headerId)) {
+                            atoms.push({
+                                id: headerId,
+                                type: 'career-item',
+                                sectionId: 'career',
+                                dataId: p.id,
+                            });
+                            p.details?.forEach((detail) => {
+                                const detailId = `career-detail:${detail.id}`;
+                                if (!store.printExcludedIds.includes(detailId)) {
+                                    atoms.push({
+                                        id: detailId,
+                                        type: 'career-detail-item',
+                                        sectionId: 'career',
+                                        dataId: detail.id,
+                                        title: detail.content,
+                                    });
+                                }
+                            });
+                        }
+                    });
+                });
+            } else if (section.id === 'credentials') {
+                atoms.push({
+                    id: 'credentials-header',
+                    type: 'credentials-header',
+                    sectionId: 'credentials',
+                    isHeader: true,
+                });
+                orderedCredentialExperiences.forEach((cred) => {
+                    const id = `credential:${cred.id}`;
+                    if (!store.printExcludedIds.includes(id)) {
+                        atoms.push({
+                            id,
+                            type: 'credential-item',
+                            sectionId: 'credentials',
+                            dataId: cred.id,
+                        });
+                    }
+                });
+            } else if (section.id === 'projects') {
+                atoms.push({
+                    id: 'projects-header',
+                    type: 'projects-header',
+                    sectionId: 'projects',
+                    isHeader: true,
+                });
+                orderedMilestones.forEach((m) => {
+                    const headerId = `project:${m.id}`;
+                    if (!store.printExcludedIds.includes(headerId)) {
+                        atoms.push({
+                            id: headerId,
+                            type: 'project-item',
+                            sectionId: 'projects',
+                            dataId: m.id,
+                        });
+                        m.details?.forEach((detail) => {
+                            const detailId = `project-detail:${detail.id}`;
+                            if (!store.printExcludedIds.includes(detailId)) {
+                                atoms.push({
+                                    id: detailId,
+                                    type: 'project-detail-item',
+                                    sectionId: 'projects',
+                                    dataId: detail.id,
+                                    title: detail.content,
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        return atoms;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        store.printExcludedIds,
+        orderedPrintableSections.map((s) => s.id).join(','),
+        groupedCoreSkills,
+        orderedCompetencies,
+        orderedCareerCards,
+        orderedCredentialExperiences,
+        orderedMilestones,
+    ]);
+
+    useLayoutEffect(() => {
+        const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-atom-id]'));
+        const newHeights = new Map<string, number>();
+        elements.forEach((el) => {
+            const atomId = el.getAttribute('data-atom-id');
+            if (atomId) {
+                const target =
+                    el.querySelector<HTMLElement>('[data-print-el]') ||
+                    (el.firstElementChild as HTMLElement) ||
+                    el;
+                const h =
+                    target.offsetHeight ||
+                    Math.round(target.getBoundingClientRect().height / (store.zoom || 1));
+                if (h > 0) newHeights.set(atomId, h);
+            }
+        });
+
+        const prev = store.atomHeights;
+        if (prev.size !== newHeights.size) {
+            store.setAtomHeights(newHeights);
+            return;
         }
-        if (parentHeaderId && store.forcedPageOverrides[parentHeaderId] !== undefined) return null;
-      }
-
-      const nextPageNum = forcedPage + 2;
-      const isHeaderBlock = id.startsWith('project-details-header:') || id.startsWith('career-details-header:');
-      const labelText = isHeaderBlock ? `상세 경험 및 세부 내용 전체가 ${forcedPage + 1}페이지로 강제 배치되었습니다.` : `이 항목은 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
-
-      return (
-        <div className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto">
-          <div className="flex items-center gap-2">
-            <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white">강제 위치 배치됨</span>
-            <span className="text-[11px] text-indigo-100 font-semibold truncate max-w-[280px]">{labelText}</span>
-          </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              store.clearForcedPage(getAssociatedAtomIds(id));
-            }}
-            className="flex items-center gap-1 shrink-0 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-            <span>원래대로 내리기 ({nextPageNum}페이지)</span>
-          </button>
-        </div>
-      );
-    }
-
-    if (!isBoundary && currentGap === 0) return null;
-    const targetPrevPage = (currentPage ?? 1) - 1;
-
-    return (
-      <div className={`absolute -top-7 ${isBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto`}>
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">페이지 분할 지점</span>
-          <span className="text-[11px] text-slate-200 font-semibold">{isBoundary ? '이 항목부터 다음 페이지로 분할되었습니다.' : '페이지 이동 간격 세밀 조절 중'}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {isBoundary && targetPrevPage >= 0 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                store.forcePage(getAssociatedAtomIds(id), targetPrevPage);
-              }}
-              className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer"
-            >
-              <ArrowUp className="h-3.5 w-3.5" />
-              <span>강제로 {targetPrevPage + 1}페이지로 올리기</span>
-            </button>
-          )}
-          <div onMouseDown={startGapDrag(id)} title="마우스로 위아래 여백을 끌어서 조절 (다음 페이지 위치 세밀 조절)" className="flex cursor-ns-resize items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm">
-            <MoveVertical className="h-3.5 w-3.5" />
-            <span>위치/여백 조절</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderSectionControls = (id: string) => {
-    if (store.hidePrintGuides) return null;
-    return (
-      <div className="pp-controls print:hidden">
-        <PrintEyeButton id={id} excluded={store.printExcludedIds.includes(id)} onToggle={store.toggleExcluded} />
-        <div onMouseDown={startGapDrag(id)} title="위쪽 간격 조절 (아래로 끌면 넓어짐)" className="grid h-7 w-7 cursor-ns-resize place-items-center rounded-full bg-slate-900/90 text-white shadow-lg transition hover:bg-slate-900">
-          <MoveVertical className="h-3.5 w-3.5" />
-        </div>
-      </div>
-    );
-  };
-
-  const renderItemControls = (id: string) => {
-    const isForced = store.forcedPageOverrides[id] !== undefined;
-    const forcedPage = store.forcedPageOverrides[id];
-    const nextPageNum = (forcedPage ?? 0) + 2;
-
-    return (
-      <div className="pp-controls print:hidden flex items-center gap-1 bg-slate-900/90 p-1 rounded-full shadow-lg backdrop-blur-md z-40">
-        <PrintEyeButton id={id} excluded={store.printExcludedIds.includes(id)} onToggle={store.toggleExcluded} />
-        {isForced && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              store.clearForcedPage(getAssociatedAtomIds(id));
-            }}
-            title={`원래 위치(${nextPageNum}페이지)로 다시 내리기`}
-            className="flex h-6 items-center gap-1 rounded-full bg-rose-600 px-2.5 text-[10px] font-black text-white hover:bg-rose-700 transition cursor-pointer shadow-sm"
-          >
-            <ArrowDown className="h-3 w-3" />
-            <span>{nextPageNum}p로 내리기</span>
-          </button>
-        )}
-        <div onMouseDown={startGapDrag(id)} title="마우스를 위아래로 끌어서 간격 세밀 조절" className="grid h-6 w-6 cursor-ns-resize place-items-center rounded-full bg-slate-700/90 text-white transition hover:bg-blue-600 hover:scale-110">
-          <MoveVertical className="h-3 w-3" />
-        </div>
-      </div>
-    );
-  };
-
-  const renderSectionGap = (id: string) => {
-    const h = Math.max(0, store.sectionGaps[id] ?? 0);
-    if (h === 0 || store.printExcludedIds.includes(id)) return null;
-    return <div aria-hidden data-print-gap className="print-gap-spacer shrink-0 w-full" style={{ height: `${h}px` }} />;
-  };
-
-  const renderItemGap = (id: string, sectionId?: string) => {
-    const h = Math.max(0, store.sectionGaps[id] ?? 0);
-    return (
-      <Fragment key={`gap:${id}`}>
-        {sectionId && renderPageBreakControl(id, sectionId)}
-        {h > 0 && <div aria-hidden data-print-gap className="print-gap-spacer shrink-0 w-full" style={{ height: `${h}px` }} />}
-      </Fragment>
-    );
-  };
-
-  const renderAtomContent = (atom: PrintAtomItem) => {
-    switch (atom.type) {
-      case 'intro-profile':
-        if (!profile) return null;
-        return (
-          <div id="intro-profile" data-print-el className="resume-profile-card relative p-0 pb-3 border-b border-slate-200 shadow-none rounded-none bg-transparent">
-            {renderSectionGap('intro-profile')}
-            {renderSectionControls('intro-profile')}
-            <div className="relative z-10 space-y-4">
-              <div className="resume-profile-toprow flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-slate-100 pb-3">
-                <div className="space-y-1 shrink-0">
-                  <h2 className="resume-profile-role font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 whitespace-nowrap text-sm">{profile.jobTitle}</h2>
-                  <div className="flex items-baseline gap-2 whitespace-nowrap">
-                    <h1 className="resume-profile-name font-black text-slate-900 whitespace-nowrap text-lg sm:text-xl">{profile.name}</h1>
-                    <span className="resume-profile-name-en font-bold text-slate-400 font-mono whitespace-nowrap text-xs">{profile.nameEn}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="resume-print-contact flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-200 pb-2 text-slate-600 text-xs font-mono">
-                <span>{profile.email}</span>
-                <span>{profile.phone}</span>
-                <span>{profile.githubUrl.replace(/^https?:\/\//, '')}</span>
-                <span>unbrdn.me</span>
-              </div>
-              <div>
-                <p className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs leading-relaxed">{profile.bio}</p>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'skills':
-        return (
-          <div data-print-el className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
-            {renderSectionGap('skills')}
-            {renderSectionControls('skills')}
-            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                <Cpu className="h-4 w-4 text-slate-900" />
-                기술 스택
-              </h2>
-            </div>
-          </div>
-        );
-
-      case 'skills-group': {
-        const group = groupedCoreSkills.find((g) => g.value === atom.dataId);
-        if (!group) return null;
-        const itemId = `skills-group:${group.value}`;
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'skills')}
-            <div data-print-el className="py-3.5 border-b border-slate-100 last:border-b-0 w-full relative">
-              {renderItemControls(itemId)}
-              <div className="resume-skill-group space-y-1.5">
-                <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 border-b border-slate-100 pb-0.5 font-black text-slate-500 text-xs">
-                  <span className="resume-skill-group-bar h-3 w-1 shrink-0 rounded-full bg-slate-900" aria-hidden />
-                  {group.label}
-                </h4>
-                <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2">
-                  {group.skills.map((skill) => (
-                    <span key={skill.id} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-black text-slate-800">
-                      {skill.name}
-                      {skill.skillVersion && <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500">v{skill.skillVersion}</span>}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Fragment>
-        );
-      }
-
-      case 'competency-header':
-        return (
-          <div data-print-el className="resume-competency-header flex flex-col w-full mt-6 pt-2 relative">
-            {renderSectionGap('competencies')}
-            {renderSectionControls('competencies')}
-            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                <Sparkles className="h-4 w-4 text-slate-900" />
-                핵심 역량
-              </h2>
-            </div>
-          </div>
-        );
-
-      case 'competency-item': {
-        const competency = orderedCompetencies.find((c) => c.id === atom.dataId);
-        if (!competency) return null;
-        const index = orderedCompetencies.indexOf(competency);
-        const itemId = `competency:${competency.id}`;
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'competencies')}
-            <div data-print-el className="relative w-full">
-              {renderItemControls(itemId)}
-              <article className="print-competency-row grid gap-3 py-3.5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6 print:grid-cols-[31%_69%] print:gap-4 print:py-3.5 border-b border-slate-100 last:border-b-0 w-full">
-                <div className="min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400 text-xs">{String(index + 1).padStart(2, '0')}</span>
-                    <h3 className="resume-item-title font-black text-slate-900 text-xs">{competency.title}</h3>
-                  </div>
-                  {competency.skills.length > 0 && (
-                    <p className="resume-meta mt-1 pl-9 font-bold text-slate-500 text-[10px]">{competency.skills.slice(0, 6).map((skill) => skill.name).join(' · ')}</p>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="resume-body font-semibold text-slate-700 text-xs leading-relaxed">{competency.summary}</p>
-                </div>
-              </article>
-            </div>
-          </Fragment>
-        );
-      }
-
-      case 'career-header':
-        return (
-          <div data-print-el className="mb-2 flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
-            {renderSectionGap('career')}
-            {renderSectionControls('career')}
-            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                <Briefcase className="h-4 w-4 text-slate-900" />
-                직장 경력 (총 {careerSummary})
-              </h2>
-            </div>
-          </div>
-        );
-
-      case 'career-company': {
-        const career = orderedCareerCards.find((c) => c.id === atom.dataId);
-        if (!career) return null;
-        const itemId = `career-company:${career.id}`;
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'career')}
-            <div data-print-el className="border-b border-slate-100 py-3.5 w-full relative">
-              {renderItemControls(itemId)}
-              <span className="resume-print-plain resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950 text-xs">{career.period}</span>
-              <p className="resume-item-title mt-1.5 font-black text-slate-800 text-sm">
-                {career.companyName} ({career.employmentType})
-              </p>
-              <p className="resume-meta font-semibold text-slate-500 text-xs">
-                {career.department} / {career.role}
-              </p>
-              {career.summary && (
-                <div className="resume-body mt-2 text-xs text-slate-600">
-                  <ReactMarkdown components={resumeMarkdownComponents}>{career.summary}</ReactMarkdown>
-                </div>
-              )}
-            </div>
-          </Fragment>
-        );
-      }
-
-      case 'career-item': {
-        const career = orderedCareerCards.find((c) => c.projects.some((p) => p.id === atom.dataId));
-        const project = career?.projects.find((p) => p.id === atom.dataId);
-        if (!project || !career) return null;
-        const itemId = `career-project:${project.id}`;
-        const hasDetails = project.details && project.details.length > 0;
-
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'career')}
-            <div data-print-el className={`w-full relative ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}>
-              {renderItemControls(itemId)}
-              <div className="flex w-full items-start gap-2.5 text-left">
-                <span className="min-w-0 flex-1">
-                  <span className="resume-body block font-bold text-slate-900 text-xs">{project.title}</span>
-                  <span className="resume-meta mt-0.5 block text-slate-400 text-[10px]">
-                    {project.periodStart.replace(/-/g, '.').substring(0, 7)} - {project.periodEnd ? project.periodEnd.replace(/-/g, '.').substring(0, 7) : '진행 중'}
-                    {project.contributionRate != null ? ` · 기여도 ${project.contributionRate}%` : ''}
-                  </span>
-                </span>
-              </div>
-              {project.summary && (
-                <div className="mt-1.5">
-                  <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider text-[10px]">프로젝트 설명 및 역할</h4>
-                  <div className="resume-body mt-0.5 text-xs text-slate-600">
-                    <ReactMarkdown components={resumeMarkdownComponents}>{project.summary}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {project.skills && project.skills.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {project.skills.map((s) => (
-                    <span key={s.id} className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60">
-                      {s.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Fragment>
-        );
-      }
-
-      case 'career-detail-item': {
-        const allProjects = orderedCareerCards.flatMap((c) => c.projects);
-        const p = allProjects.find((proj) => proj.details?.some((d) => d.id === atom.dataId));
-        const detail = p?.details?.find((d) => d.id === atom.dataId);
-        if (!detail || !p) return null;
-        const itemId = `career-detail:${detail.id}`;
-        const isFirst = p.details[0]?.id === detail.id;
-
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'career')}
-            <div data-print-el className="py-2 pl-3 border-l-2 border-slate-200 border-b border-slate-100/60 last:border-b-0 w-full relative">
-              {renderItemControls(itemId)}
-              {isFirst && (
-                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
-                  <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
-                    <Briefcase className="h-3 w-3 text-slate-500" />
-                    상세 경험
-                  </h4>
-                </div>
-              )}
-              <span className="font-bold text-slate-900 block text-xs">• {detail.content}</span>
-              {renderDetailFields(detail)}
-            </div>
-          </Fragment>
-        );
-      }
-
-      case 'credentials-header':
-        return (
-          <div data-print-el className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
-            {renderSectionGap('credentials')}
-            {renderSectionControls('credentials')}
-            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                <GraduationCap className="h-4 w-4 text-slate-900" />
-                학력·교육 및 자격증
-              </h2>
-            </div>
-          </div>
-        );
-
-      case 'credential-item': {
-        const cred = orderedCredentialExperiences.find((c) => c.id === atom.dataId);
-        if (!cred) return null;
-        const itemId = `credential:${cred.id}`;
-        const kind = credentialKindLabel(cred);
-
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'credentials')}
-            <article data-print-el className="py-2.5 border-b border-slate-100 last:border-b-0 w-full relative flex flex-col">
-              {renderItemControls(itemId)}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="resume-label rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 shrink-0">{kind}</span>
-                  <h3 className="font-bold text-slate-900 text-xs truncate">{cred.title}</h3>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">{formatCredentialPeriod(cred)}</span>
-              </div>
-              {kind === '교육' && cred.summary && <p className="mt-1 text-xs text-slate-600 leading-relaxed">{cred.summary}</p>}
-              {kind === '교육' && cred.skills && cred.skills.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {cred.skills.map((s) => (
-                    <span key={s.id} className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60">
-                      {s.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </article>
-          </Fragment>
-        );
-      }
-
-      case 'projects-header':
-        return (
-          <div data-print-el className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative">
-            {renderSectionGap('projects')}
-            {renderSectionControls('projects')}
-            <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-              <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                <FolderGit2 className="h-4 w-4 text-slate-900" />
-                핵심 프로젝트 포트폴리오
-              </h2>
-            </div>
-          </div>
-        );
-
-      case 'project-item': {
-        const m = orderedMilestones.find((item) => item.id === atom.dataId);
-        if (!m) return null;
-        const itemId = `project:${m.id}`;
-        const hasDetails = m.details && m.details.length > 0;
-
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'projects')}
-            <article data-print-el className={`w-full relative flex flex-col ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}>
-              {renderItemControls(itemId)}
-              <div className="flex items-baseline justify-between gap-2">
-                <h3 className="font-black text-slate-900 text-xs">{m.title}</h3>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">{m.period}</span>
-              </div>
-              {m.role && <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{m.role}</p>}
-              {m.description && <p className="mt-1 text-xs text-slate-600">{m.description}</p>}
-              {m.skills && m.skills.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {m.skills.map((s) => (
-                    <span key={s} className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </article>
-          </Fragment>
-        );
-      }
-
-      case 'project-detail-item': {
-        const m = orderedMilestones.find((item) => item.details?.some((d) => d.id === atom.dataId));
-        const detail = m?.details?.find((d) => d.id === atom.dataId);
-        if (!detail || !m) return null;
-        const itemId = `project-detail:${detail.id}`;
-        const isFirst = m.details[0]?.id === detail.id;
-
-        return (
-          <Fragment key={atom.id}>
-            {renderItemGap(itemId, 'projects')}
-            <div data-print-el className="py-2 pl-3 border-l-2 border-slate-200 border-b border-slate-100/60 last:border-b-0 w-full relative">
-              {renderItemControls(itemId)}
-              {isFirst && (
-                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
-                  <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
-                    <Briefcase className="h-3 w-3 text-slate-500" />
-                    상세 경험
-                  </h4>
-                </div>
-              )}
-              <span className="font-bold text-slate-900 block text-xs">• {detail.content}</span>
-              {renderDetailFields(detail)}
-            </div>
-          </Fragment>
-        );
-      }
-
-      default:
-        return null;
-    }
-  };
-
-  const handlePrintConfirm = () => {
-    printLayoutFrozenRef.current = false;
-    store.setPrintPending(true);
-  };
-
-  useEffect(() => {
-    if (!store.printPending) return;
-    let cancelled = false;
-    const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    const waitAtMost = async (promise: Promise<unknown>, timeoutMs = 5000) => {
-      let timer = 0;
-      await Promise.race([
-        promise.catch(() => undefined),
-        new Promise<void>((resolve) => {
-          timer = window.setTimeout(resolve, timeoutMs);
-        }),
-      ]);
-      window.clearTimeout(timer);
-    };
-    const printWhenLayoutIsStable = async () => {
-      await waitAtMost(document.fonts.ready);
-      if (cancelled) return;
-      await Promise.all(
-        Array.from(document.querySelectorAll<HTMLImageElement>('.pdf-page-layer img')).map(async (image) => {
-          if (!image.complete) {
-            await new Promise<void>((resolve) => {
-              let timer = 0;
-              const finish = () => {
-                window.clearTimeout(timer);
-                image.removeEventListener('load', finish);
-                image.removeEventListener('error', finish);
-                resolve();
-              };
-              image.addEventListener('load', finish);
-              image.addEventListener('error', finish);
-              timer = window.setTimeout(finish, 5000);
-              if (image.complete) finish();
-            });
-          }
-          await waitAtMost(image.decode());
-        }),
-      );
-      await nextFrame();
-      await nextFrame();
-      if (cancelled) return;
-
-      printLayoutFrozenRef.current = true;
-      try {
-        window.print();
-      } catch {
-        printLayoutFrozenRef.current = false;
-      } finally {
-        if (!cancelled) store.setPrintPending(false);
-      }
-    };
-    void printWhenLayoutIsStable();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.printPending]);
-
-  const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
-
-  return (
-    <>
-      <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
-        <PrintPreviewBar
-          excludedCount={store.printExcludedIds.length}
-          totalPages={pageLayers.length}
-          navOpen={store.navPanelOpen}
-          onToggleAll={store.toggleAllExcluded}
-          onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
-          onSaveLocal={() => {
-            const defaultName = generateUniqueLocalName('내 맞춤 인쇄 설정');
-            const memo = window.prompt('현재 인쇄 설정에 대한 설명/메모를 입력하세요:', defaultName);
-            if (memo === null) return;
-            const trimmed = memo.trim() || defaultName;
-            const existingSaves = getLocalSaves();
-            if (existingSaves.some((s) => s.memo.trim() === trimmed)) {
-              const confirmed = window.confirm(`'${trimmed}' 이름의 인쇄 설정이 이미 존재합니다.\n\n기존 설정을 덮어쓰시겠습니까?`);
-              if (!confirmed) return;
+        for (const [id, h] of newHeights) {
+            const prevH = prev.get(id);
+            if (prevH === undefined || Math.abs(prevH - h) > 3) {
+                store.setAtomHeights(newHeights);
+                return;
             }
-            saveLocal({
-              memo: trimmed,
-              excludedIds: store.printExcludedIds,
-              sectionOrder: store.printSectionOrder,
-              sectionGaps: store.sectionGaps,
-              forcedPageOverrides: store.forcedPageOverrides,
-            });
-            alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
-          }}
-          onSaveServer={undefined}
-          onPrint={handlePrintConfirm}
-          onCancel={onExit}
-          zoom={store.zoom}
-          onZoomChange={store.setZoom}
-          onZoomFit={handleZoomFit}
-          hideGuides={store.hidePrintGuides}
-          onToggleHideGuides={store.toggleHidePrintGuides}
-        />
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [printableAtoms, store.sectionGaps]);
 
-        <div className="flex-1 min-h-0 flex">
-          <div ref={canvasRef} className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0">
-            <div className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent" style={{ zoom: store.zoom }}>
-              {pageLayers.map((page, pageIdx) => (
-                <PdfPageLayer key={pageIdx} pageIndex={pageIdx} totalPages={pageLayers.length} hideGuides={store.hidePrintGuides}>
-                  {page.items.map((atom) => (
-                    <div key={atom.id} data-atom-id={atom.id} className="w-full">
-                      {renderAtomContent(atom)}
+    const pageLayers = useMemo(
+        () =>
+            partitionAtomsIntoPages(
+                printableAtoms,
+                store.atomHeights,
+                store.sectionGaps,
+                store.forcedPageOverrides
+            ),
+        [printableAtoms, store.atomHeights, store.sectionGaps, store.forcedPageOverrides]
+    );
+
+    const atomPageMap = useMemo(() => {
+        const map = new Map<string, number>();
+        pageLayers.forEach((page) =>
+            page.items.forEach((item) => map.set(item.id, page.pageIndex))
+        );
+        return map;
+    }, [pageLayers]);
+
+    const splitSectionIds = useMemo(() => {
+        const sectionPagesMap = new Map<string, Set<number>>();
+        printableAtoms.forEach((atom) => {
+            const page = atomPageMap.get(atom.id);
+            if (page !== undefined) {
+                if (!sectionPagesMap.has(atom.sectionId))
+                    sectionPagesMap.set(atom.sectionId, new Set());
+                sectionPagesMap.get(atom.sectionId)!.add(page);
+            }
+        });
+        const splitSet = new Set<string>();
+        sectionPagesMap.forEach((pages, sectionId) => {
+            if (pages.size > 1) splitSet.add(sectionId);
+        });
+        return splitSet;
+    }, [printableAtoms, atomPageMap]);
+
+    const pageBreakBoundaryAtomIds = useMemo(() => {
+        const set = new Set<string>();
+        for (let p = 1; p < pageLayers.length; p++) {
+            const prevPageItems = pageLayers[p - 1].items;
+            const currentPageItems = pageLayers[p].items;
+            if (currentPageItems.length > 0) {
+                const firstAtomOnNewPage = currentPageItems[0];
+                const sectionId = firstAtomOnNewPage.sectionId;
+                const hasPrevItemsInSameSection = prevPageItems.some(
+                    (it) => it.sectionId === sectionId
+                );
+                if (hasPrevItemsInSameSection) set.add(firstAtomOnNewPage.id);
+            }
+        }
+        return set;
+    }, [pageLayers]);
+
+    const getAssociatedAtomIds = (id: string): string[] => {
+        if (id.startsWith('project-details-header:')) {
+            const milestoneId = id.replace('project-details-header:', '');
+            const m = orderedMilestones.find((item) => String(item.id) === milestoneId);
+            if (m) return [id, ...m.details.map((d) => `project-detail:${d.id}`)];
+        }
+        if (id.startsWith('career-details-header:')) {
+            const projectId = id.replace('career-details-header:', '');
+            const p = orderedCareerCards
+                .flatMap((c) => c.projects)
+                .find((item) => String(item.id) === projectId);
+            if (p) return [id, ...p.details.map((d) => `career-detail:${d.id}`)];
+        }
+        return [id];
+    };
+
+    const startGapDrag = (id: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startY = e.clientY;
+        const startGap = Math.max(0, store.sectionGaps[id] ?? 0);
+        const onMove = (me: MouseEvent) => {
+            const next = Math.max(0, Math.round(startGap + (me.clientY - startY)));
+            store.setGap(id, next);
+        };
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
+
+    const renderPageBreakControl = (id: string, sectionId: string) => {
+        if (store.hidePrintGuides) return null;
+        const isSplit = splitSectionIds.has(sectionId);
+        const isBoundary = pageBreakBoundaryAtomIds.has(id);
+        const currentGap = store.sectionGaps[id] ?? 0;
+        const forcedPage = store.forcedPageOverrides[id];
+        const currentPage = atomPageMap.get(id);
+        void isSplit;
+
+        if (forcedPage !== undefined) {
+            const isChildDetail =
+                id.startsWith('project-detail:') || id.startsWith('career-detail:');
+            if (isChildDetail) {
+                let parentHeaderId: string | null = null;
+                if (id.startsWith('project-detail:')) {
+                    const detailId = id.replace('project-detail:', '');
+                    const m = orderedMilestones.find((item) =>
+                        item.details.some((d) => String(d.id) === detailId)
+                    );
+                    if (m) parentHeaderId = `project-details-header:${m.id}`;
+                } else if (id.startsWith('career-detail:')) {
+                    const detailId = id.replace('career-detail:', '');
+                    const p = orderedCareerCards
+                        .flatMap((c) => c.projects)
+                        .find((proj) => proj.details.some((d) => String(d.id) === detailId));
+                    if (p) parentHeaderId = `career-details-header:${p.id}`;
+                }
+                if (parentHeaderId && store.forcedPageOverrides[parentHeaderId] !== undefined)
+                    return null;
+            }
+
+            const nextPageNum = forcedPage + 2;
+            const isHeaderBlock =
+                id.startsWith('project-details-header:') || id.startsWith('career-details-header:');
+            const labelText = isHeaderBlock
+                ? `상세 경험 및 세부 내용 전체가 ${forcedPage + 1}페이지로 강제 배치되었습니다.`
+                : `이 항목은 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
+
+            return (
+                <div className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto">
+                    <div className="flex items-center gap-2">
+                        <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+                            강제 위치 배치됨
+                        </span>
+                        <span className="text-[11px] text-indigo-100 font-semibold truncate max-w-[280px]">
+                            {labelText}
+                        </span>
                     </div>
-                  ))}
-                </PdfPageLayer>
-              ))}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            store.clearForcedPage(getAssociatedAtomIds(id));
+                        }}
+                        className="flex items-center gap-1 shrink-0 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
+                    >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                        <span>원래대로 내리기 ({nextPageNum}페이지)</span>
+                    </button>
+                </div>
+            );
+        }
+
+        if (!isBoundary && currentGap === 0) return null;
+        const targetPrevPage = (currentPage ?? 1) - 1;
+
+        return (
+            <div
+                className={`absolute -top-7 ${isBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto`}
+            >
+                <div className="flex items-center gap-2">
+                    <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+                        페이지 분할 지점
+                    </span>
+                    <span className="text-[11px] text-slate-200 font-semibold">
+                        {isBoundary
+                            ? '이 항목부터 다음 페이지로 분할되었습니다.'
+                            : '페이지 이동 간격 세밀 조절 중'}
+                    </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    {isBoundary && targetPrevPage >= 0 && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                store.forcePage(getAssociatedAtomIds(id), targetPrevPage);
+                            }}
+                            className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer"
+                        >
+                            <ArrowUp className="h-3.5 w-3.5" />
+                            <span>강제로 {targetPrevPage + 1}페이지로 올리기</span>
+                        </button>
+                    )}
+                    <div
+                        onMouseDown={startGapDrag(id)}
+                        title="마우스로 위아래 여백을 끌어서 조절 (다음 페이지 위치 세밀 조절)"
+                        className="flex cursor-ns-resize items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm"
+                    >
+                        <MoveVertical className="h-3.5 w-3.5" />
+                        <span>위치/여백 조절</span>
+                    </div>
+                </div>
             </div>
-          </div>
+        );
+    };
 
-          <div className="print:hidden shrink-0 transition-all duration-300" style={{ width: store.navPanelOpen ? 256 : 56 }}>
-            <PrintPreviewNav
-              sections={printableSections}
-              excludedIds={store.printExcludedIds}
-              itemGroups={[
-                { sectionId: 'competencies', items: orderedCompetencies.map((c) => ({ id: `competency:${c.id}`, label: c.title })) },
-                { sectionId: 'career', items: orderedCareerCards.flatMap((career) => career.projects.map((p) => ({ id: `career-project:${p.id}`, label: p.title }))) },
-                { sectionId: 'credentials', items: orderedCredentialExperiences.map((c) => ({ id: `credential:${c.id}`, label: c.title })) },
-                { sectionId: 'projects', items: orderedMilestones.map((m) => ({ id: `project:${m.id}`, label: m.title })) },
-              ]}
-              lockedSectionIds={[LOCKED_PRINT_SECTION_ID]}
-              open={store.navPanelOpen}
-              onRequestToggle={() => store.setNavPanelOpen(!store.navPanelOpen)}
-              onToggle={store.toggleExcluded}
-              onReorder={store.reorderSections}
-              onNavigate={(id) => {
-                const el = document.getElementById(id) ?? document.querySelector<HTMLElement>(`[data-print-id="${CSS.escape(id)}"]`);
-                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }}
-              onToggleAll={store.toggleAllExcluded}
-              excludedCount={store.printExcludedIds.length}
+    const renderSectionControls = (id: string) => {
+        if (store.hidePrintGuides) return null;
+        return (
+            <div className="pp-controls print:hidden">
+                <PrintEyeButton
+                    id={id}
+                    excluded={store.printExcludedIds.includes(id)}
+                    onToggle={store.toggleExcluded}
+                />
+                <div
+                    onMouseDown={startGapDrag(id)}
+                    title="위쪽 간격 조절 (아래로 끌면 넓어짐)"
+                    className="grid h-7 w-7 cursor-ns-resize place-items-center rounded-full bg-slate-900/90 text-white shadow-lg transition hover:bg-slate-900"
+                >
+                    <MoveVertical className="h-3.5 w-3.5" />
+                </div>
+            </div>
+        );
+    };
+
+    const renderItemControls = (id: string) => {
+        const isForced = store.forcedPageOverrides[id] !== undefined;
+        const forcedPage = store.forcedPageOverrides[id];
+        const nextPageNum = (forcedPage ?? 0) + 2;
+
+        return (
+            <div className="pp-controls print:hidden flex items-center gap-1 bg-slate-900/90 p-1 rounded-full shadow-lg backdrop-blur-md z-40">
+                <PrintEyeButton
+                    id={id}
+                    excluded={store.printExcludedIds.includes(id)}
+                    onToggle={store.toggleExcluded}
+                />
+                {isForced && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            store.clearForcedPage(getAssociatedAtomIds(id));
+                        }}
+                        title={`원래 위치(${nextPageNum}페이지)로 다시 내리기`}
+                        className="flex h-6 items-center gap-1 rounded-full bg-rose-600 px-2.5 text-[10px] font-black text-white hover:bg-rose-700 transition cursor-pointer shadow-sm"
+                    >
+                        <ArrowDown className="h-3 w-3" />
+                        <span>{nextPageNum}p로 내리기</span>
+                    </button>
+                )}
+                <div
+                    onMouseDown={startGapDrag(id)}
+                    title="마우스를 위아래로 끌어서 간격 세밀 조절"
+                    className="grid h-6 w-6 cursor-ns-resize place-items-center rounded-full bg-slate-700/90 text-white transition hover:bg-blue-600 hover:scale-110"
+                >
+                    <MoveVertical className="h-3 w-3" />
+                </div>
+            </div>
+        );
+    };
+
+    const renderSectionGap = (id: string) => {
+        const h = Math.max(0, store.sectionGaps[id] ?? 0);
+        if (h === 0 || store.printExcludedIds.includes(id)) return null;
+        return (
+            <div
+                aria-hidden
+                data-print-gap
+                className="print-gap-spacer shrink-0 w-full"
+                style={{ height: `${h}px` }}
             />
-          </div>
-        </div>
-      </div>
+        );
+    };
 
-      <PrintModeModal
-        open={modeModalOpen}
-        onClose={() => setModeModalOpen(false)}
-        onManual={() => {
-          store.resetManual();
-          setModeModalOpen(false);
-        }}
-        onApplyTemplate={(settings) => {
-          store.applyTemplate(settings);
-          setModeModalOpen(false);
-        }}
-      />
+    const renderItemGap = (id: string, sectionId?: string) => {
+        const h = Math.max(0, store.sectionGaps[id] ?? 0);
+        return (
+            <Fragment key={`gap:${id}`}>
+                {sectionId && renderPageBreakControl(id, sectionId)}
+                {h > 0 && (
+                    <div
+                        aria-hidden
+                        data-print-gap
+                        className="print-gap-spacer shrink-0 w-full"
+                        style={{ height: `${h}px` }}
+                    />
+                )}
+            </Fragment>
+        );
+    };
 
-      <SaveServerTemplateModal
-        open={saveTemplateModalOpen}
-        onClose={() => setSaveTemplateModalOpen(false)}
-        currentSettings={{
-          excludedIds: store.printExcludedIds,
-          sectionOrder: store.printSectionOrder,
-          sectionGaps: store.sectionGaps,
-        }}
-        editingTemplate={null}
-      />
-    </>
-  );
+    const renderAtomContent = (atom: PrintAtomItem) => {
+        switch (atom.type) {
+            case 'intro-profile':
+                if (!profile) return null;
+                return (
+                    <div
+                        id="intro-profile"
+                        data-print-el
+                        className="resume-profile-card relative p-0 pb-3 border-b border-slate-200 shadow-none rounded-none bg-transparent"
+                    >
+                        {renderSectionGap('intro-profile')}
+                        {renderSectionControls('intro-profile')}
+                        <div className="relative z-10 space-y-4">
+                            <div className="resume-profile-toprow flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-slate-100 pb-3">
+                                <div className="space-y-1 shrink-0">
+                                    <h2 className="resume-profile-role font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 whitespace-nowrap text-sm">
+                                        {profile.jobTitle}
+                                    </h2>
+                                    <div className="flex items-baseline gap-2 whitespace-nowrap">
+                                        <h1 className="resume-profile-name font-black text-slate-900 whitespace-nowrap text-lg sm:text-xl">
+                                            {profile.name}
+                                        </h1>
+                                        <span className="resume-profile-name-en font-bold text-slate-400 font-mono whitespace-nowrap text-xs">
+                                            {profile.nameEn}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="resume-print-contact flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-200 pb-2 text-slate-600 text-xs font-mono">
+                                <span>{profile.email}</span>
+                                <span>{profile.phone}</span>
+                                <span>{profile.githubUrl.replace(/^https?:\/\//, '')}</span>
+                                <span>unbrdn.me</span>
+                            </div>
+                            <div>
+                                <p className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs leading-relaxed">
+                                    {profile.bio}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'skills':
+                return (
+                    <div
+                        data-print-el
+                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
+                    >
+                        {renderSectionGap('skills')}
+                        {renderSectionControls('skills')}
+                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                                <Cpu className="h-4 w-4 text-slate-900" />
+                                기술 스택
+                            </h2>
+                        </div>
+                    </div>
+                );
+
+            case 'skills-group': {
+                const group = groupedCoreSkills.find((g) => g.value === atom.dataId);
+                if (!group) return null;
+                const itemId = `skills-group:${group.value}`;
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'skills')}
+                        <div
+                            data-print-el
+                            className="py-3.5 border-b border-slate-100 last:border-b-0 w-full relative"
+                        >
+                            {renderItemControls(itemId)}
+                            <div className="resume-skill-group space-y-1.5">
+                                <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 border-b border-slate-100 pb-0.5 font-black text-slate-500 text-xs">
+                                    <span
+                                        className="resume-skill-group-bar h-3 w-1 shrink-0 rounded-full bg-slate-900"
+                                        aria-hidden
+                                    />
+                                    {group.label}
+                                </h4>
+                                <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2">
+                                    {group.skills.map((skill) => (
+                                        <span
+                                            key={skill.id}
+                                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-black text-slate-800"
+                                        >
+                                            {skill.name}
+                                            {skill.skillVersion && (
+                                                <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500">
+                                                    v{skill.skillVersion}
+                                                </span>
+                                            )}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </Fragment>
+                );
+            }
+
+            case 'competency-header':
+                return (
+                    <div
+                        data-print-el
+                        className="resume-competency-header flex flex-col w-full mt-6 pt-2 relative"
+                    >
+                        {renderSectionGap('competencies')}
+                        {renderSectionControls('competencies')}
+                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                                <Sparkles className="h-4 w-4 text-slate-900" />
+                                핵심 역량
+                            </h2>
+                        </div>
+                    </div>
+                );
+
+            case 'competency-item': {
+                const competency = orderedCompetencies.find((c) => c.id === atom.dataId);
+                if (!competency) return null;
+                const index = orderedCompetencies.indexOf(competency);
+                const itemId = `competency:${competency.id}`;
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'competencies')}
+                        <div data-print-el className="relative w-full">
+                            {renderItemControls(itemId)}
+                            <article className="print-competency-row grid gap-3 py-3.5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6 print:grid-cols-[31%_69%] print:gap-4 print:py-3.5 border-b border-slate-100 last:border-b-0 w-full">
+                                <div className="min-w-0">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400 text-xs">
+                                            {String(index + 1).padStart(2, '0')}
+                                        </span>
+                                        <h3 className="resume-item-title font-black text-slate-900 text-xs">
+                                            {competency.title}
+                                        </h3>
+                                    </div>
+                                    {competency.skills.length > 0 && (
+                                        <p className="resume-meta mt-1 pl-9 font-bold text-slate-500 text-[10px]">
+                                            {competency.skills
+                                                .slice(0, 6)
+                                                .map((skill) => skill.name)
+                                                .join(' · ')}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="resume-body font-semibold text-slate-700 text-xs leading-relaxed">
+                                        {competency.summary}
+                                    </p>
+                                </div>
+                            </article>
+                        </div>
+                    </Fragment>
+                );
+            }
+
+            case 'career-header':
+                return (
+                    <div
+                        data-print-el
+                        className="mb-2 flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
+                    >
+                        {renderSectionGap('career')}
+                        {renderSectionControls('career')}
+                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                                <Briefcase className="h-4 w-4 text-slate-900" />
+                                직장 경력 (총 {careerSummary})
+                            </h2>
+                        </div>
+                    </div>
+                );
+
+            case 'career-company': {
+                const career = orderedCareerCards.find((c) => c.id === atom.dataId);
+                if (!career) return null;
+                const itemId = `career-company:${career.id}`;
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'career')}
+                        <div
+                            data-print-el
+                            className="border-b border-slate-100 py-3.5 w-full relative"
+                        >
+                            {renderItemControls(itemId)}
+                            <span className="resume-print-plain resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950 text-xs">
+                                {career.period}
+                            </span>
+                            <p className="resume-item-title mt-1.5 font-black text-slate-800 text-sm">
+                                {career.companyName} ({career.employmentType})
+                            </p>
+                            <p className="resume-meta font-semibold text-slate-500 text-xs">
+                                {career.department} / {career.role}
+                            </p>
+                            {career.summary && (
+                                <div className="resume-body mt-2 text-xs text-slate-600">
+                                    <ReactMarkdown components={resumeMarkdownComponents}>
+                                        {career.summary}
+                                    </ReactMarkdown>
+                                </div>
+                            )}
+                        </div>
+                    </Fragment>
+                );
+            }
+
+            case 'career-item': {
+                const career = orderedCareerCards.find((c) =>
+                    c.projects.some((p) => p.id === atom.dataId)
+                );
+                const project = career?.projects.find((p) => p.id === atom.dataId);
+                if (!project || !career) return null;
+                const itemId = `career-project:${project.id}`;
+                const hasDetails = project.details && project.details.length > 0;
+
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'career')}
+                        <div
+                            data-print-el
+                            className={`w-full relative ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}
+                        >
+                            {renderItemControls(itemId)}
+                            <div className="flex w-full items-start gap-2.5 text-left">
+                                <span className="min-w-0 flex-1">
+                                    <span className="resume-body block font-bold text-slate-900 text-xs">
+                                        {project.title}
+                                    </span>
+                                    <span className="resume-meta mt-0.5 block text-slate-400 text-[10px]">
+                                        {project.periodStart.replace(/-/g, '.').substring(0, 7)} -{' '}
+                                        {project.periodEnd
+                                            ? project.periodEnd.replace(/-/g, '.').substring(0, 7)
+                                            : '진행 중'}
+                                        {project.contributionRate != null
+                                            ? ` · 기여도 ${project.contributionRate}%`
+                                            : ''}
+                                    </span>
+                                </span>
+                            </div>
+                            {project.summary && (
+                                <div className="mt-1.5">
+                                    <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider text-[10px]">
+                                        프로젝트 설명 및 역할
+                                    </h4>
+                                    <div className="resume-body mt-0.5 text-xs text-slate-600">
+                                        <ReactMarkdown components={resumeMarkdownComponents}>
+                                            {project.summary}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
+                            )}
+                            {project.skills && project.skills.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                    {project.skills.map((s) => (
+                                        <span
+                                            key={s.id}
+                                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60"
+                                        >
+                                            {s.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </Fragment>
+                );
+            }
+
+            case 'career-detail-item': {
+                const allProjects = orderedCareerCards.flatMap((c) => c.projects);
+                const p = allProjects.find((proj) =>
+                    proj.details?.some((d) => d.id === atom.dataId)
+                );
+                const detail = p?.details?.find((d) => d.id === atom.dataId);
+                if (!detail || !p) return null;
+                const itemId = `career-detail:${detail.id}`;
+                const isFirst = p.details[0]?.id === detail.id;
+
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'career')}
+                        <div
+                            data-print-el
+                            className="py-2 pl-3 border-l-2 border-slate-200 border-b border-slate-100/60 last:border-b-0 w-full relative"
+                        >
+                            {renderItemControls(itemId)}
+                            {isFirst && (
+                                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
+                                    <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
+                                        <Briefcase className="h-3 w-3 text-slate-500" />
+                                        상세 경험
+                                    </h4>
+                                </div>
+                            )}
+                            <span className="font-bold text-slate-900 block text-xs">
+                                • {detail.content}
+                            </span>
+                            {renderDetailFields(detail)}
+                        </div>
+                    </Fragment>
+                );
+            }
+
+            case 'credentials-header':
+                return (
+                    <div
+                        data-print-el
+                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
+                    >
+                        {renderSectionGap('credentials')}
+                        {renderSectionControls('credentials')}
+                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                                <GraduationCap className="h-4 w-4 text-slate-900" />
+                                학력·교육 및 자격증
+                            </h2>
+                        </div>
+                    </div>
+                );
+
+            case 'credential-item': {
+                const cred = orderedCredentialExperiences.find((c) => c.id === atom.dataId);
+                if (!cred) return null;
+                const itemId = `credential:${cred.id}`;
+                const kind = credentialKindLabel(cred);
+
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'credentials')}
+                        <article
+                            data-print-el
+                            className="py-2.5 border-b border-slate-100 last:border-b-0 w-full relative flex flex-col"
+                        >
+                            {renderItemControls(itemId)}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className="resume-label rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 shrink-0">
+                                        {kind}
+                                    </span>
+                                    <h3 className="font-bold text-slate-900 text-xs truncate">
+                                        {cred.title}
+                                    </h3>
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    {formatCredentialPeriod(cred)}
+                                </span>
+                            </div>
+                            {kind === '교육' && cred.summary && (
+                                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                                    {cred.summary}
+                                </p>
+                            )}
+                            {kind === '교육' && cred.skills && cred.skills.length > 0 && (
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                    {cred.skills.map((s) => (
+                                        <span
+                                            key={s.id}
+                                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60"
+                                        >
+                                            {s.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </article>
+                    </Fragment>
+                );
+            }
+
+            case 'projects-header':
+                return (
+                    <div
+                        data-print-el
+                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
+                    >
+                        {renderSectionGap('projects')}
+                        {renderSectionControls('projects')}
+                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                                <FolderGit2 className="h-4 w-4 text-slate-900" />
+                                핵심 프로젝트 포트폴리오
+                            </h2>
+                        </div>
+                    </div>
+                );
+
+            case 'project-item': {
+                const m = orderedMilestones.find((item) => item.id === atom.dataId);
+                if (!m) return null;
+                const itemId = `project:${m.id}`;
+                const hasDetails = m.details && m.details.length > 0;
+
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'projects')}
+                        <article
+                            data-print-el
+                            className={`w-full relative flex flex-col ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}
+                        >
+                            {renderItemControls(itemId)}
+                            <div className="flex items-baseline justify-between gap-2">
+                                <h3 className="font-black text-slate-900 text-xs">{m.title}</h3>
+                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    {m.period}
+                                </span>
+                            </div>
+                            {m.role && (
+                                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                                    {m.role}
+                                </p>
+                            )}
+                            {m.description && (
+                                <p className="mt-1 text-xs text-slate-600">{m.description}</p>
+                            )}
+                            {m.skills && m.skills.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                    {m.skills.map((s) => (
+                                        <span
+                                            key={s}
+                                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60"
+                                        >
+                                            {s}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </article>
+                    </Fragment>
+                );
+            }
+
+            case 'project-detail-item': {
+                const m = orderedMilestones.find((item) =>
+                    item.details?.some((d) => d.id === atom.dataId)
+                );
+                const detail = m?.details?.find((d) => d.id === atom.dataId);
+                if (!detail || !m) return null;
+                const itemId = `project-detail:${detail.id}`;
+                const isFirst = m.details[0]?.id === detail.id;
+
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'projects')}
+                        <div
+                            data-print-el
+                            className="py-2 pl-3 border-l-2 border-slate-200 border-b border-slate-100/60 last:border-b-0 w-full relative"
+                        >
+                            {renderItemControls(itemId)}
+                            {isFirst && (
+                                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
+                                    <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
+                                        <Briefcase className="h-3 w-3 text-slate-500" />
+                                        상세 경험
+                                    </h4>
+                                </div>
+                            )}
+                            <span className="font-bold text-slate-900 block text-xs">
+                                • {detail.content}
+                            </span>
+                            {renderDetailFields(detail)}
+                        </div>
+                    </Fragment>
+                );
+            }
+
+            default:
+                return null;
+        }
+    };
+
+    const handlePrintConfirm = () => {
+        printLayoutFrozenRef.current = false;
+        store.setPrintPending(true);
+    };
+
+    useEffect(() => {
+        if (!store.printPending) return;
+        let cancelled = false;
+        const nextFrame = () =>
+            new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const waitAtMost = async (promise: Promise<unknown>, timeoutMs = 5000) => {
+            let timer = 0;
+            await Promise.race([
+                promise.catch(() => undefined),
+                new Promise<void>((resolve) => {
+                    timer = window.setTimeout(resolve, timeoutMs);
+                }),
+            ]);
+            window.clearTimeout(timer);
+        };
+        const printWhenLayoutIsStable = async () => {
+            await waitAtMost(document.fonts.ready);
+            if (cancelled) return;
+            await Promise.all(
+                Array.from(document.querySelectorAll<HTMLImageElement>('.pdf-page-layer img')).map(
+                    async (image) => {
+                        if (!image.complete) {
+                            await new Promise<void>((resolve) => {
+                                let timer = 0;
+                                const finish = () => {
+                                    window.clearTimeout(timer);
+                                    image.removeEventListener('load', finish);
+                                    image.removeEventListener('error', finish);
+                                    resolve();
+                                };
+                                image.addEventListener('load', finish);
+                                image.addEventListener('error', finish);
+                                timer = window.setTimeout(finish, 5000);
+                                if (image.complete) finish();
+                            });
+                        }
+                        await waitAtMost(image.decode());
+                    }
+                )
+            );
+            await nextFrame();
+            await nextFrame();
+            if (cancelled) return;
+
+            printLayoutFrozenRef.current = true;
+            try {
+                window.print();
+            } catch {
+                printLayoutFrozenRef.current = false;
+            } finally {
+                if (!cancelled) store.setPrintPending(false);
+            }
+        };
+        void printWhenLayoutIsStable();
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [store.printPending]);
+
+    const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
+
+    return (
+        <>
+            <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
+                <PrintPreviewBar
+                    excludedCount={store.printExcludedIds.length}
+                    totalPages={pageLayers.length}
+                    navOpen={store.navPanelOpen}
+                    onToggleAll={store.toggleAllExcluded}
+                    onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
+                    onSaveLocal={() => {
+                        const defaultName = generateUniqueLocalName('내 맞춤 인쇄 설정');
+                        const memo = window.prompt(
+                            '현재 인쇄 설정에 대한 설명/메모를 입력하세요:',
+                            defaultName
+                        );
+                        if (memo === null) return;
+                        const trimmed = memo.trim() || defaultName;
+                        const existingSaves = getLocalSaves();
+                        if (existingSaves.some((s) => s.memo.trim() === trimmed)) {
+                            const confirmed = window.confirm(
+                                `'${trimmed}' 이름의 인쇄 설정이 이미 존재합니다.\n\n기존 설정을 덮어쓰시겠습니까?`
+                            );
+                            if (!confirmed) return;
+                        }
+                        saveLocal({
+                            memo: trimmed,
+                            excludedIds: store.printExcludedIds,
+                            sectionOrder: store.printSectionOrder,
+                            sectionGaps: store.sectionGaps,
+                            forcedPageOverrides: store.forcedPageOverrides,
+                        });
+                        alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
+                    }}
+                    onSaveServer={undefined}
+                    onPrint={handlePrintConfirm}
+                    onCancel={onExit}
+                    zoom={store.zoom}
+                    onZoomChange={store.setZoom}
+                    onZoomFit={handleZoomFit}
+                    hideGuides={store.hidePrintGuides}
+                    onToggleHideGuides={store.toggleHidePrintGuides}
+                />
+
+                <div className="flex-1 min-h-0 flex">
+                    <div
+                        ref={canvasRef}
+                        className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
+                    >
+                        <div
+                            className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
+                            style={{ zoom: store.zoom }}
+                        >
+                            {pageLayers.map((page, pageIdx) => (
+                                <PdfPageLayer
+                                    key={pageIdx}
+                                    pageIndex={pageIdx}
+                                    totalPages={pageLayers.length}
+                                    hideGuides={store.hidePrintGuides}
+                                >
+                                    {page.items.map((atom) => (
+                                        <div
+                                            key={atom.id}
+                                            data-atom-id={atom.id}
+                                            className="w-full"
+                                        >
+                                            {renderAtomContent(atom)}
+                                        </div>
+                                    ))}
+                                </PdfPageLayer>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div
+                        className="print:hidden shrink-0 transition-all duration-300"
+                        style={{ width: store.navPanelOpen ? 256 : 56 }}
+                    >
+                        <PrintPreviewNav
+                            sections={printableSections}
+                            excludedIds={store.printExcludedIds}
+                            itemGroups={[
+                                {
+                                    sectionId: 'competencies',
+                                    items: orderedCompetencies.map((c) => ({
+                                        id: `competency:${c.id}`,
+                                        label: c.title,
+                                    })),
+                                },
+                                {
+                                    sectionId: 'career',
+                                    items: orderedCareerCards.flatMap((career) =>
+                                        career.projects.map((p) => ({
+                                            id: `career-project:${p.id}`,
+                                            label: p.title,
+                                        }))
+                                    ),
+                                },
+                                {
+                                    sectionId: 'credentials',
+                                    items: orderedCredentialExperiences.map((c) => ({
+                                        id: `credential:${c.id}`,
+                                        label: c.title,
+                                    })),
+                                },
+                                {
+                                    sectionId: 'projects',
+                                    items: orderedMilestones.map((m) => ({
+                                        id: `project:${m.id}`,
+                                        label: m.title,
+                                    })),
+                                },
+                            ]}
+                            lockedSectionIds={[LOCKED_PRINT_SECTION_ID]}
+                            open={store.navPanelOpen}
+                            onRequestToggle={() => store.setNavPanelOpen(!store.navPanelOpen)}
+                            onToggle={store.toggleExcluded}
+                            onReorder={store.reorderSections}
+                            onNavigate={(id) => {
+                                const el =
+                                    document.getElementById(id) ??
+                                    document.querySelector<HTMLElement>(
+                                        `[data-print-id="${CSS.escape(id)}"]`
+                                    );
+                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }}
+                            onToggleAll={store.toggleAllExcluded}
+                            excludedCount={store.printExcludedIds.length}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <PrintModeModal
+                open={modeModalOpen}
+                onClose={() => setModeModalOpen(false)}
+                onManual={() => {
+                    store.resetManual();
+                    setModeModalOpen(false);
+                }}
+                onApplyTemplate={(settings) => {
+                    store.applyTemplate(settings);
+                    setModeModalOpen(false);
+                }}
+            />
+
+            <SaveServerTemplateModal
+                open={saveTemplateModalOpen}
+                onClose={() => setSaveTemplateModalOpen(false)}
+                currentSettings={{
+                    excludedIds: store.printExcludedIds,
+                    sectionOrder: store.printSectionOrder,
+                    sectionGaps: store.sectionGaps,
+                }}
+                editingTemplate={null}
+            />
+        </>
+    );
 }

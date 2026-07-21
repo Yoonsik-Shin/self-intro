@@ -7,25 +7,25 @@ import { IntroPageClient } from '@/components/intro/IntroPageClient';
 export const dynamic = 'force-dynamic';
 
 async function getIntroduction(): Promise<IntroductionResponse> {
-  return serverGet<IntroductionResponse>('/api/bff/introduction');
+    return serverGet<IntroductionResponse>('/api/bff/introduction');
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { profile } = await getIntroduction();
-  if (!profile) return { title: 'Yoonsik Shin' };
+    const { profile } = await getIntroduction();
+    if (!profile) return { title: 'Yoonsik Shin' };
 
-  const title = `${profile.name} · ${profile.jobTitle}`;
-  const description = profile.bio;
+    const title = `${profile.name} · ${profile.jobTitle}`;
+    const description = profile.bio;
 
-  return {
-    title,
-    description,
-    openGraph: { title, description, type: 'profile' },
-    twitter: { card: 'summary_large_image', title, description },
-  };
+    return {
+        title,
+        description,
+        openGraph: { title, description, type: 'profile' },
+        twitter: { card: 'summary_large_image', title, description },
+    };
 }
 
 export default async function HomePage() {
-  const introData = await getIntroduction();
-  return <IntroPageClient introData={introData} />;
+    const introData = await getIntroduction();
+    return <IntroPageClient introData={introData} />;
 }

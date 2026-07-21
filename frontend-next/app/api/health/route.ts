@@ -1,5 +1,5 @@
 export const dynamic = 'force-static';
 
 export async function GET() {
-  return Response.json({ status: 'UP' });
+    return Response.json({ status: 'UP' });
 }
