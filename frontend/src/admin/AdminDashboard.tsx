@@ -3704,54 +3704,56 @@ export function AdminDashboard() {
                       </div>
                     )}
 
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                      <div className="mb-2">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                          기타 연관 이력·참고 링크 (Cross References) · {expForm.relatedExperienceIds.length}개
-                        </label>
-                        <p className="mt-0.5 text-xs text-slate-400 font-medium">
-                          {expForm.type === 'CAREER'
-                            ? '직접 소속된 실무 프로젝트는 위의 "소속 직장 프로젝트"에서 지정해 주세요. 이 섹션은 기타 참고 이력 링크를 설정할 때 사용합니다.'
-                            : '이 항목과 연관된 다른 이력이나 경력을 연결합니다.'}
-                        </p>
-                      </div>
-                      <div className="relative mb-2">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="search"
-                          value={expRelatedSearch}
-                          onChange={(event) => setExpRelatedSearch(event.target.value)}
-                          placeholder="제목 또는 유형 검색"
-                          className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-800"
-                        />
-                      </div>
-                      <div className="grid max-h-52 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
-                        {selectableRelatedExperiences.map((experience) => (
-                          <label key={experience.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
-                            <input
-                              type="checkbox"
-                              checked={expForm.relatedExperienceIds.includes(experience.id)}
-                              onChange={() => setExpForm((current) => ({
-                                ...current,
-                                relatedExperienceIds: current.relatedExperienceIds.includes(experience.id)
-                                  ? current.relatedExperienceIds.filter((id) => id !== experience.id)
-                                  : [...current.relatedExperienceIds, experience.id],
-                              }))}
-                              className="mt-0.5"
-                            />
-                            <span><b className="mr-1 text-slate-400">{experience.type}</b>{experience.title}</span>
+                    {expForm.type !== 'CAREER' && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                        <div className="mb-2">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                            기타 연관 이력·참고 링크 (Cross References) · {expForm.relatedExperienceIds.length}개
                           </label>
-                        ))}
+                          <p className="mt-0.5 text-xs text-slate-400 font-medium">
+                            이 항목과 연관된 다른 이력이나 경력을 연결합니다.
+                          </p>
+                        </div>
+                        <div className="relative mb-2">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="search"
+                            value={expRelatedSearch}
+                            onChange={(event) => setExpRelatedSearch(event.target.value)}
+                            placeholder="제목 또는 유형 검색"
+                            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-800"
+                          />
+                        </div>
+                        <div className="grid max-h-52 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                          {selectableRelatedExperiences.map((experience) => (
+                            <label key={experience.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={expForm.relatedExperienceIds.includes(experience.id)}
+                                onChange={() => setExpForm((current) => ({
+                                  ...current,
+                                  relatedExperienceIds: current.relatedExperienceIds.includes(experience.id)
+                                    ? current.relatedExperienceIds.filter((id) => id !== experience.id)
+                                    : [...current.relatedExperienceIds, experience.id],
+                                }))}
+                                className="mt-0.5"
+                              />
+                              <span><b className="mr-1 text-slate-400">{experience.type}</b>{experience.title}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
-                    <ListChecks className="h-4 w-4 text-slate-500" />
-                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                      이력 상세 항목 (Bullet Points) · {expForm.details.length}개
-                    </h4>
-                  </div>
+                  {expForm.type !== 'CAREER' && (
+                    <>
+                      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
+                        <ListChecks className="h-4 w-4 text-slate-500" />
+                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                          이력 상세 항목 (Bullet Points) · {expForm.details.length}개
+                        </h4>
+                      </div>
 
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
                     <div className="flex gap-2 mb-3">
@@ -3955,6 +3957,8 @@ export function AdminDashboard() {
                       })}
                     </div>
                   </div>
+                </>
+              )}
 
                   <div className="flex justify-end gap-3 pt-2">
                     <button
