@@ -968,6 +968,7 @@ export function AdminDashboard() {
   const [detailInput, setDetailInput] = useState('');
   const [detailListSearch, setDetailListSearch] = useState('');
   const [selectedExperienceId, setSelectedExperienceId] = useState<number | null>(null);
+  const [parentExperienceId, setParentExperienceId] = useState<number | null>(null);
   const [expandedDetailIdx, setExpandedDetailIdx] = useState<number | null>(null);
   const [isNarrativeGenerating, setIsNarrativeGenerating] = useState(false);
   const [narrativeError, setNarrativeError] = useState<string | null>(null);
@@ -3988,10 +3989,21 @@ export function AdminDashboard() {
                 <ExperienceDetailPanel
                   experience={selectedExperience}
                   allExperiences={experiencesList ?? []}
-                  onBack={() => setSelectedExperienceId(null)}
+                  parentExperience={parentExperienceId !== null ? (experiencesList ?? []).find((e) => e.id === parentExperienceId) : null}
+                  onBack={() => {
+                    if (parentExperienceId !== null) {
+                      setSelectedExperienceId(parentExperienceId);
+                      setParentExperienceId(null);
+                    } else {
+                      setSelectedExperienceId(null);
+                    }
+                  }}
                   onEdit={(experience) => { void openExperienceEditor(experience); }}
                   onDelete={handleExpDelete}
-                  onSelectExperience={(exp) => setSelectedExperienceId(exp.id)}
+                  onSelectExperience={(exp) => {
+                    setParentExperienceId(selectedExperience.id);
+                    setSelectedExperienceId(exp.id);
+                  }}
                 />
               )}
 
@@ -4006,7 +4018,10 @@ export function AdminDashboard() {
                         <button
                           type="button"
                           className="min-w-0 flex-1 text-left"
-                          onClick={() => setSelectedExperienceId(exp.id)}
+                          onClick={() => {
+                            setSelectedExperienceId(exp.id);
+                            setParentExperienceId(null);
+                          }}
                         >
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-bold text-slate-500">{exp.type}</span>

@@ -24,6 +24,7 @@ import { adminDetailMarkdownComponents } from '../lib/markdown';
 type ExperienceDetailPanelProps = {
   experience: Experience;
   allExperiences?: Experience[];
+  parentExperience?: Experience | null;
   onBack: () => void;
   onEdit: (experience: Experience) => void;
   onDelete: (id: number) => void;
@@ -41,7 +42,15 @@ function formatPeriod(start: string, end?: string) {
   return `${start} — ${end ?? '진행 중'}`;
 }
 
-export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEdit, onDelete, onSelectExperience }: ExperienceDetailPanelProps) {
+export function ExperienceDetailPanel({
+  experience,
+  allExperiences,
+  parentExperience,
+  onBack,
+  onEdit,
+  onDelete,
+  onSelectExperience,
+}: ExperienceDetailPanelProps) {
   const organization = experience.companyName ?? experience.institutionName ?? experience.issuer;
   const [expandedDetailId, setExpandedDetailId] = useState<number | null>(null);
   const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
@@ -59,10 +68,16 @@ export function ExperienceDetailPanel({ experience, allExperiences, onBack, onEd
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-950"
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600 transition hover:text-slate-950 group"
           >
-            <ArrowLeft className="h-4 w-4" />
-            목록으로
+            <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+            {parentExperience ? (
+              <span>
+                <b className="font-extrabold text-slate-900 group-hover:underline">{parentExperience.title}</b> (경력)으로 돌아가기
+              </span>
+            ) : (
+              '목록으로'
+            )}
           </button>
           <div className="flex items-center gap-2">
             <button
