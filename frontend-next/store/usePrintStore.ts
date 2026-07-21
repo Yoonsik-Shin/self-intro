@@ -16,6 +16,8 @@ type PrintState = {
   dragOverSectionId: string | null;
   dragOverPosition: DragPosition;
   atomHeights: Map<string, number>;
+  printModalOpen: boolean;
+  printModeResolved: boolean;
 
   setZoom: (zoom: number) => void;
   toggleExcluded: (id: string) => void;
@@ -34,6 +36,7 @@ type PrintState = {
   setDragState: (draggedId: string | null, overId: string | null, position: DragPosition) => void;
   setAtomHeights: (heights: Map<string, number>) => void;
   setPrintPending: (pending: boolean) => void;
+  setPrintModalOpen: (open: boolean) => void;
   resetManual: () => void;
   applyTemplate: (settings: { excludedIds: string[]; sectionOrder: string[]; sectionGaps: Record<string, number>; forcedPageOverrides?: Record<string, number> }) => void;
 };
@@ -60,6 +63,8 @@ export const usePrintStore = create<PrintState>((set, get) => ({
   dragOverSectionId: null,
   dragOverPosition: null,
   atomHeights: new Map(),
+  printModalOpen: false,
+  printModeResolved: false,
 
   setZoom: (zoom) => set({ zoom: Math.min(Math.max(zoom, 0.3), 2.0) }),
 
@@ -143,6 +148,8 @@ export const usePrintStore = create<PrintState>((set, get) => ({
 
   setPrintPending: (pending) => set({ printPending: pending }),
 
+  setPrintModalOpen: (open) => set({ printModalOpen: open }),
+
   resetManual: () =>
     set({
       printExcludedIds: [],
@@ -150,6 +157,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
       sectionGaps: {},
       forcedPageOverrides: {},
       printPending: false,
+      printModeResolved: true,
     }),
 
   applyTemplate: (settings) => {
@@ -163,6 +171,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
       sectionGaps: settings.sectionGaps || {},
       forcedPageOverrides: settings.forcedPageOverrides || {},
       printPending: false,
+      printModeResolved: true,
     });
   },
 }));

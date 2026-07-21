@@ -38,6 +38,7 @@ export function PrintCanvas({ introData, onExit }: Props) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const printLayoutFrozenRef = useRef(false);
   const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
+  const [modeModalOpen, setModeModalOpen] = useState(() => !store.printModeResolved);
 
   const profile = introData.profile;
   const careerSummary = introData.careerSummary;
@@ -813,7 +814,6 @@ export function PrintCanvas({ introData, onExit }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.printPending]);
 
-  const [modeModalOpen, setModeModalOpen] = useState(true);
   const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
 
   return (
@@ -844,7 +844,7 @@ export function PrintCanvas({ introData, onExit }: Props) {
             });
             alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
           }}
-          onSaveServer={() => setSaveTemplateModalOpen(true)}
+          onSaveServer={undefined}
           onPrint={handlePrintConfirm}
           onCancel={onExit}
           zoom={store.zoom}
@@ -855,8 +855,8 @@ export function PrintCanvas({ introData, onExit }: Props) {
         />
 
         <div className="flex-1 min-h-0 flex">
-          <div ref={canvasRef} className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center py-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0">
-            <div className="resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent" style={{ zoom: store.zoom }}>
+          <div ref={canvasRef} className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0">
+            <div className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent" style={{ zoom: store.zoom }}>
               {pageLayers.map((page, pageIdx) => (
                 <PdfPageLayer key={pageIdx} pageIndex={pageIdx} totalPages={pageLayers.length} hideGuides={store.hidePrintGuides}>
                   {page.items.map((atom) => (
@@ -869,7 +869,7 @@ export function PrintCanvas({ introData, onExit }: Props) {
             </div>
           </div>
 
-          <div className="print:hidden shrink-0" style={{ width: store.navPanelOpen ? 256 : 56 }}>
+          <div className="print:hidden shrink-0 transition-all duration-300" style={{ width: store.navPanelOpen ? 256 : 56 }}>
             <PrintPreviewNav
               sections={printableSections}
               excludedIds={store.printExcludedIds}
