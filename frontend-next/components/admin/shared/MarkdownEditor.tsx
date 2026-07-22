@@ -154,42 +154,71 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
             if (!textarea) return;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
-            const rawSelected = value.slice(start, end);
+            const fullText = value;
+            const rawSelected = fullText.slice(start, end);
 
-            const isWrapped =
+            // Case 1: Exact selection wrapping match (e.g. selection is "**bold**")
+            const isSelectedWrapped =
                 rawSelected.length >= before.length + after.length &&
                 rawSelected.startsWith(before) &&
                 rawSelected.endsWith(after);
 
-            let nextValue: string;
-            let newSelStart: number;
-            let newSelEnd: number;
-
-            if (isWrapped) {
+            if (isSelectedWrapped) {
                 const unwrapped = rawSelected.slice(
                     before.length,
                     rawSelected.length - after.length
                 );
-                nextValue = `${value.slice(0, start)}${unwrapped}${value.slice(end)}`;
-                newSelStart = start;
-                newSelEnd = start + unwrapped.length;
-            } else if (rawSelected) {
-                const wrapped = `${before}${rawSelected}${after}`;
-                nextValue = `${value.slice(0, start)}${wrapped}${value.slice(end)}`;
-                newSelStart = start + before.length;
-                newSelEnd = start + before.length + rawSelected.length;
-            } else {
-                const inserted = `${before}${placeholder}${after}`;
-                nextValue = `${value.slice(0, start)}${inserted}${value.slice(end)}`;
-                newSelStart = start + before.length;
-                newSelEnd = start + before.length + placeholder.length;
+                const nextValue = `${fullText.slice(0, start)}${unwrapped}${fullText.slice(end)}`;
+                const newStart = start;
+                const newEnd = start + unwrapped.length;
+                recordHistory(nextValue, newStart, newEnd);
+                requestAnimationFrame(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(newStart, newEnd);
+                });
+                return;
             }
 
-            recordHistory(nextValue, newSelStart, newSelEnd);
-            requestAnimationFrame(() => {
-                textarea.focus();
-                textarea.setSelectionRange(newSelStart, newSelEnd);
-            });
+            // Case 2: Selection or cursor is surrounded by `before` and `after`
+            const hasBeforeSurrounding =
+                start >= before.length && fullText.slice(start - before.length, start) === before;
+            const hasAfterSurrounding = fullText.slice(end, end + after.length) === after;
+
+            if (hasBeforeSurrounding && hasAfterSurrounding) {
+                const nextValue = `${fullText.slice(0, start - before.length)}${rawSelected}${fullText.slice(end + after.length)}`;
+                const newStart = start - before.length;
+                const newEnd = newStart + rawSelected.length;
+                recordHistory(nextValue, newStart, newEnd);
+                requestAnimationFrame(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(newStart, newEnd);
+                });
+                return;
+            }
+
+            // Case 3: Wrap selected text
+            if (rawSelected) {
+                const wrapped = `${before}${rawSelected}${after}`;
+                const nextValue = `${fullText.slice(0, start)}${wrapped}${fullText.slice(end)}`;
+                const newStart = start + before.length;
+                const newEnd = newStart + rawSelected.length;
+                recordHistory(nextValue, newStart, newEnd);
+                requestAnimationFrame(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(newStart, newEnd);
+                });
+            } else {
+                // Case 4: Insert placeholder
+                const inserted = `${before}${placeholder}${after}`;
+                const nextValue = `${fullText.slice(0, start)}${inserted}${fullText.slice(end)}`;
+                const newStart = start + before.length;
+                const newEnd = newStart + placeholder.length;
+                recordHistory(nextValue, newStart, newEnd);
+                requestAnimationFrame(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(newStart, newEnd);
+                });
+            }
         },
         [recordHistory, value]
     );
@@ -344,12 +373,13 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
         }
 
         // 4. Smart Enter Key Handling (List continuation & Quote continuation)
-        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+        if (e.key === 'Enter' && !e.shiftKey) {
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
 
             if (start === end) {
-                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const prevNewline = value.lastIndexOf('\n', start - 1);
+                const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
                 const currentLine = value.slice(lineStart, start);
 
                 // Ordered list: e.g. "1. ", "  2. "
@@ -358,7 +388,7 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     const [, indent, numStr, content] = olMatch;
                     e.preventDefault();
                     if (!content.trim()) {
-                        // Empty list item -> Exit list! Remove line prefix
+                        // Empty list item -> Exit list! Remove prefix from current line
                         const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
                         recordHistory(nextValue, lineStart, lineStart);
                         requestAnimationFrame(() => {
@@ -386,7 +416,7 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     const [, indent, bullet, content] = ulMatch;
                     e.preventDefault();
                     if (!content.trim()) {
-                        // Empty list item -> Exit list!
+                        // Empty list item -> Exit list! Remove prefix
                         const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
                         recordHistory(nextValue, lineStart, lineStart);
                         requestAnimationFrame(() => {
@@ -413,7 +443,7 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     const [, indent, quoteSymbol, content] = quoteMatch;
                     e.preventDefault();
                     if (!content.trim()) {
-                        // Empty quote -> Exit quote
+                        // Empty quote -> Exit quote!
                         const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
                         recordHistory(nextValue, lineStart, lineStart);
                         requestAnimationFrame(() => {
