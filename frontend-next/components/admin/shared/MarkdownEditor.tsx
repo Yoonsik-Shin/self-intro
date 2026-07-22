@@ -17,7 +17,11 @@ import {
     Loader2,
     Workflow,
 } from 'lucide-react';
-import { createMarkdownComponents, remarkKoreanEmphasis } from '@/lib/markdown';
+import {
+    createMarkdownComponents,
+    remarkKoreanEmphasis,
+    remarkDisableIndentedCode,
+} from '@/lib/markdown';
 import { imageApi } from '@/lib/api';
 
 type Props = {
@@ -549,7 +553,12 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                 <article className="markdown-body min-h-[140px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
                     {value ? (
                         <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkBreaks, remarkKoreanEmphasis]}
+                            remarkPlugins={[
+                                remarkGfm,
+                                remarkBreaks,
+                                remarkKoreanEmphasis,
+                                remarkDisableIndentedCode,
+                            ]}
                             components={editorMarkdownComponents}
                         >
                             {value}

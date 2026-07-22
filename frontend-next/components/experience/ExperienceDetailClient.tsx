@@ -17,7 +17,11 @@ import {
     Image as ImageIcon,
 } from 'lucide-react';
 import type { Experience, ExperienceDetail, Skill, Study } from '@/lib/api/types';
-import { markdownComponents, remarkKoreanEmphasis } from '@/lib/markdown';
+import {
+    markdownComponents,
+    remarkKoreanEmphasis,
+    remarkDisableIndentedCode,
+} from '@/lib/markdown';
 import { experienceOrgName, experienceTypeLabel, formatCredentialPeriod } from '@/lib/format';
 
 type Props = {
@@ -168,6 +172,7 @@ export function ExperienceDetailClient({
                                                 remarkGfm,
                                                 remarkBreaks,
                                                 remarkKoreanEmphasis,
+                                                remarkDisableIndentedCode,
                                             ]}
                                             components={markdownComponents}
                                         >
@@ -213,6 +218,7 @@ export function ExperienceDetailClient({
                                                                 remarkGfm,
                                                                 remarkBreaks,
                                                                 remarkKoreanEmphasis,
+                                                                remarkDisableIndentedCode,
                                                             ]}
                                                             components={markdownComponents}
                                                         >
@@ -344,6 +350,7 @@ export function ExperienceDetailClient({
                                                                                 remarkGfm,
                                                                                 remarkBreaks,
                                                                                 remarkKoreanEmphasis,
+                                                                                remarkDisableIndentedCode,
                                                                             ]}
                                                                             components={
                                                                                 markdownComponents

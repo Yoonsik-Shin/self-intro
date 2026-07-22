@@ -8,7 +8,11 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Study } from '@/lib/api/types';
-import { markdownComponents, remarkKoreanEmphasis } from '@/lib/markdown';
+import {
+    markdownComponents,
+    remarkKoreanEmphasis,
+    remarkDisableIndentedCode,
+} from '@/lib/markdown';
 
 type Props = {
     study: Study;
@@ -109,7 +113,12 @@ export function StudyDetailClient({ study }: Props) {
                         </div>
                         <div className="markdown-body space-y-4 text-sm leading-relaxed text-slate-700 sm:text-base">
                             <ReactMarkdown
-                                remarkPlugins={[remarkGfm, remarkBreaks, remarkKoreanEmphasis]}
+                                remarkPlugins={[
+                                    remarkGfm,
+                                    remarkBreaks,
+                                    remarkKoreanEmphasis,
+                                    remarkDisableIndentedCode,
+                                ]}
                                 components={markdownComponents}
                             >
                                 {study.contentMarkdown}

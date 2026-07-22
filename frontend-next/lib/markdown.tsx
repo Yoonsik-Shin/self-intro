@@ -155,6 +155,19 @@ import type { Plugin } from 'unified';
 import type { Root, Parent, RootContent } from 'mdast';
 
 /**
+ * CommonMark의 구식 규격인 "공백 4칸 들여쓰기 시 코드 블록 변환(Indented Code Block)"을 비활성화하는 Remark/Micromark 공식 표준 옵션 플러그인.
+ * 이를 통해 에디터에서 Tab을 눌러 공백이 깊어져도 백틱(```) 없는 불렛 목록이 뜬금없이 CODE 박스로 렌더링되는 현상을 완전히 차단합니다.
+ */
+export const remarkDisableIndentedCode: Plugin = function () {
+    const data = this.data() as Record<string, unknown>;
+    const micromarkExtensions =
+        (data.micromarkExtensions as unknown[]) || (data.micromarkExtensions = []);
+    micromarkExtensions.push({
+        disable: { null: ['codeIndented'] },
+    });
+};
+
+/**
  * CommonMark 사양 제한(**O(N)**에 처럼 닫는 부호 뒤 한글 조사가 이어질 때)을
  * 원본 문자열 가공 없이 Markdown AST(mdast) 파싱 파이프라인 단계에서 안전하게 굵은 글씨(Strong) 노드로 정식 변환하는 remark 플러그인.
  * code, inlineCode 내부 등은 전혀 건드리지 않아 데이터 원본과 AST 정합성을 보장합니다.
