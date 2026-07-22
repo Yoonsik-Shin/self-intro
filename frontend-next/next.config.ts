@@ -16,6 +16,7 @@ const buildDate = new Intl.DateTimeFormat('ko-KR', {
 
 const nextConfig: NextConfig = {
     output: 'standalone',
+    transpilePackages: ['remark-gfm', 'remark-breaks'],
     turbopack: {
         root: path.resolve(__dirname),
     },
