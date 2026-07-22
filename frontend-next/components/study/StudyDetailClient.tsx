@@ -107,7 +107,7 @@ export function StudyDetailClient({ study }: Props) {
                                 </div>
                             )}
                         </div>
-                        <div className="space-y-4 text-sm leading-relaxed text-slate-700 sm:text-base">
+                        <div className="markdown-body space-y-4 text-sm leading-relaxed text-slate-700 sm:text-base">
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm, remarkBreaks]}
                                 components={markdownComponents}

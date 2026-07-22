@@ -380,16 +380,19 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
             if (start === end) {
                 const prevNewline = value.lastIndexOf('\n', start - 1);
                 const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
-                const currentLine = value.slice(lineStart, start);
+                const nextNewline = value.indexOf('\n', start);
+                const lineEnd = nextNewline === -1 ? value.length : nextNewline;
+
+                const wholeLine = value.slice(lineStart, lineEnd);
 
                 // Ordered list: e.g. "1. ", "  2. "
-                const olMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+                const olMatch = wholeLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
                 if (olMatch) {
                     const [, indent, numStr, content] = olMatch;
                     e.preventDefault();
                     if (!content.trim()) {
-                        // Empty list item -> Exit list! Remove prefix from current line
-                        const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
+                        // Empty list item -> Exit list! Remove whole line prefix
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(lineEnd)}`;
                         recordHistory(nextValue, lineStart, lineStart);
                         requestAnimationFrame(() => {
                             textarea.focus();
@@ -411,13 +414,13 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                 }
 
                 // Unordered list: e.g. "- ", "* ", "+ "
-                const ulMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
+                const ulMatch = wholeLine.match(/^(\s*)([-*+])\s+(.*)$/);
                 if (ulMatch) {
                     const [, indent, bullet, content] = ulMatch;
                     e.preventDefault();
                     if (!content.trim()) {
-                        // Empty list item -> Exit list! Remove prefix
-                        const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
+                        // Empty list item -> Exit list! Remove whole line
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(lineEnd)}`;
                         recordHistory(nextValue, lineStart, lineStart);
                         requestAnimationFrame(() => {
                             textarea.focus();
@@ -438,13 +441,13 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                 }
 
                 // Blockquote: e.g. "> "
-                const quoteMatch = currentLine.match(/^(\s*)(>)\s+(.*)$/);
+                const quoteMatch = wholeLine.match(/^(\s*)(>)\s+(.*)$/);
                 if (quoteMatch) {
                     const [, indent, quoteSymbol, content] = quoteMatch;
                     e.preventDefault();
                     if (!content.trim()) {
                         // Empty quote -> Exit quote!
-                        const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(lineEnd)}`;
                         recordHistory(nextValue, lineStart, lineStart);
                         requestAnimationFrame(() => {
                             textarea.focus();
@@ -524,7 +527,7 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     placeholder="# 학습 내용&#10;&#10;Markdown으로 기록해 보세요."
                     className="min-h-[140px] resize-none overflow-hidden border-0 bg-slate-950 p-5 font-mono text-sm leading-7 text-slate-100 outline-none lg:border-r lg:border-slate-200"
                 />
-                <article className="min-h-[140px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
+                <article className="markdown-body min-h-[140px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
                     {value ? (
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkBreaks]}
