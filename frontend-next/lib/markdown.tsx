@@ -158,6 +158,6 @@ export const experienceMarkdownComponents: Components = {
 export function preprocessMarkdown(text: string): string {
     if (!text) return '';
     return text
-        .replace(/\*\*([^*]+)\*\*(?=[가-힣ㄱ-ㅎㅏ-ㅣ])/g, '**$1**\u200C')
-        .replace(/_([^_]+)_(?=[가-힣ㄱ-ㅎㅏ-ㅣ])/g, '_$1_\u200C');
+        .replace(/\*\*([^*\n]+)\*\*(?=[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9])/g, '**$1**\u200B')
+        .replace(/_([^_\n]+)_(?=[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9])/g, '_$1_\u200B');
 }
