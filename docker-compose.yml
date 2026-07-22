@@ -93,6 +93,8 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # macOS / Docker 바인드 마운트 파일 변경 탐지(HMR)를 위한 폴링 옵션
+      - WATCHPACK_POLLING=true
       # 브라우저(호스트)는 이 주소로 API를 호출한다.
       - NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
       # SSR(컨테이너 내부)은 도커 네트워크 안에서 backend 서비스명으로 접근한다.
