@@ -36,7 +36,10 @@ export const studyApi = {
         search.set('size', String(params.size ?? 20));
         return request<StudyPage>(`/api/studies?${search}`);
     },
-    detail: (slug: string) => request<Study>(`/api/studies/${encodeURIComponent(slug)}`),
+    detail: (slug: string) => {
+        const decoded = decodeURIComponent(slug);
+        return request<Study>(`/api/studies/${encodeURIComponent(decoded)}`);
+    },
     adminList: (
         params: {
             q?: string;
@@ -73,6 +76,20 @@ export const studyApi = {
     remove: (id: number) =>
         request<void>(`/api/admin/studies/${id}`, {
             method: 'DELETE',
+        }),
+    batchPublish: (ids: number[]) =>
+        request<Study[]>('/api/admin/studies/batch-publish', {
+            method: 'POST',
+            body: JSON.stringify(ids),
+        }),
+    batchUnpublish: (ids: number[]) =>
+        request<Study[]>('/api/admin/studies/batch-unpublish', {
+            method: 'POST',
+            body: JSON.stringify(ids),
+        }),
+    toggleStatus: (id: number) =>
+        request<Study>(`/api/admin/studies/${id}/toggle-status`, {
+            method: 'POST',
         }),
     suggest: (payload: StudySuggestionRequest) =>
         request<StudySuggestionResponse>('/api/admin/studies/ai/suggestions', {

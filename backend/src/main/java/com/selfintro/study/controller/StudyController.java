@@ -97,6 +97,21 @@ public class StudyController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/api/admin/studies/batch-publish")
+    public List<StudyResponse> batchPublish(@RequestBody List<Long> ids) {
+        return studyService.batchPublish(ids);
+    }
+
+    @PostMapping("/api/admin/studies/batch-unpublish")
+    public List<StudyResponse> batchUnpublish(@RequestBody List<Long> ids) {
+        return studyService.batchUnpublish(ids);
+    }
+
+    @PostMapping("/api/admin/studies/{id}/toggle-status")
+    public StudyResponse toggleStatus(@PathVariable Long id) {
+        return studyService.toggleStatus(id);
+    }
+
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Void> handleNotFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

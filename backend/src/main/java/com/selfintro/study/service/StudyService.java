@@ -207,6 +207,82 @@ public class StudyService {
         storageService.deleteAll(objectKeys);
     }
 
+    @Transactional
+    public List<StudyResponse> batchPublish(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        List<Study> studies = studyRepository.findAllById(ids);
+        LocalDateTime now = LocalDateTime.now();
+        for (Study study : studies) {
+            if (study.getStatus() != StudyStatus.PUBLISHED) {
+                LocalDateTime publishedAt =
+                        study.getPublishedAt() != null ? study.getPublishedAt() : now;
+                study.update(
+                        study.getSlug(),
+                        study.getTitle(),
+                        study.getSummary(),
+                        study.getContentMarkdown(),
+                        StudyStatus.PUBLISHED,
+                        study.getCategory(),
+                        study.getLearnedAt(),
+                        publishedAt);
+            }
+        }
+        return studies.stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public List<StudyResponse> batchUnpublish(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        List<Study> studies = studyRepository.findAllById(ids);
+        for (Study study : studies) {
+            if (study.getStatus() != StudyStatus.DRAFT) {
+                study.update(
+                        study.getSlug(),
+                        study.getTitle(),
+                        study.getSummary(),
+                        study.getContentMarkdown(),
+                        StudyStatus.DRAFT,
+                        study.getCategory(),
+                        study.getLearnedAt(),
+                        study.getPublishedAt());
+            }
+        }
+        return studies.stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public StudyResponse toggleStatus(Long id) {
+        Study study =
+                studyRepository
+                        .findById(id)
+                        .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
+        StudyStatus newStatus =
+                study.getStatus() == StudyStatus.PUBLISHED
+                        ? StudyStatus.DRAFT
+                        : StudyStatus.PUBLISHED;
+        LocalDateTime publishedAt =
+                newStatus == StudyStatus.PUBLISHED
+                        ? (study.getPublishedAt() != null
+                                ? study.getPublishedAt()
+                                : LocalDateTime.now())
+                        : study.getPublishedAt();
+
+        study.update(
+                study.getSlug(),
+                study.getTitle(),
+                study.getSummary(),
+                study.getContentMarkdown(),
+                newStatus,
+                study.getCategory(),
+                study.getLearnedAt(),
+                publishedAt);
+        return toResponse(study);
+    }
+
     private StudyCategory findCategory(Long id) {
         return categoryRepository
                 .findById(id)
