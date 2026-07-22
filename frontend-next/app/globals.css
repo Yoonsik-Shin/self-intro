@@ -1017,6 +1017,23 @@ html {
     margin-bottom: 0.75rem !important;
 }
 
+.markdown-body ol ol,
+.markdown-body ul ul,
+.markdown-body ol ul,
+.markdown-body ul ol {
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+    padding-left: 1.5rem !important;
+}
+
+.markdown-body ul ul {
+    list-style-type: circle !important;
+}
+
+.markdown-body ul ul ul {
+    list-style-type: square !important;
+}
+
 .markdown-body li {
     display: list-item !important;
     margin-top: 0.25rem !important;

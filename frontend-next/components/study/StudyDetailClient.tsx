@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Study } from '@/lib/api/types';
-import { markdownComponents } from '@/lib/markdown';
+import { markdownComponents, preprocessMarkdown } from '@/lib/markdown';
 
 type Props = {
     study: Study;
@@ -112,7 +112,7 @@ export function StudyDetailClient({ study }: Props) {
                                 remarkPlugins={[remarkGfm, remarkBreaks]}
                                 components={markdownComponents}
                             >
-                                {study.contentMarkdown}
+                                {preprocessMarkdown(study.contentMarkdown)}
                             </ReactMarkdown>
                         </div>
                     </article>

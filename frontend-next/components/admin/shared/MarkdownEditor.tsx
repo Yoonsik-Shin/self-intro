@@ -17,7 +17,7 @@ import {
     Loader2,
     Workflow,
 } from 'lucide-react';
-import { createMarkdownComponents } from '@/lib/markdown';
+import { createMarkdownComponents, preprocessMarkdown } from '@/lib/markdown';
 import { imageApi } from '@/lib/api';
 
 type Props = {
@@ -329,10 +329,17 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     const newLines = lines.map((line) => line.replace(/^ {1,2}/, ''));
                     const nextSelectedText = newLines.join('\n');
                     const nextValue = `${value.slice(0, lineStart)}${nextSelectedText}${value.slice(actualEnd)}`;
-                    recordHistory(nextValue, start, lineStart + nextSelectedText.length);
+                    recordHistory(
+                        nextValue,
+                        Math.max(lineStart, start - 2),
+                        lineStart + nextSelectedText.length
+                    );
                     requestAnimationFrame(() => {
                         textarea.focus();
-                        textarea.setSelectionRange(start, lineStart + nextSelectedText.length);
+                        textarea.setSelectionRange(
+                            Math.max(lineStart, start - 2),
+                            lineStart + nextSelectedText.length
+                        );
                     });
                 } else {
                     // Indent
@@ -346,26 +353,38 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     });
                 }
             } else {
-                // Single cursor
+                // Single line cursor
+                const prevNewline = value.lastIndexOf('\n', start - 1);
+                const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
+
                 if (e.shiftKey) {
-                    // Outdent 2 spaces if before cursor
-                    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-                    const textBeforeCursor = value.slice(lineStart, start);
-                    if (textBeforeCursor.endsWith('  ')) {
-                        const nextValue = `${value.slice(0, start - 2)}${value.slice(start)}`;
-                        recordHistory(nextValue, start - 2, start - 2);
+                    // Outdent line (remove 2 leading spaces if present)
+                    const currentLine = value.slice(lineStart);
+                    if (currentLine.startsWith('  ')) {
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(lineStart + 2)}`;
+                        const newPos = Math.max(lineStart, start - 2);
+                        recordHistory(nextValue, newPos, newPos);
                         requestAnimationFrame(() => {
                             textarea.focus();
-                            textarea.setSelectionRange(start - 2, start - 2);
+                            textarea.setSelectionRange(newPos, newPos);
+                        });
+                    } else if (currentLine.startsWith(' ')) {
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(lineStart + 1)}`;
+                        const newPos = Math.max(lineStart, start - 1);
+                        recordHistory(nextValue, newPos, newPos);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(newPos, newPos);
                         });
                     }
                 } else {
-                    // Insert 2 spaces
-                    const nextValue = `${value.slice(0, start)}  ${value.slice(end)}`;
-                    recordHistory(nextValue, start + 2, start + 2);
+                    // Indent line by adding 2 spaces at line start
+                    const nextValue = `${value.slice(0, lineStart)}  ${value.slice(lineStart)}`;
+                    const newPos = start + 2;
+                    recordHistory(nextValue, newPos, newPos);
                     requestAnimationFrame(() => {
                         textarea.focus();
-                        textarea.setSelectionRange(start + 2, start + 2);
+                        textarea.setSelectionRange(newPos, newPos);
                     });
                 }
             }
@@ -533,7 +552,7 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                             remarkPlugins={[remarkGfm, remarkBreaks]}
                             components={editorMarkdownComponents}
                         >
-                            {value}
+                            {preprocessMarkdown(value)}
                         </ReactMarkdown>
                     ) : (
                         <p className="text-slate-400">작성한 Markdown이 여기에 표시됩니다.</p>

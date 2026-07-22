@@ -150,3 +150,14 @@ export const experienceMarkdownComponents: Components = {
         </blockquote>
     ),
 };
+
+/**
+ * CommonMark 파서 사양상 **단어**에 처럼 ** 직후에 한글 조사가 띄어쓰기 없이 바로 붙으면
+ * right-flanking delimiter 조건을 충족하지 못해 <strong>으로 렌더링되지 않는 현상을 보정합니다.
+ */
+export function preprocessMarkdown(text: string): string {
+    if (!text) return '';
+    return text
+        .replace(/\*\*([^*]+)\*\*(?=[가-힣ㄱ-ㅎㅏ-ㅣ])/g, '**$1**\u200C')
+        .replace(/_([^_]+)_(?=[가-힣ㄱ-ㅎㅏ-ㅣ])/g, '_$1_\u200C');
+}
