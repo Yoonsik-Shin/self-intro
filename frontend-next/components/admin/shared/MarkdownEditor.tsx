@@ -17,7 +17,7 @@ import {
     Loader2,
     Workflow,
 } from 'lucide-react';
-import { createMarkdownComponents, preprocessMarkdown } from '@/lib/markdown';
+import { createMarkdownComponents, remarkKoreanEmphasis } from '@/lib/markdown';
 import { imageApi } from '@/lib/api';
 
 type Props = {
@@ -549,10 +549,10 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                 <article className="markdown-body min-h-[140px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
                     {value ? (
                         <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                            remarkPlugins={[remarkGfm, remarkBreaks, remarkKoreanEmphasis]}
                             components={editorMarkdownComponents}
                         >
-                            {preprocessMarkdown(value)}
+                            {value}
                         </ReactMarkdown>
                     ) : (
                         <p className="text-slate-400">작성한 Markdown이 여기에 표시됩니다.</p>

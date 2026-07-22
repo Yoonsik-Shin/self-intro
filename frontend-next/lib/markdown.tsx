@@ -151,13 +151,73 @@ export const experienceMarkdownComponents: Components = {
     ),
 };
 
+import type { Plugin } from 'unified';
+import type { Root, Parent, RootContent } from 'mdast';
+
 /**
- * CommonMark 파서 사양상 **단어**에 처럼 ** 직후에 한글 조사가 띄어쓰기 없이 바로 붙으면
- * right-flanking delimiter 조건을 충족하지 못해 <strong>으로 렌더링되지 않는 현상을 보정합니다.
+ * CommonMark 사양 제한(**O(N)**에 처럼 닫는 부호 뒤 한글 조사가 이어질 때)을
+ * 원본 문자열 가공 없이 Markdown AST(mdast) 파싱 파이프라인 단계에서 안전하게 굵은 글씨(Strong) 노드로 정식 변환하는 remark 플러그인.
+ * code, inlineCode 내부 등은 전혀 건드리지 않아 데이터 원본과 AST 정합성을 보장합니다.
  */
-export function preprocessMarkdown(text: string): string {
-    if (!text) return '';
-    return text
-        .replace(/\*\*([^*\n]+)\*\*(?=[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9])/g, '**$1**\u200B')
-        .replace(/_([^_\n]+)_(?=[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9])/g, '_$1_\u200B');
-}
+export const remarkKoreanEmphasis: Plugin<[], Root> = () => {
+    return (tree: Root) => {
+        const visit = (node: Parent) => {
+            if (!node.children || !Array.isArray(node.children)) return;
+
+            const newChildren: RootContent[] = [];
+            for (const child of node.children) {
+                if (child.type === 'code' || child.type === 'inlineCode') {
+                    newChildren.push(child as RootContent);
+                    continue;
+                }
+
+                if (child.type === 'text') {
+                    const textStr = child.value;
+                    const regex = /\*\*([^*\n]+)\*\*(?=[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9])/g;
+                    let lastIndex = 0;
+                    let match: RegExpExecArray | null;
+                    let hasMatch = false;
+
+                    while ((match = regex.exec(textStr)) !== null) {
+                        hasMatch = true;
+                        const matchStart = match.index;
+                        const innerContent = match[1];
+
+                        if (matchStart > lastIndex) {
+                            newChildren.push({
+                                type: 'text',
+                                value: textStr.slice(lastIndex, matchStart),
+                            });
+                        }
+
+                        newChildren.push({
+                            type: 'strong',
+                            children: [{ type: 'text', value: innerContent }],
+                        });
+
+                        lastIndex = regex.lastIndex;
+                    }
+
+                    if (hasMatch) {
+                        if (lastIndex < textStr.length) {
+                            newChildren.push({
+                                type: 'text',
+                                value: textStr.slice(lastIndex),
+                            });
+                        }
+                    } else {
+                        newChildren.push(child as RootContent);
+                    }
+                } else {
+                    if ('children' in child && Array.isArray((child as Parent).children)) {
+                        visit(child as Parent);
+                    }
+                    newChildren.push(child as RootContent);
+                }
+            }
+            node.children = newChildren as RootContent[];
+        };
+
+        visit(tree as Parent);
+    };
+};
