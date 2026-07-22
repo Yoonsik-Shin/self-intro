@@ -339,6 +339,7 @@ public class ExperienceService {
                                     dr.id(),
                                     dr.content(),
                                     dr.situation(),
+                                    dr.task(),
                                     dr.actionDetail(),
                                     dr.outcome(),
                                     dr.narrative(),

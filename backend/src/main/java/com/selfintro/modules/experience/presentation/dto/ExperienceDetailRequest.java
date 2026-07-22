@@ -8,6 +8,7 @@ public record ExperienceDetailRequest(
         Long id, // null이면 신규 항목, 있으면 기존 항목 in-place 갱신
         @NotBlank @Size(max = 500) String content,
         String situation,
+        String task,
         String actionDetail,
         String outcome,
         String narrative,

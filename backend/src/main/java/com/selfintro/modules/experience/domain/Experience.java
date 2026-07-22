@@ -136,6 +136,7 @@ public abstract class Experience {
                                 ExperienceDetail.create(
                                         d.content(),
                                         d.situation(),
+                                        d.task(),
                                         d.actionDetail(),
                                         d.outcome(),
                                         d.narrative(),
@@ -167,6 +168,7 @@ public abstract class Experience {
                                         existing.update(
                                                 d.content(),
                                                 d.situation(),
+                                                d.task(),
                                                 d.actionDetail(),
                                                 d.outcome(),
                                                 d.narrative(),
@@ -177,6 +179,7 @@ public abstract class Experience {
                         ExperienceDetail.create(
                                 d.content(),
                                 d.situation(),
+                                d.task(),
                                 d.actionDetail(),
                                 d.outcome(),
                                 d.narrative(),

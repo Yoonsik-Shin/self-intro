@@ -76,6 +76,7 @@ public class SampleDataLoader implements ApplicationRunner {
     private void seedSkillsAndExperiencesAndStudies() {
         if (experienceRepository.count() > 0) {
             seedCoreProjectPlacements();
+            syncExistingStudies();
             return;
         }
 
@@ -387,9 +388,11 @@ public class SampleDataLoader implements ApplicationRunner {
                                 List.of(
                                         detail(
                                                 "네이버 로그인 보안 우회 및 Playwright 기반 세션 관리 자동화",
-                                                "네이버 카페 문의 수집 및 답변 등록 시, 네이버의 강력한 로그인 보안 정책(캡차, 이단계 인증)으로 인해 단순 API 호출로는 자동화가 불가능했으며, 세션 만료 시마다 수동 개입이 요구되는 비효율이 있었습니다.",
-                                                "- Playwright 브라우저 자동화 엔진을 활용해 네이버 앱 일회용 로그인 번호(OTP) 인증 로그인 흐름 구축\n- 로그인 성공 후 NID_AUT, NID_SES 쿠키를 추출해 AES/GCM 암호화 및 DB 세션 관리 라이프사이클 구축\n- 브라우저 워커와 통신하여 세션 만료 상태를 실시간 진단 및 동기화하는 백엔드 API 설계",
-                                                "세션 만료 시 수동 로그인 단계를 원클릭 OTP 인증으로 최소화하고, 보안 정책 탐지를 우회하여 카페 내 답변 및 대댓글 등록 E2E 자동화를 달성했습니다.",
+                                                "네이버 카페 문의 수집 및 답변 등록 시, 캡차 및 2단계 인증 등 강력한 로그인 보안 정책으로 단순 API 직접 호출이 불가능하고 세션 만료 시마다 수동 개입이 수반됨.",
+                                                "외부 인터넷 다운로드 없이 폐쇄망 동작이 가능한 Playwright 워커 구축, 일회용 번호(OTP) 기반 자동 로그인 및 쿠키 노출 방지 전송 구조 구현.",
+                                                "- Playwright Headless 브라우저 워커 구축\n- 스마트폰 네이버 앱 8자리 OTP 입력 로그인 자동화\n- NID_AUT, NID_SES 쿠키 AES-256-GCM 암호화 DB 보관\n- 응답 바디 세션 노출 방지를 위한 HTTP Set-Cookie 및 X-Naver-Cookie 헤더 전송 구조 전환",
+                                                "수동 로그인 개입을 원클릭 OTP 번호 입력으로 일원화하고, 세션 유효성 강제 동기화(syncSessionStatus) 및 네이버 카페 내 게시글 답변·대댓글 자동 등록 E2E 파이프라인 안착.",
+                                                "네이버 카페 문의 수집 시 2단계 인증과 CAPTCHA 챌린지로 인해 세션 만료 때마다 수동 개입이 발생하는 문제를 해결하기 위해, Playwright 브라우저 워커와 자바 백엔드를 연동하는 OTP 세션 자동화 파이프라인을 구축했습니다. 스마트폰 네이버 앱의 일회용 번호로 자동 로그인 후 NID_AUT, NID_SES 쿠키를 추출하고 AES-256-GCM으로 암호화하여 DB에 영속화했습니다. 또한 연동 로깅 과정에서의 세션 누출을 방지하고자 JSON 응답 바디에서 쿠키를 제거하고 HTTP Set-Cookie 및 X-Naver-Cookie 헤더 방식으로 보안 전송 구조를 개편했습니다. 이를 통해 수동 로그인 단계를 원클릭 OTP 인증으로 전환하고 네이버 카페 내 답변 및 대댓글 등록 E2E 자동화를 완수했습니다.",
                                                 0,
                                                 getSkills(
                                                         List.of(
@@ -398,10 +401,12 @@ public class SampleDataLoader implements ApplicationRunner {
                                                                 "Nginx"),
                                                         skillMap)),
                                         detail(
-                                                "이메일 헤더 분석 및 본문 정규화를 통한 문의 스레드/상태 자동 연동 엔진 구축",
-                                                "이메일 고객 문의 유입 시 동일 사용자의 회신이나 관련 메일이 개별 문의 건으로 난립하여 상담원의 업무 중복과 문의 맥락 파편화가 발생했습니다.",
-                                                "- In-Reply-To 및 References 이메일 헤더를 파싱해 고유 Message-ID 관계 추적 및 부모 문의 매핑 모델 설계\n- 헤더가 유실된 메일에 대비해 회신 접두사 제거 제목 정규화 및 발신자 이메일 해싱(email_sender_hash) 값 기반 Heuristic 후보군 매칭 구현\n- 해결(RESOLVED) 문의에 메일 회신 시 자동으로 오픈(OPEN) 상태 복원 및 변경 이력(Work Log) 시스템 로깅",
-                                                "중복 티켓 생성을 방지하고 연관 문의를 단일 스레드로 통일하여 CS 상담원의 생산성을 대폭 개선했습니다.",
+                                                "이메일 헤더 분석 및 본문 정규화를 통한 문의 스레드/상태 자동 연동 엔진",
+                                                "이메일 고객 문의 유입 시 동일 사용자의 회신이나 관련 메일이 개별 건으로 무작위 적재되어 CS 상담원의 중복 답변 및 문의 맥락 파편화가 발생함.",
+                                                "이메일 헤더 추적과 Heuristic 매칭을 결합해 파편화된 이메일을 단일 대화 스레드로 자동 병합하고 고객 회신 시 문의 상태를 자동으로 제어함.",
+                                                "- RFC 5322 이메일 헤더(Message-ID, In-Reply-To, References) 파싱으로 부모 문의 역추적\n- 회신 접두사(Re:, Fwd:) 제거 정규화 및 발신자 이메일 HMAC-SHA256 해시값(email_sender_hash) B-Tree 인덱스 기반 Heuristic 매칭\n- RESOLVED 문의에 추가 회신 유입 시 OPEN 상태 자동 복귀 및 InquiryWorkLog 감사 로깅",
+                                                "회신 메일의 중복 티켓 생성 방지, 연관 문의 단일 스레드 통합을 통한 CS 상담 컨텍스트 일원화, 해결된 문의의 자동 재오픈을 통한 문의 누락 방지 구조 확립.",
+                                                "이메일 고객 문의 유입 시 회신 메일이 개별 건으로 무작위 적재되어 중복 답변과 컨텍스트 혼선이 발생하는 문제를 해결하기 위해, RFC 5322 이메일 헤더 기반 스레딩 및 상태 제어 엔진을 개발했습니다. Message-ID, In-Reply-To, References 헤더 체인을 역추적해 부모 문의를 자동 매핑하고, 헤더 유실 시 발신자 이메일 HMAC-SHA256 해시값과 정규화된 제목을 결합한 Heuristic 매칭을 적용했습니다. 또한 해결(RESOLVED) 상태 문의에 추가 회신 유입 시 OPEN으로 자동 복귀시키고 InquiryWorkLog에 감사 이력을 기록함으로써 문의 누락을 방지하고 CS 상담 생산성을 높였습니다.",
                                                 1,
                                                 getSkills(
                                                         List.of(
@@ -414,9 +419,11 @@ public class SampleDataLoader implements ApplicationRunner {
                                                         skillMap)),
                                         detail(
                                                 "JPA Converter 기반 개인정보(PII) AES/GCM 암호화 및 무중단 마이그레이션",
-                                                "고객 문의 본문, 이메일, 전화번호 등 민감 개인정보(PII)가 DB에 평문 저장되어 데이터 유출 리스크 및 개인정보보호법 준수 문제가 존재했습니다.",
-                                                "- JPA @Convert 및 PiiEncryptionUtils를 통해 영속성 계층 저장/조회 시 AES/GCM 암복호화 자동화\n- 정확한 등치 검색 조회를 위한 단방향 HMAC-SHA256 해시 설계 및 컬럼 매핑\n- 복호화 실패 시 평문을 반환하는 하위 호환 복호화 로직(decryptOrPassThrough)을 도입해 무중단 암호화 마이그레이션 배치 가동",
-                                                "DB 유출 시에도 안전한 PII 암호화 보안 규격을 달성하였으며, 기존 적재 데이터를 데이터 유실 없이 무중단으로 100% 암호화 이관했습니다.",
+                                                "고객 문의 본문, 이메일, 전화번호 등 민감 개인정보(PII)가 DB에 평문 저장되어 개인정보보호법 준수 및 유출 리스크가 존재함.",
+                                                "영속성 계층 암복호화 자동화, 빠른 등치 조회를 위한 해시 컬럼 구축, 기존 평문 적재 데이터의 서비스 중단 없는 안전 암호화 이관.",
+                                                "- JPA AttributeConverter(EncryptedStringConverter) 및 Jackson Mixin 기반 AES-256-GCM 암복호화 적용\n- 발신자 이메일 단방향 HMAC-SHA256 해시(email_sender_hash) 컬럼 설계로 O(log N) B-Tree 인덱스 등치 조회 구현\n- 복호화 실패 시 평문을 반환하는 decryptOrPassThrough 하위 호환 로직 및 독립 CLI 마이그레이션 도구(PiiEncryptionMigrationTool) 가동",
+                                                "DB 유출 시에도 안전한 PII 암호화 보안 규격을 달성하고, 앱 기동 중단 없는 무중단(Zero-Downtime) 암호화 마이그레이션 체계 완수.",
+                                                "고객 문의 데이터 내 민감 개인정보(PII)를 보호하기 위해 JPA Attribute Converter 및 Jackson Mixin 기반의 AES-256-GCM 저장소 암호화 아키텍처를 구축했습니다. AES/GCM 암호문의 무작위 IV 특성으로 인한 등치 검색 불가를 해결하고자 발신자 이메일의 HMAC-SHA256 해시(email_sender_hash) 컬럼을 병행 설계해 B-Tree 인덱스 조회를 보장했습니다. 또한 앱 기동 경로와 분리된 독립 CLI 마이그레이션 도구(PiiEncryptionMigrationTool)를 개발하고 Decrypt-or-PassThrough 예외 처리 패턴을 적용하여 서비스 중단 없는 무중단 데이터 암호화 이관 체계를 완성했습니다.",
                                                 2,
                                                 getSkills(
                                                         List.of(
@@ -428,9 +435,11 @@ public class SampleDataLoader implements ApplicationRunner {
                                                         skillMap)),
                                         detail(
                                                 "n8n 워크플로우 및 Spring Boot REST API 기반 멀티채널 문의 통합 수집 파이프라인",
-                                                "네이버 카페, 이메일, 구글 시트 등 파편화된 다중 고객 소통 채널의 문의 내역을 단일 저장소로 수집 및 통합 관리해야 했습니다.",
-                                                "- n8n 워크플로우를 구성해 주기적 네이버 카페 크롤링 및 IMAP 메일박스 수신 수집 자동화\n- Spring Boot에서 채널별 다형적 메타데이터(EmailMetadata, NaverCafeMetadata) 구조 검증 및 parsing 처리\n- MinIO S3 오브젝트 스토리지 연동 및 첨부 이미지 파일 저장 및 상대경로 JSONB 매핑 최적화\n- 중복 수집을 방지하기 위한 InquiryUniqueKeyGenerator 고유 키 생성 엔진 및 bulkInsert 구현",
-                                                "서로 다른 형식의 이종 채널 문의 데이터를 단일 스키마로 정형화 및 통합하여 대용량 CS 수집 인프라를 안정적으로 안착시켰습니다.",
+                                                "네이버 카페, 이메일, 구글 시트 등 다중 채널 문의 내역을 수동 수집 관리함에 따른 행정 공수 낭비 및 데이터 파편화가 발생함.",
+                                                "채널별 정형화 수집 자동화, 수집 중복 방지 멱등성 보장, 첨부파일 S3 스토리지 연동.",
+                                                "- n8n 노코드 워크플로우로 5분 주기 네이버 카페 크롤링 및 IMAP 메일 수신 자동화\n- Spring Boot 백엔드에서 4종 다형적 JSONB 메타데이터(EmailMetadata, NaverCafeMetadata 등) 구조 검증 및 parsing 처리\n- InquiryUniqueKeyGenerator 고유 키 생성 엔진 및 JDBC bulkInsert 구현\n- MinIO S3 오브젝트 스토리지 연동 및 첨부 이미지 상대경로 JSONB 매핑 최적화",
+                                                "이종 채널의 문의 데이터를 단일 DB 스키마로 통합 수집하고, 고유키 기반 중복 방지 및 파일 스토리지 연동 인프라 안착.",
+                                                "네이버 카페, 이메일, 구글 시트 등 여러 채널로 파편화된 고객 문의 수집 과정을 자동화하기 위해, n8n 워크플로우와 Spring Boot REST API를 연동한 멀티채널 통합 수집 파이프라인을 구축했습니다. 채널별 다형적 JSONB 메타데이터 구조를 정형화하고, 중복 유입을 차단하는 InquiryUniqueKeyGenerator 고유 키 생성 엔진과 Bulk Insert를 적용했습니다. 또한 MinIO S3 기술을 연동해 첨부 이미지 저장 및 상대경로 매핑을 최적화함으로써 대용량 문의 통합 관리 기반을 다졌습니다.",
                                                 3,
                                                 getSkills(
                                                         List.of(
@@ -439,11 +448,27 @@ public class SampleDataLoader implements ApplicationRunner {
                                                                 "Docker Compose"),
                                                         skillMap)),
                                         detail(
-                                                "Nginx auth_request 계층 SSO 연동 및 Grafana Stack 중앙 집중 로깅 구축",
-                                                "사내 백오피스, MinIO 콘솔, Grafana 대시보드 등 개별 툴들에 대한 통합 접근 제어 및 통합 모니터링 체계가 미비했습니다.",
-                                                "- Nginx auth_request 지시어를 활용해 백엔드 API(cs-api)와 연동하는 사내 SSO 인증 프록시 계층 설계\n- Grafana Alloy 컨테이너로 컨테이너 내부 및 호스트 로그 파일을 수집하고 Grafana Loki로 전송하도록 파이프라인 구성\n- Grafana 대시보드를 구축해 실시간 예외 에러 및 서버 메트릭 가시화 구현",
-                                                "백오피스 도구들의 RBAC 보안 접근 규격을 단일 지점으로 일원화하고, 장애 발생 시 디버깅 리드타임을 대폭 감소시켰습니다.",
+                                                "Nginx auth_request 계층 SSO 연동 및 통합 접근 제어 구축",
+                                                "백오피스, n8n, Grafana, MinIO 콘솔 등 개별 어드민 도구들에 대한 접근 제어 파편화 및 외부 무단 접속 위협이 존재함.",
+                                                "경계 네트워크 보안 강화, 외부 접근 차단 및 쿠키 기반 단일 인증(SSO) 위임 처리.",
+                                                "- Nginx Reverse Proxy 수준 LAN/VPN IP 필터링 & Basic Auth 적용 및 X-Remote-User 신뢰 헤더 터널링\n- Nginx auth_request /_admin_tool_auth 지시어와 백엔드 /api/v1/auth/admin-tool-check 서브루틴 연동\n- cs_admin_access 쿠키 기반 어드민 툴(/n8n/, /grafana/, /minio/) 통합 접근 통제",
+                                                "백오피스 및 개발/운영 어드민 도구들의 보안 접근 규격을 단일 통로로 일원화하고 무단 외부 접근 차단.",
+                                                "사내 백오피스, n8n, Grafana, MinIO 등 파편화된 개별 어드민 툴들의 보안 접근을 일원화하고자, Nginx 경계 보안 및 auth_request 기반 통합 인증(SSO) 계층을 설계했습니다. Nginx 수준에서 LAN/VPN IP 필터링과 Basic Auth를 적용하고, 검증된 사용자명을 X-Remote-User 헤더로 백엔드 Spring Security와 안전하게 연동했습니다. 또한 Nginx auth_request 서브루틴을 활용해 쿠키 기반 백엔드 권한 검증(/api/v1/auth/admin-tool-check)을 거쳐 어드민 툴 접속을 통제함으로써, 개별 툴 복수 로그인 없이 단일 지점에서 보안 접근 제어를 완료했습니다.",
                                                 4,
+                                                getSkills(
+                                                        List.of(
+                                                                "Nginx",
+                                                                "Spring Security",
+                                                                "Docker Compose"),
+                                                        skillMap)),
+                                        detail(
+                                                "Logback JSON 로깅 & Grafana Alloy / Loki 관측성 모니터링 구축",
+                                                "분산 컨테이너 환경에서 런타임 예외 발생 시 개별 로그 파일 직접 조회로 인한 원인 추적 비효율 및 모니터링 체계 미비.",
+                                                "Logback 중앙 JSON 로깅, Grafana Alloy/Loki 로그 수집 파이프라인 및 실시간 가시화 대시보드 구축.",
+                                                "- logback-spring.xml 구성으로 Machine-Readable JSON Line 로그 파일 분리(app.log, error.log, access.log)\n- Docker Volume 기반 Grafana Alloy 로그 수집기 및 Loki 중앙 인덱싱 연동\n- Grafana 대시보드 구축으로 실시간 5xx 예외 에러율 및 서버 메트릭 가시화",
+                                                "분산 컨테이너 로그의 중앙집중화, 실시간 5xx 예외 감지 대시보드 정착 및 시스템 장애 원인 파악 리드타임 개선.",
+                                                "분산 컨테이너 환경에서 런타임 예외 발생 시 개별 로그 파일 추적 비효율을 해결하기 위해, Logback과 Grafana Stack(Alloy + Loki + Grafana) 기반의 중앙집중 관측성(Observability) 파이프라인을 구축했습니다. Logback 정책을 통해 Machine-Readable JSON 포맷 로그를 저장하고, Grafana Alloy 수집기로 로그를 실시간 파싱하여 Loki로 중앙 전송했습니다. 이를 Grafana 대시보드와 연동해 실시간 5xx 에러율과 시스템 메트릭을 시각화함으로써 장애 발생 시 원인 분석 및 디버깅 체계를 확립했습니다.",
+                                                5,
                                                 getSkills(
                                                         List.of(
                                                                 "Nginx", "Grafana", "Loki",
@@ -1098,7 +1123,28 @@ public class SampleDataLoader implements ApplicationRunner {
             int displayOrder,
             List<Skill> skills) {
         return new ExperienceDetail.Draft(
-                null, content, situation, actionDetail, outcome, null, displayOrder, skills);
+                null, content, situation, null, actionDetail, outcome, null, displayOrder, skills);
+    }
+
+    private ExperienceDetail.Draft detail(
+            String content,
+            String situation,
+            String task,
+            String actionDetail,
+            String outcome,
+            String narrative,
+            int displayOrder,
+            List<Skill> skills) {
+        return new ExperienceDetail.Draft(
+                null,
+                content,
+                situation,
+                task,
+                actionDetail,
+                outcome,
+                narrative,
+                displayOrder,
+                skills);
     }
 
     private void seedLogDoctorProject(
@@ -1425,6 +1471,246 @@ public class SampleDataLoader implements ApplicationRunner {
                                     s.getDisplayOrder());
                             skillRepository.save(s);
                         });
+    }
+
+    private void syncExistingStudies() {
+        List<Study> existingStudies = studyRepository.findAll();
+        if (existingStudies.isEmpty()) return;
+
+        List<ExperienceDetail> allDetails =
+                experienceRepository.findAll().stream()
+                        .flatMap(exp -> exp.getDetails().stream())
+                        .toList();
+
+        for (Study study : existingStudies) {
+            switch (study.getSlug()) {
+                case "db-level-pii-encryption-and-migration" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# JPA Converter와 HMAC 해싱을 통한 개인정보(PII) 암호화 및 무중단 데이터 마이그레이션\n\n## 1. 기술 개념 및 핵심 이론\n\n### JPA Attribute Converter란?\n- JPA 2.1부터 표준 도입된 `AttributeConverter<X, Y>` 인터페이스는 자바 엔티티 필드 타입(X)과 데이터베이스 컬럼 타입(Y) 간의 변환 로직을 캡슐화하는 영속성 계층 메커니즘입니다.\n- `convertToDatabaseColumn(X attribute)`: 엔티티가 `INSERT`/`UPDATE`되어 영속성 컨텍스트에서 DB로 저장되기 직전 자동으로 암호화 로직이 실행됩니다.\n- `convertToEntityAttribute(Y dbData)`: DB에서 `SELECT`하여 엔티티로 로딩(Hydration)될 때 자동으로 복호화 로직이 실행됩니다.\n- 서비스 레이어나 비즈니스 도메인의 코드 수정 없이 엔티티 필드 레벨 선언만으로 투명한(Transparent) 투명 암복호화를 달성합니다.\n\n### HMAC-SHA256 해시와 등치 검색(Equi-Join) 원리\n- **AES/GCM 암호화의 한계**: 보안성을 높이기 위해 매 암호화마다 무작위 IV(Initialization Vector)를 사용하는 AES/GCM 암호문은 동일한 평문(\"user@test.com\")이라도 매번 무작위 암호문이 생성됩니다. 따라서 `WHERE email = '암호문'` 형태의 DB 등치 검색(Equi-Join) 및 B-Tree 인덱스 조회가 불가능합니다.\n- **HMAC 해결책**: 서버만 보유한 Secret Key와 평문을 조합하여 SHA-256 단방향 해시값을 생성합니다. 동일한 평문에 대해 항상 일관된 64자리 헥사 해시값이 생성되므로, `WHERE email_hash = 'HMAC(평문)'` 쿼리로 B-Tree 인덱스를 타는 속도 빠른 조회가 가능합니다.\n\n---\n\n## 2. 내부 동작 메커니즘 및 무중단 이관 전략\n\n### 무중단 마이그레이션 (관용적 복호화: Decrypt-or-PassThrough)\n- 기존 수십만 건의 평문 데이터가 DB에 적재된 상황에서 암호화 스키마로 전환할 때, 마이그레이션 도중 수신된 요청이 복호화 예외를 던지지 않도록 예외 처리 패턴을 설계했습니다.\n- `convertToEntityAttribute` 실행 시 `Cipher.doFinal()`이 `BadPaddingException` 또는 `IllegalBlockSizeException`을 던지면(미암호화 평문 데이터인 경우), 예외를 삼키고 평문 string을 그대로 반환합니다.\n- 백그라운드 배치 스크립트가 `email_hash`가 null인 행을 순차 스캔하여 암호화 업데이트를 이관 수행합니다.\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) JPA EncryptedStringConverter 구현 코드\n```java\n@Converter\npublic class EncryptedStringConverter implements AttributeConverter<String, String> {\n    private static final String ALGORITHM = \"AES/GCM/NoPadding\";\n    private static final int GCM_TAG_LENGTH = 128;\n    private static final int IV_LENGTH = 12;\n\n    @Override\n    public String convertToDatabaseColumn(String attribute) {\n        if (attribute == null) return null;\n        try {\n            byte[] iv = generateRandomIv(IV_LENGTH);\n            Cipher cipher = Cipher.getInstance(ALGORITHM);\n            cipher.init(Cipher.ENCRYPT_MODE, getSecretKeySpec(), new GCMParameterSpec(GCM_TAG_LENGTH, iv));\n            byte[] cipherText = cipher.doFinal(attribute.getBytes(StandardCharsets.UTF_8));\n            byte[] combined = ByteBuffer.allocate(iv.length + cipherText.length).put(iv).put(cipherText).array();\n            return Base64.getEncoder().encodeToString(combined);\n        } catch (Exception e) {\n            throw new IllegalStateException(\"PII Encryption Failed\", e);\n        }\n    }\n\n    @Override\n    public String convertToEntityAttribute(String dbData) {\n        if (dbData == null) return null;\n        try {\n            byte[] decoded = Base64.getDecoder().decode(dbData);\n            ByteBuffer bb = ByteBuffer.wrap(decoded);\n            byte[] iv = new byte[IV_LENGTH];\n            bb.get(iv);\n            byte[] cipherText = new byte[bb.remaining()];\n            bb.get(cipherText);\n\n            Cipher cipher = Cipher.getInstance(ALGORITHM);\n            cipher.init(Cipher.DECRYPT_MODE, getSecretKeySpec(), new GCMParameterSpec(GCM_TAG_LENGTH, iv));\n            return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);\n        } catch (BadPaddingException | IllegalBlockSizeException e) {\n            // Decrypt-or-PassThrough: 아직 암호화되지 않은 레거시 평문 데이터 대응\n            return dbData;\n        } catch (Exception e) {\n            throw new IllegalStateException(\"PII Decryption Failed\", e);\n        }\n    }\n}\n```\n\n### 2) HMAC-SHA256 해시 생성기\n```java\npublic class HmacUtils {\n    public static String calculateHmac(String plainText, String secretKey) {\n        try {\n            Mac sha256Hmac = Mac.getInstance(\"HmacSHA256\");\n            SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), \"HmacSHA256\");\n            sha256Hmac.init(secretKeySpec);\n            byte[] hash = sha256Hmac.doFinal(plainText.getBytes(StandardCharsets.UTF_8));\n            return Hex.encodeHexString(hash);\n        } catch (Exception e) {\n            throw new IllegalStateException(\"HMAC Generation Failed\", e);\n        }\n    }\n}\n```\n\n### 3) 트러블슈팅 인사이트\n- **GCM Nonce(IV) 재사용 금지**: 동일 키로 동일 IV를 재사용하면 엑스오어(XOR) 키스트림 분석으로 암호문이 복호화될 수 있습니다. 매 암호화 시 `SecureRandom`으로 12바이트 IV를 동적 생성해야 합니다.\n- **인덱스 스키마 설계**: `email_hash` 컬럼에 B-Tree 인덱스를 걸어 풀스캔 없는 `O(log N)` 등치 조회를 달성했습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("PII")
+                                                        || d.getContent().contains("암호화"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "ai-tutor-session-architecture" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# AI 튜터 메시징 대화형 세션 아키텍처 설계 및 구현\n\n## 1. 기술 개념 및 핵심 이론\n\n### 팩토리 패턴(Factory Pattern) 기반 다형적 학습 도메인 캡슐화\n- 학습 플랫폼 내 문제풀이, 오답 복습, 챌린지, 개념 보강 등 4가지 서로 다른 학습 도메인을 단일 대화형 AI 세션 인터페이스로 통합하는 패턴입니다.\n- `AiTutorSessionFactory`는 각 도메인 엔티티의 상태(학습 이력, 문제 난이도, 오답 유형)를 캡슐화하여 공통 `AiTutorSessionContext`로 변환하여 LLM 프롬프트 생성기로 전달합니다.\n\n### SQS 비동기 Pub/Sub 메시징 및 Redis 멱등성(Idempotency) 보장\n- **LLM Latency 격리**: 외부 LLM API(OpenAI/Claude 등) 통신의 지연시간(수 초)이 HTTP 웹 스레드를 점유하지 않도록 AWS SQS 큐로 메시지 수발신을 분리했습니다.\n- **Redis INCR 기반 멱등키 보장**: SQS 메시지 재시도(Retry)가 일어날 때 `INCR idempotency:session:{messageId}` 와 TTL을 사용하여 중복 세션 응답 작성을 원자적으로 방지했습니다.\n\n---\n\n## 2. 내부 동작 메커니즘 및 아키텍처\n\n```mermaid\ngraph LR\n    User[Student App] -->|1. Prompt Request| BFF[NestJS BFF]\n    BFF -->|2. Enqueue Message| SQS[AWS SQS Queue]\n    SQS -->|3. Consume| Worker[Worker Engine]\n    Worker -->|4. Redis Lock & Idempotency Check| Redis[(Redis)]\n    Worker -->|5. Multi-Doc Tx| Mongo[(MongoDB Session Store)]\n```\n\n### MongoDB Replica Set Multi-Document Transaction\n- 세션 상태 전이(ACTIVE ↔ COMPLETED)와 대화 메시지 기록(`SessionMessage`)이 원자적으로 처리되어야 하므로 MongoDB Replica Set 트랜잭션을 적용했습니다.\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) Redis 멱등키 검증 코드\n```typescript\nasync function processAiMessage(event: SqsMessage): Promise<void> {\n    const { idempotenceKey, sessionId, userPrompt } = JSON.parse(event.Body);\n    \n    // Redis Atomic Lock (10초 TTL)\n    const isNewMessage = await redisClient.set(`idempotency:${idempotenceKey}`, 'LOCKED', 'NX', 'EX', 10);\n    if (!isNewMessage) {\n        console.warn(`[Duplicate Message Dropped] Key: ${idempotenceKey}`);\n        return;\n    }\n\n    const sessionContext = await aiTutorSessionFactory.createContext(sessionId);\n    const llmResponse = await llmClient.generateResponse(sessionContext, userPrompt);\n    \n    await mongoSessionRepository.appendMessageWithTx(sessionId, userPrompt, llmResponse);\n}\n```\n\n### 2) 인사이트\n- **도메인 격리**: 팩토리 패턴을 사용함으로 신규 학습 컨텍스트(예: AI 면접 모드)가 추가되더라도 기존 AI 파이프라인 수정을 제로화했습니다.\n- **비동기 멱등성**: 네트워크 실패에 따른 SQS 재전송 상황에서도 Redis Lock으로 동일 메시지가 중복 처리되는 이중 과금을 방지했습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("도메인 추상화")
+                                                        || d.getContent().contains("AI 튜터"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "realtime-student-presence-and-monitoring" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# 실시간 학생 Presence 추적 및 이상 행동 감지 시스템 구축\n\n## 1. 기술 개념 및 핵심 이론\n\n### WebSocket Connection Cost vs 경량 HTTP Ping/Pong Polling\n- **상태 추적의 난제**: 수천 명의 동시 접속 학생 상태(온라인, 오프라인, 자리비움)를 실시간 모니터링할 때 WebSocket 연결 유지 비용(메모리, 커넥션 락)이 큽니다.\n- **대안**: 1분 주기 경량 HTTP Ping API와 Redis Sorted Set(ZSET) 타임스탬프 슬라이딩 윈도우를 조합하여 서버 리소스 사용량을 90% 이상 절감하면서도 유효 접속 상태를 추적했습니다.\n\n### 비동기 이상 행동 규칙 엔진 (Threshold Rule Engine)\n- 연속 문제 스킵, 풀이 시간 이상 지연 등 이상 이벤트를 API 스레드에서 직접 처리하지 않고 SQS 비동기 파이프라인에 투입하여 실시간 점수화 및 교사 알림을 생성합니다.\n\n---\n\n## 2. 내부 동작 메커니즘 및 타임아웃 판정\n\n```mermaid\ngraph TD\n    A[Student Ping HTTP] -->|1. ZADD timestamp| B[(Redis ZSET: presence_online)]\n    C[Presence Evaluator Cron] -->|2. ZREMRANGEBYSCORE old| B\n    C -->|3. Active Sessions| D[Teacher Dashboard API]\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) Redis ZSET 기반 Presence 추적 코드\n```java\n@Service\n@RequiredArgsConstructor\npublic class StudentPresenceService {\n    private final StringRedisTemplate redisTemplate;\n    private static final String PRESENCE_KEY = \"presence:online_students\";\n\n    public void recordPing(Long studentId) {\n        long currentTimestamp = System.currentTimeMillis();\n        redisTemplate.opsForZSet().add(PRESENCE_KEY, String.valueOf(studentId), currentTimestamp);\n    }\n\n    public Set<String> getActiveStudents(long timeoutMillis) {\n        long now = System.currentTimeMillis();\n        long minScore = now - timeoutMillis; // 2분 이내 핑을 보낸 학생만 오프라인 제외\n        return redisTemplate.opsForZSet().rangeByScore(PRESENCE_KEY, minScore, now);\n    }\n}\n```\n\n### 2) 인사이트\n- **웹소켓 오버헤드 해소**: 웹소켓 지속 연결 없이도 Redis In-Memory 스코어 쿼리로 수천 명의 접속을 원활히 관측했습니다.\n- **이상 행동 즉각 통지**: Hexagonal Architecture 포트/어댑터를 통해 알림 도메인과 데이터 유입계를 분리하여 확장성을 확보했습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("Presence")
+                                                        || d.getContent().contains("실시간"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "cqrs-refactoring-and-data-migration" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# 제출 문항 도메인의 CQRS 리팩토링 및 6만 건 데이터 마이그레이션\n\n## 1. 기술 개념 및 핵심 이론\n\n### CQRS (Command Query Responsibility Segregation) 패턴\n- **개념**: 시스템의 명령(Command: C/U/D) 모델과 조회(Query: Read) 모델을 분리하는 소프트웨어 아키텍처 패턴입니다.\n- **도입 배경**: 학생 답안 제출 쓰기 트래픽과 학원/교사 통계 대시보드 조회 읽기 트래픽의 access pattern이 극단적으로 달라 단일 MongoDB 컬렉션(`SubmittedProblem`)에서 집계 쿼리 실행 시 DB Lock 및 I/O 병목이 심화되었습니다.\n- **해결**: 쓰기 모델은 트랜잭션 중심 구조로 유지하고, 읽기 모델은 4개의 집계 전용 컬렉션(`class-submitted`, `student-submitted`, `total-submitted`, `academy-submitted`)으로 분리했습니다.\n\n---\n\n## 2. 내부 동작 메커니즘 및 Eventual Consistency\n\n```mermaid\ngraph LR\n    A[Student Submit Answer] -->|1. Command Write| W[(SubmittedProblem DB)]\n    W -->|2. Domain Event| SQS[SQS Event Bus]\n    SQS -->|3. Async Sync Worker| R[(Read Models: Statistics DB)]\n    Teacher[Teacher Dashboard] -->|4. Fast Query| R\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) CQRS 읽기 모델 업데이트 핸들러\n```typescript\n@EventsHandler(ProblemSubmittedEvent)\nexport class ProblemSubmittedHandler implements IEventHandler<ProblemSubmittedEvent> {\n    constructor(private readonly readModelRepo: ReadModelRepository) {}\n\n    async handle(event: ProblemSubmittedEvent): Promise<void> {\n        const { academyId, classId, studentId, isCorrect, elapsedTime } = event;\n\n        // 학급/학생/전체/학원 4개 Read Model 전용 컬렉션에 Atomic Incr 반영\n        await Promise.all([\n            this.readModelRepo.incrementClassStat(classId, isCorrect, elapsedTime),\n            this.readModelRepo.incrementStudentStat(studentId, isCorrect, elapsedTime),\n            this.readModelRepo.incrementAcademyStat(academyId, isCorrect, elapsedTime),\n        ]);\n    }\n}\n```\n\n### 2) 인사이트\n- **대시보드 응답속도 혁신**: 수초 이상 소요되던 MongoDB `$group` 집계 조회를 Pre-aggregated Read Model 조회로 변경하여 10ms 이내로 단축시켰습니다.\n- **이벤트 정합성**: 쓰기 성능 손실 없는 비동기 이벤트를 통해 최종 정합성(Eventual Consistency)을 보장했습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("CQRS")
+                                                        || d.getContent().contains("마이그레이션"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "spring-boot-backoffice-and-session-auth" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# Spring Boot 백오피스 서버 단독 구축 및 Redis 세션 기반 크로스도메인 해결\n\n## 1. 기술 개념 및 핵심 이론\n\n### Spring Session Data Redis 분산 인증 메커니즘\n- **서버 무상태성(Stateless)과 세션 공유**: 분산 백오피스 환경에서 서블릿 세션을 Tomcat 힙 메모리가 아닌 외부 Redis 인메모리 스토어에 보관하는 메커니즘입니다.\n- `SessionRepositoryFilter`가 서블릿 요청을 가로채 `HttpSession`을 Redis 기반 `RedisSession`으로 래핑하여 다중 서버 간 동일한 세션 ID 인증을 처리합니다.\n\n### Cross-Domain CORS & SameSite Cookie 정책\n- 브라우저 보안 정책 상 프론트엔드(`admin.example.com`)와 백엔드(`api.example.com`) 도메인이 다를 때, `Set-Cookie`의 `SameSite` 속성이 `None`이고 `Secure` 플래그가 활성화되어야 크로스 도메인 요청에서 인증 쿠키가 전달됩니다.\n\n---\n\n## 2. 내부 동작 메커니즘 및 헤더 처리\n\n```mermaid\ngraph LR\n    Browser[Admin Frontend] -->|1. Cross-Domain Req| Nginx[Nginx Sub-Proxy]\n    Nginx -->|2. Pass SameSite=None| Spring[Spring Boot Security]\n    Spring -->|3. Session Lookup| Redis[(Redis Session Store)]\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) Spring Security & CookieSerializer 설정\n```java\n@Configuration\n@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 3600)\npublic class RedisSessionConfig {\n\n    @Bean\n    public CookieSerializer cookieSerializer() {\n        DefaultCookieSerializer serializer = new DefaultCookieSerializer();\n        serializer.setCookieName(\"ADMIN_SESSION_ID\");\n        serializer.setSameSite(\"None\"); // Cross-Domain 쿠키 전송 허용\n        serializer.setUseSecureCookie(true);\n        serializer.setCookiePath(\"/\");\n        return serializer;\n    }\n}\n```\n\n### 2) HMAC-SHA256 헤더 서명 알고리즘 (NCP 카카오 알림톡)\n```java\npublic String makeSignature(String url, String timestamp, String accessKey, String secretKey) {\n    String space = \" \";\n    String newLine = \"\\n\";\n    String method = \"POST\";\n\n    String message = new StringBuilder()\n        .append(method).append(space).append(url).append(newLine)\n        .append(timestamp).append(newLine).append(accessKey)\n        .toString();\n\n    SecretKeySpec signingKey = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), \"HmacSHA256\");\n    Mac mac = Mac.getInstance(\"HmacSHA256\");\n    mac.init(signingKey);\n    byte[] rawHmac = mac.doFinal(message.getBytes(StandardCharsets.UTF_8));\n    return Base64.getEncoder().encodeToString(rawHmac);\n}\n```\n\n### 3) 인사이트\n- **크로스 도메인 인증 차단 해제**: CookieSerializer와 Nginx 프록시 레이어의 `SameSite=None; Secure` 설정을 조합해 도메인 분리 환경에서 SSO 로그인 세션 유지를 완성했습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("백오피스")
+                                                        || d.getContent().contains("카카오"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "common-packages-and-cli-scaffolding" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# 사내 공용 라이브러리 모노레포 구축 및 CLI 스캐폴딩 도구 개발\n\n## 1. 기술 개념 및 핵심 이론\n\n### Monorepo Workspaces & Symlink 의존성 관리\n- **개념**: 여러 유틸리티 패키지(`@susimdal/common`, `@susimdal/core`, `@susimdal/infra`)를 단일 레포지토리에서 관리하고 npm/pnpm workspaces를 사용하여 레포 내부 패키지 간 심볼릭 링크(symlink)로 의존성을 연결합니다.\n- **도입 효과**: 코드 복사-붙여넣기 파편화를 방지하고, 공통 예외 인터셉터나 DB 래퍼 수정 시 전사 서비스에 일괄 적용이 가능합니다.\n\n### Node.js Commander 기반 CLI 스캐폴딩 도구\n- 신규 백엔드 마이크로서비스 셋업 시 커스텀 CLI 명령(`susimdal new <name>`)을 통해 Dockerfile, GitHub Actions CI/CD, NestJS 모듈 구조 템플릿을 자동으로 스캐폴딩(Scaffolding)하는 유틸리티입니다.\n\n---\n\n## 2. 모노레포 레이어 아키텍처\n\n```\npackages/\n├── common/  # HTTP 예외 코드, 공통 Logger, Types\n├── core/    # NestJS 서버 보일러플레이트, Interceptor\n└── infra/   # MongoDB, Redis, SQS 연결 래퍼\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) Commander 기반 CLI 구현 코드\n```typescript\n#!/usr/bin/env node\nimport { Command } from 'commander';\nimport * as fs from 'fs-extra';\nimport * as path from 'path';\n\nconst program = new Command();\n\nprogram\n    .command('new <serviceName>')\n    .description('Create a new microservice boilerplate')\n    .action(async (serviceName) => {\n        const targetDir = path.join(process.cwd(), serviceName);\n        const templateDir = path.join(__dirname, '../templates/backend');\n\n        console.log(`[Scaffolding] Creating microservice: ${serviceName}...`);\n        await fs.copy(templateDir, targetDir);\n        \n        // package.json serviceName 치환\n        const pkgPath = path.join(targetDir, 'package.json');\n        const pkgContent = await fs.readJson(pkgPath);\n        pkgContent.name = `@susimdal/${serviceName}`;\n        await fs.writeJson(pkgPath, pkgContent, { spaces: 2 });\n\n        console.log(`[Success] Microservice ${serviceName} created successfully!`);\n    });\n\nprogram.parse(process.argv);\n```\n\n### 2) 인사이트\n- **표준화**: 전사 마이크로서비스의 에러 포맷과 로깅 규격을 통일하여 아키텍처 일관성을 달성했습니다.\n- **생산성**: 신규 모듈 셋업 시간을 수일에서 수분 이내로 감축시켰습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("모노레포")
+                                                        || d.getContent().contains("스캐폴딩"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "naver-cafe-session-playwright-automation" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# Playwright 브라우저 자동화를 통한 네이버 카페 보안 세션 우회 및 E2E 답변 자동화\n\n## 1. 기술 개념 및 핵심 이론\n\n### Headless Browser & Cookie Context Injection\n- **개념**: 화면 렌더링 없이 백그라운드에서 동작하는 Node.js 기반 Playwright 브라우저 제어 라이브러리입니다.\n- **로그인 보안 우회 기법**: CAPTCHA 및 2단계 인증으로 인해 단순 HTTP Request 로그인 생성이 불가능한 구조를 해결하기 위해, OTP 입력으로 인증된 쿠키(`NID_AUT`, `NID_SES`)를 AES/GCM으로 암호화 보관 후 브라우저 Context에 주입(`browserContext.addCookies()`)하여 보안 세션을 유지합니다.\n\n---\n\n## 2. 내부 동작 메커니즘 및 세션 헬스체크\n\n```mermaid\ngraph TD\n    A[OTP Login Worker] -->|1. Extract Cookies| B[NID_AUT, NID_SES]\n    B -->|2. AES/GCM Encrypt| DB[(Database Session Store)]\n    Cron[Session Health Cron] -->|3. Check Valid| DB\n    Worker[Answer Automation Worker] -->|4. Inject Cookies & DOM Action| Cafe[Naver Cafe Mobile DOM]\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) Playwright 세션 쿠키 주입 및 답글 작성 코드\n```typescript\nasync function postAutomatedReply(postUrl: string, commentText: string, sessionCookies: any[]) {\n    const browser = await chromium.launch({ headless: true });\n    const context = await browser.newContext();\n\n    // 1. 저장된 NID_AUT / NID_SES 세션 쿠키 주입\n    await context.addCookies(sessionCookies);\n    const page = await context.newPage();\n\n    // 2. 모바일 네이버 카페 게시글 접근\n    await page.goto(postUrl, { waitUntil: 'domcontentloaded' });\n\n    // 3. 댓글 입력 폼 클릭 및 innerHTML DOM 주입\n    await page.click('.btn_comment');\n    await page.fill('#comment_text_area', commentText);\n    await page.click('.btn_register');\n\n    await browser.close();\n}\n```\n\n### 2) 인사이트\n- **세션 자동 헬스체크**: 30분 주기로 세션 갱신 여부를 판별해 캡차 챌린지를 방지하고 무중단 E2E 자동 답변 시스템을 안착시켰습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("Playwright")
+                                                        || d.getContent().contains("네이버"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "inquiry-thread-parsing-and-automatic-mapping" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# 이메일 및 카페 문의의 다형적 통합 수집과 헤더 기반 스레딩/상태 제어 엔진 구축\n\n## 1. 기술 개념 및 핵심 이론\n\n### RFC 5322 이메일 헤더 스레딩 표준 (`Message-ID`, `In-Reply-To`, `References`)\n- **개념**: 이메일 프로토콜 표준(RFC 5322)에서 각 메일은 고유한 `Message-ID`를 가집니다. 회신 메일은 이전 메일의 ID를 `In-Reply-To` 및 `References` 헤더에 포함합니다.\n- **스레드 복원 알고리즘**: 헤더 체인을 역추적하여 부모 문의(`ParentInquiry`)를 찾아내고 개별 메일들을 하나의 대화 스레드 트리(Thread Tree) 구조로 묶어냅니다.\n\n### 발신자 HMAC 해싱 및 Heuristic 제목 파싱\n- 헤더 정보가 유실된 웹 문의의 경우, 발신자 이메일의 HMAC-SHA256 해시(`email_sender_hash`)와 정규식으로 정제된 제목(Re:, Fwd: 제거)을 기반으로 최근 24시간 내 동일 발신자의 오픈 문의에 회신으로 결속합니다.\n\n---\n\n## 2. 유한 상태 머신(FSM) 기반 문의 상태 전이\n\n```mermaid\nstateDiagram-v2\n    [*] --> OPEN: 신규 문의 접수\n    OPEN --> RESOLVED: 상담원 답변 완료\n    RESOLVED --> OPEN: 고객 추가 회신 유입 (자동 재오픈)\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) RFC 헤더 기반 스레드 추적 구현 코드\n```java\npublic InquiryThread resolveThread(ParsedEmail email) {\n    String inReplyTo = email.getInReplyTo();\n    List<String> references = email.getReferences();\n\n    // 1. In-Reply-To 헤더로 direct parent search\n    if (StringUtils.hasText(inReplyTo)) {\n        Optional<Inquiry> parent = inquiryRepository.findByMessageId(inReplyTo);\n        if (parent.isPresent()) {\n            return parent.get().getThread();\n        }\n    }\n\n    // 2. References 헤더 체인 스캔\n    for (String refId : references) {\n        Optional<Inquiry> refInquiry = inquiryRepository.findByMessageId(refId);\n        if (refInquiry.isPresent()) {\n            return refInquiry.get().getThread();\n        }\n    }\n\n    // 3. Heuristic 발신자 HMAC & 제목 기반 결속\n    return resolveHeuristicThread(email.getSenderEmail(), email.getCleanSubject());\n}\n```\n\n### 2) 인사이트\n- **상태 제어 누락 방지**: RESOLVED 상태 문의에 추가 회신이 올 때 상태를 OPEN으로 자동 복귀시켜 문의 누락율을 0%로 만들었습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("스레드")
+                                                        || d.getContent().contains("이메일"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "azure-log-cost-retention-optimization" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# Azure 로그 비용 과다 진단 및 보관 기간 최적화 (RET-001, RET-002)\n\n## 1. 기술 개념 및 핵심 이론\n\n### Log Analytics Workspace (LAW) 비용 과금 구조 & `Usage` 테이블\n- **과금 메커니즘**: Azure LAW는 수집 데이터 용량(GB) 당 비용이 부과됩니다. 과금 대상 여부는 `Usage` 테이블의 `IsBillable == true`로 판단됩니다.\n- **진단 알고리즘 (RET-001)**: `Usage` 테이블을 DataType별로 서머리 쿼리하여 비용을 과다 유발하는 톱 레이블을 식별하고, Azure Retail Prices REST API를 동적 호출해 USD 금액으로 실시간 변환합니다.\n\n### Log Retention Tiers (Analytics vs Basic vs Archive)\n- **Analytics Tier**: 31일 기본 보존, 실시간 KQL 쿼리 가능 ($2.30/GB).\n- **Archive Tier**: 장기 보존(최대 7년), 쿼리 시 복원 필요 ($0.02/GB).\n- **최적화 (RET-002)**: 보안 로그만 365일 Analytics 유지하고 디버그/운영 로그는 31일 후 Archive 티어로 전환하는 시뮬레이션을 수행합니다.\n\n---\n\n## 2. 내부 동작 메커니즘 및 쿼리 연동\n\n```mermaid\ngraph LR\n    LAW[(Azure LAW)] -->|1. KQL Usage Query| Engine[LogDoctor Engine]\n    PricesAPI[Azure Retail Prices API] -->|2. Fetch Price per GB| Engine\n    Engine -->|3. Retention Simulation| Report[Optimization Report]\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) Usage KQL 쿼리 및 가격 연동 코드 (Python)\n```python\ndef analyze_law_usage(kql_client, workspace_id, price_per_gb=2.30):\n    kql_query = \"\"\"\n    Usage\n    | where TimeGenerated > ago(30d)\n    | where IsBillable == true\n    | summarize BillableGB = sum(Quantity) / 1024 by DataType\n    | sort by BillableGB desc\n    \"\"\"\n    response = kql_client.query_workspace(workspace_id, kql_query)\n    \n    results = []\n    for row in response.tables[0].rows:\n        data_type, gb = row[0], row[1]\n        cost_usd = gb * price_per_gb\n        results.append({\"dataType\": data_type, \"gb\": gb, \"costUsd\": cost_usd})\n    return results\n```\n\n### 2) 인사이트\n- **빌링 쇼크 방지**: Daily Quota 소진율 모니터링 경보를 구성하여 요금 폭탄을 사전 방지했습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("RET-001")
+                                                        || d.getContent().contains("보관 기간")
+                                                        || d.getContent().contains("비용"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "cloud-infrastructure-app-observability-diagnostics" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# 클라우드 인프라 생존 및 앱 관측성 진단 아키텍처 (DET-001, DET-002, DET-003)\n\n## 1. 기술 개념 및 핵심 이론\n\n### 관측성 사각지대(Observability Blind Spot) 해결\n- **문제점**: 리소스(VM, App Service)는 정상 동작 중이나, Azure Monitor Agent(AMA)가 다운되거나 Diagnostic Settings 배관이 이탈하여 로그 수집이 끊기는 모니터링 사각지대가 발생합니다.\n- **해결 방안**: 계정 키를 직접 읽지 않고 LAW 텔레메트리(`Heartbeat`, `AppRequests`)만을 분석하여 인프라 생존 여부와 배관 유효성을 판별합니다.\n\n### P95 Latency & Error Rate 수계 계산 (DET-003)\n- `AppRequests` 테이블에서 헬스체크 봇 및 AlwaysOn 노이즈 요청을 제외하고 정제된 P95 지연시간(`percentile(DurationMs, 95)`)과 5xx 에러 비율을 실시간 추적합니다.\n\n---\n\n## 2. 내부 진단 상태 머신\n\n```mermaid\ngraph TD\n    Check[Diagnostic Check] -->|No Diagnostic Setting| CRITICAL[Critical: 배관 이탈]\n    Check -->|Platform Logs Only| WARNING[Warning: 앱 로그 미유입]\n    Check -->|Telemetry Healthy| HEALTHY[Healthy: 관측성 완비]\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) HTTP P95 Latency & 에러율 산출 KQL 쿼리\n```kql\nAppRequests\n| where TimeGenerated > ago(1h)\n| where Url !contains \"health\" and ClientIP != \"127.0.0.1\"\n| summarize \n    TotalCount = count(),\n    ErrorCount = countif(toint(ResultCode) >= 500),\n    P95LatencyMs = percentile(DurationMs, 95)\n    by Name\n| extend ErrorRate = (todouble(ErrorCount) / TotalCount) * 100\n```\n\n### 2) 인사이트\n- **사각지대 제로화**: 에러율 > 15% 및 P95 Latency > 5,000ms 자동 탐지로 인프라 관측성을 정착시켰습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("DET-001")
+                                                        || d.getContent().contains("관측성")
+                                                        || d.getContent().contains("진단"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                case "intelligent-log-filtering-pii-masking-engine" -> {
+                    study.update(
+                            study.getSlug(),
+                            study.getTitle(),
+                            study.getSummary(),
+                            "# 지능형 로그 필터링 및 민감 정보 마스킹 엔진 (PRV-001, PRV-002, PRV-003, FLT-001, FLT-002, FLT-003)\n\n## 1. 기술 개념 및 핵심 이론\n\n### 프로덕션 디버그 로거 유입 감지 (PRV-001)\n- **개념**: 개발 환경용 디버그 로거가 프로덕션에 방치되어 불필요한 LAW 수집 비용을 유발하는 현상입니다.\n- **탐지 원리**: App Settings 환경변수(`ENV=production`)와 KQL `SeverityLevel <= 1` (Verbose/Debug) 유입량을 교차 검증하여 과다 디버그 로깅 수집 원인을 적발합니다.\n\n### PII (개인정보) 실시간 마스킹 (FLT-001) & 노이즈 Fingerprinting (FLT-003)\n- **PII Masking**: 이메일, 전화번호, JWT Token 정규식 패턴으로 마스킹(`***MASKED***`) 처리합니다.\n- **Log Fingerprinting**: 에러 로그 앞 150글자의 지문(Fingerprint)을 해싱하여 반복 생성되는 고빈도 노이즈 로그를 그룹핑하고 LAW DCR Transformation KQL을 자동 생성하여 유입을 차단합니다.\n\n---\n\n## 2. 노이즈 필터링 및 컨텍스트 점수화 파이프라인\n\n```mermaid\ngraph LR\n    Log[Raw Log] -->|1. Regex Mask| PII[PII Masked Engine]\n    PII -->|2. Hash First 150 Chars| FP[Fingerprint Hash]\n    FP -->|3. Evaluate Context| Score[Context Quality Score: 0-100]\n```\n\n---\n\n## 3. 핵심 구현 코드 및 트러블슈팅 인사이트\n\n### 1) Python 정규식 PII 마스킹 처리 엔진 코드\n```python\nimport re\n\nclass PiiMasker:\n    EMAIL_REGEX = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'\n    TOKEN_REGEX = r'Bearer\\s+[A-Za-z0-9\\-\\._~\\+\\/]+=*'\n\n    @classmethod\n    def mask_log_message(cls, message: str) -> str:\n        if not message:\n            return message\n        # 1. 이메일 마스킹\n        masked = re.sub(cls.EMAIL_REGEX, '[EMAIL_MASKED]', message)\n        # 2. Authorization Bearer 토큰 마스킹\n        masked = re.sub(cls.TOKEN_REGEX, 'Bearer [TOKEN_MASKED]', masked)\n        return masked\n```\n\n### 2) 인사이트\n- **보안 & 비용 동시 달성**: PII 마스킹을 통한 컴플라이언스 준수와 노이즈 KQL 차단을 통한 수집 비용 감축을 완수했습니다.",
+                            study.getStatus(),
+                            study.getCategory(),
+                            study.getLearnedAt(),
+                            study.getPublishedAt());
+                    if (!allDetails.isEmpty()) {
+                        allDetails.stream()
+                                .filter(
+                                        d ->
+                                                d.getContent().contains("FLT-001")
+                                                        || d.getContent().contains("마스킹")
+                                                        || d.getContent().contains("필터링"))
+                                .findFirst()
+                                .ifPresent(d -> study.replaceExperienceDetails(List.of(d)));
+                    }
+                }
+                default -> {}
+            }
+            studyRepository.save(study);
+        }
     }
 
     private void seedPrintTemplates() {

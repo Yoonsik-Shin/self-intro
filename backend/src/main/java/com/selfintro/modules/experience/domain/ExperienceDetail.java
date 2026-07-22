@@ -23,6 +23,9 @@ public class ExperienceDetail {
     @Column(columnDefinition = "TEXT")
     private String situation;
 
+    @Column(columnDefinition = "TEXT")
+    private String task;
+
     @Column(name = "action_detail", columnDefinition = "TEXT")
     private String actionDetail;
 
@@ -51,6 +54,7 @@ public class ExperienceDetail {
             Long id,
             String content,
             String situation,
+            String task,
             String actionDetail,
             String outcome,
             String narrative,
@@ -59,6 +63,7 @@ public class ExperienceDetail {
         this.id = id;
         this.content = content;
         this.situation = situation;
+        this.task = task;
         this.actionDetail = actionDetail;
         this.outcome = outcome;
         this.narrative = narrative;
@@ -69,13 +74,22 @@ public class ExperienceDetail {
     public static ExperienceDetail create(
             String content,
             String situation,
+            String task,
             String actionDetail,
             String outcome,
             String narrative,
             int displayOrder,
             List<Skill> skills) {
         return new ExperienceDetail(
-                null, content, situation, actionDetail, outcome, narrative, displayOrder, skills);
+                null,
+                content,
+                situation,
+                task,
+                actionDetail,
+                outcome,
+                narrative,
+                displayOrder,
+                skills);
     }
 
     /**
@@ -88,6 +102,7 @@ public class ExperienceDetail {
             Long id,
             String content,
             String situation,
+            String task,
             String actionDetail,
             String outcome,
             String narrative,
@@ -97,6 +112,7 @@ public class ExperienceDetail {
     public void update(
             String content,
             String situation,
+            String task,
             String actionDetail,
             String outcome,
             String narrative,
@@ -104,6 +120,7 @@ public class ExperienceDetail {
             List<Skill> skills) {
         this.content = content;
         this.situation = situation;
+        this.task = task;
         this.actionDetail = actionDetail;
         this.outcome = outcome;
         this.narrative = narrative;
@@ -140,6 +157,10 @@ public class ExperienceDetail {
 
     public String getSituation() {
         return situation;
+    }
+
+    public String getTask() {
+        return task;
     }
 
     public String getActionDetail() {
