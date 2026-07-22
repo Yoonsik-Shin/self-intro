@@ -16,7 +16,7 @@ export function experienceTypeLabel(type: Experience['type']): string {
 }
 
 export function experienceOrgName(exp: Experience): string {
-    return exp.companyName ?? exp.institutionName ?? exp.issuer ?? exp.role ?? '';
+    return exp.companyName ?? exp.institutionName ?? exp.issuer ?? '';
 }
 
 export function credentialKindLabel(experience: Experience): '학력' | '교육' | '자격증' {

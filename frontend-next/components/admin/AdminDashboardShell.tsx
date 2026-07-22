@@ -95,6 +95,52 @@ export type PendingExperienceIntent = { type: 'PROJECT' } | null;
 export function AdminDashboardShell() {
     const logout = useAuthStore((s) => s.logout);
     const [activeTab, setActiveTab] = useState<TabId>('STUDY');
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const syncTabFromUrl = () => {
+            const params = new URLSearchParams(window.location.search);
+            const tabInUrl = params.get('tab') as TabId | null;
+            const validTabs: TabId[] = [
+                'ANALYTICS',
+                'DONATIONS',
+                'STUDY',
+                'PROFILE',
+                'SKILLS',
+                'COMPETENCIES',
+                'EXPERIENCE',
+                'CORE_PROJECTS',
+                'ARCHITECTURE',
+                'PRINT_TEMPLATES',
+            ];
+            if (tabInUrl && validTabs.includes(tabInUrl)) {
+                setActiveTab(tabInUrl);
+            }
+        };
+
+        syncTabFromUrl();
+
+        const handlePopState = () => {
+            syncTabFromUrl();
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    const handleTabChange = (newTab: TabId) => {
+        setActiveTab(newTab);
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', newTab);
+            url.searchParams.delete('studyId');
+            url.searchParams.delete('expId');
+            url.searchParams.delete('action');
+            window.history.replaceState(null, '', url.pathname + url.search);
+        }
+    };
+
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [pendingExperienceIntent, setPendingExperienceIntent] =
         useState<PendingExperienceIntent>(null);
@@ -466,7 +512,7 @@ export function AdminDashboardShell() {
                                                     <button
                                                         key={item.id}
                                                         type="button"
-                                                        onClick={() => setActiveTab(item.id)}
+                                                        onClick={() => handleTabChange(item.id)}
                                                         title={item.label}
                                                         aria-current={isActive ? 'page' : undefined}
                                                         className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${isSidebarCollapsed ? 'mx-auto h-11 w-11 justify-center gap-0 p-0' : ''} ${

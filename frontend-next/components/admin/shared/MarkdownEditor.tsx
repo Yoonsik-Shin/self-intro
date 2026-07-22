@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import {
     Bold,
+    ChevronDown,
     Code2,
     Eye,
     Heading2,
@@ -21,6 +23,10 @@ import {
     createMarkdownComponents,
     remarkKoreanEmphasis,
     remarkDisableIndentedCode,
+    remarkCalloutToggle,
+    preprocessMarkdown,
+    remarkSourceLine,
+    remarkUnindentListLines,
 } from '@/lib/markdown';
 import { imageApi } from '@/lib/api';
 
@@ -47,6 +53,13 @@ const tools = [
         before: '```mermaid\n',
         after: '\n```',
         placeholder: 'graph TD\n  A[시작] --> B[완료]',
+    },
+    {
+        label: '접기/펼치기',
+        icon: ChevronDown,
+        before: '<details>\n<summary>',
+        after: '</summary>\n\n여기에 내용을 입력하세요.\n</details>',
+        placeholder: '💡 풀이 및 정답 코드 보기 (클릭)',
     },
     { label: '링크', icon: Link, before: '[', after: '](https://)', placeholder: '링크 이름' },
 ];
@@ -130,12 +143,133 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
         }
     }, [onChange]);
 
-    useLayoutEffect(() => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-        textarea.style.height = 'auto';
-        textarea.style.height = `${textarea.scrollHeight}px`;
-    }, [value]);
+    const previewRef = useRef<HTMLElement>(null);
+    const isScrollingRef = useRef<'editor' | 'preview' | null>(null);
+    const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleEditorScroll = () => {
+        if (isScrollingRef.current === 'preview') return;
+        isScrollingRef.current = 'editor';
+
+        const editor = textareaRef.current;
+        const preview = previewRef.current;
+        if (editor && preview) {
+            const editorScrollable = editor.scrollHeight - editor.clientHeight;
+            const previewScrollable = preview.scrollHeight - preview.clientHeight;
+
+            if (editorScrollable > 0 && previewScrollable > 0) {
+                const scrollRatio = editor.scrollTop / editorScrollable;
+                const lineElements = Array.from(
+                    preview.querySelectorAll<HTMLElement>('[data-source-line]')
+                );
+
+                if (lineElements.length > 0) {
+                    const lines = value.split('\n');
+                    const totalLines = Math.max(1, lines.length);
+                    const currentLine = Math.min(
+                        totalLines,
+                        Math.max(1, Math.round(scrollRatio * totalLines) + 1)
+                    );
+
+                    let prevEl: HTMLElement | null = null;
+                    let nextEl: HTMLElement | null = null;
+
+                    for (const el of lineElements) {
+                        const line = parseInt(el.getAttribute('data-source-line') || '0', 10);
+                        if (line <= currentLine) {
+                            prevEl = el;
+                        } else if (!nextEl) {
+                            nextEl = el;
+                            break;
+                        }
+                    }
+
+                    if (prevEl && nextEl) {
+                        const prevLine = parseInt(
+                            prevEl.getAttribute('data-source-line') || '0',
+                            10
+                        );
+                        const nextLine = parseInt(
+                            nextEl.getAttribute('data-source-line') || '0',
+                            10
+                        );
+                        const prevTop = prevEl.offsetTop - preview.offsetTop;
+                        const nextTop = nextEl.offsetTop - preview.offsetTop;
+
+                        const factor = (currentLine - prevLine) / (nextLine - prevLine || 1);
+                        preview.scrollTop = prevTop + factor * (nextTop - prevTop);
+                    } else if (prevEl) {
+                        preview.scrollTop = prevEl.offsetTop - preview.offsetTop;
+                    } else if (nextEl) {
+                        preview.scrollTop = nextEl.offsetTop - preview.offsetTop;
+                    } else {
+                        preview.scrollTop = scrollRatio * previewScrollable;
+                    }
+                } else {
+                    preview.scrollTop = scrollRatio * previewScrollable;
+                }
+            }
+        }
+
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => {
+            isScrollingRef.current = null;
+        }, 80);
+    };
+
+    const handlePreviewScroll = () => {
+        if (isScrollingRef.current === 'editor') return;
+        isScrollingRef.current = 'preview';
+
+        const editor = textareaRef.current;
+        const preview = previewRef.current;
+        if (editor && preview) {
+            const editorScrollable = editor.scrollHeight - editor.clientHeight;
+            const previewScrollable = preview.scrollHeight - preview.clientHeight;
+
+            if (editorScrollable > 0 && previewScrollable > 0) {
+                const lineElements = Array.from(
+                    preview.querySelectorAll<HTMLElement>('[data-source-line]')
+                );
+
+                if (lineElements.length > 0) {
+                    const previewTop = preview.scrollTop;
+                    let targetEl: HTMLElement | null = lineElements[0];
+
+                    for (const el of lineElements) {
+                        const elRelativeTop = el.offsetTop - preview.offsetTop;
+                        if (elRelativeTop <= previewTop + 30) {
+                            targetEl = el;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if (targetEl) {
+                        const targetLine = parseInt(
+                            targetEl.getAttribute('data-source-line') || '1',
+                            10
+                        );
+                        const lines = value.split('\n');
+                        const totalLines = Math.max(1, lines.length);
+                        const lineRatio = (targetLine - 1) / totalLines;
+                        editor.scrollTop = lineRatio * editorScrollable;
+                    } else {
+                        const percentage = preview.scrollTop / previewScrollable;
+                        editor.scrollTop = percentage * editorScrollable;
+                    }
+                } else {
+                    const percentage = preview.scrollTop / previewScrollable;
+                    editor.scrollTop = percentage * editorScrollable;
+                }
+            }
+        }
+
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => {
+            isScrollingRef.current = null;
+        }, 80);
+    };
 
     const editorMarkdownComponents = useMemo(
         () =>
@@ -534,11 +668,12 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     <Eye className="h-3.5 w-3.5" /> 실시간 미리보기
                 </span>
             </div>
-            <div className="grid min-h-[140px] grid-cols-1 lg:grid-cols-2">
+            <div className="grid h-[550px] min-h-[400px] grid-cols-1 overflow-hidden sm:h-[650px] lg:grid-cols-2">
                 <textarea
                     ref={textareaRef}
                     required
                     value={value}
+                    onScroll={handleEditorScroll}
                     onChange={(event) => {
                         const textarea = textareaRef.current;
                         const selStart = textarea?.selectionStart ?? event.target.value.length;
@@ -548,9 +683,13 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     onKeyDown={handleKeyDown}
                     spellCheck={false}
                     placeholder="# 학습 내용&#10;&#10;Markdown으로 기록해 보세요."
-                    className="min-h-[140px] resize-none overflow-hidden border-0 bg-slate-950 p-5 font-mono text-sm leading-7 text-slate-100 outline-none lg:border-r lg:border-slate-200"
+                    className="h-full resize-none overflow-y-auto border-0 bg-slate-950 p-5 font-mono text-sm leading-7 text-slate-100 outline-none lg:border-r lg:border-slate-800"
                 />
-                <article className="markdown-body min-h-[140px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
+                <article
+                    ref={previewRef}
+                    onScroll={handlePreviewScroll}
+                    className="markdown-body h-full overflow-y-auto p-5 text-sm text-slate-700"
+                >
                     {value ? (
                         <ReactMarkdown
                             remarkPlugins={[
@@ -558,10 +697,14 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                                 remarkBreaks,
                                 remarkKoreanEmphasis,
                                 remarkDisableIndentedCode,
+                                remarkCalloutToggle,
+                                remarkUnindentListLines,
+                                remarkSourceLine,
                             ]}
+                            rehypePlugins={[rehypeRaw]}
                             components={editorMarkdownComponents}
                         >
-                            {value}
+                            {preprocessMarkdown(value)}
                         </ReactMarkdown>
                     ) : (
                         <p className="text-slate-400">작성한 Markdown이 여기에 표시됩니다.</p>

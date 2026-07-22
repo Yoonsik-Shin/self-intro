@@ -6,12 +6,16 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Study } from '@/lib/api/types';
 import {
     markdownComponents,
     remarkKoreanEmphasis,
     remarkDisableIndentedCode,
+    remarkCalloutToggle,
+    preprocessMarkdown,
+    remarkUnindentListLines,
 } from '@/lib/markdown';
 
 type Props = {
@@ -111,17 +115,20 @@ export function StudyDetailClient({ study }: Props) {
                                 </div>
                             )}
                         </div>
-                        <div className="markdown-body space-y-4 text-sm leading-relaxed text-slate-700 sm:text-base">
+                        <div className="markdown-body text-sm leading-relaxed text-slate-700 sm:text-base">
                             <ReactMarkdown
                                 remarkPlugins={[
                                     remarkGfm,
                                     remarkBreaks,
                                     remarkKoreanEmphasis,
                                     remarkDisableIndentedCode,
+                                    remarkCalloutToggle,
+                                    remarkUnindentListLines,
                                 ]}
+                                rehypePlugins={[rehypeRaw]}
                                 components={markdownComponents}
                             >
-                                {study.contentMarkdown}
+                                {preprocessMarkdown(study.contentMarkdown)}
                             </ReactMarkdown>
                         </div>
                     </article>

@@ -250,7 +250,7 @@ export function ProjectsSection({
                                                                 </span>
                                                                 {detail.id > 0 && (
                                                                     <Link
-                                                                        href={`/experience-detail/${detail.id}`}
+                                                                        href={`/experience/${m.id}/experience-detail/${detail.id}`}
                                                                         onClick={(event) =>
                                                                             event.stopPropagation()
                                                                         }

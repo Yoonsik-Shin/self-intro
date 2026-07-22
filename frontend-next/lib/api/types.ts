@@ -146,6 +146,7 @@ export type ExperienceDetail = {
     id: number;
     content: string;
     situation?: string;
+    task?: string;
     actionDetail?: string;
     outcome?: string;
     narrative?: string;
@@ -359,6 +360,7 @@ export type ExperienceDetailRequest = {
     id?: number | null;
     content: string;
     situation?: string;
+    task?: string;
     actionDetail?: string;
     outcome?: string;
     narrative?: string;
@@ -408,6 +410,7 @@ export type ExperienceSuggestionRequest = {
 export type ExperienceDetailSuggestion = {
     content: string;
     situation: string;
+    task?: string;
     actionDetail: string;
     outcome: string;
     skillIds: number[];
@@ -434,6 +437,7 @@ export type ExperienceSuggestionStreamEvent =
 export type ExperienceDetailNarrativeRequest = {
     content: string;
     situation?: string;
+    task?: string;
     actionDetail?: string;
     outcome?: string;
 };

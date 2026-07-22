@@ -168,7 +168,7 @@ export function ExperienceListClient({ experiences }: Props) {
                         </div>
                     ) : (
                         filtered.map((experience) => {
-                            const targetUrl = `/experience-detail/${experience.id}`;
+                            const targetUrl = `/experience/${experience.id}`;
 
                             return (
                                 <Link
@@ -270,7 +270,7 @@ export function ExperienceListClient({ experiences }: Props) {
                             return (
                                 <Link
                                     key={exp.id}
-                                    href={`/experience-detail/${targetDetailId}`}
+                                    href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
                                     className="block w-full truncate text-left text-xs font-semibold leading-relaxed text-slate-600 transition hover:text-slate-900"
                                     title={exp.title}
                                 >

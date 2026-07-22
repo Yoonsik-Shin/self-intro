@@ -22,8 +22,7 @@ const pages = [
 
 function isActivePage(pathname: string, href: string): boolean {
     if (href === '/') return pathname === '/';
-    if (href === '/experience')
-        return pathname === '/experience' || pathname.startsWith('/experience-detail/');
+    if (href === '/experience') return pathname.startsWith('/experience');
     return pathname.startsWith(href);
 }
 

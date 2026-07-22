@@ -1,11 +1,15 @@
 'use client';
 
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import {
     ArrowLeft,
     BookOpen,
     Briefcase,
     CalendarDays,
+    ChevronRight,
     Link2,
     Pencil,
     Tags,
@@ -13,13 +17,22 @@ import {
     Wrench,
 } from 'lucide-react';
 import type { Study } from '@/lib/api/types';
-import { markdownComponents } from '@/lib/markdown';
+import {
+    markdownComponents,
+    remarkKoreanEmphasis,
+    remarkDisableIndentedCode,
+    remarkCalloutToggle,
+    preprocessMarkdown,
+    remarkUnindentListLines,
+} from '@/lib/markdown';
 
 type StudyDetailPanelProps = {
     study: Study;
     onBack: () => void;
+    backLabel: string;
     onEdit: (study: Study) => void;
     onDelete: (id: number) => void;
+    onSelectStudy: (id: number) => void;
 };
 
 const relationTypeLabels: Record<string, string> = {
@@ -29,7 +42,14 @@ const relationTypeLabels: Record<string, string> = {
     APPLIED_TO: '적용 사례',
 };
 
-export function StudyDetailPanel({ study, onBack, onEdit, onDelete }: StudyDetailPanelProps) {
+export function StudyDetailPanel({
+    study,
+    onBack,
+    backLabel,
+    onEdit,
+    onDelete,
+    onSelectStudy,
+}: StudyDetailPanelProps) {
     return (
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-fadeIn">
             <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-4 sm:px-7">
@@ -40,7 +60,7 @@ export function StudyDetailPanel({ study, onBack, onEdit, onDelete }: StudyDetai
                         className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-950"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        목록으로
+                        {backLabel}
                     </button>
                     <div className="flex items-center gap-2">
                         <button
@@ -109,9 +129,20 @@ export function StudyDetailPanel({ study, onBack, onEdit, onDelete }: StudyDetai
                             학습 내용
                         </h4>
                     </div>
-                    <div className="min-w-0 break-words">
-                        <ReactMarkdown components={markdownComponents}>
-                            {study.contentMarkdown}
+                    <div className="markdown-body min-w-0 break-words text-sm leading-relaxed text-slate-700 sm:text-base">
+                        <ReactMarkdown
+                            remarkPlugins={[
+                                remarkGfm,
+                                remarkBreaks,
+                                remarkKoreanEmphasis,
+                                remarkDisableIndentedCode,
+                                remarkCalloutToggle,
+                                remarkUnindentListLines,
+                            ]}
+                            rehypePlugins={[rehypeRaw]}
+                            components={markdownComponents}
+                        >
+                            {preprocessMarkdown(study.contentMarkdown)}
                         </ReactMarkdown>
                     </div>
                 </div>
@@ -193,17 +224,22 @@ export function StudyDetailPanel({ study, onBack, onEdit, onDelete }: StudyDetai
                             </h4>
                             <div className="space-y-2">
                                 {study.relatedStudies.map((related) => (
-                                    <div
+                                    <button
+                                        type="button"
                                         key={`${related.id}-${related.type}`}
-                                        className="rounded-lg border border-slate-200 p-2.5"
+                                        onClick={() => onSelectStudy(related.id)}
+                                        className="group flex w-full items-center gap-2 rounded-lg border border-slate-200 p-2.5 text-left transition hover:border-blue-300 hover:bg-blue-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                                     >
-                                        <p className="text-[10px] font-black text-blue-600">
-                                            {relationTypeLabels[related.type] ?? related.type}
-                                        </p>
-                                        <p className="mt-0.5 text-xs font-bold leading-snug text-slate-700">
-                                            {related.title}
-                                        </p>
-                                    </div>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-[10px] font-black text-blue-600">
+                                                {relationTypeLabels[related.type] ?? related.type}
+                                            </span>
+                                            <span className="mt-0.5 block text-xs font-bold leading-snug text-slate-700 group-hover:text-slate-950">
+                                                {related.title}
+                                            </span>
+                                        </span>
+                                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
+                                    </button>
                                 ))}
                             </div>
                         </section>

@@ -241,7 +241,7 @@ export function CareerSection({
                                                                         </span>
                                                                         {detail.id > 0 && (
                                                                             <Link
-                                                                                href={`/experience-detail/${detail.id}`}
+                                                                                href={`/experience/${project.id}/experience-detail/${detail.id}`}
                                                                                 onClick={(e) =>
                                                                                     e.stopPropagation()
                                                                                 }
@@ -339,7 +339,7 @@ export function CareerSection({
                                                 </span>
                                                 {detail.id > 0 && (
                                                     <Link
-                                                        href={`/experience-detail/${detail.id}`}
+                                                        href={`/experience/${career.id}/experience-detail/${detail.id}`}
                                                         onClick={(e) => e.stopPropagation()}
                                                         className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-800 transition-opacity duration-200 hover:text-slate-950 hover:underline ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
                                                     >

@@ -10,9 +10,10 @@ type Props = {
     params: Promise<{ slug: string }>;
 };
 
-async function getStudy(slug: string): Promise<Study | null> {
+async function getStudy(rawSlug: string): Promise<Study | null> {
     try {
-        return await serverGet<Study>(`/api/studies/${encodeURIComponent(slug)}`);
+        const decoded = decodeURIComponent(rawSlug);
+        return await serverGet<Study>(`/api/studies/${encodeURIComponent(decoded)}`);
     } catch {
         return null;
     }
