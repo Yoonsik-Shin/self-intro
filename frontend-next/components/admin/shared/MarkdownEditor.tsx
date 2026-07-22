@@ -1,7 +1,9 @@
 'use client';
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import {
     Bold,
     Code2,
@@ -17,8 +19,6 @@ import {
 } from 'lucide-react';
 import { createMarkdownComponents } from '@/lib/markdown';
 import { imageApi } from '@/lib/api';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
 
 type Props = {
     value: string;
@@ -47,10 +47,84 @@ const tools = [
     { label: '링크', icon: Link, before: '[', after: '](https://)', placeholder: '링크 이름' },
 ];
 
+interface HistoryItem {
+    value: string;
+    selectionStart: number;
+    selectionEnd: number;
+}
+
 export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
+
+    // Custom History for Undo/Redo (Cmd+Z / Cmd+Shift+Z)
+    const historyRef = useRef<HistoryItem[]>([]);
+    const historyIndexRef = useRef<number>(-1);
+    const isInternalChangeRef = useRef<boolean>(false);
+
+    // Sync external value or initialize history
+    useEffect(() => {
+        if (isInternalChangeRef.current) {
+            isInternalChangeRef.current = false;
+            return;
+        }
+        const textarea = textareaRef.current;
+        const selStart = textarea?.selectionStart ?? value.length;
+        const selEnd = textarea?.selectionEnd ?? value.length;
+
+        historyRef.current = [{ value, selectionStart: selStart, selectionEnd: selEnd }];
+        historyIndexRef.current = 0;
+    }, [value]);
+
+    const recordHistory = useCallback(
+        (newValue: string, selectionStart: number, selectionEnd: number) => {
+            isInternalChangeRef.current = true;
+            const currentIdx = historyIndexRef.current;
+            const newHistory = historyRef.current.slice(0, currentIdx + 1);
+            newHistory.push({ value: newValue, selectionStart, selectionEnd });
+
+            if (newHistory.length > 100) {
+                newHistory.shift();
+            }
+            historyRef.current = newHistory;
+            historyIndexRef.current = newHistory.length - 1;
+            onChange(newValue);
+        },
+        [onChange]
+    );
+
+    const undo = useCallback(() => {
+        if (historyIndexRef.current > 0) {
+            historyIndexRef.current -= 1;
+            const item = historyRef.current[historyIndexRef.current];
+            isInternalChangeRef.current = true;
+            onChange(item.value);
+            requestAnimationFrame(() => {
+                const textarea = textareaRef.current;
+                if (textarea) {
+                    textarea.focus();
+                    textarea.setSelectionRange(item.selectionStart, item.selectionEnd);
+                }
+            });
+        }
+    }, [onChange]);
+
+    const redo = useCallback(() => {
+        if (historyIndexRef.current < historyRef.current.length - 1) {
+            historyIndexRef.current += 1;
+            const item = historyRef.current[historyIndexRef.current];
+            isInternalChangeRef.current = true;
+            onChange(item.value);
+            requestAnimationFrame(() => {
+                const textarea = textareaRef.current;
+                if (textarea) {
+                    textarea.focus();
+                    textarea.setSelectionRange(item.selectionStart, item.selectionEnd);
+                }
+            });
+        }
+    }, [onChange]);
 
     useLayoutEffect(() => {
         const textarea = textareaRef.current;
@@ -74,36 +148,69 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
         [onChange, value]
     );
 
-    const insert = (before: string, after: string, placeholder: string) => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const rawSelected = value.slice(start, end);
-        const selected = rawSelected.trim() ? rawSelected : placeholder;
-        const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
-        onChange(next);
-        requestAnimationFrame(() => {
-            textarea.focus();
-            textarea.setSelectionRange(
-                start + before.length,
-                start + before.length + selected.length
-            );
-        });
-    };
+    const insertOrWrap = useCallback(
+        (before: string, after: string, placeholder: string) => {
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const rawSelected = value.slice(start, end);
 
-    const insertAtCursor = (text: string) => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const next = `${value.slice(0, start)}${text}${value.slice(end)}`;
-        onChange(next);
-        requestAnimationFrame(() => {
-            textarea.focus();
-            textarea.setSelectionRange(start + text.length, start + text.length);
-        });
-    };
+            const isWrapped =
+                rawSelected.length >= before.length + after.length &&
+                rawSelected.startsWith(before) &&
+                rawSelected.endsWith(after);
+
+            let nextValue: string;
+            let newSelStart: number;
+            let newSelEnd: number;
+
+            if (isWrapped) {
+                const unwrapped = rawSelected.slice(
+                    before.length,
+                    rawSelected.length - after.length
+                );
+                nextValue = `${value.slice(0, start)}${unwrapped}${value.slice(end)}`;
+                newSelStart = start;
+                newSelEnd = start + unwrapped.length;
+            } else if (rawSelected) {
+                const wrapped = `${before}${rawSelected}${after}`;
+                nextValue = `${value.slice(0, start)}${wrapped}${value.slice(end)}`;
+                newSelStart = start + before.length;
+                newSelEnd = start + before.length + rawSelected.length;
+            } else {
+                const inserted = `${before}${placeholder}${after}`;
+                nextValue = `${value.slice(0, start)}${inserted}${value.slice(end)}`;
+                newSelStart = start + before.length;
+                newSelEnd = start + before.length + placeholder.length;
+            }
+
+            recordHistory(nextValue, newSelStart, newSelEnd);
+            requestAnimationFrame(() => {
+                textarea.focus();
+                textarea.setSelectionRange(newSelStart, newSelEnd);
+            });
+        },
+        [recordHistory, value]
+    );
+
+    const insertAtCursor = useCallback(
+        (text: string) => {
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const nextValue = `${value.slice(0, start)}${text}${value.slice(end)}`;
+            const newSel = start + text.length;
+
+            recordHistory(nextValue, newSel, newSel);
+            requestAnimationFrame(() => {
+                textarea.focus();
+                textarea.setSelectionRange(newSel, newSel);
+            });
+        },
+        [recordHistory, value]
+    );
 
     const handleImageSelected = async (file: File | undefined) => {
         if (!file) return;
@@ -128,6 +235,207 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
         }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const isMac =
+            typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+        const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+        // 1. Undo / Redo Shortcuts (Cmd+Z / Cmd+Shift+Z / Cmd+Y)
+        if (modKey && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault();
+            if (e.shiftKey) {
+                redo();
+            } else {
+                undo();
+            }
+            return;
+        }
+        if (modKey && (e.key === 'y' || e.key === 'Y')) {
+            e.preventDefault();
+            redo();
+            return;
+        }
+
+        // 2. Formatting Shortcuts
+        if (modKey && (e.key === 'b' || e.key === 'B')) {
+            e.preventDefault();
+            insertOrWrap('**', '**', '강조할 내용');
+            return;
+        }
+        if (modKey && (e.key === 'i' || e.key === 'I')) {
+            e.preventDefault();
+            insertOrWrap('_', '_', '내용');
+            return;
+        }
+        if (modKey && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            insertOrWrap('[', '](https://)', '링크 이름');
+            return;
+        }
+        if (modKey && (e.key === 'e' || e.key === 'E')) {
+            e.preventDefault();
+            insertOrWrap('`', '`', 'code');
+            return;
+        }
+
+        // 3. Tab / Shift+Tab Handling (Indent / Outdent)
+        if (e.key === 'Tab' && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+
+            if (start !== end) {
+                // Multi-line selection: indent or outdent every line
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const lineEnd = value.indexOf('\n', end);
+                const actualEnd = lineEnd === -1 ? value.length : lineEnd;
+                const selectedText = value.slice(lineStart, actualEnd);
+                const lines = selectedText.split('\n');
+
+                if (e.shiftKey) {
+                    // Outdent
+                    const newLines = lines.map((line) => line.replace(/^ {1,2}/, ''));
+                    const nextSelectedText = newLines.join('\n');
+                    const nextValue = `${value.slice(0, lineStart)}${nextSelectedText}${value.slice(actualEnd)}`;
+                    recordHistory(nextValue, start, lineStart + nextSelectedText.length);
+                    requestAnimationFrame(() => {
+                        textarea.focus();
+                        textarea.setSelectionRange(start, lineStart + nextSelectedText.length);
+                    });
+                } else {
+                    // Indent
+                    const newLines = lines.map((line) => `  ${line}`);
+                    const nextSelectedText = newLines.join('\n');
+                    const nextValue = `${value.slice(0, lineStart)}${nextSelectedText}${value.slice(actualEnd)}`;
+                    recordHistory(nextValue, start + 2, lineStart + nextSelectedText.length);
+                    requestAnimationFrame(() => {
+                        textarea.focus();
+                        textarea.setSelectionRange(start + 2, lineStart + nextSelectedText.length);
+                    });
+                }
+            } else {
+                // Single cursor
+                if (e.shiftKey) {
+                    // Outdent 2 spaces if before cursor
+                    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                    const textBeforeCursor = value.slice(lineStart, start);
+                    if (textBeforeCursor.endsWith('  ')) {
+                        const nextValue = `${value.slice(0, start - 2)}${value.slice(start)}`;
+                        recordHistory(nextValue, start - 2, start - 2);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(start - 2, start - 2);
+                        });
+                    }
+                } else {
+                    // Insert 2 spaces
+                    const nextValue = `${value.slice(0, start)}  ${value.slice(end)}`;
+                    recordHistory(nextValue, start + 2, start + 2);
+                    requestAnimationFrame(() => {
+                        textarea.focus();
+                        textarea.setSelectionRange(start + 2, start + 2);
+                    });
+                }
+            }
+            return;
+        }
+
+        // 4. Smart Enter Key Handling (List continuation & Quote continuation)
+        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+
+            if (start === end) {
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const currentLine = value.slice(lineStart, start);
+
+                // Ordered list: e.g. "1. ", "  2. "
+                const olMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+                if (olMatch) {
+                    const [, indent, numStr, content] = olMatch;
+                    e.preventDefault();
+                    if (!content.trim()) {
+                        // Empty list item -> Exit list! Remove line prefix
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
+                        recordHistory(nextValue, lineStart, lineStart);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(lineStart, lineStart);
+                        });
+                    } else {
+                        // Continue list with next number
+                        const nextNum = parseInt(numStr, 10) + 1;
+                        const prefix = `\n${indent}${nextNum}. `;
+                        const nextValue = `${value.slice(0, start)}${prefix}${value.slice(end)}`;
+                        const newPos = start + prefix.length;
+                        recordHistory(nextValue, newPos, newPos);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(newPos, newPos);
+                        });
+                    }
+                    return;
+                }
+
+                // Unordered list: e.g. "- ", "* ", "+ "
+                const ulMatch = currentLine.match(/^(\s*)([-*+])\s+(.*)$/);
+                if (ulMatch) {
+                    const [, indent, bullet, content] = ulMatch;
+                    e.preventDefault();
+                    if (!content.trim()) {
+                        // Empty list item -> Exit list!
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
+                        recordHistory(nextValue, lineStart, lineStart);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(lineStart, lineStart);
+                        });
+                    } else {
+                        // Continue list
+                        const prefix = `\n${indent}${bullet} `;
+                        const nextValue = `${value.slice(0, start)}${prefix}${value.slice(end)}`;
+                        const newPos = start + prefix.length;
+                        recordHistory(nextValue, newPos, newPos);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(newPos, newPos);
+                        });
+                    }
+                    return;
+                }
+
+                // Blockquote: e.g. "> "
+                const quoteMatch = currentLine.match(/^(\s*)(>)\s+(.*)$/);
+                if (quoteMatch) {
+                    const [, indent, quoteSymbol, content] = quoteMatch;
+                    e.preventDefault();
+                    if (!content.trim()) {
+                        // Empty quote -> Exit quote
+                        const nextValue = `${value.slice(0, lineStart)}${value.slice(start)}`;
+                        recordHistory(nextValue, lineStart, lineStart);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(lineStart, lineStart);
+                        });
+                    } else {
+                        const prefix = `\n${indent}${quoteSymbol} `;
+                        const nextValue = `${value.slice(0, start)}${prefix}${value.slice(end)}`;
+                        const newPos = start + prefix.length;
+                        recordHistory(nextValue, newPos, newPos);
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(newPos, newPos);
+                        });
+                    }
+                    return;
+                }
+            }
+        }
+    };
+
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 px-3 py-2">
@@ -136,7 +444,7 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                         key={label}
                         type="button"
                         title={label}
-                        onClick={() => insert(before, after, placeholder)}
+                        onClick={() => insertOrWrap(before, after, placeholder)}
                         className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-white hover:text-slate-900 hover:shadow-sm"
                     >
                         <Icon className="h-4 w-4" />
@@ -175,7 +483,13 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                     ref={textareaRef}
                     required
                     value={value}
-                    onChange={(event) => onChange(event.target.value)}
+                    onChange={(event) => {
+                        const textarea = textareaRef.current;
+                        const selStart = textarea?.selectionStart ?? event.target.value.length;
+                        const selEnd = textarea?.selectionEnd ?? event.target.value.length;
+                        recordHistory(event.target.value, selStart, selEnd);
+                    }}
+                    onKeyDown={handleKeyDown}
                     spellCheck={false}
                     placeholder="# 학습 내용&#10;&#10;Markdown으로 기록해 보세요."
                     className="min-h-[140px] resize-none overflow-hidden border-0 bg-slate-950 p-5 font-mono text-sm leading-7 text-slate-100 outline-none lg:border-r lg:border-slate-200"
