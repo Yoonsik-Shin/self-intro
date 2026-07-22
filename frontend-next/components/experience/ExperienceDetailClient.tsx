@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import {
     ArrowLeft,
     ArrowUp,
@@ -14,8 +16,8 @@ import {
     Sparkles,
     Image as ImageIcon,
 } from 'lucide-react';
-import type { Experience, ExperienceDetail, Study } from '@/lib/api/types';
-import { markdownComponents } from '@/lib/markdown';
+import type { Experience, ExperienceDetail, Skill, Study } from '@/lib/api/types';
+import { markdownComponents, remarkKoreanEmphasis } from '@/lib/markdown';
 import { experienceOrgName, experienceTypeLabel, formatCredentialPeriod } from '@/lib/format';
 
 type Props = {
@@ -35,7 +37,16 @@ export function ExperienceDetailClient({
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-    const skills = detail.skills.length > 0 ? detail.skills : experience.skills;
+    const skills = useMemo(() => {
+        const map = new Map<number, Skill>();
+        (experience.skills || []).forEach((s) => map.set(s.id, s));
+        (experience.details || []).forEach((d) => {
+            (d.skills || []).forEach((s) => map.set(s.id, s));
+        });
+        return Array.from(map.values()).sort(
+            (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+        );
+    }, [experience]);
     const siblingDetails = experience.details.filter((d) => d.id !== detail.id);
 
     return (
@@ -59,28 +70,15 @@ export function ExperienceDetailClient({
             >
                 <div className="min-w-0 space-y-8">
                     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
-                        <div className="mb-8 border-b border-slate-100 pb-6">
-                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500">
-                                <div className="flex items-center gap-2">
-                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">
-                                        {experienceTypeLabel(experience.type)}
-                                    </span>
-                                    <span className="font-mono">
-                                        {formatCredentialPeriod(experience)}
-                                    </span>
-                                </div>
-                                {experience.repositoryUrl && (
-                                    <a
-                                        href={experience.repositoryUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 shadow-sm"
-                                    >
-                                        <Github className="h-4 w-4" />
-                                        GitHub 저장소
-                                        <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
-                                    </a>
-                                )}
+                        {/* Header Section */}
+                        <div className="mb-6 border-b border-slate-100 pb-6">
+                            <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-500">
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">
+                                    {experienceTypeLabel(experience.type)}
+                                </span>
+                                <span className="font-mono">
+                                    {formatCredentialPeriod(experience)}
+                                </span>
                             </div>
                             <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
                                 {experience.title}
@@ -90,25 +88,104 @@ export function ExperienceDetailClient({
                                     ? `${experienceOrgName(experience)} · `
                                     : ''}
                                 {experience.role ||
-                                    (experience.type === 'PROJECT' ? 'Project' : experience.title)}
+                                    (experience.type === 'PROJECT' ? '프로젝트' : experience.title)}
                             </p>
-                        </div>
 
-                        {/* Main Overview / Summary */}
-                        {experience.summary && (
-                            <div className="mb-6 rounded-xl bg-slate-50 p-5 text-sm font-medium text-slate-700 leading-relaxed sm:text-base border border-slate-100/80">
-                                {experience.summary}
-                            </div>
-                        )}
+                            {/* Main Overview / Summary */}
+                            {experience.summary && (
+                                <p className="mt-4 text-sm font-medium text-slate-700 leading-relaxed sm:text-base">
+                                    {experience.summary}
+                                </p>
+                            )}
+
+                            {/* Project Tech Stack, Tags, Repository (Top Section) */}
+                            {((skills && skills.length > 0) ||
+                                (experience.tags && experience.tags.length > 0) ||
+                                experience.repositoryUrl) && (
+                                <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-4">
+                                    {skills && skills.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">
+                                                기술스택:
+                                            </span>
+                                            {skills.map((skill: Skill) => (
+                                                <span
+                                                    key={skill.id}
+                                                    className="inline-flex items-center rounded-md border border-slate-200/80 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700"
+                                                >
+                                                    {skill.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {experience.tags && experience.tags.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">
+                                                태그:
+                                            </span>
+                                            {experience.tags.map((tag) => (
+                                                <span
+                                                    key={tag.id}
+                                                    className="inline-flex items-center text-xs font-extrabold text-indigo-600"
+                                                >
+                                                    #{tag.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {experience.repositoryUrl && (
+                                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">
+                                                저장소:
+                                            </span>
+                                            <a
+                                                href={experience.repositoryUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 shadow-2xs"
+                                            >
+                                                <Github className="h-4 w-4" />
+                                                GitHub 저장소
+                                                <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Key Achievements & Learnings (Top Section) */}
+                            {experience.takeaway && (
+                                <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
+                                    <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-indigo-900">
+                                        <Sparkles className="h-4 w-4 text-indigo-600" />
+                                        핵심 성과 & 배운 점
+                                    </h3>
+                                    <div className="markdown-body text-xs sm:text-sm font-normal leading-relaxed text-slate-800">
+                                        <ReactMarkdown
+                                            remarkPlugins={[
+                                                remarkGfm,
+                                                remarkBreaks,
+                                                remarkKoreanEmphasis,
+                                            ]}
+                                            components={markdownComponents}
+                                        >
+                                            {experience.takeaway}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Top-Level Experience Details List */}
                         {experience.details && experience.details.length > 0 && (
-                            <div className="space-y-5 border-t border-slate-100 pt-6">
-                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                            <div className="space-y-6 pt-2">
+                                <h3 className="text-base font-black tracking-tight text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
                                     <span>📌</span> 주요 세부 성과 및 구현 경험 (
                                     {experience.details.length}개)
                                 </h3>
-                                <div className="space-y-4">
+                                <div className="divide-y divide-slate-100 space-y-6">
                                     {experience.details.map((d, index) => {
                                         const detailText =
                                             d.narrative ||
@@ -118,10 +195,10 @@ export function ExperienceDetailClient({
                                         return (
                                             <div
                                                 key={d.id}
-                                                className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-2xs space-y-3"
+                                                className={`${index > 0 ? 'pt-6' : ''} space-y-3`}
                                             >
                                                 <div className="flex items-start gap-2.5">
-                                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-600">
+                                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white mt-0.5">
                                                         {index + 1}
                                                     </span>
                                                     <h4 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
@@ -130,8 +207,13 @@ export function ExperienceDetailClient({
                                                 </div>
 
                                                 {detailText && (
-                                                    <div className="pl-7 text-xs sm:text-sm leading-relaxed text-slate-600 space-y-2 border-l-2 border-slate-100 mt-2">
+                                                    <div className="markdown-body pl-7 text-xs sm:text-sm leading-relaxed text-slate-700 space-y-2 mt-1">
                                                         <ReactMarkdown
+                                                            remarkPlugins={[
+                                                                remarkGfm,
+                                                                remarkBreaks,
+                                                                remarkKoreanEmphasis,
+                                                            ]}
                                                             components={markdownComponents}
                                                         >
                                                             {detailText}
@@ -144,13 +226,54 @@ export function ExperienceDetailClient({
                                                         {d.skills.map((s) => (
                                                             <span
                                                                 key={s.id}
-                                                                className="rounded-md border border-slate-200/80 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-600"
+                                                                className="rounded-md border border-slate-200/60 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-600"
                                                             >
                                                                 {s.name}
                                                             </span>
                                                         ))}
                                                     </div>
                                                 )}
+
+                                                {/* Linked Study Notes for this specific Detail (Single Group Header + Bulleted Links) */}
+                                                {relatedStudies.length > 0 &&
+                                                    (() => {
+                                                        const linkedStudies = relatedStudies.filter(
+                                                            (study) =>
+                                                                study.experienceDetails?.some(
+                                                                    (ed) => ed.id === d.id
+                                                                )
+                                                        );
+                                                        if (linkedStudies.length === 0) return null;
+                                                        return (
+                                                            <div className="pl-7 pt-2 space-y-1.5">
+                                                                <div className="text-xs font-extrabold text-indigo-700 flex items-center gap-1.5">
+                                                                    <span>📖</span> 연관 학습 아티클
+                                                                    ({linkedStudies.length}개)
+                                                                </div>
+                                                                <ul className="space-y-1 pl-1 text-xs">
+                                                                    {linkedStudies.map((s) => (
+                                                                        <li
+                                                                            key={s.id}
+                                                                            className="flex items-center gap-1.5"
+                                                                        >
+                                                                            <span className="text-indigo-400 font-bold">
+                                                                                •
+                                                                            </span>
+                                                                            <Link
+                                                                                href={`/study/${encodeURIComponent(s.slug)}`}
+                                                                                className="font-semibold text-slate-700 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 transition"
+                                                                            >
+                                                                                <span>
+                                                                                    {s.title}
+                                                                                </span>
+                                                                                <ChevronRight className="h-3 w-3 text-indigo-500" />
+                                                                            </Link>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        );
+                                                    })()}
                                             </div>
                                         );
                                     })}
@@ -215,8 +338,13 @@ export function ExperienceDetailClient({
                                                                 {d.narrative ||
                                                                 d.outcome ||
                                                                 d.situation ? (
-                                                                    <div className="text-slate-600 pl-3 border-l-2 border-slate-200 mt-1">
+                                                                    <div className="markdown-body text-slate-600 pl-3 mt-1">
                                                                         <ReactMarkdown
+                                                                            remarkPlugins={[
+                                                                                remarkGfm,
+                                                                                remarkBreaks,
+                                                                                remarkKoreanEmphasis,
+                                                                            ]}
                                                                             components={
                                                                                 markdownComponents
                                                                             }
@@ -280,33 +408,6 @@ export function ExperienceDetailClient({
                                 </div>
                             </div>
                         )}
-
-                        {/* Key Takeaways */}
-                        {experience.takeaway && (
-                            <div className="mt-8 rounded-xl border border-emerald-100 bg-emerald-50/40 p-5">
-                                <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-800 mb-1.5">
-                                    <Sparkles className="h-4 w-4 text-emerald-600" />
-                                    핵심 성과 & 배운 점 (Takeaway)
-                                </h3>
-                                <div className="text-xs sm:text-sm font-medium leading-relaxed text-emerald-950">
-                                    <ReactMarkdown components={markdownComponents}>
-                                        {experience.takeaway}
-                                    </ReactMarkdown>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Skills & Tags */}
-                        <div className="mt-8 flex flex-wrap gap-1.5 border-t border-slate-100 pt-6">
-                            {skills.map((skill) => (
-                                <span
-                                    key={skill.id}
-                                    className="resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2.5 py-1 rounded-md shadow-sm text-xs"
-                                >
-                                    {skill.name}
-                                </span>
-                            ))}
-                        </div>
                     </article>
                 </div>
 
@@ -388,7 +489,7 @@ export function ExperienceDetailClient({
                                         {siblingDetails.map((sibling) => (
                                             <Link
                                                 key={sibling.id}
-                                                href={`/experience-detail/${sibling.id}`}
+                                                href={`/experience/${experience.id}/experience-detail/${sibling.id}`}
                                                 className="block w-full truncate text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950"
                                                 title={sibling.content}
                                             >
