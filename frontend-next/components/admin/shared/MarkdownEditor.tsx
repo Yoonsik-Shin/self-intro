@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { createMarkdownComponents } from '@/lib/markdown';
 import { imageApi } from '@/lib/api';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 
 type Props = {
     value: string;
@@ -180,7 +182,12 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                 />
                 <article className="min-h-[140px] space-y-4 overflow-auto p-5 text-sm text-slate-700">
                     {value ? (
-                        <ReactMarkdown components={editorMarkdownComponents}>{value}</ReactMarkdown>
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                            components={editorMarkdownComponents}
+                        >
+                            {value}
+                        </ReactMarkdown>
                     ) : (
                         <p className="text-slate-400">작성한 Markdown이 여기에 표시됩니다.</p>
                     )}

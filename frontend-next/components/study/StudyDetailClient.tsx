@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Study } from '@/lib/api/types';
 import { markdownComponents } from '@/lib/markdown';
@@ -73,9 +75,43 @@ export function StudyDetailClient({ study }: Props) {
                                     </span>
                                 ))}
                             </div>
+
+                            {/* Applied ExperienceDetails Banner */}
+                            {study.experienceDetails && study.experienceDetails.length > 0 && (
+                                <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-2">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-blue-800 flex items-center gap-1.5">
+                                        <span>💼</span> 이 기술 공부가 적용된 실무 성과 (Experience
+                                        Detail)
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {study.experienceDetails.map((detail) => (
+                                            <Link
+                                                key={detail.id}
+                                                href={
+                                                    detail.experienceId
+                                                        ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
+                                                        : `/experience-detail/${detail.id}`
+                                                }
+                                                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-950 transition hover:border-blue-400 hover:bg-blue-50 shadow-2xs"
+                                            >
+                                                {detail.experienceTitle && (
+                                                    <span className="text-blue-600 font-extrabold font-mono">
+                                                        [{detail.experienceTitle}]
+                                                    </span>
+                                                )}
+                                                <span>{detail.content}</span>
+                                                <ChevronRight className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="space-y-4 text-sm leading-relaxed text-slate-700 sm:text-base">
-                            <ReactMarkdown components={markdownComponents}>
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm, remarkBreaks]}
+                                components={markdownComponents}
+                            >
                                 {study.contentMarkdown}
                             </ReactMarkdown>
                         </div>
@@ -153,7 +189,11 @@ export function StudyDetailClient({ study }: Props) {
                                         {study.experienceDetails.map((detail) => (
                                             <Link
                                                 key={detail.id}
-                                                href={`/experience-detail/${detail.id}`}
+                                                href={
+                                                    detail.experienceId
+                                                        ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
+                                                        : `/experience-detail/${detail.id}`
+                                                }
                                                 className="flex w-full items-start gap-1 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950"
                                             >
                                                 <span className="mt-0.5 shrink-0 font-bold text-slate-400">
