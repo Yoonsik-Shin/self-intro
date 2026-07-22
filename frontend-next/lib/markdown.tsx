@@ -22,12 +22,12 @@ const baseMarkdownComponents: Components = {
         <p className="mb-3.5 text-sm sm:text-base leading-relaxed text-slate-700">{children}</p>
     ),
     ul: ({ children }) => (
-        <ul className="list-disc pl-5 my-3.5 space-y-1.5 text-sm sm:text-base leading-relaxed text-slate-700">
+        <ul className="list-disc list-outside pl-6 my-3.5 space-y-1.5 text-sm sm:text-base leading-relaxed text-slate-700">
             {children}
         </ul>
     ),
     ol: ({ children }) => (
-        <ol className="list-decimal pl-5 my-3.5 space-y-1.5 text-sm sm:text-base leading-relaxed text-slate-700">
+        <ol className="list-decimal list-outside pl-6 my-3.5 space-y-1.5 text-sm sm:text-base leading-relaxed text-slate-700">
             {children}
         </ol>
     ),
