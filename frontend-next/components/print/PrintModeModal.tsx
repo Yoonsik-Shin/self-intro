@@ -14,7 +14,7 @@ import {
     Pencil,
 } from 'lucide-react';
 import { printTemplateApi } from '@/lib/api';
-import type { PrintTemplate } from '@/lib/api/types';
+import type { PrintTemplate, PrintTemplateContentOverrides } from '@/lib/api/types';
 import {
     getLocalSaves,
     removeLocal,
@@ -27,6 +27,8 @@ type PrintSettings = {
     sectionOrder: string[];
     sectionGaps: Record<string, number>;
     forcedPageOverrides?: Record<string, number>;
+    contentOverrides?: PrintTemplateContentOverrides;
+    selectedTemplate?: PrintTemplate;
 };
 
 type PrintModeModalProps = {
@@ -84,6 +86,8 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
                 __forcedPageOverrides && typeof __forcedPageOverrides === 'object'
                     ? (__forcedPageOverrides as Record<string, number>)
                     : {},
+            contentOverrides: t.contentOverrides || {},
+            selectedTemplate: t,
         });
     };
 
@@ -93,6 +97,7 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
             sectionOrder: s.sectionOrder || [],
             sectionGaps: s.sectionGaps || {},
             forcedPageOverrides: s.forcedPageOverrides || {},
+            contentOverrides: {},
         });
     };
 
@@ -231,9 +236,23 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
                                                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100">
                                                             <FileText className="h-4.5 w-4.5" />
                                                         </div>
-                                                        <span className="truncate text-sm font-bold text-slate-800 group-hover:text-blue-700">
-                                                            {t.name}
-                                                        </span>
+                                                        <div className="min-w-0">
+                                                            <span className="block truncate text-sm font-bold text-slate-800 group-hover:text-blue-700">
+                                                                {t.name}
+                                                            </span>
+                                                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                                                <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-bold text-slate-500">
+                                                                    {t.targetRole || 'GENERAL'}
+                                                                </span>
+                                                                {t.contentOverrides &&
+                                                                    Object.keys(t.contentOverrides)
+                                                                        .length > 0 && (
+                                                                        <span className="rounded bg-blue-100/70 px-1.5 py-0.2 text-[10px] font-black text-blue-700">
+                                                                            맞춤 문구
+                                                                        </span>
+                                                                    )}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <ChevronRight className="h-4.5 w-4.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
                                                 </button>

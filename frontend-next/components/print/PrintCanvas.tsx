@@ -12,7 +12,11 @@ import {
     MoveVertical,
     Sparkles,
 } from 'lucide-react';
-import type { IntroductionResponse } from '@/lib/api/types';
+import type {
+    IntroductionResponse,
+    PrintTemplate,
+    PrintTemplateContentOverrides,
+} from '@/lib/api/types';
 import {
     buildCareerCards,
     buildMilestones,
@@ -28,6 +32,11 @@ import {
     reorderablePrintSections,
 } from '@/lib/printSections';
 import { generateUniqueLocalName, getLocalSaves, saveLocal } from '@/lib/printTemplateLocal';
+import {
+    applyPrintTemplateContent,
+    getPrintContentFingerprint,
+    sanitizePrintTemplate,
+} from '@/lib/printTemplateContent';
 import { usePrintStore } from '@/store/usePrintStore';
 import { PdfPageLayer } from './PdfPageLayer';
 import { PrintPreviewBar } from './PrintPreviewBar';
@@ -39,6 +48,8 @@ import { SaveServerTemplateModal } from './SaveServerTemplateModal';
 type Props = {
     introData: IntroductionResponse;
     onExit: () => void;
+    adminMode?: boolean;
+    initialTemplate?: PrintTemplate | null;
 };
 
 function renderDetailFields(detail: {
@@ -58,26 +69,71 @@ function renderDetailFields(detail: {
     );
 }
 
-export function PrintCanvas({ introData, onExit }: Props) {
+export function PrintCanvas({
+    introData,
+    onExit,
+    adminMode = false,
+    initialTemplate = null,
+}: Props) {
     const store = usePrintStore();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const printLayoutFrozenRef = useRef(false);
     const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
-    const [modeModalOpen, setModeModalOpen] = useState(() => !store.printModeResolved);
+    const [modeModalOpen, setModeModalOpen] = useState(
+        () => !store.printModeResolved && !initialTemplate
+    );
+    const [activeTemplate, setActiveTemplate] = useState<PrintTemplate | null>(initialTemplate);
+    const sanitizedInitialTemplate = useMemo(
+        () => (initialTemplate ? sanitizePrintTemplate(initialTemplate, introData) : null),
+        [initialTemplate, introData]
+    );
+    const [contentOverrides, setContentOverrides] = useState<PrintTemplateContentOverrides>(
+        () => sanitizedInitialTemplate?.contentOverrides ?? {}
+    );
+    const resolvedIntroData = useMemo(
+        () => applyPrintTemplateContent(introData, contentOverrides),
+        [introData, contentOverrides]
+    );
 
-    const profile = introData.profile;
-    const careerSummary = introData.careerSummary;
-    const groupedCoreSkills = useMemo(() => groupCoreSkills(introData.skills), [introData]);
-    const orderedCareerCards = useMemo(() => buildCareerCards(introData.experiences), [introData]);
+    const profile = resolvedIntroData.profile;
+    const careerSummary = resolvedIntroData.careerSummary;
+    const groupedCoreSkills = useMemo(
+        () => groupCoreSkills(resolvedIntroData.skills),
+        [resolvedIntroData]
+    );
+    const orderedCareerCards = useMemo(
+        () => buildCareerCards(resolvedIntroData.experiences),
+        [resolvedIntroData]
+    );
     const orderedCompetencies = useMemo(
-        () => introData.competencies.filter((c) => c.visible),
-        [introData]
+        () => resolvedIntroData.competencies.filter((c) => c.visible),
+        [resolvedIntroData]
     );
-    const orderedMilestones = useMemo(() => buildMilestones(introData), [introData]);
+    const orderedMilestones = useMemo(
+        () => buildMilestones(resolvedIntroData),
+        [resolvedIntroData]
+    );
     const orderedCredentialExperiences = useMemo(
-        () => buildOrderedCredentials(introData.experiences),
-        [introData]
+        () => buildOrderedCredentials(resolvedIntroData.experiences),
+        [resolvedIntroData]
     );
+
+    useEffect(() => {
+        if (!sanitizedInitialTemplate) return;
+        const rawGaps = sanitizedInitialTemplate.sectionGaps as Record<string, unknown>;
+        const { __forcedPageOverrides, ...pureGaps } = rawGaps;
+        store.applyTemplate({
+            excludedIds: sanitizedInitialTemplate.excludedIds,
+            sectionOrder: sanitizedInitialTemplate.sectionOrder,
+            sectionGaps: pureGaps as Record<string, number>,
+            forcedPageOverrides:
+                __forcedPageOverrides && typeof __forcedPageOverrides === 'object'
+                    ? (__forcedPageOverrides as Record<string, number>)
+                    : {},
+        });
+        // 초기 템플릿은 이 컴포넌트가 마운트될 때 한 번만 적용한다.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sanitizedInitialTemplate?.id]);
 
     // 캔버스 마우스 휠 + Ctrl/Cmd로 줌 조절
     useEffect(() => {
@@ -624,6 +680,11 @@ export function PrintCanvas({ introData, onExit }: Props) {
                                 <p className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs leading-relaxed">
                                     {profile.bio}
                                 </p>
+                                {profile.coreStackSummary && (
+                                    <p className="resume-meta mt-2 text-[10px] font-bold text-slate-500">
+                                        핵심 기술 · {profile.coreStackSummary}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1158,7 +1219,7 @@ export function PrintCanvas({ introData, onExit }: Props) {
                         });
                         alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
                     }}
-                    onSaveServer={undefined}
+                    onSaveServer={adminMode ? () => setSaveTemplateModalOpen(true) : undefined}
                     onPrint={handlePrintConfirm}
                     onCancel={onExit}
                     zoom={store.zoom}
@@ -1262,23 +1323,32 @@ export function PrintCanvas({ introData, onExit }: Props) {
                 onClose={() => setModeModalOpen(false)}
                 onManual={() => {
                     store.resetManual();
+                    setActiveTemplate(null);
+                    setContentOverrides({});
                     setModeModalOpen(false);
                 }}
                 onApplyTemplate={(settings) => {
                     store.applyTemplate(settings);
+                    setActiveTemplate(settings.selectedTemplate ?? null);
+                    setContentOverrides(settings.contentOverrides ?? {});
                     setModeModalOpen(false);
                 }}
             />
 
             <SaveServerTemplateModal
+                key={`${activeTemplate?.id ?? 'new'}-${saveTemplateModalOpen ? 'open' : 'closed'}`}
                 open={saveTemplateModalOpen}
                 onClose={() => setSaveTemplateModalOpen(false)}
                 currentSettings={{
                     excludedIds: store.printExcludedIds,
                     sectionOrder: store.printSectionOrder,
                     sectionGaps: store.sectionGaps,
+                    forcedPageOverrides: store.forcedPageOverrides,
+                    targetRole: activeTemplate?.targetRole ?? 'GENERAL',
+                    contentOverrides,
+                    baseContentFingerprint: getPrintContentFingerprint(introData),
                 }}
-                editingTemplate={null}
+                editingTemplate={activeTemplate}
             />
         </>
     );
