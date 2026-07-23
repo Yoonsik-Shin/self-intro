@@ -52,16 +52,46 @@ type Props = {
     initialTemplate?: PrintTemplate | null;
 };
 
-function renderDetailFields(detail: {
-    narrative?: string;
-    situation?: string;
-    actionDetail?: string;
-    outcome?: string;
-}) {
+function renderDetailFields(
+    detail: {
+        id?: number;
+        narrative?: string;
+        situation?: string;
+        actionDetail?: string;
+        outcome?: string;
+    },
+    inlineEditMode: boolean,
+    origNarrative: string,
+    onNarrativeChange: (val: string | undefined) => void,
+    renderInlineTextHelper: (opts: {
+        value: string;
+        baseValue: string;
+        multiline?: boolean;
+        textClassName?: string;
+        placeholder?: string;
+        onChange: (newValue: string | undefined) => void;
+    }) => React.ReactNode
+) {
     const merged =
         detail.narrative ||
         [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
-    if (!merged) return null;
+    if (!merged && !inlineEditMode) return null;
+
+    if (inlineEditMode) {
+        return (
+            <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
+                {renderInlineTextHelper({
+                    value: detail.narrative ?? merged ?? '',
+                    baseValue: origNarrative,
+                    multiline: true,
+                    textClassName: 'text-[12px] leading-relaxed text-slate-600',
+                    placeholder: '상세 성과 및 기술적 설명을 입력하세요',
+                    onChange: onNarrativeChange,
+                })}
+            </div>
+        );
+    }
+
     return (
         <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
             <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
@@ -79,6 +109,7 @@ export function PrintCanvas({
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const printLayoutFrozenRef = useRef(false);
     const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
+    const [inlineEditMode, setInlineEditMode] = useState(false);
     const [modeModalOpen, setModeModalOpen] = useState(
         () => !store.printModeResolved && !initialTemplate
     );
@@ -94,6 +125,116 @@ export function PrintCanvas({
         () => applyPrintTemplateContent(introData, contentOverrides),
         [introData, contentOverrides]
     );
+
+    const setProfileOverride = (
+        field: 'jobTitle' | 'bio' | 'coreStackSummary',
+        val: string | undefined
+    ) => {
+        setContentOverrides((current) => {
+            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+            const prof = { ...(next.profile ?? {}) };
+            const baseVal = introData.profile?.[field] ?? '';
+            if (val === undefined || val.trim() === baseVal.trim()) delete prof[field];
+            else prof[field] = val;
+            next.profile = Object.keys(prof).length > 0 ? prof : undefined;
+            return next;
+        });
+    };
+
+    const setExperienceOverride = (
+        expId: number,
+        field: 'title' | 'summary' | 'role' | 'takeaway',
+        val: string | undefined,
+        baseVal: string
+    ) => {
+        setContentOverrides((current) => {
+            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+            const expMap = { ...(next.experiences ?? {}) };
+            const fields = { ...(expMap[String(expId)] ?? {}) };
+            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+            else fields[field] = val;
+            if (Object.keys(fields).length > 0) expMap[String(expId)] = fields;
+            else delete expMap[String(expId)];
+            next.experiences = Object.keys(expMap).length > 0 ? expMap : undefined;
+            return next;
+        });
+    };
+
+    const setDetailOverride = (
+        detailId: number,
+        field: 'content' | 'narrative',
+        val: string | undefined,
+        baseVal: string
+    ) => {
+        setContentOverrides((current) => {
+            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+            const detailMap = { ...(next.details ?? {}) };
+            const fields = { ...(detailMap[String(detailId)] ?? {}) };
+            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+            else fields[field] = val;
+            if (Object.keys(fields).length > 0) detailMap[String(detailId)] = fields;
+            else delete detailMap[String(detailId)];
+            next.details = Object.keys(detailMap).length > 0 ? detailMap : undefined;
+            return next;
+        });
+    };
+
+    const renderInlineText = ({
+        value,
+        baseValue,
+        multiline = false,
+        textClassName = '',
+        placeholder = '',
+        onChange,
+    }: {
+        value: string;
+        baseValue: string;
+        multiline?: boolean;
+        textClassName?: string;
+        placeholder?: string;
+        onChange: (newValue: string | undefined) => void;
+    }) => {
+        const isOverridden = value !== baseValue;
+
+        if (!inlineEditMode) {
+            return <span className={textClassName}>{value}</span>;
+        }
+
+        return (
+            <span className="group/edit relative inline-block w-full max-w-full my-0.5">
+                {multiline ? (
+                    <textarea
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder={placeholder}
+                        rows={2}
+                        className={`w-full resize-y rounded border-2 border-blue-400 bg-blue-50/70 p-1.5 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                    />
+                ) : (
+                    <input
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder={placeholder}
+                        className={`w-full rounded border-2 border-blue-400 bg-blue-50/70 px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                    />
+                )}
+                {isOverridden && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onChange(undefined);
+                        }}
+                        className="absolute -top-3.5 right-1 z-30 inline-flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-xs hover:bg-amber-600 transition print:hidden"
+                        title={`최신 DB 원본 문구로 복원: "${baseValue}"`}
+                    >
+                        DB 원본 복원
+                    </button>
+                )}
+            </span>
+        );
+    };
 
     const profile = resolvedIntroData.profile;
     const careerSummary = resolvedIntroData.careerSummary;
@@ -646,6 +787,7 @@ export function PrintCanvas({
         switch (atom.type) {
             case 'intro-profile':
                 if (!profile) return null;
+                const origProfile = introData.profile;
                 return (
                     <div
                         id="intro-profile"
@@ -656,9 +798,16 @@ export function PrintCanvas({
                         {renderSectionControls('intro-profile')}
                         <div className="relative z-10 space-y-4">
                             <div className="resume-profile-toprow flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-slate-100 pb-3">
-                                <div className="space-y-1 shrink-0">
+                                <div className="space-y-1 shrink-0 min-w-0 flex-1">
                                     <h2 className="resume-profile-role font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 whitespace-nowrap text-sm">
-                                        {profile.jobTitle}
+                                        {renderInlineText({
+                                            value: profile.jobTitle,
+                                            baseValue: origProfile?.jobTitle ?? '',
+                                            textClassName:
+                                                'font-black tracking-tight text-slate-900 text-sm',
+                                            placeholder: '직무명을 입력하세요',
+                                            onChange: (val) => setProfileOverride('jobTitle', val),
+                                        })}
                                     </h2>
                                     <div className="flex items-baseline gap-2 whitespace-nowrap">
                                         <h1 className="resume-profile-name font-black text-slate-900 whitespace-nowrap text-lg sm:text-xl">
@@ -677,13 +826,28 @@ export function PrintCanvas({
                                 <span>unbrdn.me</span>
                             </div>
                             <div>
-                                <p className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs leading-relaxed">
-                                    {profile.bio}
-                                </p>
+                                <div className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs leading-relaxed">
+                                    {renderInlineText({
+                                        value: profile.bio,
+                                        baseValue: origProfile?.bio ?? '',
+                                        multiline: true,
+                                        textClassName: 'text-slate-600 text-xs leading-relaxed',
+                                        placeholder: '자기소개 및 소개 문구를 입력하세요',
+                                        onChange: (val) => setProfileOverride('bio', val),
+                                    })}
+                                </div>
                                 {profile.coreStackSummary && (
-                                    <p className="resume-meta mt-2 text-[10px] font-bold text-slate-500">
-                                        핵심 기술 · {profile.coreStackSummary}
-                                    </p>
+                                    <div className="resume-meta mt-2 text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                        <span>핵심 기술 ·</span>
+                                        {renderInlineText({
+                                            value: profile.coreStackSummary,
+                                            baseValue: origProfile?.coreStackSummary ?? '',
+                                            textClassName: 'text-[10px] font-bold text-slate-500',
+                                            placeholder: '핵심 기술 요약을 입력하세요',
+                                            onChange: (val) =>
+                                                setProfileOverride('coreStackSummary', val),
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -927,6 +1091,17 @@ export function PrintCanvas({
                 const itemId = `career-detail:${detail.id}`;
                 const isFirst = p.details[0]?.id === detail.id;
 
+                const origDetail = introData.experiences
+                    .flatMap((e) => e.details)
+                    .find((d) => d?.id === detail.id);
+                const origContent = origDetail?.content ?? detail.content;
+                const origNarrative =
+                    origDetail?.narrative ||
+                    [origDetail?.situation, origDetail?.actionDetail, origDetail?.outcome]
+                        .filter(Boolean)
+                        .join('\n\n') ||
+                    '';
+
                 return (
                     <Fragment key={atom.id}>
                         {renderItemGap(itemId, 'career')}
@@ -943,10 +1118,25 @@ export function PrintCanvas({
                                     </h4>
                                 </div>
                             )}
-                            <span className="font-bold text-slate-900 block text-xs">
-                                • {detail.content}
-                            </span>
-                            {renderDetailFields(detail)}
+                            <div className="flex items-start gap-1 font-bold text-slate-900 text-xs">
+                                <span className="shrink-0">•</span>
+                                {renderInlineText({
+                                    value: detail.content,
+                                    baseValue: origContent,
+                                    textClassName: 'font-bold text-slate-900 text-xs',
+                                    placeholder: '상세 성과 제목을 입력하세요',
+                                    onChange: (val) =>
+                                        setDetailOverride(detail.id, 'content', val, origContent),
+                                })}
+                            </div>
+                            {renderDetailFields(
+                                detail,
+                                inlineEditMode,
+                                origNarrative,
+                                (val) =>
+                                    setDetailOverride(detail.id, 'narrative', val, origNarrative),
+                                renderInlineText
+                            )}
                         </div>
                     </Fragment>
                 );
@@ -1000,18 +1190,6 @@ export function PrintCanvas({
                                 <p className="mt-1 text-xs text-slate-600 leading-relaxed">
                                     {cred.summary}
                                 </p>
-                            )}
-                            {kind === '교육' && cred.skills && cred.skills.length > 0 && (
-                                <div className="mt-1.5 flex flex-wrap gap-1">
-                                    {cred.skills.map((s) => (
-                                        <span
-                                            key={s.id}
-                                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60"
-                                        >
-                                            {s.name}
-                                        </span>
-                                    ))}
-                                </div>
                             )}
                         </article>
                     </Fragment>
@@ -1089,6 +1267,17 @@ export function PrintCanvas({
                 const itemId = `project-detail:${detail.id}`;
                 const isFirst = m.details[0]?.id === detail.id;
 
+                const origDetail = introData.experiences
+                    .flatMap((e) => e.details)
+                    .find((d) => d?.id === detail.id);
+                const origContent = origDetail?.content ?? detail.content;
+                const origNarrative =
+                    origDetail?.narrative ||
+                    [origDetail?.situation, origDetail?.actionDetail, origDetail?.outcome]
+                        .filter(Boolean)
+                        .join('\n\n') ||
+                    '';
+
                 return (
                     <Fragment key={atom.id}>
                         {renderItemGap(itemId, 'projects')}
@@ -1105,10 +1294,25 @@ export function PrintCanvas({
                                     </h4>
                                 </div>
                             )}
-                            <span className="font-bold text-slate-900 block text-xs">
-                                • {detail.content}
-                            </span>
-                            {renderDetailFields(detail)}
+                            <div className="flex items-start gap-1 font-bold text-slate-900 text-xs">
+                                <span className="shrink-0">•</span>
+                                {renderInlineText({
+                                    value: detail.content,
+                                    baseValue: origContent,
+                                    textClassName: 'font-bold text-slate-900 text-xs',
+                                    placeholder: '상세 성과 제목을 입력하세요',
+                                    onChange: (val) =>
+                                        setDetailOverride(detail.id, 'content', val, origContent),
+                                })}
+                            </div>
+                            {renderDetailFields(
+                                detail,
+                                inlineEditMode,
+                                origNarrative,
+                                (val) =>
+                                    setDetailOverride(detail.id, 'narrative', val, origNarrative),
+                                renderInlineText
+                            )}
                         </div>
                     </Fragment>
                 );
@@ -1227,6 +1431,8 @@ export function PrintCanvas({
                     onZoomFit={handleZoomFit}
                     hideGuides={store.hidePrintGuides}
                     onToggleHideGuides={store.toggleHidePrintGuides}
+                    inlineEditMode={inlineEditMode}
+                    onToggleInlineEditMode={() => setInlineEditMode(!inlineEditMode)}
                 />
 
                 <div className="flex-1 min-h-0 flex">
@@ -1234,6 +1440,16 @@ export function PrintCanvas({
                         ref={canvasRef}
                         className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
                     >
+                        {inlineEditMode && (
+                            <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-blue-400/80 bg-slate-900/90 px-4 py-2.5 text-xs font-bold text-white shadow-xl backdrop-blur-md print:hidden">
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-blue-400 animate-pulse" />
+                                <span>
+                                    ✍️ 인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리
+                                    텍스트를 클릭하여 맞춤 문구를 직접 수정하세요. 상단
+                                    &apos;템플릿으로 저장&apos; 클릭 시 함께 저장됩니다.
+                                </span>
+                            </div>
+                        )}
                         <div
                             className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
                             style={{ zoom: store.zoom }}

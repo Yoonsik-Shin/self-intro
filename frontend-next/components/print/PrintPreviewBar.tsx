@@ -1,6 +1,6 @@
 'use client';
 
-import { Eye, EyeOff, ListChecks, Printer, Save, X } from 'lucide-react';
+import { Eye, EyeOff, FileEdit, ListChecks, Printer, Save, X } from 'lucide-react';
 
 type PrintPreviewBarProps = {
     excludedCount: number;
@@ -17,6 +17,8 @@ type PrintPreviewBarProps = {
     onZoomFit: () => void;
     hideGuides?: boolean;
     onToggleHideGuides?: () => void;
+    inlineEditMode?: boolean;
+    onToggleInlineEditMode?: () => void;
 };
 
 /** 단일 고정 상단 툴바 (양쪽 상단 둥글기 rounded-t-2xl 대칭 균형 완벽 적용) */
@@ -35,6 +37,8 @@ export function PrintPreviewBar({
     onZoomFit,
     hideGuides = false,
     onToggleHideGuides,
+    inlineEditMode = false,
+    onToggleInlineEditMode,
 }: PrintPreviewBarProps) {
     const zoomControl = (
         <div className="flex items-center gap-1 bg-slate-800 border border-slate-700/60 rounded-xl px-1.5 py-1 text-white shrink-0">
@@ -83,6 +87,25 @@ export function PrintPreviewBar({
 
             <div className="flex items-center gap-2 shrink-0">
                 {zoomControl}
+                {onToggleInlineEditMode && (
+                    <button
+                        onClick={onToggleInlineEditMode}
+                        aria-pressed={inlineEditMode}
+                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                            inlineEditMode
+                                ? 'border-blue-400 bg-blue-600 text-white shadow-sm ring-2 ring-blue-400/40'
+                                : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
+                        }`}
+                        title={
+                            inlineEditMode
+                                ? '인라인 문구 편집 끄기'
+                                : 'A4 종이 위에서 텍스트 직접 클릭하여 편집하기'
+                        }
+                    >
+                        <FileEdit className="h-3.5 w-3.5" />
+                        <span>{inlineEditMode ? '문구 편집 중' : '문구 인라인 편집'}</span>
+                    </button>
+                )}
                 {onToggleHideGuides && (
                     <button
                         onClick={onToggleHideGuides}
