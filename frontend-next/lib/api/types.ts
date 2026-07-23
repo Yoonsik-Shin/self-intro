@@ -320,11 +320,6 @@ export type RelatedExperience = Pick<Experience, 'id' | 'type' | 'title'> & {
 
 export type DonationStatus = 'PENDING' | 'PAID' | 'CANCELED' | 'FAILED';
 
-export type DonationCreateResponse = {
-    donationToken: string;
-    payUrl: string;
-};
-
 export type AdminDonation = {
     id: number;
     amount: number;

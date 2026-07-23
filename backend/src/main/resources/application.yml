@@ -71,17 +71,6 @@ app:
     experience:
       enabled: ${EXPERIENCE_AI_ENABLED:false}
   donation:
-    min-amount: ${DONATION_MIN_AMOUNT:1000}
-    max-amount: ${DONATION_MAX_AMOUNT:100000}
-    payapp:
-      api-url: ${PAYAPP_API_URL:https://api.payapp.kr/oapi/apiLoad.html}
-      user-id: ${PAYAPP_USER_ID:}
-      link-key: ${PAYAPP_LINK_KEY:}
-      link-value: ${PAYAPP_LINK_VALUE:}
-      recv-phone: ${PAYAPP_RECV_PHONE:}
-      # 페이앱 서버가 결제 상태를 통지하는 콜백 주소. 페이앱이 접근 가능한 공개 URL이어야 한다.
-      feedback-url: ${PAYAPP_FEEDBACK_URL:http://localhost:8080/api/donations/payapp/callback}
-      return-url: ${PAYAPP_RETURN_URL:http://localhost:8080/api/donations/complete}
     kofi:
       page-url: ${KOFI_PAGE_URL:https://ko-fi.com}
       verification-token: ${KOFI_VERIFICATION_TOKEN:}

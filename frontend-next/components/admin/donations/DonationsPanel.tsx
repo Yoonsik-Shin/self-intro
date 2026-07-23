@@ -49,32 +49,12 @@ export function DonationsPanel() {
         },
     });
 
-    const cancelDonationMutation = useMutation({
-        mutationFn: (id: number) => donationApi.adminCancel(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['donations', 'admin'] });
-            alert('환불 처리가 완료되었습니다.');
-        },
-        onError: (error) => {
-            alert(error instanceof ApiError ? error.message : '환불 처리에 실패했습니다.');
-        },
-    });
-
-    const handleCancelDonation = (id: number, amount: number) => {
-        if (!window.confirm(`${amount.toLocaleString()}원 후원을 환불(결제취소)하시겠습니까?`))
-            return;
-        cancelDonationMutation.mutate(id);
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
                     <h2 className="text-xl font-black text-slate-950">후원 내역</h2>
-                    <p className="mt-0.5 text-sm text-slate-500">
-                        페이앱 결제 기준 후원 내역입니다. 결제완료 건은 환불(전액취소)할 수
-                        있습니다.
-                    </p>
+                    <p className="mt-0.5 text-sm text-slate-500">Ko-fi 후원 내역입니다.</p>
                 </div>
                 <label className="flex cursor-pointer items-center gap-3">
                     <span className="text-sm font-bold text-slate-600">후원 버튼 노출</span>
@@ -137,7 +117,6 @@ export function DonationsPanel() {
                                 <th className="px-5 py-3 text-right font-bold">금액</th>
                                 <th className="px-5 py-3 font-bold">메시지</th>
                                 <th className="px-5 py-3 font-bold">상태</th>
-                                <th className="px-5 py-3 text-right font-bold">환불</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -191,27 +170,10 @@ export function DonationsPanel() {
                                                         : '대기'}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-3 text-right">
-                                            {donation.status === 'PAID' && (
-                                                <button
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        handleCancelDonation(
-                                                            donation.id,
-                                                            donation.amount
-                                                        );
-                                                    }}
-                                                    disabled={cancelDonationMutation.isPending}
-                                                    className="rounded-lg border border-rose-200 px-3 py-1 text-xs font-extrabold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    환불
-                                                </button>
-                                            )}
-                                        </td>
                                     </tr>
                                     {expandedDonationId === donation.id && (
                                         <tr>
-                                            <td colSpan={5} className="bg-slate-50 px-5 py-4">
+                                            <td colSpan={4} className="bg-slate-50 px-5 py-4">
                                                 {isDonationEventsLoading ? (
                                                     <p className="text-sm font-semibold text-slate-400">
                                                         이력을 불러오는 중입니다.
@@ -286,7 +248,7 @@ export function DonationsPanel() {
                                 (donationSummary?.donations ?? []).length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={4}
                                             className="px-5 py-10 text-center font-semibold text-slate-400"
                                         >
                                             아직 후원 내역이 없습니다.
@@ -296,7 +258,7 @@ export function DonationsPanel() {
                             {isDonationLoading && (
                                 <tr>
                                     <td
-                                        colSpan={5}
+                                        colSpan={4}
                                         className="px-5 py-10 text-center font-semibold text-slate-400"
                                     >
                                         후원 내역을 불러오는 중입니다.
