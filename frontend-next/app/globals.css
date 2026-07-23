@@ -421,7 +421,7 @@ html {
     .print-competency-row {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        grid-template-columns: 34% 66% !important;
+        grid-template-columns: minmax(0, 0.32fr) minmax(0, 0.68fr) !important;
     }
 
     .resume-career-item {
@@ -910,7 +910,7 @@ html {
 }
 
 .resume-page .print-competency-row {
-    grid-template-columns: 34% 66% !important;
+    grid-template-columns: minmax(0, 0.32fr) minmax(0, 0.68fr) !important;
 }
 
 .resume-page .print-competency-row .resume-item-title {

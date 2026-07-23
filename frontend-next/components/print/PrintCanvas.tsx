@@ -1118,7 +1118,7 @@ export function PrintCanvas({
                         {renderItemGap(itemId, 'competencies')}
                         <div data-print-el className="relative w-full">
                             {renderItemControls(itemId)}
-                            <article className="print-competency-row grid gap-3 py-3.5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6 print:grid-cols-[31%_69%] print:gap-4 print:py-3.5 border-b border-slate-100 last:border-b-0 w-full">
+                            <article className="print-competency-row grid gap-3 py-3.5 sm:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] sm:gap-6 print:grid-cols-[minmax(0,0.31fr)_minmax(0,0.69fr)] print:gap-4 print:py-3.5 border-b border-slate-100 last:border-b-0 w-full">
                                 <div className="min-w-0">
                                     <div className="flex items-baseline gap-2">
                                         <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400 text-xs">
