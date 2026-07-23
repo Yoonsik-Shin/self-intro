@@ -1579,21 +1579,22 @@ export function PrintCanvas({
                     onToggleInlineEditMode={() => setInlineEditMode(!inlineEditMode)}
                 />
 
+                {inlineEditMode && (
+                    <div className="bg-slate-950 border-b border-blue-500/40 px-4 py-2 text-xs font-bold text-blue-200 flex items-center justify-center gap-2 shadow-md print:hidden shrink-0 z-40">
+                        <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                        <span>
+                            ✍️ 인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리 텍스트를
+                            클릭하여 맞춤 문구를 직접 수정하세요. 상단 &apos;템플릿으로 저장&apos;
+                            클릭 시 함께 저장됩니다.
+                        </span>
+                    </div>
+                )}
+
                 <div className="flex-1 min-h-0 flex">
                     <div
                         ref={canvasRef}
                         className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
                     >
-                        {inlineEditMode && (
-                            <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-blue-400/80 bg-slate-900/90 px-4 py-2.5 text-xs font-bold text-white shadow-xl backdrop-blur-md print:hidden">
-                                <span className="h-2 w-2 shrink-0 rounded-full bg-blue-400 animate-pulse" />
-                                <span>
-                                    ✍️ 인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리
-                                    텍스트를 클릭하여 맞춤 문구를 직접 수정하세요. 상단
-                                    &apos;템플릿으로 저장&apos; 클릭 시 함께 저장됩니다.
-                                </span>
-                            </div>
-                        )}
                         <div
                             className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
                             style={{ zoom: store.zoom }}
