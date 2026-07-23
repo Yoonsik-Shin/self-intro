@@ -1166,15 +1166,15 @@ export function PrintCanvas({
                                                     e.stopPropagation();
                                                     toggleSkillSelection(skill.id);
                                                 }}
-                                                className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-black transition cursor-pointer print:hidden ${
+                                                className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-black transition cursor-pointer print:hidden ${
                                                     isSelected
-                                                        ? 'border-blue-400 bg-blue-50/90 text-blue-950 shadow-xs ring-2 ring-blue-300/60 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-900'
-                                                        : 'border-dashed border-slate-300 bg-slate-100/60 text-slate-400 line-through opacity-70 hover:border-blue-400 hover:text-blue-600 hover:opacity-100'
+                                                        ? 'border-blue-400 bg-blue-50/60 text-slate-900 outline-1 outline-blue-400 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-900'
+                                                        : 'border-dashed border-slate-300 bg-slate-100/60 text-slate-400 line-through opacity-70 hover:border-blue-400 hover:text-blue-600'
                                                 }`}
                                                 title={
                                                     isSelected
-                                                        ? `'${skill.name}' 템플릿에서 삭제/제외하기 (클릭)`
-                                                        : `'${skill.name}' 템플릿에 추가/포함하기 (클릭)`
+                                                        ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
+                                                        : `'${skill.name}' 템플릿에 포함하기 (클릭)`
                                                 }
                                             >
                                                 <span>{skill.name}</span>
@@ -1182,40 +1182,16 @@ export function PrintCanvas({
                                                     <span
                                                         className={`rounded px-1 py-0.2 text-[9px] font-bold ${
                                                             isSelected
-                                                                ? 'bg-blue-200/80 text-blue-800'
+                                                                ? 'bg-slate-100 text-slate-600'
                                                                 : 'bg-slate-200 text-slate-400'
                                                         }`}
                                                     >
                                                         v{skill.skillVersion}
                                                     </span>
                                                 )}
-                                                <span
-                                                    className={`ml-0.5 rounded-full px-1 text-[9px] font-black ${
-                                                        isSelected
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-slate-300 text-slate-600'
-                                                    }`}
-                                                >
-                                                    {isSelected ? '✓' : '＋'}
-                                                </span>
                                             </button>
                                         );
                                     })}
-                                    {inlineEditMode && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setSkillSelectorModalOpen(true);
-                                            }}
-                                            className="inline-flex items-center gap-1 rounded-md border border-dashed border-blue-400 bg-blue-50/60 px-2 py-0.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition cursor-pointer print:hidden"
-                                            title="DB 기술스택 추가 및 관리 모달 열기"
-                                        >
-                                            <Plus className="h-3 w-3" />
-                                            <span>스택 선택/추가</span>
-                                        </button>
-                                    )}
                                 </div>
                             </div>
                         </div>
