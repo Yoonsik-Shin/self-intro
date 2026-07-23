@@ -138,14 +138,19 @@ export function partitionAtomsIntoPages(
 
         const itemTotalHeight = measuredHeight + gap;
 
-        // Check if user explicitly forced this item to stay on the current page
+        // Check if user explicitly forced this item or any later item to stay on the current page
         const forcedPage = forcedPageOverrides[atom.id];
         const isForcedCurrentPage = forcedPage !== undefined && forcedPage === pages.length;
+        const hasLaterItemForcedToCurrentPage = atoms
+            .slice(i + 1)
+            .some((laterAtom) => forcedPageOverrides[laterAtom.id] === pages.length);
+
+        const preventPageBreak = isForcedCurrentPage || hasLaterItemForcedToCurrentPage;
 
         // If an item is a header (e.g., 'career-header'), check if the NEXT item fits on this page too.
         // If header fits but next item doesn't, push header to next page so it's not orphaned.
         let pushHeaderToNextPage = false;
-        if (!isForcedCurrentPage && atom.isHeader && i + 1 < atoms.length) {
+        if (!preventPageBreak && atom.isHeader && i + 1 < atoms.length) {
             const nextAtom = atoms[i + 1];
             const nextHeight = itemHeights.get(nextAtom.id) || getAtomEstimatedHeight(nextAtom);
             const nextCustomGap =
@@ -163,7 +168,7 @@ export function partitionAtomsIntoPages(
         }
 
         if (
-            !isForcedCurrentPage &&
+            !preventPageBreak &&
             ((currentHeight + itemTotalHeight > maxContentHeight && currentPageItems.length > 0) ||
                 pushHeaderToNextPage)
         ) {
