@@ -8,6 +8,10 @@ public record PrintTemplateResponse(
         String excludedIds,
         String sectionOrder,
         String sectionGaps,
+        String targetRole,
+        String contentOverrides,
+        String baseContentFingerprint,
+        int schemaVersion,
         boolean visible,
         int displayOrder) {
     public static PrintTemplateResponse from(PrintTemplate entity) {
@@ -17,6 +21,10 @@ public record PrintTemplateResponse(
                 entity.getExcludedIds(),
                 entity.getSectionOrder(),
                 entity.getSectionGaps(),
+                entity.getTargetRole(),
+                entity.getContentOverrides(),
+                entity.getBaseContentFingerprint(),
+                entity.getSchemaVersion(),
                 entity.isVisible(),
                 entity.getDisplayOrder());
     }

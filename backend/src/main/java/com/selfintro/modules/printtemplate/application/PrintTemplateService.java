@@ -31,6 +31,10 @@ public class PrintTemplateService {
                         request.excludedIds(),
                         request.sectionOrder(),
                         request.sectionGaps(),
+                        defaultString(request.targetRole(), "GENERAL"),
+                        defaultString(request.contentOverrides(), "{}"),
+                        request.baseContentFingerprint(),
+                        request.schemaVersion() == null ? 2 : request.schemaVersion(),
                         request.visible(),
                         request.displayOrder());
         return printTemplateRepository.save(template);
@@ -50,6 +54,14 @@ public class PrintTemplateService {
                 request.excludedIds(),
                 request.sectionOrder(),
                 request.sectionGaps(),
+                defaultString(request.targetRole(), template.getTargetRole()),
+                defaultString(request.contentOverrides(), template.getContentOverrides()),
+                request.baseContentFingerprint() == null
+                        ? template.getBaseContentFingerprint()
+                        : request.baseContentFingerprint(),
+                request.schemaVersion() == null
+                        ? template.getSchemaVersion()
+                        : request.schemaVersion(),
                 request.visible(),
                 request.displayOrder());
         return printTemplateRepository.save(template);
@@ -61,5 +73,9 @@ public class PrintTemplateService {
             throw new IllegalArgumentException("PrintTemplate not found: " + id);
         }
         printTemplateRepository.deleteById(id);
+    }
+
+    private String defaultString(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 }

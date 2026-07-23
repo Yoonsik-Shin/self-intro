@@ -9,5 +9,9 @@ public record PrintTemplateRequest(
         @NotNull String excludedIds,
         @NotNull String sectionOrder,
         @NotNull String sectionGaps,
+        @Size(max = 60) String targetRole,
+        String contentOverrides,
+        @Size(max = 64) String baseContentFingerprint,
+        Integer schemaVersion,
         @NotNull Boolean visible,
         int displayOrder) {}
