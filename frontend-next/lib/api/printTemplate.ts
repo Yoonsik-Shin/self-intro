@@ -17,6 +17,10 @@ function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
         excludedIds: safeParseJson(raw.excludedIds, []),
         sectionOrder: safeParseJson(raw.sectionOrder, []),
         sectionGaps: safeParseJson(raw.sectionGaps, {}),
+        targetRole: raw.targetRole || 'GENERAL',
+        contentOverrides: safeParseJson(raw.contentOverrides, {}),
+        baseContentFingerprint: raw.baseContentFingerprint,
+        schemaVersion: raw.schemaVersion || 1,
         visible: raw.visible,
         displayOrder: raw.displayOrder,
     };

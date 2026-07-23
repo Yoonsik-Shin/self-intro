@@ -519,8 +519,30 @@ export type PrintTemplateRaw = {
     excludedIds: string; // JSON array string
     sectionOrder: string; // JSON array string
     sectionGaps: string; // JSON object string
+    targetRole: string;
+    contentOverrides: string; // JSON object string
+    baseContentFingerprint?: string | null;
+    schemaVersion: number;
     visible: boolean;
     displayOrder: number;
+};
+
+export type PrintTemplateContentOverrides = {
+    profile?: Partial<Pick<Profile, 'jobTitle' | 'bio' | 'coreStackSummary'>>;
+    experiences?: Record<
+        string,
+        Partial<Pick<Experience, 'title' | 'summary' | 'takeaway' | 'role'>>
+    >;
+    details?: Record<
+        string,
+        Partial<
+            Pick<
+                ExperienceDetail,
+                'content' | 'situation' | 'task' | 'actionDetail' | 'outcome' | 'narrative'
+            >
+        >
+    >;
+    selectedSkillIds?: number[] | null;
 };
 
 /** 프론트에서 사용하는 파싱된 형태 */
@@ -530,6 +552,10 @@ export type PrintTemplate = {
     excludedIds: string[];
     sectionOrder: string[];
     sectionGaps: Record<string, number>;
+    targetRole: string;
+    contentOverrides: PrintTemplateContentOverrides;
+    baseContentFingerprint?: string | null;
+    schemaVersion: number;
     visible: boolean;
     displayOrder: number;
 };
@@ -539,6 +565,10 @@ export type PrintTemplateRequest = {
     excludedIds: string;
     sectionOrder: string;
     sectionGaps: string;
+    targetRole: string;
+    contentOverrides: string;
+    baseContentFingerprint?: string | null;
+    schemaVersion: number;
     visible: boolean;
     displayOrder: number;
 };
