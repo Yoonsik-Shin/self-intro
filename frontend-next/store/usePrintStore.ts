@@ -75,11 +75,22 @@ export const usePrintStore = create<PrintState>((set, get) => ({
 
     toggleExcluded: (id) => {
         if (id === LOCKED_PRINT_SECTION_ID) return;
-        set((state) => ({
-            printExcludedIds: state.printExcludedIds.includes(id)
-                ? state.printExcludedIds.filter((x) => x !== id)
-                : [...state.printExcludedIds, id],
-        }));
+        set((state) => {
+            const isCurrentlyExcluded = state.printExcludedIds.includes(id);
+            let nextExcluded: string[];
+
+            if (isCurrentlyExcluded) {
+                // Including the section (turning ON): remove parent 'id' and all child item IDs starting with `${id}:` or `${id}-`
+                nextExcluded = state.printExcludedIds.filter(
+                    (x) => x !== id && !x.startsWith(`${id}:`) && !x.startsWith(`${id}-`)
+                );
+            } else {
+                // Excluding the section (turning OFF): add 'id'
+                nextExcluded = [...state.printExcludedIds, id];
+            }
+
+            return { printExcludedIds: nextExcluded };
+        });
     },
 
     setExcludedIds: (ids) => set({ printExcludedIds: ids }),

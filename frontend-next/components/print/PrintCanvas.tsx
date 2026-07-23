@@ -415,6 +415,7 @@ export function PrintCanvas({
         .filter((s): s is (typeof reorderablePrintSections)[number] => Boolean(s));
     const lockedPrintSection = printableSections.find((s) => s.id === LOCKED_PRINT_SECTION_ID)!;
     const orderedPrintableSections = [lockedPrintSection, ...orderedReorderableSections];
+    const orderedSectionIdsKey = orderedPrintableSections.map((s) => s.id).join(',');
 
     const printableAtoms = useMemo(() => {
         const atoms: PrintAtomItem[] = [];
@@ -555,7 +556,7 @@ export function PrintCanvas({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         store.printExcludedIds,
-        orderedPrintableSections.map((s) => s.id).join(','),
+        orderedSectionIdsKey,
         groupedCoreSkills,
         orderedCompetencies,
         orderedCareerCards,
@@ -928,9 +929,12 @@ export function PrintCanvas({
                                         onChange: (val) => setProfileOverride('bio', val),
                                     })}
                                 </div>
-                                {(inlineEditMode ||
-                                    (profile.coreStackSummary &&
-                                        profile.coreStackSummary.trim() !== '')) && (
+                                {((inlineEditMode &&
+                                    profile.coreStackSummary &&
+                                    profile.coreStackSummary.trim() !== '') ||
+                                    (contentOverrides.profile?.coreStackSummary !== undefined &&
+                                        contentOverrides.profile.coreStackSummary.trim() !==
+                                            '')) && (
                                     <div className="resume-meta mt-2 text-[10px] font-bold text-slate-500 flex items-center gap-1.5 flex-wrap">
                                         <span className="shrink-0">핵심 기술 ·</span>
                                         {renderInlineText({
