@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Printer, Check, X } from 'lucide-react';
 import { printTemplateApi } from '@/lib/api';
-import type { PrintTemplate, PrintTemplateRequest } from '@/lib/api/types';
+import type {
+    PrintTemplate,
+    PrintTemplateContentOverrides,
+    PrintTemplateRequest,
+} from '@/lib/api/types';
 
 type SaveServerTemplateModalProps = {
     open: boolean;
@@ -13,6 +17,10 @@ type SaveServerTemplateModalProps = {
         excludedIds: string[];
         sectionOrder: string[];
         sectionGaps: Record<string, number>;
+        forcedPageOverrides?: Record<string, number>;
+        targetRole: string;
+        contentOverrides: PrintTemplateContentOverrides;
+        baseContentFingerprint: string;
     };
     editingTemplate?: PrintTemplate | null;
     onSaved?: () => void;
@@ -64,7 +72,14 @@ export function SaveServerTemplateModal({
             name: name.trim(),
             excludedIds: JSON.stringify(currentSettings.excludedIds),
             sectionOrder: JSON.stringify(currentSettings.sectionOrder),
-            sectionGaps: JSON.stringify(currentSettings.sectionGaps),
+            sectionGaps: JSON.stringify({
+                ...currentSettings.sectionGaps,
+                __forcedPageOverrides: currentSettings.forcedPageOverrides ?? {},
+            }),
+            targetRole: currentSettings.targetRole,
+            contentOverrides: JSON.stringify(currentSettings.contentOverrides),
+            baseContentFingerprint: currentSettings.baseContentFingerprint,
+            schemaVersion: 2,
             visible,
             displayOrder: editingTemplate?.displayOrder ?? 1,
         };

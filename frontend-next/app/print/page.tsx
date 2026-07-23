@@ -14,8 +14,16 @@ async function getIntroduction(): Promise<IntroductionResponse> {
     return serverGet<IntroductionResponse>('/api/bff/introduction');
 }
 
-export default async function PrintPage() {
+export default async function PrintPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ templateId?: string; admin?: string }>;
+}) {
     const introData = await getIntroduction();
+    const query = await searchParams;
+    const parsedTemplateId = Number(query.templateId);
+    const templateId = Number.isFinite(parsedTemplateId) ? parsedTemplateId : null;
+    const adminMode = query.admin === '1';
 
     if (!introData.profile) {
         return (
@@ -25,5 +33,5 @@ export default async function PrintPage() {
         );
     }
 
-    return <PrintPageClient introData={introData} />;
+    return <PrintPageClient introData={introData} adminMode={adminMode} templateId={templateId} />;
 }
