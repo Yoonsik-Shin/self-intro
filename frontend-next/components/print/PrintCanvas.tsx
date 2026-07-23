@@ -183,7 +183,6 @@ export function PrintCanvas({
     const renderInlineText = ({
         value,
         baseValue,
-        multiline = false,
         textClassName = '',
         placeholder = '',
         onChange,
@@ -198,7 +197,9 @@ export function PrintCanvas({
         const isOverridden = value !== baseValue;
 
         if (!inlineEditMode) {
-            return <span className={textClassName}>{value}</span>;
+            return (
+                <span className={`inline-block w-full max-w-full ${textClassName}`}>{value}</span>
+            );
         }
 
         return (
@@ -208,7 +209,7 @@ export function PrintCanvas({
                     onChange={(e) => onChange(e.target.value)}
                     placeholder={placeholder}
                     rows={1}
-                    className="w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 font-[inherit] text-[inherit] leading-[inherit] tracking-[inherit] font-sans text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full rounded-none border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 p-0 m-0 font-[inherit] text-[inherit] leading-[inherit] tracking-[inherit] font-sans text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
                 {isOverridden && (
                     <button
