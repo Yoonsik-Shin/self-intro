@@ -13,6 +13,7 @@ import {
     Sparkles,
     Settings,
     Plus,
+    RotateCcw,
 } from 'lucide-react';
 import type {
     IntroductionResponse,
@@ -341,20 +342,20 @@ export function PrintCanvas({
         }
 
         return (
-            <span className="group/edit relative inline-block w-full max-w-full my-0.5">
+            <span className="group/edit relative inline-block w-full max-w-full">
                 {multiline ? (
                     <AutoResizingTextarea
                         value={value}
                         onChange={(e) => onChange(e.target.value)}
                         placeholder={placeholder}
-                        className={`w-full rounded-md border-2 border-blue-400 bg-blue-50/70 p-2 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                        className={`w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
                     />
                 ) : (
                     <input
                         value={value}
                         onChange={(e) => onChange(e.target.value)}
                         placeholder={placeholder}
-                        className={`w-full rounded-md border-2 border-blue-400 bg-blue-50/70 px-2 py-1 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                        className={`w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
                     />
                 )}
                 {isOverridden && (
@@ -368,7 +369,8 @@ export function PrintCanvas({
                         className="absolute -top-3.5 right-1 z-30 inline-flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-xs hover:bg-amber-600 transition print:hidden"
                         title={`최신 DB 원본 문구로 복원: "${baseValue}"`}
                     >
-                        DB 원본 복원
+                        <RotateCcw className="h-2.5 w-2.5" />
+                        <span>원본 복원</span>
                     </button>
                 )}
             </span>
