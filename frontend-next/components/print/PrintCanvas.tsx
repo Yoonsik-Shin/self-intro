@@ -1056,39 +1056,6 @@ export function PrintCanvas({
                                         onChange: (val) => setProfileOverride('bio', val),
                                     })}
                                 </div>
-                                {((inlineEditMode &&
-                                    profile.coreStackSummary &&
-                                    profile.coreStackSummary.trim() !== '') ||
-                                    (contentOverrides.profile?.coreStackSummary !== undefined &&
-                                        contentOverrides.profile.coreStackSummary.trim() !==
-                                            '')) && (
-                                    <div className="resume-meta mt-2 text-[10px] font-bold text-slate-500 flex items-center gap-1.5 flex-wrap">
-                                        <span className="shrink-0">핵심 기술 ·</span>
-                                        {renderInlineText({
-                                            value: profile.coreStackSummary ?? '',
-                                            baseValue: origProfile?.coreStackSummary ?? '',
-                                            textClassName: 'text-[10px] font-bold text-slate-500',
-                                            placeholder:
-                                                '비워두거나 삭제 시 인쇄물에서 완전히 숨겨집니다',
-                                            onChange: (val) =>
-                                                setProfileOverride('coreStackSummary', val),
-                                        })}
-                                        {inlineEditMode && (
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setProfileOverride('coreStackSummary', '');
-                                                }}
-                                                className="ml-1 inline-flex items-center gap-0.5 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs hover:bg-rose-600 transition print:hidden cursor-pointer"
-                                                title="프로필 자기소개 밑 핵심기술 라인 완전히 삭제/숨기기"
-                                            >
-                                                ❌ 핵심기술 라인 삭제
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
