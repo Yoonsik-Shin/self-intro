@@ -28,7 +28,9 @@ export function PrintSkillSelectorModal({
 
     const groupedSkills = useMemo(() => groupCoreSkills(allSkills), [allSkills]);
 
-    // Currently selected skill ID set (if selectedSkillIds is undefined or null, all skills are selected by default)
+    const selectableSkills = useMemo(() => groupedSkills.flatMap((g) => g.skills), [groupedSkills]);
+
+    // Currently selected skill ID set (if selectedSkillIds is undefined or null, all core skills are selected by default)
     const isAllSelectedByDefault = !selectedSkillIds;
     const selectedSet = useMemo(() => {
         if (isAllSelectedByDefault) {
@@ -37,7 +39,11 @@ export function PrintSkillSelectorModal({
         return new Set(selectedSkillIds);
     }, [isAllSelectedByDefault, allSkills, selectedSkillIds]);
 
-    const totalSelectedCount = selectedSet.size;
+    const totalSelectedCount = useMemo(
+        () => selectableSkills.filter((s) => selectedSet.has(s.id)).length,
+        [selectableSkills, selectedSet]
+    );
+    const totalSelectableCount = selectableSkills.length;
 
     return (
         <div
@@ -60,7 +66,7 @@ export function PrintSkillSelectorModal({
                             </h3>
                             <p className="text-xs font-semibold text-slate-500">
                                 템플릿 인쇄물에 노출할 기술 스택을 선택하세요. ({totalSelectedCount}{' '}
-                                / {allSkills.length}개 선택됨)
+                                / {totalSelectableCount}개 선택됨)
                             </p>
                         </div>
                     </div>
