@@ -269,10 +269,10 @@ export function PrintTemplateManagement() {
                                                     href={`/print?admin=1&templateId=${t.id}`}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-50 px-3.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition shadow-xs"
+                                                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition"
                                                     title="A4 종이 실시간 미리보기에서 템플릿 문구 및 레이아웃 편집"
                                                 >
-                                                    <Edit2 className="h-3.5 w-3.5 text-blue-600" />
+                                                    <Edit2 className="h-3.5 w-3.5 text-blue-400" />
                                                     템플릿 편집 & 미리보기
                                                 </a>
                                                 <button
