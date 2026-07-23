@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
 import {
     Printer,
     Plus,
@@ -11,7 +10,6 @@ import {
     ArrowUp,
     ArrowDown,
     Edit2,
-    FilePenLine,
     AlertTriangle,
     RefreshCw,
 } from 'lucide-react';
@@ -22,17 +20,13 @@ import {
     getPrintContentFingerprint,
     sanitizePrintTemplate,
 } from '@/lib/printTemplateContent';
-import { PrintTemplateContentEditorModal } from './PrintTemplateContentEditorModal';
 
 /**
- * 목록에서는 공개 여부와 순서를 관리하고, 맞춤 문구는 전용 모달에서 편집한다.
- * 레이아웃은 /print의 관리자 모드에서 현재 템플릿을 직접 불러와 수정한다.
+ * 목록에서는 공개 여부와 순서를 관리한다.
+ * 템플릿 문구 편집 및 레이아웃 조정은 /print 관리자 미리보기에서 WYSIWYG으로 통합 관리한다.
  */
 export function PrintTemplateManagement() {
     const queryClient = useQueryClient();
-    const [editingContentTemplate, setEditingContentTemplate] = useState<PrintTemplate | null>(
-        null
-    );
 
     const { data: templates = [], isLoading } = useQuery({
         queryKey: ['printTemplates', 'admin'],
@@ -139,8 +133,9 @@ export function PrintTemplateManagement() {
                         PDF 인쇄 템플릿 관리
                     </h2>
                     <p className="mt-1 text-sm font-medium text-slate-500">
-                        방문자가 선택할 수 있는 PDF 인쇄 템플릿 목록입니다. 레이아웃 조정은 인쇄
-                        미리보기에서 &quot;템플릿으로 저장&quot;으로 만듭니다.
+                        방문자가 선택할 수 있는 PDF 인쇄 템플릿 목록입니다. 템플릿
+                        편집(문구/레이아웃)은 인쇄 미리보기에서 실시간 WYSIWYG으로 직접 수정할 수
+                        있습니다.
                     </p>
                 </div>
                 <a
@@ -149,7 +144,7 @@ export function PrintTemplateManagement() {
                     rel="noreferrer"
                     className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
                 >
-                    <Plus className="h-4 w-4" /> 인쇄 미리보기에서 새 템플릿 만들기
+                    <Plus className="h-4 w-4" /> 새 인쇄 템플릿 만들기
                 </a>
             </div>
 
@@ -164,8 +159,7 @@ export function PrintTemplateManagement() {
                             등록된 인쇄 템플릿이 없습니다.
                         </p>
                         <p className="text-xs text-slate-500">
-                            위의 버튼으로 인쇄 미리보기를 열어 레이아웃을 구성한 뒤 &quot;템플릿으로
-                            저장&quot;을 눌러보세요.
+                            위의 버튼으로 인쇄 미리보기를 열어 템플릿을 생성해보세요.
                         </p>
                     </div>
                 ) : (
@@ -225,7 +219,7 @@ export function PrintTemplateManagement() {
                                                     <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">
                                                         맞춤 문구{' '}
                                                         {countContentOverrides(t.contentOverrides)}
-                                                        개
+                                                        개 수정됨
                                                     </span>
                                                 )}
                                                 {hasMismatch && (
@@ -271,22 +265,15 @@ export function PrintTemplateManagement() {
                                                         최신 원본 동기화
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => setEditingContentTemplate(t)}
-                                                    disabled={!introData}
-                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-40"
-                                                >
-                                                    <FilePenLine className="h-3.5 w-3.5" />
-                                                    맞춤 문구
-                                                </button>
                                                 <a
                                                     href={`/print?admin=1&templateId=${t.id}`}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-slate-400 hover:bg-slate-50 transition shadow-xs"
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-50 px-3.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition shadow-xs"
+                                                    title="A4 종이 실시간 미리보기에서 템플릿 문구 및 레이아웃 편집"
                                                 >
-                                                    <Edit2 className="h-3.5 w-3.5 text-slate-600" />
-                                                    레이아웃
+                                                    <Edit2 className="h-3.5 w-3.5 text-blue-600" />
+                                                    템플릿 편집 & 미리보기
                                                 </a>
                                                 <button
                                                     onClick={() => handleDelete(t)}
@@ -304,13 +291,6 @@ export function PrintTemplateManagement() {
                     </table>
                 )}
             </div>
-            {editingContentTemplate && introData && (
-                <PrintTemplateContentEditorModal
-                    template={editingContentTemplate}
-                    introData={introData}
-                    onClose={() => setEditingContentTemplate(null)}
-                />
-            )}
         </div>
     );
 }
