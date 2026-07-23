@@ -248,6 +248,30 @@ export function PrintCanvas({
         });
     };
 
+    const toggleSkillSelection = (skillId: number) => {
+        setContentOverrides((current) => {
+            const allIds = introData.skills.map((s) => s.id);
+            let nextSelected: number[];
+
+            if (!current.selectedSkillIds) {
+                nextSelected = allIds.filter((id) => id !== skillId);
+            } else if (current.selectedSkillIds.includes(skillId)) {
+                nextSelected = current.selectedSkillIds.filter((id) => id !== skillId);
+            } else {
+                nextSelected = [...current.selectedSkillIds, skillId];
+            }
+
+            const isAllSelected =
+                allIds.length === nextSelected.length &&
+                allIds.every((id) => nextSelected.includes(id));
+
+            return {
+                ...current,
+                selectedSkillIds: isAllSelected ? undefined : nextSelected,
+            };
+        });
+    };
+
     const renderInlineText = ({
         value,
         baseValue,
@@ -907,16 +931,31 @@ export function PrintCanvas({
                                 {(inlineEditMode ||
                                     (profile.coreStackSummary &&
                                         profile.coreStackSummary.trim() !== '')) && (
-                                    <div className="resume-meta mt-2 text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                    <div className="resume-meta mt-2 text-[10px] font-bold text-slate-500 flex items-center gap-1.5 flex-wrap">
                                         <span className="shrink-0">핵심 기술 ·</span>
                                         {renderInlineText({
                                             value: profile.coreStackSummary ?? '',
                                             baseValue: origProfile?.coreStackSummary ?? '',
                                             textClassName: 'text-[10px] font-bold text-slate-500',
-                                            placeholder: '지우면 템플릿에 출력되지 않습니다',
+                                            placeholder:
+                                                '비워두거나 삭제 시 인쇄물에서 완전히 숨겨집니다',
                                             onChange: (val) =>
                                                 setProfileOverride('coreStackSummary', val),
                                         })}
+                                        {inlineEditMode && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setProfileOverride('coreStackSummary', '');
+                                                }}
+                                                className="ml-1 inline-flex items-center gap-0.5 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs hover:bg-rose-600 transition print:hidden cursor-pointer"
+                                                title="프로필 자기소개 밑 핵심기술 라인 완전히 삭제/숨기기"
+                                            >
+                                                ❌ 핵심기술 라인 삭제
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -942,9 +981,18 @@ export function PrintCanvas({
                 );
 
             case 'skills-group': {
-                const group = groupedCoreSkills.find((g) => g.value === atom.dataId);
-                if (!group) return null;
-                const itemId = `skills-group:${group.value}`;
+                const fullGroup = groupCoreSkills(introData.skills).find(
+                    (g) => g.value === atom.dataId
+                );
+                const activeGroup = groupedCoreSkills.find((g) => g.value === atom.dataId);
+                const displaySkills = inlineEditMode
+                    ? (fullGroup?.skills ?? [])
+                    : (activeGroup?.skills ?? []);
+
+                if (displaySkills.length === 0) return null;
+                const itemId = `skills-group:${atom.dataId}`;
+                const groupLabel = fullGroup?.label ?? activeGroup?.label ?? '';
+
                 return (
                     <Fragment key={atom.id}>
                         {renderItemGap(itemId, 'skills')}
@@ -959,22 +1007,74 @@ export function PrintCanvas({
                                         className="resume-skill-group-bar h-3 w-1 shrink-0 rounded-full bg-slate-900"
                                         aria-hidden
                                     />
-                                    {group.label}
+                                    {groupLabel}
                                 </h4>
                                 <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2">
-                                    {group.skills.map((skill) => (
-                                        <span
-                                            key={skill.id}
-                                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-black text-slate-800"
-                                        >
-                                            {skill.name}
-                                            {skill.skillVersion && (
-                                                <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500">
-                                                    v{skill.skillVersion}
+                                    {displaySkills.map((skill) => {
+                                        const isSelected =
+                                            !contentOverrides.selectedSkillIds ||
+                                            contentOverrides.selectedSkillIds.includes(skill.id);
+
+                                        if (!inlineEditMode) {
+                                            return (
+                                                <span
+                                                    key={skill.id}
+                                                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-black text-slate-800"
+                                                >
+                                                    {skill.name}
+                                                    {skill.skillVersion && (
+                                                        <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500">
+                                                            v{skill.skillVersion}
+                                                        </span>
+                                                    )}
                                                 </span>
-                                            )}
-                                        </span>
-                                    ))}
+                                            );
+                                        }
+
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={skill.id}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    toggleSkillSelection(skill.id);
+                                                }}
+                                                className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-black transition cursor-pointer print:hidden ${
+                                                    isSelected
+                                                        ? 'border-blue-400 bg-blue-50/90 text-blue-950 shadow-xs ring-2 ring-blue-300/60 hover:bg-blue-100'
+                                                        : 'border-dashed border-slate-300 bg-slate-100/60 text-slate-400 line-through opacity-70 hover:border-slate-400 hover:opacity-100'
+                                                }`}
+                                                title={
+                                                    isSelected
+                                                        ? `'${skill.name}' 스택 템플릿에서 제외하기 (클릭)`
+                                                        : `'${skill.name}' 스택 템플릿에 포함하기 (클릭)`
+                                                }
+                                            >
+                                                <span>{skill.name}</span>
+                                                {skill.skillVersion && (
+                                                    <span
+                                                        className={`rounded px-1 py-0.2 text-[9px] font-bold ${
+                                                            isSelected
+                                                                ? 'bg-blue-200/80 text-blue-800'
+                                                                : 'bg-slate-200 text-slate-400'
+                                                        }`}
+                                                    >
+                                                        v{skill.skillVersion}
+                                                    </span>
+                                                )}
+                                                <span
+                                                    className={`ml-0.5 rounded-full px-1 text-[9px] font-black ${
+                                                        isSelected
+                                                            ? 'bg-blue-600 text-white'
+                                                            : 'bg-slate-300 text-slate-600'
+                                                    }`}
+                                                >
+                                                    {isSelected ? '✓' : '＋'}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
