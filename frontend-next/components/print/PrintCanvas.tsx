@@ -742,13 +742,13 @@ export function PrintCanvas({
             const c = (resolvedIntroData.competencies || []).find(
                 (item) => String(item.id) === compId
             );
-            if (c) return `'${c.title}'`;
+            if (c?.title) return `'${c.title}'`;
             return '핵심 역량 항목';
         }
         if (atomId.startsWith('career-company:')) {
             const compId = atomId.replace('career-company:', '');
             const card = orderedCareerCards.find((c) => String(c.id) === compId);
-            if (card) return `'${card.companyName}'`;
+            if (card?.companyName) return `'${card.companyName}'`;
             return '경력 회사';
         }
         if (atomId.startsWith('career-project:')) {
@@ -756,7 +756,7 @@ export function PrintCanvas({
             const p = orderedCareerCards
                 .flatMap((c) => c.projects)
                 .find((item) => String(item.id) === projId);
-            if (p) return `'${p.title}'`;
+            if (p?.title) return `'${p.title}'`;
             return '경력 프로젝트';
         }
         if (atomId.startsWith('career-details-header:')) {
@@ -764,25 +764,26 @@ export function PrintCanvas({
             const p = orderedCareerCards
                 .flatMap((c) => c.projects)
                 .find((item) => String(item.id) === projId);
-            if (p) return `'${p.title}' 세부 내용`;
+            if (p?.title) return `'${p.title}' 세부 내용`;
             return '경력 프로젝트 세부 내용';
         }
         if (atomId.startsWith('project:')) {
             const mId = atomId.replace('project:', '');
             const m = orderedMilestones.find((item) => String(item.id) === mId);
-            if (m) return `'${m.title}'`;
+            if (m?.title) return `'${m.title}'`;
             return '프로젝트';
         }
         if (atomId.startsWith('project-details-header:')) {
             const mId = atomId.replace('project-details-header:', '');
             const m = orderedMilestones.find((item) => String(item.id) === mId);
-            if (m) return `'${m.title}' 세부 내용`;
+            if (m?.title) return `'${m.title}' 세부 내용`;
             return '프로젝트 세부 내용';
         }
         if (atomId.startsWith('credential:')) {
             const credId = atomId.replace('credential:', '');
             const cred = orderedCredentialExperiences.find((item) => String(item.id) === credId);
-            if (cred) return `'${cred.companyName || cred.role}'`;
+            const title = cred?.title || cred?.companyName;
+            if (title) return `'${title}'`;
             return '학력/자격증';
         }
 
