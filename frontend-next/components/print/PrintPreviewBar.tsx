@@ -1,6 +1,6 @@
 'use client';
 
-import { Eye, EyeOff, FileEdit, ListChecks, Printer, Save, X } from 'lucide-react';
+import { Eye, EyeOff, FileEdit, FolderOpen, ListChecks, Printer, Save, X } from 'lucide-react';
 
 type PrintPreviewBarProps = {
     excludedCount: number;
@@ -10,6 +10,7 @@ type PrintPreviewBarProps = {
     onToggleNav: () => void;
     onSaveLocal?: () => void;
     onSaveServer?: () => void;
+    onOpenTemplateModal?: () => void;
     onPrint: () => void;
     onCancel: () => void;
     zoom: number;
@@ -30,6 +31,7 @@ export function PrintPreviewBar({
     onToggleNav,
     onSaveLocal,
     onSaveServer,
+    onOpenTemplateModal,
     onPrint,
     onCancel,
     zoom,
@@ -141,6 +143,16 @@ export function PrintPreviewBar({
                     <ListChecks className="h-3.5 w-3.5" />
                     <span>구성 관리</span>
                 </button>
+                {onOpenTemplateModal && (
+                    <button
+                        onClick={onOpenTemplateModal}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                        title="다른 저장된 템플릿 불러오기 또는 변경"
+                    >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        <span>템플릿 불러오기</span>
+                    </button>
+                )}
                 {onSaveServer && (
                     <button
                         onClick={onSaveServer}

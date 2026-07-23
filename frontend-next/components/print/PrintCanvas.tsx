@@ -126,6 +126,38 @@ export function PrintCanvas({
         [introData, contentOverrides]
     );
 
+    function AutoResizingTextarea({
+        value,
+        onChange,
+        placeholder,
+        className = '',
+    }: {
+        value: string;
+        onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+        placeholder?: string;
+        className?: string;
+    }) {
+        const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+        useLayoutEffect(() => {
+            const el = textareaRef.current;
+            if (el) {
+                el.style.height = 'auto';
+                el.style.height = `${Math.max(el.scrollHeight, 40)}px`;
+            }
+        }, [value]);
+
+        return (
+            <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                className={`resize-none overflow-hidden ${className}`}
+            />
+        );
+    }
+
     const setProfileOverride = (
         field: 'jobTitle' | 'bio' | 'coreStackSummary',
         val: string | undefined
@@ -134,8 +166,11 @@ export function PrintCanvas({
             const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
             const prof = { ...(next.profile ?? {}) };
             const baseVal = introData.profile?.[field] ?? '';
-            if (val === undefined || val.trim() === baseVal.trim()) delete prof[field];
-            else prof[field] = val;
+            if (val === undefined || (val !== '' && val.trim() === baseVal.trim())) {
+                delete prof[field];
+            } else {
+                prof[field] = val;
+            }
             next.profile = Object.keys(prof).length > 0 ? prof : undefined;
             return next;
         });
@@ -203,19 +238,18 @@ export function PrintCanvas({
         return (
             <span className="group/edit relative inline-block w-full max-w-full my-0.5">
                 {multiline ? (
-                    <textarea
+                    <AutoResizingTextarea
                         value={value}
                         onChange={(e) => onChange(e.target.value)}
                         placeholder={placeholder}
-                        rows={2}
-                        className={`w-full resize-y rounded border-2 border-blue-400 bg-blue-50/70 p-1.5 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                        className={`w-full rounded-md border-2 border-blue-400 bg-blue-50/70 p-2 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
                     />
                 ) : (
                     <input
                         value={value}
                         onChange={(e) => onChange(e.target.value)}
                         placeholder={placeholder}
-                        className={`w-full rounded border-2 border-blue-400 bg-blue-50/70 px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                        className={`w-full rounded-md border-2 border-blue-400 bg-blue-50/70 px-2 py-1 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
                     />
                 )}
                 {isOverridden && (
@@ -836,14 +870,16 @@ export function PrintCanvas({
                                         onChange: (val) => setProfileOverride('bio', val),
                                     })}
                                 </div>
-                                {profile.coreStackSummary && (
+                                {(inlineEditMode ||
+                                    (profile.coreStackSummary &&
+                                        profile.coreStackSummary.trim() !== '')) && (
                                     <div className="resume-meta mt-2 text-[10px] font-bold text-slate-500 flex items-center gap-1">
-                                        <span>핵심 기술 ·</span>
+                                        <span className="shrink-0">핵심 기술 ·</span>
                                         {renderInlineText({
-                                            value: profile.coreStackSummary,
+                                            value: profile.coreStackSummary ?? '',
                                             baseValue: origProfile?.coreStackSummary ?? '',
                                             textClassName: 'text-[10px] font-bold text-slate-500',
-                                            placeholder: '핵심 기술 요약을 입력하세요',
+                                            placeholder: '지우면 템플릿에 출력되지 않습니다',
                                             onChange: (val) =>
                                                 setProfileOverride('coreStackSummary', val),
                                         })}
@@ -1424,6 +1460,7 @@ export function PrintCanvas({
                         alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
                     }}
                     onSaveServer={adminMode ? () => setSaveTemplateModalOpen(true) : undefined}
+                    onOpenTemplateModal={() => setModeModalOpen(true)}
                     onPrint={handlePrintConfirm}
                     onCancel={onExit}
                     zoom={store.zoom}
