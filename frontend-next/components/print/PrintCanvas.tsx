@@ -1120,20 +1120,6 @@ export function PrintCanvas({
                                         />
                                         {groupLabel}
                                     </h4>
-                                    {inlineEditMode && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setSkillSelectorModalOpen(true);
-                                            }}
-                                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline print:hidden cursor-pointer"
-                                        >
-                                            <Plus className="h-3 w-3" />
-                                            <span>DB 스택 선택/관리</span>
-                                        </button>
-                                    )}
                                 </div>
                                 <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2 pt-0.5">
                                     {displaySkills.map((skill) => {
