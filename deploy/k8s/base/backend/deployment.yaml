@@ -34,6 +34,10 @@ spec:
             - secretRef:
                 name: backend-payapp-secret
                 optional: true
+            # Ko-fi 연동키 설정 (optional)
+            - secretRef:
+                name: backend-kofi-secret
+                optional: true
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

@@ -86,9 +86,11 @@ public class SecurityConfig {
                                                 new CsrfTokenRequestAttributeHandler())
                                         .ignoringRequestMatchers(
                                                 new AntPathRequestMatcher("/api/visits", "POST"),
-                                                // 페이앱 서버가 보내는 외부 콜백은 CSRF 토큰을 가질 수 없다 (linkval로 검증)
+                                                // 페이앱/Ko-fi 서버가 보내는 외부 콜백/웹훅은 CSRF 토큰을 가질 수 없다
                                                 new AntPathRequestMatcher(
-                                                        "/api/donations/payapp/callback", "POST")))
+                                                        "/api/donations/payapp/callback", "POST"),
+                                                new AntPathRequestMatcher(
+                                                        "/api/donations/kofi/webhook", "POST")))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
@@ -109,6 +111,9 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(
                                                 HttpMethod.POST, "/api/donations/payapp/callback")
+                                        .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.POST, "/api/donations/kofi/webhook")
                                         .permitAll()
                                         .requestMatchers(HttpMethod.POST, "/api/auth/login")
                                         .permitAll()

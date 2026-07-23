@@ -33,7 +33,9 @@ public class AdminDonationController {
     @PutMapping("/settings")
     public DonationConfigResponse updateSettings(
             @Valid @RequestBody DonationSettingRequest request) {
-        return new DonationConfigResponse(donationService.updateDonationEnabled(request.enabled()));
+        return new DonationConfigResponse(
+                donationService.updateDonationEnabled(request.enabled()),
+                donationService.getKofiPageUrl());
     }
 
     @GetMapping("/{id}/events")

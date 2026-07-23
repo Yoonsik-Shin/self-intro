@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -27,6 +28,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("local")
 @RequiredArgsConstructor
 public class SampleDataLoader implements ApplicationRunner {
+
+    private static final Set<String> SOURCE_AUDITED_STUDY_SLUGS =
+            Set.of(
+                    "ai-tutor-session-architecture",
+                    "realtime-student-presence-and-monitoring",
+                    "cqrs-refactoring-and-data-migration",
+                    "spring-boot-backoffice-and-session-auth",
+                    "common-packages-and-cli-scaffolding",
+                    "azure-log-cost-retention-optimization",
+                    "cloud-infrastructure-app-observability-diagnostics",
+                    "intelligent-log-filtering-pii-masking-engine");
 
     private final ProfileRepository profileRepository;
     private final SkillRepository skillRepository;
@@ -1155,7 +1167,7 @@ public class SampleDataLoader implements ApplicationRunner {
 
         // 1. LogDoctor Project Experience Seeding
 
-        Experience logDoctorProject =
+        Project logDoctorProject =
                 experienceRepository.save(
                         Project.create(
                                 "Azure 클라우드 로그 비용 진단 및 최적화 SaaS (LogDoctor) (기여도 70%)",
@@ -1230,6 +1242,76 @@ public class SampleDataLoader implements ApplicationRunner {
                                 "Fullstack & Cloud Developer",
                                 70));
 
+        // Keep a brand-new local database aligned with the source-audited Flyway copy. Flyway
+        // runs before this loader, so a migration alone cannot rewrite rows seeded afterwards.
+        logDoctorProject.update(
+                "Azure 로그 비용·관측성 진단 플랫폼 (LogDoctor)",
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 6, 30),
+                "Azure 리소스의 로그 비용과 관측성 상태를 진단하는 팀 프로젝트입니다. Azure Functions 진단 에이전트, FastAPI 기반 멀티테넌트 API, React 기반 Teams 앱을 연결하고 KQL·Resource Graph·Log Analytics를 활용한 11개 진단 규칙을 구현했습니다.",
+                "진단 실행과 결과 수집을 비동기 경계로 분리하고, 읽기 전용 최소 권한·테넌트 데이터 경계·재시도 가능한 처리 흐름을 함께 설계해 클라우드 진단 서비스를 제품 흐름으로 완성했습니다.",
+                2,
+                List.of(
+                        detail(
+                                "11개 규칙을 확장 가능한 진단 엔진으로 구현",
+                                "Azure 리소스마다 로그 연결 상태, 애플리케이션 상태, 불필요한 수집과 보존 비용을 확인하는 방법이 달라 진단 로직이 쉽게 중복될 수 있었습니다.",
+                                "서로 다른 진단 기준을 같은 실행 계약으로 묶고, 리소스 탐색부터 근거 수집과 처방 생성까지 일관되게 확장할 수 있는 엔진을 구축했습니다.",
+                                "- 공통 추상화와 등록 구조로 진단 규칙의 실행 계약 통일\n- 로그 비용·관측성·수집 예방·필터링의 네 영역에 11개 규칙 구현\n- Azure Resource Graph와 관리 API로 리소스 및 로그 연결 관계 탐색\n- Log Analytics에 KQL을 실행해 사용량·상태·요청 지표 수집\n- 규칙별 근거와 권장 조치를 동일한 결과 형식으로 변환",
+                                "11개 진단 규칙을 독립적으로 추가·실행할 수 있는 엔진을 완성하고, 24개 테스트 파일로 주요 규칙과 공통 흐름을 검증했습니다.",
+                                "리소스마다 다른 진단 방법을 공통 실행 계약으로 묶고, 네 영역의 11개 규칙을 Resource Graph·관리 API·KQL과 연결했습니다. 규칙별 원본 근거와 권장 조치를 같은 결과 형식으로 변환해 독립적으로 확장 가능한 엔진을 완성했으며 24개 테스트 파일로 주요 흐름을 검증했습니다.",
+                                0,
+                                getSkills(
+                                        List.of("Python", "KQL", "Azure Log Analytics"), skillMap)),
+                        detail(
+                                "Durable Functions 기반 병렬 진단 오케스트레이션 구축",
+                                "여러 구독과 리소스를 탐색한 뒤 각 진단 규칙의 외부 API·KQL 작업을 실행해야 해 단일 요청에서 순차 처리하기에는 작업 시간이 길고 일시적 실패에도 취약했습니다.",
+                                "장시간 진단을 트리거·오케스트레이터·액티비티로 분리하고 병렬 실행, 재시도와 상태 복구가 가능한 흐름을 구축했습니다.",
+                                "- Queue와 Timer 트리거로 수동·예약 진단 진입점 구성\n- 리소스 탐색, 연결 조회, 규칙 실행, 결과 전송을 액티비티로 분리\n- 병렬 실행 후 결과를 모으는 fan-out/fan-in 구조 적용\n- 외부 호출 액티비티에 재시도 정책 적용\n- 완료된 진단 결과를 제공자 큐로 전달",
+                                "작업 상태를 Durable Functions가 보존하고 독립 액티비티를 병렬·재시도하도록 구성해, 장시간 진단을 HTTP 요청 수명과 분리했습니다.",
+                                "장시간 진단을 Queue·Timer 트리거, 오케스트레이터와 독립 액티비티로 분리했습니다. fan-out/fan-in 병렬 실행과 외부 호출 재시도를 적용해 작업 상태를 보존하고, 진단을 HTTP 요청 수명과 분리해 완료 결과를 다음 처리 큐로 전달했습니다.",
+                                1,
+                                getSkills(List.of("Python", "Azure Functions"), skillMap)),
+                        detail(
+                                "비동기 수집과 멀티테넌트 리포트 저장 구조 구현",
+                                "고객 환경의 진단 결과가 큐를 통해 비동기로 도착하고 여러 테넌트의 리포트·세부 진단·통계를 함께 갱신해야 해 실패 재처리와 동시 수정 충돌을 고려해야 했습니다.",
+                                "큐 메시지를 안전하게 수집하고 테넌트별 데이터 경계와 동시성 제어를 유지하는 제공자 백엔드를 구축했습니다.",
+                                "- FastAPI 시작 시 Azure 인증과 데이터 저장소 연결 사전 준비\n- 진단 결과와 완료 요청을 분리한 Azure Queue 비동기 워커 구현\n- 성공한 메시지만 삭제하고 실패 메시지는 재처리하도록 처리 경계 설정\n- Cosmos DB에 테넌트 파티션, 커서 페이지네이션과 ETag 낙관적 동시성 적용\n- 동시 저장 작업을 제한해 데이터 저장소 부하 제어",
+                                "메시지 성공 여부와 삭제 시점을 일치시키고, 테넌트 경계·동시 수정 검증·페이지네이션을 갖춘 리포트 수집 및 조회 흐름을 구축했습니다.",
+                                "진단 결과와 완료 요청을 분리한 Queue 워커를 구현하고 성공한 메시지만 삭제해 실패 시 재처리되도록 했습니다. Cosmos DB에는 테넌트 파티션, 커서 페이지네이션과 ETag 동시성 제어를 적용하고 동시 저장 수를 제한해 멀티테넌트 리포트의 처리 경계를 구축했습니다.",
+                                2,
+                                getSkills(List.of("Python", "FastAPI", "Cosmos DB"), skillMap)),
+                        detail(
+                                "읽기 전용 최소 권한의 고객 환경 진단 에이전트 설계",
+                                "고객 Azure 환경을 진단하려면 여러 리소스와 로그를 조회해야 하지만, 진단 기능에 변경·삭제 권한을 부여하면 보안 범위가 불필요하게 커질 수 있었습니다.",
+                                "진단에 필요한 조회 범위를 코드와 배포 정의에서 식별하고, 고객 환경을 변경하지 않는 별도 에이전트와 권한 모델로 배포했습니다.",
+                                "- 관리 리소스 조회 12개와 로그 데이터 조회 1개로 사용자 지정 역할 구성\n- 관리 작업과 데이터 작업 권한을 구분해 명시\n- Azure Functions 진단 에이전트와 관리형 ID 기반 인증 구성\n- Bicep으로 에이전트·저장소·AI 리소스와 역할 할당 자동화\n- 제공자 API의 사용자·테넌트·에이전트 접근 검증 적용",
+                                "진단 에이전트의 Azure 접근을 필요한 읽기 작업으로 제한하고, 애플리케이션과 인프라의 권한 경계를 배포 코드로 재현할 수 있게 했습니다.",
+                                "실제 조회 경로를 기준으로 관리 리소스 조회 12개와 로그 데이터 조회 1개를 사용자 지정 역할로 구성했습니다. 관리형 ID와 Bicep 역할 할당, 제공자 API의 테넌트 접근 검증을 함께 적용해 고객 환경을 변경하지 않는 읽기 전용 진단 경계를 만들었습니다.",
+                                3,
+                                getSkills(
+                                        List.of(
+                                                "Azure Functions",
+                                                "Bicep",
+                                                "Infrastructure as Code (IaC)"),
+                                        skillMap)),
+                        detail(
+                                "Teams 안에서 이어지는 온보딩·진단·알림 경험 구축",
+                                "사용자가 Azure Portal과 별도 관리 화면을 오가며 에이전트를 설치하고 진단 진행 상태와 결과를 확인하면 서비스 이용 흐름이 단절될 수 있었습니다.",
+                                "Teams 앱 안에서 초기 설정, 권한 위임, 에이전트 관리, 진단 실행과 결과 확인, 알림 설정까지 이어지는 사용자 흐름을 구현했습니다.",
+                                "- Teams 개인·팀 탭과 알림 전용 봇 매니페스트 구성\n- SSO 기반 사용자 확인과 테넌트 설정·배포 위임 화면 구현\n- 에이전트·구독·예약 진단 및 알림 설정 화면 구현\n- 진단 진행률·위험 요약·이력·상세 결과 대시보드 구현\n- 진단 완료와 운영 이벤트를 Teams 알림 및 딥링크로 연결",
+                                "설치와 관리부터 진단 결과 확인까지의 주요 기능을 Teams 안에 연결하고, 비동기 작업 완료를 알림에서 상세 화면으로 이어지게 했습니다.",
+                                "Teams 탭과 알림 전용 봇을 구성하고 SSO, 테넌트 설정과 배포 위임, 에이전트·구독·예약 진단 관리 화면을 구현했습니다. 진행률·위험 요약·이력·상세 결과 대시보드와 알림 딥링크를 연결해 설치부터 결과 확인까지의 흐름을 Teams 안에 구성했습니다.",
+                                4,
+                                getSkills(List.of("Teams SDK", "TypeScript"), skillMap))),
+                new ArrayList<>(logDoctorProject.getSkills()),
+                true,
+                "LogDr.",
+                "project-log-doctor",
+                "Full-stack & Cloud Engineer",
+                70,
+                null);
+        experienceRepository.save(logDoctorProject);
+
         List<ExperienceDetail> doctorDetails = logDoctorProject.getDetails();
 
         // 2. Studies Seeding
@@ -1245,9 +1327,18 @@ public class SampleDataLoader implements ApplicationRunner {
                                 categoryMap.get("devops"),
                                 LocalDate.of(2026, 6, 25),
                                 LocalDateTime.of(2026, 6, 25, 10, 0)));
+        study1.update(
+                study1.getSlug(),
+                "근거 중심의 확장 가능한 클라우드 진단 규칙 설계",
+                "리소스 탐색, 쿼리 근거, 판정과 권장 조치를 분리해 진단 규칙을 독립적으로 확장하고 검증하는 설계 원칙",
+                "# 근거 중심의 확장 가능한 클라우드 진단 규칙 설계\n\n## 학습 목표\n서로 다른 클라우드 리소스와 로그를 진단할 때 규칙마다 탐색·조회·판정 코드를 반복하지 않고, 근거를 추적할 수 있는 확장 구조를 설계하는 기준을 정리합니다.\n\n## 규칙의 공통 계약\n대상 식별, 근거 수집, 판정, 권장 조치의 실행 수명주기는 통일하되 규칙별 근거 스키마는 독립적으로 둡니다.\n\n## 사실과 해석의 분리\n리소스 메타데이터와 쿼리 결과는 원본 근거로 보존하고 위험 수준과 권장 조치는 별도의 해석으로 생성합니다. 이 경계를 지키면 판정 기준이 바뀌어도 수집기를 재사용하고 결과의 이유를 설명하기 쉽습니다.\n\n## 데이터 소스 선택\n- Resource Graph: 여러 구독의 리소스와 설정 탐색\n- 관리 API: 개별 리소스의 상세 설정과 연결 관계 확인\n- Log Analytics와 KQL: 실제 텔레메트리의 양, 빈도와 상태 집계\n\n## 검증 전략\n공통 실행 계약, 데이터 없음, 일부 권한 부족, 쿼리 실패와 경계값을 각각 테스트합니다. 외부 응답은 테스트 대역으로 격리하고 판정 함수는 같은 입력에 같은 결과를 내도록 유지합니다.\n\n## 트레이드오프\n공통 계약은 확장을 단순하게 하지만 모든 규칙을 하나의 거대한 추상화에 맞추면 분기가 늘어납니다. 공통 수명주기와 규칙별 데이터 구조 사이의 균형이 중요합니다.",
+                StudyStatus.PUBLISHED,
+                categoryMap.get("devops"),
+                LocalDate.of(2026, 5, 19),
+                LocalDateTime.of(2026, 5, 19, 10, 0));
         study1.replaceExperiences(List.of(logDoctorProject));
-        if (doctorDetails.size() > 2) {
-            study1.replaceExperienceDetails(List.of(doctorDetails.get(0), doctorDetails.get(2)));
+        if (!doctorDetails.isEmpty()) {
+            study1.replaceExperienceDetails(List.of(doctorDetails.get(0)));
         }
         study1.replaceSkills(
                 getSkills(
@@ -1275,10 +1366,18 @@ public class SampleDataLoader implements ApplicationRunner {
                                 categoryMap.get("devops"),
                                 LocalDate.of(2026, 6, 27),
                                 LocalDateTime.of(2026, 6, 27, 14, 0)));
+        study2.update(
+                study2.getSlug(),
+                "장시간 클라우드 작업의 오케스트레이션과 재처리 경계",
+                "Durable Functions와 메시지 큐에서 병렬 실행, 재시도, 성공 확인 후 삭제와 멱등성을 설계하는 기준",
+                "# 장시간 클라우드 작업의 오케스트레이션과 재처리 경계\n\n## 학습 목표\n여러 외부 API와 쿼리를 호출하는 장시간 작업을 HTTP 요청에서 분리하고 일시적 실패와 중복 전달을 견디는 처리 흐름을 정리합니다.\n\n## 오케스트레이터와 액티비티\n오케스트레이터는 실행 순서와 상태 전이만 결정하고 네트워크 호출과 데이터 저장은 액티비티에 둡니다. 재생 가능한 런타임에서는 현재 시각, 난수와 직접 I/O 같은 비결정적 동작을 피합니다.\n\n## 병렬화와 제한\n서로 독립적인 작업은 fan-out으로 시작하고 결과가 모두 필요한 시점에 fan-in합니다. 외부 서비스 한도를 넘지 않도록 작업 묶음과 동시 실행 수를 함께 설계합니다.\n\n## 재시도와 메시지 삭제\n일시적 오류에는 제한된 재시도를 적용하고, 큐 소비자는 후속 저장까지 성공한 뒤 메시지를 삭제합니다. 실패한 메시지는 가시성 제한 후 다시 처리되도록 남깁니다.\n\n## 중복 처리 대비\n업무 식별자를 멱등 키로 사용하고 이미 반영된 상태인지 확인합니다. 동시 수정에는 버전이나 ETag 조건부 갱신을 사용해 오래된 쓰기를 거부합니다.\n\n## 점검 목록\n- 재시도 가능한 오류와 즉시 실패할 오류를 구분했는가\n- 부분 성공을 다시 실행해도 중복 반영되지 않는가\n- 외부 API와 저장소의 동시 처리 한도를 지키는가",
+                StudyStatus.PUBLISHED,
+                categoryMap.get("devops"),
+                LocalDate.of(2026, 5, 19),
+                LocalDateTime.of(2026, 5, 19, 11, 0));
         study2.replaceExperiences(List.of(logDoctorProject));
-        if (doctorDetails.size() > 3) {
-            study2.replaceExperienceDetails(
-                    List.of(doctorDetails.get(0), doctorDetails.get(2), doctorDetails.get(3)));
+        if (doctorDetails.size() > 2) {
+            study2.replaceExperienceDetails(List.of(doctorDetails.get(1), doctorDetails.get(2)));
         }
         study2.replaceSkills(
                 getSkills(
@@ -1308,9 +1407,18 @@ public class SampleDataLoader implements ApplicationRunner {
                                 categoryMap.get("backend"),
                                 LocalDate.of(2026, 6, 30),
                                 LocalDateTime.of(2026, 6, 30, 18, 0)));
+        study3.update(
+                study3.getSlug(),
+                "멀티테넌트 클라우드 서비스의 권한과 데이터 경계",
+                "관리 작업·데이터 작업 권한, 관리형 ID, 테넌트 파티션과 낙관적 동시성을 함께 설계하는 보안·저장 원칙",
+                "# 멀티테넌트 클라우드 서비스의 권한과 데이터 경계\n\n## 학습 목표\n고객 클라우드 환경을 조회하는 서비스에서 접근 권한과 저장 데이터가 다른 테넌트로 넘어가지 않도록 경계를 설계하는 기준을 정리합니다.\n\n## 최소 권한 역할\n필요한 API 호출을 목록화하고 관리 리소스 작업과 데이터 작업을 구분합니다. 조회가 목적인 기능에는 변경·삭제 작업을 포함하지 않습니다.\n\n## 관리형 ID\n워크로드의 ID를 플랫폼이 관리하게 하면 장기 자격 증명을 애플리케이션 설정에 저장할 필요가 줄어듭니다. 역할은 좁은 범위에 할당하고 배포 코드에 권한 정의와 할당을 함께 기록합니다.\n\n## 애플리케이션 경계\n인증 여부만 확인하지 않고 요청한 테넌트, 설치된 에이전트와 대상 리소스의 소유 관계를 매 요청에서 검증합니다. 관리자 전용 작업과 일반 조회도 분리합니다.\n\n## 저장 경계\n테넌트 식별자를 파티션 키와 조회 조건에 포함합니다. ETag 기반 조건부 갱신은 읽은 이후 다른 요청이 바꾼 데이터를 오래된 쓰기가 덮어쓰지 못하게 합니다.\n\n## 점검 목록\n- 모든 조회에 테넌트 조건이 강제되는가\n- 역할에 쓰기·삭제 권한이 섞이지 않았는가\n- 민감 정보가 저장·전송 경계를 넘지 않는가\n- 동시성 충돌을 재시도 가능한 형태로 전달하는가",
+                StudyStatus.PUBLISHED,
+                categoryMap.get("backend"),
+                LocalDate.of(2026, 5, 19),
+                LocalDateTime.of(2026, 5, 19, 12, 0));
         study3.replaceExperiences(List.of(logDoctorProject));
-        if (doctorDetails.size() > 1) {
-            study3.replaceExperienceDetails(List.of(doctorDetails.get(0), doctorDetails.get(1)));
+        if (doctorDetails.size() > 3) {
+            study3.replaceExperienceDetails(List.of(doctorDetails.get(2), doctorDetails.get(3)));
         }
         study3.replaceSkills(
                 getSkills(
@@ -1483,6 +1591,11 @@ public class SampleDataLoader implements ApplicationRunner {
                         .toList();
 
         for (Study study : existingStudies) {
+            // These studies are maintained by source-audited Flyway migrations.
+            // Do not replace them with the older local sample prose or heuristic detail links.
+            if (SOURCE_AUDITED_STUDY_SLUGS.contains(study.getSlug())) {
+                continue;
+            }
             switch (study.getSlug()) {
                 case "db-level-pii-encryption-and-migration" -> {
                     study.update(

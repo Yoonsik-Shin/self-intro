@@ -15,6 +15,7 @@ import com.selfintro.modules.donation.presentation.dto.AdminDonationSummaryRespo
 import com.selfintro.modules.donation.presentation.dto.DonationCreateResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationEventResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationStatusResponse;
+import com.selfintro.modules.donation.presentation.dto.KofiWebhookPayload;
 import jakarta.persistence.EntityNotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -162,6 +163,85 @@ public class DonationService {
         // 알 수 없는 상태는 수신만 인정(SUCCESS)해 재전송 루프를 막고 로그로 추적한다.
         log.warn("처리하지 않는 pay_state 콜백: donationId={}, payState={}", donation.getId(), payState);
         return true;
+    }
+
+    /** Ko-fi Webhook 수신 처리. */
+    @Transactional
+    public boolean handleKofiWebhook(KofiWebhookPayload payload) {
+        if (payload == null || !verifyKofiToken(payload.verificationToken())) {
+            log.warn("Verification Token이 유효하지 않은 Ko-fi Webhook 요청을 거부합니다.");
+            return false;
+        }
+        String transactionId = payload.kofiTransactionId();
+        if (transactionId == null || transactionId.isBlank()) {
+            transactionId = payload.messageId();
+        }
+        if (transactionId == null || transactionId.isBlank()) {
+            log.warn("트랜잭션 ID가 없는 Ko-fi Webhook 요청입니다.");
+            return false;
+        }
+
+        Optional<Donation> existing = donationRepository.findWithLockByMulNo(transactionId);
+        if (existing.isPresent()) {
+            log.info("이미 처리된 Ko-fi 후원 트랜잭션입니다: {}", transactionId);
+            return true;
+        }
+
+        int amount = parseKofiAmount(payload.amount());
+        String senderName =
+                payload.fromName() != null && !payload.fromName().isBlank()
+                        ? payload.fromName()
+                        : "익명 후원자";
+        String userMessage = payload.message();
+        String fullMessage = (senderName + ": " + (userMessage != null ? userMessage : "")).trim();
+        if (fullMessage.length() > 200) {
+            fullMessage = fullMessage.substring(0, 200);
+        }
+
+        LocalDateTime now = LocalDateTime.now(donationClock);
+        Donation donation = Donation.request(amount, fullMessage, now);
+        donation.assignMulNo(transactionId);
+        donation.markPaid(now, "KOFI");
+        donationRepository.save(donation);
+
+        recordEvent(
+                donation.getId(),
+                DonationEventType.PAID,
+                DonationEventActor.KOFI,
+                "COMPLETED",
+                "Ko-fi 후원 수신: %s %s (tx: %s)"
+                        .formatted(payload.amount(), payload.currency(), transactionId));
+
+        return true;
+    }
+
+    public String getKofiPageUrl() {
+        return properties.kofi() != null ? properties.kofi().pageUrl() : null;
+    }
+
+    private boolean verifyKofiToken(String receivedToken) {
+        if (receivedToken == null || properties.kofi() == null) {
+            return false;
+        }
+        String configuredToken = properties.kofi().verificationToken();
+        if (configuredToken == null || configuredToken.isBlank()) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                configuredToken.getBytes(StandardCharsets.UTF_8),
+                receivedToken.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private int parseKofiAmount(String amountStr) {
+        if (amountStr == null || amountStr.isBlank()) {
+            return 0;
+        }
+        try {
+            double val = Double.parseDouble(amountStr.trim());
+            return (int) Math.round(val);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private boolean verifyLinkValue(String received) {

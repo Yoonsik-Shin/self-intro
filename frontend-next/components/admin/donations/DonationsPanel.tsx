@@ -19,6 +19,7 @@ const DONATION_ACTOR_LABELS: Record<DonationEventActor, string> = {
     VISITOR: '방문자',
     SYSTEM: '시스템',
     PAYAPP: '페이앱',
+    KOFI: 'Ko-fi',
     ADMIN: '관리자',
 };
 

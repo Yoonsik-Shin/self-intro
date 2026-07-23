@@ -4,5 +4,6 @@ public enum DonationEventActor {
     VISITOR,
     SYSTEM,
     PAYAPP,
+    KOFI,
     ADMIN
 }

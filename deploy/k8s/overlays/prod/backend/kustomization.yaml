@@ -10,6 +10,7 @@ resources:
   - sealed-ai-secret.yaml
   - sealed-storage-secret.yaml
   - sealed-payapp-secret.yaml
+  - sealed-kofi-secret.yaml
 
 images:
   - name: self-intro-backend
@@ -33,6 +34,7 @@ configMapGenerator:
       - NVIDIA_MAX_OUTPUT_TOKENS=8192
       - PAYAPP_FEEDBACK_URL=https://api.unbrdn.me/api/donations/payapp/callback
       - PAYAPP_RETURN_URL=https://api.unbrdn.me/api/donations/complete
+      - KOFI_PAGE_URL=https://ko-fi.com/yoonsik
       - STORAGE_ENDPOINT=https://axrywc89b6lf.compat.objectstorage.ap-chuncheon-1.oraclecloud.com
       - STORAGE_REGION=ap-chuncheon-1
       - STORAGE_BUCKET=self-intro-images

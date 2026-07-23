@@ -66,7 +66,8 @@ class DonationServiceTest {
                                 "link-value",
                                 "01000000000",
                                 "http://localhost:8080/api/donations/payapp/callback",
-                                "http://localhost:8080/api/donations/complete"));
+                                "http://localhost:8080/api/donations/complete"),
+                        new DonationProperties.Kofi("https://ko-fi.com/test", "test-token"));
         donationService =
                 new DonationService(
                         donationRepository,

@@ -82,6 +82,9 @@ app:
       # 페이앱 서버가 결제 상태를 통지하는 콜백 주소. 페이앱이 접근 가능한 공개 URL이어야 한다.
       feedback-url: ${PAYAPP_FEEDBACK_URL:http://localhost:8080/api/donations/payapp/callback}
       return-url: ${PAYAPP_RETURN_URL:http://localhost:8080/api/donations/complete}
+    kofi:
+      page-url: ${KOFI_PAGE_URL:https://ko-fi.com}
+      verification-token: ${KOFI_VERIFICATION_TOKEN:}
   storage:
     endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
     # 브라우저가 presigned URL로 직접 PUT할 때 접속할 호스트. 로컬(docker-compose)처럼

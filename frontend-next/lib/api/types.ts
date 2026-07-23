@@ -345,7 +345,12 @@ export type AdminDonationSummary = {
 export type DonationEventType =
     'CREATED' | 'PAY_REQUESTED' | 'PAY_FAILED' | 'PAID' | 'CANCELED' | 'CALLBACK_REJECTED';
 
-export type DonationEventActor = 'VISITOR' | 'SYSTEM' | 'PAYAPP' | 'ADMIN';
+export type DonationEventActor = 'VISITOR' | 'SYSTEM' | 'PAYAPP' | 'KOFI' | 'ADMIN';
+
+export type DonationConfigResponse = {
+    enabled: boolean;
+    kofiPageUrl?: string | null;
+};
 
 export type DonationEvent = {
     id: number;
