@@ -202,13 +202,13 @@ export function PrintCanvas({
         }
 
         return (
-            <span className="group/edit relative inline-block w-full max-w-full">
+            <span className={`group/edit relative inline-block w-full max-w-full ${textClassName}`}>
                 <AutoResizingTextarea
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     placeholder={placeholder}
                     rows={1}
-                    className={`w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                    className="w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 font-[inherit] text-[inherit] leading-[inherit] tracking-[inherit] font-sans text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
                 {isOverridden && (
                     <button
