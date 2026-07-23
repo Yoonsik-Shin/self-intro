@@ -2,31 +2,51 @@ import type { Experience, ExperienceDetail, IntroductionResponse, Skill } from '
 import { credentialKindLabel, formatShortPeriod } from './format';
 
 export type SkillGroup = {
-    value: 'CORE' | 'PROJECT_LEARNING';
+    value: 'CORE' | 'PROJECT_LEARNING' | 'OTHER';
     label: string;
     skills: Skill[];
 };
 
 export function groupCoreSkills(skills: Skill[]): SkillGroup[] {
-    const coreSkills = skills.filter((skill) => skill.isCore);
-    return [
+    const workSkills = skills
+        .filter((skill) => skill.usageType === 'WORK_EXPERIENCE')
+        .sort((a, b) => a.displayOrder - b.displayOrder);
+
+    const projectSkills = skills
+        .filter((skill) => skill.usageType === 'PROJECT_USE' || skill.usageType === 'LEARNING')
+        .sort((a, b) => a.displayOrder - b.displayOrder);
+
+    const otherSkills = skills
+        .filter(
+            (skill) =>
+                skill.usageType !== 'WORK_EXPERIENCE' &&
+                skill.usageType !== 'PROJECT_USE' &&
+                skill.usageType !== 'LEARNING'
+        )
+        .sort((a, b) => a.displayOrder - b.displayOrder);
+
+    const groups: SkillGroup[] = [
         {
             value: 'CORE',
             label: '핵심 기술 스택',
-            skills: coreSkills
-                .filter((skill) => skill.usageType === 'WORK_EXPERIENCE')
-                .sort((a, b) => a.displayOrder - b.displayOrder),
+            skills: workSkills,
         },
         {
             value: 'PROJECT_LEARNING',
             label: '프로젝트/학습',
-            skills: coreSkills
-                .filter(
-                    (skill) => skill.usageType === 'PROJECT_USE' || skill.usageType === 'LEARNING'
-                )
-                .sort((a, b) => a.displayOrder - b.displayOrder),
+            skills: projectSkills,
         },
     ];
+
+    if (otherSkills.length > 0) {
+        groups.push({
+            value: 'OTHER',
+            label: '기타 DB 기술 스택',
+            skills: otherSkills,
+        });
+    }
+
+    return groups;
 }
 
 export type CareerCard = {
