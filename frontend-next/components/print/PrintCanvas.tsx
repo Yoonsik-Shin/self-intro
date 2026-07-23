@@ -49,6 +49,41 @@ import { PrintModeModal } from './PrintModeModal';
 import { SaveServerTemplateModal } from './SaveServerTemplateModal';
 import { PrintSkillSelectorModal } from './PrintSkillSelectorModal';
 
+function AutoResizingTextarea({
+    value,
+    onChange,
+    placeholder,
+    className = '',
+    rows = 1,
+}: {
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    placeholder?: string;
+    className?: string;
+    rows?: number;
+}) {
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+    useLayoutEffect(() => {
+        const el = textareaRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    }, [value]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            rows={rows}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            className={`resize-none overflow-hidden ${className}`}
+        />
+    );
+}
+
 type Props = {
     introData: IntroductionResponse;
     onExit: () => void;
@@ -145,37 +180,54 @@ export function PrintCanvas({
         [introData, contentOverrides]
     );
 
-    function AutoResizingTextarea({
+    const renderInlineText = ({
         value,
+        baseValue,
+        multiline = false,
+        textClassName = '',
+        placeholder = '',
         onChange,
-        placeholder,
-        className = '',
     }: {
         value: string;
-        onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+        baseValue: string;
+        multiline?: boolean;
+        textClassName?: string;
         placeholder?: string;
-        className?: string;
-    }) {
-        const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+        onChange: (newValue: string | undefined) => void;
+    }) => {
+        const isOverridden = value !== baseValue;
 
-        useLayoutEffect(() => {
-            const el = textareaRef.current;
-            if (el) {
-                el.style.height = 'auto';
-                el.style.height = `${Math.max(el.scrollHeight, 40)}px`;
-            }
-        }, [value]);
+        if (!inlineEditMode) {
+            return <span className={textClassName}>{value}</span>;
+        }
 
         return (
-            <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={onChange}
-                placeholder={placeholder}
-                className={`resize-none overflow-hidden ${className}`}
-            />
+            <span className="group/edit relative inline-block w-full max-w-full">
+                <AutoResizingTextarea
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    rows={1}
+                    className={`w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
+                />
+                {isOverridden && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onChange(undefined);
+                        }}
+                        className="absolute -top-3.5 right-1 z-30 inline-flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-xs hover:bg-amber-600 transition print:hidden"
+                        title={`최신 DB 원본 문구로 복원: "${baseValue}"`}
+                    >
+                        <RotateCcw className="h-2.5 w-2.5" />
+                        <span>원본 복원</span>
+                    </button>
+                )}
+            </span>
         );
-    }
+    };
 
     const setProfileOverride = (
         field: 'jobTitle' | 'bio' | 'coreStackSummary',
@@ -318,63 +370,6 @@ export function PrintCanvas({
             ...current,
             selectedSkillIds: undefined,
         }));
-    };
-
-    const renderInlineText = ({
-        value,
-        baseValue,
-        multiline = false,
-        textClassName = '',
-        placeholder = '',
-        onChange,
-    }: {
-        value: string;
-        baseValue: string;
-        multiline?: boolean;
-        textClassName?: string;
-        placeholder?: string;
-        onChange: (newValue: string | undefined) => void;
-    }) => {
-        const isOverridden = value !== baseValue;
-
-        if (!inlineEditMode) {
-            return <span className={textClassName}>{value}</span>;
-        }
-
-        return (
-            <span className="group/edit relative inline-block w-full max-w-full">
-                {multiline ? (
-                    <AutoResizingTextarea
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        placeholder={placeholder}
-                        className={`w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 text-xs leading-relaxed text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
-                    />
-                ) : (
-                    <input
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        placeholder={placeholder}
-                        className={`w-full rounded border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 px-1 py-0 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${textClassName}`}
-                    />
-                )}
-                {isOverridden && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onChange(undefined);
-                        }}
-                        className="absolute -top-3.5 right-1 z-30 inline-flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-xs hover:bg-amber-600 transition print:hidden"
-                        title={`최신 DB 원본 문구로 복원: "${baseValue}"`}
-                    >
-                        <RotateCcw className="h-2.5 w-2.5" />
-                        <span>원본 복원</span>
-                    </button>
-                )}
-            </span>
-        );
     };
 
     const profile = resolvedIntroData.profile;
