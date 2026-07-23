@@ -1,11 +1,22 @@
 'use client';
 
-import { Eye, EyeOff, FileEdit, FolderOpen, ListChecks, Printer, Save, X } from 'lucide-react';
+import {
+    Eye,
+    EyeOff,
+    FileEdit,
+    FileText,
+    FolderOpen,
+    ListChecks,
+    Printer,
+    Save,
+    X,
+} from 'lucide-react';
 
 type PrintPreviewBarProps = {
     excludedCount: number;
     totalPages: number;
     navOpen: boolean;
+    activeTemplateName?: string;
     onToggleAll: () => void;
     onToggleNav: () => void;
     onSaveLocal?: () => void;
@@ -27,6 +38,7 @@ export function PrintPreviewBar({
     excludedCount,
     totalPages,
     navOpen,
+    activeTemplateName,
     onToggleAll,
     onToggleNav,
     onSaveLocal,
@@ -72,10 +84,19 @@ export function PrintPreviewBar({
         <div className="relative z-50 flex h-14 w-full shrink-0 items-center justify-between gap-4 bg-slate-900 px-4 shadow-xl print:hidden sm:px-6 border-b border-slate-800">
             <div className="flex items-center gap-3 min-w-0">
                 <Printer className="h-4.5 w-4.5 shrink-0 text-white" />
-                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2.5 min-w-0">
                     <span className="text-sm font-black text-white whitespace-nowrap">
                         인쇄 프리뷰
                     </span>
+                    {activeTemplateName && (
+                        <span
+                            className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-0.5 text-xs font-black text-blue-200 shadow-xs max-w-[200px] sm:max-w-[280px] truncate"
+                            title={`현재 적용 중인 템플릿: ${activeTemplateName}`}
+                        >
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+                            <span className="truncate">{activeTemplateName}</span>
+                        </span>
+                    )}
                     <span className="text-xs font-bold text-slate-400 whitespace-nowrap">
                         총 {totalPages}페이지
                     </span>

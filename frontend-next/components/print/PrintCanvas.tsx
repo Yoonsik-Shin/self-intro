@@ -114,6 +114,21 @@ export function PrintCanvas({
         () => !store.printModeResolved && !initialTemplate
     );
     const [activeTemplate, setActiveTemplate] = useState<PrintTemplate | null>(initialTemplate);
+    const [activeTemplateName, setActiveTemplateName] = useState<string>(() => {
+        if (initialTemplate) return initialTemplate.name;
+        return '기본 이력서';
+    });
+
+    const updateUrlParams = (tmplId: number | null) => {
+        if (typeof window === 'undefined') return;
+        const url = new URL(window.location.href);
+        if (tmplId != null) {
+            url.searchParams.set('templateId', String(tmplId));
+        } else {
+            url.searchParams.delete('templateId');
+        }
+        window.history.replaceState(null, '', url.toString());
+    };
     const sanitizedInitialTemplate = useMemo(
         () => (initialTemplate ? sanitizePrintTemplate(initialTemplate, introData) : null),
         [initialTemplate, introData]
@@ -1540,6 +1555,7 @@ export function PrintCanvas({
                     excludedCount={store.printExcludedIds.length}
                     totalPages={pageLayers.length}
                     navOpen={store.navPanelOpen}
+                    activeTemplateName={activeTemplateName}
                     onToggleAll={store.toggleAllExcluded}
                     onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
                     onSaveLocal={() => {
@@ -1685,14 +1701,19 @@ export function PrintCanvas({
                 onManual={() => {
                     store.resetManual();
                     setActiveTemplate(null);
+                    setActiveTemplateName('기본 이력서');
                     setContentOverrides({});
                     setModeModalOpen(false);
+                    updateUrlParams(null);
                 }}
                 onApplyTemplate={(settings) => {
                     store.applyTemplate(settings);
-                    setActiveTemplate(settings.selectedTemplate ?? null);
+                    const tmpl = settings.selectedTemplate ?? null;
+                    setActiveTemplate(tmpl);
+                    setActiveTemplateName(tmpl ? tmpl.name : '맞춤 인쇄 템플릿');
                     setContentOverrides(settings.contentOverrides ?? {});
                     setModeModalOpen(false);
+                    updateUrlParams(tmpl?.id ?? null);
                 }}
             />
 
