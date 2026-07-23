@@ -1,13 +1,14 @@
 import { request } from './client';
 import type {
     AdminDonationSummary,
+    DonationConfigResponse,
     DonationCreateResponse,
     DonationEvent,
     DonationStatus,
 } from './types';
 
 export const donationApi = {
-    config: () => request<{ enabled: boolean }>('/api/donations/config'),
+    config: () => request<DonationConfigResponse>('/api/donations/config'),
     create: (amount: number, message?: string) =>
         request<DonationCreateResponse>('/api/donations', {
             method: 'POST',
