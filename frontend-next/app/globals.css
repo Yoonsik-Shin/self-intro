@@ -624,7 +624,7 @@ html {
 
 [data-print-el] > .pp-controls {
     position: absolute;
-    top: -8px;
+    top: -14px;
     right: 12px;
     display: flex;
     flex-direction: row;

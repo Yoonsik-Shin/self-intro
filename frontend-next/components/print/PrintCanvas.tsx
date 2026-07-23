@@ -1745,7 +1745,7 @@ export function PrintCanvas({
                         style={{ width: store.navPanelOpen ? 256 : 56 }}
                     >
                         <PrintPreviewNav
-                            sections={printableSections}
+                            sections={orderedPrintableSections}
                             excludedIds={store.printExcludedIds}
                             itemGroups={[
                                 {
