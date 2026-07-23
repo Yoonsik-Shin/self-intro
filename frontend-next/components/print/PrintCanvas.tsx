@@ -837,17 +837,34 @@ export function PrintCanvas({
                             {labelText}
                         </span>
                     </div>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            store.clearForcedPage(getAssociatedAtomIds(id));
-                        }}
-                        className="flex items-center gap-1 shrink-0 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer ml-2"
-                    >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                        <span>강제 배치 해제 (원래 위치로)</span>
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {forcedPage > 0 && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    store.forcePage(getAssociatedAtomIds(id), forcedPage - 1);
+                                }}
+                                className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer"
+                                title={`이 항목을 ${forcedPage}페이지로 한 단계 더 끌어올립니다.`}
+                            >
+                                <ArrowUp className="h-3.5 w-3.5" />
+                                <span>{forcedPage}페이지로 더 올리기</span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                store.clearForcedPage(getAssociatedAtomIds(id));
+                            }}
+                            className="flex items-center gap-1 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
+                            title="강제 위치 배제를 해제하고 원래 자동 배치 상태로 복원합니다."
+                        >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                            <span>강제 배치 해제 (원래 위치로)</span>
+                        </button>
+                    </div>
                 </div>
             );
         }
