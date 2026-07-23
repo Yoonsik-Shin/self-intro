@@ -729,6 +729,68 @@ export function PrintCanvas({
         window.addEventListener('mouseup', onUp);
     };
 
+    const getAtomDisplayTitle = (atomId: string): string => {
+        if (atomId === 'intro-profile') return '소개 / 프로필';
+        if (atomId === 'skills' || atomId === 'skills-group') return '기술 스택';
+        if (atomId === 'competency-header' || atomId === 'competencies') return '핵심 역량';
+        if (atomId === 'career-header' || atomId === 'career') return '경력 사항';
+        if (atomId === 'credentials-header' || atomId === 'credentials') return '학력 / 자격증';
+        if (atomId === 'projects-header' || atomId === 'projects') return '프로젝트 목록';
+
+        if (atomId.startsWith('competency:')) {
+            const compId = atomId.replace('competency:', '');
+            const c = (resolvedIntroData.competencies || []).find(
+                (item) => String(item.id) === compId
+            );
+            if (c) return `'${c.title}'`;
+            return '핵심 역량 항목';
+        }
+        if (atomId.startsWith('career-company:')) {
+            const compId = atomId.replace('career-company:', '');
+            const card = orderedCareerCards.find((c) => String(c.id) === compId);
+            if (card) return `'${card.companyName}'`;
+            return '경력 회사';
+        }
+        if (atomId.startsWith('career-project:')) {
+            const projId = atomId.replace('career-project:', '');
+            const p = orderedCareerCards
+                .flatMap((c) => c.projects)
+                .find((item) => String(item.id) === projId);
+            if (p) return `'${p.title}'`;
+            return '경력 프로젝트';
+        }
+        if (atomId.startsWith('career-details-header:')) {
+            const projId = atomId.replace('career-details-header:', '');
+            const p = orderedCareerCards
+                .flatMap((c) => c.projects)
+                .find((item) => String(item.id) === projId);
+            if (p) return `'${p.title}' 세부 내용`;
+            return '경력 프로젝트 세부 내용';
+        }
+        if (atomId.startsWith('project:')) {
+            const mId = atomId.replace('project:', '');
+            const m = orderedMilestones.find((item) => String(item.id) === mId);
+            if (m) return `'${m.title}'`;
+            return '프로젝트';
+        }
+        if (atomId.startsWith('project-details-header:')) {
+            const mId = atomId.replace('project-details-header:', '');
+            const m = orderedMilestones.find((item) => String(item.id) === mId);
+            if (m) return `'${m.title}' 세부 내용`;
+            return '프로젝트 세부 내용';
+        }
+        if (atomId.startsWith('credential:')) {
+            const credId = atomId.replace('credential:', '');
+            const cred = orderedCredentialExperiences.find((item) => String(item.id) === credId);
+            if (cred) return `'${cred.companyName || cred.role}'`;
+            return '학력/자격증';
+        }
+
+        const atom = printableAtoms.find((a) => a.id === atomId);
+        if (atom?.title) return `'${atom.title}'`;
+        return '해당 항목';
+    };
+
     const renderPageBreakControl = (id: string, sectionId: string) => {
         if (store.hidePrintGuides) return null;
         if (id === 'intro-profile') return null;
@@ -738,6 +800,8 @@ export function PrintCanvas({
         const forcedPage = store.forcedPageOverrides[id];
         const currentPage = atomPageMap.get(id);
         void isSplit;
+
+        const itemTitle = getAtomDisplayTitle(id);
 
         if (forcedPage !== undefined) {
             const isChildDetail =
@@ -761,19 +825,15 @@ export function PrintCanvas({
                     return null;
             }
 
-            const isHeaderBlock =
-                id.startsWith('project-details-header:') || id.startsWith('career-details-header:');
-            const labelText = isHeaderBlock
-                ? `상세 경험 및 세부 내용 전체가 ${forcedPage + 1}페이지로 강제 배치되었습니다.`
-                : `이 항목은 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
+            const labelText = `${itemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
 
             return (
                 <div className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto">
-                    <div className="flex items-center gap-2">
-                        <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
                             강제 위치 배치됨
                         </span>
-                        <span className="text-[11px] text-indigo-100 font-semibold truncate max-w-[280px]">
+                        <span className="text-[11px] text-indigo-100 font-semibold truncate max-w-[320px]">
                             {labelText}
                         </span>
                     </div>
@@ -783,7 +843,7 @@ export function PrintCanvas({
                             e.stopPropagation();
                             store.clearForcedPage(getAssociatedAtomIds(id));
                         }}
-                        className="flex items-center gap-1 shrink-0 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
+                        className="flex items-center gap-1 shrink-0 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer ml-2"
                     >
                         <ArrowDown className="h-3.5 w-3.5" />
                         <span>강제 배치 해제 (원래 위치로)</span>
@@ -799,17 +859,17 @@ export function PrintCanvas({
             <div
                 className={`absolute -top-7 ${isBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto`}
             >
-                <div className="flex items-center gap-2">
-                    <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
                         페이지 분할 지점
                     </span>
-                    <span className="text-[11px] text-slate-200 font-semibold">
+                    <span className="text-[11px] text-slate-200 font-semibold truncate max-w-[320px]">
                         {isBoundary
-                            ? '이 항목부터 다음 페이지로 분할되었습니다.'
-                            : '페이지 이동 간격 세밀 조절 중'}
+                            ? `${itemTitle} 항목부터 다음 페이지로 분할되었습니다.`
+                            : `${itemTitle} 여백 세밀 조절 중`}
                     </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     {isBoundary && targetPrevPage >= 0 && (
                         <button
                             type="button"
@@ -820,7 +880,9 @@ export function PrintCanvas({
                             className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer"
                         >
                             <ArrowUp className="h-3.5 w-3.5" />
-                            <span>강제로 {targetPrevPage + 1}페이지로 올리기</span>
+                            <span>
+                                {itemTitle} {targetPrevPage + 1}페이지로 강제 올리기
+                            </span>
                         </button>
                     )}
                     <div
