@@ -1,22 +1,60 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Printer, Plus, Trash2, Eye, EyeOff, ArrowUp, ArrowDown, Edit2 } from 'lucide-react';
-import { printTemplateApi } from '@/lib/api';
+import { useState } from 'react';
+import {
+    Printer,
+    Plus,
+    Trash2,
+    Eye,
+    EyeOff,
+    ArrowUp,
+    ArrowDown,
+    Edit2,
+    FilePenLine,
+    AlertTriangle,
+    RefreshCw,
+} from 'lucide-react';
+import { bffApi, printTemplateApi } from '@/lib/api';
 import type { PrintTemplate } from '@/lib/api/types';
+import {
+    countContentOverrides,
+    getPrintContentFingerprint,
+    sanitizePrintTemplate,
+} from '@/lib/printTemplateContent';
+import { PrintTemplateContentEditorModal } from './PrintTemplateContentEditorModal';
 
 /**
- * 실제 인쇄 레이아웃 조정(섹션 제외/순서/여백)은 /print 페이지의 "템플릿으로 저장" 기능으로
- * 이루어진다. 원본(Vite) 앱은 이 화면 안에 /?mode=print&adminEdit=1 iframe을 띄워 postMessage로
- * 저장 상태를 동기화했는데, 그 admin-iframe 연동은 별도 작업으로 미뤄두기로 했다 — 지금은
- * 목록/공개여부/순서/삭제 관리만 담당하고, 새 템플릿 작성/수정은 /print를 새 탭으로 열어 안내한다.
+ * 목록에서는 공개 여부와 순서를 관리하고, 맞춤 문구는 전용 모달에서 편집한다.
+ * 레이아웃은 /print의 관리자 모드에서 현재 템플릿을 직접 불러와 수정한다.
  */
 export function PrintTemplateManagement() {
     const queryClient = useQueryClient();
+    const [editingContentTemplate, setEditingContentTemplate] = useState<PrintTemplate | null>(
+        null
+    );
 
     const { data: templates = [], isLoading } = useQuery({
         queryKey: ['printTemplates', 'admin'],
         queryFn: printTemplateApi.adminList,
+    });
+    const { data: introData } = useQuery({
+        queryKey: ['introduction', 'print-template-editor'],
+        queryFn: bffApi.getIntroduction,
+    });
+    const currentFingerprint = introData ? getPrintContentFingerprint(introData) : null;
+
+    const toPayload = (template: PrintTemplate) => ({
+        name: template.name,
+        excludedIds: JSON.stringify(template.excludedIds),
+        sectionOrder: JSON.stringify(template.sectionOrder),
+        sectionGaps: JSON.stringify(template.sectionGaps),
+        targetRole: template.targetRole,
+        contentOverrides: JSON.stringify(template.contentOverrides),
+        baseContentFingerprint: template.baseContentFingerprint,
+        schemaVersion: template.schemaVersion || 2,
+        visible: template.visible,
+        displayOrder: template.displayOrder,
     });
 
     const updateMutation = useMutation({
@@ -41,16 +79,30 @@ export function PrintTemplateManagement() {
         }
     };
 
+    const handleSyncTemplate = (t: PrintTemplate) => {
+        if (!introData || !currentFingerprint) return;
+        const sanitized = sanitizePrintTemplate(t, introData);
+        updateMutation.mutate(
+            {
+                id: t.id,
+                payload: {
+                    ...toPayload(sanitized),
+                    baseContentFingerprint: currentFingerprint,
+                },
+            },
+            {
+                onSuccess: () =>
+                    alert(`'${t.name}' 템플릿이 최신 DB 원본 데이터와 동기화되었습니다.`),
+            }
+        );
+    };
+
     const handleToggleVisible = (t: PrintTemplate) => {
         updateMutation.mutate({
             id: t.id,
             payload: {
-                name: t.name,
-                excludedIds: JSON.stringify(t.excludedIds),
-                sectionOrder: JSON.stringify(t.sectionOrder),
-                sectionGaps: JSON.stringify(t.sectionGaps),
+                ...toPayload(t),
                 visible: !t.visible,
-                displayOrder: t.displayOrder,
             },
         });
     };
@@ -65,22 +117,14 @@ export function PrintTemplateManagement() {
         updateMutation.mutate({
             id: current.id,
             payload: {
-                name: current.name,
-                excludedIds: JSON.stringify(current.excludedIds),
-                sectionOrder: JSON.stringify(current.sectionOrder),
-                sectionGaps: JSON.stringify(current.sectionGaps),
-                visible: current.visible,
+                ...toPayload(current),
                 displayOrder: target.displayOrder,
             },
         });
         updateMutation.mutate({
             id: target.id,
             payload: {
-                name: target.name,
-                excludedIds: JSON.stringify(target.excludedIds),
-                sectionOrder: JSON.stringify(target.sectionOrder),
-                sectionGaps: JSON.stringify(target.sectionGaps),
-                visible: target.visible,
+                ...toPayload(target),
                 displayOrder: current.displayOrder,
             },
         });
@@ -100,7 +144,7 @@ export function PrintTemplateManagement() {
                     </p>
                 </div>
                 <a
-                    href="/print"
+                    href="/print?admin=1"
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
@@ -136,84 +180,137 @@ export function PrintTemplateManagement() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 text-sm">
-                            {templates.map((t, index) => (
-                                <tr key={t.id} className="hover:bg-slate-50/50 transition">
-                                    <td className="py-4 px-6 font-bold text-slate-400">
-                                        <div className="flex items-center gap-1">
-                                            <span>{t.displayOrder}</span>
-                                            <div className="flex flex-col gap-0.5 ml-2">
+                            {templates.map((t, index) => {
+                                const hasMismatch = Boolean(
+                                    t.baseContentFingerprint &&
+                                    currentFingerprint &&
+                                    t.baseContentFingerprint !== currentFingerprint
+                                );
+                                return (
+                                    <tr key={t.id} className="hover:bg-slate-50/50 transition">
+                                        <td className="py-4 px-6 font-bold text-slate-400">
+                                            <div className="flex items-center gap-1">
+                                                <span>{t.displayOrder}</span>
+                                                <div className="flex flex-col gap-0.5 ml-2">
+                                                    <button
+                                                        disabled={index === 0}
+                                                        onClick={() =>
+                                                            handleMoveDisplayOrder(index, 'up')
+                                                        }
+                                                        className="grid h-5 w-5 place-items-center rounded hover:bg-slate-200 text-slate-500 disabled:opacity-20"
+                                                        title="위로"
+                                                    >
+                                                        <ArrowUp className="h-3 w-3" />
+                                                    </button>
+                                                    <button
+                                                        disabled={index === templates.length - 1}
+                                                        onClick={() =>
+                                                            handleMoveDisplayOrder(index, 'down')
+                                                        }
+                                                        className="grid h-5 w-5 place-items-center rounded hover:bg-slate-200 text-slate-500 disabled:opacity-20"
+                                                        title="아래로"
+                                                    >
+                                                        <ArrowDown className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-6">
+                                            <div className="font-bold text-slate-900">{t.name}</div>
+                                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">
+                                                    {t.targetRole || 'GENERAL'}
+                                                </span>
+                                                {countContentOverrides(t.contentOverrides) > 0 && (
+                                                    <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">
+                                                        맞춤 문구{' '}
+                                                        {countContentOverrides(t.contentOverrides)}
+                                                        개
+                                                    </span>
+                                                )}
+                                                {hasMismatch && (
+                                                    <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
+                                                        <AlertTriangle className="h-3 w-3" />
+                                                        원본 변경됨
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-6 font-medium text-slate-600">
+                                            {t.excludedIds.length > 0
+                                                ? `${t.excludedIds.length}개 항목 제외됨`
+                                                : '모든 섹션 포함'}
+                                        </td>
+                                        <td className="py-4 px-6">
+                                            <button
+                                                onClick={() => handleToggleVisible(t)}
+                                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+                                                    t.visible
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                                        : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                {t.visible ? (
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                ) : (
+                                                    <EyeOff className="h-3.5 w-3.5" />
+                                                )}
+                                                {t.visible ? '공개' : '비공개'}
+                                            </button>
+                                        </td>
+                                        <td className="py-4 px-6 text-right">
+                                            <div className="inline-flex items-center gap-2">
+                                                {hasMismatch && (
+                                                    <button
+                                                        onClick={() => handleSyncTemplate(t)}
+                                                        disabled={updateMutation.isPending}
+                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-100 transition shadow-xs"
+                                                        title="최신 DB 원본 내용과 동기화 및 유령 데이터 정화"
+                                                    >
+                                                        <RefreshCw className="h-3.5 w-3.5" />
+                                                        최신 원본 동기화
+                                                    </button>
+                                                )}
                                                 <button
-                                                    disabled={index === 0}
-                                                    onClick={() =>
-                                                        handleMoveDisplayOrder(index, 'up')
-                                                    }
-                                                    className="grid h-5 w-5 place-items-center rounded hover:bg-slate-200 text-slate-500 disabled:opacity-20"
-                                                    title="위로"
+                                                    onClick={() => setEditingContentTemplate(t)}
+                                                    disabled={!introData}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-40"
                                                 >
-                                                    <ArrowUp className="h-3 w-3" />
+                                                    <FilePenLine className="h-3.5 w-3.5" />
+                                                    맞춤 문구
                                                 </button>
-                                                <button
-                                                    disabled={index === templates.length - 1}
-                                                    onClick={() =>
-                                                        handleMoveDisplayOrder(index, 'down')
-                                                    }
-                                                    className="grid h-5 w-5 place-items-center rounded hover:bg-slate-200 text-slate-500 disabled:opacity-20"
-                                                    title="아래로"
+                                                <a
+                                                    href={`/print?admin=1&templateId=${t.id}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-slate-400 hover:bg-slate-50 transition shadow-xs"
                                                 >
-                                                    <ArrowDown className="h-3.5 w-3.5" />
+                                                    <Edit2 className="h-3.5 w-3.5 text-slate-600" />
+                                                    레이아웃
+                                                </a>
+                                                <button
+                                                    onClick={() => handleDelete(t)}
+                                                    className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition"
+                                                    title="템플릿 삭제"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 px-6 font-bold text-slate-900">{t.name}</td>
-                                    <td className="py-4 px-6 font-medium text-slate-600">
-                                        {t.excludedIds.length > 0
-                                            ? `${t.excludedIds.length}개 항목 제외됨`
-                                            : '모든 섹션 포함'}
-                                    </td>
-                                    <td className="py-4 px-6">
-                                        <button
-                                            onClick={() => handleToggleVisible(t)}
-                                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
-                                                t.visible
-                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                                    : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                            }`}
-                                        >
-                                            {t.visible ? (
-                                                <Eye className="h-3.5 w-3.5" />
-                                            ) : (
-                                                <EyeOff className="h-3.5 w-3.5" />
-                                            )}
-                                            {t.visible ? '공개' : '비공개'}
-                                        </button>
-                                    </td>
-                                    <td className="py-4 px-6 text-right">
-                                        <div className="inline-flex items-center gap-2">
-                                            <a
-                                                href="/print"
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-slate-400 hover:bg-slate-50 transition shadow-xs"
-                                            >
-                                                <Edit2 className="h-3.5 w-3.5 text-slate-600" />
-                                                편집
-                                            </a>
-                                            <button
-                                                onClick={() => handleDelete(t)}
-                                                className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition"
-                                                title="템플릿 삭제"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 )}
             </div>
+            {editingContentTemplate && introData && (
+                <PrintTemplateContentEditorModal
+                    template={editingContentTemplate}
+                    introData={introData}
+                    onClose={() => setEditingContentTemplate(null)}
+                />
+            )}
         </div>
     );
 }
