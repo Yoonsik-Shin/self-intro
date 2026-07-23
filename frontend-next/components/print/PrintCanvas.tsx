@@ -255,53 +255,59 @@ export function PrintCanvas({
 
     const toggleSkillSelection = (skillId: number) => {
         setContentOverrides((current) => {
-            const allIds = introData.skills.map((s) => s.id);
-            let nextSelected: number[];
+            const defaultCoreSkillIds = introData.skills.filter((s) => s.isCore).map((s) => s.id);
+            const currentSelected = current.selectedSkillIds ?? defaultCoreSkillIds;
 
-            if (!current.selectedSkillIds) {
-                nextSelected = allIds.filter((id) => id !== skillId);
-            } else if (current.selectedSkillIds.includes(skillId)) {
-                nextSelected = current.selectedSkillIds.filter((id) => id !== skillId);
+            let nextSelected: number[];
+            if (currentSelected.includes(skillId)) {
+                nextSelected = currentSelected.filter((id) => id !== skillId);
             } else {
-                nextSelected = [...current.selectedSkillIds, skillId];
+                nextSelected = [...currentSelected, skillId];
             }
 
-            const isAllSelected =
-                allIds.length === nextSelected.length &&
-                allIds.every((id) => nextSelected.includes(id));
+            const isDefaultState =
+                defaultCoreSkillIds.length === nextSelected.length &&
+                defaultCoreSkillIds.every((id) => nextSelected.includes(id));
 
             return {
                 ...current,
-                selectedSkillIds: isAllSelected ? undefined : nextSelected,
+                selectedSkillIds: isDefaultState ? undefined : nextSelected,
             };
         });
     };
 
     const selectAllSkillsInGroup = (skillIds: number[]) => {
         setContentOverrides((current) => {
-            const allIds = introData.skills.map((s) => s.id);
-            const currentSelected = current.selectedSkillIds ?? allIds;
+            const defaultCoreSkillIds = introData.skills.filter((s) => s.isCore).map((s) => s.id);
+            const currentSelected = current.selectedSkillIds ?? defaultCoreSkillIds;
             const set = new Set([...currentSelected, ...skillIds]);
             const nextSelected = Array.from(set);
-            const isAllSelected =
-                allIds.length === nextSelected.length &&
-                allIds.every((id) => nextSelected.includes(id));
+
+            const isDefaultState =
+                defaultCoreSkillIds.length === nextSelected.length &&
+                defaultCoreSkillIds.every((id) => nextSelected.includes(id));
+
             return {
                 ...current,
-                selectedSkillIds: isAllSelected ? undefined : nextSelected,
+                selectedSkillIds: isDefaultState ? undefined : nextSelected,
             };
         });
     };
 
     const deselectAllSkillsInGroup = (skillIds: number[]) => {
         setContentOverrides((current) => {
-            const allIds = introData.skills.map((s) => s.id);
-            const currentSelected = current.selectedSkillIds ?? allIds;
+            const defaultCoreSkillIds = introData.skills.filter((s) => s.isCore).map((s) => s.id);
+            const currentSelected = current.selectedSkillIds ?? defaultCoreSkillIds;
             const deselectSet = new Set(skillIds);
             const nextSelected = currentSelected.filter((id) => !deselectSet.has(id));
+
+            const isDefaultState =
+                defaultCoreSkillIds.length === nextSelected.length &&
+                defaultCoreSkillIds.every((id) => nextSelected.includes(id));
+
             return {
                 ...current,
-                selectedSkillIds: nextSelected,
+                selectedSkillIds: isDefaultState ? undefined : nextSelected,
             };
         });
     };
