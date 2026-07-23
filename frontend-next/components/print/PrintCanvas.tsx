@@ -731,6 +731,7 @@ export function PrintCanvas({
 
     const renderPageBreakControl = (id: string, sectionId: string) => {
         if (store.hidePrintGuides) return null;
+        if (id === 'intro-profile') return null;
         const isSplit = splitSectionIds.has(sectionId);
         const isBoundary = pageBreakBoundaryAtomIds.has(id);
         const currentGap = store.sectionGaps[id] ?? 0;
@@ -760,7 +761,6 @@ export function PrintCanvas({
                     return null;
             }
 
-            const nextPageNum = forcedPage + 2;
             const isHeaderBlock =
                 id.startsWith('project-details-header:') || id.startsWith('career-details-header:');
             const labelText = isHeaderBlock
@@ -786,7 +786,7 @@ export function PrintCanvas({
                         className="flex items-center gap-1 shrink-0 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
                     >
                         <ArrowDown className="h-3.5 w-3.5" />
-                        <span>원래대로 내리기 ({nextPageNum}페이지)</span>
+                        <span>강제 배치 해제 (원래 위치로)</span>
                     </button>
                 </div>
             );

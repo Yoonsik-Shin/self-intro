@@ -128,7 +128,9 @@ export const usePrintStore = create<PrintState>((set, get) => ({
         set((state) => {
             const next = { ...state.forcedPageOverrides };
             ids.forEach((id) => {
-                next[id] = pageIndex;
+                if (id !== 'intro-profile') {
+                    next[id] = pageIndex;
+                }
             });
             return { forcedPageOverrides: next };
         }),
@@ -185,11 +187,14 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             ...allIds.filter((id) => !orderList.includes(id)),
         ];
 
+        const overrides = { ...(settings.forcedPageOverrides || {}) };
+        delete overrides['intro-profile'];
+
         set({
             printExcludedIds: settings.excludedIds || [],
             printSectionOrder: merged,
             sectionGaps: settings.sectionGaps || {},
-            forcedPageOverrides: settings.forcedPageOverrides || {},
+            forcedPageOverrides: overrides,
             printPending: false,
             printModeResolved: true,
         });
