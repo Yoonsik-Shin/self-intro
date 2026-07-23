@@ -323,17 +323,25 @@ export type DonationStatus = 'PENDING' | 'PAID' | 'CANCELED' | 'FAILED';
 export type AdminDonation = {
     id: number;
     amount: number;
+    currency: string;
     message: string | null;
     status: DonationStatus;
     mulNo: string | null;
+    subscription: boolean;
     createdAt: string;
     paidAt: string | null;
+    providerPaidAt: string | null;
     canceledAt: string | null;
 };
 
+export type AdminDonationCurrencyTotal = {
+    currency: string;
+    total: number;
+    count: number;
+};
+
 export type AdminDonationSummary = {
-    paidTotal: number;
-    paidCount: number;
+    paidTotals: AdminDonationCurrencyTotal[];
     donations: AdminDonation[];
 };
 

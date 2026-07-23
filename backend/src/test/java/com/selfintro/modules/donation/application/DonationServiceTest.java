@@ -113,17 +113,64 @@ class DonationServiceTest {
     @Test
     void handleKofiWebhookAcceptsValidTokenAndRecordsPaidDonation() {
         when(donationRepository.findWithLockByMulNo("tx-1")).thenReturn(Optional.empty());
-        when(donationRepository.save(any(Donation.class)))
+        org.mockito.ArgumentCaptor<Donation> captor =
+                org.mockito.ArgumentCaptor.forClass(Donation.class);
+        when(donationRepository.save(captor.capture()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         boolean accepted =
                 donationService.handleKofiWebhook(kofiPayload("tx-1", "5.00", "test-token"));
 
         assertThat(accepted).isTrue();
+        assertThat(captor.getValue().getCurrency()).isEqualTo("USD");
+        assertThat(captor.getValue().isSubscription()).isFalse();
+        assertThat(captor.getValue().getProviderPaidAt())
+                .isEqualTo(LocalDateTime.of(2026, 7, 17, 21, 0));
         java.util.List<DonationEvent> events = capturedEvents();
         assertThat(events).hasSize(1);
         assertThat(events.get(0).getEventType()).isEqualTo(DonationEventType.PAID);
         assertThat(events.get(0).getActor()).isEqualTo(DonationEventActor.KOFI);
+    }
+
+    @Test
+    void handleKofiWebhookRecordsSubscriptionFlagAndCurrencyFromPayload() {
+        when(donationRepository.findWithLockByMulNo("tx-sub")).thenReturn(Optional.empty());
+        org.mockito.ArgumentCaptor<Donation> captor =
+                org.mockito.ArgumentCaptor.forClass(Donation.class);
+        when(donationRepository.save(captor.capture()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        donationService.handleKofiWebhook(kofiPayload("tx-sub", "3.00", "EUR", true, "test-token"));
+
+        assertThat(captor.getValue().getCurrency()).isEqualTo("EUR");
+        assertThat(captor.getValue().isSubscription()).isTrue();
+    }
+
+    @Test
+    void handleKofiWebhookToleratesUnparsableTimestamp() {
+        when(donationRepository.findWithLockByMulNo("tx-badts")).thenReturn(Optional.empty());
+        org.mockito.ArgumentCaptor<Donation> captor =
+                org.mockito.ArgumentCaptor.forClass(Donation.class);
+        when(donationRepository.save(captor.capture()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        KofiWebhookPayload payload =
+                new KofiWebhookPayload(
+                        "msg-tx-badts",
+                        "not-a-timestamp",
+                        "Donation",
+                        "테스터",
+                        "응원합니다",
+                        "5.00",
+                        "USD",
+                        "https://ko-fi.com",
+                        "tx-badts",
+                        false,
+                        "test-token");
+
+        boolean accepted = donationService.handleKofiWebhook(payload);
+
+        assertThat(accepted).isTrue();
+        assertThat(captor.getValue().getProviderPaidAt()).isNull();
     }
 
     @Test
@@ -162,6 +209,15 @@ class DonationServiceTest {
     }
 
     private KofiWebhookPayload kofiPayload(String transactionId, String amount, String token) {
+        return kofiPayload(transactionId, amount, "USD", false, token);
+    }
+
+    private KofiWebhookPayload kofiPayload(
+            String transactionId,
+            String amount,
+            String currency,
+            boolean subscription,
+            String token) {
         return new KofiWebhookPayload(
                 "msg-" + transactionId,
                 "2026-07-17T12:00:00Z",
@@ -169,9 +225,10 @@ class DonationServiceTest {
                 "테스터",
                 "응원합니다",
                 amount,
-                "USD",
+                currency,
                 "https://ko-fi.com",
                 transactionId,
+                subscription,
                 token);
     }
 

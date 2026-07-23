@@ -2,9 +2,15 @@
 
 import { Fragment, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { ApiError, donationApi } from '@/lib/api';
 import type { DonationEventActor, DonationEventType } from '@/lib/api/types';
+
+function formatAmount(amount: number, currency: string): string {
+    return currency === 'KRW'
+        ? `${amount.toLocaleString()}원`
+        : `${currency} ${amount.toLocaleString()}`;
+}
 
 const DONATION_EVENT_LABELS: Record<DonationEventType, string> = {
     CREATED: '후원 생성',
@@ -75,37 +81,39 @@ export function DonationsPanel() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                    {
-                        label: '누적 후원금 (결제완료)',
-                        value: donationSummary?.paidTotal,
-                        suffix: '원',
-                        icon: Heart,
-                    },
-                    {
-                        label: '결제완료 건수',
-                        value: donationSummary?.paidCount,
-                        suffix: '건',
-                        icon: Check,
-                    },
-                ].map(({ label, value, suffix, icon: Icon }) => (
-                    <div
-                        key={label}
-                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm font-bold text-slate-500">{label}</p>
-                            <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                                <Icon className="h-4 w-4" />
-                            </span>
-                        </div>
-                        <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
-                            {isDonationLoading || value === undefined
-                                ? '—'
-                                : `${value.toLocaleString()}${suffix}`}
+                {isDonationLoading ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2">
+                        <p className="text-sm font-semibold text-slate-400">불러오는 중입니다.</p>
+                    </div>
+                ) : (donationSummary?.paidTotals ?? []).length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2">
+                        <p className="text-sm font-semibold text-slate-400">
+                            결제완료된 후원이 아직 없습니다.
                         </p>
                     </div>
-                ))}
+                ) : (
+                    (donationSummary?.paidTotals ?? []).map(({ currency, total, count }) => (
+                        <div
+                            key={currency}
+                            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                        >
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-bold text-slate-500">
+                                    {currency} 누적 후원금 (결제완료)
+                                </p>
+                                <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                                    <Heart className="h-4 w-4" />
+                                </span>
+                            </div>
+                            <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
+                                {formatAmount(total, currency)}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-slate-400">
+                                {count.toLocaleString()}건
+                            </p>
+                        </div>
+                    ))
+                )}
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -139,7 +147,12 @@ export function DonationsPanel() {
                                             {donation.createdAt.replace('T', ' ').slice(0, 16)}
                                         </td>
                                         <td className="px-5 py-3 text-right font-bold">
-                                            {donation.amount.toLocaleString()}원
+                                            {formatAmount(donation.amount, donation.currency)}
+                                            {donation.subscription && (
+                                                <span className="ml-1.5 inline-flex rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-extrabold text-indigo-600">
+                                                    정기
+                                                </span>
+                                            )}
                                         </td>
                                         <td
                                             className="max-w-[240px] truncate px-5 py-3"

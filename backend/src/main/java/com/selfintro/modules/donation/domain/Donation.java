@@ -36,6 +36,9 @@ public class Donation {
     @Column(name = "amount", nullable = false)
     private int amount;
 
+    @Column(name = "currency", nullable = false, length = 3)
+    private String currency;
+
     @Column(name = "message", length = 200)
     private String message;
 
@@ -49,11 +52,17 @@ public class Donation {
     @Column(name = "pay_state", length = 10)
     private String payState;
 
+    @Column(name = "is_subscription", nullable = false)
+    private boolean subscription;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
+
+    @Column(name = "provider_paid_at")
+    private LocalDateTime providerPaidAt;
 
     @Column(name = "canceled_at")
     private LocalDateTime canceledAt;
@@ -63,22 +72,42 @@ public class Donation {
     @Column(name = "version", nullable = false)
     private long version;
 
-    private Donation(int amount, String message, LocalDateTime createdAt) {
+    private Donation(
+            int amount,
+            String message,
+            LocalDateTime createdAt,
+            String currency,
+            boolean subscription) {
         this.clientToken = UUID.randomUUID().toString();
         this.amount = amount;
+        this.currency = currency;
         this.message = message;
         this.status = DonationStatus.PENDING;
+        this.subscription = subscription;
         this.createdAt = createdAt;
     }
 
     public static Donation request(int amount, String message, LocalDateTime createdAt) {
-        return new Donation(amount, message, createdAt);
+        return new Donation(amount, message, createdAt, "KRW", false);
+    }
+
+    public static Donation request(
+            int amount,
+            String message,
+            LocalDateTime createdAt,
+            String currency,
+            boolean subscription) {
+        return new Donation(amount, message, createdAt, currency, subscription);
     }
 
     public void assignMulNo(String mulNo) {
         if (this.mulNo == null) {
             this.mulNo = mulNo;
         }
+    }
+
+    public void recordProviderPaidAt(LocalDateTime providerPaidAt) {
+        this.providerPaidAt = providerPaidAt;
     }
 
     /** PENDING에서만 PAID로 전이한다. 중복 콜백은 false를 반환하며 아무것도 바꾸지 않는다. */

@@ -12,4 +12,5 @@ public record KofiWebhookPayload(
         @JsonProperty("currency") String currency,
         @JsonProperty("url") String url,
         @JsonProperty("kofi_transaction_id") String kofiTransactionId,
+        @JsonProperty("is_subscription_payment") Boolean isSubscriptionPayment,
         @JsonProperty("verification_token") String verificationToken) {}

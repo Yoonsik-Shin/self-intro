@@ -18,7 +18,9 @@ import jakarta.persistence.EntityNotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +61,11 @@ public class DonationService {
         }
 
         int amount = parseKofiAmount(payload.amount());
+        String currency =
+                payload.currency() != null && !payload.currency().isBlank()
+                        ? payload.currency()
+                        : "USD";
+        boolean subscription = Boolean.TRUE.equals(payload.isSubscriptionPayment());
         String senderName =
                 payload.fromName() != null && !payload.fromName().isBlank()
                         ? payload.fromName()
@@ -70,9 +77,10 @@ public class DonationService {
         }
 
         LocalDateTime now = LocalDateTime.now(donationClock);
-        Donation donation = Donation.request(amount, fullMessage, now);
+        Donation donation = Donation.request(amount, fullMessage, now, currency, subscription);
         donation.assignMulNo(transactionId);
         donation.markPaid(now, "KOFI");
+        donation.recordProviderPaidAt(parseKofiTimestamp(payload.timestamp()));
         donationRepository.save(donation);
 
         recordEvent(
@@ -115,11 +123,30 @@ public class DonationService {
         }
     }
 
+    /** Ko-fi가 보낸 실제 결제 시각(ISO-8601). 파싱에 실패해도 webhook 수신 자체는 거부하지 않는다. */
+    private LocalDateTime parseKofiTimestamp(String timestamp) {
+        if (timestamp == null || timestamp.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(timestamp).atZone(donationClock.getZone()).toLocalDateTime();
+        } catch (DateTimeParseException exception) {
+            log.warn("Ko-fi timestamp 파싱에 실패했습니다: {}", timestamp);
+            return null;
+        }
+    }
+
     @Transactional(readOnly = true)
     public AdminDonationSummaryResponse adminList() {
         return new AdminDonationSummaryResponse(
-                donationRepository.sumAmountByStatus(DonationStatus.PAID),
-                donationRepository.countByStatus(DonationStatus.PAID),
+                donationRepository
+                        .sumAndCountByStatusGroupedByCurrency(DonationStatus.PAID)
+                        .stream()
+                        .map(
+                                row ->
+                                        new AdminDonationSummaryResponse.CurrencyTotal(
+                                                row.getCurrency(), row.getTotal(), row.getCount()))
+                        .toList(),
                 donationRepository.findTop200ByOrderByIdDesc().stream()
                         .map(AdminDonationResponse::from)
                         .toList());

@@ -101,8 +101,10 @@ class DonationApiIntegrationTest {
 
         mockMvc.perform(get("/api/admin/donations").with(user("test-admin").roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paidCount").value(1))
-                .andExpect(jsonPath("$.donations[0].amount").value(5));
+                .andExpect(jsonPath("$.paidTotals[0].currency").value("USD"))
+                .andExpect(jsonPath("$.paidTotals[0].count").value(1))
+                .andExpect(jsonPath("$.donations[0].amount").value(5))
+                .andExpect(jsonPath("$.donations[0].currency").value("USD"));
     }
 
     @Test
