@@ -38,6 +38,10 @@ export function applyPrintTemplateContent(
               }
             : source.profile,
         skills,
+        competencies: source.competencies.map((comp) => ({
+            ...comp,
+            ...(overrides.competencies?.[String(comp.id)] ?? {}),
+        })),
         experiences: source.experiences.map((experience) =>
             applyExperienceOverrides(experience, overrides)
         ),

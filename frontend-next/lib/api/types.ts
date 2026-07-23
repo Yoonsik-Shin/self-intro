@@ -542,6 +542,7 @@ export type PrintTemplateContentOverrides = {
             >
         >
     >;
+    competencies?: Record<string, Partial<{ title: string; summary: string }>>;
     selectedSkillIds?: number[] | null;
 };
 

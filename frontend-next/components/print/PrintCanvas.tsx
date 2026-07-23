@@ -214,6 +214,25 @@ export function PrintCanvas({
         });
     };
 
+    const setCompetencyOverride = (
+        compId: number,
+        field: 'title' | 'summary',
+        val: string | undefined,
+        baseVal: string
+    ) => {
+        setContentOverrides((current) => {
+            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+            const compMap = { ...(next.competencies ?? {}) };
+            const fields = { ...(compMap[String(compId)] ?? {}) };
+            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+            else fields[field] = val;
+            if (Object.keys(fields).length > 0) compMap[String(compId)] = fields;
+            else delete compMap[String(compId)];
+            next.competencies = Object.keys(compMap).length > 0 ? compMap : undefined;
+            return next;
+        });
+    };
+
     const renderInlineText = ({
         value,
         baseValue,
@@ -970,6 +989,11 @@ export function PrintCanvas({
                 if (!competency) return null;
                 const index = orderedCompetencies.indexOf(competency);
                 const itemId = `competency:${competency.id}`;
+
+                const origComp = introData.competencies.find((c) => c.id === competency.id);
+                const origTitle = origComp?.title ?? competency.title;
+                const origSummary = origComp?.summary ?? competency.summary;
+
                 return (
                     <Fragment key={atom.id}>
                         {renderItemGap(itemId, 'competencies')}
@@ -981,8 +1005,20 @@ export function PrintCanvas({
                                         <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400 text-xs">
                                             {String(index + 1).padStart(2, '0')}
                                         </span>
-                                        <h3 className="resume-item-title font-black text-slate-900 text-xs">
-                                            {competency.title}
+                                        <h3 className="resume-item-title font-black text-slate-900 text-xs min-w-0 flex-1">
+                                            {renderInlineText({
+                                                value: competency.title,
+                                                baseValue: origTitle,
+                                                textClassName: 'font-black text-slate-900 text-xs',
+                                                placeholder: '핵심 역량 제목을 입력하세요',
+                                                onChange: (val) =>
+                                                    setCompetencyOverride(
+                                                        competency.id,
+                                                        'title',
+                                                        val,
+                                                        origTitle
+                                                    ),
+                                            })}
                                         </h3>
                                     </div>
                                     {competency.skills.length > 0 && (
@@ -995,9 +1031,23 @@ export function PrintCanvas({
                                     )}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="resume-body font-semibold text-slate-700 text-xs leading-relaxed">
-                                        {competency.summary}
-                                    </p>
+                                    <div className="resume-body font-semibold text-slate-700 text-xs leading-relaxed">
+                                        {renderInlineText({
+                                            value: competency.summary,
+                                            baseValue: origSummary,
+                                            multiline: true,
+                                            textClassName:
+                                                'font-semibold text-slate-700 text-xs leading-relaxed',
+                                            placeholder: '핵심 역량 요약 및 설명을 입력하세요',
+                                            onChange: (val) =>
+                                                setCompetencyOverride(
+                                                    competency.id,
+                                                    'summary',
+                                                    val,
+                                                    origSummary
+                                                ),
+                                        })}
+                                    </div>
                                 </div>
                             </article>
                         </div>
@@ -1026,6 +1076,10 @@ export function PrintCanvas({
                 const career = orderedCareerCards.find((c) => c.id === atom.dataId);
                 if (!career) return null;
                 const itemId = `career-company:${career.id}`;
+                const origExp = introData.experiences.find((e) => e.id === career.id);
+                const origCompanyName = origExp?.companyName ?? career.companyName;
+                const origSummary = origExp?.summary ?? career.summary ?? '';
+
                 return (
                     <Fragment key={atom.id}>
                         {renderItemGap(itemId, 'career')}
@@ -1038,16 +1092,40 @@ export function PrintCanvas({
                                 {career.period}
                             </span>
                             <p className="resume-item-title mt-1.5 font-black text-slate-800 text-sm">
-                                {career.companyName} ({career.employmentType})
+                                {renderInlineText({
+                                    value: career.companyName,
+                                    baseValue: origCompanyName,
+                                    textClassName: 'font-black text-slate-800 text-sm',
+                                    placeholder: '회사명을 입력하세요',
+                                    onChange: (val) =>
+                                        setExperienceOverride(
+                                            career.id,
+                                            'title',
+                                            val,
+                                            origCompanyName
+                                        ),
+                                })}{' '}
+                                ({career.employmentType})
                             </p>
                             <p className="resume-meta font-semibold text-slate-500 text-xs">
                                 {career.department} / {career.role}
                             </p>
-                            {career.summary && (
+                            {(career.summary || inlineEditMode) && (
                                 <div className="resume-body mt-2 text-xs text-slate-600">
-                                    <ReactMarkdown components={resumeMarkdownComponents}>
-                                        {career.summary}
-                                    </ReactMarkdown>
+                                    {renderInlineText({
+                                        value: career.summary ?? '',
+                                        baseValue: origSummary,
+                                        multiline: true,
+                                        textClassName: 'text-xs text-slate-600',
+                                        placeholder: '회사 및 담당업무 개요를 입력하세요',
+                                        onChange: (val) =>
+                                            setExperienceOverride(
+                                                career.id,
+                                                'summary',
+                                                val,
+                                                origSummary
+                                            ),
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -1064,6 +1142,12 @@ export function PrintCanvas({
                 const itemId = `career-project:${project.id}`;
                 const hasDetails = project.details && project.details.length > 0;
 
+                const origExp = introData.experiences
+                    .flatMap((e) => (e.details ? [e] : []))
+                    .find((e) => e.id === project.id);
+                const origTitle = origExp?.title ?? project.title;
+                const origSummary = origExp?.summary ?? project.summary ?? '';
+
                 return (
                     <Fragment key={atom.id}>
                         {renderItemGap(itemId, 'career')}
@@ -1075,7 +1159,19 @@ export function PrintCanvas({
                             <div className="flex w-full items-start gap-2.5 text-left">
                                 <span className="min-w-0 flex-1">
                                     <span className="resume-body block font-bold text-slate-900 text-xs">
-                                        {project.title}
+                                        {renderInlineText({
+                                            value: project.title,
+                                            baseValue: origTitle,
+                                            textClassName: 'font-bold text-slate-900 text-xs',
+                                            placeholder: '프로젝트 제목을 입력하세요',
+                                            onChange: (val) =>
+                                                setExperienceOverride(
+                                                    project.id,
+                                                    'title',
+                                                    val,
+                                                    origTitle
+                                                ),
+                                        })}
                                     </span>
                                     <span className="resume-meta mt-0.5 block text-slate-400 text-[10px]">
                                         {project.periodStart.replace(/-/g, '.').substring(0, 7)} -{' '}
@@ -1088,15 +1184,26 @@ export function PrintCanvas({
                                     </span>
                                 </span>
                             </div>
-                            {project.summary && (
+                            {(project.summary || inlineEditMode) && (
                                 <div className="mt-1.5">
                                     <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider text-[10px]">
                                         프로젝트 설명 및 역할
                                     </h4>
                                     <div className="resume-body mt-0.5 text-xs text-slate-600">
-                                        <ReactMarkdown components={resumeMarkdownComponents}>
-                                            {project.summary}
-                                        </ReactMarkdown>
+                                        {renderInlineText({
+                                            value: project.summary ?? '',
+                                            baseValue: origSummary,
+                                            multiline: true,
+                                            textClassName: 'text-xs text-slate-600',
+                                            placeholder: '프로젝트 설명 및 역할을 입력하세요',
+                                            onChange: (val) =>
+                                                setExperienceOverride(
+                                                    project.id,
+                                                    'summary',
+                                                    val,
+                                                    origSummary
+                                                ),
+                                        })}
                                     </div>
                                 </div>
                             )}
