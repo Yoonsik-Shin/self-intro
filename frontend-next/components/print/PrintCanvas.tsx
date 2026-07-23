@@ -11,6 +11,8 @@ import {
     GraduationCap,
     MoveVertical,
     Sparkles,
+    Settings,
+    Plus,
 } from 'lucide-react';
 import type {
     IntroductionResponse,
@@ -44,6 +46,7 @@ import { PrintPreviewNav } from './PrintPreviewNav';
 import { PrintEyeButton } from './PrintEyeButton';
 import { PrintModeModal } from './PrintModeModal';
 import { SaveServerTemplateModal } from './SaveServerTemplateModal';
+import { PrintSkillSelectorModal } from './PrintSkillSelectorModal';
 
 type Props = {
     introData: IntroductionResponse;
@@ -248,6 +251,8 @@ export function PrintCanvas({
         });
     };
 
+    const [skillSelectorModalOpen, setSkillSelectorModalOpen] = useState(false);
+
     const toggleSkillSelection = (skillId: number) => {
         setContentOverrides((current) => {
             const allIds = introData.skills.map((s) => s.id);
@@ -270,6 +275,42 @@ export function PrintCanvas({
                 selectedSkillIds: isAllSelected ? undefined : nextSelected,
             };
         });
+    };
+
+    const selectAllSkillsInGroup = (skillIds: number[]) => {
+        setContentOverrides((current) => {
+            const allIds = introData.skills.map((s) => s.id);
+            const currentSelected = current.selectedSkillIds ?? allIds;
+            const set = new Set([...currentSelected, ...skillIds]);
+            const nextSelected = Array.from(set);
+            const isAllSelected =
+                allIds.length === nextSelected.length &&
+                allIds.every((id) => nextSelected.includes(id));
+            return {
+                ...current,
+                selectedSkillIds: isAllSelected ? undefined : nextSelected,
+            };
+        });
+    };
+
+    const deselectAllSkillsInGroup = (skillIds: number[]) => {
+        setContentOverrides((current) => {
+            const allIds = introData.skills.map((s) => s.id);
+            const currentSelected = current.selectedSkillIds ?? allIds;
+            const deselectSet = new Set(skillIds);
+            const nextSelected = currentSelected.filter((id) => !deselectSet.has(id));
+            return {
+                ...current,
+                selectedSkillIds: nextSelected,
+            };
+        });
+    };
+
+    const resetSkillsToAll = () => {
+        setContentOverrides((current) => ({
+            ...current,
+            selectedSkillIds: undefined,
+        }));
     };
 
     const renderInlineText = ({
@@ -975,11 +1016,26 @@ export function PrintCanvas({
                     >
                         {renderSectionGap('skills')}
                         {renderSectionControls('skills')}
-                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-2 w-full">
                             <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                                 <Cpu className="h-4 w-4 text-slate-900" />
                                 기술 스택
                             </h2>
+                            {inlineEditMode && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setSkillSelectorModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-xs hover:bg-blue-700 transition cursor-pointer print:hidden"
+                                    title="DB 전체 기술 스택 선택 및 관리 모달 열기"
+                                >
+                                    <Settings className="h-3.5 w-3.5" />
+                                    <span>⚙ DB 기술스택 선택/관리</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 );
@@ -1006,14 +1062,30 @@ export function PrintCanvas({
                         >
                             {renderItemControls(itemId)}
                             <div className="resume-skill-group space-y-1.5">
-                                <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 border-b border-slate-100 pb-0.5 font-black text-slate-500 text-xs">
-                                    <span
-                                        className="resume-skill-group-bar h-3 w-1 shrink-0 rounded-full bg-slate-900"
-                                        aria-hidden
-                                    />
-                                    {groupLabel}
-                                </h4>
-                                <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-0.5">
+                                    <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 font-black text-slate-500 text-xs">
+                                        <span
+                                            className="resume-skill-group-bar h-3 w-1 shrink-0 rounded-full bg-slate-900"
+                                            aria-hidden
+                                        />
+                                        {groupLabel}
+                                    </h4>
+                                    {inlineEditMode && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setSkillSelectorModalOpen(true);
+                                            }}
+                                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline print:hidden cursor-pointer"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                            <span>DB 스택 선택/관리</span>
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2 pt-0.5">
                                     {displaySkills.map((skill) => {
                                         const isSelected =
                                             !contentOverrides.selectedSkillIds ||
@@ -1046,13 +1118,13 @@ export function PrintCanvas({
                                                 }}
                                                 className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-black transition cursor-pointer print:hidden ${
                                                     isSelected
-                                                        ? 'border-blue-400 bg-blue-50/90 text-blue-950 shadow-xs ring-2 ring-blue-300/60 hover:bg-blue-100'
-                                                        : 'border-dashed border-slate-300 bg-slate-100/60 text-slate-400 line-through opacity-70 hover:border-slate-400 hover:opacity-100'
+                                                        ? 'border-blue-400 bg-blue-50/90 text-blue-950 shadow-xs ring-2 ring-blue-300/60 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-900'
+                                                        : 'border-dashed border-slate-300 bg-slate-100/60 text-slate-400 line-through opacity-70 hover:border-blue-400 hover:text-blue-600 hover:opacity-100'
                                                 }`}
                                                 title={
                                                     isSelected
-                                                        ? `'${skill.name}' 스택 템플릿에서 제외하기 (클릭)`
-                                                        : `'${skill.name}' 스택 템플릿에 포함하기 (클릭)`
+                                                        ? `'${skill.name}' 템플릿에서 삭제/제외하기 (클릭)`
+                                                        : `'${skill.name}' 템플릿에 추가/포함하기 (클릭)`
                                                 }
                                             >
                                                 <span>{skill.name}</span>
@@ -1079,6 +1151,21 @@ export function PrintCanvas({
                                             </button>
                                         );
                                     })}
+                                    {inlineEditMode && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setSkillSelectorModalOpen(true);
+                                            }}
+                                            className="inline-flex items-center gap-1 rounded-md border border-dashed border-blue-400 bg-blue-50/60 px-2 py-0.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition cursor-pointer print:hidden"
+                                            title="DB 기술스택 추가 및 관리 모달 열기"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                            <span>스택 선택/추가</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1836,6 +1923,18 @@ export function PrintCanvas({
                 }}
                 editingTemplate={activeTemplate}
             />
+
+            {skillSelectorModalOpen && (
+                <PrintSkillSelectorModal
+                    allSkills={introData.skills}
+                    selectedSkillIds={contentOverrides.selectedSkillIds}
+                    onToggleSkill={toggleSkillSelection}
+                    onSelectAllInGroup={selectAllSkillsInGroup}
+                    onDeselectAllInGroup={deselectAllSkillsInGroup}
+                    onResetToAll={resetSkillsToAll}
+                    onClose={() => setSkillSelectorModalOpen(false)}
+                />
+            )}
         </>
     );
 }
