@@ -42,11 +42,29 @@ services:
       - STORAGE_SECRET_KEY=minioadmin
       - STORAGE_PATH_STYLE_ACCESS=true
       - STORAGE_PUBLIC_BASE_URL=http://localhost:9000/self-intro-images
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SPRING_SESSION_STORE_TYPE=redis
     depends_on:
       backend-db:
         condition: service_healthy
       minio:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: self-intro-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 3s
+      retries: 5
+      interval: 5s
 
   minio:
     image: minio/minio
@@ -105,3 +123,4 @@ services:
 volumes:
   mysql_data:
   minio_data:
+  redis_data:

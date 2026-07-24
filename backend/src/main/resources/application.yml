@@ -34,6 +34,13 @@ spring:
   h2:
     console:
       enabled: ${SPRING_H2_CONSOLE_ENABLED:false}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  session:
+    store-type: ${SPRING_SESSION_STORE_TYPE:none}
 
 management:
   endpoint:
