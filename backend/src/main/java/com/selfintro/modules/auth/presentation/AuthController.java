@@ -1,7 +1,7 @@
-package com.selfintro.auth.controller;
+package com.selfintro.modules.auth.presentation;
 
-import com.selfintro.auth.dto.LoginRequest;
-import com.selfintro.auth.dto.MeResponse;
+import com.selfintro.modules.auth.presentation.dto.LoginRequest;
+import com.selfintro.modules.auth.presentation.dto.MeResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;

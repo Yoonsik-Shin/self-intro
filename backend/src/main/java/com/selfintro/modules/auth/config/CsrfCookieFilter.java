@@ -1,4 +1,4 @@
-package com.selfintro.auth.config;
+package com.selfintro.modules.auth.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

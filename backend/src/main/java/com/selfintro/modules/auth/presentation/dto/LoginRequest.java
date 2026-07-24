@@ -1,4 +1,4 @@
-package com.selfintro.auth.dto;
+package com.selfintro.modules.auth.presentation.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
