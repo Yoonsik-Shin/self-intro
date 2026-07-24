@@ -193,14 +193,81 @@ export function CareerSection({
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {project.details.length > 0 && (
-                                                        <div className="mb-1.5 mt-1 flex items-center gap-1.5">
-                                                            <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
-                                                                <Briefcase className="h-3.5 w-3.5 text-slate-500" />
-                                                                상세 경험
-                                                            </h4>
-                                                        </div>
-                                                    )}
+                                                    {project.details.length > 0 &&
+                                                        (() => {
+                                                            const projectExpandableDetailIds =
+                                                                project.details
+                                                                    .filter((d) =>
+                                                                        Boolean(
+                                                                            d.situation ||
+                                                                            d.actionDetail ||
+                                                                            d.outcome ||
+                                                                            d.skills.length > 0
+                                                                        )
+                                                                    )
+                                                                    .map((d) => d.id);
+                                                            const isProjectDetailsAllExpanded =
+                                                                projectExpandableDetailIds.length >
+                                                                    0 &&
+                                                                projectExpandableDetailIds.every(
+                                                                    (id) =>
+                                                                        expandedDetailIds.includes(
+                                                                            id
+                                                                        )
+                                                                );
+
+                                                            return (
+                                                                <div className="mb-2 flex items-center justify-between gap-3">
+                                                                    <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
+                                                                        <Briefcase className="h-3.5 w-3.5 text-slate-500" />
+                                                                        상세 경험
+                                                                    </h4>
+                                                                    {projectExpandableDetailIds.length >
+                                                                        0 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-expanded={
+                                                                                isProjectDetailsAllExpanded
+                                                                            }
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (
+                                                                                    isProjectDetailsAllExpanded
+                                                                                ) {
+                                                                                    onSetExpandedDetailIds(
+                                                                                        expandedDetailIds.filter(
+                                                                                            (id) =>
+                                                                                                !projectExpandableDetailIds.includes(
+                                                                                                    id
+                                                                                                )
+                                                                                        )
+                                                                                    );
+                                                                                } else {
+                                                                                    onSetExpandedDetailIds(
+                                                                                        Array.from(
+                                                                                            new Set(
+                                                                                                [
+                                                                                                    ...expandedDetailIds,
+                                                                                                    ...projectExpandableDetailIds,
+                                                                                                ]
+                                                                                            )
+                                                                                        )
+                                                                                    );
+                                                                                }
+                                                                            }}
+                                                                            className="group/expand inline-flex items-center gap-1 text-[0.6875rem] font-bold leading-4 text-slate-400 transition hover:text-slate-800"
+                                                                        >
+                                                                            <ChevronDown
+                                                                                className={`h-3.5 w-3.5 transition-transform duration-200 ${isProjectDetailsAllExpanded ? 'rotate-180' : ''}`}
+                                                                            />
+                                                                            {isProjectDetailsAllExpanded
+                                                                                ? '모두 접기'
+                                                                                : '모두 펼치기'}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     <ul className="divide-y divide-slate-100">
                                                         {project.details.map((detail) => {
                                                             const isExpanded =
