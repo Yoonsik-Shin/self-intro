@@ -46,4 +46,23 @@ export const experienceApi = {
             method: 'POST',
             body: JSON.stringify(payload),
         }),
+    toggleTimeline: (id: number) =>
+        request<Experience>(`/api/experiences/${id}/toggle-timeline`, {
+            method: 'PATCH',
+        }),
+    batchTimelineShow: (ids: number[]) =>
+        request<Experience[]>('/api/experiences/batch-timeline-show', {
+            method: 'POST',
+            body: JSON.stringify(ids),
+        }),
+    batchTimelineHide: (ids: number[]) =>
+        request<Experience[]>('/api/experiences/batch-timeline-hide', {
+            method: 'POST',
+            body: JSON.stringify(ids),
+        }),
+    reorder: (orderedIds: number[]) =>
+        request<Experience[]>('/api/experiences/reorder', {
+            method: 'POST',
+            body: JSON.stringify(orderedIds),
+        }),
 };
