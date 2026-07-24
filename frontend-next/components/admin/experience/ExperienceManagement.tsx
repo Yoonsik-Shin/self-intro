@@ -712,6 +712,7 @@ export function ExperienceManagement({
                     actionDetail: detail.actionDetail ?? '',
                     outcome: detail.outcome ?? '',
                     narrative: detail.narrative ?? '',
+                    visible: detail.visible !== false,
                     skillIds: detail.skills?.map((skill) => skill.id) ?? [],
                     studyIds: detailStudies.get(detail.id) ?? [],
                 })),
@@ -1851,390 +1852,369 @@ export function ExperienceManagement({
                         )}
                     </div>
 
-                    {expForm.type !== 'CAREER' && (
-                        <>
-                            <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
-                                <ListChecks className="h-4 w-4 text-slate-500" />
-                                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                                    이력 상세 항목 (Bullet Points) · {expForm.details.length}개
-                                </h4>
+                    {/* 이력 상세 항목 (Bullet Points) */}
+                    <>
+                        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
+                            <ListChecks className="h-4 w-4 text-slate-500" />
+                            <h4 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                                이력 상세 항목 (Bullet Points) · {expForm.details.length}개
+                            </h4>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
+                            <div className="flex gap-2 mb-3">
+                                <input
+                                    type="text"
+                                    placeholder="새로운 불릿 항목 상세 입력..."
+                                    value={detailInput}
+                                    onChange={(e) => setDetailInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            addDetailPoint();
+                                        }
+                                    }}
+                                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:border-slate-800 bg-white"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addDetailPoint}
+                                    className="rounded-lg bg-slate-100 border border-slate-300 text-slate-900 p-2 hover:bg-slate-200 text-xs font-bold flex items-center gap-1"
+                                >
+                                    <PlusCircle className="h-4 w-4" />
+                                    추가
+                                </button>
                             </div>
 
-                            <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
-                                <div className="flex gap-2 mb-3">
+                            {expForm.details.length > 0 && (
+                                <div className="relative mb-3">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                                     <input
-                                        type="text"
-                                        placeholder="새로운 불릿 항목 상세 입력..."
-                                        value={detailInput}
-                                        onChange={(e) => setDetailInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                addDetailPoint();
-                                            }
-                                        }}
-                                        className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:border-slate-800 bg-white"
+                                        type="search"
+                                        value={detailListSearch}
+                                        onChange={(event) =>
+                                            setDetailListSearch(event.target.value)
+                                        }
+                                        placeholder="상세 항목 내용 검색..."
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={addDetailPoint}
-                                        className="rounded-lg bg-slate-100 border border-slate-300 text-slate-900 p-2 hover:bg-slate-200 text-xs font-bold flex items-center gap-1"
-                                    >
-                                        <PlusCircle className="h-4 w-4" />
-                                        추가
-                                    </button>
                                 </div>
+                            )}
 
-                                {expForm.details.length > 0 && (
-                                    <div className="relative mb-3">
-                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                                        <input
-                                            type="search"
-                                            value={detailListSearch}
-                                            onChange={(event) =>
-                                                setDetailListSearch(event.target.value)
-                                            }
-                                            placeholder="상세 항목 내용 검색..."
-                                            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
-                                        />
-                                    </div>
-                                )}
-
-                                <div className="space-y-2">
-                                    {expForm.details
-                                        .map((d, idx) => ({ d, idx }))
-                                        .filter(
-                                            ({ d }) =>
-                                                !detailListSearch.trim() ||
-                                                d.content
-                                                    .toLowerCase()
-                                                    .includes(detailListSearch.trim().toLowerCase())
-                                        )
-                                        .map(({ d, idx }) => {
-                                            const isDetailExpanded = expandedDetailIdx === idx;
-                                            const isDragged = draggedDetailIdx === idx;
-                                            const isVisible = d.visible !== false;
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    draggable={detailListSearch.trim() === ''}
-                                                    onDragStart={() => handleDetailDragStart(idx)}
-                                                    onDragOver={(e) => handleDetailDragOver(e, idx)}
-                                                    onDragEnd={handleDetailDragEnd}
-                                                    className={`rounded-lg border transition text-sm ${
-                                                        isDragged
-                                                            ? 'border-indigo-400 bg-indigo-50/50 shadow-md opacity-60'
-                                                            : isVisible
-                                                              ? 'border-slate-200 bg-white'
-                                                              : 'border-slate-200 bg-slate-50/70 opacity-75'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center justify-between gap-1.5 p-2">
-                                                        <div
-                                                            className="flex shrink-0 items-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 p-0.5"
-                                                            title="드래그하여 순서 변경"
-                                                        >
-                                                            <GripVertical className="h-4 w-4" />
-                                                        </div>
-                                                        <div className="flex shrink-0 flex-col">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    moveDetailPoint(idx, -1)
-                                                                }
-                                                                disabled={
-                                                                    idx === 0 ||
-                                                                    detailListSearch.trim() !== ''
-                                                                }
-                                                                title="위로 이동"
-                                                                className="grid h-3.5 w-4 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
-                                                            >
-                                                                <ArrowUp className="h-3 w-3" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    moveDetailPoint(idx, 1)
-                                                                }
-                                                                disabled={
-                                                                    idx ===
-                                                                        expForm.details.length -
-                                                                            1 ||
-                                                                    detailListSearch.trim() !== ''
-                                                                }
-                                                                title="아래로 이동"
-                                                                className="grid h-3.5 w-4 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
-                                                            >
-                                                                <ArrowDown className="h-3 w-3" />
-                                                            </button>
-                                                        </div>
-                                                        <input
-                                                            type="text"
-                                                            value={d.content}
-                                                            onChange={(e) =>
-                                                                updateDetailField(
-                                                                    idx,
-                                                                    'content',
-                                                                    e.target.value
-                                                                )
-                                                            }
-                                                            placeholder="불릿 한 줄 요약"
-                                                            className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-slate-400 focus:bg-slate-100/30 focus:outline-none"
-                                                        />
+                            <div className="space-y-2">
+                                {expForm.details
+                                    .map((d, idx) => ({ d, idx }))
+                                    .filter(
+                                        ({ d }) =>
+                                            !detailListSearch.trim() ||
+                                            d.content
+                                                .toLowerCase()
+                                                .includes(detailListSearch.trim().toLowerCase())
+                                    )
+                                    .map(({ d, idx }) => {
+                                        const isDetailExpanded = expandedDetailIdx === idx;
+                                        const isDragged = draggedDetailIdx === idx;
+                                        const isVisible = d.visible !== false;
+                                        return (
+                                            <div
+                                                key={idx}
+                                                draggable={detailListSearch.trim() === ''}
+                                                onDragStart={() => handleDetailDragStart(idx)}
+                                                onDragOver={(e) => handleDetailDragOver(e, idx)}
+                                                onDragEnd={handleDetailDragEnd}
+                                                className={`rounded-lg border transition text-sm ${
+                                                    isDragged
+                                                        ? 'border-indigo-400 bg-indigo-50/50 shadow-md opacity-60'
+                                                        : isVisible
+                                                          ? 'border-slate-200 bg-white'
+                                                          : 'border-slate-200 bg-slate-50/70 opacity-75'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between gap-1.5 p-2">
+                                                    <div
+                                                        className="flex shrink-0 items-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 p-0.5"
+                                                        title="드래그하여 순서 변경"
+                                                    >
+                                                        <GripVertical className="h-4 w-4" />
+                                                    </div>
+                                                    <div className="flex shrink-0 flex-col">
                                                         <button
                                                             type="button"
-                                                            onClick={() =>
-                                                                toggleDetailVisibility(idx)
+                                                            onClick={() => moveDetailPoint(idx, -1)}
+                                                            disabled={
+                                                                idx === 0 ||
+                                                                detailListSearch.trim() !== ''
                                                             }
-                                                            title={
-                                                                isVisible
-                                                                    ? '클릭하여 숨김 전환'
-                                                                    : '클릭하여 공개 전환'
-                                                            }
-                                                            className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold transition border ${
-                                                                isVisible
-                                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                                                    : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                                            }`}
+                                                            title="위로 이동"
+                                                            className="grid h-3.5 w-4 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
                                                         >
-                                                            {isVisible ? '공개' : '숨김'}
+                                                            <ArrowUp className="h-3 w-3" />
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => {
-                                                                setExpandedDetailIdx(
-                                                                    isDetailExpanded ? null : idx
-                                                                );
-                                                                setDetailSkillSearch('');
-                                                                setDetailStudySearch('');
-                                                            }}
-                                                            className="text-slate-400 transition hover:text-slate-900 p-1"
+                                                            onClick={() => moveDetailPoint(idx, 1)}
+                                                            disabled={
+                                                                idx ===
+                                                                    expForm.details.length - 1 ||
+                                                                detailListSearch.trim() !== ''
+                                                            }
+                                                            title="아래로 이동"
+                                                            className="grid h-3.5 w-4 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
                                                         >
-                                                            {isDetailExpanded ? (
-                                                                <ChevronUp className="h-4 w-4" />
-                                                            ) : (
-                                                                <ChevronDown className="h-4 w-4" />
-                                                            )}
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeDetailPoint(idx)}
-                                                            title="삭제"
-                                                            className="text-red-500 transition hover:text-red-700 p-1"
-                                                        >
-                                                            <MinusCircle className="h-4 w-4" />
+                                                            <ArrowDown className="h-3 w-3" />
                                                         </button>
                                                     </div>
+                                                    <input
+                                                        type="text"
+                                                        value={d.content}
+                                                        onChange={(e) =>
+                                                            updateDetailField(
+                                                                idx,
+                                                                'content',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder="불릿 한 줄 요약"
+                                                        className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-slate-400 focus:bg-slate-100/30 focus:outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleDetailVisibility(idx)}
+                                                        title={
+                                                            isVisible
+                                                                ? '클릭하여 숨김 전환'
+                                                                : '클릭하여 공개 전환'
+                                                        }
+                                                        className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold transition border ${
+                                                            isVisible
+                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                                                : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                        }`}
+                                                    >
+                                                        {isVisible ? '공개' : '숨김'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setExpandedDetailIdx(
+                                                                isDetailExpanded ? null : idx
+                                                            );
+                                                            setDetailSkillSearch('');
+                                                            setDetailStudySearch('');
+                                                        }}
+                                                        className="text-slate-400 transition hover:text-slate-900 p-1"
+                                                    >
+                                                        {isDetailExpanded ? (
+                                                            <ChevronUp className="h-4 w-4" />
+                                                        ) : (
+                                                            <ChevronDown className="h-4 w-4" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeDetailPoint(idx)}
+                                                        title="삭제"
+                                                        className="text-red-500 transition hover:text-red-700 p-1"
+                                                    >
+                                                        <MinusCircle className="h-4 w-4" />
+                                                    </button>
+                                                </div>
 
-                                                    {isDetailExpanded && (
-                                                        <div className="space-y-2 border-t border-slate-100 p-3">
-                                                            <div>
-                                                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                                                    상황 (Situation, 마크다운)
+                                                {isDetailExpanded && (
+                                                    <div className="space-y-2 border-t border-slate-100 p-3">
+                                                        <div>
+                                                            <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                상황 (Situation, 마크다운)
+                                                            </label>
+                                                            <MarkdownEditor
+                                                                value={d.situation ?? ''}
+                                                                onChange={(value) =>
+                                                                    updateDetailField(
+                                                                        idx,
+                                                                        'situation',
+                                                                        value
+                                                                    )
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                과정 (Action, 마크다운)
+                                                            </label>
+                                                            <MarkdownEditor
+                                                                value={d.actionDetail ?? ''}
+                                                                onChange={(value) =>
+                                                                    updateDetailField(
+                                                                        idx,
+                                                                        'actionDetail',
+                                                                        value
+                                                                    )
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                성과 (Outcome, 마크다운)
+                                                            </label>
+                                                            <MarkdownEditor
+                                                                value={d.outcome ?? ''}
+                                                                onChange={(value) =>
+                                                                    updateDetailField(
+                                                                        idx,
+                                                                        'outcome',
+                                                                        value
+                                                                    )
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <div className="mb-1 flex items-center justify-between gap-2">
+                                                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                    서술 (Narrative, AI 병합 문단)
                                                                 </label>
-                                                                <MarkdownEditor
-                                                                    value={d.situation ?? ''}
-                                                                    onChange={(value) =>
-                                                                        updateDetailField(
-                                                                            idx,
-                                                                            'situation',
-                                                                            value
-                                                                        )
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        generateDetailNarrative(idx)
                                                                     }
-                                                                />
+                                                                    disabled={isNarrativeGenerating}
+                                                                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-wait disabled:opacity-60"
+                                                                >
+                                                                    {isNarrativeGenerating ? (
+                                                                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                                                    ) : (
+                                                                        <WandSparkles className="h-3.5 w-3.5" />
+                                                                    )}
+                                                                    {isNarrativeGenerating
+                                                                        ? '재작성 중...'
+                                                                        : 'AI로 재작성'}
+                                                                </button>
                                                             </div>
+                                                            {narrativeError && (
+                                                                <p className="mb-1 text-[11px] font-semibold text-red-500">
+                                                                    {narrativeError}
+                                                                </p>
+                                                            )}
+                                                            <MarkdownEditor
+                                                                value={d.narrative ?? ''}
+                                                                onChange={(value) =>
+                                                                    updateDetailField(
+                                                                        idx,
+                                                                        'narrative',
+                                                                        value
+                                                                    )
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div className="grid gap-3 lg:grid-cols-2">
                                                             <div>
-                                                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                                                    과정 (Action, 마크다운)
+                                                                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                    이 항목의 기술 태그
                                                                 </label>
-                                                                <MarkdownEditor
-                                                                    value={d.actionDetail ?? ''}
-                                                                    onChange={(value) =>
-                                                                        updateDetailField(
-                                                                            idx,
-                                                                            'actionDetail',
-                                                                            value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                                                    성과 (Outcome, 마크다운)
-                                                                </label>
-                                                                <MarkdownEditor
-                                                                    value={d.outcome ?? ''}
-                                                                    onChange={(value) =>
-                                                                        updateDetailField(
-                                                                            idx,
-                                                                            'outcome',
-                                                                            value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <div className="mb-1 flex items-center justify-between gap-2">
-                                                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                                                        서술 (Narrative, AI 병합
-                                                                        문단)
-                                                                    </label>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            generateDetailNarrative(
-                                                                                idx
+                                                                <div className="relative mb-2">
+                                                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                                                    <input
+                                                                        type="search"
+                                                                        value={detailSkillSearch}
+                                                                        onChange={(event) =>
+                                                                            setDetailSkillSearch(
+                                                                                event.target.value
                                                                             )
                                                                         }
-                                                                        disabled={
-                                                                            isNarrativeGenerating
-                                                                        }
-                                                                        className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-wait disabled:opacity-60"
-                                                                    >
-                                                                        {isNarrativeGenerating ? (
-                                                                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                                                                        ) : (
-                                                                            <WandSparkles className="h-3.5 w-3.5" />
-                                                                        )}
-                                                                        {isNarrativeGenerating
-                                                                            ? '재작성 중...'
-                                                                            : 'AI로 재작성'}
-                                                                    </button>
+                                                                        placeholder="기술명 또는 분류 검색"
+                                                                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                                                                    />
                                                                 </div>
-                                                                {narrativeError && (
-                                                                    <p className="mb-1 text-[11px] font-semibold text-red-500">
-                                                                        {narrativeError}
-                                                                    </p>
-                                                                )}
-                                                                <MarkdownEditor
-                                                                    value={d.narrative ?? ''}
-                                                                    onChange={(value) =>
-                                                                        updateDetailField(
-                                                                            idx,
-                                                                            'narrative',
-                                                                            value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </div>
-                                                            <div className="grid gap-3 lg:grid-cols-2">
-                                                                <div>
-                                                                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                                                        이 항목의 기술 태그
-                                                                    </label>
-                                                                    <div className="relative mb-2">
-                                                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                                                                        <input
-                                                                            type="search"
-                                                                            value={
-                                                                                detailSkillSearch
-                                                                            }
-                                                                            onChange={(event) =>
-                                                                                setDetailSkillSearch(
-                                                                                    event.target
-                                                                                        .value
-                                                                                )
-                                                                            }
-                                                                            placeholder="기술명 또는 분류 검색"
-                                                                            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
-                                                                        />
-                                                                    </div>
-                                                                    <div className="max-h-52 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
-                                                                        {selectableDetailSkills.map(
-                                                                            (s) => (
-                                                                                <label
-                                                                                    key={s.id}
-                                                                                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
-                                                                                >
-                                                                                    <input
-                                                                                        type="checkbox"
-                                                                                        checked={d.skillIds.includes(
+                                                                <div className="max-h-52 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
+                                                                    {selectableDetailSkills.map(
+                                                                        (s) => (
+                                                                            <label
+                                                                                key={s.id}
+                                                                                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
+                                                                            >
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={d.skillIds.includes(
+                                                                                        s.id
+                                                                                    )}
+                                                                                    onChange={() =>
+                                                                                        toggleDetailSkill(
+                                                                                            idx,
                                                                                             s.id
-                                                                                        )}
-                                                                                        onChange={() =>
-                                                                                            toggleDetailSkill(
-                                                                                                idx,
-                                                                                                s.id
-                                                                                            )
-                                                                                        }
-                                                                                    />
-                                                                                    {s.name}
-                                                                                </label>
-                                                                            )
-                                                                        )}
-                                                                        {selectableDetailSkills.length ===
-                                                                            0 && (
-                                                                            <p className="py-4 text-center text-xs font-semibold text-slate-400">
-                                                                                검색 결과가
-                                                                                없습니다.
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
+                                                                                        )
+                                                                                    }
+                                                                                />
+                                                                                {s.name}
+                                                                            </label>
+                                                                        )
+                                                                    )}
+                                                                    {selectableDetailSkills.length ===
+                                                                        0 && (
+                                                                        <p className="py-4 text-center text-xs font-semibold text-slate-400">
+                                                                            검색 결과가 없습니다.
+                                                                        </p>
+                                                                    )}
                                                                 </div>
-                                                                <div>
-                                                                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                                                        이 항목의 관련 Study ·{' '}
-                                                                        {d.studyIds.length}개
-                                                                    </label>
-                                                                    <div className="relative mb-2">
-                                                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                                                                        <input
-                                                                            type="search"
-                                                                            value={
-                                                                                detailStudySearch
-                                                                            }
-                                                                            onChange={(event) =>
-                                                                                setDetailStudySearch(
-                                                                                    event.target
-                                                                                        .value
-                                                                                )
-                                                                            }
-                                                                            placeholder="Study 제목 검색"
-                                                                            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
-                                                                        />
-                                                                    </div>
-                                                                    <div className="max-h-52 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
-                                                                        {selectableDetailStudies.map(
-                                                                            (study) => (
-                                                                                <label
-                                                                                    key={study.id}
-                                                                                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
-                                                                                >
-                                                                                    <input
-                                                                                        type="checkbox"
-                                                                                        checked={d.studyIds.includes(
-                                                                                            study.id
-                                                                                        )}
-                                                                                        onChange={() =>
-                                                                                            toggleDetailStudy(
-                                                                                                idx,
-                                                                                                study.id
-                                                                                            )
-                                                                                        }
-                                                                                    />
-                                                                                    {study.title}
-                                                                                </label>
+                                                            </div>
+                                                            <div>
+                                                                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                    이 항목의 관련 Study ·{' '}
+                                                                    {d.studyIds.length}개
+                                                                </label>
+                                                                <div className="relative mb-2">
+                                                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                                                                    <input
+                                                                        type="search"
+                                                                        value={detailStudySearch}
+                                                                        onChange={(event) =>
+                                                                            setDetailStudySearch(
+                                                                                event.target.value
                                                                             )
-                                                                        )}
-                                                                        {selectableDetailStudies.length ===
-                                                                            0 && (
-                                                                            <p className="py-4 text-center text-xs font-semibold text-slate-400">
-                                                                                검색 결과가
-                                                                                없습니다.
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
+                                                                        }
+                                                                        placeholder="Study 제목 검색"
+                                                                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:ring-2 focus:ring-slate-200"
+                                                                    />
+                                                                </div>
+                                                                <div className="max-h-52 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
+                                                                    {selectableDetailStudies.map(
+                                                                        (study) => (
+                                                                            <label
+                                                                                key={study.id}
+                                                                                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
+                                                                            >
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={d.studyIds.includes(
+                                                                                        study.id
+                                                                                    )}
+                                                                                    onChange={() =>
+                                                                                        toggleDetailStudy(
+                                                                                            idx,
+                                                                                            study.id
+                                                                                        )
+                                                                                    }
+                                                                                />
+                                                                                {study.title}
+                                                                            </label>
+                                                                        )
+                                                                    )}
+                                                                    {selectableDetailStudies.length ===
+                                                                        0 && (
+                                                                        <p className="py-4 text-center text-xs font-semibold text-slate-400">
+                                                                            검색 결과가 없습니다.
+                                                                        </p>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                             </div>
-                        </>
-                    )}
+                        </div>
+                    </>
 
                     <div className="flex justify-end gap-3 pt-2">
                         <button
