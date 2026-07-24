@@ -23,7 +23,6 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -85,10 +84,9 @@ public class SecurityConfig {
                                         .csrfTokenRequestHandler(
                                                 new CsrfTokenRequestAttributeHandler())
                                         .ignoringRequestMatchers(
-                                                new AntPathRequestMatcher("/api/visits", "POST"),
+                                                "/api/visits",
                                                 // Ko-fi 서버가 보내는 외부 webhook은 CSRF 토큰을 가질 수 없다
-                                                new AntPathRequestMatcher(
-                                                        "/api/donations/kofi/webhook", "POST")))
+                                                "/api/donations/kofi/webhook"))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
