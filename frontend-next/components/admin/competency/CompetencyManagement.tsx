@@ -207,6 +207,19 @@ export function CompetencyManagement() {
         }
     };
 
+    const selectedCompetencies = useMemo(
+        () => competencies.filter((c) => selectedCompetencyIds.includes(c.id)),
+        [competencies, selectedCompetencyIds]
+    );
+    const selectedHiddenIds = useMemo(
+        () => selectedCompetencies.filter((c) => !c.visible).map((c) => c.id),
+        [selectedCompetencies]
+    );
+    const selectedVisibleIds = useMemo(
+        () => selectedCompetencies.filter((c) => c.visible).map((c) => c.id),
+        [selectedCompetencies]
+    );
+
     const handleBatchPublish = (ids: number[]) => {
         if (ids.length === 0) return;
         if (window.confirm(`선택한 ${ids.length}개의 핵심 역량을 모두 공개로 전환하시겠습니까?`)) {
@@ -502,24 +515,32 @@ export function CompetencyManagement() {
                         <div className="flex flex-wrap items-center gap-2">
                             {selectedCompetencyIds.length > 0 && (
                                 <>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleBatchPublish(selectedCompetencyIds)}
-                                        disabled={batchPublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
-                                    >
-                                        <Eye className="h-3.5 w-3.5" />
-                                        선택한 {selectedCompetencyIds.length}개 일괄 공개
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleBatchUnpublish(selectedCompetencyIds)}
-                                        disabled={batchUnpublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50"
-                                    >
-                                        <EyeOff className="h-3.5 w-3.5" />
-                                        선택한 {selectedCompetencyIds.length}개 일괄 숨김
-                                    </button>
+                                    {selectedHiddenIds.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleBatchPublish(selectedHiddenIds)}
+                                            disabled={batchPublishMutation.isPending}
+                                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                                        >
+                                            <Eye className="h-3.5 w-3.5" />
+                                            {selectedVisibleIds.length > 0
+                                                ? `선택한 숨김 ${selectedHiddenIds.length}개 일괄 공개`
+                                                : `선택한 ${selectedHiddenIds.length}개 일괄 공개`}
+                                        </button>
+                                    )}
+                                    {selectedVisibleIds.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleBatchUnpublish(selectedVisibleIds)}
+                                            disabled={batchUnpublishMutation.isPending}
+                                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50"
+                                        >
+                                            <EyeOff className="h-3.5 w-3.5" />
+                                            {selectedHiddenIds.length > 0
+                                                ? `선택한 공개 ${selectedVisibleIds.length}개 일괄 숨김`
+                                                : `선택한 ${selectedVisibleIds.length}개 일괄 숨김`}
+                                        </button>
+                                    )}
                                 </>
                             )}
                             {selectedCompetencyIds.length === 0 &&
