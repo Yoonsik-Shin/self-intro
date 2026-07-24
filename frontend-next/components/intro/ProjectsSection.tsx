@@ -227,7 +227,7 @@ export function ProjectsSection({
                                                             className="scroll-mt-24 py-1.5 first:pt-0.5 last:pb-0.5"
                                                         >
                                                             <div
-                                                                className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-md py-1 transition ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
+                                                                className={`group grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 rounded-md py-1 transition ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
                                                                 onClick={(event) => {
                                                                     event.stopPropagation();
                                                                     if (hasDetailContent)
@@ -237,7 +237,7 @@ export function ProjectsSection({
                                                                 <span className="flex h-5 items-center justify-center">
                                                                     {hasDetailContent ? (
                                                                         <ChevronDown
-                                                                            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`}
+                                                                            className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`}
                                                                         />
                                                                     ) : (
                                                                         <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />

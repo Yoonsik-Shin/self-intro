@@ -182,7 +182,7 @@ export function CareerSection({
                                         </button>
 
                                         {isProjectExpanded && (
-                                            <div className="mb-4 pl-5 pt-1.5">
+                                            <div className="mb-4 ml-1.5 border-l-2 border-slate-200/70 pl-3.5 pt-1.5">
                                                 <div>
                                                     {project.summary && (
                                                         <div className="mb-3">
@@ -293,7 +293,7 @@ export function CareerSection({
                                                                     className="scroll-mt-24 py-1.5 first:pt-0 last:pb-0"
                                                                 >
                                                                     <div
-                                                                        className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
+                                                                        className={`group grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
                                                                         onClick={() =>
                                                                             hasDetailContent &&
                                                                             onToggleDetail(
