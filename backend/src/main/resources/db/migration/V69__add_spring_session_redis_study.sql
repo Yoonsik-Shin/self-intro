@@ -3,11 +3,11 @@
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Ensure 'backend' category exists if not found
-INSERT IGNORE INTO study_category (name, slug, display_order, created_at, updated_at)
-VALUES ('Backend', 'backend', 1, NOW(), NOW());
+INSERT IGNORE INTO study_category (name, slug, display_order)
+VALUES ('백엔드', 'backend', 4);
 
 SET @backend_category_id = (
-    SELECT id FROM study_category WHERE slug = 'backend' OR name = 'Backend' LIMIT 1
+    SELECT id FROM study_category WHERE slug = 'backend' OR name = '백엔드' OR name = 'Backend' LIMIT 1
 );
 
 SET @backend_category_id = IFNULL(@backend_category_id, (SELECT id FROM study_category LIMIT 1));
@@ -54,14 +54,13 @@ INSERT IGNORE INTO study_skill (study_id, skill_id)
 SELECT @study_id, id FROM skill WHERE name IN ('Java', 'Spring Boot', 'Spring Security', 'Redis', 'Docker Compose', 'Kubernetes', 'Docker');
 
 -- Map Tags
-INSERT IGNORE INTO tag (name, created_at, updated_at) VALUES
-('Backend', NOW(), NOW()),
-('Spring Security', NOW(), NOW()),
-('Redis', NOW(), NOW()),
-('Session', NOW(), NOW()),
-('Kubernetes', NOW(), NOW()),
-('GitOps', NOW(), NOW())
-ON DUPLICATE KEY UPDATE updated_at = NOW();
+INSERT IGNORE INTO tag (name, slug) VALUES
+('Backend', 'backend-tag'),
+('Spring Security', 'spring-security'),
+('Redis', 'redis'),
+('Session', 'session'),
+('Kubernetes', 'kubernetes'),
+('GitOps', 'gitops');
 
 INSERT IGNORE INTO study_tag (study_id, tag_id)
-SELECT @study_id, id FROM tag WHERE name IN ('Backend', 'Spring Security', 'Redis', 'Session', 'Kubernetes', 'GitOps');
+SELECT @study_id, id FROM tag WHERE slug IN ('backend-tag', 'spring-security', 'redis', 'session', 'kubernetes', 'gitops') OR name IN ('Backend', 'Spring Security', 'Redis', 'Session', 'Kubernetes', 'GitOps');
