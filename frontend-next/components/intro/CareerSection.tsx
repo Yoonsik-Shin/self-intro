@@ -34,7 +34,7 @@ function detailMarkdown(detail: ExperienceDetail) {
         [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
     if (!merged) return null;
     return (
-        <div className="mt-1 text-[12px] leading-relaxed text-slate-600">
+        <div className="mt-0.5 text-[12.5px] leading-relaxed text-slate-600">
             <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
         </div>
     );
@@ -321,7 +321,7 @@ export function CareerSection({
 
                                                                     {hasDetailContent &&
                                                                         isExpanded && (
-                                                                            <div className="mb-3 mt-2">
+                                                                            <div className="mb-2 mt-0.5">
                                                                                 <div className="resume-body ml-7 space-y-2.5 text-slate-600">
                                                                                     {detailMarkdown(
                                                                                         detail
@@ -415,7 +415,7 @@ export function CareerSection({
                                                 )}
                                             </div>
                                             {hasDetailContent && isExpanded && (
-                                                <div className="mt-3">
+                                                <div className="mt-0.5">
                                                     <div className="resume-body ml-6 space-y-3.5 text-slate-600">
                                                         {detailMarkdown(detail)}
                                                         {detail.skills.length > 0 && (

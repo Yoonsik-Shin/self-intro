@@ -262,10 +262,10 @@ export function ProjectsSection({
                                                             </div>
 
                                                             {hasDetailContent && isExpanded && (
-                                                                <div className="mt-2">
+                                                                <div className="mt-0.5">
                                                                     <div className="resume-body ml-[30px] space-y-2.5 text-slate-600">
                                                                         {merged && (
-                                                                            <div className="text-[12px] leading-relaxed">
+                                                                            <div className="mt-0.5 text-[12.5px] leading-relaxed">
                                                                                 <ReactMarkdown
                                                                                     components={
                                                                                         resumeMarkdownComponents
