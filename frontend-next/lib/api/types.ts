@@ -150,6 +150,7 @@ export type ExperienceDetail = {
     actionDetail?: string;
     outcome?: string;
     narrative?: string;
+    visible?: boolean;
     displayOrder: number;
     skills: Skill[];
 };
@@ -372,6 +373,7 @@ export type ExperienceDetailRequest = {
     actionDetail?: string;
     outcome?: string;
     narrative?: string;
+    visible?: boolean;
     skillIds: number[];
 };
 

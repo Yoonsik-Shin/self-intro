@@ -210,10 +210,16 @@ export function CareerSection({
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {project.details.length > 0 &&
+                                                    {project.details.filter(
+                                                        (d) => d.visible !== false
+                                                    ).length > 0 &&
                                                         (() => {
+                                                            const visibleDetails =
+                                                                project.details.filter(
+                                                                    (d) => d.visible !== false
+                                                                );
                                                             const projectExpandableDetailIds =
-                                                                project.details
+                                                                visibleDetails
                                                                     .filter((d) =>
                                                                         Boolean(
                                                                             d.situation ||
@@ -286,101 +292,104 @@ export function CareerSection({
                                                             );
                                                         })()}
                                                     <ul className="divide-y divide-slate-100">
-                                                        {project.details.map((detail) => {
-                                                            const isExpanded =
-                                                                expandedDetailIds.includes(
-                                                                    detail.id
+                                                        {project.details
+                                                            .filter((d) => d.visible !== false)
+                                                            .map((detail) => {
+                                                                const isExpanded =
+                                                                    expandedDetailIds.includes(
+                                                                        detail.id
+                                                                    );
+                                                                const hasDetailContent = Boolean(
+                                                                    detail.situation ||
+                                                                    detail.actionDetail ||
+                                                                    detail.outcome
                                                                 );
-                                                            const hasDetailContent = Boolean(
-                                                                detail.situation ||
-                                                                detail.actionDetail ||
-                                                                detail.outcome
-                                                            );
-                                                            return (
-                                                                <li
-                                                                    key={detail.id}
-                                                                    id={`experience-detail-${detail.id}`}
-                                                                    className="scroll-mt-24 py-1 first:pt-0 last:pb-0"
-                                                                >
-                                                                    <div
-                                                                        className={`group grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 py-0.5 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
-                                                                        onClick={() =>
-                                                                            hasDetailContent &&
-                                                                            onToggleDetail(
-                                                                                detail.id
-                                                                            )
-                                                                        }
+                                                                return (
+                                                                    <li
+                                                                        key={detail.id}
+                                                                        id={`experience-detail-${detail.id}`}
+                                                                        className="scroll-mt-24 py-1 first:pt-0 last:pb-0"
                                                                     >
-                                                                        <span className="flex h-5 items-center justify-center">
-                                                                            {hasDetailContent ? (
-                                                                                <ChevronDown
-                                                                                    className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : ''}`}
-                                                                                />
-                                                                            ) : (
-                                                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                                                        <div
+                                                                            className={`group grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 py-0.5 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
+                                                                            onClick={() =>
+                                                                                hasDetailContent &&
+                                                                                onToggleDetail(
+                                                                                    detail.id
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <span className="flex h-5 items-center justify-center">
+                                                                                {hasDetailContent ? (
+                                                                                    <ChevronDown
+                                                                                        className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : ''}`}
+                                                                                    />
+                                                                                ) : (
+                                                                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                                                                )}
+                                                                            </span>
+                                                                            <span className="resume-body min-w-0 text-slate-700">
+                                                                                {detail.content}
+                                                                            </span>
+                                                                            {detail.id > 0 && (
+                                                                                <Link
+                                                                                    href={`/experience/${project.id}/experience-detail/${detail.id}`}
+                                                                                    onClick={(e) =>
+                                                                                        e.stopPropagation()
+                                                                                    }
+                                                                                    className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-600 transition-opacity hover:text-slate-950 hover:underline ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
+                                                                                >
+                                                                                    자세히 보기
+                                                                                </Link>
                                                                             )}
-                                                                        </span>
-                                                                        <span className="resume-body min-w-0 text-slate-700">
-                                                                            {detail.content}
-                                                                        </span>
-                                                                        {detail.id > 0 && (
-                                                                            <Link
-                                                                                href={`/experience/${project.id}/experience-detail/${detail.id}`}
-                                                                                onClick={(e) =>
-                                                                                    e.stopPropagation()
-                                                                                }
-                                                                                className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-600 transition-opacity hover:text-slate-950 hover:underline ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
-                                                                            >
-                                                                                자세히 보기
-                                                                            </Link>
-                                                                        )}
-                                                                    </div>
+                                                                        </div>
 
-                                                                    {hasDetailContent &&
-                                                                        isExpanded && (
-                                                                            <div className="mb-2 mt-0.5">
-                                                                                <div className="resume-body ml-7 space-y-2.5 text-slate-600">
-                                                                                    {detailMarkdown(
-                                                                                        detail
-                                                                                    )}
-                                                                                    {detail.skills
-                                                                                        .length >
-                                                                                        0 && (
-                                                                                        <div className="flex flex-wrap gap-1 pt-1">
-                                                                                            {detail.skills.map(
-                                                                                                (
-                                                                                                    skill
-                                                                                                ) => (
-                                                                                                    <span
-                                                                                                        key={
-                                                                                                            skill.id
-                                                                                                        }
-                                                                                                        className={
-                                                                                                            detailBadgeStyle
-                                                                                                        }
-                                                                                                    >
-                                                                                                        {
-                                                                                                            skill.name
-                                                                                                        }
-                                                                                                    </span>
-                                                                                                )
-                                                                                            )}
-                                                                                        </div>
-                                                                                    )}
-                                                                                    {detail.id >
-                                                                                        0 && (
-                                                                                        <RelatedStudyNotes
-                                                                                            experienceDetailId={
-                                                                                                detail.id
-                                                                                            }
-                                                                                        />
-                                                                                    )}
+                                                                        {hasDetailContent &&
+                                                                            isExpanded && (
+                                                                                <div className="mb-2 mt-0.5">
+                                                                                    <div className="resume-body ml-7 space-y-2.5 text-slate-600">
+                                                                                        {detailMarkdown(
+                                                                                            detail
+                                                                                        )}
+                                                                                        {detail
+                                                                                            .skills
+                                                                                            .length >
+                                                                                            0 && (
+                                                                                            <div className="flex flex-wrap gap-1 pt-1">
+                                                                                                {detail.skills.map(
+                                                                                                    (
+                                                                                                        skill
+                                                                                                    ) => (
+                                                                                                        <span
+                                                                                                            key={
+                                                                                                                skill.id
+                                                                                                            }
+                                                                                                            className={
+                                                                                                                detailBadgeStyle
+                                                                                                            }
+                                                                                                        >
+                                                                                                            {
+                                                                                                                skill.name
+                                                                                                            }
+                                                                                                        </span>
+                                                                                                    )
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {detail.id >
+                                                                                            0 && (
+                                                                                            <RelatedStudyNotes
+                                                                                                experienceDetailId={
+                                                                                                    detail.id
+                                                                                                }
+                                                                                            />
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        )}
-                                                                </li>
-                                                            );
-                                                        })}
+                                                                            )}
+                                                                    </li>
+                                                                );
+                                                            })}
                                                     </ul>
                                                 </div>
                                             </div>

@@ -10,6 +10,7 @@ import {
     Check,
     ChevronDown,
     ChevronUp,
+    GripVertical,
     ListChecks,
     MinusCircle,
     Pencil,
@@ -736,6 +737,38 @@ export function ExperienceManagement({
         }
     };
 
+    const [draggedDetailIdx, setDraggedDetailIdx] = useState<number | null>(null);
+
+    const handleDetailDragStart = (idx: number) => {
+        setDraggedDetailIdx(idx);
+    };
+
+    const handleDetailDragOver = (e: React.DragEvent, idx: number) => {
+        e.preventDefault();
+        if (draggedDetailIdx === null || draggedDetailIdx === idx) return;
+
+        setExpForm((prev) => {
+            const details = [...prev.details];
+            const [moved] = details.splice(draggedDetailIdx, 1);
+            details.splice(idx, 0, moved);
+            return { ...prev, details };
+        });
+        setDraggedDetailIdx(idx);
+    };
+
+    const handleDetailDragEnd = () => {
+        setDraggedDetailIdx(null);
+    };
+
+    const toggleDetailVisibility = (idx: number) => {
+        setExpForm((prev) => ({
+            ...prev,
+            details: prev.details.map((d, i) =>
+                i === idx ? { ...d, visible: d.visible === false ? true : false } : d
+            ),
+        }));
+    };
+
     const addDetailPoint = () => {
         if (detailInput.trim()) {
             setExpForm({
@@ -748,6 +781,7 @@ export function ExperienceManagement({
                         actionDetail: '',
                         outcome: '',
                         narrative: '',
+                        visible: true,
                         skillIds: [],
                         studyIds: [],
                     },
@@ -1871,12 +1905,30 @@ export function ExperienceManagement({
                                         )
                                         .map(({ d, idx }) => {
                                             const isDetailExpanded = expandedDetailIdx === idx;
+                                            const isDragged = draggedDetailIdx === idx;
+                                            const isVisible = d.visible !== false;
                                             return (
                                                 <div
                                                     key={idx}
-                                                    className="bg-white rounded-lg border border-slate-200 text-sm"
+                                                    draggable={detailListSearch.trim() === ''}
+                                                    onDragStart={() => handleDetailDragStart(idx)}
+                                                    onDragOver={(e) => handleDetailDragOver(e, idx)}
+                                                    onDragEnd={handleDetailDragEnd}
+                                                    className={`rounded-lg border transition text-sm ${
+                                                        isDragged
+                                                            ? 'border-indigo-400 bg-indigo-50/50 shadow-md opacity-60'
+                                                            : isVisible
+                                                              ? 'border-slate-200 bg-white'
+                                                              : 'border-slate-200 bg-slate-50/70 opacity-75'
+                                                    }`}
                                                 >
-                                                    <div className="flex items-center justify-between gap-1 p-2">
+                                                    <div className="flex items-center justify-between gap-1.5 p-2">
+                                                        <div
+                                                            className="flex shrink-0 items-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 p-0.5"
+                                                            title="드래그하여 순서 변경"
+                                                        >
+                                                            <GripVertical className="h-4 w-4" />
+                                                        </div>
                                                         <div className="flex shrink-0 flex-col">
                                                             <button
                                                                 type="button"
@@ -1888,7 +1940,7 @@ export function ExperienceManagement({
                                                                     detailListSearch.trim() !== ''
                                                                 }
                                                                 title="위로 이동"
-                                                                className="grid h-4 w-5 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
+                                                                className="grid h-3.5 w-4 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
                                                             >
                                                                 <ArrowUp className="h-3 w-3" />
                                                             </button>
@@ -1904,7 +1956,7 @@ export function ExperienceManagement({
                                                                     detailListSearch.trim() !== ''
                                                                 }
                                                                 title="아래로 이동"
-                                                                className="grid h-4 w-5 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
+                                                                className="grid h-3.5 w-4 place-items-center text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400"
                                                             >
                                                                 <ArrowDown className="h-3 w-3" />
                                                             </button>
@@ -1924,6 +1976,24 @@ export function ExperienceManagement({
                                                         />
                                                         <button
                                                             type="button"
+                                                            onClick={() =>
+                                                                toggleDetailVisibility(idx)
+                                                            }
+                                                            title={
+                                                                isVisible
+                                                                    ? '클릭하여 숨김 전환'
+                                                                    : '클릭하여 공개 전환'
+                                                            }
+                                                            className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold transition border ${
+                                                                isVisible
+                                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                                                    : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                            }`}
+                                                        >
+                                                            {isVisible ? '공개' : '숨김'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
                                                             onClick={() => {
                                                                 setExpandedDetailIdx(
                                                                     isDetailExpanded ? null : idx
@@ -1931,7 +2001,7 @@ export function ExperienceManagement({
                                                                 setDetailSkillSearch('');
                                                                 setDetailStudySearch('');
                                                             }}
-                                                            className="text-slate-400 transition hover:text-slate-900"
+                                                            className="text-slate-400 transition hover:text-slate-900 p-1"
                                                         >
                                                             {isDetailExpanded ? (
                                                                 <ChevronUp className="h-4 w-4" />
@@ -1942,7 +2012,8 @@ export function ExperienceManagement({
                                                         <button
                                                             type="button"
                                                             onClick={() => removeDetailPoint(idx)}
-                                                            className="text-red-500 transition hover:text-red-700"
+                                                            title="삭제"
+                                                            className="text-red-500 transition hover:text-red-700 p-1"
                                                         >
                                                             <MinusCircle className="h-4 w-4" />
                                                         </button>
