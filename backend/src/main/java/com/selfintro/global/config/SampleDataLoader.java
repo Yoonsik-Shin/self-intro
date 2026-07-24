@@ -1,4 +1,4 @@
-package com.selfintro.study.config;
+package com.selfintro.global.config;
 
 import com.selfintro.modules.experience.domain.*;
 import com.selfintro.modules.printtemplate.domain.PrintTemplate;

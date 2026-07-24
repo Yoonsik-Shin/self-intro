@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.selfintro.SelfIntroApplication;
 import com.selfintro.modules.donation.application.DonationService;
 import com.selfintro.modules.donation.presentation.dto.KofiWebhookPayload;
-import com.selfintro.study.SelfIntroApplication;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

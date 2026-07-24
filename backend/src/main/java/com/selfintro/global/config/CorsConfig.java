@@ -1,4 +1,4 @@
-package com.selfintro.study.config;
+package com.selfintro.global.config;
 
 import java.util.Arrays;
 import java.util.List;

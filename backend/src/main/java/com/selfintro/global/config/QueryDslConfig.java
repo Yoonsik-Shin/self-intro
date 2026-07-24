@@ -1,4 +1,4 @@
-package com.selfintro.study.config;
+package com.selfintro.global.config;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
