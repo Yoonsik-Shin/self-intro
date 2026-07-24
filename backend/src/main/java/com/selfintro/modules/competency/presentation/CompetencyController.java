@@ -52,4 +52,9 @@ public class CompetencyController {
     public ResponseEntity<List<CompetencyResponse>> batchUnpublish(@RequestBody List<Long> ids) {
         return ResponseEntity.ok(competencyService.batchChangeVisibility(ids, false));
     }
+
+    @PostMapping("/reorder")
+    public ResponseEntity<List<CompetencyResponse>> reorder(@RequestBody List<Long> orderedIds) {
+        return ResponseEntity.ok(competencyService.reorder(orderedIds));
+    }
 }

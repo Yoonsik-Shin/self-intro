@@ -58,6 +58,8 @@ public class CompetencyService {
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 핵심 역량입니다."));
         competency.update(
                 request.title(), request.summary(), request.displayOrder(), request.visible());
+        competency.clearLinks();
+        competencyRepository.flush();
         replaceLinks(competency, request);
         competencyRepository.flush();
         return CompetencyResponse.from(competency, false);
@@ -92,6 +94,21 @@ public class CompetencyService {
         competency.changeVisibility(!competency.isVisible());
         competencyRepository.flush();
         return CompetencyResponse.from(competency, false);
+    }
+
+    @Transactional
+    public List<CompetencyResponse> reorder(List<Long> orderedIds) {
+        for (int i = 0; i < orderedIds.size(); i++) {
+            Long id = orderedIds.get(i);
+            Competency competency =
+                    competencyRepository
+                            .findById(id)
+                            .orElseThrow(
+                                    () -> new IllegalArgumentException("존재하지 않는 핵심 역량입니다: " + id));
+            competency.changeDisplayOrder(i + 1);
+        }
+        competencyRepository.flush();
+        return getAll();
     }
 
     private void validate(CompetencyRequest request) {

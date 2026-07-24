@@ -79,6 +79,17 @@ public class Competency {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void changeDisplayOrder(int displayOrder) {
+        this.displayOrder = displayOrder;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void clearLinks() {
+        skillLinks.clear();
+        evidences.clear();
+        studyLinks.clear();
+    }
+
     public void replaceSkills(List<Skill> skills) {
         skillLinks.clear();
         for (int i = 0; i < skills.size(); i++) {
