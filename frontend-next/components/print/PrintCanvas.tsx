@@ -1377,11 +1377,11 @@ export function PrintCanvas({
                             {renderItemControls(itemId)}
                             <div className="flex w-full items-start gap-2.5 text-left">
                                 <span className="min-w-0 flex-1">
-                                    <span className="resume-body block font-bold text-slate-900 text-xs">
+                                    <span className="resume-body block font-bold text-slate-900 text-[13px]">
                                         {renderInlineText({
                                             value: project.title,
                                             baseValue: origTitle,
-                                            textClassName: 'font-bold text-slate-900 text-xs',
+                                            textClassName: 'font-bold text-slate-900 text-[13px]',
                                             placeholder: '프로젝트 제목을 입력하세요',
                                             onChange: (val) =>
                                                 setExperienceOverride(
@@ -1480,12 +1480,12 @@ export function PrintCanvas({
                                     </h4>
                                 </div>
                             )}
-                            <div className="flex items-start gap-1 font-bold text-slate-900 text-xs">
+                            <div className="flex items-start gap-1 font-semibold text-slate-700 text-xs">
                                 <span className="shrink-0">•</span>
                                 {renderInlineText({
                                     value: detail.content,
                                     baseValue: origContent,
-                                    textClassName: 'font-bold text-slate-900 text-xs',
+                                    textClassName: 'font-semibold text-slate-700 text-xs',
                                     placeholder: '상세 성과 제목을 입력하세요',
                                     onChange: (val) =>
                                         setDetailOverride(detail.id, 'content', val, origContent),
