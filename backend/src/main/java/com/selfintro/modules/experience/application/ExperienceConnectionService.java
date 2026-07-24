@@ -1,18 +1,15 @@
-package com.selfintro.connections;
+package com.selfintro.modules.experience.application;
 
-import com.selfintro.connections.dto.ConnectionDtos.DetailStudies;
-import com.selfintro.connections.dto.ConnectionDtos.ExperienceConnections;
-import com.selfintro.connections.dto.ConnectionDtos.RelatedExperienceRequest;
-import com.selfintro.connections.dto.ConnectionDtos.RelatedExperienceResponse;
-import com.selfintro.connections.dto.ConnectionDtos.SkillConnections;
 import com.selfintro.modules.experience.domain.Experience;
 import com.selfintro.modules.experience.domain.ExperienceDetail;
 import com.selfintro.modules.experience.domain.ExperienceDetailRepository;
 import com.selfintro.modules.experience.domain.ExperienceRelation;
 import com.selfintro.modules.experience.domain.ExperienceRelationRepository;
 import com.selfintro.modules.experience.domain.ExperienceRepository;
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.experience.presentation.dto.DetailStudies;
+import com.selfintro.modules.experience.presentation.dto.ExperienceConnections;
+import com.selfintro.modules.experience.presentation.dto.RelatedExperienceRequest;
+import com.selfintro.modules.experience.presentation.dto.RelatedExperienceResponse;
 import com.selfintro.modules.study.domain.Study;
 import com.selfintro.modules.study.domain.StudyRepository;
 import java.util.ArrayList;
@@ -28,66 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class PortfolioConnectionService {
+public class ExperienceConnectionService {
 
     private final StudyRepository studyRepository;
-    private final SkillRepository skillRepository;
     private final ExperienceRepository experienceRepository;
     private final ExperienceDetailRepository experienceDetailRepository;
     private final ExperienceRelationRepository experienceRelationRepository;
-
-    public SkillConnections getSkillConnections(Long skillId) {
-        requireSkill(skillId);
-        List<Long> studyIds =
-                studyRepository.findAll().stream()
-                        .filter(study -> containsId(study.getSkills(), skillId))
-                        .map(Study::getId)
-                        .toList();
-        List<Long> experienceIds =
-                experienceRepository.findAll().stream()
-                        .filter(experience -> containsId(experience.getSkills(), skillId))
-                        .map(Experience::getId)
-                        .toList();
-        List<Long> detailIds =
-                experienceDetailRepository.findAll().stream()
-                        .filter(detail -> containsId(detail.getSkills(), skillId))
-                        .map(ExperienceDetail::getId)
-                        .toList();
-        return new SkillConnections(studyIds, experienceIds, detailIds);
-    }
-
-    @Transactional
-    public SkillConnections updateSkillConnections(Long skillId, SkillConnections request) {
-        Skill skill = requireSkill(skillId);
-        Set<Long> studyIds = ids(request.studyIds());
-        Set<Long> experienceIds = ids(request.experienceIds());
-        Set<Long> detailIds = ids(request.experienceDetailIds());
-        validateIds("Study", studyIds, studyRepository.findAllById(studyIds).size());
-        validateIds(
-                "Experience",
-                experienceIds,
-                experienceRepository.findAllById(experienceIds).size());
-        validateIds(
-                "Experience detail",
-                detailIds,
-                experienceDetailRepository.findAllById(detailIds).size());
-
-        studyRepository
-                .findAll()
-                .forEach(study -> study.setSkillLinked(skill, studyIds.contains(study.getId())));
-        experienceRepository
-                .findAll()
-                .forEach(
-                        experience ->
-                                experience.setSkillLinked(
-                                        skill, experienceIds.contains(experience.getId())));
-        experienceDetailRepository
-                .findAll()
-                .forEach(
-                        detail -> detail.setSkillLinked(skill, detailIds.contains(detail.getId())));
-
-        return getSkillConnections(skillId);
-    }
 
     public ExperienceConnections getExperienceConnections(Long experienceId) {
         Experience experience = requireExperience(experienceId);
@@ -183,9 +126,6 @@ public class PortfolioConnectionService {
                 targetIds,
                 experienceRepository.findAllById(targetIds).size());
 
-        // 관계는 어느 쪽 experience를 편집하든 동일하게 보여야 하므로, source/target 방향에 상관없이
-        // 이 experience가 걸린 관계를 모두 대상으로 정리한다: 더 이상 선택되지 않은 것만 삭제하고,
-        // 반대 방향으로 이미 존재하는 관계는 그대로 두어 상대방 화면의 데이터를 건드리지 않는다.
         List<ExperienceRelation> existingRelations =
                 experienceRelationRepository.findBySourceIdOrTargetIdOrderByDisplayOrderAsc(
                         experienceId, experienceId);
@@ -244,12 +184,6 @@ public class PortfolioConnectionService {
         return List.copyOf(unique.values());
     }
 
-    private Skill requireSkill(Long id) {
-        return skillRepository
-                .findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기술 스택입니다: " + id));
-    }
-
     private Experience requireExperience(Long id) {
         return experienceRepository
                 .findById(id)
@@ -274,7 +208,6 @@ public class PortfolioConnectionService {
         return values.stream()
                 .anyMatch(
                         value -> {
-                            if (value instanceof Skill skill) return id.equals(skill.getId());
                             if (value instanceof Experience experience)
                                 return id.equals(experience.getId());
                             if (value instanceof ExperienceDetail detail)
