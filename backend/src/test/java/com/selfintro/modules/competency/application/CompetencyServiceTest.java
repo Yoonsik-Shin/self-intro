@@ -71,4 +71,28 @@ class CompetencyServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("대표 실무 근거");
     }
+
+    @Test
+    void batchChangeVisibilityUpdatesAllTargetCompetencies() {
+        Competency c1 = Competency.create("역량1", "요약1", 1, false);
+        Competency c2 = Competency.create("역량2", "요약2", 2, false);
+        when(competencyRepository.findAllById(List.of(10L, 20L))).thenReturn(List.of(c1, c2));
+
+        var result = service.batchChangeVisibility(List.of(10L, 20L), true);
+
+        assertThat(result).hasSize(2);
+        assertThat(c1.isVisible()).isTrue();
+        assertThat(c2.isVisible()).isTrue();
+    }
+
+    @Test
+    void toggleVisibilityFlipsVisibilityState() {
+        Competency c1 = Competency.create("역량1", "요약1", 1, true);
+        when(competencyRepository.findById(10L)).thenReturn(java.util.Optional.of(c1));
+
+        var response = service.toggleVisibility(10L);
+
+        assertThat(c1.isVisible()).isFalse();
+        assertThat(response.visible()).isFalse();
+    }
 }

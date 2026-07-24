@@ -71,6 +71,29 @@ public class CompetencyService {
         competencyRepository.deleteById(id);
     }
 
+    @Transactional
+    public List<CompetencyResponse> batchChangeVisibility(List<Long> ids, boolean visible) {
+        List<Competency> competencies = competencyRepository.findAllById(ids);
+        for (Competency competency : competencies) {
+            competency.changeVisibility(visible);
+        }
+        competencyRepository.flush();
+        return competencies.stream()
+                .map(competency -> CompetencyResponse.from(competency, false))
+                .toList();
+    }
+
+    @Transactional
+    public CompetencyResponse toggleVisibility(Long id) {
+        Competency competency =
+                competencyRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 핵심 역량입니다."));
+        competency.changeVisibility(!competency.isVisible());
+        competencyRepository.flush();
+        return CompetencyResponse.from(competency, false);
+    }
+
     private void validate(CompetencyRequest request) {
         if (request.evidences().stream().filter(CompetencyRequest.EvidenceRequest::primary).count()
                 > 1) {

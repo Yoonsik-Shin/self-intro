@@ -74,6 +74,11 @@ public class Competency {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void changeVisibility(boolean visible) {
+        this.visible = visible;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void replaceSkills(List<Skill> skills) {
         skillLinks.clear();
         for (int i = 0; i < skills.size(); i++) {

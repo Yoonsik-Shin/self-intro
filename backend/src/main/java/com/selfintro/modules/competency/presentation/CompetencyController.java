@@ -37,4 +37,19 @@ public class CompetencyController {
         competencyService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/toggle-visibility")
+    public ResponseEntity<CompetencyResponse> toggleVisibility(@PathVariable Long id) {
+        return ResponseEntity.ok(competencyService.toggleVisibility(id));
+    }
+
+    @PostMapping("/batch-publish")
+    public ResponseEntity<List<CompetencyResponse>> batchPublish(@RequestBody List<Long> ids) {
+        return ResponseEntity.ok(competencyService.batchChangeVisibility(ids, true));
+    }
+
+    @PostMapping("/batch-unpublish")
+    public ResponseEntity<List<CompetencyResponse>> batchUnpublish(@RequestBody List<Long> ids) {
+        return ResponseEntity.ok(competencyService.batchChangeVisibility(ids, false));
+    }
 }
