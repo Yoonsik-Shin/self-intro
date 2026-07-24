@@ -2,9 +2,15 @@
 
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- Ensure 'backend' category exists if not found
+INSERT IGNORE INTO study_category (name, slug, display_order, created_at, updated_at)
+VALUES ('Backend', 'backend', 1, NOW(), NOW());
+
 SET @backend_category_id = (
     SELECT id FROM study_category WHERE slug = 'backend' OR name = 'Backend' LIMIT 1
 );
+
+SET @backend_category_id = IFNULL(@backend_category_id, (SELECT id FROM study_category LIMIT 1));
 
 INSERT INTO study (
     slug,
