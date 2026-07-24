@@ -122,18 +122,9 @@ export function CareerSection({
                         )}
                     </h2>
                     <div>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950">
-                                {career.period}
-                            </span>
-                            <Link
-                                href={`/experience/${career.id}`}
-                                className="group/link inline-flex items-center gap-1 text-[0.75rem] font-bold text-slate-500 transition hover:text-blue-600 hover:underline"
-                            >
-                                <span>경험 상세 보기</span>
-                                <ExternalLink className="h-3.5 w-3.5 text-slate-400 transition-colors group-hover/link:text-blue-600" />
-                            </Link>
-                        </div>
+                        <span className="resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950">
+                            {career.period}
+                        </span>
                         <p className="resume-item-title mt-2 font-black text-slate-800">
                             <Link
                                 href={`/experience/${career.id}`}
