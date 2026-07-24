@@ -232,19 +232,6 @@ export function CompetencyManagement() {
         }
     };
 
-    const selectedCompetencies = useMemo(
-        () => competencies.filter((c) => selectedCompetencyIds.includes(c.id)),
-        [competencies, selectedCompetencyIds]
-    );
-    const selectedHiddenIds = useMemo(
-        () => selectedCompetencies.filter((c) => !c.visible).map((c) => c.id),
-        [selectedCompetencies]
-    );
-    const selectedVisibleIds = useMemo(
-        () => selectedCompetencies.filter((c) => c.visible).map((c) => c.id),
-        [selectedCompetencies]
-    );
-
     const handleBatchPublish = (ids: number[]) => {
         if (ids.length === 0) return;
         if (window.confirm(`선택한 ${ids.length}개의 핵심 역량을 모두 공개로 전환하시겠습니까?`)) {
@@ -519,93 +506,96 @@ export function CompetencyManagement() {
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-xs">
-                        <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
-                                <input
-                                    type="checkbox"
-                                    checked={Boolean(
-                                        filteredCompetencies.length > 0 &&
-                                        filteredCompetencies.every((c) =>
-                                            selectedCompetencyIds.includes(c.id)
-                                        )
-                                    )}
-                                    onChange={toggleSelectAllFiltered}
-                                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
-                                />
-                                현재 목록 전체 선택 ({filteredCompetencies.length}개 중{' '}
-                                {selectedCompetencyIds.length}개 선택됨)
-                            </label>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {selectedCompetencyIds.length > 0 && (
-                                <>
-                                    {selectedHiddenIds.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleBatchPublish(selectedHiddenIds)}
-                                            disabled={batchPublishMutation.isPending}
-                                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
-                                        >
-                                            <Eye className="h-3.5 w-3.5" />
-                                            {selectedVisibleIds.length > 0
-                                                ? `선택한 숨김 ${selectedHiddenIds.length}개 일괄 공개`
-                                                : `선택한 ${selectedHiddenIds.length}개 일괄 공개`}
-                                        </button>
-                                    )}
-                                    {selectedVisibleIds.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleBatchUnpublish(selectedVisibleIds)}
-                                            disabled={batchUnpublishMutation.isPending}
-                                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50"
-                                        >
-                                            <EyeOff className="h-3.5 w-3.5" />
-                                            {selectedHiddenIds.length > 0
-                                                ? `선택한 공개 ${selectedVisibleIds.length}개 일괄 숨김`
-                                                : `선택한 ${selectedVisibleIds.length}개 일괄 숨김`}
-                                        </button>
-                                    )}
-                                </>
-                            )}
-                            {selectedCompetencyIds.length === 0 &&
-                                visibilityFilter === 'HIDDEN' &&
-                                counts.hidden > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const hiddenIds = competencies
-                                                .filter((item) => !item.visible)
-                                                .map((item) => item.id);
-                                            handleBatchPublish(hiddenIds);
-                                        }}
-                                        disabled={batchPublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
-                                    >
-                                        <Eye className="h-3.5 w-3.5 text-emerald-600" />
-                                        숨김 {counts.hidden}개 전체 일괄 공개
-                                    </button>
+                    {visibilityFilter !== 'ALL' && (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-xs">
+                            <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(
+                                            filteredCompetencies.length > 0 &&
+                                            filteredCompetencies.every((c) =>
+                                                selectedCompetencyIds.includes(c.id)
+                                            )
+                                        )}
+                                        onChange={toggleSelectAllFiltered}
+                                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    현재 {visibilityFilter === 'VISIBLE' ? '공개' : '숨김'} 목록
+                                    전체 선택 ({filteredCompetencies.length}개 중{' '}
+                                    {selectedCompetencyIds.length}개 선택됨)
+                                </label>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {visibilityFilter === 'VISIBLE' && (
+                                    <>
+                                        {selectedCompetencyIds.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleBatchUnpublish(selectedCompetencyIds)
+                                                }
+                                                disabled={batchUnpublishMutation.isPending}
+                                                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50"
+                                            >
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                                선택한 {selectedCompetencyIds.length}개 일괄 숨김
+                                            </button>
+                                        )}
+                                        {counts.visible > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const visibleIds = competencies
+                                                        .filter((item) => item.visible)
+                                                        .map((item) => item.id);
+                                                    handleBatchUnpublish(visibleIds);
+                                                }}
+                                                disabled={batchUnpublishMutation.isPending}
+                                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+                                            >
+                                                <EyeOff className="h-3.5 w-3.5 text-slate-600" />
+                                                공개 {counts.visible}개 전체 일괄 숨김
+                                            </button>
+                                        )}
+                                    </>
                                 )}
-                            {selectedCompetencyIds.length === 0 &&
-                                visibilityFilter === 'VISIBLE' &&
-                                counts.visible > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const visibleIds = competencies
-                                                .filter((item) => item.visible)
-                                                .map((item) => item.id);
-                                            handleBatchUnpublish(visibleIds);
-                                        }}
-                                        disabled={batchUnpublishMutation.isPending}
-                                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
-                                    >
-                                        <EyeOff className="h-3.5 w-3.5 text-slate-600" />
-                                        공개 {counts.visible}개 전체 일괄 숨김
-                                    </button>
+                                {visibilityFilter === 'HIDDEN' && (
+                                    <>
+                                        {selectedCompetencyIds.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleBatchPublish(selectedCompetencyIds)
+                                                }
+                                                disabled={batchPublishMutation.isPending}
+                                                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                                            >
+                                                <Eye className="h-3.5 w-3.5" />
+                                                선택한 {selectedCompetencyIds.length}개 일괄 공개
+                                            </button>
+                                        )}
+                                        {counts.hidden > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const hiddenIds = competencies
+                                                        .filter((item) => !item.visible)
+                                                        .map((item) => item.id);
+                                                    handleBatchPublish(hiddenIds);
+                                                }}
+                                                disabled={batchPublishMutation.isPending}
+                                                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
+                                            >
+                                                <Eye className="h-3.5 w-3.5 text-emerald-600" />
+                                                숨김 {counts.hidden}개 전체 일괄 공개
+                                            </button>
+                                        )}
+                                    </>
                                 )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="space-y-3">
                         {isLoading && <p className="text-sm text-slate-400">불러오는 중...</p>}
@@ -620,21 +610,25 @@ export function CompetencyManagement() {
                                 <article
                                     key={competency.id}
                                     className={`flex items-center gap-3 rounded-xl border p-4 shadow-sm transition ${
-                                        isSelected
+                                        isSelected && visibilityFilter !== 'ALL'
                                             ? 'border-indigo-400 bg-indigo-50/20'
                                             : competency.visible
                                               ? 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
                                               : 'border-slate-200 bg-slate-50/70 opacity-80 hover:border-slate-300'
                                     }`}
                                 >
-                                    <div className="flex shrink-0 items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => toggleSelectCompetency(competency.id)}
-                                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                        />
-                                    </div>
+                                    {visibilityFilter !== 'ALL' && (
+                                        <div className="flex shrink-0 items-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() =>
+                                                    toggleSelectCompetency(competency.id)
+                                                }
+                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                        </div>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => setSelectedCompetencyId(competency.id)}
@@ -648,15 +642,10 @@ export function CompetencyManagement() {
                                                 ) + 1}
                                             </span>
                                             <span
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleVisibilityMutation.mutate(competency.id);
-                                                }}
-                                                title="클릭하여 공개/숨김 상태 전환"
-                                                className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold transition hover:scale-105 ${
+                                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
                                                     competency.visible
-                                                        ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                                                        ? 'bg-emerald-50 text-emerald-700'
+                                                        : 'bg-slate-200 text-slate-600'
                                                 }`}
                                             >
                                                 {competency.visible ? (
@@ -665,9 +654,6 @@ export function CompetencyManagement() {
                                                     <EyeOff className="h-3 w-3" />
                                                 )}
                                                 {competency.visible ? '공개' : '숨김'}
-                                            </span>
-                                            <span className="text-xs font-bold text-slate-400">
-                                                (정렬 {competency.displayOrder})
                                             </span>
                                         </div>
                                         <h3
@@ -684,7 +670,25 @@ export function CompetencyManagement() {
                                             {competency.relatedStudies.length}개
                                         </p>
                                     </button>
-                                    <div className="flex shrink-0 items-center gap-1">
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleVisibilityMutation.mutate(competency.id);
+                                            }}
+                                            disabled={toggleVisibilityMutation.isPending}
+                                            title={
+                                                competency.visible ? '숨김으로 전환' : '공개로 전환'
+                                            }
+                                            className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
+                                                competency.visible
+                                                    ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                            }`}
+                                        >
+                                            {competency.visible ? '숨김 전환' : '공개 전환'}
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={(e) => {
