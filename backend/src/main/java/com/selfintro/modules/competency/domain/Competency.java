@@ -2,7 +2,7 @@ package com.selfintro.modules.competency.domain;
 
 import com.selfintro.modules.experience.domain.Experience;
 import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.study.entity.Study;
+import com.selfintro.modules.study.domain.Study;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;

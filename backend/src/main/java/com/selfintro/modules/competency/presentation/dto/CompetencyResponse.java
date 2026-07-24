@@ -3,8 +3,8 @@ package com.selfintro.modules.competency.presentation.dto;
 import com.selfintro.modules.competency.domain.Competency;
 import com.selfintro.modules.competency.domain.CompetencyEvidence;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
-import com.selfintro.study.entity.Study;
-import com.selfintro.study.entity.StudyStatus;
+import com.selfintro.modules.study.domain.Study;
+import com.selfintro.modules.study.domain.StudyStatus;
 import java.util.Comparator;
 import java.util.List;
 

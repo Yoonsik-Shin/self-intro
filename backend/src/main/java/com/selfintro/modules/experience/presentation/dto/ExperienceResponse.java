@@ -2,7 +2,7 @@ package com.selfintro.modules.experience.presentation.dto;
 
 import com.selfintro.modules.experience.domain.*;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
-import com.selfintro.study.entity.Tag;
+import com.selfintro.modules.study.domain.Tag;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;

@@ -10,7 +10,7 @@ import com.selfintro.modules.competency.domain.CompetencyRepository;
 import com.selfintro.modules.competency.presentation.dto.CompetencyRequest;
 import com.selfintro.modules.experience.domain.ExperienceRepository;
 import com.selfintro.modules.skill.domain.SkillRepository;
-import com.selfintro.study.repository.StudyRepository;
+import com.selfintro.modules.study.domain.StudyRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
