@@ -379,6 +379,7 @@ public class ExperienceService {
                                     dr.actionDetail(),
                                     dr.outcome(),
                                     dr.narrative(),
+                                    dr.visible() != null ? dr.visible() : true,
                                     i,
                                     detailSkills);
                         })

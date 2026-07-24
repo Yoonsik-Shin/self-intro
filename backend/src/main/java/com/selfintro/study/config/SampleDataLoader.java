@@ -1135,7 +1135,16 @@ public class SampleDataLoader implements ApplicationRunner {
             int displayOrder,
             List<Skill> skills) {
         return new ExperienceDetail.Draft(
-                null, content, situation, null, actionDetail, outcome, null, displayOrder, skills);
+                null,
+                content,
+                situation,
+                null,
+                actionDetail,
+                outcome,
+                null,
+                true,
+                displayOrder,
+                skills);
     }
 
     private ExperienceDetail.Draft detail(
@@ -1155,6 +1164,7 @@ public class SampleDataLoader implements ApplicationRunner {
                 actionDetail,
                 outcome,
                 narrative,
+                true,
                 displayOrder,
                 skills);
     }

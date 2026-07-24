@@ -35,6 +35,9 @@ public class ExperienceDetail {
     @Column(columnDefinition = "TEXT")
     private String narrative;
 
+    @Column(nullable = false)
+    private boolean visible = true;
+
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
@@ -58,6 +61,7 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
+            boolean visible,
             int displayOrder,
             List<Skill> skills) {
         this.id = id;
@@ -67,6 +71,7 @@ public class ExperienceDetail {
         this.actionDetail = actionDetail;
         this.outcome = outcome;
         this.narrative = narrative;
+        this.visible = visible;
         this.displayOrder = displayOrder;
         this.skills = skills != null ? skills : new ArrayList<>();
     }
@@ -78,6 +83,7 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
+            boolean visible,
             int displayOrder,
             List<Skill> skills) {
         return new ExperienceDetail(
@@ -88,6 +94,7 @@ public class ExperienceDetail {
                 actionDetail,
                 outcome,
                 narrative,
+                visible,
                 displayOrder,
                 skills);
     }
@@ -106,6 +113,7 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
+            boolean visible,
             int displayOrder,
             List<Skill> skills) {}
 
@@ -116,6 +124,7 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
+            boolean visible,
             int displayOrder,
             List<Skill> skills) {
         this.content = content;
@@ -124,6 +133,7 @@ public class ExperienceDetail {
         this.actionDetail = actionDetail;
         this.outcome = outcome;
         this.narrative = narrative;
+        this.visible = visible;
         this.displayOrder = displayOrder;
 
         this.skills.clear();
@@ -173,6 +183,10 @@ public class ExperienceDetail {
 
     public String getNarrative() {
         return narrative;
+    }
+
+    public boolean isVisible() {
+        return visible;
     }
 
     public int getDisplayOrder() {
