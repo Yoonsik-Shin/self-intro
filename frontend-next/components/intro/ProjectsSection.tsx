@@ -123,7 +123,14 @@ export function ProjectsSection({
                                             {m.role} ({m.period})
                                         </span>
                                         <h3 className="resume-item-title mt-1.5 font-black text-slate-800">
-                                            {m.title}
+                                            <Link
+                                                href={`/experience/${m.experienceId ?? m.id}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="group/title inline-flex items-center gap-1.5 transition hover:text-blue-600 hover:underline"
+                                            >
+                                                <span>{m.title}</span>
+                                                <ExternalLink className="h-4 w-4 shrink-0 text-blue-600 opacity-40 transition-opacity group-hover/title:opacity-100" />
+                                            </Link>
                                         </h3>
                                     </div>
                                     {m.repositoryUrl && (
