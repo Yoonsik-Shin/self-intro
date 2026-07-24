@@ -182,10 +182,10 @@ export function CareerSection({
                                         </button>
 
                                         {isProjectExpanded && (
-                                            <div className="mb-4 ml-1.5 border-l-2 border-slate-200/70 pl-3.5 pt-1.5">
+                                            <div className="mb-5 ml-1.5 border-l-2 border-slate-200/70 pl-4 pt-3 space-y-4">
                                                 <div>
                                                     {project.summary && (
-                                                        <div className="mb-3">
+                                                        <div className="mb-4">
                                                             <h4 className="resume-label font-bold uppercase tracking-wider text-slate-400">
                                                                 프로젝트 설명 및 역할
                                                             </h4>
@@ -224,7 +224,7 @@ export function CareerSection({
                                                                 );
 
                                                             return (
-                                                                <div className="mb-2 flex items-center justify-between gap-3">
+                                                                <div className="mb-2.5 flex items-center justify-between gap-3 pt-1">
                                                                     <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
                                                                         <Briefcase className="h-3.5 w-3.5 text-slate-500" />
                                                                         상세 경험
@@ -290,10 +290,10 @@ export function CareerSection({
                                                                 <li
                                                                     key={detail.id}
                                                                     id={`experience-detail-${detail.id}`}
-                                                                    className="scroll-mt-24 py-1.5 first:pt-0 last:pb-0"
+                                                                    className="scroll-mt-24 py-1 first:pt-0 last:pb-0"
                                                                 >
                                                                     <div
-                                                                        className={`group grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
+                                                                        className={`group grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 py-0.5 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
                                                                         onClick={() =>
                                                                             hasDetailContent &&
                                                                             onToggleDetail(
