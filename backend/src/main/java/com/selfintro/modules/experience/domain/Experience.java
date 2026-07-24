@@ -1,7 +1,7 @@
 package com.selfintro.modules.experience.domain;
 
 import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.study.domain.Tag;
+import com.selfintro.modules.study.domain.entity.Tag;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;

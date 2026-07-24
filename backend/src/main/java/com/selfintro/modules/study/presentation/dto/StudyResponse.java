@@ -3,11 +3,11 @@ package com.selfintro.modules.study.presentation.dto;
 import com.selfintro.modules.experience.domain.Experience;
 import com.selfintro.modules.experience.domain.ExperienceDetail;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
-import com.selfintro.modules.study.domain.Study;
-import com.selfintro.modules.study.domain.StudyImage;
-import com.selfintro.modules.study.domain.StudyRelation;
-import com.selfintro.modules.study.domain.StudyRelationType;
-import com.selfintro.modules.study.domain.StudyStatus;
+import com.selfintro.modules.study.domain.entity.Study;
+import com.selfintro.modules.study.domain.entity.StudyImage;
+import com.selfintro.modules.study.domain.entity.StudyRelation;
+import com.selfintro.modules.study.domain.entity.StudyRelationType;
+import com.selfintro.modules.study.domain.entity.StudyStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -69,7 +69,7 @@ public record StudyResponse(
 
     public record CategoryResponse(Long id, String name, String slug, int displayOrder) {
         public static CategoryResponse from(
-                com.selfintro.modules.study.domain.StudyCategory category) {
+                com.selfintro.modules.study.domain.entity.StudyCategory category) {
             return new CategoryResponse(
                     category.getId(),
                     category.getName(),
@@ -79,7 +79,7 @@ public record StudyResponse(
     }
 
     public record TagResponse(Long id, String name, String slug) {
-        public static TagResponse from(com.selfintro.modules.study.domain.Tag tag) {
+        public static TagResponse from(com.selfintro.modules.study.domain.entity.Tag tag) {
             return new TagResponse(tag.getId(), tag.getName(), tag.getSlug());
         }
     }

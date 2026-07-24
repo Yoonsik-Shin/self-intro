@@ -1,4 +1,4 @@
-package com.selfintro.modules.study.domain;
+package com.selfintro.modules.study.domain.entity;
 
 import com.selfintro.modules.experience.domain.Experience;
 import com.selfintro.modules.experience.domain.ExperienceDetail;

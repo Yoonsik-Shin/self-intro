@@ -1,4 +1,4 @@
-package com.selfintro.modules.study.domain;
+package com.selfintro.modules.study.domain.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

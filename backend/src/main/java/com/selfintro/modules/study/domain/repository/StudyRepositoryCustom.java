@@ -1,5 +1,6 @@
-package com.selfintro.modules.study.domain;
+package com.selfintro.modules.study.domain.repository;
 
+import com.selfintro.modules.study.domain.entity.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

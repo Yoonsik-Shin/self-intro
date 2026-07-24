@@ -13,7 +13,7 @@ import com.selfintro.modules.experience.domain.ExperienceDetailRepository;
 import com.selfintro.modules.experience.domain.ExperienceRepository;
 import com.selfintro.modules.skill.domain.Skill;
 import com.selfintro.modules.skill.domain.SkillRepository;
-import com.selfintro.modules.study.domain.StudyRepository;
+import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.presentation.dto.StudySuggestionRequest;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

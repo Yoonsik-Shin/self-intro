@@ -18,8 +18,8 @@ import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionReq
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionResponse;
 import com.selfintro.modules.skill.domain.Skill;
 import com.selfintro.modules.skill.domain.SkillRepository;
-import com.selfintro.modules.study.domain.Study;
-import com.selfintro.modules.study.domain.StudyRepository;
+import com.selfintro.modules.study.domain.entity.Study;
+import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;

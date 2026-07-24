@@ -1,10 +1,11 @@
-package com.selfintro.modules.study.domain;
+package com.selfintro.modules.study.domain.repository;
 
-import static com.selfintro.modules.study.domain.QStudy.study;
+import static com.selfintro.modules.study.domain.entity.QStudy.study;
 
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.selfintro.modules.study.domain.entity.*;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

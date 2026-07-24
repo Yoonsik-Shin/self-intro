@@ -1,6 +1,6 @@
 package com.selfintro.modules.competency.domain;
 
-import com.selfintro.modules.study.domain.Study;
+import com.selfintro.modules.study.domain.entity.Study;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

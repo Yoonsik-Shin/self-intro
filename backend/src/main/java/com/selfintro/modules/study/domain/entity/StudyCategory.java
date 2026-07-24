@@ -1,4 +1,4 @@
-package com.selfintro.modules.study.domain;
+package com.selfintro.modules.study.domain.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,26 +12,20 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "tag")
+@Table(name = "study_category")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Tag {
+public class StudyCategory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 80)
+    @Column(nullable = false, unique = true, length = 60)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true, length = 80)
     private String slug;
 
-    private Tag(String name, String slug) {
-        this.name = name;
-        this.slug = slug;
-    }
-
-    public static Tag create(String name, String slug) {
-        return new Tag(name, slug);
-    }
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
 }

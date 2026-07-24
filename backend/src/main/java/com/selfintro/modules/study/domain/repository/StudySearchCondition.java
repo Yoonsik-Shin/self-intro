@@ -1,5 +1,6 @@
-package com.selfintro.modules.study.domain;
+package com.selfintro.modules.study.domain.repository;
 
+import com.selfintro.modules.study.domain.entity.*;
 import java.util.List;
 
 public record StudySearchCondition(
