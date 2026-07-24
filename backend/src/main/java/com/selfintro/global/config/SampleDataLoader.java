@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-@Profile("local")
+@Profile("disabled")
 @RequiredArgsConstructor
 public class SampleDataLoader implements ApplicationRunner {
 
