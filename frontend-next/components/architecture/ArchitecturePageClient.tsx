@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Cpu, Terminal } from 'lucide-react';
+import { Cpu, Layers, Terminal } from 'lucide-react';
 import type { ArchitectureLayer, ArchitectureOverview } from '@/lib/api/types';
 import { SectionNavSidebar, type SectionNavItem } from '@/components/nav/SectionNavSidebar';
 import { PreviewScrollListener } from '@/components/shared/PreviewScrollListener';
@@ -40,10 +40,16 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                     >
                         <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 -translate-y-16 translate-x-16 rounded-full bg-slate-800/5 blur-[50px]" />
                         <div className="relative z-10 border-b border-slate-100 pb-5">
-                            <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">
+                            <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-500">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-slate-800">
+                                    <Layers className="h-3 w-3" />
+                                    구성 요소 {layers.length}개
+                                </span>
+                            </div>
+                            <h1 className="text-3xl font-black tracking-tight text-slate-900">
                                 {overview?.heading ?? DEFAULT_HEADING}
                             </h1>
-                            <p className="mt-2 leading-relaxed text-slate-500">
+                            <p className="mt-2 text-sm leading-relaxed text-slate-500 sm:text-base">
                                 {overview?.subheading ?? DEFAULT_SUBHEADING}
                             </p>
                         </div>
@@ -57,10 +63,10 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                 layers.map((layer) => (
                                     <div
                                         key={layer.id}
-                                        className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm"
+                                        className="rounded-xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm"
                                     >
                                         <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-slate-900">
-                                            <span className="rounded bg-slate-100 p-1.5 leading-none">
+                                            <span className="rounded-lg bg-indigo-50 p-1.5 leading-none">
                                                 {layer.icon}
                                             </span>
                                             {layer.title}
@@ -85,10 +91,10 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
 
                     <div
                         id="architecture-diagram"
-                        className="rounded-2xl border border-slate-200 bg-slate-950 p-5 shadow-sm sm:p-6"
+                        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
                     >
-                        <h2 className="mb-3 flex items-center gap-1.5 text-base font-black text-slate-100 sm:text-lg">
-                            <span>☸️</span>
+                        <h2 className="mb-4 flex items-center gap-1.5 text-base font-black text-slate-900 sm:text-lg">
+                            <Terminal className="h-4 w-4 text-indigo-600" />
                             <span>
                                 {overview?.diagramHeading ??
                                     '실제 운영(Production) 시스템 아키텍처 및 배포 흐름도'}
