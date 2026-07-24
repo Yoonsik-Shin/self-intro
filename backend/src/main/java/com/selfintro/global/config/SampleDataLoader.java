@@ -1465,6 +1465,45 @@ public class SampleDataLoader implements ApplicationRunner {
                 getOrCreateTags(
                         List.of("Backend", "Database Modeling", "JPA", "DDD", "Refactoring")));
         studyRepository.save(study4);
+
+        // Study 5: Distributed Session & Spring Security 6 Architecture
+        Study study5 =
+                studyRepository.save(
+                        Study.create(
+                                "spring-security-session-redis-distributed-auth-architecture",
+                                "Spring Security 6 & Spring Session Redis 기반 분산 로그인 세션 아키텍처 설계",
+                                "단일 서버의 In-Memory 세션 구조를 Spring Security 6, AuthService 유스케이스 분리 및 Spring Session Redis로 고도화하고, Kubernetes(k8s) 무상태(Stateless) Pod 스케일아웃 배포 환경을 구축한 과정을 다룹니다.",
+                                "# Spring Security 6 & Spring Session Redis 기반 분산 로그인 세션 아키텍처 설계\n\n## 1. 개요 및 배경\n본 아키텍처 연구 노트는 `self-intro` 서비스의 로그인 인증 체계를 단일 서버 메모리 기반(In-Memory Session)에서 **Spring Security 6 native DSL**, **`AuthService` 유스케이스 계층 분리**, 그리고 **Spring Session Redis 기반 분산 세션 관리**로 고도화하고, **Kubernetes(k8s) Pod 스케일아웃(Scale-out) 무상태 배포**를 달성한 아키텍처 설계와 구현에 대해 정밀하게 다룹니다.\n\n```mermaid\ngraph TD\n    subgraph Client [사용자 브라우저]\n        Req[HTTP Request + JSESSIONID 쿠키]\n    end\n\n    subgraph K8s [Kubernetes Cluster]\n        Ingress[Ingress NGINX Gateway]\n        Pod1[Spring Boot Backend Pod 1]\n        Pod2[Spring Boot Backend Pod 2]\n    end\n\n    subgraph DistributedInfra [중앙 인프라]\n        Redis[(Spring Session Redis)]\n        DB[(MySQL Database)]\n    end\n\n    Req -->|Round-Robin| Ingress\n    Ingress -->|Dispatched| Pod1\n    Ingress -->|Dispatched| Pod2\n    Pod1 <-->|Spring Session Filter| Redis\n    Pod2 <-->|Spring Session Filter| Redis\n    Pod1 -->|JPA| DB\n    Pod2 -->|JPA| DB\n```\n\n---\n\n## 2. 문제 제기 및 기존 구조의 한계\n\n### 2.1. 단일 서버 In-Memory 세션의 스케일아웃 한계\n- 기존 구현은 Embedded Tomcat의 `HttpSession` 메모리에 세션을 저장했습니다.\n- 백엔드 Pod를 2대 이상으로 세우고 L4/L7 로드밸런서를 연결할 경우, Pod 1에서 로그인한 사용자의 다음 요청이 Pod 2로 전달되면 세션을 찾지 못해 `401 Unauthorized`가 발생하는 세션 파편화(Session Fragmentation) 문제가 존재했습니다.\n\n### 2.2. Presentation Layer에 노출된 인증 유스케이스\n- Controller 레벨에서 `AuthenticationManager` 인증과 `SecurityContextRepository.saveContext()` 저장을 직접 다루어 프레젠테이션 레이어의 캡슐화가 훼손되는 문제가 있었습니다.\n\n---\n\n## 3. 핵심 아키텍처 설계 및 구현\n\n### 3.1. `AuthService` (Application Service) 유스케이스 분리\n`AuthController`는 단순 API 엔드포인트 수신 역할만 수행하고, 로그인 인증 및 세션 저장 흐름은 `AuthService`로 격리했습니다.\n\n```java\n@Service\n@RequiredArgsConstructor\npublic class AuthService {\n\n    private final AuthenticationManager authenticationManager;\n    private final SecurityContextRepository securityContextRepository;\n\n    public void login(\n            String username,\n            String password,\n            HttpServletRequest httpRequest,\n            HttpServletResponse httpResponse) {\n        // 1. 아이디/비밀번호 검증 (BCrypt + UserDetailsService)\n        Authentication authentication =\n                authenticationManager.authenticate(\n                        new UsernamePasswordAuthenticationToken(username, password));\n\n        // 2. 비어있는 깨끗한 SecurityContext 생성 및 쓰레드 등록\n        SecurityContext context = SecurityContextHolder.createEmptyContext();\n        context.setAuthentication(authentication);\n        SecurityContextHolder.setContext(context);\n\n        // 3. 세션 저장소에 컨텍스트 저장 및 JSESSIONID 쿠키 발급\n        securityContextRepository.saveContext(context, httpRequest, httpResponse);\n    }\n}\n```\n\n### 3.2. Spring Session Redis 분산 세션 통합\n- `spring-session-data-redis` 의존성을 연결하고 `RedisConfig`를 전역 인프라로 구성했습니다.\n- `@ConditionalOnProperty(name = \"spring.session.store-type\", havingValue = \"redis\")` 및 `@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 43200)`을 적용하여, 프로덕션/도커 환경에서는 중앙 Redis가 세션을 통제하도록 구성했습니다.\n\n### 3.3. Kubernetes (k8s) GitOps & 무상태 Pod 배포\n- `deploy/k8s/base/redis/`에 Redis Deployment 및 Service 매니페스트를 선언했습니다.\n- `deploy/k8s/overlays/prod/backend/kustomization.yaml`에 `SPRING_SESSION_STORE_TYPE=redis`, `REDIS_HOST=self-intro-redis`를 주입하여 Argo CD를 통한 자동화된 GitOps 배포 파이프라인을 완료했습니다.\n\n---\n\n## 4. 성과 및 인사이트\n- **Stateless Pod Scale-Out 달성**: 세션을 중앙 Redis로 일원화하여 백엔드 Pod 수량(`replicas`)에 상관없이 100% 무상태(Stateless) 인프라로 전환되었습니다.\n- **테스트 격리성 확보**: 로컬 및 CI 테스트 환경에서는 `spring.session.store-type=none`으로 자동 오프라인 격리 처리하여 외부 Redis 없이 빠르게 빌드가 수행되도록 설계했습니다.\n",
+                                StudyStatus.PUBLISHED,
+                                categoryMap.get("backend"),
+                                LocalDate.of(2026, 7, 24),
+                                LocalDateTime.of(2026, 7, 24, 23, 0)));
+        study5.replaceExperiences(List.of(logDoctorProject));
+        if (doctorDetails.size() > 1) {
+            study5.replaceExperienceDetails(List.of(doctorDetails.get(0), doctorDetails.get(1)));
+        }
+        study5.replaceSkills(
+                getSkills(
+                        List.of(
+                                "Java",
+                                "Spring Boot",
+                                "Spring Security",
+                                "Redis",
+                                "Docker Compose",
+                                "Kubernetes",
+                                "Docker"),
+                        skillMap));
+        study5.replaceTags(
+                getOrCreateTags(
+                        List.of(
+                                "Backend",
+                                "Spring Security",
+                                "Redis",
+                                "Session",
+                                "Kubernetes",
+                                "Architecture",
+                                "GitOps")));
+        studyRepository.save(study5);
     }
 
     private void cleanupDuplicates() {
