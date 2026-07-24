@@ -1,6 +1,6 @@
 package com.selfintro.modules.experience.presentation;
 
-import com.selfintro.modules.experience.ai.ExperienceAiService;
+import com.selfintro.modules.experience.application.ExperienceAiService;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;

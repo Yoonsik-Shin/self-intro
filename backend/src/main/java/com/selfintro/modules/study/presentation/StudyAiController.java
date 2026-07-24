@@ -1,5 +1,6 @@
-package com.selfintro.modules.study.ai;
+package com.selfintro.modules.study.presentation;
 
+import com.selfintro.modules.study.application.StudyAiService;
 import com.selfintro.modules.study.presentation.dto.StudySuggestionRequest;
 import com.selfintro.modules.study.presentation.dto.StudySuggestionResponse;
 import jakarta.validation.Valid;

@@ -1,6 +1,6 @@
 package com.selfintro.modules.competency.presentation;
 
-import com.selfintro.modules.competency.ai.CompetencyAiService;
+import com.selfintro.modules.competency.application.CompetencyAiService;
 import com.selfintro.modules.competency.presentation.dto.CompetencySuggestionRequest;
 import com.selfintro.modules.competency.presentation.dto.CompetencySuggestionResponse;
 import jakarta.validation.Valid;

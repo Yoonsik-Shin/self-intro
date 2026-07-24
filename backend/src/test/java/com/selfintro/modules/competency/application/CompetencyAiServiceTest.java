@@ -1,4 +1,4 @@
-package com.selfintro.modules.competency.ai;
+package com.selfintro.modules.competency.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
