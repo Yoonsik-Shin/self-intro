@@ -34,7 +34,7 @@ function detailMarkdown(detail: ExperienceDetail) {
         [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
     if (!merged) return null;
     return (
-        <div className="mt-0.5 !text-[13px] leading-relaxed text-slate-600 [&_p]:!text-[13px] [&_li]:!text-[13px]">
+        <div className="mt-0.5 !text-[13.5px] leading-relaxed text-slate-600 [&_p]:!text-[13.5px] [&_li]:!text-[13.5px]">
             <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
         </div>
     );
