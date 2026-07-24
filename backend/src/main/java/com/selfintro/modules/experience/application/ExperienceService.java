@@ -42,6 +42,42 @@ public class ExperienceService {
     }
 
     @Transactional
+    public ExperienceResponse toggleTimeline(Long id) {
+        Experience experience =
+                experienceRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id));
+        experience.changeShowOnTimeline(!experience.isShowOnTimeline());
+        experienceRepository.flush();
+        return toResponse(experience);
+    }
+
+    @Transactional
+    public List<ExperienceResponse> batchChangeTimeline(List<Long> ids, boolean showOnTimeline) {
+        List<Experience> list = experienceRepository.findAllById(ids);
+        for (Experience experience : list) {
+            experience.changeShowOnTimeline(showOnTimeline);
+        }
+        experienceRepository.flush();
+        return getAllExperiences().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public List<ExperienceResponse> reorder(List<Long> orderedIds) {
+        for (int i = 0; i < orderedIds.size(); i++) {
+            Long id = orderedIds.get(i);
+            Experience experience =
+                    experienceRepository
+                            .findById(id)
+                            .orElseThrow(
+                                    () -> new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id));
+            experience.changeDisplayOrder(i + 1);
+        }
+        experienceRepository.flush();
+        return getAllExperiences().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
     public ExperienceResponse create(ExperienceRequest request) {
         List<Skill> skills =
                 request.skillIds() != null

@@ -126,6 +126,14 @@ public abstract class Experience {
         }
     }
 
+    public void changeShowOnTimeline(boolean showOnTimeline) {
+        this.showOnTimeline = showOnTimeline;
+    }
+
+    public void changeDisplayOrder(int displayOrder) {
+        this.displayOrder = displayOrder;
+    }
+
     private static List<ExperienceDetail> toEntities(List<ExperienceDetail.Draft> drafts) {
         if (drafts == null) {
             return new ArrayList<>();

@@ -42,4 +42,24 @@ public class ExperienceController {
         experienceService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/toggle-timeline")
+    public ResponseEntity<ExperienceResponse> toggleTimeline(@PathVariable Long id) {
+        return ResponseEntity.ok(experienceService.toggleTimeline(id));
+    }
+
+    @PostMapping("/batch-timeline-show")
+    public ResponseEntity<List<ExperienceResponse>> batchTimelineShow(@RequestBody List<Long> ids) {
+        return ResponseEntity.ok(experienceService.batchChangeTimeline(ids, true));
+    }
+
+    @PostMapping("/batch-timeline-hide")
+    public ResponseEntity<List<ExperienceResponse>> batchTimelineHide(@RequestBody List<Long> ids) {
+        return ResponseEntity.ok(experienceService.batchChangeTimeline(ids, false));
+    }
+
+    @PostMapping("/reorder")
+    public ResponseEntity<List<ExperienceResponse>> reorder(@RequestBody List<Long> orderedIds) {
+        return ResponseEntity.ok(experienceService.reorder(orderedIds));
+    }
 }
