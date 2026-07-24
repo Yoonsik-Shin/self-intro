@@ -8,6 +8,7 @@ import {
     Briefcase,
     Check,
     ChevronDown,
+    EyeOff,
     GripVertical,
     Pencil,
     Plus,
@@ -251,9 +252,16 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                             위에서부터 메인 포트폴리오에 표시됩니다.
                         </p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                        {draft.length}개
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                            전체 {draft.length}개
+                        </span>
+                        {draft.some((item) => !item.enabled) && (
+                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                비노출 {draft.filter((item) => !item.enabled).length}개
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {isLoading ? (
@@ -268,6 +276,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                             const experience = experiencesById.get(placement.experienceId);
                             if (!experience) return null;
                             const isExpanded = expandedExperienceId === experience.id;
+                            const isEnabled = placement.enabled;
                             const displayedDetails = isEditing
                                 ? experience.details
                                 : experience.details.filter((detail) =>
@@ -293,7 +302,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                                         event.preventDefault();
                                         setDraggedIndex(null);
                                     }}
-                                    className={`px-1 py-3 transition first:pt-0 last:pb-0 ${experience.details.length > 0 ? 'cursor-pointer' : ''} ${draggedIndex === index ? 'bg-blue-50/70 ring-1 ring-blue-200' : 'bg-white'}`}
+                                    className={`px-2 py-3 rounded-xl transition ${experience.details.length > 0 ? 'cursor-pointer' : ''} ${draggedIndex === index ? 'bg-blue-50/70 ring-1 ring-blue-200' : isEnabled ? 'bg-white hover:bg-slate-50/50' : 'bg-slate-50/70 opacity-75 hover:bg-amber-50/30'}`}
                                 >
                                     <div className="flex items-center gap-2">
                                         {isEditing && (
@@ -313,13 +322,25 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                                                 <GripVertical className="h-5 w-5" />
                                             </span>
                                         )}
-                                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-900 text-xs font-black text-white">
+                                        <span
+                                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black transition ${isEnabled ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-800 border border-amber-300/80'}`}
+                                        >
                                             {index + 1}
                                         </span>
                                         <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-black text-slate-800">
-                                                {experience.title}
-                                            </p>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p
+                                                    className={`truncate text-sm font-black transition ${isEnabled ? 'text-slate-800' : 'text-slate-500'}`}
+                                                >
+                                                    {experience.title}
+                                                </p>
+                                                {!isEnabled && (
+                                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                                        <EyeOff className="h-3.5 w-3.5" />
+                                                        비노출
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="mt-0.5 text-xs font-semibold text-slate-400">
                                                 {projectContext(experience)}
                                             </p>
