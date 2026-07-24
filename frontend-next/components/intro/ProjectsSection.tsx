@@ -265,7 +265,7 @@ export function ProjectsSection({
                                                                 <div className="mt-0.5">
                                                                     <div className="resume-body ml-[30px] space-y-2.5 text-slate-600">
                                                                         {merged && (
-                                                                            <div className="mt-0.5 text-[13px] leading-relaxed">
+                                                                            <div className="mt-0.5 !text-[13px] leading-relaxed [&_p]:!text-[13px] [&_li]:!text-[13px]">
                                                                                 <ReactMarkdown
                                                                                     components={
                                                                                         resumeMarkdownComponents
