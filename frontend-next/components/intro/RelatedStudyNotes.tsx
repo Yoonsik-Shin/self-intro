@@ -34,21 +34,23 @@ export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }:
     if (relatedStudies.length === 0) return null;
 
     return (
-        <div className="mt-2 border-t border-slate-100 pt-2.5 print:hidden">
-            <p className="resume-label mb-2 flex items-center gap-1.5 font-bold uppercase tracking-wider text-blue-600">
+        <div className="mt-3 border-t border-slate-100 pt-2.5 print:hidden">
+            <p className="resume-label mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-blue-600">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />
                 관련 학습 · 기술노트
             </p>
-            <div className="space-y-2">
+            <div className="divide-y divide-slate-100/80">
                 {relatedStudies.map((study) => (
                     <Link
                         key={study.id}
                         href={`/study/${encodeURIComponent(study.slug)}`}
                         onClick={(event) => event.stopPropagation()}
-                        className="resume-meta flex w-full items-center justify-between gap-2.5 rounded-xl border border-blue-100/50 bg-blue-50/40 px-4 py-2.5 text-left font-semibold text-blue-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/80 hover:text-blue-800"
+                        className="group flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left transition-all hover:bg-blue-50/60 rounded-lg text-slate-700 hover:text-blue-600"
                     >
-                        <span>{study.title}</span>
-                        <ExternalLink className="h-4 w-4 shrink-0 text-blue-500" />
+                        <span className="text-sm font-medium group-hover:underline underline-offset-4 decoration-blue-300">
+                            {study.title}
+                        </span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-blue-500 transition-colors" />
                     </Link>
                 ))}
             </div>
