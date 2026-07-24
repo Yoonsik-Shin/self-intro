@@ -328,18 +328,34 @@ export function ExperienceDetailPanel({
                                                                     </p>
                                                                     <ul className="space-y-1.5 list-disc pl-4 text-xs font-medium text-slate-700">
                                                                         {project.details.map(
-                                                                            (detail) => (
-                                                                                <li
-                                                                                    key={detail.id}
-                                                                                    className="leading-relaxed"
-                                                                                >
-                                                                                    <span className="font-semibold text-slate-800">
-                                                                                        {
-                                                                                            detail.content
+                                                                            (detail) => {
+                                                                                const isVisible =
+                                                                                    detail.visible !==
+                                                                                    false;
+                                                                                return (
+                                                                                    <li
+                                                                                        key={
+                                                                                            detail.id
                                                                                         }
-                                                                                    </span>
-                                                                                </li>
-                                                                            )
+                                                                                        className="leading-relaxed"
+                                                                                    >
+                                                                                        <span
+                                                                                            className={`font-semibold ${isVisible ? 'text-slate-800' : 'text-slate-400 line-through'}`}
+                                                                                        >
+                                                                                            {
+                                                                                                detail.content
+                                                                                            }
+                                                                                        </span>
+                                                                                        <span
+                                                                                            className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded border ${isVisible ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : 'bg-slate-200 text-slate-600 border-slate-300'}`}
+                                                                                        >
+                                                                                            {isVisible
+                                                                                                ? '공개'
+                                                                                                : '숨김'}
+                                                                                        </span>
+                                                                                    </li>
+                                                                                );
+                                                                            }
                                                                         )}
                                                                     </ul>
                                                                 </div>
@@ -460,10 +476,15 @@ export function ExperienceDetailPanel({
                                                 .join('\n\n');
                                         const hasContent =
                                             Boolean(merged) || detail.skills.length > 0;
+                                        const isVisible = detail.visible !== false;
                                         return (
                                             <div
                                                 key={detail.id}
-                                                className="rounded-xl border border-slate-200 p-4"
+                                                className={`rounded-xl border p-4 transition ${
+                                                    isVisible
+                                                        ? 'border-slate-200 bg-white'
+                                                        : 'border-slate-200 bg-slate-50/70 opacity-80'
+                                                }`}
                                             >
                                                 <button
                                                     type="button"
@@ -480,6 +501,15 @@ export function ExperienceDetailPanel({
                                                     </span>
                                                     <span className="min-w-0 flex-1 font-black leading-snug text-slate-800">
                                                         {detail.content}
+                                                    </span>
+                                                    <span
+                                                        className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold ${
+                                                            isVisible
+                                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                                                : 'bg-slate-200 text-slate-600'
+                                                        }`}
+                                                    >
+                                                        {isVisible ? '공개' : '숨김'}
                                                     </span>
                                                     {hasContent &&
                                                         (isExpanded ? (
