@@ -1,7 +1,7 @@
 package com.selfintro.modules.experience.presentation.dto;
 
-import com.selfintro.modules.experience.domain.Experience;
-import com.selfintro.modules.experience.domain.ExperienceRelationType;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.enums.ExperienceRelationType;
 
 public record RelatedExperienceResponse(
         Long id, String type, String title, ExperienceRelationType relationType) {

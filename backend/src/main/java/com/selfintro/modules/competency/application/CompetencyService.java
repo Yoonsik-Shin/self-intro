@@ -1,13 +1,13 @@
 package com.selfintro.modules.competency.application;
 
-import com.selfintro.modules.competency.domain.Competency;
-import com.selfintro.modules.competency.domain.CompetencyRepository;
+import com.selfintro.modules.competency.domain.entity.Competency;
+import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.competency.presentation.dto.CompetencyRequest;
 import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
-import com.selfintro.modules.experience.domain.Experience;
-import com.selfintro.modules.experience.domain.ExperienceRepository;
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;

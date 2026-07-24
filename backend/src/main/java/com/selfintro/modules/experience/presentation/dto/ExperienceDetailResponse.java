@@ -1,6 +1,6 @@
 package com.selfintro.modules.experience.presentation.dto;
 
-import com.selfintro.modules.experience.domain.ExperienceDetail;
+import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import java.util.List;
 

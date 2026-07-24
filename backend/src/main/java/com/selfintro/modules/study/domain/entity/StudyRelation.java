@@ -1,5 +1,6 @@
 package com.selfintro.modules.study.domain.entity;
 
+import com.selfintro.modules.study.domain.enums.*;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

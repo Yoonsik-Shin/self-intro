@@ -1,13 +1,13 @@
 package com.selfintro.modules.study.presentation.dto;
 
-import com.selfintro.modules.experience.domain.Experience;
-import com.selfintro.modules.experience.domain.ExperienceDetail;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.entity.StudyImage;
 import com.selfintro.modules.study.domain.entity.StudyRelation;
-import com.selfintro.modules.study.domain.entity.StudyRelationType;
-import com.selfintro.modules.study.domain.entity.StudyStatus;
+import com.selfintro.modules.study.domain.enums.StudyRelationType;
+import com.selfintro.modules.study.domain.enums.StudyStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;

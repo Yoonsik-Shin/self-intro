@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
-import com.selfintro.modules.experience.domain.*;
+import com.selfintro.modules.experience.domain.entity.*;
+import com.selfintro.modules.experience.domain.enums.*;
+import com.selfintro.modules.experience.domain.repository.*;
 import com.selfintro.modules.experience.presentation.dto.ExperiencePlacementRequest;
 import java.util.List;
 import java.util.Set;

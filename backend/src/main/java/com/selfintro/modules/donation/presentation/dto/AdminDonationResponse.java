@@ -1,7 +1,7 @@
 package com.selfintro.modules.donation.presentation.dto;
 
-import com.selfintro.modules.donation.domain.Donation;
-import com.selfintro.modules.donation.domain.DonationStatus;
+import com.selfintro.modules.donation.domain.entity.Donation;
+import com.selfintro.modules.donation.domain.enums.DonationStatus;
 import java.time.LocalDateTime;
 
 public record AdminDonationResponse(

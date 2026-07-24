@@ -8,10 +8,10 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.modules.experience.domain.ExperienceRepository;
+import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

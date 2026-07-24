@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.selfintro.modules.printtemplate.domain.PrintTemplate;
-import com.selfintro.modules.printtemplate.domain.PrintTemplateRepository;
+import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;

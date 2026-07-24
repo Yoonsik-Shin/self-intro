@@ -1,9 +1,9 @@
 package com.selfintro.modules.architecture.application;
 
-import com.selfintro.modules.architecture.domain.ArchitectureLayer;
-import com.selfintro.modules.architecture.domain.ArchitectureLayerRepository;
-import com.selfintro.modules.architecture.domain.ArchitectureOverview;
-import com.selfintro.modules.architecture.domain.ArchitectureOverviewRepository;
+import com.selfintro.modules.architecture.domain.entity.ArchitectureLayer;
+import com.selfintro.modules.architecture.domain.entity.ArchitectureOverview;
+import com.selfintro.modules.architecture.domain.repository.ArchitectureLayerRepository;
+import com.selfintro.modules.architecture.domain.repository.ArchitectureOverviewRepository;
 import com.selfintro.modules.architecture.presentation.dto.ArchitectureLayerRequest;
 import com.selfintro.modules.architecture.presentation.dto.ArchitectureLayerResponse;
 import com.selfintro.modules.architecture.presentation.dto.ArchitectureOverviewRequest;

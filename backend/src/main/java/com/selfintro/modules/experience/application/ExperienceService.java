@@ -1,12 +1,14 @@
 package com.selfintro.modules.experience.application;
 
-import com.selfintro.modules.experience.domain.*;
+import com.selfintro.modules.experience.domain.entity.*;
+import com.selfintro.modules.experience.domain.enums.*;
+import com.selfintro.modules.experience.domain.repository.*;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceImageRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.repository.TagRepository;

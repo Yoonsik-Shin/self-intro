@@ -1,6 +1,6 @@
 package com.selfintro.modules.skill.presentation.dto;
 
-import com.selfintro.modules.skill.domain.Skill;
+import com.selfintro.modules.skill.domain.entity.Skill;
 
 public record SkillResponse(
         Long id,

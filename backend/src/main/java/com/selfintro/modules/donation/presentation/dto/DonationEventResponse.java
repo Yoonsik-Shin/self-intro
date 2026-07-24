@@ -1,8 +1,8 @@
 package com.selfintro.modules.donation.presentation.dto;
 
-import com.selfintro.modules.donation.domain.DonationEvent;
-import com.selfintro.modules.donation.domain.DonationEventActor;
-import com.selfintro.modules.donation.domain.DonationEventType;
+import com.selfintro.modules.donation.domain.entity.DonationEvent;
+import com.selfintro.modules.donation.domain.enums.DonationEventActor;
+import com.selfintro.modules.donation.domain.enums.DonationEventType;
 import java.time.LocalDateTime;
 
 public record DonationEventResponse(

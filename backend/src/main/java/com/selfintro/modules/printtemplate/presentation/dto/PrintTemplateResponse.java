@@ -1,6 +1,6 @@
 package com.selfintro.modules.printtemplate.presentation.dto;
 
-import com.selfintro.modules.printtemplate.domain.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 
 public record PrintTemplateResponse(
         Long id,

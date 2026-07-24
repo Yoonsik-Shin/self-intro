@@ -5,11 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.selfintro.modules.competency.domain.Competency;
-import com.selfintro.modules.competency.domain.CompetencyRepository;
+import com.selfintro.modules.competency.domain.entity.Competency;
+import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.competency.presentation.dto.CompetencyRequest;
-import com.selfintro.modules.experience.domain.ExperienceRepository;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

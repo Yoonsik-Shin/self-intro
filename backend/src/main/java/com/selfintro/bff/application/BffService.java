@@ -5,7 +5,7 @@ import com.selfintro.bff.presentation.dto.LearningResponse;
 import com.selfintro.modules.competency.application.CompetencyService;
 import com.selfintro.modules.experience.application.ExperiencePlacementService;
 import com.selfintro.modules.experience.application.ExperienceService;
-import com.selfintro.modules.experience.domain.ExperiencePlacementType;
+import com.selfintro.modules.experience.domain.enums.ExperiencePlacementType;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import com.selfintro.modules.profile.application.ProfileService;
 import com.selfintro.modules.profile.presentation.dto.ProfileResponse;

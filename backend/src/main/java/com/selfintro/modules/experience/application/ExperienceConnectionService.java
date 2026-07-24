@@ -1,11 +1,11 @@
 package com.selfintro.modules.experience.application;
 
-import com.selfintro.modules.experience.domain.Experience;
-import com.selfintro.modules.experience.domain.ExperienceDetail;
-import com.selfintro.modules.experience.domain.ExperienceDetailRepository;
-import com.selfintro.modules.experience.domain.ExperienceRelation;
-import com.selfintro.modules.experience.domain.ExperienceRelationRepository;
-import com.selfintro.modules.experience.domain.ExperienceRepository;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
+import com.selfintro.modules.experience.domain.entity.ExperienceRelation;
+import com.selfintro.modules.experience.domain.repository.ExperienceDetailRepository;
+import com.selfintro.modules.experience.domain.repository.ExperienceRelationRepository;
+import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.experience.presentation.dto.DetailStudies;
 import com.selfintro.modules.experience.presentation.dto.ExperienceConnections;
 import com.selfintro.modules.experience.presentation.dto.RelatedExperienceRequest;

@@ -1,6 +1,8 @@
 package com.selfintro.modules.experience.presentation.dto;
 
-import com.selfintro.modules.experience.domain.*;
+import com.selfintro.modules.experience.domain.entity.*;
+import com.selfintro.modules.experience.domain.enums.*;
+import com.selfintro.modules.experience.domain.repository.*;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.modules.study.domain.entity.Tag;
 import java.time.LocalDate;

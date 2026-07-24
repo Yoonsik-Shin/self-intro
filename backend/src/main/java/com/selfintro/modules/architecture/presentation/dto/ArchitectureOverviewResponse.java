@@ -1,6 +1,6 @@
 package com.selfintro.modules.architecture.presentation.dto;
 
-import com.selfintro.modules.architecture.domain.ArchitectureOverview;
+import com.selfintro.modules.architecture.domain.entity.ArchitectureOverview;
 
 public record ArchitectureOverviewResponse(
         Long id, String heading, String subheading, String diagramHeading, String diagramText) {

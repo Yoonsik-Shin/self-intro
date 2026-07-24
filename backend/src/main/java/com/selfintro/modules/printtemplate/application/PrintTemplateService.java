@@ -1,7 +1,7 @@
 package com.selfintro.modules.printtemplate.application;
 
-import com.selfintro.modules.printtemplate.domain.PrintTemplate;
-import com.selfintro.modules.printtemplate.domain.PrintTemplateRepository;
+import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

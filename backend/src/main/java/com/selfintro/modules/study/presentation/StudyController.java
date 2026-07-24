@@ -1,7 +1,7 @@
 package com.selfintro.modules.study.presentation;
 
 import com.selfintro.modules.study.application.StudyService;
-import com.selfintro.modules.study.domain.entity.StudyStatus;
+import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.presentation.dto.StudyPageResponse;
 import com.selfintro.modules.study.presentation.dto.StudyRequest;
 import com.selfintro.modules.study.presentation.dto.StudyResponse;

@@ -1,6 +1,6 @@
 package com.selfintro.modules.experience.presentation.dto;
 
-import com.selfintro.modules.experience.domain.ExperiencePlacement;
+import com.selfintro.modules.experience.domain.entity.ExperiencePlacement;
 import java.util.List;
 
 public record ExperiencePlacementResponse(

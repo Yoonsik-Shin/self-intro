@@ -1,7 +1,7 @@
 package com.selfintro.modules.architecture.presentation.dto;
 
-import com.selfintro.modules.architecture.domain.ArchitectureLayer;
-import com.selfintro.modules.architecture.domain.ArchitectureLayerItem;
+import com.selfintro.modules.architecture.domain.entity.ArchitectureLayer;
+import com.selfintro.modules.architecture.domain.entity.ArchitectureLayerItem;
 import java.util.List;
 
 public record ArchitectureLayerResponse(

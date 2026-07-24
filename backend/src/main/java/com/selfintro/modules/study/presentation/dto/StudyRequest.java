@@ -1,6 +1,6 @@
 package com.selfintro.modules.study.presentation.dto;
 
-import com.selfintro.modules.study.domain.entity.StudyStatus;
+import com.selfintro.modules.study.domain.enums.StudyStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

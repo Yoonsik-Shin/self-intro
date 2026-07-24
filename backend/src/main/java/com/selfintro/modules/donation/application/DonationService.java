@@ -1,15 +1,15 @@
 package com.selfintro.modules.donation.application;
 
 import com.selfintro.modules.donation.config.DonationProperties;
-import com.selfintro.modules.donation.domain.Donation;
-import com.selfintro.modules.donation.domain.DonationEvent;
-import com.selfintro.modules.donation.domain.DonationEventActor;
-import com.selfintro.modules.donation.domain.DonationEventRepository;
-import com.selfintro.modules.donation.domain.DonationEventType;
-import com.selfintro.modules.donation.domain.DonationRepository;
-import com.selfintro.modules.donation.domain.DonationSetting;
-import com.selfintro.modules.donation.domain.DonationSettingRepository;
-import com.selfintro.modules.donation.domain.DonationStatus;
+import com.selfintro.modules.donation.domain.entity.Donation;
+import com.selfintro.modules.donation.domain.entity.DonationEvent;
+import com.selfintro.modules.donation.domain.entity.DonationSetting;
+import com.selfintro.modules.donation.domain.enums.DonationEventActor;
+import com.selfintro.modules.donation.domain.enums.DonationEventType;
+import com.selfintro.modules.donation.domain.enums.DonationStatus;
+import com.selfintro.modules.donation.domain.repository.DonationEventRepository;
+import com.selfintro.modules.donation.domain.repository.DonationRepository;
+import com.selfintro.modules.donation.domain.repository.DonationSettingRepository;
 import com.selfintro.modules.donation.presentation.dto.AdminDonationResponse;
 import com.selfintro.modules.donation.presentation.dto.AdminDonationSummaryResponse;
 import com.selfintro.modules.donation.presentation.dto.DonationEventResponse;

@@ -1,7 +1,7 @@
 package com.selfintro.modules.skill.application;
 
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.presentation.dto.SkillRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

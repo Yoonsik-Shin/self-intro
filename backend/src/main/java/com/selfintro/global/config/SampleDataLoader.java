@@ -1,12 +1,15 @@
 package com.selfintro.global.config;
 
-import com.selfintro.modules.experience.domain.*;
-import com.selfintro.modules.printtemplate.domain.PrintTemplate;
-import com.selfintro.modules.printtemplate.domain.PrintTemplateRepository;
-import com.selfintro.modules.profile.domain.ProfileRepository;
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.experience.domain.entity.*;
+import com.selfintro.modules.experience.domain.enums.*;
+import com.selfintro.modules.experience.domain.repository.*;
+import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
+import com.selfintro.modules.profile.domain.repository.ProfileRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.study.domain.entity.*;
+import com.selfintro.modules.study.domain.enums.*;
 import com.selfintro.modules.study.domain.repository.*;
 import com.selfintro.modules.study.domain.repository.StudyCategoryRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
@@ -74,7 +77,7 @@ public class SampleDataLoader implements ApplicationRunner {
         }
 
         profileRepository.save(
-                com.selfintro.modules.profile.domain.Profile.create(
+                com.selfintro.modules.profile.domain.entity.Profile.create(
                         "신윤식",
                         "Yoonsik Shin",
                         "Software Engineer",

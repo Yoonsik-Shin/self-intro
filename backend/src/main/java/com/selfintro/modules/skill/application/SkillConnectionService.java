@@ -1,11 +1,11 @@
 package com.selfintro.modules.skill.application;
 
-import com.selfintro.modules.experience.domain.Experience;
-import com.selfintro.modules.experience.domain.ExperienceDetail;
-import com.selfintro.modules.experience.domain.ExperienceDetailRepository;
-import com.selfintro.modules.experience.domain.ExperienceRepository;
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
+import com.selfintro.modules.experience.domain.repository.ExperienceDetailRepository;
+import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.presentation.dto.SkillConnections;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;

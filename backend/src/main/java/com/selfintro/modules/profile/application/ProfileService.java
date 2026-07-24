@@ -1,7 +1,7 @@
 package com.selfintro.modules.profile.application;
 
-import com.selfintro.modules.profile.domain.Profile;
-import com.selfintro.modules.profile.domain.ProfileRepository;
+import com.selfintro.modules.profile.domain.entity.Profile;
+import com.selfintro.modules.profile.domain.repository.ProfileRepository;
 import com.selfintro.modules.profile.presentation.dto.ProfileRequest;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

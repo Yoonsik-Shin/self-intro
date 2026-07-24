@@ -1,8 +1,9 @@
 package com.selfintro.modules.study.domain.entity;
 
-import com.selfintro.modules.experience.domain.Experience;
-import com.selfintro.modules.experience.domain.ExperienceDetail;
-import com.selfintro.modules.skill.domain.Skill;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.study.domain.enums.*;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

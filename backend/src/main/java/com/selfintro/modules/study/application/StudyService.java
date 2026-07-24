@@ -1,18 +1,18 @@
 package com.selfintro.modules.study.application;
 
-import com.selfintro.modules.experience.domain.Experience;
-import com.selfintro.modules.experience.domain.ExperienceDetail;
-import com.selfintro.modules.experience.domain.ExperienceDetailRepository;
-import com.selfintro.modules.experience.domain.ExperienceRepository;
-import com.selfintro.modules.skill.domain.Skill;
-import com.selfintro.modules.skill.domain.SkillRepository;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
+import com.selfintro.modules.experience.domain.repository.ExperienceDetailRepository;
+import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.entity.StudyCategory;
 import com.selfintro.modules.study.domain.entity.StudyImage;
 import com.selfintro.modules.study.domain.entity.StudyRelation;
-import com.selfintro.modules.study.domain.entity.StudyStatus;
 import com.selfintro.modules.study.domain.entity.Tag;
+import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyCategoryRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.domain.repository.StudySearchCondition;

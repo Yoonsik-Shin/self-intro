@@ -1,7 +1,7 @@
 package com.selfintro.modules.experience.presentation;
 
 import com.selfintro.modules.experience.application.ExperiencePlacementService;
-import com.selfintro.modules.experience.domain.ExperiencePlacementType;
+import com.selfintro.modules.experience.domain.enums.ExperiencePlacementType;
 import com.selfintro.modules.experience.presentation.dto.ExperiencePlacementRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperiencePlacementResponse;
 import jakarta.validation.Valid;

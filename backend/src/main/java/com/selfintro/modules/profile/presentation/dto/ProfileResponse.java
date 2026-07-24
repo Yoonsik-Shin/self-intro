@@ -1,6 +1,6 @@
 package com.selfintro.modules.profile.presentation.dto;
 
-import com.selfintro.modules.profile.domain.Profile;
+import com.selfintro.modules.profile.domain.entity.Profile;
 import java.time.LocalDateTime;
 
 public record ProfileResponse(

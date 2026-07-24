@@ -7,10 +7,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.selfintro.modules.visitor.domain.VisitorDailyVisit;
-import com.selfintro.modules.visitor.domain.VisitorDailyVisitRepository;
-import com.selfintro.modules.visitor.domain.VisitorHourlyVisit;
-import com.selfintro.modules.visitor.domain.VisitorHourlyVisitRepository;
+import com.selfintro.modules.visitor.domain.entity.VisitorDailyVisit;
+import com.selfintro.modules.visitor.domain.entity.VisitorHourlyVisit;
+import com.selfintro.modules.visitor.domain.repository.VisitorDailyVisitRepository;
+import com.selfintro.modules.visitor.domain.repository.VisitorHourlyVisitRepository;
 import com.selfintro.modules.visitor.presentation.dto.VisitorHourlyResponse;
 import com.selfintro.modules.visitor.presentation.dto.VisitorSummaryResponse;
 import java.time.Clock;
