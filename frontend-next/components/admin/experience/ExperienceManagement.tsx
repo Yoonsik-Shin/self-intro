@@ -231,13 +231,20 @@ export function ExperienceManagement({
         experiencesList?.find((experience) => experience.id === selectedExperienceId) ?? null;
 
     const counts = useMemo(() => {
-        const list = experiencesList ?? [];
+        const list = (experiencesList ?? []).filter((item) => {
+            const matchesType = expFilter === 'ALL' || item.type === expFilter;
+            const matchesSearch =
+                !expSearch ||
+                item.title.toLowerCase().includes(expSearch.toLowerCase()) ||
+                (item.summary && item.summary.toLowerCase().includes(expSearch.toLowerCase()));
+            return matchesType && matchesSearch;
+        });
         return {
             all: list.length,
             visible: list.filter((item) => item.showOnTimeline).length,
             hidden: list.filter((item) => !item.showOnTimeline).length,
         };
-    }, [experiencesList]);
+    }, [experiencesList, expFilter, expSearch]);
 
     const sortedExperiences = useMemo(() => {
         return [...(experiencesList ?? [])].sort((a, b) => a.displayOrder - b.displayOrder);
@@ -990,7 +997,7 @@ export function ExperienceManagement({
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    const visibleIds = (experiencesList ?? [])
+                                                    const visibleIds = filteredExperiences
                                                         .filter((item) => item.showOnTimeline)
                                                         .map((item) => item.id);
                                                     handleBatchUnpublish(visibleIds);
@@ -1023,7 +1030,7 @@ export function ExperienceManagement({
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    const hiddenIds = (experiencesList ?? [])
+                                                    const hiddenIds = filteredExperiences
                                                         .filter((item) => !item.showOnTimeline)
                                                         .map((item) => item.id);
                                                     handleBatchPublish(hiddenIds);
