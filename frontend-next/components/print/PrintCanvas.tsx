@@ -1469,7 +1469,7 @@ export function PrintCanvas({
                         {renderItemGap(itemId, 'career')}
                         <div
                             data-print-el
-                            className="py-2 pl-3 border-b border-slate-100/60 last:border-b-0 w-full relative"
+                            className="py-2 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
                         >
                             {renderItemControls(itemId)}
                             {isFirst && (
@@ -1645,7 +1645,7 @@ export function PrintCanvas({
                         {renderItemGap(itemId, 'projects')}
                         <div
                             data-print-el
-                            className="py-2 pl-3 border-b border-slate-100/60 last:border-b-0 w-full relative"
+                            className="py-2 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
                         >
                             {renderItemControls(itemId)}
                             {isFirst && (
