@@ -107,8 +107,7 @@ export function ProjectsSection({
                         <div
                             key={m.id}
                             id={`project-experience-${m.experienceId ?? m.id}`}
-                            className="resume-project-item group relative cursor-pointer pl-10"
-                            onClick={() => onSelectMilestone(m.id)}
+                            className="resume-project-item group relative pl-10"
                         >
                             <div
                                 className={`resume-project-bullet absolute left-[7px] top-1.5 z-10 h-[18px] w-[18px] rounded-full border-4 border-white shadow-sm transition-colors ${selectedMilestoneId === m.id ? 'scale-110 bg-slate-900' : 'bg-slate-300 group-hover:bg-slate-500'}`}
