@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo } from 'react';
 import Link from 'next/link';
-import { Briefcase, ChevronDown } from 'lucide-react';
+import { Briefcase, ChevronDown, Users } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { ExperienceDetail, RelatedExperience } from '@/lib/api/types';
 import type { CareerCard } from '@/lib/introDerivations';
@@ -136,242 +136,320 @@ export function CareerSection({
                                 </ReactMarkdown>
                             </div>
                         )}
+                        {career.projects.length > 0 &&
+                            (() => {
+                                const coreProjects = career.projects.filter((p) =>
+                                    Boolean(p.periodStart || p.contributionRate != null)
+                                );
+                                const tfProjects = career.projects.filter(
+                                    (p) => !p.periodStart && p.contributionRate == null
+                                );
 
-                        <ul className="mt-4 space-y-2">
-                            {career.projects.map((project) => {
-                                const isProjectExpanded = expandedProjectIds.includes(project.id);
-                                return (
-                                    <li
-                                        key={project.id}
-                                        className="border-b border-slate-100 last:border-b-0"
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => onToggleProject(project.id)}
-                                            className="group flex w-full items-start gap-2.5 py-3 text-left"
-                                        >
-                                            <ChevronDown
-                                                className={`mt-1 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-300 ${isProjectExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`}
-                                            />
-                                            <span className="min-w-0 flex-1">
-                                                <span className="resume-body block font-semibold text-slate-750 group-hover:text-slate-950">
-                                                    {project.title}
-                                                </span>
-                                                <span className="resume-meta mt-0.5 block text-slate-400">
-                                                    {project.periodStart
-                                                        .replace(/-/g, '.')
-                                                        .substring(0, 7)}{' '}
-                                                    -{' '}
-                                                    {project.periodEnd
-                                                        ? project.periodEnd
-                                                              .replace(/-/g, '.')
-                                                              .substring(0, 7)
-                                                        : '진행 중'}
-                                                    {project.contributionRate != null
-                                                        ? ` · 기여도 ${project.contributionRate}%`
-                                                        : ''}
-                                                </span>
-                                            </span>
-                                        </button>
+                                const renderProjectList = (
+                                    projects: typeof career.projects,
+                                    isTf = false
+                                ) => (
+                                    <ul className="divide-y divide-slate-100">
+                                        {projects.map((project) => {
+                                            const isProjectExpanded = expandedProjectIds.includes(
+                                                project.id
+                                            );
+                                            return (
+                                                <li
+                                                    key={project.id}
+                                                    className="border-b border-slate-100 last:border-b-0"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onToggleProject(project.id)}
+                                                        className="group flex w-full items-start gap-2.5 py-3 text-left"
+                                                    >
+                                                        <ChevronDown
+                                                            className={`mt-1 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-300 ${isProjectExpanded ? 'rotate-180 text-slate-800' : 'group-hover:text-slate-600'}`}
+                                                        />
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="resume-body flex flex-wrap items-center gap-2 font-semibold text-slate-750 group-hover:text-slate-950">
+                                                                <span>{project.title}</span>
+                                                                {isTf ? (
+                                                                    <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700 border border-purple-100/80">
+                                                                        TF · 협업/개선
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-100/80">
+                                                                        개발 프로젝트
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                            <span className="resume-meta mt-0.5 block text-slate-400">
+                                                                {project.periodStart ? (
+                                                                    <>
+                                                                        {project.periodStart
+                                                                            .replace(/-/g, '.')
+                                                                            .substring(0, 7)}{' '}
+                                                                        -{' '}
+                                                                        {project.periodEnd
+                                                                            ? project.periodEnd
+                                                                                  .replace(
+                                                                                      /-/g,
+                                                                                      '.'
+                                                                                  )
+                                                                                  .substring(0, 7)
+                                                                            : '진행 중'}
+                                                                        {project.contributionRate !=
+                                                                        null
+                                                                            ? ` · 기여도 ${project.contributionRate}%`
+                                                                            : ''}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="font-medium text-purple-600">
+                                                                        자발적 TF 참여 · 전사
+                                                                        조직/프로세스 개선 사례
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        </span>
+                                                    </button>
 
-                                        {isProjectExpanded && (
-                                            <div className="mb-4 pl-5 pt-1.5">
-                                                <div>
-                                                    {project.summary && (
-                                                        <div className="mb-3">
-                                                            <h4 className="resume-label font-bold uppercase tracking-wider text-slate-400">
-                                                                프로젝트 설명 및 역할
-                                                            </h4>
-                                                            <div className="resume-body mt-1 text-slate-600">
-                                                                <ReactMarkdown
-                                                                    components={
-                                                                        resumeMarkdownComponents
-                                                                    }
-                                                                >
-                                                                    {project.summary}
-                                                                </ReactMarkdown>
+                                                    {isProjectExpanded && (
+                                                        <div className="mb-4 pl-5 pt-1.5">
+                                                            <div>
+                                                                {project.summary && (
+                                                                    <div className="mb-3">
+                                                                        <h4 className="resume-label font-bold uppercase tracking-wider text-slate-400">
+                                                                            프로젝트 설명 및 역할
+                                                                        </h4>
+                                                                        <div className="resume-body mt-1 text-slate-600">
+                                                                            <ReactMarkdown
+                                                                                components={
+                                                                                    resumeMarkdownComponents
+                                                                                }
+                                                                            >
+                                                                                {project.summary}
+                                                                            </ReactMarkdown>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {project.details.length > 0 &&
+                                                                    (() => {
+                                                                        const projectExpandableDetailIds =
+                                                                            project.details
+                                                                                .filter((d) =>
+                                                                                    Boolean(
+                                                                                        d.situation ||
+                                                                                        d.actionDetail ||
+                                                                                        d.outcome ||
+                                                                                        d.skills
+                                                                                            .length >
+                                                                                            0
+                                                                                    )
+                                                                                )
+                                                                                .map((d) => d.id);
+                                                                        const isProjectDetailsAllExpanded =
+                                                                            projectExpandableDetailIds.length >
+                                                                                0 &&
+                                                                            projectExpandableDetailIds.every(
+                                                                                (id) =>
+                                                                                    expandedDetailIds.includes(
+                                                                                        id
+                                                                                    )
+                                                                            );
+
+                                                                        return (
+                                                                            <div className="mb-2 flex items-center justify-between gap-3">
+                                                                                <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
+                                                                                    <Briefcase className="h-3.5 w-3.5 text-slate-500" />
+                                                                                    상세 경험
+                                                                                </h4>
+                                                                                {projectExpandableDetailIds.length >
+                                                                                    0 && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        aria-expanded={
+                                                                                            isProjectDetailsAllExpanded
+                                                                                        }
+                                                                                        onClick={(
+                                                                                            e
+                                                                                        ) => {
+                                                                                            e.stopPropagation();
+                                                                                            if (
+                                                                                                isProjectDetailsAllExpanded
+                                                                                            ) {
+                                                                                                onSetExpandedDetailIds(
+                                                                                                    expandedDetailIds.filter(
+                                                                                                        (
+                                                                                                            id
+                                                                                                        ) =>
+                                                                                                            !projectExpandableDetailIds.includes(
+                                                                                                                id
+                                                                                                            )
+                                                                                                    )
+                                                                                                );
+                                                                                            } else {
+                                                                                                onSetExpandedDetailIds(
+                                                                                                    Array.from(
+                                                                                                        new Set(
+                                                                                                            [
+                                                                                                                ...expandedDetailIds,
+                                                                                                                ...projectExpandableDetailIds,
+                                                                                                            ]
+                                                                                                        )
+                                                                                                    )
+                                                                                                );
+                                                                                            }
+                                                                                        }}
+                                                                                        className="group/expand inline-flex items-center gap-1 text-[0.6875rem] font-bold leading-4 text-slate-400 transition hover:text-slate-800"
+                                                                                    >
+                                                                                        <ChevronDown
+                                                                                            className={`h-3.5 w-3.5 transition-transform duration-200 ${isProjectDetailsAllExpanded ? 'rotate-180' : ''}`}
+                                                                                        />
+                                                                                        {isProjectDetailsAllExpanded
+                                                                                            ? '모두 접기'
+                                                                                            : '모두 펼치기'}
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
+                                                                <ul className="divide-y divide-slate-100">
+                                                                    {project.details.map(
+                                                                        (detail) => {
+                                                                            const isExpanded =
+                                                                                expandedDetailIds.includes(
+                                                                                    detail.id
+                                                                                );
+                                                                            const hasDetailContent =
+                                                                                Boolean(
+                                                                                    detail.situation ||
+                                                                                    detail.actionDetail ||
+                                                                                    detail.outcome
+                                                                                );
+                                                                            return (
+                                                                                <li
+                                                                                    key={detail.id}
+                                                                                    id={`experience-detail-${detail.id}`}
+                                                                                    className="scroll-mt-24 py-1.5 first:pt-0 last:pb-0"
+                                                                                >
+                                                                                    <div
+                                                                                        className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
+                                                                                        onClick={() =>
+                                                                                            hasDetailContent &&
+                                                                                            onToggleDetail(
+                                                                                                detail.id
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        <span className="flex h-5 items-center justify-center">
+                                                                                            {hasDetailContent ? (
+                                                                                                <ChevronDown
+                                                                                                    className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : ''}`}
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                                                                            )}
+                                                                                        </span>
+                                                                                        <span className="resume-body min-w-0 text-slate-700">
+                                                                                            {
+                                                                                                detail.content
+                                                                                            }
+                                                                                        </span>
+                                                                                        {detail.id >
+                                                                                            0 && (
+                                                                                            <Link
+                                                                                                href={`/experience/${project.id}/experience-detail/${detail.id}`}
+                                                                                                onClick={(
+                                                                                                    e
+                                                                                                ) =>
+                                                                                                    e.stopPropagation()
+                                                                                                }
+                                                                                                className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-600 transition-opacity hover:text-slate-950 hover:underline ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
+                                                                                            >
+                                                                                                자세히
+                                                                                                보기
+                                                                                            </Link>
+                                                                                        )}
+                                                                                    </div>
+
+                                                                                    {hasDetailContent &&
+                                                                                        isExpanded && (
+                                                                                            <div className="mb-2 mt-0.5">
+                                                                                                <div className="resume-body ml-7 space-y-2.5 text-slate-600">
+                                                                                                    {detailMarkdown(
+                                                                                                        detail
+                                                                                                    )}
+                                                                                                    {detail
+                                                                                                        .skills
+                                                                                                        .length >
+                                                                                                        0 && (
+                                                                                                        <div className="flex flex-wrap gap-1 pt-1">
+                                                                                                            {detail.skills.map(
+                                                                                                                (
+                                                                                                                    skill
+                                                                                                                ) => (
+                                                                                                                    <span
+                                                                                                                        key={
+                                                                                                                            skill.id
+                                                                                                                        }
+                                                                                                                        className={
+                                                                                                                            badgeStyle
+                                                                                                                        }
+                                                                                                                    >
+                                                                                                                        {
+                                                                                                                            skill.name
+                                                                                                                        }
+                                                                                                                    </span>
+                                                                                                                )
+                                                                                                            )}
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                    {detail.id >
+                                                                                                        0 && (
+                                                                                                        <RelatedStudyNotes
+                                                                                                            experienceDetailId={
+                                                                                                                detail.id
+                                                                                                            }
+                                                                                                        />
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                </li>
+                                                                            );
+                                                                        }
+                                                                    )}
+                                                                </ul>
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {project.details.length > 0 &&
-                                                        (() => {
-                                                            const projectExpandableDetailIds =
-                                                                project.details
-                                                                    .filter((d) =>
-                                                                        Boolean(
-                                                                            d.situation ||
-                                                                            d.actionDetail ||
-                                                                            d.outcome ||
-                                                                            d.skills.length > 0
-                                                                        )
-                                                                    )
-                                                                    .map((d) => d.id);
-                                                            const isProjectDetailsAllExpanded =
-                                                                projectExpandableDetailIds.length >
-                                                                    0 &&
-                                                                projectExpandableDetailIds.every(
-                                                                    (id) =>
-                                                                        expandedDetailIds.includes(
-                                                                            id
-                                                                        )
-                                                                );
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                );
 
-                                                            return (
-                                                                <div className="mb-2 flex items-center justify-between gap-3">
-                                                                    <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
-                                                                        <Briefcase className="h-3.5 w-3.5 text-slate-500" />
-                                                                        상세 경험
-                                                                    </h4>
-                                                                    {projectExpandableDetailIds.length >
-                                                                        0 && (
-                                                                        <button
-                                                                            type="button"
-                                                                            aria-expanded={
-                                                                                isProjectDetailsAllExpanded
-                                                                            }
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (
-                                                                                    isProjectDetailsAllExpanded
-                                                                                ) {
-                                                                                    onSetExpandedDetailIds(
-                                                                                        expandedDetailIds.filter(
-                                                                                            (id) =>
-                                                                                                !projectExpandableDetailIds.includes(
-                                                                                                    id
-                                                                                                )
-                                                                                        )
-                                                                                    );
-                                                                                } else {
-                                                                                    onSetExpandedDetailIds(
-                                                                                        Array.from(
-                                                                                            new Set(
-                                                                                                [
-                                                                                                    ...expandedDetailIds,
-                                                                                                    ...projectExpandableDetailIds,
-                                                                                                ]
-                                                                                            )
-                                                                                        )
-                                                                                    );
-                                                                                }
-                                                                            }}
-                                                                            className="group/expand inline-flex items-center gap-1 text-[0.6875rem] font-bold leading-4 text-slate-400 transition hover:text-slate-800"
-                                                                        >
-                                                                            <ChevronDown
-                                                                                className={`h-3.5 w-3.5 transition-transform duration-200 ${isProjectDetailsAllExpanded ? 'rotate-180' : ''}`}
-                                                                            />
-                                                                            {isProjectDetailsAllExpanded
-                                                                                ? '모두 접기'
-                                                                                : '모두 펼치기'}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })()}
-                                                    <ul className="divide-y divide-slate-100">
-                                                        {project.details.map((detail) => {
-                                                            const isExpanded =
-                                                                expandedDetailIds.includes(
-                                                                    detail.id
-                                                                );
-                                                            const hasDetailContent = Boolean(
-                                                                detail.situation ||
-                                                                detail.actionDetail ||
-                                                                detail.outcome
-                                                            );
-                                                            return (
-                                                                <li
-                                                                    key={detail.id}
-                                                                    id={`experience-detail-${detail.id}`}
-                                                                    className="scroll-mt-24 py-1.5 first:pt-0 last:pb-0"
-                                                                >
-                                                                    <div
-                                                                        className={`group grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-2 py-1 ${hasDetailContent ? 'cursor-pointer' : 'cursor-default'}`}
-                                                                        onClick={() =>
-                                                                            hasDetailContent &&
-                                                                            onToggleDetail(
-                                                                                detail.id
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <span className="flex h-5 items-center justify-center">
-                                                                            {hasDetailContent ? (
-                                                                                <ChevronDown
-                                                                                    className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-slate-800' : ''}`}
-                                                                                />
-                                                                            ) : (
-                                                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                                                                            )}
-                                                                        </span>
-                                                                        <span className="resume-body min-w-0 text-slate-700">
-                                                                            {detail.content}
-                                                                        </span>
-                                                                        {detail.id > 0 && (
-                                                                            <Link
-                                                                                href={`/experience/${project.id}/experience-detail/${detail.id}`}
-                                                                                onClick={(e) =>
-                                                                                    e.stopPropagation()
-                                                                                }
-                                                                                className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-600 transition-opacity hover:text-slate-950 hover:underline ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
-                                                                            >
-                                                                                자세히 보기
-                                                                            </Link>
-                                                                        )}
-                                                                    </div>
-
-                                                                    {hasDetailContent &&
-                                                                        isExpanded && (
-                                                                            <div className="mb-2 mt-0.5">
-                                                                                <div className="resume-body ml-7 space-y-2.5 text-slate-600">
-                                                                                    {detailMarkdown(
-                                                                                        detail
-                                                                                    )}
-                                                                                    {detail.skills
-                                                                                        .length >
-                                                                                        0 && (
-                                                                                        <div className="flex flex-wrap gap-1 pt-1">
-                                                                                            {detail.skills.map(
-                                                                                                (
-                                                                                                    skill
-                                                                                                ) => (
-                                                                                                    <span
-                                                                                                        key={
-                                                                                                            skill.id
-                                                                                                        }
-                                                                                                        className={
-                                                                                                            badgeStyle
-                                                                                                        }
-                                                                                                    >
-                                                                                                        {
-                                                                                                            skill.name
-                                                                                                        }
-                                                                                                    </span>
-                                                                                                )
-                                                                                            )}
-                                                                                        </div>
-                                                                                    )}
-                                                                                    {detail.id >
-                                                                                        0 && (
-                                                                                        <RelatedStudyNotes
-                                                                                            experienceDetailId={
-                                                                                                detail.id
-                                                                                            }
-                                                                                        />
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                </li>
-                                                            );
-                                                        })}
-                                                    </ul>
+                                return (
+                                    <div className="mt-4 space-y-4">
+                                        {coreProjects.length > 0 && (
+                                            <div>
+                                                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                                    주요 전담 개발 프로젝트
                                                 </div>
+                                                {renderProjectList(coreProjects, false)}
                                             </div>
                                         )}
-                                    </li>
+                                        {tfProjects.length > 0 && (
+                                            <div className="pt-2">
+                                                <div className="mb-1.5 flex items-center gap-1.5 border-t border-slate-100 pt-3 text-[11px] font-bold uppercase tracking-wider text-purple-600">
+                                                    <Users className="h-3.5 w-3.5 text-purple-500" />
+                                                    자발적 TF 및 조직/프로세스 개선 사례
+                                                </div>
+                                                {renderProjectList(tfProjects, true)}
+                                            </div>
+                                        )}
+                                    </div>
                                 );
-                            })}
+                            })()}
 
+                        <ul className="mt-4 space-y-2">
                             {career.details.map((detail) => {
                                 const isExpanded = expandedDetailIds.includes(detail.id);
                                 const hasDetailContent = Boolean(
