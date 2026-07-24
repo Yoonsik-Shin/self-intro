@@ -1,4 +1,4 @@
-package com.selfintro.modules.ai;
+package com.selfintro.global.ai;
 
 import java.util.function.Consumer;
 import org.springframework.ai.chat.client.ChatClient;

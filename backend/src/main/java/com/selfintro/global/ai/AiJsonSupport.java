@@ -1,4 +1,4 @@
-package com.selfintro.modules.ai;
+package com.selfintro.global.ai;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

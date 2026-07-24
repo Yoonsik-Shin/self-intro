@@ -7,7 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.modules.ai.NvidiaNimClient;
+import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.experience.domain.ExperienceRepository;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;
 import com.selfintro.modules.skill.domain.Skill;

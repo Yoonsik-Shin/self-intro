@@ -1,15 +1,15 @@
 package com.selfintro.modules.study.application;
 
-import static com.selfintro.modules.ai.AiJsonSupport.blankToNull;
-import static com.selfintro.modules.ai.AiJsonSupport.hasText;
-import static com.selfintro.modules.ai.AiJsonSupport.limit;
-import static com.selfintro.modules.ai.AiJsonSupport.safe;
-import static com.selfintro.modules.ai.AiJsonSupport.select;
+import static com.selfintro.global.ai.AiJsonSupport.blankToNull;
+import static com.selfintro.global.ai.AiJsonSupport.hasText;
+import static com.selfintro.global.ai.AiJsonSupport.limit;
+import static com.selfintro.global.ai.AiJsonSupport.safe;
+import static com.selfintro.global.ai.AiJsonSupport.select;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.modules.ai.AiJsonSupport;
-import com.selfintro.modules.ai.NvidiaNimClient;
+import com.selfintro.global.ai.AiJsonSupport;
+import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.experience.domain.Experience;
 import com.selfintro.modules.experience.domain.ExperienceDetail;
 import com.selfintro.modules.experience.domain.ExperienceDetailRepository;

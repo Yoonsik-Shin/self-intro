@@ -1,18 +1,18 @@
 package com.selfintro.modules.competency.application;
 
-import static com.selfintro.modules.ai.AiJsonSupport.blankToNull;
-import static com.selfintro.modules.ai.AiJsonSupport.distinctBy;
-import static com.selfintro.modules.ai.AiJsonSupport.hasText;
-import static com.selfintro.modules.ai.AiJsonSupport.limit;
-import static com.selfintro.modules.ai.AiJsonSupport.safe;
-import static com.selfintro.modules.ai.AiJsonSupport.select;
-import static com.selfintro.modules.ai.AiJsonSupport.toIdSet;
-import static com.selfintro.modules.ai.AiJsonSupport.toLinkedSet;
+import static com.selfintro.global.ai.AiJsonSupport.blankToNull;
+import static com.selfintro.global.ai.AiJsonSupport.distinctBy;
+import static com.selfintro.global.ai.AiJsonSupport.hasText;
+import static com.selfintro.global.ai.AiJsonSupport.limit;
+import static com.selfintro.global.ai.AiJsonSupport.safe;
+import static com.selfintro.global.ai.AiJsonSupport.select;
+import static com.selfintro.global.ai.AiJsonSupport.toIdSet;
+import static com.selfintro.global.ai.AiJsonSupport.toLinkedSet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.modules.ai.AiJsonSupport;
-import com.selfintro.modules.ai.NvidiaNimClient;
+import com.selfintro.global.ai.AiJsonSupport;
+import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.competency.domain.Competency;
 import com.selfintro.modules.competency.domain.CompetencyRepository;
 import com.selfintro.modules.competency.presentation.dto.CompetencySuggestionRequest;
