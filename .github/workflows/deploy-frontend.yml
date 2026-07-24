@@ -50,16 +50,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update Kustomize image tag
-        run: |
-          cd deploy/k8s/overlays/prod/frontend
-          sed -i 's/newTag: .*/newTag: "${{ steps.vars.outputs.sha_short }}"/g' kustomization.yaml
-
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add deploy/k8s/overlays/prod/frontend/kustomization.yaml
-          git commit -m "[bot] Update frontend image tag to ${{ steps.vars.outputs.sha_short }}" || exit 0
-          git pull --rebase origin main
-          git push origin main
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            sed -i 's/newTag: .*/newTag: "${{ steps.vars.outputs.sha_short }}"/g' deploy/k8s/overlays/prod/frontend/kustomization.yaml
+            git add deploy/k8s/overlays/prod/frontend/kustomization.yaml
+            git commit -m "[bot] Update frontend image tag to ${{ steps.vars.outputs.sha_short }}" || exit 0
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $i), retrying after refetch..."
+            sleep $((RANDOM % 10 + 5))
+          done
+          echo "::error::Failed to push kustomization update after retries"
+          exit 1
