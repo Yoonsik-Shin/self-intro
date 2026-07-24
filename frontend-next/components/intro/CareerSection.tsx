@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo } from 'react';
 import Link from 'next/link';
-import { Briefcase, ChevronDown } from 'lucide-react';
+import { Briefcase, ChevronDown, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { ExperienceDetail, RelatedExperience } from '@/lib/api/types';
 import type { CareerCard } from '@/lib/introDerivations';
@@ -122,11 +122,28 @@ export function CareerSection({
                         )}
                     </h2>
                     <div>
-                        <span className="resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950">
-                            {career.period}
-                        </span>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950">
+                                {career.period}
+                            </span>
+                            <Link
+                                href={`/experience/${career.id}`}
+                                className="group/link inline-flex items-center gap-1 text-[0.75rem] font-bold text-slate-500 transition hover:text-blue-600 hover:underline"
+                            >
+                                <span>경험 상세 보기</span>
+                                <ExternalLink className="h-3.5 w-3.5 text-slate-400 transition-colors group-hover/link:text-blue-600" />
+                            </Link>
+                        </div>
                         <p className="resume-item-title mt-2 font-black text-slate-800">
-                            {career.companyName} ({career.employmentType})
+                            <Link
+                                href={`/experience/${career.id}`}
+                                className="group/company inline-flex items-center gap-1.5 transition hover:text-blue-600 hover:underline"
+                            >
+                                <span>
+                                    {career.companyName} ({career.employmentType})
+                                </span>
+                                <ExternalLink className="h-4 w-4 shrink-0 text-blue-600 opacity-40 transition-opacity group-hover/company:opacity-100" />
+                            </Link>
                         </p>
                         <p className="resume-meta font-semibold text-slate-500">
                             {career.department} / {career.role}
