@@ -909,30 +909,16 @@ export function CompetencyManagement() {
                         </section>
                     )}
 
-                    <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
-                        <FormField label="역량명">
-                            <input
-                                required
-                                maxLength={120}
-                                value={form.title}
-                                onChange={(event) =>
-                                    setForm({ ...form, title: event.target.value })
-                                }
-                                placeholder="예: 안정적인 백엔드 설계"
-                                className={inputClassName}
-                            />
-                        </FormField>
-                        <FormField label="정렬 순서 (목록 ▲/▼ 버튼 사용 권장)">
-                            <input
-                                type="number"
-                                value={form.displayOrder}
-                                onChange={(event) =>
-                                    setForm({ ...form, displayOrder: Number(event.target.value) })
-                                }
-                                className={inputClassName}
-                            />
-                        </FormField>
-                    </div>
+                    <FormField label="역량명">
+                        <input
+                            required
+                            maxLength={120}
+                            value={form.title}
+                            onChange={(event) => setForm({ ...form, title: event.target.value })}
+                            placeholder="예: 안정적인 백엔드 설계"
+                            className={inputClassName}
+                        />
+                    </FormField>
                     <FormField label="역량 설명">
                         <textarea
                             required
