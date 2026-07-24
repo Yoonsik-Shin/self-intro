@@ -51,7 +51,9 @@ export function ExperienceDetailClient({
             (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
         );
     }, [experience]);
-    const siblingDetails = experience.details.filter((d) => d.id !== detail.id);
+    const siblingDetails = experience.details.filter(
+        (d) => d.id !== detail.id && d.visible !== false
+    );
 
     return (
         <div className="space-y-4">

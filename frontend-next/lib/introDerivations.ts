@@ -57,7 +57,7 @@ export function buildCareerCards(experiences: Experience[]): CareerCard[] {
             department: exp.department ?? '',
             role: exp.role ?? '',
             summary: exp.summary ?? '',
-            details: exp.details,
+            details: (exp.details ?? []).filter((d) => d.visible !== false),
             projects: workProjects.filter((project) => project.careerId === exp.id),
         }));
 }
@@ -88,12 +88,14 @@ export function buildMilestones(introData: IntroductionResponse): Milestone[] {
               )
             : undefined;
 
+        const visibleDetails = (exp.details ?? []).filter((d) => d.visible !== false);
+
         return {
             id: exp.slug ?? exp.id.toString(),
             label,
             period: formatShortPeriod(exp.periodStart, exp.periodEnd),
             title: exp.title,
-            body: exp.details.map((d) => d.content).join(', '),
+            body: visibleDetails.map((d) => d.content).join(', '),
             skills: exp.skills.map((s) => s.name),
             tags: exp.tags?.map((t) => t.name) ?? [],
             role: career
@@ -102,7 +104,7 @@ export function buildMilestones(introData: IntroductionResponse): Milestone[] {
             description: exp.summary ?? '',
             takeaway: exp.takeaway ?? '',
             contributionRate: exp.contributionRate,
-            details: [...exp.details].sort((a, b) => a.displayOrder - b.displayOrder),
+            details: [...visibleDetails].sort((a, b) => a.displayOrder - b.displayOrder),
             repositoryUrl: exp.repositoryUrl,
             experienceId: exp.id,
         };
