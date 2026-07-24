@@ -45,12 +45,12 @@ export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }:
                         key={study.id}
                         href={`/study/${encodeURIComponent(study.slug)}`}
                         onClick={(event) => event.stopPropagation()}
-                        className="group flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left transition-all hover:bg-blue-50/60 rounded-lg text-slate-700 hover:text-blue-600"
+                        className="group flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-left text-blue-600 transition-all hover:bg-blue-50/70 hover:text-blue-800"
                     >
-                        <span className="text-sm font-medium group-hover:underline underline-offset-4 decoration-blue-300">
+                        <span className="text-sm font-semibold underline-offset-4 decoration-blue-300 group-hover:underline">
                             {study.title}
                         </span>
-                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-500 transition-colors group-hover:text-blue-700" />
                     </Link>
                 ))}
             </div>

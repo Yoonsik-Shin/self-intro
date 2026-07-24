@@ -176,7 +176,7 @@ export function CareerSection({
 
                                         {isProjectExpanded && (
                                             <div className="mb-4">
-                                                <div className="ml-2 border-l-2 border-slate-200 pl-3">
+                                                <div>
                                                     {project.summary && (
                                                         <div className="mb-3">
                                                             <h4 className="resume-label font-bold uppercase tracking-wider text-slate-400">
