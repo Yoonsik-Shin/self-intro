@@ -23,6 +23,20 @@ export const competencyApi = {
         request<void>(`/api/admin/competencies/${id}`, {
             method: 'DELETE',
         }),
+    toggleVisibility: (id: number) =>
+        request<Competency>(`/api/admin/competencies/${id}/toggle-visibility`, {
+            method: 'PATCH',
+        }),
+    batchPublish: (ids: number[]) =>
+        request<Competency[]>('/api/admin/competencies/batch-publish', {
+            method: 'POST',
+            body: JSON.stringify(ids),
+        }),
+    batchUnpublish: (ids: number[]) =>
+        request<Competency[]>('/api/admin/competencies/batch-unpublish', {
+            method: 'POST',
+            body: JSON.stringify(ids),
+        }),
     suggest: (payload: CompetencySuggestionRequest) =>
         request<CompetencySuggestionResponse>('/api/admin/competencies/ai/suggestions', {
             method: 'POST',

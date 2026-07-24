@@ -47,6 +47,7 @@ export function CompetencyManagement() {
     const [selectedCompetencyId, setSelectedCompetencyId] = useState<number | null>(null);
     const [form, setForm] = useState<CompetencyRequest>(emptyForm);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [selectedCompetencyIds, setSelectedCompetencyIds] = useState<number[]>([]);
     const [listSearch, setListSearch] = useState('');
     const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('ALL');
     const [skillSearch, setSkillSearch] = useState('');
@@ -82,6 +83,13 @@ export function CompetencyManagement() {
         queryKey: ['studies', 'admin'],
         queryFn: () => studyApi.adminList(),
     });
+
+    const counts = useMemo(() => {
+        const total = competencies.length;
+        const visible = competencies.filter((item) => item.visible).length;
+        const hidden = competencies.filter((item) => !item.visible).length;
+        return { total, visible, hidden };
+    }, [competencies]);
 
     const selectedCompetency =
         competencies.find((item) => item.id === selectedCompetencyId) ?? null;
@@ -153,11 +161,67 @@ export function CompetencyManagement() {
     });
     const deleteMutation = useMutation({
         mutationFn: competencyApi.remove,
-        onSuccess: async () => {
+        onSuccess: async (_data, deletedId) => {
             setSelectedCompetencyId(null);
+            setSelectedCompetencyIds((prev) => prev.filter((id) => id !== deletedId));
             await refresh();
         },
     });
+
+    const batchPublishMutation = useMutation({
+        mutationFn: (ids: number[]) => competencyApi.batchPublish(ids),
+        onSuccess: async () => {
+            await refresh();
+            setSelectedCompetencyIds([]);
+        },
+    });
+
+    const batchUnpublishMutation = useMutation({
+        mutationFn: (ids: number[]) => competencyApi.batchUnpublish(ids),
+        onSuccess: async () => {
+            await refresh();
+            setSelectedCompetencyIds([]);
+        },
+    });
+
+    const toggleVisibilityMutation = useMutation({
+        mutationFn: (id: number) => competencyApi.toggleVisibility(id),
+        onSuccess: async () => {
+            await refresh();
+        },
+    });
+
+    const toggleSelectCompetency = (id: number) => {
+        setSelectedCompetencyIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+        );
+    };
+
+    const toggleSelectAllFiltered = () => {
+        const filteredIds = filteredCompetencies.map((c) => c.id);
+        const allSelected = filteredIds.every((id) => selectedCompetencyIds.includes(id));
+        if (allSelected) {
+            setSelectedCompetencyIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+        } else {
+            setSelectedCompetencyIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+        }
+    };
+
+    const handleBatchPublish = (ids: number[]) => {
+        if (ids.length === 0) return;
+        if (window.confirm(`선택한 ${ids.length}개의 핵심 역량을 모두 공개로 전환하시겠습니까?`)) {
+            batchPublishMutation.mutate(ids);
+        }
+    };
+
+    const handleBatchUnpublish = (ids: number[]) => {
+        if (ids.length === 0) return;
+        if (
+            window.confirm(`선택한 ${ids.length}개의 핵심 역량을 모두 숨김으로 전환하시겠습니까?`)
+        ) {
+            batchUnpublishMutation.mutate(ids);
+        }
+    };
 
     const resetAiStream = () => {
         resetAiStreamBase();
@@ -390,9 +454,9 @@ export function CompetencyManagement() {
                         <div className="flex flex-wrap gap-2">
                             {(
                                 [
-                                    ['ALL', '전체'],
-                                    ['VISIBLE', '공개'],
-                                    ['HIDDEN', '숨김'],
+                                    ['ALL', `전체 ${counts.total}`],
+                                    ['VISIBLE', `공개 ${counts.visible}`],
+                                    ['HIDDEN', `숨김 ${counts.hidden}`],
                                 ] as const
                             ).map(([value, label]) => (
                                 <button
@@ -417,6 +481,86 @@ export function CompetencyManagement() {
                         </div>
                     </div>
 
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-xs">
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(
+                                        filteredCompetencies.length > 0 &&
+                                        filteredCompetencies.every((c) =>
+                                            selectedCompetencyIds.includes(c.id)
+                                        )
+                                    )}
+                                    onChange={toggleSelectAllFiltered}
+                                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                                />
+                                현재 목록 전체 선택 ({filteredCompetencies.length}개 중{' '}
+                                {selectedCompetencyIds.length}개 선택됨)
+                            </label>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {selectedCompetencyIds.length > 0 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleBatchPublish(selectedCompetencyIds)}
+                                        disabled={batchPublishMutation.isPending}
+                                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                                    >
+                                        <Eye className="h-3.5 w-3.5" />
+                                        선택한 {selectedCompetencyIds.length}개 일괄 공개
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleBatchUnpublish(selectedCompetencyIds)}
+                                        disabled={batchUnpublishMutation.isPending}
+                                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50"
+                                    >
+                                        <EyeOff className="h-3.5 w-3.5" />
+                                        선택한 {selectedCompetencyIds.length}개 일괄 숨김
+                                    </button>
+                                </>
+                            )}
+                            {selectedCompetencyIds.length === 0 &&
+                                visibilityFilter === 'HIDDEN' &&
+                                counts.hidden > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const hiddenIds = competencies
+                                                .filter((item) => !item.visible)
+                                                .map((item) => item.id);
+                                            handleBatchPublish(hiddenIds);
+                                        }}
+                                        disabled={batchPublishMutation.isPending}
+                                        className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
+                                    >
+                                        <Eye className="h-3.5 w-3.5 text-emerald-600" />
+                                        숨김 {counts.hidden}개 전체 일괄 공개
+                                    </button>
+                                )}
+                            {selectedCompetencyIds.length === 0 &&
+                                visibilityFilter === 'VISIBLE' &&
+                                counts.visible > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const visibleIds = competencies
+                                                .filter((item) => item.visible)
+                                                .map((item) => item.id);
+                                            handleBatchUnpublish(visibleIds);
+                                        }}
+                                        disabled={batchUnpublishMutation.isPending}
+                                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+                                    >
+                                        <EyeOff className="h-3.5 w-3.5 text-slate-600" />
+                                        공개 {counts.visible}개 전체 일괄 숨김
+                                    </button>
+                                )}
+                        </div>
+                    </div>
+
                     <div className="space-y-3">
                         {isLoading && <p className="text-sm text-slate-400">불러오는 중...</p>}
                         {!isLoading && filteredCompetencies.length === 0 && (
@@ -424,63 +568,91 @@ export function CompetencyManagement() {
                                 조건에 맞는 핵심 역량이 없습니다.
                             </p>
                         )}
-                        {filteredCompetencies.map((competency) => (
-                            <article
-                                key={competency.id}
-                                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-                            >
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedCompetencyId(competency.id)}
-                                    className="min-w-0 flex-1 text-left"
+                        {filteredCompetencies.map((competency) => {
+                            const isSelected = selectedCompetencyIds.includes(competency.id);
+                            return (
+                                <article
+                                    key={competency.id}
+                                    className={`flex items-center gap-3 rounded-xl border p-4 shadow-sm transition ${
+                                        isSelected
+                                            ? 'border-indigo-400 bg-indigo-50/20'
+                                            : competency.visible
+                                              ? 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
+                                              : 'border-slate-200 bg-slate-50/70 opacity-80 hover:border-slate-300'
+                                    }`}
                                 >
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span
-                                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${competency.visible ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
-                                        >
-                                            {competency.visible ? (
-                                                <Eye className="h-3 w-3" />
-                                            ) : (
-                                                <EyeOff className="h-3 w-3" />
-                                            )}
-                                            {competency.visible ? '공개' : '숨김'}
-                                        </span>
-                                        <span className="text-xs font-bold text-slate-400">
-                                            정렬 {competency.displayOrder}
-                                        </span>
+                                    <div className="flex shrink-0 items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => toggleSelectCompetency(competency.id)}
+                                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
                                     </div>
-                                    <h3 className="mt-2 font-black text-slate-900">
-                                        {competency.title}
-                                    </h3>
-                                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-500">
-                                        {competency.summary}
-                                    </p>
-                                    <p className="mt-2 text-xs font-semibold text-slate-400">
-                                        기술 {competency.skills.length}개 · 실무 근거{' '}
-                                        {competency.evidences.length}개 · 관련 Study{' '}
-                                        {competency.relatedStudies.length}개
-                                    </p>
-                                </button>
-                                <div className="flex shrink-0 gap-1">
                                     <button
                                         type="button"
-                                        onClick={() => openEdit(competency)}
-                                        aria-label={`${competency.title} 수정`}
-                                        className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                        onClick={() => setSelectedCompetencyId(competency.id)}
+                                        className="min-w-0 flex-1 text-left"
                                     >
-                                        <Pencil className="h-4 w-4" />
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleVisibilityMutation.mutate(competency.id);
+                                                }}
+                                                title="클릭하여 공개/숨김 상태 전환"
+                                                className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold transition hover:scale-105 ${
+                                                    competency.visible
+                                                        ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                                                }`}
+                                            >
+                                                {competency.visible ? (
+                                                    <Eye className="h-3 w-3" />
+                                                ) : (
+                                                    <EyeOff className="h-3 w-3" />
+                                                )}
+                                                {competency.visible ? '공개' : '숨김'}
+                                            </span>
+                                            <span className="text-xs font-bold text-slate-400">
+                                                정렬 {competency.displayOrder}
+                                            </span>
+                                        </div>
+                                        <h3
+                                            className={`mt-2 font-black ${competency.visible ? 'text-slate-900' : 'text-slate-600'}`}
+                                        >
+                                            {competency.title}
+                                        </h3>
+                                        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-500">
+                                            {competency.summary}
+                                        </p>
+                                        <p className="mt-2 text-xs font-semibold text-slate-400">
+                                            기술 {competency.skills.length}개 · 실무 근거{' '}
+                                            {competency.evidences.length}개 · 관련 Study{' '}
+                                            {competency.relatedStudies.length}개
+                                        </p>
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDelete(competency.id)}
-                                        aria-label={`${competency.title} 삭제`}
-                                        className="grid h-9 w-9 place-items-center rounded-lg border border-red-100 text-red-500 transition hover:bg-red-50"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </article>
-                        ))}
+                                    <div className="flex shrink-0 gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => openEdit(competency)}
+                                            aria-label={`${competency.title} 수정`}
+                                            className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(competency.id)}
+                                            aria-label={`${competency.title} 삭제`}
+                                            className="grid h-9 w-9 place-items-center rounded-lg border border-red-100 text-red-500 transition hover:bg-red-50"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </article>
+                            );
+                        })}
                     </div>
                 </>
             )}
