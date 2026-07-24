@@ -24,7 +24,9 @@ function getExpandableDetailIds(details: ExperienceDetail[]) {
 }
 
 const badgeStyle =
-    'resume-badge text-[10.5px] bg-slate-50 border border-slate-200/70 text-slate-600 font-medium px-1.5 py-0.5 rounded';
+    'resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded-md shadow-sm';
+const detailBadgeStyle =
+    'text-[11px] bg-slate-50 border border-slate-200/70 text-slate-600 font-medium px-1.5 py-0.5 rounded';
 const cardStyle =
     'resume-section-card bg-white border border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative';
 
@@ -346,7 +348,7 @@ export function CareerSection({
                                                                                                             skill.id
                                                                                                         }
                                                                                                         className={
-                                                                                                            badgeStyle
+                                                                                                            detailBadgeStyle
                                                                                                         }
                                                                                                     >
                                                                                                         {
