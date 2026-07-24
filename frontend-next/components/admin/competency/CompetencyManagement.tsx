@@ -3,6 +3,8 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+    ArrowDown,
+    ArrowUp,
     Check,
     Eye,
     EyeOff,
@@ -91,11 +93,15 @@ export function CompetencyManagement() {
         return { total, visible, hidden };
     }, [competencies]);
 
+    const sortedCompetencies = useMemo(() => {
+        return [...competencies].sort((a, b) => a.displayOrder - b.displayOrder);
+    }, [competencies]);
+
     const selectedCompetency =
         competencies.find((item) => item.id === selectedCompetencyId) ?? null;
     const filteredCompetencies = useMemo(() => {
         const keyword = listSearch.trim().toLowerCase();
-        return competencies.filter((item) => {
+        return sortedCompetencies.filter((item) => {
             const matchesVisibility =
                 visibilityFilter === 'ALL' ||
                 (visibilityFilter === 'VISIBLE' && item.visible) ||
@@ -111,7 +117,7 @@ export function CompetencyManagement() {
                 .toLowerCase();
             return matchesVisibility && (!keyword || searchable.includes(keyword));
         });
-    }, [competencies, listSearch, visibilityFilter]);
+    }, [sortedCompetencies, listSearch, visibilityFilter]);
     const selectableExperiences = useMemo(
         () =>
             experiences.filter(
@@ -190,6 +196,25 @@ export function CompetencyManagement() {
             await refresh();
         },
     });
+
+    const reorderMutation = useMutation({
+        mutationFn: (orderedIds: number[]) => competencyApi.reorder(orderedIds),
+        onSuccess: async () => {
+            await refresh();
+        },
+    });
+
+    const handleMove = (competencyId: number, direction: 'UP' | 'DOWN') => {
+        const index = sortedCompetencies.findIndex((c) => c.id === competencyId);
+        if (index === -1) return;
+        const targetIndex = direction === 'UP' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= sortedCompetencies.length) return;
+
+        const newOrder = sortedCompetencies.map((c) => c.id);
+        const [movedId] = newOrder.splice(index, 1);
+        newOrder.splice(targetIndex, 0, movedId);
+        reorderMutation.mutate(newOrder);
+    };
 
     const toggleSelectCompetency = (id: number) => {
         setSelectedCompetencyIds((prev) =>
@@ -616,6 +641,12 @@ export function CompetencyManagement() {
                                         className="min-w-0 flex-1 text-left"
                                     >
                                         <div className="flex flex-wrap items-center gap-2">
+                                            <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-black text-indigo-700 border border-indigo-200/60">
+                                                #
+                                                {sortedCompetencies.findIndex(
+                                                    (c) => c.id === competency.id
+                                                ) + 1}
+                                            </span>
                                             <span
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -636,7 +667,7 @@ export function CompetencyManagement() {
                                                 {competency.visible ? '공개' : '숨김'}
                                             </span>
                                             <span className="text-xs font-bold text-slate-400">
-                                                정렬 {competency.displayOrder}
+                                                (정렬 {competency.displayOrder})
                                             </span>
                                         </div>
                                         <h3
@@ -653,7 +684,43 @@ export function CompetencyManagement() {
                                             {competency.relatedStudies.length}개
                                         </p>
                                     </button>
-                                    <div className="flex shrink-0 gap-1">
+                                    <div className="flex shrink-0 items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleMove(competency.id, 'UP');
+                                            }}
+                                            disabled={
+                                                sortedCompetencies.findIndex(
+                                                    (c) => c.id === competency.id
+                                                ) === 0 || reorderMutation.isPending
+                                            }
+                                            aria-label={`${competency.title} 위로 이동`}
+                                            title="순서 위로 이동"
+                                            className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                                        >
+                                            <ArrowUp className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleMove(competency.id, 'DOWN');
+                                            }}
+                                            disabled={
+                                                sortedCompetencies.findIndex(
+                                                    (c) => c.id === competency.id
+                                                ) ===
+                                                    sortedCompetencies.length - 1 ||
+                                                reorderMutation.isPending
+                                            }
+                                            aria-label={`${competency.title} 아래로 이동`}
+                                            title="순서 아래로 이동"
+                                            className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                                        >
+                                            <ArrowDown className="h-4 w-4" />
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={() => openEdit(competency)}
@@ -855,7 +922,7 @@ export function CompetencyManagement() {
                                 className={inputClassName}
                             />
                         </FormField>
-                        <FormField label="정렬 순서">
+                        <FormField label="정렬 순서 (목록 ▲/▼ 버튼 사용 권장)">
                             <input
                                 type="number"
                                 value={form.displayOrder}

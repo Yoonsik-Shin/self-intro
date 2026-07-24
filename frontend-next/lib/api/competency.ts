@@ -37,6 +37,11 @@ export const competencyApi = {
             method: 'POST',
             body: JSON.stringify(ids),
         }),
+    reorder: (orderedIds: number[]) =>
+        request<Competency[]>('/api/admin/competencies/reorder', {
+            method: 'POST',
+            body: JSON.stringify(orderedIds),
+        }),
     suggest: (payload: CompetencySuggestionRequest) =>
         request<CompetencySuggestionResponse>('/api/admin/competencies/ai/suggestions', {
             method: 'POST',
