@@ -175,7 +175,7 @@ export function CareerSection({
                                         </button>
 
                                         {isProjectExpanded && (
-                                            <div className="mb-4">
+                                            <div className="mb-4 pl-5 pt-1.5">
                                                 <div>
                                                     {project.summary && (
                                                         <div className="mb-3">
