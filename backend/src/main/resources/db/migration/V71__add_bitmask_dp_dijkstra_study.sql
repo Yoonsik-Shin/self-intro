@@ -1,4 +1,4 @@
--- V71: Add Pure Bitmask DP & Dijkstra Algorithm Concept Study (bitmask-dp-dijkstra-algorithm)
+-- V71: Add 100% Independent Bitmask DP & Dijkstra Algorithm Concept Study (bitmask-dp-dijkstra-algorithm)
 
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -24,71 +24,141 @@ INSERT INTO study (
 ) VALUES (
     'bitmask-dp-dijkstra-algorithm',
     '비트마스크 DP & 다익스트라 (Bitmask DP & Dijkstra) 알고리즘 정리',
-    '그래프의 특정 필수 경유지(Checkpoints)를 모두 방문하는 최단 거리를 탐색하는 대표적인 고난도 알고리즘 결합 기법이다. 대규모 그래프를 중요 지점만으로 축소(Dijkstra)한 뒤 비트마스크(Bitmask) 정수 상태와 동적 계획법(DP)으로 경로를 최적화한다.',
+    '그래프의 특정 서브셋 정점(Subset Vertices)들을 모두 거쳐 목적지까지 이동하는 최단 경로를 구하는 대표적인 결합 기법이다. 대규모 그래프를 주요 경유 정점만으로 추상화(Dijkstra)한 뒤 비트마스크 정수 상태와 동적 계획법(Bitmask DP / TSP)으로 경로를 최적화한다.',
     '# 비트마스크 DP & 다익스트라 (Bitmask DP & Dijkstra) 알고리즘 정리
 
-> 그래프의 필수 경유지(Checkpoints)를 모두 거쳐 최종 목적지까지 이동하는 최단 거리를 구하는 알고리즘 결합 기법입니다. 대규모 그래프를 중요 지점만으로 추상화(Dijkstra)한 뒤, 비트마스크 정수 상태와 동적 계획법(Bitmask DP / TSP)을 결합하여 최적 경로를 도출합니다.
+> 그래프의 필수 경유 정점(Checkpoints)을 모두 거쳐 최종 목적지까지 이동하는 최단 경로를 구하는 알고리즘 결합 기법입니다. 대규모 그래프를 주요 정점만으로 추상화(Dijkstra)한 뒤, 비트마스크 정수 상태와 동적 계획법(Bitmask DP / TSP)을 결합하여 최적 경로를 도출합니다.
 
 ---
 
-## 1. 동작 방식 (Operating Principle)
+## 1. 비트마스크 DP & 다익스트라 동작 방식
 
-이 기법은 **2단계 축소 및 최적화** 전략으로 작동합니다.
+이 기법은 **2단계 추상화 및 경로 최적화** 방식으로 작동합니다.
 
 ```mermaid
 graph TD
-    subgraph Step1 [1단계: 중요 지점 최단 거리 추상화]
-        Start[출발점 S] -->|Dijkstra| Dist[between 거리 행렬]
-        Checkpoints[K개 필수 경유지] -->|K회 Dijkstra| Dist
-        End[도착점 E] -->|Dijkstra| Dist
+    subgraph Step1 [1단계: 주요 정점 최단 거리 추상화]
+        Start[시작 정점 S] -->|Dijkstra| Dist[between 거리 행렬]
+        Subset[K개 필수 경유 정점] -->|K회 Dijkstra| Dist
+        End[목적 정점 E] -->|Dijkstra| Dist
     end
 
     subgraph Step2 [2단계: 비트마스크 DP 경로 최적화]
         Dist --> StateDef[dp mask last 상태 정의]
-        StateDef --> ShiftOps[비트 연산 전이]
-        ShiftOps --> Answer[모든 경유지 방문 최소 거리 도출]
+        StateDef --> BitOps[비트 연산 전이]
+        BitOps --> Answer[모든 경유 정점 방문 최소 거리 도출]
     end
 ```
 
-### 1) 다익스트라 기반 중요 지점 추상화
-전체 정점 수 $N$, 간선 수 $M$인 거대한 그래프 전체를 한 번에 탐색하면 시간과 메모리 초과가 발생합니다.
-그러나 실제 경로 결정에 영향을 주는 핵심 노드는 **출발점($S$)**, **$K$개의 필수 경유지**, **도착점($E$)**이라는 총 $(K + 2)$개의 **중요 지점(Important Nodes)**뿐입니다.
+### 1) 다익스트라 기반 주요 정점 추상화
+전체 정점 수 $N$, 간선 수 $M$인 가중치 그래프에서 전체 노드를 한 번에 탐색하면 시간 및 메모리 초과가 발생합니다.
+하지만 탐색에 필요한 정점은 **시작 정점($S$)**, **$K$개의 필수 경유 정점**, **목적 정점($E$)** 등 총 $(K + 2)$개의 **주요 정점(Key Vertices)**뿐입니다.
 
-1. 중요 지점 인덱스 배열 `important[]` 매핑 (`0`: 출발점, `1~K`: 경유지들, `K+1`: 도착점)
-2. 중요 지점 각각을 시작점으로 다익스트라 최단 거리 알고리즘을 $(K + 2)$번 수행합니다.
-3. 수행 결과를 `between[i][j]` (중요 지점 $i$에서 $j$까지의 최단 거리) 2차원 배열에 저장합니다.
+1. 주요 정점 인덱스 배열 `keyNodes[]` 정의 (`0`: 시작 정점, `1~K`: 경유 정점들, `K+1`: 목적 정점)
+2. 각 주요 정점을 출발지로 다익스트라 알고리즘을 $(K + 2)$회 실행합니다.
+3. 결과를 `between[i][j]` ($i$번째 주요 정점에서 $j$번째 주요 정점까지의 최단 거리) 2차원 배열에 저장합니다.
 
-이 과정으로 $N$개 정점의 복잡한 그래프가 **$(K + 2)$개 노드로 구성된 완전 그래프(Complete Graph)**로 단순화됩니다.
+이 과정으로 $N$개 정점의 복잡한 그래프가 **$(K + 2)$개 노드로 구성된 완전 그래프(Complete Graph)**로 축소됩니다.
 
 ### 2) 비트마스크(Bitmask) 방문 상태 표현
-$K$개의 경유지 방문 여부를 $K$자리 이진수 비트 정수로 압축 관리합니다.
+$K$개의 경유 정점 방문 여부를 $K$자리 이진수 비트 정수로 표현합니다.
 
-- **`1 << i`**: $i$번째 경유지의 비트 깃발
-- **`(mask & (1 << next)) != 0`**: `mask` 상태에 `next` 경유지가 이미 포함되어 있는지 확인 (AND 연산)
-- **`nextMask = mask | (1 << next)`**: `mask` 상태에 `next` 경유지 방문을 추가 (OR 연산)
-- **`fullMask = (1 << K) - 1`**: $K$개 경유지를 모두 방문 완료한 깃발 상태 ($0b11...1$)
+- **`1 << i`**: $i$번째 경유 정점 방문 비트 깃발
+- **`(mask & (1 << next)) != 0`**: `mask` 비트 집합에 `next` 정점이 이미 포함되었는지 확인 (AND 연산)
+- **`nextMask = mask | (1 << next)`**: `mask` 비트 집합에 `next` 정점 방문을 추가 (OR 연산)
+- **`fullMask = (1 << K) - 1`**: $K$개 정점을 모두 방문 완료한 비트 상태 ($0b11...1$)
 
 ### 3) 비트마스크 동적 계획법 (Bitmask DP / TSP 응용)
-외판원 순회 문제(Traveling Salesperson Problem, TSP)의 DP 상태 정의를 그대로 응용합니다.
+외판원 순회 문제(Traveling Salesperson Problem, TSP)의 DP 상태를 일반화하여 사용합니다.
 
-- **상태 정의**: `dp[mask][last]` $\rightarrow$ 현재까지 방문한 경유지 비트 집합이 `mask`이고 마지막 위치가 `last`번째 경유지일 때의 **최소 이동 소요 값**.
-- **초기값 설정**: `dp[1 << i][i] = between[0][i + 1]` (출발지에서 첫 번째 경유지 `i`로 이동)
-- **상태 전이 점화식**: `dp[mask | (1 << next)][next] = min(dp[mask | (1 << next)][next], dp[mask][last] + between[last + 1][next + 1])`
+- **상태 정의**: `dp[mask][last]` $\rightarrow$ 현재 방문한 정점 비트 집합이 `mask`이고 마지막 위치가 `last`번째 경유 정점일 때의 **최소 누적 가중치/거리**.
+- **초기값 설정**: `dp[1 << i][i] = between[0][i + 1]` (시작 정점에서 첫 번째 경유 정점 `i`로 이동)
+- **점화식**: `dp[mask | (1 << next)][next] = min(dp[mask | (1 << next)][next], dp[mask][last] + between[last + 1][next + 1])`
 - **최종 정답 계산**: $\text{Answer} = \min_{0 \le last < K} \left( dp[\text{fullMask}][last] + \text{between}[last + 1][K + 1] \right)$
 
 ---
 
-## 2. 언제 사용할까? (Use Cases)
+## 2. 언제 사용할까?
 
-다음과 같은 문제 조건이 주어지면 이 조합을 우선 검토해야 합니다.
+문제에서 다음과 같은 조건이 주어지면 이 알고리즘 결합 패턴을 적용합니다.
 
-- 그래프의 전체 크기는 매우 크지만 ($N \ge 100,000$), **필수 경유지 수 $K$가 매우 작은 경우** ($K \le 10$)
-- 경유지를 방문하는 순서가 자유롭고, 동일한 정점이나 도로를 여러 번 지나치는 것이 허용되는 경우
-- 특정 정점들을 반드시 거쳐야만 하는 조건부 최단 경로 유형
+- 전체 그래프의 정점 수는 크지만 ($N \ge 100,000$), **방문해야 할 필수 경유 정점 수 $K$가 매우 작은 경우** ($K \le 10$)
+- 정점 방문 순서가 자유롭고 동일한 정점이나 간선을 여러 번 중복 방문해도 되는 경우
+- 특정 정점 부분집합을 반드시 포함해야 하는 조건부 최단 경로 유형
 
 ---
 
-## 3. 일반화된 Java 표준 템플릿 코드 (Generic Java Template)
+## 3. 백준 2098: 외판원 순회 (TSP)
+
+[문제 바로가기](https://www.acmicpc.net/problem/2098)
+
+$N$개의 도시를 모두 거쳐 다시 출발 도시로 돌아오는 최소 비용을 구하는 비트마스크 DP의 대표적 표준 문제입니다.
+
+<details>
+<summary>풀이 방법 및 Java 코드</summary>
+
+### 풀이 방법
+1. `dp[mask][curr]` : 현재 방문한 도시 비트가 `mask`이고 현재 위치가 `curr` 도시일 때 나머지 모든 도시를 방문하고 출발 도시로 돌아가는 최소 비용.
+2. 재귀 + 메모이제이션(Top-Down DP) 또는 반복문(Bottom-Up DP)으로 구현합니다.
+
+### Java 표준 코드
+```java
+import java.io.*;
+import java.util.*;
+
+public class Main {
+    static final int INF = 1_000_000_000;
+    static int n;
+    static int[][] w;
+    static int[][] dp;
+
+    public static void main(String[] args) throws Exception {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        n = Integer.parseInt(br.readLine().trim());
+
+        w = new int[n][n];
+        for (int i = 0; i < n; i++) {
+            StringTokenizer st = new StringTokenizer(br.readLine());
+            for (int j = 0; j < n; j++) {
+                w[i][j] = Integer.parseInt(st.nextToken());
+            }
+        }
+
+        dp = new int[n][1 << n];
+        for (int[] row : dp) {
+            Arrays.fill(row, -1);
+        }
+
+        System.out.println(tsp(0, 1));
+    }
+
+    static int tsp(int curr, int mask) {
+        if (mask == (1 << n) - 1) {
+            return w[curr][0] == 0 ? INF : w[curr][0];
+        }
+
+        if (dp[curr][mask] != -1) {
+            return dp[curr][mask];
+        }
+
+        dp[curr][mask] = INF;
+
+        for (int next = 0; next < n; next++) {
+            if ((mask & (1 << next)) == 0 && w[curr][next] != 0) {
+                int cost = tsp(next, mask | (1 << next)) + w[curr][next];
+                dp[curr][mask] = Math.min(dp[curr][mask], cost);
+            }
+        }
+
+        return dp[curr][mask];
+    }
+}
+```
+</details>
+
+---
+
+## 4. 범용 Java 템플릿 코드
 
 ```java
 import java.util.*;
@@ -122,18 +192,18 @@ public class BitmaskDijkstraTemplate {
     }
 
     /**
-     * 비트마스크 DP & 다익스트라 범용 최단 경로 해결 함수
+     * 비트마스크 DP & 다익스트라 범용 최단 경로 해결 메서드
      */
-    public static long solve(int n, int k, int startNode, int endNode, int[] checkpoints, List<Edge>[] graph) {
-        // 1. 중요 지점 인덱스 배열 매핑 (0: 출발, 1~K: 경유지, K+1: 도착)
+    public static long solve(int n, int k, int startNode, int endNode, int[] keyNodes, List<Edge>[] graph) {
+        // 1. 주요 정점 인덱스 배열 매핑 (0: 시작점, 1~K: 경유 정점, K+1: 목적 정점)
         int[] important = new int[k + 2];
         important[0] = startNode;
         important[k + 1] = endNode;
         for (int i = 0; i < k; i++) {
-            important[i + 1] = checkpoints[i];
+            important[i + 1] = keyNodes[i];
         }
 
-        // 2. (K+2)회 다익스트라 수행하여 between[][] 거리를 계산
+        // 2. (K+2)회 다익스트라 수행하여 between[][] 거리 계산
         long[][] between = new long[k + 2][k + 2];
         for (int i = 0; i < k + 2; i++) {
             long[] dist = dijkstra(important[i], n, graph);
@@ -149,7 +219,7 @@ public class BitmaskDijkstraTemplate {
             Arrays.fill(row, INF);
         }
 
-        // 초기 상태: 출발지에서 첫 경유지로 이동
+        // 초기 상태: 시작 정점에서 첫 경유 정점으로 이동
         for (int i = 0; i < k; i++) {
             dp[1 << i][i] = between[0][i + 1];
         }
@@ -169,7 +239,7 @@ public class BitmaskDijkstraTemplate {
             }
         }
 
-        // 4. 모든 경유지 방문 후 도착지로 가는 최댓값/최솟값 선택
+        // 4. 모든 경유 정점 방문 후 목적지로 가는 최솟값 계산
         long answer = INF;
         for (int last = 0; last < k; last++) {
             if (dp[fullMask][last] < INF && between[last + 1][k + 1] < INF) {
@@ -208,10 +278,7 @@ public class BitmaskDijkstraTemplate {
 
 ---
 
-## 4. 자주 하는 실수 체크리스트 (Mistakes Checklist)
-
-> [!WARNING]
-> 실전 구현 시 오답의 원인이 되는 주요 실수 패턴입니다.
+## 5. 자주 하는 실수
 
 1. **`INF` 덧셈 오버플로우**: `Long.MAX_VALUE` 사용 시 DP 덧셈 연산에서 음수로 넘치는 현상 발생. `Long.MAX_VALUE / 4` 할당 권장.
 2. **비트 연산 우선순위 괄호 누락**: 자바의 비트 연산자(`&`, `|`)는 비교 연산자(`!=`)보다 우선순위가 낮음. `(mask & (1 << next)) != 0` 연산 시 괄호 필수.
@@ -219,11 +286,17 @@ public class BitmaskDijkstraTemplate {
 
 ---
 
-## 5. 추천 관련 문제 (Recommended Problems)
+## 6. 추천 관련 문제
 
-1. [백준 2098 — 외판원 순회 (TSP)](https://www.acmicpc.net/problem/2098) : 비트마스크 DP 기본 교과서 문제
-2. [백준 1504 — 특정한 최단 경로](https://www.acmicpc.net/problem/1504) : K=2 경유지 다익스트라 응용 문제
-3. [현대오토에버 대비 모의문제 1 — 필수 점검소를 경유하는 테스트카](http://localhost:3000/study/autoever-mock-01-required-checkpoints) : 실전 문제 풀이 적용 사례
+1. [백준 2098 — 외판원 순회 (TSP)](https://www.acmicpc.net/problem/2098) — 비트마스크 DP 기본 교과서 문제
+2. [백준 1504 — 특정한 최단 경로](https://www.acmicpc.net/problem/1504) — K=2 경유 정점 다익스트라 응용 문제
+3. [현대오토에버 대비 모의문제 1 — 필수 점검소를 경유하는 테스트카](http://localhost:3000/study/autoever-mock-01-required-checkpoints) — 실전 문제 적용 사례
+
+---
+
+## 마무리
+
+비트마스크 DP & 다익스트라 알고리즘의 핵심은 **"거대한 전체 정점을 소수의 주요 정점으로 추상화"**하고, **"경유 정점 방문 상태를 비트 정수로 압축하여 DP로 최적 경로를 찾는 것"**입니다. $K \le 10$ 내외의 경유 조건이 보인다면 이 패턴을 즉시 적용해 보세요.
 ',
     'PUBLISHED',
     @education_category_id,
