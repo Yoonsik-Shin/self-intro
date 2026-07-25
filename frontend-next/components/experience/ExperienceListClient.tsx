@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUp, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Briefcase, ChevronLeft, ChevronRight, History } from 'lucide-react';
 import type { Experience } from '@/lib/api/types';
 import { experienceOrgName, experienceTypeLabel, formatCredentialPeriod } from '@/lib/format';
 import {
@@ -15,12 +15,43 @@ type Props = {
     experiences: Experience[];
 };
 
+type RecentlyViewedExperienceItem = {
+    id: number;
+    experienceId: number;
+    title: string;
+    content: string;
+    viewedAt: number;
+};
+
 export function ExperienceListClient({ experiences }: Props) {
     const [selectedTypes, setSelectedTypes] = useState<ExperienceTypeFilter[]>(['ALL']);
     const [selectedYears, setSelectedYears] = useState<number[]>([]);
     const [selectedExperienceIds, setSelectedExperienceIds] = useState<number[]>([]);
     const [search, setSearch] = useState('');
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedExperienceItem[]>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const raw = localStorage.getItem('recently_viewed_experiences');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) return parsed;
+                }
+            } catch {
+                // Ignore
+            }
+        }
+        return [];
+    });
+
+    const handleClearHistory = () => {
+        try {
+            localStorage.removeItem('recently_viewed_experiences');
+            setRecentlyViewed([]);
+        } catch {
+            // Ignore
+        }
+    };
 
     const toggleTypeFilter = (tabId: ExperienceTypeFilter) => {
         if (tabId === 'ALL') {
@@ -132,7 +163,7 @@ export function ExperienceListClient({ experiences }: Props) {
             className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-12 sm:gap-6 ${
                 isNavCollapsed
                     ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
+                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_280px] min-[1200px]:grid-cols-[minmax(0,1fr)_300px]'
             }`}
         >
             <div className="min-w-0 space-y-8">
@@ -225,7 +256,7 @@ export function ExperienceListClient({ experiences }: Props) {
 
             <aside className="block w-full sticky top-24 self-start">
                 <div
-                    className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${
+                    className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                         isNavCollapsed
                             ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
                             : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
@@ -236,8 +267,8 @@ export function ExperienceListClient({ experiences }: Props) {
                         onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
                         className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                             isNavCollapsed
-                                ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-sm'
-                                : 'absolute -right-[11px] top-7 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
+                                ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
+                                : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                         }`}
                         title={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
                         aria-label={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
@@ -250,35 +281,84 @@ export function ExperienceListClient({ experiences }: Props) {
                         )}
                     </button>
 
-                    <div
-                        className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}
-                    >
-                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">
-                            최근 이력
-                        </h3>
-                        <p className="mt-0.5 text-sm leading-none text-slate-500">
-                            최근 기간의 프로젝트 및 경력입니다.
-                        </p>
-                    </div>
-
-                    <div
-                        className={`hidden space-y-2 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                    >
-                        {recentExperiences.map((exp) => {
-                            const targetDetailId = exp.details?.[0]?.id;
-                            if (!targetDetailId) return null;
-                            return (
-                                <Link
-                                    key={exp.id}
-                                    href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
-                                    className="block w-full truncate text-left text-xs font-semibold leading-relaxed text-slate-600 transition hover:text-slate-900"
-                                    title={exp.title}
+                    {recentlyViewed.length > 0 ? (
+                        <>
+                            <div
+                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:flex min-[900px]:items-center min-[900px]:justify-between'}`}
+                            >
+                                <div>
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                        <History className="h-3.5 w-3.5 text-blue-600" />
+                                        <span>최근 읽은 경험</span>
+                                    </h3>
+                                    <p className="mt-0.5 text-xs leading-normal text-slate-400">
+                                        최근에 방문한 이력 성과입니다.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleClearHistory}
+                                    className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition"
+                                    title="최근 본 기록 비우기"
                                 >
-                                    • {exp.title}
-                                </Link>
-                            );
-                        })}
-                    </div>
+                                    지우기
+                                </button>
+                            </div>
+
+                            <div
+                                className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                            >
+                                {recentlyViewed.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        href={`/experience/${item.experienceId}/experience-detail/${item.id}`}
+                                        className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
+                                        title={item.content || item.title}
+                                    >
+                                        <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                            ›
+                                        </span>
+                                        <span className="line-clamp-2">
+                                            {item.content || item.title}
+                                        </span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                                <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                                    최근 이력
+                                </h3>
+                                <p className="mt-0.5 text-xs leading-normal text-slate-400">
+                                    최근 기간의 프로젝트 및 경력입니다.
+                                </p>
+                            </div>
+
+                            <div
+                                className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                            >
+                                {recentExperiences.map((exp) => {
+                                    const targetDetailId = exp.details?.[0]?.id;
+                                    if (!targetDetailId) return null;
+                                    return (
+                                        <Link
+                                            key={exp.id}
+                                            href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
+                                            className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
+                                            title={exp.title}
+                                        >
+                                            <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                ›
+                                            </span>
+                                            <span className="line-clamp-2">{exp.title}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
 
                     <div
                         className={`flex flex-col items-center gap-2 py-1 ${isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}
@@ -292,22 +372,6 @@ export function ExperienceListClient({ experiences }: Props) {
                             <Briefcase className="h-4 w-4" />
                         </button>
                     </div>
-
-                    <hr
-                        className={`hidden border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                    />
-
-                    <button
-                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
-                        title="위로 가기"
-                        aria-label="위로 가기"
-                    >
-                        <ArrowUp className="h-4 w-4 shrink-0" />
-                        <span className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}>
-                            위로 가기
-                        </span>
-                    </button>
                 </div>
             </aside>
         </div>

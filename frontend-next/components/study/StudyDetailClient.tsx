@@ -78,7 +78,7 @@ export function StudyDetailClient({ study }: Props) {
 
     useEffect(() => {
         const handleScroll = () => {
-            setShowScrollTop(window.scrollY > 300);
+            setShowScrollTop(window.scrollY > 40);
 
             if (toc.length === 0) return;
             const scrollPosition = window.scrollY + 120;

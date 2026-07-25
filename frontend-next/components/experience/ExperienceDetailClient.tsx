@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -11,6 +11,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import {
     ArrowLeft,
+    ArrowUp,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
@@ -44,6 +45,48 @@ export function ExperienceDetailClient({
     const router = useRouter();
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setShowScrollTop(window.scrollY > 40);
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    useEffect(() => {
+        try {
+            const STORAGE_KEY = 'recently_viewed_experiences';
+            const existingRaw = localStorage.getItem(STORAGE_KEY);
+            let items: Array<{
+                id: number;
+                experienceId: number;
+                title: string;
+                content: string;
+                viewedAt: number;
+            }> = existingRaw ? JSON.parse(existingRaw) : [];
+
+            items = items.filter((item) => item.id !== detail.id);
+
+            items.unshift({
+                id: detail.id,
+                experienceId: experience.id,
+                title: experience.title,
+                content: detail.content,
+                viewedAt: Date.now(),
+            });
+
+            if (items.length > 10) {
+                items = items.slice(0, 10);
+            }
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        } catch {
+            // Ignore
+        }
+    }, [detail.id, detail.content, experience.id, experience.title]);
 
     const skills = useMemo(() => {
         const map = new Map<number, Skill>();
@@ -75,11 +118,11 @@ export function ExperienceDetailClient({
                 className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-12 sm:gap-6 ${
                     isNavCollapsed
                         ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
+                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_280px] min-[1200px]:grid-cols-[minmax(0,1fr)_300px]'
                 }`}
             >
                 <div className="min-w-0 space-y-8">
-                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                    <article className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10 pb-12 sm:pb-14">
                         {/* Header Section */}
                         <div className="mb-6 border-b border-slate-100 pb-6">
                             <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -435,6 +478,19 @@ export function ExperienceDetailClient({
                                     ))}
                                 </div>
                             </div>
+                        )}
+
+                        {/* 본문 기준 오른쪽 하단 위로 가기 버튼 */}
+                        {showScrollTop && (
+                            <button
+                                type="button"
+                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                className="absolute right-6 bottom-6 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                title="본문 맨 위로 스크롤"
+                                aria-label="본문 맨 위로 스크롤"
+                            >
+                                <ArrowUp className="h-5 w-5" />
+                            </button>
                         )}
                     </article>
                 </div>

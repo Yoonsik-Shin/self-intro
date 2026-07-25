@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowUp, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { scrollToSection } from '@/lib/scroll';
 
 export type SectionNavItem = { id: string; label: string; icon: LucideIcon };
@@ -46,7 +46,7 @@ export function SectionNavSidebar({ sections, isCollapsed, onToggleCollapse }: P
     return (
         <aside className="block print:hidden w-full sticky top-24 self-start">
             <div
-                className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${
+                className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                     isCollapsed
                         ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
                         : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
@@ -57,8 +57,8 @@ export function SectionNavSidebar({ sections, isCollapsed, onToggleCollapse }: P
                     onClick={onToggleCollapse}
                     className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                         isCollapsed
-                            ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-sm'
-                            : 'absolute -right-[11px] top-7 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
+                            ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
+                            : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                     }`}
                     title={isCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
                     aria-label={isCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
@@ -118,22 +118,6 @@ export function SectionNavSidebar({ sections, isCollapsed, onToggleCollapse }: P
                         );
                     })}
                 </div>
-
-                <hr
-                    className={`hidden border-slate-100 ${isCollapsed ? '' : 'min-[900px]:block'}`}
-                />
-
-                <button
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
-                    title="위로 가기"
-                    aria-label="위로 가기"
-                >
-                    <ArrowUp className="h-4 w-4 shrink-0" />
-                    <span className={`hidden ${isCollapsed ? '' : 'min-[900px]:inline'}`}>
-                        위로 가기
-                    </span>
-                </button>
             </div>
         </aside>
     );
