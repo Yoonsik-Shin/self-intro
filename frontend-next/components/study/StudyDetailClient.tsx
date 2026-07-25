@@ -179,6 +179,21 @@ export function StudyDetailClient({ study }: Props) {
                             </ReactMarkdown>
                         </div>
                     </article>
+
+                    {/* 본문 오른쪽 하단 위로 가기 버튼 */}
+                    {showScrollTop && (
+                        <div className="sticky bottom-6 z-30 flex justify-end pointer-events-none -mt-4">
+                            <button
+                                type="button"
+                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                title="본문 맨 위로 스크롤"
+                                aria-label="본문 맨 위로 스크롤"
+                            >
+                                <ArrowUp className="h-5 w-5" />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
@@ -395,19 +410,6 @@ export function StudyDetailClient({ study }: Props) {
                     </div>
                 </aside>
             </div>
-
-            {/* Floating scroll to top button stacked above donation widget */}
-            {showScrollTop && (
-                <button
-                    type="button"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="fixed bottom-20 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/90 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 print:hidden"
-                    title="페이지 맨 위로 스크롤"
-                    aria-label="페이지 맨 위로 스크롤"
-                >
-                    <ArrowUp className="h-4 w-4" />
-                </button>
-            )}
         </div>
     );
 }
