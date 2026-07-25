@@ -179,6 +179,21 @@ export function StudyDetailClient({ study }: Props) {
                             </ReactMarkdown>
                         </div>
                     </article>
+
+                    {/* 본문 기준 오른쪽 하단 Floating 위로 가기 버튼 (h-0 0px 공간 점유) */}
+                    {showScrollTop && (
+                        <div className="sticky bottom-6 z-30 flex justify-end h-0 overflow-visible pointer-events-none">
+                            <button
+                                type="button"
+                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                title="본문 맨 위로 스크롤"
+                                aria-label="본문 맨 위로 스크롤"
+                            >
+                                <ArrowUp className="h-5 w-5" />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
@@ -398,19 +413,6 @@ export function StudyDetailClient({ study }: Props) {
                     </div>
                 </aside>
             </div>
-
-            {/* 0px 레이아웃 공간점유 fixed 위로가기 플로팅 버튼 */}
-            {showScrollTop && (
-                <button
-                    type="button"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="fixed bottom-6 right-20 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/90 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
-                    title="페이지 맨 위로 스크롤"
-                    aria-label="페이지 맨 위로 스크롤"
-                >
-                    <ArrowUp className="h-5 w-5" />
-                </button>
-            )}
         </div>
     );
 }
