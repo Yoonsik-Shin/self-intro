@@ -11,6 +11,18 @@ export interface ConceptDetail {
  */
 export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
     // ⚡ Stream API
+    stream: {
+        title: 'stream() / Collection.stream()',
+        desc: '컬렉션(List, Set 등)의 원소들을 순차/병렬 파이프라인으로 처리하기 위한 Stream 객체를 생성합니다.',
+        category: '⚡ Stream API',
+        tip: 'flatMap(Collection::stream) 형태로 2차원 평탄화 시 유용',
+    },
+    'Collection::stream': {
+        title: 'Collection::stream',
+        desc: '각 내부 컬렉션 요소를 스트림으로 변환하는 메서드 참조(Method Reference) 표현식입니다.',
+        category: '⚡ Stream API',
+        tip: '2차원 리스트/배열 -> 1차원 평탄화(flatMap)의 필수 표현식',
+    },
     filter: {
         title: 'filter(Predicate)',
         desc: '조건을 만족하는(true) 원소만 걸러내는 중간 연산자입니다.',

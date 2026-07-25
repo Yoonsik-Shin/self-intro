@@ -92,7 +92,7 @@ public class IntermediateOperationsDemo {
         // 3. flatMap: 2차원 리스트 평탄화 (Flattening)
         List<List<Integer>> nested = List.of(List.of(1, 2), List.of(3, 4, 5));
         List<Integer> flat = nested.stream()
-                .flatMap(Collection::stream)
+                .flatMap(Collection::stream) // List::stream 메서드 참조로 1차원 평탄화
                 .collect(Collectors.toList()); // [1, 2, 3, 4, 5]
 
         // 4. distinct & sorted: 중복 제거 및 정렬
@@ -109,6 +109,10 @@ public class IntermediateOperationsDemo {
     }
 }
 ```
+
+> 💡 **Collection::stream 메서드 참조의 원리**
+> - **`Collection::stream`**은 `collection -> collection.stream()` 람다 표현식을 간결하게 표현한 메서드 참조(Method Reference)입니다.
+> - `flatMap(Collection::stream)`을 호출하면 2차원 컬렉션(`List<List<T>>`)의 각 내부 리스트를 순차적으로 스트림으로 변환하여 단일 1차원 스트림(`Stream<T>`)으로 병합(Flatten)해 줍니다.
 
 ---
 
