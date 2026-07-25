@@ -23,13 +23,15 @@ body {
 }
 
 /* 브라우저 기본 스크롤바 대신 사이트 톤(slate)에 맞춘 얇은 커스텀 스크롤바 */
-html {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
+@supports not selector(::-webkit-scrollbar) {
+    html {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
 }
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 5px;
+    height: 5px;
 }
 ::-webkit-scrollbar-track {
     background: transparent;
@@ -46,22 +48,27 @@ html {
 
 /* 초슬림 & 세련된 얇은 커스텀 스크롤바 (사이드바 / 목차 전용) */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 3px;
+    height: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: rgba(148, 163, 184, 0.45);
+    background-color: rgba(100, 116, 139, 0.55);
     border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(71, 85, 105, 0.75);
+    background-color: rgba(51, 65, 85, 0.85);
 }
-.custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+/* 표준 scrollbar-width는 Chrome/Safari에서 위 픽셀 단위 ::-webkit-scrollbar 지정을
+   무시하고 자체 thin 프리셋(3px보다 훨씬 두꺼움)을 우선 적용해버리므로, 이 프로퍼티를
+   지원하지 않는 브라우저(Firefox 등, ::-webkit-scrollbar 셀렉터 미지원)에서만 켠다. */
+@supports not selector(::-webkit-scrollbar) {
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100, 116, 139, 0.55) transparent;
+    }
 }
 
 /* ── 이력서 인쇄(PDF) 전용 타이포그래피 — /print 페이지에서만 사용됨 ──────────
