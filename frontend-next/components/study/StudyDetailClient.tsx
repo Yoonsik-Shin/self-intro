@@ -171,10 +171,10 @@ export function StudyDetailClient({ study }: Props) {
 
                 <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
                     <div
-                        className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 max-h-[calc(100vh-7.5rem)] overflow-y-auto custom-scrollbar pb-10 ${
+                        className={`relative flex flex-col max-h-[calc(100vh-7.5rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${
                             isNavCollapsed
-                                ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
-                                : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
+                                ? 'min-[900px]:gap-3 min-[900px]:p-2'
+                                : 'min-[900px]:gap-3 min-[900px]:p-4'
                         }`}
                     >
                         <button
@@ -183,7 +183,7 @@ export function StudyDetailClient({ study }: Props) {
                             className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                                 isNavCollapsed
                                     ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-sm'
-                                    : 'absolute -right-[11px] top-7 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
+                                    : 'absolute -right-[11px] top-5 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                             }`}
                             title={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
                             aria-label={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
@@ -198,8 +198,10 @@ export function StudyDetailClient({ study }: Props) {
 
                         {/* Table of Contents (목차) */}
                         {toc.length > 0 && (
-                            <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
-                                <div className="mb-2.5 flex items-center justify-between">
+                            <div
+                                className={`hidden shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:flex min-[900px]:flex-col'}`}
+                            >
+                                <div className="mb-2 flex items-center justify-between shrink-0">
                                     <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-800">
                                         <ListOrdered className="h-3.5 w-3.5 text-blue-600" />
                                         <span>목차</span>
@@ -208,7 +210,7 @@ export function StudyDetailClient({ study }: Props) {
                                         {toc.length}
                                     </span>
                                 </div>
-                                <nav className="max-h-[180px] sm:max-h-[220px] overflow-y-auto space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
+                                <nav className="max-h-[160px] min-[1200px]:max-h-[200px] overflow-y-auto overflow-x-hidden space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
                                     {toc.map((item) => {
                                         const isActive = activeId === item.id;
                                         return (
@@ -235,27 +237,31 @@ export function StudyDetailClient({ study }: Props) {
                                         );
                                     })}
                                 </nav>
-                                <hr className="mt-4 mb-4 border-slate-100" />
+                                <hr className="mt-3 border-slate-100 shrink-0" />
                             </div>
                         )}
 
+                        {/* 연결 항목 (Related Items) Header */}
                         <div
-                            className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}
+                            className={`hidden shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-8'}`}
                         >
-                            <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
                                 연결 항목
                             </h3>
-                            <p className="mt-0.5 text-sm leading-none text-slate-500">
+                            <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
                                 이 학습과 연관된 이력 정보입니다.
                             </p>
                         </div>
 
+                        {/* 연결 항목 List (개별 스크롤 적용) */}
                         <div
-                            className={`hidden space-y-4 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                            className={`hidden flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 pr-1 custom-scrollbar ${
+                                isNavCollapsed ? '' : 'min-[900px]:block'
+                            }`}
                         >
                             {study.experiences.length > 0 && (
                                 <div>
-                                    <h4 className="mb-1 text-xs font-black uppercase text-slate-400">
+                                    <h4 className="mb-1 text-[11px] font-black uppercase text-slate-400">
                                         관련 프로젝트·경력
                                     </h4>
                                     <div className="space-y-1.5">
@@ -276,7 +282,7 @@ export function StudyDetailClient({ study }: Props) {
 
                             {study.experienceDetails.length > 0 && (
                                 <div>
-                                    <h4 className="mb-1 text-xs font-black uppercase text-slate-400">
+                                    <h4 className="mb-1 text-[11px] font-black uppercase text-slate-400">
                                         관련 경력 항목
                                     </h4>
                                     <div className="space-y-1.5">
@@ -302,7 +308,7 @@ export function StudyDetailClient({ study }: Props) {
 
                             {study.relatedStudies.length > 0 && (
                                 <div>
-                                    <h4 className="mb-1 text-xs font-black uppercase text-slate-400">
+                                    <h4 className="mb-1 text-[11px] font-black uppercase text-slate-400">
                                         관련 Study
                                     </h4>
                                     <div className="space-y-1.5">
@@ -330,7 +336,9 @@ export function StudyDetailClient({ study }: Props) {
                         </div>
 
                         <div
-                            className={`flex flex-col items-center gap-2 py-1 ${isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}
+                            className={`flex flex-col items-center gap-2 py-1 shrink-0 ${
+                                isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'
+                            }`}
                         >
                             <button
                                 type="button"
@@ -344,12 +352,14 @@ export function StudyDetailClient({ study }: Props) {
                         </div>
 
                         <hr
-                            className={`hidden border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                            className={`hidden border-slate-100 shrink-0 ${
+                                isNavCollapsed ? '' : 'min-[900px]:block'
+                            }`}
                         />
 
                         <button
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                            className="shrink-0 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
                             title="위로 가기"
                             aria-label="위로 가기"
                         >
