@@ -8,14 +8,19 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingCandidateStatus;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingCandidateRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 class JobPostingServiceTest {
 
     @Mock private JobPostingCandidateRepository candidateRepository;
+    @Mock private JobPostingSettingRepository settingRepository;
     @Mock private JobApplicationService jobApplicationService;
     @Mock private JobApplicationUrlParseService urlParseService;
     @Mock private JobMatchingService matchingService;
@@ -44,9 +50,11 @@ class JobPostingServiceTest {
         jobPostingService =
                 new JobPostingService(
                         candidateRepository,
+                        settingRepository,
                         jobApplicationService,
                         urlParseService,
-                        matchingService);
+                        matchingService,
+                        new ObjectMapper());
     }
 
     private JobPostingCandidate newCandidate() {
@@ -84,7 +92,18 @@ class JobPostingServiceTest {
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
-                                null, null, null, null, null, "https://example.com/posting"));
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "https://example.com/posting"));
 
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
                 .isInstanceOf(ResponseStatusException.class);
@@ -103,6 +122,12 @@ class JobPostingServiceTest {
                                 "사람인",
                                 LocalDate.now().plusDays(5),
                                 "협의",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
                                 "https://example.com/posting"));
         when(candidateRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(matchingService.evaluate(any(), any()))
@@ -144,6 +169,12 @@ class JobPostingServiceTest {
                                         .JobApplicationStage.APPLIED,
                                 "협의",
                                 null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
                                 LocalDateTime.now(),
                                 LocalDateTime.now()));
 
@@ -165,5 +196,43 @@ class JobPostingServiceTest {
 
         assertThatThrownBy(() -> jobPostingService.dismiss(99L))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void updateSettingsPersistsAllFieldsOnTheSingletonRow() {
+        JobPostingSetting setting = JobPostingSetting.defaults(LocalDateTime.now());
+        when(settingRepository.getOrCreateDefault()).thenReturn(setting);
+        JobPostingSettingRequest request =
+                new JobPostingSettingRequest(
+                        true,
+                        "Java Spring",
+                        30,
+                        "rc",
+                        "101000",
+                        "84",
+                        "10",
+                        true,
+                        3,
+                        "0 0 9 * * *");
+
+        JobPostingSettingResponse response = jobPostingService.updateSettings(request);
+
+        assertThat(response.saraminEnabled()).isTrue();
+        assertThat(response.searchKeywords()).isEqualTo("Java Spring");
+        assertThat(response.searchCount()).isEqualTo(30);
+        assertThat(response.searchSort()).isEqualTo("rc");
+        assertThat(response.collectorScheduledEnabled()).isTrue();
+        assertThat(response.matchingKeywordThreshold()).isEqualTo(3);
+        assertThat(response.collectorCron()).isEqualTo("0 0 9 * * *");
+    }
+
+    @Test
+    void updateSettingsRejectsInvalidCronExpression() {
+        JobPostingSettingRequest request =
+                new JobPostingSettingRequest(
+                        true, "Java Spring", 30, "rc", "101000", "84", "10", true, 3, "not a cron");
+
+        assertThatThrownBy(() -> jobPostingService.updateSettings(request))
+                .isInstanceOf(ResponseStatusException.class);
     }
 }

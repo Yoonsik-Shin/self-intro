@@ -1,43 +1,144 @@
 package com.selfintro.modules.jobapplication.application;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingCandidateStatus;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingCandidateRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
 import jakarta.persistence.EntityNotFoundException;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /** 채용 공고를 URL로 수집해 "아직 지원하지 않은 후보" 상태로 관리한다. */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class JobPostingService {
 
+    private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
+
     private static final List<JobPostingCandidateStatus> ACTIVE_STATUSES =
             List.of(JobPostingCandidateStatus.NEW, JobPostingCandidateStatus.SAVED);
 
     private final JobPostingCandidateRepository candidateRepository;
+    private final JobPostingSettingRepository settingRepository;
     private final JobApplicationService jobApplicationService;
     private final JobApplicationUrlParseService urlParseService;
     private final JobMatchingService matchingService;
+    private final ObjectMapper objectMapper;
+    private final AtomicBoolean ingesting = new AtomicBoolean(false);
 
     public List<JobPostingCandidateResponse> list() {
         return candidateRepository.findActiveByStatuses(ACTIVE_STATUSES, LocalDate.now()).stream()
                 .map(JobPostingCandidateResponse::from)
                 .toList();
     }
+
+    public JobPostingSettingResponse getSettings() {
+        return JobPostingSettingResponse.from(settingRepository.getOrCreateDefault());
+    }
+
+    @Transactional
+    public JobPostingSettingResponse updateSettings(JobPostingSettingRequest request) {
+        String cron = request.collectorCron().trim();
+        if (!CronExpression.isValidExpression(cron)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "유효하지 않은 cron 표현식입니다: " + cron);
+        }
+
+        JobPostingSetting setting = settingRepository.getOrCreateDefault();
+        setting.update(
+                request.saraminEnabled(),
+                AiJsonSupport.blankToNull(request.searchKeywords()),
+                request.searchCount(),
+                request.searchSort().trim(),
+                AiJsonSupport.blankToNull(request.locationCode()),
+                AiJsonSupport.blankToNull(request.jobCode()),
+                AiJsonSupport.blankToNull(request.industryCode()),
+                request.collectorScheduledEnabled(),
+                request.matchingKeywordThreshold(),
+                cron,
+                LocalDateTime.now());
+        return JobPostingSettingResponse.from(setting);
+    }
+
+    public SseEmitter ingestUrlStream(String url) {
+        String trimmed = url.trim();
+        if (candidateRepository.existsByUrl(trimmed)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
+        }
+        if (!ingesting.compareAndSet(false, true)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "이미 공고를 수집하고 있습니다.");
+        }
+        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        Thread.ofVirtual()
+                .name("job-posting-ingest-stream")
+                .start(() -> streamIngest(trimmed, emitter));
+        return emitter;
+    }
+
+    private void streamIngest(String url, SseEmitter emitter) {
+        try {
+            JobPostingCandidateResponse response = ingestUrl(url);
+            send(emitter, new CompleteEvent("complete", response));
+            emitter.complete();
+        } catch (ResponseStatusException exception) {
+            log.warn("채용공고 수집 스트리밍 실패: {}", exception.getReason(), exception);
+            fail(emitter, exception.getReason() == null ? "공고 수집에 실패했습니다." : exception.getReason());
+        } catch (Exception exception) {
+            log.warn("채용공고 수집 스트리밍 중 예상하지 못한 오류", exception);
+            fail(emitter, "공고 수집 중 오류가 발생했습니다. 다시 시도해주세요.");
+        } finally {
+            ingesting.set(false);
+        }
+    }
+
+    private void send(SseEmitter emitter, Object payload) {
+        try {
+            emitter.send(
+                    SseEmitter.event()
+                            .data(
+                                    objectMapper.writeValueAsString(payload),
+                                    MediaType.APPLICATION_JSON));
+        } catch (IOException exception) {
+            throw new UncheckedIOException("SSE 이벤트 전송에 실패했습니다.", exception);
+        }
+    }
+
+    private void fail(SseEmitter emitter, String message) {
+        try {
+            send(emitter, new ErrorEvent("error", message));
+            emitter.complete();
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private record CompleteEvent(String type, JobPostingCandidateResponse response) {}
+
+    private record ErrorEvent(String type, String message) {}
 
     @Transactional
     public JobPostingCandidateResponse ingestUrl(String url) {
@@ -97,6 +198,12 @@ public class JobPostingService {
                         LocalDate.now(),
                         candidate.getDeadline(),
                         candidate.getSalaryNote(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         null);
         JobApplicationResponse response = jobApplicationService.create(request, candidate.getId());
         candidate.markConverted(LocalDateTime.now());

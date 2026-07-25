@@ -388,6 +388,12 @@ export type JobApplication = {
     currentStage: JobApplicationStage;
     salaryNote: string | null;
     memo: string | null;
+    jobDescription: string | null;
+    requiredQualifications: string | null;
+    preferredQualifications: string | null;
+    hiringProcess: string | null;
+    applicationMethod: string | null;
+    compensationDetail: string | null;
     createdAt: string;
     updatedAt: string;
 };
@@ -401,6 +407,12 @@ export type JobApplicationRequest = {
     deadline?: string | null;
     salaryNote?: string | null;
     memo?: string | null;
+    jobDescription?: string | null;
+    requiredQualifications?: string | null;
+    preferredQualifications?: string | null;
+    hiringProcess?: string | null;
+    applicationMethod?: string | null;
+    compensationDetail?: string | null;
 };
 
 export type JobApplicationStageEvent = {
@@ -416,8 +428,18 @@ export type JobApplicationUrlParseResponse = {
     source: string | null;
     deadline: string | null;
     salaryNote: string | null;
+    jobDescription: string | null;
+    requiredQualifications: string | null;
+    preferredQualifications: string | null;
+    hiringProcess: string | null;
+    applicationMethod: string | null;
+    compensationDetail: string | null;
     postingUrl: string;
 };
+
+export type JobApplicationUrlParseStreamEvent =
+    | { type: 'complete'; response: JobApplicationUrlParseResponse }
+    | { type: 'error'; message: string };
 
 export type JobPostingSource = 'URL_INGEST' | 'SARAMIN';
 
@@ -443,6 +465,35 @@ export type JobPostingCollectionResult = {
     saraminEnabled: boolean;
     saraminCollected: number;
     expiredCount: number;
+};
+
+export type JobPostingIngestStreamEvent =
+    { type: 'complete'; response: JobPostingCandidate } | { type: 'error'; message: string };
+
+export type JobPostingSetting = {
+    saraminEnabled: boolean;
+    searchKeywords: string | null;
+    searchCount: number;
+    searchSort: string;
+    locationCode: string | null;
+    jobCode: string | null;
+    industryCode: string | null;
+    collectorScheduledEnabled: boolean;
+    matchingKeywordThreshold: number;
+    collectorCron: string;
+};
+
+export type JobPostingSettingRequest = {
+    saraminEnabled: boolean;
+    searchKeywords?: string | null;
+    searchCount: number;
+    searchSort: string;
+    locationCode?: string | null;
+    jobCode?: string | null;
+    industryCode?: string | null;
+    collectorScheduledEnabled: boolean;
+    matchingKeywordThreshold: number;
+    collectorCron: string;
 };
 
 export type ExperienceDetailRequest = {

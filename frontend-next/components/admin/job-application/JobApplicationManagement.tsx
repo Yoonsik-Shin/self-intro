@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type DragEvent, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     Bookmark,
@@ -15,6 +15,7 @@ import {
     List as ListIcon,
     Plus,
     RefreshCw,
+    Settings as SettingsIcon,
     Sparkles,
     Trash2,
     X,
@@ -25,6 +26,7 @@ import type {
     JobApplicationRequest,
     JobApplicationStage,
     JobPostingCandidate,
+    JobPostingSettingRequest,
     JobPostingSource,
 } from '@/lib/api/types';
 
@@ -118,6 +120,12 @@ const emptyForm: JobApplicationRequest = {
     deadline: '',
     salaryNote: '',
     memo: '',
+    jobDescription: '',
+    requiredQualifications: '',
+    preferredQualifications: '',
+    hiringProcess: '',
+    applicationMethod: '',
+    compensationDetail: '',
 };
 
 type Drawer = { mode: 'create' } | { mode: 'edit'; id: number } | null;
@@ -138,6 +146,13 @@ export function JobApplicationManagement() {
     const [dragOverStage, setDragOverStage] = useState<JobApplicationStage | null>(null);
     const [isIngestDrawerOpen, setIsIngestDrawerOpen] = useState(false);
     const [ingestUrl, setIngestUrl] = useState('');
+    const [isIngesting, setIsIngesting] = useState(false);
+    const [ingestElapsedSeconds, setIngestElapsedSeconds] = useState(0);
+    const [isParsingUrl, setIsParsingUrl] = useState(false);
+    const [parseElapsedSeconds, setParseElapsedSeconds] = useState(0);
+    const parseUrlAbortRef = useRef<AbortController | null>(null);
+    const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
+    const [settingsForm, setSettingsForm] = useState<JobPostingSettingRequest | null>(null);
 
     const { data: applications = [], isLoading } = useQuery({
         queryKey: ['jobApplications'],
@@ -147,6 +162,11 @@ export function JobApplicationManagement() {
     const { data: candidates = [] } = useQuery({
         queryKey: ['jobPostingCandidates'],
         queryFn: jobPostingApi.list,
+    });
+
+    const { data: settings } = useQuery({
+        queryKey: ['jobPostingSettings'],
+        queryFn: jobPostingApi.getSettings,
     });
 
     const editingId = drawer?.mode === 'edit' ? drawer.id : null;
@@ -212,36 +232,89 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '전형 단계 변경에 실패했습니다.'),
     });
 
-    const parseUrlMutation = useMutation({
-        mutationFn: (url: string) => jobApplicationApi.parseUrl(url),
-        onSuccess: (data) => {
-            setForm((prev) => ({
-                ...prev,
-                companyName: data.companyName || prev.companyName,
-                positionTitle: data.positionTitle || prev.positionTitle,
-                source: data.source || prev.source,
-                deadline: data.deadline || prev.deadline,
-                salaryNote: data.salaryNote || prev.salaryNote,
-                postingUrl: data.postingUrl,
-            }));
-        },
-        onError: (error) =>
-            alert(error instanceof ApiError ? error.message : 'URL 자동분석에 실패했습니다.'),
-    });
+    async function requestParseUrl(url: string) {
+        setIsParsingUrl(true);
+        setParseElapsedSeconds(0);
+        const startedAt = Date.now();
+        const timer = window.setInterval(() => {
+            setParseElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+        }, 1000);
+        const controller = new AbortController();
+        parseUrlAbortRef.current = controller;
+        try {
+            await jobApplicationApi.parseUrlStream(
+                url,
+                (event) => {
+                    if (event.type === 'error') {
+                        alert(event.message);
+                        return;
+                    }
+                    const data = event.response;
+                    setForm((prev) => ({
+                        ...prev,
+                        companyName: data.companyName || prev.companyName,
+                        positionTitle: data.positionTitle || prev.positionTitle,
+                        source: data.source || prev.source,
+                        deadline: data.deadline || prev.deadline,
+                        salaryNote: data.salaryNote || prev.salaryNote,
+                        jobDescription: data.jobDescription || prev.jobDescription,
+                        requiredQualifications:
+                            data.requiredQualifications || prev.requiredQualifications,
+                        preferredQualifications:
+                            data.preferredQualifications || prev.preferredQualifications,
+                        hiringProcess: data.hiringProcess || prev.hiringProcess,
+                        applicationMethod: data.applicationMethod || prev.applicationMethod,
+                        compensationDetail: data.compensationDetail || prev.compensationDetail,
+                        postingUrl: data.postingUrl,
+                    }));
+                },
+                controller.signal
+            );
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                alert(error instanceof ApiError ? error.message : 'URL 자동분석에 실패했습니다.');
+            }
+        } finally {
+            window.clearInterval(timer);
+            if (parseUrlAbortRef.current === controller) {
+                parseUrlAbortRef.current = null;
+                setIsParsingUrl(false);
+            }
+        }
+    }
 
     const invalidateCandidates = () =>
         queryClient.invalidateQueries({ queryKey: ['jobPostingCandidates'] });
 
-    const ingestMutation = useMutation({
-        mutationFn: (url: string) => jobPostingApi.ingestUrl(url),
-        onSuccess: () => {
-            invalidateCandidates();
-            setIngestUrl('');
-            setIsIngestDrawerOpen(false);
-        },
-        onError: (error) =>
-            alert(error instanceof ApiError ? error.message : '공고 수집에 실패했습니다.'),
-    });
+    // 모달을 닫아도 수집 자체는 백그라운드에서 계속 진행되도록 AbortController를 두지 않는다 —
+    // 완료되면 complete 이벤트로 캐시에 바로 반영된다.
+    async function requestIngestUrl(url: string) {
+        setIsIngesting(true);
+        setIngestElapsedSeconds(0);
+        const startedAt = Date.now();
+        const timer = window.setInterval(() => {
+            setIngestElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+        }, 1000);
+        try {
+            await jobPostingApi.ingestUrlStream(url, (event) => {
+                if (event.type === 'error') {
+                    alert(event.message);
+                    return;
+                }
+                queryClient.setQueryData(
+                    ['jobPostingCandidates'],
+                    (prev: JobPostingCandidate[] | undefined) => [event.response, ...(prev ?? [])]
+                );
+                setIngestUrl('');
+                setIsIngestDrawerOpen(false);
+            });
+        } catch (error) {
+            alert(error instanceof ApiError ? error.message : '공고 수집에 실패했습니다.');
+        } finally {
+            window.clearInterval(timer);
+            setIsIngesting(false);
+        }
+    }
 
     const dismissCandidateMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.dismiss(id),
@@ -281,6 +354,34 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '공고 수집에 실패했습니다.'),
     });
 
+    const updateSettingsMutation = useMutation({
+        mutationFn: (payload: JobPostingSettingRequest) => jobPostingApi.updateSettings(payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['jobPostingSettings'] });
+            setIsSettingsDrawerOpen(false);
+        },
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '설정 저장에 실패했습니다.'),
+    });
+
+    function openSettingsDrawer() {
+        if (settings) {
+            setSettingsForm({
+                saraminEnabled: settings.saraminEnabled,
+                searchKeywords: settings.searchKeywords ?? '',
+                searchCount: settings.searchCount,
+                searchSort: settings.searchSort,
+                locationCode: settings.locationCode ?? '',
+                jobCode: settings.jobCode ?? '',
+                industryCode: settings.industryCode ?? '',
+                collectorScheduledEnabled: settings.collectorScheduledEnabled,
+                matchingKeywordThreshold: settings.matchingKeywordThreshold,
+                collectorCron: settings.collectorCron,
+            });
+        }
+        setIsSettingsDrawerOpen(true);
+    }
+
     const filteredApplications = useMemo(() => {
         const keyword = search.trim().toLowerCase();
         if (!keyword) return applications;
@@ -290,6 +391,16 @@ export function JobApplicationManagement() {
                 .includes(keyword)
         );
     }, [applications, search]);
+
+    const filteredCandidates = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+        if (!keyword) return candidates;
+        return candidates.filter((item) =>
+            `${item.companyName} ${item.title} ${POSTING_SOURCE_LABELS[item.source]}`
+                .toLowerCase()
+                .includes(keyword)
+        );
+    }, [candidates, search]);
 
     const byStage = useMemo(() => {
         const map = new Map<JobApplicationStage, JobApplication[]>();
@@ -339,6 +450,12 @@ export function JobApplicationManagement() {
             deadline: item.deadline ?? '',
             salaryNote: item.salaryNote ?? '',
             memo: item.memo ?? '',
+            jobDescription: item.jobDescription ?? '',
+            requiredQualifications: item.requiredQualifications ?? '',
+            preferredQualifications: item.preferredQualifications ?? '',
+            hiringProcess: item.hiringProcess ?? '',
+            applicationMethod: item.applicationMethod ?? '',
+            compensationDetail: item.compensationDetail ?? '',
         });
         setStageDraft(item.currentStage);
         setStageMemo('');
@@ -346,6 +463,9 @@ export function JobApplicationManagement() {
     }
 
     function closeDrawer() {
+        parseUrlAbortRef.current?.abort();
+        parseUrlAbortRef.current = null;
+        setIsParsingUrl(false);
         setDrawer(null);
         setForm(emptyForm);
         setStageDraft(null);
@@ -360,6 +480,12 @@ export function JobApplicationManagement() {
             deadline: form.deadline?.trim() || null,
             salaryNote: form.salaryNote?.trim() || null,
             memo: form.memo?.trim() || null,
+            jobDescription: form.jobDescription?.trim() || null,
+            requiredQualifications: form.requiredQualifications?.trim() || null,
+            preferredQualifications: form.preferredQualifications?.trim() || null,
+            hiringProcess: form.hiringProcess?.trim() || null,
+            applicationMethod: form.applicationMethod?.trim() || null,
+            compensationDetail: form.compensationDetail?.trim() || null,
         };
         if (editingId !== null) {
             updateMutation.mutate({ id: editingId, payload });
@@ -401,6 +527,15 @@ export function JobApplicationManagement() {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={openSettingsDrawer}
+                        title="사람인 수집 사용여부/검색 조건/자동 스케줄 설정"
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                    >
+                        <SettingsIcon className="h-4 w-4" />
+                        수집 설정
+                    </button>
                     <button
                         type="button"
                         disabled={collectMutation.isPending}
@@ -502,6 +637,68 @@ export function JobApplicationManagement() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
+                                {filteredCandidates.map((candidate) => (
+                                    <tr
+                                        key={`candidate-${candidate.id}`}
+                                        className="bg-slate-50/70 text-slate-500"
+                                    >
+                                        <td className="px-5 py-3">
+                                            <span className="font-bold text-slate-700">
+                                                {candidate.companyName}
+                                            </span>
+                                            <span className="ml-2 text-slate-400">
+                                                {candidate.title}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3">
+                                            {POSTING_SOURCE_LABELS[candidate.source]}
+                                        </td>
+                                        <td className="px-5 py-3 whitespace-nowrap text-slate-300">
+                                            —
+                                        </td>
+                                        <td className="px-5 py-3 whitespace-nowrap">
+                                            {candidate.deadline ?? (
+                                                <span className="text-slate-300">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-3">
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-extrabold text-white">
+                                                <Bookmark className="h-3 w-3" />
+                                                수집됨
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3 text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <button
+                                                    type="button"
+                                                    disabled={convertCandidateMutation.isPending}
+                                                    onClick={() =>
+                                                        convertCandidateMutation.mutate(
+                                                            candidate.id
+                                                        )
+                                                    }
+                                                    className="text-xs font-bold text-slate-700 hover:text-slate-900"
+                                                >
+                                                    지원하기
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={dismissCandidateMutation.isPending}
+                                                    onClick={() => {
+                                                        if (confirm('이 후보를 무시할까요?')) {
+                                                            dismissCandidateMutation.mutate(
+                                                                candidate.id
+                                                            );
+                                                        }
+                                                    }}
+                                                    className="text-xs font-bold text-slate-400 hover:text-rose-600"
+                                                >
+                                                    무시
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
                                 {filteredApplications.map((item) => (
                                     <tr
                                         key={item.id}
@@ -876,19 +1073,23 @@ export function JobApplicationManagement() {
                                     />
                                     <button
                                         type="button"
-                                        disabled={
-                                            !form.postingUrl?.trim() || parseUrlMutation.isPending
-                                        }
-                                        onClick={() =>
-                                            parseUrlMutation.mutate(form.postingUrl!.trim())
-                                        }
+                                        disabled={!form.postingUrl?.trim() || isParsingUrl}
+                                        onClick={() => requestParseUrl(form.postingUrl!.trim())}
                                         title="URL 내용을 AI로 분석해 아래 항목을 채웁니다"
                                         className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         <Sparkles className="h-3.5 w-3.5" />
-                                        {parseUrlMutation.isPending ? '분석 중...' : 'AI 자동분석'}
+                                        {isParsingUrl
+                                            ? `분석 중... (${parseElapsedSeconds}초)`
+                                            : 'AI 자동분석'}
                                     </button>
                                 </div>
+                                {isParsingUrl && (
+                                    <p className="mt-1 text-xs text-slate-400">
+                                        이미지 분석까지 필요하면 최대 1~2분 정도 걸릴 수 있어요.
+                                        멈춘 게 아니니 잠시만 기다려주세요.
+                                    </p>
+                                )}
                             </div>
 
                             <label className="block text-sm">
@@ -992,6 +1193,41 @@ export function JobApplicationManagement() {
                                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                 />
                             </label>
+
+                            <details className="rounded-lg border border-slate-200">
+                                <summary className="cursor-pointer select-none px-3 py-2 text-sm font-bold text-slate-600">
+                                    상세 정보 (AI 자동분석으로 채워짐)
+                                </summary>
+                                <div className="space-y-3 px-3 pb-3 pt-1">
+                                    {(
+                                        [
+                                            ['jobDescription', '직무 상세'],
+                                            ['requiredQualifications', '지원자격'],
+                                            ['preferredQualifications', '우대사항'],
+                                            ['hiringProcess', '전형절차'],
+                                            ['applicationMethod', '지원방법'],
+                                            ['compensationDetail', '처우조건 상세'],
+                                        ] as const
+                                    ).map(([field, label]) => (
+                                        <label key={field} className="block text-sm">
+                                            <span className="mb-1 block font-bold text-slate-600">
+                                                {label}
+                                            </span>
+                                            <textarea
+                                                rows={3}
+                                                value={form[field] ?? ''}
+                                                onChange={(e) =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        [field]: e.target.value,
+                                                    }))
+                                                }
+                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                            />
+                                        </label>
+                                    ))}
+                                </div>
+                            </details>
 
                             <div className="flex items-center justify-between gap-2 pt-1">
                                 {editingId !== null ? (
@@ -1146,14 +1382,264 @@ export function JobApplicationManagement() {
                             />
                             <button
                                 type="button"
-                                disabled={!ingestUrl.trim() || ingestMutation.isPending}
-                                onClick={() => ingestMutation.mutate(ingestUrl.trim())}
+                                disabled={!ingestUrl.trim() || isIngesting}
+                                onClick={() => requestIngestUrl(ingestUrl.trim())}
                                 className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <Sparkles className="h-4 w-4" />
-                                {ingestMutation.isPending ? '수집 중...' : 'AI로 수집'}
+                                {isIngesting
+                                    ? `수집 중... (${ingestElapsedSeconds}초, 닫아도 계속 진행돼요)`
+                                    : 'AI로 수집'}
+                            </button>
+                            {isIngesting && (
+                                <p className="text-xs text-slate-400">
+                                    이미지 분석까지 필요하면 최대 1~2분 정도 걸릴 수 있어요. 이 창을
+                                    닫으셔도 수집은 계속 진행되고, 끝나면 목록에 자동으로 나타나요.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isSettingsDrawerOpen && settingsForm && (
+                <div className="fixed inset-0 z-40 flex justify-end">
+                    <div
+                        className="absolute inset-0 bg-slate-900/30"
+                        onClick={() => setIsSettingsDrawerOpen(false)}
+                        aria-hidden
+                    />
+                    <div className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-5 shadow-2xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-lg font-black text-slate-950">수집 설정</h3>
+                            <button
+                                type="button"
+                                onClick={() => setIsSettingsDrawerOpen(false)}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                                <X className="h-4 w-4" />
                             </button>
                         </div>
+                        <p className="mb-4 text-sm text-slate-500">
+                            access-key 같은 비밀값은 서버 환경변수로만 관리하고, 여기 값들은
+                            저장하면 재배포 없이 바로 적용됩니다.
+                        </p>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                updateSettingsMutation.mutate(settingsForm);
+                            }}
+                            className="space-y-4"
+                        >
+                            <label className="flex items-center justify-between text-sm">
+                                <span className="font-bold text-slate-600">
+                                    사람인 자동 수집 사용
+                                </span>
+                                <input
+                                    type="checkbox"
+                                    checked={settingsForm.saraminEnabled}
+                                    onChange={(e) =>
+                                        setSettingsForm((prev) =>
+                                            prev
+                                                ? { ...prev, saraminEnabled: e.target.checked }
+                                                : prev
+                                        )
+                                    }
+                                    className="h-4 w-4"
+                                />
+                            </label>
+                            <label className="flex items-center justify-between text-sm">
+                                <span className="font-bold text-slate-600">
+                                    자동 수집 스케줄 사용
+                                </span>
+                                <input
+                                    type="checkbox"
+                                    checked={settingsForm.collectorScheduledEnabled}
+                                    onChange={(e) =>
+                                        setSettingsForm((prev) =>
+                                            prev
+                                                ? {
+                                                      ...prev,
+                                                      collectorScheduledEnabled: e.target.checked,
+                                                  }
+                                                : prev
+                                        )
+                                    }
+                                    className="h-4 w-4"
+                                />
+                            </label>
+                            <label className="block text-sm">
+                                <span className="mb-1 block font-bold text-slate-600">
+                                    수집 스케줄 (cron)
+                                </span>
+                                <input
+                                    value={settingsForm.collectorCron}
+                                    onChange={(e) =>
+                                        setSettingsForm((prev) =>
+                                            prev ? { ...prev, collectorCron: e.target.value } : prev
+                                        )
+                                    }
+                                    placeholder="0 0 8 * * *"
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                />
+                            </label>
+                            <label className="block text-sm">
+                                <span className="mb-1 block font-bold text-slate-600">
+                                    검색 키워드
+                                </span>
+                                <input
+                                    value={settingsForm.searchKeywords ?? ''}
+                                    onChange={(e) =>
+                                        setSettingsForm((prev) =>
+                                            prev
+                                                ? { ...prev, searchKeywords: e.target.value }
+                                                : prev
+                                        )
+                                    }
+                                    placeholder="비우면 보유 기술 상위 5개로 자동 검색"
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                />
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className="block text-sm">
+                                    <span className="mb-1 block font-bold text-slate-600">
+                                        결과 수 (최대 110)
+                                    </span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={110}
+                                        value={settingsForm.searchCount}
+                                        onChange={(e) =>
+                                            setSettingsForm((prev) =>
+                                                prev
+                                                    ? {
+                                                          ...prev,
+                                                          searchCount: Number(e.target.value),
+                                                      }
+                                                    : prev
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="block text-sm">
+                                    <span className="mb-1 block font-bold text-slate-600">
+                                        정렬
+                                    </span>
+                                    <select
+                                        value={settingsForm.searchSort}
+                                        onChange={(e) =>
+                                            setSettingsForm((prev) =>
+                                                prev
+                                                    ? { ...prev, searchSort: e.target.value }
+                                                    : prev
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                    >
+                                        <option value="pd">게시일 역순</option>
+                                        <option value="pa">게시일순</option>
+                                        <option value="ud">최근수정순</option>
+                                        <option value="rc">조회수 역순</option>
+                                        <option value="ac">지원자수 역순</option>
+                                        <option value="da">마감일 정순</option>
+                                        <option value="dd">마감일 역순</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <label className="block text-sm">
+                                    <span className="mb-1 block font-bold text-slate-600">
+                                        지역코드
+                                    </span>
+                                    <input
+                                        value={settingsForm.locationCode ?? ''}
+                                        onChange={(e) =>
+                                            setSettingsForm((prev) =>
+                                                prev
+                                                    ? { ...prev, locationCode: e.target.value }
+                                                    : prev
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="block text-sm">
+                                    <span className="mb-1 block font-bold text-slate-600">
+                                        직무코드
+                                    </span>
+                                    <input
+                                        value={settingsForm.jobCode ?? ''}
+                                        onChange={(e) =>
+                                            setSettingsForm((prev) =>
+                                                prev ? { ...prev, jobCode: e.target.value } : prev
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="block text-sm">
+                                    <span className="mb-1 block font-bold text-slate-600">
+                                        업종코드
+                                    </span>
+                                    <input
+                                        value={settingsForm.industryCode ?? ''}
+                                        onChange={(e) =>
+                                            setSettingsForm((prev) =>
+                                                prev
+                                                    ? { ...prev, industryCode: e.target.value }
+                                                    : prev
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                    />
+                                </label>
+                            </div>
+                            <label className="block text-sm">
+                                <span className="mb-1 block font-bold text-slate-600">
+                                    매칭 키워드 임계치
+                                </span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    value={settingsForm.matchingKeywordThreshold}
+                                    onChange={(e) =>
+                                        setSettingsForm((prev) =>
+                                            prev
+                                                ? {
+                                                      ...prev,
+                                                      matchingKeywordThreshold: Number(
+                                                          e.target.value
+                                                      ),
+                                                  }
+                                                : prev
+                                        )
+                                    }
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                />
+                                <span className="mt-1 block text-xs text-slate-400">
+                                    보유 기술과 겹치는 키워드 수가 이 값 이상이어야 AI 매칭 점수를
+                                    생성합니다.
+                                </span>
+                            </label>
+                            <div className="flex justify-end gap-2 pt-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSettingsDrawerOpen(false)}
+                                    className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={updateSettingsMutation.isPending}
+                                    className="rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    저장
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

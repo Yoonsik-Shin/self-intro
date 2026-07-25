@@ -1,10 +1,11 @@
-import { request } from './client';
+import { request, requestEventStream } from './client';
 import type {
     JobApplication,
     JobApplicationRequest,
     JobApplicationStage,
     JobApplicationStageEvent,
     JobApplicationUrlParseResponse,
+    JobApplicationUrlParseStreamEvent,
 } from './types';
 
 export const jobApplicationApi = {
@@ -14,6 +15,17 @@ export const jobApplicationApi = {
             method: 'POST',
             body: JSON.stringify({ url }),
         }),
+    parseUrlStream: (
+        url: string,
+        onEvent: (event: JobApplicationUrlParseStreamEvent) => void,
+        signal?: AbortSignal
+    ) =>
+        requestEventStream<JobApplicationUrlParseStreamEvent>(
+            '/api/admin/job-applications/parse-url/stream',
+            { url },
+            onEvent,
+            signal
+        ),
     get: (id: number) => request<JobApplication>(`/api/admin/job-applications/${id}`),
     create: (payload: JobApplicationRequest) =>
         request<JobApplication>('/api/admin/job-applications', {

@@ -12,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/admin/job-applications")
@@ -36,6 +38,11 @@ public class JobApplicationController {
     public JobApplicationUrlParseResponse parseUrl(
             @Valid @RequestBody JobApplicationUrlParseRequest request) {
         return jobApplicationUrlParseService.parse(request.url());
+    }
+
+    @PostMapping(value = "/parse-url/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter parseUrlStream(@Valid @RequestBody JobApplicationUrlParseRequest request) {
+        return jobApplicationUrlParseService.parseStream(request.url());
     }
 
     @GetMapping
