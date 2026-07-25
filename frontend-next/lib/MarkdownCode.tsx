@@ -283,28 +283,35 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                         Code
                     </span>
 
-                    {/* ON / OFF 개념 팝업 토글 버튼 */}
+                    {/* ON / OFF 개념 팝업 토글 버튼 (고대비 브라이트 옐로우 스타일) */}
                     <button
                         type="button"
                         onClick={() => {
                             setTooltipEnabled(!tooltipEnabled);
                             if (tooltipEnabled) setHoveredConcept(null);
                         }}
-                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold transition shadow-sm ${
-                            tooltipEnabled
-                                ? 'bg-amber-500/20 text-amber-200 border border-amber-400/60 hover:bg-amber-500/30'
-                                : 'bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700'
-                        }`}
+                        style={{
+                            color: tooltipEnabled ? '#fef08a' : '#e2e8f0',
+                            backgroundColor: tooltipEnabled
+                                ? 'rgba(217, 119, 6, 0.3)'
+                                : 'rgba(30, 41, 59, 0.9)',
+                            borderColor: tooltipEnabled ? '#f59e0b' : '#64748b',
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold shadow-sm transition hover:scale-105 active:scale-95"
                         title="마우스 호버 시 개념 팝업 켜기/끄기"
                     >
                         <span
-                            className={`h-2 w-2 rounded-full ${
-                                tooltipEnabled
-                                    ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse'
-                                    : 'bg-slate-400'
+                            style={{
+                                backgroundColor: tooltipEnabled ? '#facc15' : '#94a3b8',
+                                boxShadow: tooltipEnabled ? '0 0 10px #facc15' : 'none',
+                            }}
+                            className={`h-2.5 w-2.5 rounded-full ${
+                                tooltipEnabled ? 'animate-pulse' : ''
                             }`}
                         />
-                        {tooltipEnabled ? '💡 개념 팝업 ON (마우스 호버)' : '💡 개념 팝업 OFF'}
+                        <span className="tracking-wide">
+                            {tooltipEnabled ? '💡 개념 팝업 ON (마우스 호버)' : '💡 개념 팝업 OFF'}
+                        </span>
                     </button>
                 </div>
 
@@ -367,23 +374,24 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                     className="pointer-events-auto absolute z-30 max-w-xs animate-in fade-in zoom-in-95 duration-150"
                 >
                     <div className="relative rounded-xl border border-sky-400/40 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
-                        {/* ✕ 닫기 버튼 UX */}
-                        <button
-                            type="button"
-                            onClick={() => setHoveredConcept(null)}
-                            aria-label="팝업 닫기"
-                            className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-white transition text-xs font-bold"
-                        >
-                            ✕
-                        </button>
-
-                        <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 pr-6">
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
                             <span className="text-[10px] font-bold tracking-wider text-sky-400 uppercase">
                                 {hoveredConcept.info.category}
                             </span>
-                            <span className="rounded bg-sky-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-sky-200">
-                                {hoveredConcept.info.title}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="rounded bg-sky-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-sky-200">
+                                    {hoveredConcept.info.title}
+                                </span>
+                                {/* ✕ 팝업 헤더 우측 닫기 버튼 UX */}
+                                <button
+                                    type="button"
+                                    onClick={() => setHoveredConcept(null)}
+                                    aria-label="팝업 닫기"
+                                    className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-800 text-xs font-bold text-slate-300 transition hover:bg-red-500 hover:text-white"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
                         <p className="mt-2 text-xs leading-relaxed text-slate-200">
                             {hoveredConcept.info.desc}
