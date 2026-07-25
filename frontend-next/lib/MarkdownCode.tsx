@@ -206,6 +206,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
 
     const codeContainerRef = useRef<HTMLDivElement>(null);
     const [tooltipEnabled, setTooltipEnabled] = useState(true);
+    const [isPinned, setIsPinned] = useState(false);
     const [hoveredConcept, setHoveredConcept] = useState<{
         info: ConceptDetail;
         x: number;
@@ -225,9 +226,61 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         }
     };
 
+    const handleClose = () => {
+        setIsPinned(false);
+        clearHighlight();
+        setHoveredConcept(null);
+    };
+
+    // 💡 마우스 클릭 시 팝업 상태 고정(Pin) / 해제(Unpin)
+    const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!tooltipEnabled) return;
+
+        const target = e.target as HTMLElement;
+        if (!target) return;
+
+        const text = target.textContent?.trim().replace(/^[.()]+|[.()]+$/g, '') || '';
+        const detail = CODE_CONCEPT_DICTIONARY[text];
+
+        if (detail) {
+            if (isPinned && hoveredConcept?.keyword === text) {
+                // 이미 고정된 동일 키워드 클릭 시 고정 해제
+                handleClose();
+            } else {
+                // 새로운 키워드 클릭 시 팝업 고정 모드 활성화 (골드/앰버 글로우)
+                clearHighlight();
+                setIsPinned(true);
+
+                target.style.backgroundColor = 'rgba(251, 191, 36, 0.3)';
+                target.style.outline = '2px solid #f59e0b';
+                target.style.borderRadius = '3px';
+                target.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.7)';
+                activeElementRef.current = target;
+
+                const rect = target.getBoundingClientRect();
+                const containerRect = codeContainerRef.current?.getBoundingClientRect() || {
+                    left: 0,
+                    top: 0,
+                };
+
+                setHoveredConcept({
+                    info: detail,
+                    x: rect.left - containerRect.left + rect.width / 2,
+                    y: rect.top - containerRect.top - 8,
+                    keyword: text,
+                });
+            }
+        } else {
+            // 바깥 비키워드 클릭 시 팝업 닫기
+            if (isPinned) {
+                handleClose();
+            }
+        }
+    };
+
     // 💡 마우스 호버 시 코드 키워드 탐지, 하이라이팅 및 팝업 위치 계산
     const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!tooltipEnabled) return;
+        if (!tooltipEnabled || isPinned) return;
 
         const target = e.target as HTMLElement;
         if (!target) return;
@@ -269,6 +322,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
     };
 
     const handleMouseLeave = () => {
+        if (isPinned) return; // 고정된 상태에서는 마우스 떠나도 유지
         clearHighlight();
         setHoveredConcept(null);
     };
@@ -297,6 +351,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
     return (
         <div
             ref={codeContainerRef}
+            onClick={handleClick}
             onMouseOver={handleMouseOver}
             onMouseLeave={handleMouseLeave}
             className="group relative my-4 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-md"
@@ -311,9 +366,10 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                     {/* ON / OFF 개념 팝업 토글 버튼 (고대비 브라이트 옐로우 스타일) */}
                     <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             setTooltipEnabled(!tooltipEnabled);
-                            if (tooltipEnabled) setHoveredConcept(null);
+                            if (tooltipEnabled) handleClose();
                         }}
                         style={{
                             color: tooltipEnabled ? '#fef08a' : '#e2e8f0',
@@ -335,7 +391,9 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                             }`}
                         />
                         <span className="tracking-wide">
-                            {tooltipEnabled ? '💡 개념 팝업 ON (마우스 호버)' : '💡 개념 팝업 OFF'}
+                            {tooltipEnabled
+                                ? '💡 개념 팝업 ON (마우스 클릭 고정 가능)'
+                                : '💡 개념 팝업 OFF'}
                         </span>
                     </button>
                 </div>
@@ -388,7 +446,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                 {source}
             </SyntaxHighlighter>
 
-            {/* 🌟 Interactive Code Concept Hover Tooltip Popover with Close (X) Button */}
+            {/* 🌟 Interactive Code Concept Hover & Click-Pinned Tooltip Popover */}
             {tooltipEnabled && hoveredConcept && (
                 <div
                     style={{
@@ -398,11 +456,24 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                     }}
                     className="pointer-events-auto absolute z-30 max-w-xs animate-in fade-in zoom-in-95 duration-150"
                 >
-                    <div className="relative rounded-xl border border-sky-400/40 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
+                    <div
+                        className={`relative rounded-xl border p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10 ${
+                            isPinned
+                                ? 'border-amber-400/70 bg-slate-900/98 shadow-amber-500/10'
+                                : 'border-sky-400/40 bg-slate-900/95'
+                        }`}
+                    >
                         <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
-                            <span className="text-[10px] font-bold tracking-wider text-sky-400 uppercase">
-                                {hoveredConcept.info.category}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold tracking-wider text-sky-400 uppercase">
+                                    {hoveredConcept.info.category}
+                                </span>
+                                {isPinned && (
+                                    <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 border border-amber-400/50">
+                                        📌 고정됨
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex items-center gap-2">
                                 <span className="rounded bg-sky-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-sky-200">
                                     {hoveredConcept.info.title}
@@ -410,7 +481,10 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                                 {/* ✕ 팝업 헤더 우측 닫기 버튼 UX */}
                                 <button
                                     type="button"
-                                    onClick={() => setHoveredConcept(null)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleClose();
+                                    }}
                                     aria-label="팝업 닫기"
                                     className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-800 text-xs font-bold text-slate-300 transition hover:bg-red-500 hover:text-white"
                                 >
@@ -428,7 +502,11 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                         )}
                     </div>
                     {/* Popover Arrow Pointer */}
-                    <div className="mx-auto -mt-1 h-2 w-2 rotate-45 border-b border-r border-sky-400/40 bg-slate-900/95" />
+                    <div
+                        className={`mx-auto -mt-1 h-2 w-2 rotate-45 border-b border-r bg-slate-900/95 ${
+                            isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
+                        }`}
+                    />
                 </div>
             )}
         </div>
