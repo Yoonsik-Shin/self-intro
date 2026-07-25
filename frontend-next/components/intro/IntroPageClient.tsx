@@ -83,7 +83,7 @@ export function IntroPageClient({ introData: initialIntroData }: Props) {
                 className={`grid grid-cols-[minmax(0,1fr)_52px] items-start gap-4 transition-[grid-template-columns] duration-300 sm:gap-6 ${
                     isSectionNavCollapsed
                         ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
+                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_260px] min-[1200px]:grid-cols-[minmax(0,1fr)_280px]'
                 }`}
             >
                 <div className="min-w-0 space-y-8">

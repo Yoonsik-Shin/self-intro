@@ -163,7 +163,7 @@ export function ExperienceListClient({ experiences }: Props) {
             className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-12 sm:gap-6 ${
                 isNavCollapsed
                     ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_280px] min-[1200px]:grid-cols-[minmax(0,1fr)_300px]'
+                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_260px] min-[1200px]:grid-cols-[minmax(0,1fr)_280px]'
             }`}
         >
             <div className="min-w-0 space-y-8">
