@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, ChevronLeft, ChevronRight, History } from 'lucide-react';
+import { ArrowUp, BookOpen, ChevronLeft, ChevronRight, History, X } from 'lucide-react';
 import { studyApi } from '@/lib/api';
 import type { Study, StudyCategory, StudyPage } from '@/lib/api/types';
 
@@ -48,6 +48,20 @@ export function StudyListClient({ initialStudies, categories }: Props) {
         }
     };
 
+    const handleRemoveItem = (slug: string) => {
+        try {
+            const next = recentlyViewed.filter((item) => item.slug !== slug);
+            setRecentlyViewed(next);
+            if (next.length === 0) {
+                localStorage.removeItem('recently_viewed_studies');
+            } else {
+                localStorage.setItem('recently_viewed_studies', JSON.stringify(next));
+            }
+        } catch {
+            // Ignore
+        }
+    };
+
     const { data: studyPage } = useQuery<StudyPage>({
         queryKey: ['studies', 'public', search, activeCategory],
         queryFn: () =>
@@ -72,10 +86,10 @@ export function StudyListClient({ initialStudies, categories }: Props) {
 
     return (
         <div
-            className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-12 sm:gap-6 ${
+            className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-4 sm:gap-6 ${
                 isNavCollapsed
                     ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_260px] min-[1200px]:grid-cols-[minmax(0,1fr)_280px]'
+                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_220px] min-[1200px]:grid-cols-[minmax(0,1fr)_240px]'
             }`}
         >
             <div className="min-w-0 space-y-8">
@@ -159,7 +173,7 @@ export function StudyListClient({ initialStudies, categories }: Props) {
                 </div>
             </div>
 
-            <aside className="block w-full sticky top-24 self-start">
+            <aside className="block w-full sticky top-[89px] self-start">
                 <div
                     className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                         isNavCollapsed
@@ -192,7 +206,7 @@ export function StudyListClient({ initialStudies, categories }: Props) {
                                 className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:flex min-[900px]:items-center min-[900px]:justify-between'}`}
                             >
                                 <div>
-                                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                    <h3 className="text-sm font-black tracking-wider text-slate-700 flex items-center gap-1.5">
                                         <History className="h-3.5 w-3.5 text-blue-600" />
                                         <span>최근 읽은 글</span>
                                     </h3>
@@ -214,24 +228,34 @@ export function StudyListClient({ initialStudies, categories }: Props) {
                                 className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
                             >
                                 {recentlyViewed.map((item) => (
-                                    <Link
-                                        key={item.slug}
-                                        href={`/study/${encodeURIComponent(item.slug)}`}
-                                        className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
-                                        title={item.title}
-                                    >
-                                        <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                            ›
-                                        </span>
-                                        <span className="line-clamp-2">{item.title}</span>
-                                    </Link>
+                                    <div key={item.slug} className="flex items-start gap-1.5">
+                                        <Link
+                                            href={`/study/${encodeURIComponent(item.slug)}`}
+                                            className="flex min-w-0 flex-1 items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
+                                            title={item.title}
+                                        >
+                                            <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                ›
+                                            </span>
+                                            <span className="line-clamp-2">{item.title}</span>
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveItem(item.slug)}
+                                            className="mt-0.5 shrink-0 rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                                            title="이 항목 삭제"
+                                            aria-label={`${item.title} 삭제`}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
                                 ))}
                             </div>
                         </>
                     ) : (
                         <>
                             <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
-                                <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                                <h3 className="text-sm font-black tracking-wider text-slate-700">
                                     최근 작성글
                                 </h3>
                                 <p className="mt-0.5 text-xs leading-normal text-slate-400">
@@ -276,6 +300,22 @@ export function StudyListClient({ initialStudies, categories }: Props) {
                             <BookOpen className="h-4 w-4" />
                         </button>
                     </div>
+
+                    <hr
+                        className={`hidden -mb-4 border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                    />
+
+                    <button
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                        title="위로 가기"
+                        aria-label="위로 가기"
+                    >
+                        <ArrowUp className="h-4 w-4 shrink-0" />
+                        <span className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}>
+                            위로 가기
+                        </span>
+                    </button>
                 </div>
             </aside>
         </div>

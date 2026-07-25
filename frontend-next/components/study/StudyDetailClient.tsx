@@ -125,11 +125,11 @@ export function StudyDetailClient({ study }: Props) {
                 className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-4 sm:gap-6 ${
                     isNavCollapsed
                         ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_260px] min-[1200px]:grid-cols-[minmax(0,1fr)_280px]'
+                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_220px] min-[1200px]:grid-cols-[minmax(0,1fr)_240px]'
                 }`}
             >
                 <div className="min-w-0 space-y-8">
-                    <article className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10 pb-12 sm:pb-14">
+                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                         <div className="mb-8 border-b border-slate-100 pb-6">
                             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
                                 <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">
@@ -211,25 +211,27 @@ export function StudyDetailClient({ study }: Props) {
                                 {preprocessMarkdown(study.contentMarkdown)}
                             </ReactMarkdown>
                         </div>
+                    </article>
 
-                        {/* 본문 기준 오른쪽 하단 위로 가기 버튼 (Absolute positioning, 0px flow space) */}
-                        {showScrollTop && (
+                    {/* 본문 기준 오른쪽 하단 위로 가기 버튼 (sticky, 0px 레이아웃 공간 점유) */}
+                    {showScrollTop && (
+                        <div className="sticky bottom-6 z-30 !mt-0 flex h-0 justify-end overflow-visible pointer-events-none">
                             <button
                                 type="button"
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="absolute right-6 bottom-6 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
                                 title="본문 맨 위로 스크롤"
                                 aria-label="본문 맨 위로 스크롤"
                             >
                                 <ArrowUp className="h-5 w-5" />
                             </button>
-                        )}
-                    </article>
+                        </div>
+                    )}
                 </div>
 
-                <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
+                <aside className="block w-full sticky top-[89px] self-start max-h-[calc(100vh-113px)]">
                     <div
-                        className={`relative flex flex-col max-h-[calc(100vh-7.5rem)] rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
+                        className={`relative flex flex-col max-h-[calc(100vh-113px)] rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:p-2'
                                 : 'min-[900px]:gap-3 min-[900px]:p-4'
@@ -266,7 +268,7 @@ export function StudyDetailClient({ study }: Props) {
                                     className="mb-2 flex items-center justify-between shrink-0 cursor-pointer select-none group"
                                     title={isTocOpen ? '목차 접기' : '목차 펼치기'}
                                 >
-                                    <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-800 group-hover:text-blue-600 transition-colors">
+                                    <h3 className="flex items-center gap-1.5 text-sm font-black tracking-wider text-slate-800 group-hover:text-blue-600 transition-colors">
                                         <ChevronDown
                                             className={`h-3.5 w-3.5 text-blue-600 transition-transform duration-200 ${
                                                 isTocOpen ? '' : '-rotate-90'
@@ -294,7 +296,7 @@ export function StudyDetailClient({ study }: Props) {
                                                     key={item.id}
                                                     type="button"
                                                     onClick={() => scrollToHeading(item.id)}
-                                                    className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1.5 ${
+                                                    className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1 ${
                                                         item.level === 1
                                                             ? 'font-bold text-slate-800'
                                                             : item.level === 2
@@ -309,7 +311,7 @@ export function StudyDetailClient({ study }: Props) {
                                                     {isActive && (
                                                         <span className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-blue-600 shadow-2xs" />
                                                     )}
-                                                    <span className="line-clamp-2 leading-relaxed">
+                                                    <span className="line-clamp-2 leading-snug">
                                                         {item.text}
                                                     </span>
                                                 </button>
@@ -329,7 +331,7 @@ export function StudyDetailClient({ study }: Props) {
                             }`}
                             title={isRelatedOpen ? '연결 항목 접기' : '연결 항목 펼치기'}
                         >
-                            <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-700 group-hover:text-slate-950 transition-colors">
+                            <h3 className="flex items-center gap-1.5 text-sm font-black tracking-wider text-slate-700 group-hover:text-slate-950 transition-colors">
                                 <ChevronDown
                                     className={`h-3.5 w-3.5 text-slate-500 transition-transform duration-200 ${
                                         isRelatedOpen ? '' : '-rotate-90'
@@ -441,6 +443,24 @@ export function StudyDetailClient({ study }: Props) {
                                 <ArrowLeft className="h-4 w-4" />
                             </button>
                         </div>
+
+                        <hr
+                            className={`hidden -mb-4 border-slate-100 shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                        />
+
+                        <button
+                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                            className="shrink-0 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                            title="위로 가기"
+                            aria-label="위로 가기"
+                        >
+                            <ArrowUp className="h-4 w-4 shrink-0" />
+                            <span
+                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
+                            >
+                                위로 가기
+                            </span>
+                        </button>
                     </div>
                 </aside>
             </div>

@@ -78,12 +78,12 @@ export function IntroPageClient({ introData: initialIntroData }: Props) {
     }
 
     return (
-        <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
             <div
                 className={`grid grid-cols-[minmax(0,1fr)_52px] items-start gap-4 transition-[grid-template-columns] duration-300 sm:gap-6 ${
                     isSectionNavCollapsed
                         ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_260px] min-[1200px]:grid-cols-[minmax(0,1fr)_280px]'
+                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_220px] min-[1200px]:grid-cols-[minmax(0,1fr)_240px]'
                 }`}
             >
                 <div className="min-w-0 space-y-8">

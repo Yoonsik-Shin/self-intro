@@ -115,14 +115,14 @@ export function ExperienceDetailClient({
             </div>
 
             <div
-                className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-12 sm:gap-6 ${
+                className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-4 sm:gap-6 ${
                     isNavCollapsed
                         ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_260px] min-[1200px]:grid-cols-[minmax(0,1fr)_280px]'
+                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_220px] min-[1200px]:grid-cols-[minmax(0,1fr)_240px]'
                 }`}
             >
                 <div className="min-w-0 space-y-8">
-                    <article className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10 pb-12 sm:pb-14">
+                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                         {/* Header Section */}
                         <div className="mb-6 border-b border-slate-100 pb-6">
                             <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -479,24 +479,26 @@ export function ExperienceDetailClient({
                                 </div>
                             </div>
                         )}
+                    </article>
 
-                        {/* 본문 기준 오른쪽 하단 위로 가기 버튼 */}
-                        {showScrollTop && (
+                    {/* 본문 기준 오른쪽 하단 위로 가기 버튼 (sticky, 0px 레이아웃 공간 점유) */}
+                    {showScrollTop && (
+                        <div className="sticky bottom-6 z-30 !mt-0 flex h-0 justify-end overflow-visible pointer-events-none">
                             <button
                                 type="button"
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="absolute right-6 bottom-6 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
                                 title="본문 맨 위로 스크롤"
                                 aria-label="본문 맨 위로 스크롤"
                             >
                                 <ArrowUp className="h-5 w-5" />
                             </button>
-                        )}
-                    </article>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Navigation Sidebar */}
-                <aside className="block w-full sticky top-24 self-start">
+                <aside className="block w-full sticky top-[89px] self-start">
                     <div
                         className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                             isNavCollapsed
@@ -525,7 +527,7 @@ export function ExperienceDetailClient({
 
                         {/* Related Studies */}
                         <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
-                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                            <h3 className="text-sm font-black tracking-wider text-slate-700">
                                 연결 항목
                             </h3>
                             <p className="mt-0.5 text-xs leading-normal text-slate-400">
@@ -599,6 +601,24 @@ export function ExperienceDetailClient({
                                 <ArrowLeft className="h-4 w-4" />
                             </button>
                         </div>
+
+                        <hr
+                            className={`hidden -mb-4 border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                        />
+
+                        <button
+                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                            className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                            title="위로 가기"
+                            aria-label="위로 가기"
+                        >
+                            <ArrowUp className="h-4 w-4 shrink-0" />
+                            <span
+                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
+                            >
+                                위로 가기
+                            </span>
+                        </button>
                     </div>
                 </aside>
 

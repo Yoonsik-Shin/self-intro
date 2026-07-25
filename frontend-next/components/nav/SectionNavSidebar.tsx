@@ -44,7 +44,7 @@ export function SectionNavSidebar({ sections, isCollapsed, onToggleCollapse }: P
     }, []);
 
     return (
-        <aside className="block print:hidden w-full sticky top-24 self-start">
+        <aside className="block print:hidden w-full sticky top-[89px] self-start">
             <div
                 className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                     isCollapsed
