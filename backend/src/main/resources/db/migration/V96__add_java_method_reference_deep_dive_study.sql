@@ -237,14 +237,14 @@ AND t.slug IN ('java', 'lambda', 'stream-api', 'functional-programming');
 -- =========================================================================
 -- method-reference -> stream-api (stream API 심화 연관)
 INSERT IGNORE INTO study_relation (source_study_id, target_study_id, relation_type)
-SELECT s1.id, s2.id, 'related'
+SELECT s1.id, s2.id, 'RELATED'
 FROM study s1, study s2
 WHERE s1.slug = 'java-method-reference-deep-dive'
 AND s2.slug = 'java-stream-api-deep-dive';
 
 -- stream-api -> method-reference (양방향 연결)
 INSERT IGNORE INTO study_relation (source_study_id, target_study_id, relation_type)
-SELECT s1.id, s2.id, 'related'
+SELECT s1.id, s2.id, 'RELATED'
 FROM study s1, study s2
 WHERE s1.slug = 'java-stream-api-deep-dive'
 AND s2.slug = 'java-method-reference-deep-dive';
