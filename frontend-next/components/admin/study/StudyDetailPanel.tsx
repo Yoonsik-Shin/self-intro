@@ -3,7 +3,9 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import {
     ArrowLeft,
     BookOpen,
@@ -22,6 +24,7 @@ import {
     remarkKoreanEmphasis,
     remarkDisableIndentedCode,
     remarkCalloutToggle,
+    remarkGithubAlerts,
     preprocessMarkdown,
     remarkUnindentListLines,
 } from '@/lib/markdown';
@@ -134,12 +137,14 @@ export function StudyDetailPanel({
                             remarkPlugins={[
                                 remarkGfm,
                                 remarkBreaks,
+                                remarkMath,
                                 remarkKoreanEmphasis,
                                 remarkDisableIndentedCode,
                                 remarkCalloutToggle,
+                                remarkGithubAlerts,
                                 remarkUnindentListLines,
                             ]}
-                            rehypePlugins={[rehypeRaw]}
+                            rehypePlugins={[rehypeRaw, rehypeKatex]}
                             components={markdownComponents}
                         >
                             {preprocessMarkdown(study.contentMarkdown)}

@@ -57,14 +57,75 @@ const baseMarkdownComponents: Components = {
             {children}
         </strong>
     ),
-    blockquote: ({ children, node: _node, ...props }) => (
-        <blockquote
-            {...props}
-            className="my-3 border-l-4 border-blue-500 bg-blue-50/30 px-3.5 py-2 text-slate-600 italic rounded-r-xl text-sm sm:text-base leading-[1.55]"
-        >
-            {children}
-        </blockquote>
-    ),
+    blockquote: ({
+        children,
+        node: _node,
+        ...props
+    }: React.ComponentPropsWithoutRef<'blockquote'> & {
+        node?: unknown;
+        'data-alert-type'?: string;
+    }) => {
+        const alertType = props['data-alert-type'];
+        if (alertType) {
+            const alertConfigs: Record<
+                string,
+                { bg: string; text: string; icon: string; title: string }
+            > = {
+                NOTE: {
+                    bg: 'bg-blue-50/80 border-blue-500 text-blue-950',
+                    text: 'text-blue-700',
+                    icon: 'ℹ️',
+                    title: 'Note',
+                },
+                TIP: {
+                    bg: 'bg-emerald-50/80 border-emerald-500 text-emerald-950',
+                    text: 'text-emerald-700',
+                    icon: '💡',
+                    title: 'Tip',
+                },
+                IMPORTANT: {
+                    bg: 'bg-purple-50/80 border-purple-500 text-purple-950',
+                    text: 'text-purple-700',
+                    icon: '📌',
+                    title: 'Important',
+                },
+                WARNING: {
+                    bg: 'bg-amber-50/80 border-amber-500 text-amber-950',
+                    text: 'text-amber-700',
+                    icon: '⚠️',
+                    title: 'Warning',
+                },
+                CAUTION: {
+                    bg: 'bg-rose-50/80 border-rose-500 text-rose-950',
+                    text: 'text-rose-700',
+                    icon: '🛑',
+                    title: 'Caution',
+                },
+            };
+            const style = alertConfigs[alertType] || alertConfigs.NOTE;
+            return (
+                <div className={`my-4 rounded-xl border-l-4 ${style.bg} p-4 shadow-2xs`}>
+                    <div
+                        className={`flex items-center gap-2 text-xs font-black uppercase tracking-wider ${style.text} mb-1.5`}
+                    >
+                        <span>{style.icon}</span>
+                        <span>{style.title}</span>
+                    </div>
+                    <div className="text-sm sm:text-base leading-relaxed text-slate-800">
+                        {children}
+                    </div>
+                </div>
+            );
+        }
+        return (
+            <blockquote
+                {...props}
+                className="my-3 border-l-4 border-blue-500 bg-blue-50/30 px-3.5 py-2 text-slate-600 italic rounded-r-xl text-sm sm:text-base leading-[1.55]"
+            >
+                {children}
+            </blockquote>
+        );
+    },
     a: ({ children, href, node: _node, ...props }) => (
         <a
             {...props}
@@ -340,6 +401,66 @@ export const remarkCalloutToggle: Plugin<[], Root> = () => {
                                     firstPara.data = {
                                         ...firstPara.data,
                                         hName: 'summary',
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if ('children' in child && Array.isArray((child as Parent).children)) {
+                    visit(child as Parent);
+                }
+            }
+        };
+
+        visit(tree as Parent);
+    };
+};
+
+/**
+ * GFM GitHub Alerts (`> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`) 처리 remark 플러그인
+ */
+export const remarkGithubAlerts: Plugin<[], Root> = () => {
+    return (tree: Root) => {
+        const visit = (node: Parent) => {
+            if (!node.children || !Array.isArray(node.children)) return;
+
+            for (const child of node.children) {
+                if (child.type === 'blockquote') {
+                    const bq = child as Parent;
+                    if (bq.children && bq.children.length > 0) {
+                        const firstPara = bq.children[0];
+                        if (
+                            firstPara &&
+                            firstPara.type === 'paragraph' &&
+                            Array.isArray((firstPara as Parent).children)
+                        ) {
+                            const paraParent = firstPara as Parent;
+                            const firstTextNode = paraParent.children[0];
+
+                            if (firstTextNode && firstTextNode.type === 'text') {
+                                const val = firstTextNode.value;
+                                const match = val.match(
+                                    /^\s*\[\!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)/i
+                                );
+
+                                if (match) {
+                                    const alertType = match[1].toUpperCase();
+                                    const restText = match[2];
+
+                                    if (restText) {
+                                        firstTextNode.value = restText;
+                                    } else {
+                                        paraParent.children.shift();
+                                    }
+
+                                    bq.data = {
+                                        ...bq.data,
+                                        hProperties: {
+                                            ...(bq.data?.hProperties as Record<string, unknown>),
+                                            'data-alert-type': alertType,
+                                        },
                                     };
                                 }
                             }

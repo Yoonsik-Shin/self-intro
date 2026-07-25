@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import {
     Bold,
     ChevronDown,
@@ -24,6 +26,7 @@ import {
     remarkKoreanEmphasis,
     remarkDisableIndentedCode,
     remarkCalloutToggle,
+    remarkGithubAlerts,
     preprocessMarkdown,
     remarkSourceLine,
     remarkUnindentListLines,
@@ -695,13 +698,15 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
                             remarkPlugins={[
                                 remarkGfm,
                                 remarkBreaks,
+                                remarkMath,
                                 remarkKoreanEmphasis,
                                 remarkDisableIndentedCode,
                                 remarkCalloutToggle,
+                                remarkGithubAlerts,
                                 remarkUnindentListLines,
                                 remarkSourceLine,
                             ]}
-                            rehypePlugins={[rehypeRaw]}
+                            rehypePlugins={[rehypeRaw, rehypeKatex]}
                             components={editorMarkdownComponents}
                         >
                             {preprocessMarkdown(value)}

@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import remarkMath from 'remark-math';
+import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import {
     ArrowLeft,
     ArrowUp,
@@ -21,6 +24,8 @@ import {
     markdownComponents,
     remarkKoreanEmphasis,
     remarkDisableIndentedCode,
+    remarkCalloutToggle,
+    remarkGithubAlerts,
 } from '@/lib/markdown';
 import { experienceOrgName, experienceTypeLabel, formatCredentialPeriod } from '@/lib/format';
 
@@ -173,9 +178,13 @@ export function ExperienceDetailClient({
                                             remarkPlugins={[
                                                 remarkGfm,
                                                 remarkBreaks,
+                                                remarkMath,
                                                 remarkKoreanEmphasis,
                                                 remarkDisableIndentedCode,
+                                                remarkCalloutToggle,
+                                                remarkGithubAlerts,
                                             ]}
+                                            rehypePlugins={[rehypeRaw, rehypeKatex]}
                                             components={markdownComponents}
                                         >
                                             {experience.takeaway}
@@ -219,9 +228,13 @@ export function ExperienceDetailClient({
                                                             remarkPlugins={[
                                                                 remarkGfm,
                                                                 remarkBreaks,
+                                                                remarkMath,
                                                                 remarkKoreanEmphasis,
                                                                 remarkDisableIndentedCode,
+                                                                remarkCalloutToggle,
+                                                                remarkGithubAlerts,
                                                             ]}
+                                                            rehypePlugins={[rehypeRaw, rehypeKatex]}
                                                             components={markdownComponents}
                                                         >
                                                             {detailText}
@@ -351,8 +364,15 @@ export function ExperienceDetailClient({
                                                                             remarkPlugins={[
                                                                                 remarkGfm,
                                                                                 remarkBreaks,
+                                                                                remarkMath,
                                                                                 remarkKoreanEmphasis,
                                                                                 remarkDisableIndentedCode,
+                                                                                remarkCalloutToggle,
+                                                                                remarkGithubAlerts,
+                                                                            ]}
+                                                                            rehypePlugins={[
+                                                                                rehypeRaw,
+                                                                                rehypeKatex,
                                                                             ]}
                                                                             components={
                                                                                 markdownComponents
