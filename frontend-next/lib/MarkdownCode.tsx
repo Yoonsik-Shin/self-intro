@@ -290,16 +290,18 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                             setTooltipEnabled(!tooltipEnabled);
                             if (tooltipEnabled) setHoveredConcept(null);
                         }}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-medium transition ${
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold transition shadow-sm ${
                             tooltipEnabled
-                                ? 'bg-sky-950/80 text-sky-300 border border-sky-800/60 hover:bg-sky-900'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-750'
+                                ? 'bg-amber-500/20 text-amber-200 border border-amber-400/60 hover:bg-amber-500/30'
+                                : 'bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700'
                         }`}
                         title="마우스 호버 시 개념 팝업 켜기/끄기"
                     >
                         <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                                tooltipEnabled ? 'bg-sky-400 animate-pulse' : 'bg-slate-500'
+                            className={`h-2 w-2 rounded-full ${
+                                tooltipEnabled
+                                    ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse'
+                                    : 'bg-slate-400'
                             }`}
                         />
                         {tooltipEnabled ? '💡 개념 팝업 ON (마우스 호버)' : '💡 개념 팝업 OFF'}
