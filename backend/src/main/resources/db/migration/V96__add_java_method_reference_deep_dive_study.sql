@@ -205,7 +205,7 @@ List<Integer> intNums = strNums.stream()
 2. **체이닝 불가**: `::` 자체를 체이닝(`Class::method::method`)할 수는 없습니다. 각 단계별로 나눠서 작성하세요.
 3. **람다와 동등**: 메서드 참조는 순수하게 **가독성을 위한 문법 설탕(Syntactic Sugar)**입니다. 실행 성능에는 차이가 없습니다.
 ',
-    'published',
+    'PUBLISHED',
     @education_category_id,
     '2025-06-01',
     NOW(),
