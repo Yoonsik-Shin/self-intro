@@ -577,7 +577,10 @@ export function preprocessMarkdown(markdown: string): string {
             // 1. </details> 닫는 태그 바로 뒤에 빈 줄 없이 마크다운(#, - 등)이 오면 마크다운 파서가 깨지는 현상 방지
             processed = processed.replace(/(<\/details>)\n(?=[^\n])/gi, '$1\n\n');
 
-            // 2. 연속된 빈 줄(\n\n\n+)을 <br />로 전환
+            // 2. **$math$** 형태의 굵은 글씨 감싼 수식을 $math$ 수식 노드로 깔끔히 자동 정제
+            processed = processed.replace(/\*\*\s*\$([^$\n]+)\$\s*\*\*/g, '$$1$');
+
+            // 3. 연속된 빈 줄(\n\n\n+)을 <br />로 전환
             processed = processed.replace(/\n(\s*\n)+/g, (match) => {
                 const emptyLineCount = match.split('\n').length - 2;
                 if (emptyLineCount <= 0) return match;
