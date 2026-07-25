@@ -1,31 +1,50 @@
 import type { Components } from 'react-markdown';
 import { MarkdownCode, type CodeLanguageChange } from './MarkdownCode';
+import { getNodeText, slugifyHeading } from './toc';
 
 // Headings here are markdown *content* headings, one tier below the page's own
 // h1 title (text-3xl/4xl, set where the article is rendered) — they should read
 // as subsections of that title, not compete with it.
 const baseMarkdownComponents: Components = {
-    h1: ({ children, node: _node, ...props }) => (
-        <h1
-            {...props}
-            className="mt-6 mb-3 text-xl sm:text-2xl font-black text-slate-950 border-b border-slate-100 pb-1.5"
-        >
-            {children}
-        </h1>
-    ),
-    h2: ({ children, node: _node, ...props }) => (
-        <h2
-            {...props}
-            className="mt-5 mb-2.5 text-lg sm:text-xl font-black text-slate-900 border-b border-slate-100 pb-1"
-        >
-            {children}
-        </h2>
-    ),
-    h3: ({ children, node: _node, ...props }) => (
-        <h3 {...props} className="mt-4 mb-2 text-base sm:text-lg font-bold text-slate-900">
-            {children}
-        </h3>
-    ),
+    h1: ({ children, node: _node, ...props }) => {
+        const text = getNodeText(children);
+        const id = props.id || slugifyHeading(text);
+        return (
+            <h1
+                {...props}
+                id={id}
+                className="mt-6 mb-3 text-xl sm:text-2xl font-black text-slate-950 border-b border-slate-100 pb-1.5 scroll-mt-24"
+            >
+                {children}
+            </h1>
+        );
+    },
+    h2: ({ children, node: _node, ...props }) => {
+        const text = getNodeText(children);
+        const id = props.id || slugifyHeading(text);
+        return (
+            <h2
+                {...props}
+                id={id}
+                className="mt-5 mb-2.5 text-lg sm:text-xl font-black text-slate-900 border-b border-slate-100 pb-1 scroll-mt-24"
+            >
+                {children}
+            </h2>
+        );
+    },
+    h3: ({ children, node: _node, ...props }) => {
+        const text = getNodeText(children);
+        const id = props.id || slugifyHeading(text);
+        return (
+            <h3
+                {...props}
+                id={id}
+                className="mt-4 mb-2 text-base sm:text-lg font-bold text-slate-900 scroll-mt-24"
+            >
+                {children}
+            </h3>
+        );
+    },
     p: ({ children, node: _node, ...props }) => (
         <p {...props} className="mb-2.5 text-sm sm:text-base leading-[1.55] text-slate-700">
             {children}

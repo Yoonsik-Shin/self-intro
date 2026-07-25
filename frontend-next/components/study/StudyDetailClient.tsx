@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -9,7 +9,7 @@ import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
-import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, ListOrdered } from 'lucide-react';
 import type { Study } from '@/lib/api/types';
 import {
     markdownComponents,
@@ -20,6 +20,7 @@ import {
     preprocessMarkdown,
     remarkUnindentListLines,
 } from '@/lib/markdown';
+import { extractToc } from '@/lib/toc';
 
 type Props = {
     study: Study;
@@ -28,6 +29,35 @@ type Props = {
 export function StudyDetailClient({ study }: Props) {
     const router = useRouter();
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+    const [activeId, setActiveId] = useState<string>('');
+
+    const toc = useMemo(() => extractToc(study.contentMarkdown), [study.contentMarkdown]);
+
+    useEffect(() => {
+        if (toc.length === 0) return;
+        const handleScroll = () => {
+            const scrollPosition = window.scrollY + 120;
+            for (let i = toc.length - 1; i >= 0; i--) {
+                const item = toc[i];
+                const el = document.getElementById(item.id);
+                if (el && el.offsetTop <= scrollPosition) {
+                    setActiveId(item.id);
+                    break;
+                }
+            }
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [toc]);
+
+    const scrollToHeading = (id: string) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+            setActiveId(id);
+        }
+    };
 
     const hasRelated =
         study.experiences.length > 0 ||
@@ -165,6 +195,49 @@ export function StudyDetailClient({ study }: Props) {
                                 <ChevronRight className="h-4 w-4" />
                             )}
                         </button>
+
+                        {/* Table of Contents (목차) */}
+                        {toc.length > 0 && (
+                            <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                                <div className="mb-2.5 flex items-center justify-between">
+                                    <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-800">
+                                        <ListOrdered className="h-3.5 w-3.5 text-blue-600" />
+                                        <span>목차</span>
+                                    </h3>
+                                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-600">
+                                        {toc.length}
+                                    </span>
+                                </div>
+                                <nav className="max-h-[300px] overflow-y-auto space-y-0.5 pr-1 text-xs scroll-smooth">
+                                    {toc.map((item) => {
+                                        const isActive = activeId === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                onClick={() => scrollToHeading(item.id)}
+                                                className={`group flex w-full items-start text-left transition-all duration-150 rounded-md px-2 py-1 ${
+                                                    item.level === 1
+                                                        ? 'font-bold text-slate-800'
+                                                        : item.level === 2
+                                                          ? 'pl-3.5 font-medium text-slate-600'
+                                                          : 'pl-6 text-slate-500'
+                                                } ${
+                                                    isActive
+                                                        ? 'bg-blue-50 text-blue-700 font-bold border-l-2 border-blue-600'
+                                                        : 'hover:bg-slate-100/80 hover:text-slate-900'
+                                                }`}
+                                            >
+                                                <span className="line-clamp-2 leading-relaxed">
+                                                    {item.text}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </nav>
+                                <hr className="mt-4 mb-4 border-slate-100" />
+                            </div>
+                        )}
 
                         <div
                             className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}
