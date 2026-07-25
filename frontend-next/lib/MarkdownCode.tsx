@@ -246,28 +246,23 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         };
 
         const targetCenterX = rect.left - containerRect.left + rect.width / 2;
-        const relativeTop = rect.top - containerRect.top;
-
-        // 실제 화면상 보이는 컨테이너 너비 측정 (clientWidth 사용)
         const containerWidth = codeContainerRef.current?.clientWidth || containerRect.width || 600;
-        const popoverWidth = Math.min(420, Math.max(320, containerWidth - 32));
+        const popoverWidth = Math.min(360, Math.max(280, containerWidth - 32));
         const halfWidth = popoverWidth / 2;
         const padding = 16;
 
-        // 좌우 경계 넘침 절대 방지 cardLeft 계산 (최소 padding ~ 최대 containerWidth - width - padding)
         const desiredLeft = targetCenterX - halfWidth;
         const cardLeft = Math.max(
             padding,
             Math.min(containerWidth - popoverWidth - padding, desiredLeft)
         );
 
-        // 코드 상단 근접 시(상단 130px 이내) 아래쪽(Below)으로 자동 위치 변경
+        const relativeTop = rect.top - containerRect.top;
         const placeBelow = relativeTop < 130;
         const y = placeBelow
             ? rect.bottom - containerRect.top + 8
             : rect.top - containerRect.top - 8;
 
-        // 화살표 포인터 위치: 팝업 내부 상대 좌표 (targetCenterX - cardLeft)
         const arrowLeft = Math.max(16, Math.min(popoverWidth - 16, targetCenterX - cardLeft));
 
         return { cardLeft, y, placeBelow, arrowLeft, popoverWidth };
@@ -540,39 +535,34 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                             </div>
                         </div>
 
-                        {/* Description Paragraph (High Contrast Pure White & Break-words) */}
+                        {/* Hero Description Paragraph (High Contrast White, Forced Line Wrapping) */}
                         <p
                             style={{
                                 color: '#ffffff',
-                                wordBreak: 'break-word',
-                                overflowWrap: 'anywhere',
+                                fontSize: '0.875rem',
+                                fontWeight: 600,
+                                lineHeight: '1.65',
+                                whiteSpace: 'normal',
+                                wordBreak: 'break-all',
+                                overflowWrap: 'break-word',
                             }}
-                            className="mt-3 text-xs font-medium leading-relaxed whitespace-normal"
+                            className="mt-3"
                         >
                             {hoveredConcept.info.desc}
                         </p>
 
-                        {/* Tip Box (High Contrast Vivid Yellow & Pure White Text) */}
+                        {/* Compact Subtle Secondary Tip Badge (Smaller & Muted than main text) */}
                         {hoveredConcept.info.tip && (
                             <div
                                 style={{
-                                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                                    borderColor: 'rgba(245, 158, 11, 0.5)',
-                                    color: '#ffffff',
-                                    wordBreak: 'break-word',
-                                    overflowWrap: 'anywhere',
+                                    whiteSpace: 'normal',
+                                    wordBreak: 'break-all',
+                                    overflowWrap: 'break-word',
                                 }}
-                                className="mt-3 flex items-start gap-2 rounded-lg border p-2.5 text-xs font-semibold whitespace-normal shadow-md"
+                                className="mt-3 flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-slate-800/90 px-2.5 py-1.5 text-xs font-medium text-amber-300 shadow-sm"
                             >
-                                <span className="text-sm shrink-0">💡</span>
-                                <span
-                                    style={{
-                                        color: '#ffffff',
-                                        fontSize: '0.8rem',
-                                        fontWeight: 600,
-                                        lineHeight: '1.5',
-                                    }}
-                                >
+                                <span className="text-xs shrink-0">💡</span>
+                                <span className="text-[11px] leading-snug text-amber-200/90">
                                     {hoveredConcept.info.tip}
                                 </span>
                             </div>
