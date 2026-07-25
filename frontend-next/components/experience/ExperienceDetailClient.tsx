@@ -11,7 +11,6 @@ import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import {
     ArrowLeft,
-    ArrowUp,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
@@ -443,7 +442,7 @@ export function ExperienceDetailClient({
                 {/* Right Navigation Sidebar */}
                 <aside className="block w-full sticky top-24 self-start">
                     <div
-                        className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${
+                        className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
                                 : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
@@ -454,8 +453,8 @@ export function ExperienceDetailClient({
                             onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
                             className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                                 isNavCollapsed
-                                    ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-sm'
-                                    : 'absolute -right-[11px] top-7 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
+                                    ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
+                                    : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                             }`}
                             title={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
                             aria-label={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
@@ -469,13 +468,11 @@ export function ExperienceDetailClient({
                         </button>
 
                         {/* Related Studies */}
-                        <div
-                            className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-12'}`}
-                        >
-                            <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">
+                        <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                                 연결 항목
                             </h3>
-                            <p className="mt-0.5 text-sm leading-none text-slate-500">
+                            <p className="mt-0.5 text-xs leading-normal text-slate-400">
                                 이 경험과 연관된 학습 기록입니다.
                             </p>
                         </div>
@@ -485,7 +482,7 @@ export function ExperienceDetailClient({
                         >
                             {relatedStudies.length > 0 ? (
                                 <div>
-                                    <h4 className="mb-1 text-xs font-black uppercase text-slate-400">
+                                    <h4 className="mb-1 text-xs font-black uppercase tracking-wider text-slate-400">
                                         관련 학습 · 기술노트
                                     </h4>
                                     <div className="space-y-1.5">
@@ -493,9 +490,9 @@ export function ExperienceDetailClient({
                                             <Link
                                                 key={study.id}
                                                 href={`/study/${encodeURIComponent(study.slug)}`}
-                                                className="flex w-full items-start gap-1 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950"
+                                                className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                             >
-                                                <span className="mt-0.5 shrink-0 font-bold text-slate-400">
+                                                <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
                                                     ›
                                                 </span>
                                                 <span>{study.title}</span>
@@ -511,7 +508,7 @@ export function ExperienceDetailClient({
 
                             {siblingDetails.length > 0 && (
                                 <div className="border-t border-slate-100 pt-3">
-                                    <h4 className="mb-1 text-xs font-black uppercase text-slate-400">
+                                    <h4 className="mb-1 text-xs font-black uppercase tracking-wider text-slate-400">
                                         이 이력의 다른 경험 불릿
                                     </h4>
                                     <div className="space-y-1.5">
@@ -519,10 +516,13 @@ export function ExperienceDetailClient({
                                             <Link
                                                 key={sibling.id}
                                                 href={`/experience/${experience.id}/experience-detail/${sibling.id}`}
-                                                className="block w-full truncate text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950"
+                                                className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                                 title={sibling.content}
                                             >
-                                                • {sibling.content}
+                                                <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                    •
+                                                </span>
+                                                <span>{sibling.content}</span>
                                             </Link>
                                         ))}
                                     </div>
@@ -543,24 +543,6 @@ export function ExperienceDetailClient({
                                 <ArrowLeft className="h-4 w-4" />
                             </button>
                         </div>
-
-                        <hr
-                            className={`hidden border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                        />
-
-                        <button
-                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
-                            title="위로 가기"
-                            aria-label="위로 가기"
-                        >
-                            <ArrowUp className="h-4 w-4 shrink-0" />
-                            <span
-                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
-                            >
-                                위로 가기
-                            </span>
-                        </button>
                     </div>
                 </aside>
 

@@ -192,10 +192,10 @@ export function StudyDetailClient({ study }: Props) {
                         <button
                             type="button"
                             onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
-                            className={`z-30 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
+                            className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                                 isNavCollapsed
                                     ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
-                                    : 'absolute -left-3.5 top-5 h-7 w-7 rounded-full border bg-white text-slate-500 shadow-xs hover:scale-105'
+                                    : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                             }`}
                             title={isNavCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                             aria-label={isNavCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
