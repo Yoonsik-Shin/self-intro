@@ -390,14 +390,18 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
     const isBlock = Boolean(rawLanguage) || source.includes('\n');
 
     const codeContainerRef = useRef<HTMLDivElement>(null);
+    const [tooltipEnabled, setTooltipEnabled] = useState(true);
     const [hoveredConcept, setHoveredConcept] = useState<{
         info: ConceptDetail;
         x: number;
         y: number;
+        keyword: string;
     } | null>(null);
 
     // 💡 마우스 호버 시 코드 키워드 탐지 및 팝업 위치 계산
     const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!tooltipEnabled) return;
+
         const target = e.target as HTMLElement;
         if (!target) return;
 
@@ -415,11 +419,17 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                 info: detail,
                 x: rect.left - containerRect.left + rect.width / 2,
                 y: rect.top - containerRect.top - 8,
+                keyword: text,
             });
         }
     };
 
-    const handleMouseLeave = () => {
+    const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+        // 팝업 내부로 마우스 이동 시 닫히지 않도록 조치
+        const related = e.relatedTarget as HTMLElement;
+        if (related && codeContainerRef.current?.contains(related)) {
+            return;
+        }
         setHoveredConcept(null);
     };
 
@@ -451,16 +461,36 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
             onMouseLeave={handleMouseLeave}
             className="group relative my-4 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-md"
         >
-            {/* Top Bar Header */}
+            {/* Top Bar Header with Toggle Switch */}
             <div className="flex h-10 items-center justify-between border-b border-slate-700 bg-slate-900 px-3.5">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                         Code
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-sky-950/80 px-2 py-0.5 text-[10px] font-medium text-sky-400 border border-sky-800/50">
-                        💡 키워드 마우스 호버 개념 팝업 지원
-                    </span>
+
+                    {/* ON / OFF 개념 팝업 토글 버튼 */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setTooltipEnabled(!tooltipEnabled);
+                            if (tooltipEnabled) setHoveredConcept(null);
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-medium transition ${
+                            tooltipEnabled
+                                ? 'bg-sky-950/80 text-sky-300 border border-sky-800/60 hover:bg-sky-900'
+                                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-750'
+                        }`}
+                        title="마우스 호버 시 개념 팝업 켜기/끄기"
+                    >
+                        <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                                tooltipEnabled ? 'bg-sky-400 animate-pulse' : 'bg-slate-500'
+                            }`}
+                        />
+                        {tooltipEnabled ? '💡 개념 팝업 ON (마우스 호버)' : '💡 개념 팝업 OFF'}
+                    </button>
                 </div>
+
                 {canChangeLanguage ? (
                     <label className="relative">
                         <span className="sr-only">코드 언어</span>
@@ -509,22 +539,32 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                 {source}
             </SyntaxHighlighter>
 
-            {/* 🌟 Interactive Code Concept Hover Tooltip Popover */}
-            {hoveredConcept && (
+            {/* 🌟 Interactive Code Concept Hover Tooltip Popover with Close (X) Button */}
+            {tooltipEnabled && hoveredConcept && (
                 <div
                     style={{
                         left: `${hoveredConcept.x}px`,
                         top: `${hoveredConcept.y}px`,
                         transform: 'translate(-50%, -100%)',
                     }}
-                    className="pointer-events-none absolute z-30 max-w-xs animate-in fade-in zoom-in-95 duration-150"
+                    className="pointer-events-auto absolute z-30 max-w-xs animate-in fade-in zoom-in-95 duration-150"
                 >
-                    <div className="rounded-xl border border-sky-400/30 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
-                        <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
-                            <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider">
+                    <div className="relative rounded-xl border border-sky-400/40 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
+                        {/* ✕ 닫기 버튼 UX */}
+                        <button
+                            type="button"
+                            onClick={() => setHoveredConcept(null)}
+                            aria-label="팝업 닫기"
+                            className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-white transition text-xs font-bold"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 pr-6">
+                            <span className="text-[10px] font-bold tracking-wider text-sky-400 uppercase">
                                 {hoveredConcept.info.category}
                             </span>
-                            <span className="rounded bg-sky-950 px-1.5 py-0.5 text-[11px] font-mono font-semibold text-sky-200">
+                            <span className="rounded bg-sky-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-sky-200">
                                 {hoveredConcept.info.title}
                             </span>
                         </div>
@@ -532,13 +572,13 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                             {hoveredConcept.info.desc}
                         </p>
                         {hoveredConcept.info.tip && (
-                            <div className="mt-2 rounded-lg bg-sky-950/60 p-2 text-[11px] font-medium text-sky-300 border border-sky-800/40">
+                            <div className="mt-2 rounded-lg border border-sky-800/40 bg-sky-950/60 p-2 text-[11px] font-medium text-sky-300">
                                 💡 {hoveredConcept.info.tip}
                             </div>
                         )}
                     </div>
                     {/* Popover Arrow Pointer */}
-                    <div className="mx-auto -mt-1 h-2 w-2 rotate-45 border-b border-r border-sky-400/30 bg-slate-900/95" />
+                    <div className="mx-auto -mt-1 h-2 w-2 rotate-45 border-b border-r border-sky-400/40 bg-slate-900/95" />
                 </div>
             )}
         </div>
