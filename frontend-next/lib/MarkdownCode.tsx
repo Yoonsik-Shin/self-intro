@@ -209,11 +209,12 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
     const [isPinned, setIsPinned] = useState(false);
     const [hoveredConcept, setHoveredConcept] = useState<{
         info: ConceptDetail;
-        x: number;
+        cardLeft: number;
         y: number;
         keyword: string;
         placeBelow: boolean;
-        arrowOffset: number;
+        arrowLeft: number;
+        popoverWidth: number;
     } | null>(null);
 
     const activeElementRef = useRef<HTMLElement | null>(null);
@@ -234,7 +235,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         setHoveredConcept(null);
     };
 
-    // 💡 팝업 경계 잘림 방지 (Horizontal Clamping) 및 상/하 자동 뒤집힘 (Vertical Auto-flip) 위치 계산
+    // 💡 팝업 경계 잘림 절대 방지 (cardLeft) 및 상/하 자동 뒤집힘 (placeBelow) 정밀 위치 계산
     const calculatePopoverPosition = (target: HTMLElement) => {
         const rect = target.getBoundingClientRect();
         const containerRect = codeContainerRef.current?.getBoundingClientRect() || {
@@ -244,28 +245,31 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
             height: 400,
         };
 
-        const rawX = rect.left - containerRect.left + rect.width / 2;
+        const targetCenterX = rect.left - containerRect.left + rect.width / 2;
         const relativeTop = rect.top - containerRect.top;
 
-        const popoverHalfWidth = 140;
+        const popoverWidth = 280;
+        const halfWidth = popoverWidth / 2;
         const padding = 16;
         const containerWidth = containerRect.width || 600;
 
-        // 좌우 경계 넘침 방지 Clamping
-        const clampedX = Math.max(
-            popoverHalfWidth + padding,
-            Math.min(containerWidth - popoverHalfWidth - padding, rawX)
+        // 좌우 경계 넘침 절대 방지 cardLeft 계산 (최소 padding ~ 최대 containerWidth - width - padding)
+        const desiredLeft = targetCenterX - halfWidth;
+        const cardLeft = Math.max(
+            padding,
+            Math.min(containerWidth - popoverWidth - padding, desiredLeft)
         );
 
-        // 상단 근접 시 아래쪽(Below)으로 자동 위치 변경
-        const placeBelow = relativeTop < 140;
+        // 코드 상단 근접 시(상단 130px 이내) 아래쪽(Below)으로 자동 위치 변경
+        const placeBelow = relativeTop < 130;
         const y = placeBelow
             ? rect.bottom - containerRect.top + 8
             : rect.top - containerRect.top - 8;
 
-        const arrowOffset = rawX - clampedX;
+        // 화살표 포인터 위치: 팝업 내부 상대 좌표 (targetCenterX - cardLeft)
+        const arrowLeft = Math.max(16, Math.min(popoverWidth - 16, targetCenterX - cardLeft));
 
-        return { x: clampedX, y, placeBelow, arrowOffset };
+        return { cardLeft, y, placeBelow, arrowLeft, popoverWidth };
     };
 
     // 💡 마우스 클릭 시 팝업 상태 고정(Pin) / 해제(Unpin)
@@ -474,21 +478,22 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
             {tooltipEnabled && hoveredConcept && (
                 <div
                     style={{
-                        left: `${hoveredConcept.x}px`,
+                        left: `${hoveredConcept.cardLeft}px`,
                         top: `${hoveredConcept.y}px`,
+                        width: `${hoveredConcept.popoverWidth}px`,
                         transform: hoveredConcept.placeBelow
-                            ? 'translate(-50%, 0)'
-                            : 'translate(-50%, -100%)',
+                            ? 'translateY(0)'
+                            : 'translateY(-100%)',
                     }}
-                    className="pointer-events-auto absolute z-30 max-w-xs animate-in fade-in zoom-in-95 duration-150"
+                    className="pointer-events-auto absolute z-30 animate-in fade-in zoom-in-95 duration-150"
                 >
                     {/* Top Arrow Pointer (when placed below) */}
                     {hoveredConcept.placeBelow && (
                         <div
                             style={{
-                                transform: `translateX(${hoveredConcept.arrowOffset}px) rotate(45deg)`,
+                                left: `${hoveredConcept.arrowLeft}px`,
                             }}
-                            className={`mx-auto -mb-1 h-2.5 w-2.5 border-l border-t bg-slate-900/95 ${
+                            className={`absolute -top-1 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-l border-t bg-slate-900/95 ${
                                 isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
                             }`}
                         />
@@ -544,9 +549,9 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                     {!hoveredConcept.placeBelow && (
                         <div
                             style={{
-                                transform: `translateX(${hoveredConcept.arrowOffset}px) rotate(45deg)`,
+                                left: `${hoveredConcept.arrowLeft}px`,
                             }}
-                            className={`mx-auto -mt-1 h-2.5 w-2.5 border-b border-r bg-slate-900/95 ${
+                            className={`absolute -bottom-1 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-b border-r bg-slate-900/95 ${
                                 isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
                             }`}
                         />
