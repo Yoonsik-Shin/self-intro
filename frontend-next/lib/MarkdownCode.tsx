@@ -250,7 +250,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
 
         // 실제 화면상 보이는 컨테이너 너비 측정 (clientWidth 사용)
         const containerWidth = codeContainerRef.current?.clientWidth || containerRect.width || 600;
-        const popoverWidth = Math.min(300, Math.max(240, containerWidth - 32));
+        const popoverWidth = Math.min(420, Math.max(320, containerWidth - 32));
         const halfWidth = popoverWidth / 2;
         const padding = 16;
 
@@ -504,10 +504,10 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
 
                     <div
                         style={{ boxSizing: 'border-box' }}
-                        className={`relative w-full max-w-full overflow-hidden rounded-xl border p-3.5 shadow-2xl backdrop-blur-md bg-slate-900/98 ${
+                        className={`relative w-full max-w-full rounded-xl border p-4 shadow-2xl backdrop-blur-md bg-slate-900 ${
                             isPinned
-                                ? 'border-amber-400/80 shadow-amber-500/20 ring-1 ring-amber-400/30'
-                                : 'border-sky-400/70 shadow-sky-500/20 ring-1 ring-sky-400/30'
+                                ? 'border-amber-400 shadow-amber-500/20 ring-1 ring-amber-400/40'
+                                : 'border-sky-400 shadow-sky-500/20 ring-1 ring-sky-400/40'
                         }`}
                     >
                         <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
@@ -533,7 +533,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                                         handleClose();
                                     }}
                                     aria-label="팝업 닫기"
-                                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-800 text-xs font-extrabold text-slate-200 border border-slate-600 transition hover:bg-red-500 hover:text-white hover:border-red-400"
+                                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-800 text-xs font-extrabold text-slate-100 border border-slate-600 transition hover:bg-red-500 hover:text-white hover:border-red-400"
                                 >
                                     ✕
                                 </button>
@@ -541,14 +541,40 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                         </div>
 
                         {/* Description Paragraph (High Contrast Pure White & Break-words) */}
-                        <p className="mt-2.5 text-xs font-medium leading-relaxed text-slate-100 break-words whitespace-normal">
+                        <p
+                            style={{
+                                color: '#ffffff',
+                                wordBreak: 'break-word',
+                                overflowWrap: 'anywhere',
+                            }}
+                            className="mt-3 text-xs font-medium leading-relaxed whitespace-normal"
+                        >
                             {hoveredConcept.info.desc}
                         </p>
 
-                        {/* Tip Box (High Contrast Vivid Amber Yellow) */}
+                        {/* Tip Box (High Contrast Vivid Yellow & Pure White Text) */}
                         {hoveredConcept.info.tip && (
-                            <div className="mt-2.5 rounded-lg border border-amber-400/40 bg-amber-500/15 p-2.5 text-xs font-semibold text-amber-200 break-words whitespace-normal">
-                                💡 {hoveredConcept.info.tip}
+                            <div
+                                style={{
+                                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                                    borderColor: 'rgba(245, 158, 11, 0.5)',
+                                    color: '#ffffff',
+                                    wordBreak: 'break-word',
+                                    overflowWrap: 'anywhere',
+                                }}
+                                className="mt-3 flex items-start gap-2 rounded-lg border p-2.5 text-xs font-semibold whitespace-normal shadow-md"
+                            >
+                                <span className="text-sm shrink-0">💡</span>
+                                <span
+                                    style={{
+                                        color: '#ffffff',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 600,
+                                        lineHeight: '1.5',
+                                    }}
+                                >
+                                    {hoveredConcept.info.tip}
+                                </span>
                             </div>
                         )}
                     </div>
