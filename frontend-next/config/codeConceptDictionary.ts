@@ -10,6 +10,30 @@ export interface ConceptDetail {
  * 새로운 키워드나 개념 설명을 추가/수정하려면 이 파일만 편집하시면 됩니다.
  */
 export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
+    // 🔗 메서드 참조 (Method Reference)
+    '::': {
+        title: ':: 메서드 참조 (Method Reference)',
+        desc: '이미 정의된 메서드를 람다처럼 전달하는 더블 콜론(::) 연산자입니다. x -> x.method() 형태의 람다를 ClassName::method 형태로 간결하게 단축합니다.',
+        category: '🔗 메서드 참조',
+        tip: '4가지 유형: 정적(Math::abs) / 특정 인스턴스(System.out::println) / 임의 인스턴스(String::toUpperCase) / 생성자(ArrayList::new)',
+    },
+    'Integer::parseInt': {
+        title: 'Integer::parseInt (정적 메서드 참조)',
+        desc: 'String -> int 변환을 수행하는 정적 메서드입니다. s -> Integer.parseInt(s) 람다와 완전히 동일하게 작동합니다.',
+        category: '🔗 메서드 참조',
+        tip: 'map(Integer::parseInt)으로 문자열 숫자 배열을 정수로 일괄 변환',
+    },
+    'String::toUpperCase': {
+        title: 'String::toUpperCase (임의 인스턴스 메서드 참조)',
+        desc: '스트림의 각 String 원소 s에 대해 s.toUpperCase()를 호출합니다. s -> s.toUpperCase() 람다와 동일합니다.',
+        category: '🔗 메서드 참조',
+    },
+    'String::length': {
+        title: 'String::length (임의 인스턴스 메서드 참조)',
+        desc: '스트림의 각 String 원소 s에 대해 s.length()를 반환합니다. s -> s.length() 람다와 동일합니다.',
+        category: '🔗 메서드 참조',
+    },
+
     // ⚡ Stream API
     stream: {
         title: 'stream() / Collection.stream()',
@@ -18,10 +42,10 @@ export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
         tip: 'flatMap(Collection::stream) 형태로 2차원 평탄화 시 유용',
     },
     'Collection::stream': {
-        title: 'Collection::stream',
-        desc: '각 내부 컬렉션 요소를 스트림으로 변환하는 메서드 참조(Method Reference) 표현식입니다.',
-        category: '⚡ Stream API',
-        tip: '2차원 리스트/배열 -> 1차원 평탄화(flatMap)의 필수 표현식',
+        title: 'Collection::stream (임의 인스턴스 메서드 참조)',
+        desc: '각 내부 컬렉션 요소를 스트림으로 변환하는 메서드 참조입니다. list -> list.stream() 람다를 :: 표현식으로 단축한 것입니다.',
+        category: '🔗 메서드 참조',
+        tip: 'flatMap(Collection::stream) = 2차원 List<List<T>> -> 1차원 Stream<T> 평탄화',
     },
     filter: {
         title: 'filter(Predicate)',
