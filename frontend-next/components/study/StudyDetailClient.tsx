@@ -92,7 +92,7 @@ export function StudyDetailClient({ study }: Props) {
                 className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-12 sm:gap-6 ${
                     isNavCollapsed
                         ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_240px]'
+                        : 'min-[900px]:grid-cols-[minmax(0,1fr)_280px] min-[1200px]:grid-cols-[minmax(0,1fr)_300px]'
                 }`}
             >
                 <div className="min-w-0 space-y-8">
@@ -183,7 +183,7 @@ export function StudyDetailClient({ study }: Props) {
 
                 <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
                     <div
-                        className={`relative flex flex-col max-h-[calc(100vh-7.5rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 shadow-md backdrop-blur-md min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${
+                        className={`relative flex flex-col max-h-[calc(100vh-7.5rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:p-2'
                                 : 'min-[900px]:gap-3 min-[900px]:p-4'
@@ -192,13 +192,13 @@ export function StudyDetailClient({ study }: Props) {
                         <button
                             type="button"
                             onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
-                            className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
+                            className={`z-30 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                                 isNavCollapsed
-                                    ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-sm'
-                                    : 'absolute -right-[11px] top-5 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
+                                    ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
+                                    : 'absolute -left-3.5 top-5 h-7 w-7 rounded-full border bg-white text-slate-500 shadow-xs hover:scale-105'
                             }`}
-                            title={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
-                            aria-label={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
+                            title={isNavCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+                            aria-label={isNavCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                             aria-expanded={!isNavCollapsed}
                         >
                             {isNavCollapsed ? (
