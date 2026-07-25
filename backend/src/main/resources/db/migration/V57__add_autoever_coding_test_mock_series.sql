@@ -252,7 +252,7 @@ public class Main {
 - 모든 정점에서 다익스트라를 실행한다.
 - 중요 지점 사이가 연결되지 않았는데 `INF`끼리 더한다.
 - 거리와 DP 값을 `int`로 선언한다.
-- `mask`의 점검소 번호와 중요 지점 배열의 인덱스를 혼동한다.', 'DRAFT', (SELECT id FROM study_category WHERE slug = 'education'), '2026-07-23', NULL, NOW(), NOW()),
+- `mask`의 점검소 번호와 중요 지점 배열의 인덱스를 혼동한다.', 'PUBLISHED', (SELECT id FROM study_category WHERE slug = 'education'), '2026-07-23', '2026-07-25 10:00:00', NOW(), NOW()),
 ('autoever-mock-02-deployment-orders', '현대오토에버 대비 모의문제 2 — 차량 SW 배포 순서', '모듈 간 선행 조건을 만족하는 전체 배포 순서의 수를 계산하는 오리지널 모의문제다. 위상 관계를 비트마스크로 압축하고 부분집합 DP로 가능한 순서를 센다.', '# 현대오토에버 대비 모의문제 2 — 차량 SW 배포 순서
 
 > 공개된 응시 후기에서 언급된 위상 관계와 재귀·DP 경향을 참고해 새로 만든 문제다. 실제 기출문제를 복원한 내용이 아니다.
