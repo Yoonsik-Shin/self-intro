@@ -81,7 +81,7 @@ export default async function ExperiencePage({ params }: Props) {
     const relatedStudies = await findRelatedStudies(experience.details);
 
     return (
-        <div className="relative mx-auto max-w-[1500px] space-y-1 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-[1500px] space-y-1 px-4 py-6 sm:px-6">
             <ExperienceDetailClient
                 experience={experience}
                 detail={detail}
