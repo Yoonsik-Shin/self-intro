@@ -213,7 +213,19 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         keyword: string;
     } | null>(null);
 
-    // 💡 마우스 호버 시 코드 키워드 탐지 및 팝업 위치 계산
+    const activeElementRef = useRef<HTMLElement | null>(null);
+
+    const clearHighlight = () => {
+        if (activeElementRef.current) {
+            activeElementRef.current.style.backgroundColor = '';
+            activeElementRef.current.style.outline = '';
+            activeElementRef.current.style.borderRadius = '';
+            activeElementRef.current.style.boxShadow = '';
+            activeElementRef.current = null;
+        }
+    };
+
+    // 💡 마우스 호버 시 코드 키워드 탐지, 하이라이팅 및 팝업 위치 계산
     const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!tooltipEnabled) return;
 
@@ -224,6 +236,17 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         const detail = CODE_CONCEPT_DICTIONARY[text];
 
         if (detail) {
+            if (activeElementRef.current && activeElementRef.current !== target) {
+                clearHighlight();
+            }
+
+            // 코드 내 해당 키워드 조각 하이라이팅 (스카이 블루 글로우)
+            target.style.backgroundColor = 'rgba(56, 189, 248, 0.25)';
+            target.style.outline = '1px solid #38bdf8';
+            target.style.borderRadius = '3px';
+            target.style.boxShadow = '0 0 8px rgba(56, 189, 248, 0.5)';
+            activeElementRef.current = target;
+
             const rect = target.getBoundingClientRect();
             const containerRect = codeContainerRef.current?.getBoundingClientRect() || {
                 left: 0,
@@ -236,15 +259,17 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                 y: rect.top - containerRect.top - 8,
                 keyword: text,
             });
+        } else {
+            // 다른 비키워드 영역으로 마우스 이동 시 하이라이트 및 팝업 즉시 제거
+            if (activeElementRef.current) {
+                clearHighlight();
+                setHoveredConcept(null);
+            }
         }
     };
 
-    const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
-        // 팝업 내부로 마우스 이동 시 닫히지 않도록 조치
-        const related = e.relatedTarget as HTMLElement;
-        if (related && codeContainerRef.current?.contains(related)) {
-            return;
-        }
+    const handleMouseLeave = () => {
+        clearHighlight();
         setHoveredConcept(null);
     };
 
