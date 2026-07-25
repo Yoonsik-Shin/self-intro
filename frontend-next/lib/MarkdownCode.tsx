@@ -248,10 +248,11 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         const targetCenterX = rect.left - containerRect.left + rect.width / 2;
         const relativeTop = rect.top - containerRect.top;
 
-        const popoverWidth = 280;
+        // 실제 화면상 보이는 컨테이너 너비 측정 (clientWidth 사용)
+        const containerWidth = codeContainerRef.current?.clientWidth || containerRect.width || 600;
+        const popoverWidth = Math.min(300, Math.max(240, containerWidth - 32));
         const halfWidth = popoverWidth / 2;
         const padding = 16;
-        const containerWidth = containerRect.width || 600;
 
         // 좌우 경계 넘침 절대 방지 cardLeft 계산 (최소 padding ~ 최대 containerWidth - width - padding)
         const desiredLeft = targetCenterX - halfWidth;
@@ -535,11 +536,11 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                                 </button>
                             </div>
                         </div>
-                        <p className="mt-2 text-xs leading-relaxed text-slate-200">
+                        <p className="mt-2 text-xs leading-relaxed text-slate-200 break-keep break-words whitespace-normal">
                             {hoveredConcept.info.desc}
                         </p>
                         {hoveredConcept.info.tip && (
-                            <div className="mt-2 rounded-lg border border-sky-800/40 bg-sky-950/60 p-2 text-[11px] font-medium text-sky-300">
+                            <div className="mt-2 rounded-lg border border-sky-800/40 bg-sky-950/60 p-2 text-[11px] font-medium text-sky-300 break-keep break-words whitespace-normal">
                                 💡 {hoveredConcept.info.tip}
                             </div>
                         )}
