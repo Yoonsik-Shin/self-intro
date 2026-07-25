@@ -248,18 +248,21 @@ export function StudyDetailClient({ study }: Props) {
                                                     key={item.id}
                                                     type="button"
                                                     onClick={() => scrollToHeading(item.id)}
-                                                    className={`group flex w-full items-start text-left transition-all duration-150 rounded-md px-2 py-1 ${
+                                                    className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1.5 ${
                                                         item.level === 1
                                                             ? 'font-bold text-slate-800'
                                                             : item.level === 2
-                                                              ? 'pl-3.5 font-medium text-slate-600'
-                                                              : 'pl-6 text-slate-500'
+                                                              ? 'pl-5 font-medium text-slate-600'
+                                                              : 'pl-7 text-slate-500'
                                                     } ${
                                                         isActive
-                                                            ? 'bg-blue-50 text-blue-700 font-bold border-l-2 border-blue-600'
-                                                            : 'hover:bg-slate-100/80 hover:text-slate-900'
+                                                            ? 'bg-blue-50/90 text-blue-700 font-extrabold shadow-2xs'
+                                                            : 'hover:bg-slate-100/70 hover:text-slate-900'
                                                     }`}
                                                 >
+                                                    {isActive && (
+                                                        <span className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-blue-600 shadow-2xs" />
+                                                    )}
                                                     <span className="line-clamp-2 leading-relaxed">
                                                         {item.text}
                                                     </span>
