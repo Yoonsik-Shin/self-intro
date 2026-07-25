@@ -113,7 +113,7 @@ export function SiteHeader() {
                         <button
                             type="button"
                             onClick={() => setDonationOpen(true)}
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-700 hover:shadow-md active:scale-95"
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-sm font-bold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-700 hover:shadow-md active:scale-95"
                             title="후원하기"
                         >
                             <Heart className="h-3.5 w-3.5 fill-white text-white" />
@@ -124,7 +124,7 @@ export function SiteHeader() {
                     {isIntro && (
                         <button
                             onClick={() => setPrintModalOpen(true)}
-                            className="hidden h-9 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-slate-900 to-slate-950 px-3 text-sm font-bold text-white hover:from-slate-800 hover:to-slate-900 transition shadow-sm shadow-slate-800/20 min-[900px]:flex"
+                            className="hidden h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-slate-900 to-slate-950 px-3 text-sm font-bold text-white hover:from-slate-800 hover:to-slate-900 transition shadow-sm shadow-slate-800/20 min-[900px]:flex"
                             title="PDF 인쇄"
                         >
                             <Printer className="h-3.5 w-3.5" />
