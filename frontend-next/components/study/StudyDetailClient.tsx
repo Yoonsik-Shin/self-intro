@@ -44,6 +44,39 @@ export function StudyDetailClient({ study }: Props) {
     const toc = useMemo(() => extractToc(study.contentMarkdown), [study.contentMarkdown]);
 
     useEffect(() => {
+        try {
+            const STORAGE_KEY = 'recently_viewed_studies';
+            const existingRaw = localStorage.getItem(STORAGE_KEY);
+            let items: Array<{
+                slug: string;
+                title: string;
+                categoryName: string;
+                viewedAt: number;
+            }> = existingRaw ? JSON.parse(existingRaw) : [];
+
+            // Remove duplicate if already exists
+            items = items.filter((item) => item.slug !== study.slug);
+
+            // Add to beginning
+            items.unshift({
+                slug: study.slug,
+                title: study.title,
+                categoryName: study.category.name,
+                viewedAt: Date.now(),
+            });
+
+            // Limit to 10 items max
+            if (items.length > 10) {
+                items = items.slice(0, 10);
+            }
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        } catch {
+            // Ignore localStorage errors (e.g. incognito)
+        }
+    }, [study.slug, study.title, study.category.name]);
+
+    useEffect(() => {
         const handleScroll = () => {
             setShowScrollTop(window.scrollY > 300);
 
@@ -96,7 +129,7 @@ export function StudyDetailClient({ study }: Props) {
                 }`}
             >
                 <div className="min-w-0 space-y-8">
-                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                    <article className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10 pb-12 sm:pb-14">
                         <div className="mb-8 border-b border-slate-100 pb-6">
                             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
                                 <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">
@@ -178,22 +211,20 @@ export function StudyDetailClient({ study }: Props) {
                                 {preprocessMarkdown(study.contentMarkdown)}
                             </ReactMarkdown>
                         </div>
-                    </article>
 
-                    {/* 본문 기준 오른쪽 하단 Floating 위로 가기 버튼 (h-0 0px 공간 점유) */}
-                    {showScrollTop && (
-                        <div className="sticky bottom-6 z-30 flex justify-end h-0 overflow-visible pointer-events-none">
+                        {/* 본문 기준 오른쪽 하단 위로 가기 버튼 (Absolute positioning, 0px flow space) */}
+                        {showScrollTop && (
                             <button
                                 type="button"
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                className="absolute right-6 bottom-6 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
                                 title="본문 맨 위로 스크롤"
                                 aria-label="본문 맨 위로 스크롤"
                             >
                                 <ArrowUp className="h-5 w-5" />
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </article>
                 </div>
 
                 <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
