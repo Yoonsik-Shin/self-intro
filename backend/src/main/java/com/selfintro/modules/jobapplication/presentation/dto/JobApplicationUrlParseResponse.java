@@ -8,4 +8,10 @@ public record JobApplicationUrlParseResponse(
         String source,
         LocalDate deadline,
         String salaryNote,
+        String jobDescription,
+        String requiredQualifications,
+        String preferredQualifications,
+        String hiringProcess,
+        String applicationMethod,
+        String compensationDetail,
         String postingUrl) {}

@@ -1,12 +1,16 @@
 package com.selfintro.global.ai;
 
+import java.util.List;
 import java.util.function.Consumer;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MimeType;
 import org.springframework.web.server.ResponseStatusException;
 
 @Component
@@ -49,6 +53,50 @@ public class NvidiaNimClient {
         }
     }
 
+    public String generateWithImage(
+            String systemPrompt,
+            String userPrompt,
+            String model,
+            byte[] imageBytes,
+            String mimeType) {
+        return generateWithImages(
+                systemPrompt, userPrompt, model, List.of(new ImagePart(imageBytes, mimeType)));
+    }
+
+    /**
+     * 세로로 긴 배너처럼 한 장으로는 해상도가 부족한 이미지를 여러 조각으로 잘라 한 번의 요청에 순서대로 함께 보낸다. 비전 모델이 여러 이미지를 하나의 문서로 이해하고
+     * 합성해 답하도록 {@code userPrompt}에서 순서를 설명해줘야 한다.
+     */
+    public String generateWithImages(
+            String systemPrompt, String userPrompt, String model, List<ImagePart> images) {
+        ensureAvailable();
+        try {
+            Media[] media =
+                    images.stream()
+                            .map(
+                                    image ->
+                                            new Media(
+                                                    MimeType.valueOf(image.mimeType()),
+                                                    new ByteArrayResource(image.bytes())))
+                            .toArray(Media[]::new);
+            String content =
+                    chatClient
+                            .prompt()
+                            .system(systemPrompt)
+                            .user(u -> u.text(userPrompt).media(media))
+                            .options(buildOptions(model))
+                            .call()
+                            .content();
+            return requireContent(content);
+        } catch (ResponseStatusException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw translate(exception);
+        }
+    }
+
+    public record ImagePart(byte[] bytes, String mimeType) {}
+
     public String generateStreaming(
             String systemPrompt, String userPrompt, Consumer<String> onToken) {
         ensureAvailable();
@@ -83,14 +131,19 @@ public class NvidiaNimClient {
     }
 
     private OpenAiChatOptions buildOptions() {
+        return buildOptions(model);
+    }
+
+    private OpenAiChatOptions buildOptions(String modelOverride) {
         OpenAiChatOptions.Builder builder =
                 OpenAiChatOptions.builder()
-                        .model(model)
+                        .model(modelOverride)
                         .temperature(0.2)
                         .topP(0.9)
                         .maxTokens(maxOutputTokens);
         if (jsonResponseFormat) {
-            // NVIDIA NIM의 Qwen3.5 엔드포인트는 response_format 지정 시 빈 응답을 반환하므로 기본값은 비활성이다.
+            // NVIDIA NIM의 Qwen3.5 엔드포인트는 response_format 지정 시 빈 응답을 반환해 기본값을 비활성으로 뒀었다.
+            // Nemotron으로 교체 후 정상 동작 여부를 재검증하고 필요 시 true로 전환할 것.
             builder.responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_OBJECT, null));
         }
         return builder.build();
