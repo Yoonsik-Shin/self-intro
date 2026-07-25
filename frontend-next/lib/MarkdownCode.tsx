@@ -212,6 +212,8 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         x: number;
         y: number;
         keyword: string;
+        placeBelow: boolean;
+        arrowOffset: number;
     } | null>(null);
 
     const activeElementRef = useRef<HTMLElement | null>(null);
@@ -230,6 +232,40 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
         setIsPinned(false);
         clearHighlight();
         setHoveredConcept(null);
+    };
+
+    // 💡 팝업 경계 잘림 방지 (Horizontal Clamping) 및 상/하 자동 뒤집힘 (Vertical Auto-flip) 위치 계산
+    const calculatePopoverPosition = (target: HTMLElement) => {
+        const rect = target.getBoundingClientRect();
+        const containerRect = codeContainerRef.current?.getBoundingClientRect() || {
+            left: 0,
+            top: 0,
+            width: 600,
+            height: 400,
+        };
+
+        const rawX = rect.left - containerRect.left + rect.width / 2;
+        const relativeTop = rect.top - containerRect.top;
+
+        const popoverHalfWidth = 140;
+        const padding = 16;
+        const containerWidth = containerRect.width || 600;
+
+        // 좌우 경계 넘침 방지 Clamping
+        const clampedX = Math.max(
+            popoverHalfWidth + padding,
+            Math.min(containerWidth - popoverHalfWidth - padding, rawX)
+        );
+
+        // 상단 근접 시 아래쪽(Below)으로 자동 위치 변경
+        const placeBelow = relativeTop < 140;
+        const y = placeBelow
+            ? rect.bottom - containerRect.top + 8
+            : rect.top - containerRect.top - 8;
+
+        const arrowOffset = rawX - clampedX;
+
+        return { x: clampedX, y, placeBelow, arrowOffset };
     };
 
     // 💡 마우스 클릭 시 팝업 상태 고정(Pin) / 해제(Unpin)
@@ -257,17 +293,11 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                 target.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.7)';
                 activeElementRef.current = target;
 
-                const rect = target.getBoundingClientRect();
-                const containerRect = codeContainerRef.current?.getBoundingClientRect() || {
-                    left: 0,
-                    top: 0,
-                };
-
+                const pos = calculatePopoverPosition(target);
                 setHoveredConcept({
                     info: detail,
-                    x: rect.left - containerRect.left + rect.width / 2,
-                    y: rect.top - containerRect.top - 8,
                     keyword: text,
+                    ...pos,
                 });
             }
         } else {
@@ -300,17 +330,11 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
             target.style.boxShadow = '0 0 8px rgba(56, 189, 248, 0.5)';
             activeElementRef.current = target;
 
-            const rect = target.getBoundingClientRect();
-            const containerRect = codeContainerRef.current?.getBoundingClientRect() || {
-                left: 0,
-                top: 0,
-            };
-
+            const pos = calculatePopoverPosition(target);
             setHoveredConcept({
                 info: detail,
-                x: rect.left - containerRect.left + rect.width / 2,
-                y: rect.top - containerRect.top - 8,
                 keyword: text,
+                ...pos,
             });
         } else {
             // 다른 비키워드 영역으로 마우스 이동 시 하이라이트 및 팝업 즉시 제거
@@ -452,10 +476,24 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                     style={{
                         left: `${hoveredConcept.x}px`,
                         top: `${hoveredConcept.y}px`,
-                        transform: 'translate(-50%, -100%)',
+                        transform: hoveredConcept.placeBelow
+                            ? 'translate(-50%, 0)'
+                            : 'translate(-50%, -100%)',
                     }}
                     className="pointer-events-auto absolute z-30 max-w-xs animate-in fade-in zoom-in-95 duration-150"
                 >
+                    {/* Top Arrow Pointer (when placed below) */}
+                    {hoveredConcept.placeBelow && (
+                        <div
+                            style={{
+                                transform: `translateX(${hoveredConcept.arrowOffset}px) rotate(45deg)`,
+                            }}
+                            className={`mx-auto -mb-1 h-2.5 w-2.5 border-l border-t bg-slate-900/95 ${
+                                isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
+                            }`}
+                        />
+                    )}
+
                     <div
                         className={`relative rounded-xl border p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10 ${
                             isPinned
@@ -501,12 +539,18 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                             </div>
                         )}
                     </div>
-                    {/* Popover Arrow Pointer */}
-                    <div
-                        className={`mx-auto -mt-1 h-2 w-2 rotate-45 border-b border-r bg-slate-900/95 ${
-                            isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
-                        }`}
-                    />
+
+                    {/* Bottom Arrow Pointer (when placed above) */}
+                    {!hoveredConcept.placeBelow && (
+                        <div
+                            style={{
+                                transform: `translateX(${hoveredConcept.arrowOffset}px) rotate(45deg)`,
+                            }}
+                            className={`mx-auto -mt-1 h-2.5 w-2.5 border-b border-r bg-slate-900/95 ${
+                                isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
+                            }`}
+                        />
+                    )}
                 </div>
             )}
         </div>

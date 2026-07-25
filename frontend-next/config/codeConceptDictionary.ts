@@ -102,7 +102,7 @@ export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
     // 📦 I/O & Types
     BufferedReader: {
         title: 'BufferedReader',
-        desc: '대용량 입력을 버퍼링하여 $O(N)$ 시간에 빠르게 읽어들이는 Fast I/O 필수 클래스입니다.',
+        desc: '대용량 입력을 버퍼링하여 O(N) 시간에 빠르게 읽어들이는 Fast I/O 필수 클래스입니다.',
         category: '📦 Java 입출력',
         tip: 'Scanner 대비 최대 5배 이상 빨라 TLE 예방',
     },
@@ -119,7 +119,7 @@ export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
     },
     StringBuilder: {
         title: 'StringBuilder',
-        desc: '가변 문자열을 생성하여 반복문 내 출력을 $O(1)$에 연결하고 System.out 횟수를 최소화합니다.',
+        desc: '가변 문자열을 생성하여 반복문 내 출력을 O(1)에 연결하고 System.out 횟수를 최소화합니다.',
         category: '📦 Java 입출력',
         tip: '반복문 내 String + 연산 대신 필수 사용',
     },
@@ -146,7 +146,7 @@ export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
         title: 'ArrayDeque',
         desc: 'Vector 상호 동기화 오버헤드가 있는 Stack 대신 사용하는 고속 양방향 덱(Deque)입니다.',
         category: '🧩 자료구조',
-        tip: 'Stack/Queue 구현 시 스레드 안전성 없으나 $O(1)$ 최고 속도',
+        tip: 'Stack/Queue 구현 시 스레드 안전성 없으나 O(1) 최고 속도',
     },
     TreeSet: {
         title: 'TreeSet',
@@ -179,7 +179,7 @@ export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
     // 📐 Algorithms & Sorting
     dijkstra: {
         title: '다익스트라 (Dijkstra)',
-        desc: '음수 가중치가 없는 그래프에서 단일 출발지 최단 경로를 $O((V+E)\\log V)$ 시간에 탐색합니다.',
+        desc: '음수 가중치가 없는 그래프에서 단일 출발지 최단 경로를 O((V+E)log V) 시간에 탐색합니다.',
         category: '📐 알고리즘',
         tip: 'PriorityQueue + dist[] 방문 체크 필수',
     },
@@ -191,7 +191,7 @@ export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
     },
     gcd: {
         title: '유클리드 호제법 (GCD)',
-        desc: '두 정수의 최대공약수를 a % b 재귀/반복으로 $O(\\log N)$ 시간에 구합니다.',
+        desc: '두 정수의 최대공약수를 a % b 재귀/반복으로 O(log N) 시간에 구합니다.',
         category: '📐 수학',
         tip: 'lcm = (a * b) / gcd(a, b)',
     },
@@ -202,7 +202,7 @@ export const CODE_CONCEPT_DICTIONARY: Record<string, ConceptDetail> = {
     },
     find: {
         title: 'find(x) 경로 압축',
-        desc: '유니온 파인드에서 재귀적으로 루트를 찾으며 모든 부모 노드를 루트로 직접 연결해 $O(1)$로 압축합니다.',
+        desc: '유니온 파인드에서 재귀적으로 루트를 찾으며 모든 부모 노드를 루트로 직접 연결해 O(1)로 압축합니다.',
         category: '📐 알고리즘',
     },
     union: {
