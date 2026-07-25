@@ -4,17 +4,21 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.util.List;
 import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
  * 공고와 내 기술 스택 간 적합도를 2단계로 평가한다: 1) 키워드 사전 필터로 AI 호출 여부를 결정하고, 2) 통과한 공고만 NVIDIA NIM으로 최종 점수/근거를
  * 생성한다.
+ *
+ * <p>키워드 임계치는 재배포 없이 바꾸고 싶은 값이라 {@link JobPostingSettingRepository}(DB, 어드민 설정 화면)에서 매 평가마다 읽는다.
+ * 별도의 on/off 플래그 없이 NVIDIA_API_KEY가 설정되어 있으면 바로 동작하며, 키가 없거나 호출이 실패하면 {@link MatchResult#empty()}로
+ * 조용히 넘어간다.
  */
 @Slf4j
 @Service
@@ -31,22 +35,19 @@ public class JobMatchingService {
             """;
 
     private final SkillRepository skillRepository;
+    private final JobPostingSettingRepository settingRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
-    private final int keywordThreshold;
-    private final boolean aiScoringEnabled;
 
     public JobMatchingService(
             SkillRepository skillRepository,
+            JobPostingSettingRepository settingRepository,
             NvidiaNimClient nvidiaNimClient,
-            ObjectMapper objectMapper,
-            @Value("${app.job-posting.matching.keyword-threshold:2}") int keywordThreshold,
-            @Value("${app.ai.job-posting-matching.enabled:false}") boolean aiScoringEnabled) {
+            ObjectMapper objectMapper) {
         this.skillRepository = skillRepository;
+        this.settingRepository = settingRepository;
         this.nvidiaNimClient = nvidiaNimClient;
         this.objectMapper = objectMapper;
-        this.keywordThreshold = keywordThreshold;
-        this.aiScoringEnabled = aiScoringEnabled;
     }
 
     public MatchResult evaluate(String title, String requiredSkillsRaw) {
@@ -57,10 +58,8 @@ public class JobMatchingService {
                         .filter(name -> haystack.contains(name.toLowerCase(Locale.ROOT)))
                         .count();
 
+        int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
         if (overlapCount < keywordThreshold) {
-            return MatchResult.empty();
-        }
-        if (!aiScoringEnabled) {
             return MatchResult.empty();
         }
 

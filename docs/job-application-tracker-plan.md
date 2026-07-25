@@ -132,8 +132,9 @@ WITHDRAWN(지원포기)
 ### 3.5 수집 트리거 — 수동 버튼 + 스케줄러
 
 - **수동**: `POST /api/admin/job-postings/collect` — `AtomicBoolean`으로 중복 실행 가드
-- **자동**: `@Scheduled(cron = app.job-posting.collector.cron)` — `app.job-posting.collector.scheduled-enabled`
-  로 opt-in (기본 false)
+- **자동**: `JobPostingSchedulingConfig`(`SchedulingConfigurer`)가 `JobPostingSetting.collectorCron`을
+  매 실행 직전마다 DB에서 다시 읽어 `CronTrigger`를 재계산 — 어드민 화면에서 cron을 바꾸면
+  재배포 없이 다음 실행부터 반영됨. 실제 스케줄 사용 여부는 `collectorScheduledEnabled`로 opt-in(기본 false)
 - 둘 다 실행 후 만료 배치(§3.6)도 함께 수행
 
 ### 3.6 만료 처리
@@ -155,33 +156,25 @@ WITHDRAWN(지원포기)
 - `presentation/JobPostingController` (`/api/admin/job-postings`)
   - `GET /`, `POST /ingest-url`, `POST /collect`, `PATCH /{id}/save`, `PATCH /{id}/dismiss`,
     `POST /{id}/convert-to-application`
-- 설정(`application.yml`):
+- 설정 — 환경변수 vs 애플리케이션(DB) 값을 분리했다:
+  - **환경변수(`application.yml`)**: 비밀값/배포 인프라 성격만.
 
-  ```yaml
-  app.job-posting:
-    saramin:
-      enabled: ${SARAMIN_API_ENABLED:false}
-      access-key: ${SARAMIN_ACCESS_KEY:}
-      keywords: ${SARAMIN_SEARCH_KEYWORDS:}
-      count: ${SARAMIN_SEARCH_COUNT:20}
-      sort: ${SARAMIN_SEARCH_SORT:pd}
-      loc-cd: ${SARAMIN_SEARCH_LOC_CD:}
-      job-cd: ${SARAMIN_SEARCH_JOB_CD:}
-      ind-cd: ${SARAMIN_SEARCH_IND_CD:}
-    collector:
-      scheduled-enabled: ${JOB_POSTING_COLLECTOR_SCHEDULED_ENABLED:false}
-      cron: ${JOB_POSTING_COLLECTOR_CRON:0 0 8 * * *}
-    matching:
-      keyword-threshold: ${JOB_POSTING_MATCHING_KEYWORD_THRESHOLD:2}
-  app.ai:
-    job-application:
-      enabled: ${JOB_APPLICATION_AI_ENABLED:false}   # URL 자동분석
-    job-posting-matching:
-      enabled: ${JOB_POSTING_MATCHING_AI_ENABLED:false}   # 매칭 AI 스코어링
-  ```
+    ```yaml
+    app.job-posting:
+      saramin:
+        access-key: ${SARAMIN_ACCESS_KEY:}
+    ```
 
-  실제 사용하려면 `.env`에 `SARAMIN_ACCESS_KEY`, `SARAMIN_API_ENABLED=true` 추가 후
-  `docker compose up -d --build backend`로 재시작.
+  - **애플리케이션 값(`JobPostingSetting`, DB 단일 행, 어드민 "수집 설정" 화면에서 재배포 없이 변경)**:
+    `saraminEnabled`, `searchKeywords`/`searchCount`/`searchSort`/`locationCode`/`jobCode`/`industryCode`,
+    `collectorScheduledEnabled`, `collectorCron`, `matchingKeywordThreshold`.
+  - **AI 기능(URL 자동분석 `JobApplicationUrlParseService`, 매칭 스코어링 `JobMatchingService`)**:
+    별도 on/off 플래그 없음. 핵심 역량/공부 정리/이력·경력 초안 생성과 동일하게 `NVIDIA_API_KEY`만
+    설정되어 있으면 바로 동작하고, 없으면 `NvidiaNimClient`가 자체적으로 503을 반환한다(매칭은
+    실패를 조용히 흡수해 `MatchResult.empty()`로 넘어감).
+
+  실제 사용하려면 `.env`에 `SARAMIN_ACCESS_KEY`, `NVIDIA_API_KEY` 추가 후
+  `docker compose up -d --build backend`로 재시작. 이후 검색/스케줄/임계치 조정은 어드민 화면에서.
 
 ### 3.8 프론트엔드
 

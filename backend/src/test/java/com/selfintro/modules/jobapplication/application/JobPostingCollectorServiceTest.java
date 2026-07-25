@@ -9,8 +9,10 @@ import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService.JobPostingCollectionResult;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingCandidateRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,8 +25,31 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class JobPostingCollectorServiceTest {
 
     @Mock private JobPostingCandidateRepository candidateRepository;
+    @Mock private JobPostingSettingRepository settingRepository;
     @Mock private SaraminJobPostingClient saraminJobPostingClient;
     @Mock private JobMatchingService matchingService;
+
+    private JobPostingCollectorService newService() {
+        return new JobPostingCollectorService(
+                candidateRepository, settingRepository, saraminJobPostingClient, matchingService);
+    }
+
+    private JobPostingSetting settingWithSaraminEnabled(boolean saraminEnabled) {
+        JobPostingSetting setting = JobPostingSetting.defaults(LocalDateTime.now());
+        setting.update(
+                saraminEnabled,
+                null,
+                20,
+                "pd",
+                null,
+                null,
+                null,
+                false,
+                2,
+                "0 0 8 * * *",
+                LocalDateTime.now());
+        return setting;
+    }
 
     private JobPostingCandidate overdueCandidate() {
         return JobPostingCandidate.create(
@@ -58,13 +83,8 @@ class JobPostingCollectorServiceTest {
 
     @Test
     void collectNowSkipsDisabledSourcesAndExpiresOverdueCandidates() {
-        JobPostingCollectorService service =
-                new JobPostingCollectorService(
-                        candidateRepository,
-                        saraminJobPostingClient,
-                        matchingService,
-                        false,
-                        false);
+        JobPostingCollectorService service = newService();
+        when(settingRepository.getOrCreateDefault()).thenReturn(settingWithSaraminEnabled(false));
         when(candidateRepository.findByStatusInAndDeadlineBefore(any(), any()))
                 .thenReturn(List.of(overdueCandidate()));
 
@@ -78,9 +98,8 @@ class JobPostingCollectorServiceTest {
 
     @Test
     void collectNowSavesNewSaraminPostingsAndSkipsDuplicates() {
-        JobPostingCollectorService service =
-                new JobPostingCollectorService(
-                        candidateRepository, saraminJobPostingClient, matchingService, true, false);
+        JobPostingCollectorService service = newService();
+        when(settingRepository.getOrCreateDefault()).thenReturn(settingWithSaraminEnabled(true));
         when(candidateRepository.findByStatusInAndDeadlineBefore(any(), any()))
                 .thenReturn(List.of());
         when(saraminJobPostingClient.fetchPostings())
@@ -100,13 +119,7 @@ class JobPostingCollectorServiceTest {
 
     @Test
     void expireOverdueCandidatesMarksThemExpired() {
-        JobPostingCollectorService service =
-                new JobPostingCollectorService(
-                        candidateRepository,
-                        saraminJobPostingClient,
-                        matchingService,
-                        false,
-                        false);
+        JobPostingCollectorService service = newService();
         JobPostingCandidate candidate = overdueCandidate();
         when(candidateRepository.findByStatusInAndDeadlineBefore(any(), any()))
                 .thenReturn(List.of(candidate));

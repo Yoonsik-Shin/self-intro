@@ -3,7 +3,9 @@ package com.selfintro.modules.jobapplication.application;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.io.IOException;
@@ -28,6 +30,9 @@ import org.springframework.web.server.ResponseStatusException;
  * 사람인 채용정보 검색 API(https://oapi.saramin.co.kr/job-search) 클라이언트. 요청/응답/에러코드 스펙은 사람인 공식 개발자
  * 문서(oapi.saramin.co.kr/guide/job-search, /guide/info) 기준. 일일 호출 한도는 500회(공식 문서 기준)이며, 수집 1회당 호출
  * 1번만 사용하므로 여유가 크다.
+ *
+ * <p>access-key는 비밀값이라 환경변수로만 관리하고, 검색 키워드/개수/정렬/지역·직무·업종 코드처럼 재배포 없이 바꾸고 싶은 값은 {@link
+ * JobPostingSetting}(DB, 어드민 설정 화면)에서 매 호출마다 읽는다.
  */
 @Component
 public class SaraminJobPostingClient {
@@ -47,33 +52,18 @@ public class SaraminJobPostingClient {
 
     private final ObjectMapper objectMapper;
     private final SkillRepository skillRepository;
+    private final JobPostingSettingRepository settingRepository;
     private final String accessKey;
-    private final String keywords;
-    private final int count;
-    private final String sort;
-    private final String locationCode;
-    private final String jobCode;
-    private final String industryCode;
 
     public SaraminJobPostingClient(
             ObjectMapper objectMapper,
             SkillRepository skillRepository,
-            @Value("${app.job-posting.saramin.access-key:}") String accessKey,
-            @Value("${app.job-posting.saramin.keywords:}") String keywords,
-            @Value("${app.job-posting.saramin.count:20}") int count,
-            @Value("${app.job-posting.saramin.sort:pd}") String sort,
-            @Value("${app.job-posting.saramin.loc-cd:}") String locationCode,
-            @Value("${app.job-posting.saramin.job-cd:}") String jobCode,
-            @Value("${app.job-posting.saramin.ind-cd:}") String industryCode) {
+            JobPostingSettingRepository settingRepository,
+            @Value("${app.job-posting.saramin.access-key:}") String accessKey) {
         this.objectMapper = objectMapper;
         this.skillRepository = skillRepository;
+        this.settingRepository = settingRepository;
         this.accessKey = accessKey;
-        this.keywords = keywords;
-        this.count = count;
-        this.sort = sort;
-        this.locationCode = locationCode;
-        this.jobCode = jobCode;
-        this.industryCode = industryCode;
     }
 
     public List<JobPostingCandidate.Draft> fetchPostings() {
@@ -82,9 +72,10 @@ public class SaraminJobPostingClient {
                     HttpStatus.SERVICE_UNAVAILABLE, "사람인 API access-key가 설정되지 않았습니다.");
         }
 
+        JobPostingSetting setting = settingRepository.getOrCreateDefault();
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         HttpRequest request =
-                HttpRequest.newBuilder(buildUri())
+                HttpRequest.newBuilder(buildUri(setting))
                         .timeout(Duration.ofSeconds(8))
                         .header("Accept", "application/json")
                         .GET()
@@ -126,27 +117,34 @@ public class SaraminJobPostingClient {
         return new ResponseStatusException(status, message);
     }
 
-    private URI buildUri() {
+    private URI buildUri(JobPostingSetting setting) {
+        int count = Math.max(1, Math.min(setting.getSearchCount(), 110));
+        String sort =
+                setting.getSearchSort() == null || setting.getSearchSort().isBlank()
+                        ? "pd"
+                        : setting.getSearchSort();
         StringBuilder url =
                 new StringBuilder(BASE_URL)
                         .append("?access-key=")
                         .append(encode(accessKey))
                         .append("&count=")
-                        .append(Math.max(1, Math.min(count, 110)))
+                        .append(count)
                         .append("&sort=")
-                        .append(encode(sort.isBlank() ? "pd" : sort));
-        String effectiveKeywords = keywords.isBlank() ? autoKeywordsFromSkills() : keywords;
+                        .append(encode(sort));
+        String keywords = setting.getSearchKeywords();
+        String effectiveKeywords =
+                (keywords == null || keywords.isBlank()) ? autoKeywordsFromSkills() : keywords;
         if (!effectiveKeywords.isBlank()) {
             url.append("&keywords=").append(encode(effectiveKeywords));
         }
-        if (!locationCode.isBlank()) {
-            url.append("&loc_cd=").append(encode(locationCode));
+        if (setting.getLocationCode() != null && !setting.getLocationCode().isBlank()) {
+            url.append("&loc_cd=").append(encode(setting.getLocationCode()));
         }
-        if (!jobCode.isBlank()) {
-            url.append("&job_cd=").append(encode(jobCode));
+        if (setting.getJobCode() != null && !setting.getJobCode().isBlank()) {
+            url.append("&job_cd=").append(encode(setting.getJobCode()));
         }
-        if (!industryCode.isBlank()) {
-            url.append("&ind_cd=").append(encode(industryCode));
+        if (setting.getIndustryCode() != null && !setting.getIndustryCode().isBlank()) {
+            url.append("&ind_cd=").append(encode(setting.getIndustryCode()));
         }
         return URI.create(url.toString());
     }
