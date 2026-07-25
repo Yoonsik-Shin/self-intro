@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Briefcase, Eye, Home, Menu, Printer, Terminal, X } from 'lucide-react';
-import { visitorApi } from '@/lib/api';
+import { BookOpen, Briefcase, Eye, Heart, Home, Menu, Printer, Terminal, X } from 'lucide-react';
+import { donationApi, visitorApi } from '@/lib/api';
 import { usePrintStore } from '@/store/usePrintStore';
+import { DonationModal } from '@/components/donation/DonationModal';
 
 const pages = [
     { href: '/', label: '메인페이지', shortLabel: '메인', icon: Home },
@@ -29,12 +30,21 @@ function isActivePage(pathname: string, href: string): boolean {
 export function SiteHeader() {
     const pathname = usePathname();
     const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
-    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    const [isDonationOpen, setDonationOpen] = useState(false);
+    const [isPreviewMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return new URLSearchParams(window.location.search).get('preview') === '1';
+        }
+        return false;
+    });
     const setPrintModalOpen = usePrintStore((s) => s.setPrintModalOpen);
 
-    useEffect(() => {
-        setIsPreviewMode(new URLSearchParams(window.location.search).get('preview') === '1');
-    }, []);
+    const { data: donationConfig } = useQuery({
+        queryKey: ['donationConfig'],
+        queryFn: donationApi.config,
+        enabled: !isPreviewMode,
+    });
+    const isDonationEnabled = donationConfig?.enabled === true;
 
     // 관리자 라이브 프리뷰(iframe) 안에서는 방문 기록을 남기지 않는다 — 실제 방문자 통계를 왜곡하지 않기 위함.
     const { data: visitorSummary } = useQuery({
@@ -98,6 +108,19 @@ export function SiteHeader() {
                             누적 {visitorSummary.totalVisitors.toLocaleString()}
                         </span>
                     )}
+
+                    {isDonationEnabled && (
+                        <button
+                            type="button"
+                            onClick={() => setDonationOpen(true)}
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-700 hover:shadow-md active:scale-95"
+                            title="후원하기"
+                        >
+                            <Heart className="h-3.5 w-3.5 fill-white text-white" />
+                            <span>후원하기</span>
+                        </button>
+                    )}
+
                     {isIntro && (
                         <button
                             onClick={() => setPrintModalOpen(true)}
@@ -160,6 +183,8 @@ export function SiteHeader() {
                     </nav>
                 </div>
             )}
+
+            {isDonationOpen && <DonationModal onClose={() => setDonationOpen(false)} />}
         </header>
     );
 }
