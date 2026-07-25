@@ -46,6 +46,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.flywaydb:flyway-mysql'
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
+    implementation 'org.jsoup:jsoup:1.17.2'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'com.mysql:mysql-connector-j'

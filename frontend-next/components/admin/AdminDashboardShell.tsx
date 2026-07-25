@@ -19,6 +19,7 @@ import {
     Printer,
     BarChart3,
     Heart,
+    ClipboardList,
     X,
 } from 'lucide-react';
 import { bffApi, skillApi } from '@/lib/api';
@@ -35,6 +36,7 @@ import { ArchitectureManagement } from './architecture/ArchitectureManagement';
 import { PrintTemplateManagement } from './print-template/PrintTemplateManagement';
 import { AnalyticsPanel } from './analytics/AnalyticsPanel';
 import { DonationsPanel } from './donations/DonationsPanel';
+import { JobApplicationManagement } from './job-application/JobApplicationManagement';
 
 const PREVIEW_MIN_WIDTH = 420;
 const PREVIEW_MAX_WIDTH = 960;
@@ -54,7 +56,8 @@ type TabId =
     | 'EXPERIENCE'
     | 'CORE_PROJECTS'
     | 'ARCHITECTURE'
-    | 'PRINT_TEMPLATES';
+    | 'PRINT_TEMPLATES'
+    | 'JOB_APPLICATIONS';
 
 const ADMIN_MENU_GROUPS = [
     {
@@ -64,6 +67,10 @@ const ADMIN_MENU_GROUPS = [
             { id: 'SKILLS', label: '기술 스택 관리', icon: Cpu },
             { id: 'EXPERIENCE', label: '이력 및 경력 관리', icon: Briefcase },
         ],
+    },
+    {
+        label: '커리어 관리',
+        items: [{ id: 'JOB_APPLICATIONS', label: '지원 공고 관리', icon: ClipboardList }],
     },
     {
         label: '페이지 구성',
@@ -113,6 +120,7 @@ export function AdminDashboardShell() {
                 'CORE_PROJECTS',
                 'ARCHITECTURE',
                 'PRINT_TEMPLATES',
+                'JOB_APPLICATIONS',
             ];
             if (tabInUrl && validTabs.includes(tabInUrl)) {
                 setActiveTab(tabInUrl);
@@ -365,9 +373,10 @@ export function AdminDashboardShell() {
         else openPreview();
     };
 
-    // PRINT_TEMPLATES 탭으로 오면 미리보기 패널을 닫아 템플릿 목록에 집중하도록 한다.
+    // 공개 페이지에 대응되는 화면이 없는 탭으로 오면 미리보기 패널을 닫는다.
     useEffect(() => {
-        if (activeTab === 'PRINT_TEMPLATES' && isPreviewOpen) closePreviewPanel();
+        if ((activeTab === 'PRINT_TEMPLATES' || activeTab === 'JOB_APPLICATIONS') && isPreviewOpen)
+            closePreviewPanel();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
@@ -563,6 +572,7 @@ export function AdminDashboardShell() {
                             {activeTab === 'PRINT_TEMPLATES' && <PrintTemplateManagement />}
                             {activeTab === 'ANALYTICS' && <AnalyticsPanel />}
                             {activeTab === 'DONATIONS' && <DonationsPanel />}
+                            {activeTab === 'JOB_APPLICATIONS' && <JobApplicationManagement />}
                         </section>
                     </div>
                 </div>

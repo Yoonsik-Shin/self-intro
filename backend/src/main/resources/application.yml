@@ -77,6 +77,26 @@ app:
       enabled: ${STUDY_AI_ENABLED:false}
     experience:
       enabled: ${EXPERIENCE_AI_ENABLED:false}
+    job-application:
+      enabled: ${JOB_APPLICATION_AI_ENABLED:false}
+    job-posting-matching:
+      enabled: ${JOB_POSTING_MATCHING_AI_ENABLED:false}
+  job-posting:
+    saramin:
+      enabled: ${SARAMIN_API_ENABLED:false}
+      access-key: ${SARAMIN_ACCESS_KEY:}
+      # 비워두면 보유 기술 상위 5개로 자동 검색한다.
+      keywords: ${SARAMIN_SEARCH_KEYWORDS:}
+      count: ${SARAMIN_SEARCH_COUNT:20}
+      sort: ${SARAMIN_SEARCH_SORT:pd}
+      loc-cd: ${SARAMIN_SEARCH_LOC_CD:}
+      job-cd: ${SARAMIN_SEARCH_JOB_CD:}
+      ind-cd: ${SARAMIN_SEARCH_IND_CD:}
+    collector:
+      scheduled-enabled: ${JOB_POSTING_COLLECTOR_SCHEDULED_ENABLED:false}
+      cron: ${JOB_POSTING_COLLECTOR_CRON:0 0 8 * * *}
+    matching:
+      keyword-threshold: ${JOB_POSTING_MATCHING_KEYWORD_THRESHOLD:2}
   donation:
     kofi:
       page-url: ${KOFI_PAGE_URL:https://ko-fi.com}

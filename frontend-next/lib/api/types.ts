@@ -365,6 +365,86 @@ export type DonationEvent = {
     createdAt: string;
 };
 
+export type JobApplicationStage =
+    | 'APPLIED'
+    | 'CODING_TEST'
+    | 'ASSIGNMENT'
+    | 'APTITUDE_TEST'
+    | 'INTERVIEW_1'
+    | 'INTERVIEW_2'
+    | 'FINAL_INTERVIEW'
+    | 'OFFER'
+    | 'REJECTED'
+    | 'WITHDRAWN';
+
+export type JobApplication = {
+    id: number;
+    companyName: string;
+    positionTitle: string;
+    postingUrl: string | null;
+    source: string;
+    appliedAt: string;
+    deadline: string | null;
+    currentStage: JobApplicationStage;
+    salaryNote: string | null;
+    memo: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type JobApplicationRequest = {
+    companyName: string;
+    positionTitle: string;
+    postingUrl?: string | null;
+    source: string;
+    appliedAt: string;
+    deadline?: string | null;
+    salaryNote?: string | null;
+    memo?: string | null;
+};
+
+export type JobApplicationStageEvent = {
+    id: number;
+    stage: JobApplicationStage;
+    memo: string | null;
+    changedAt: string;
+};
+
+export type JobApplicationUrlParseResponse = {
+    companyName: string | null;
+    positionTitle: string | null;
+    source: string | null;
+    deadline: string | null;
+    salaryNote: string | null;
+    postingUrl: string;
+};
+
+export type JobPostingSource = 'URL_INGEST' | 'SARAMIN';
+
+export type JobPostingCandidateStatus = 'NEW' | 'SAVED' | 'DISMISSED' | 'CONVERTED' | 'EXPIRED';
+
+export type JobPostingCandidate = {
+    id: number;
+    title: string;
+    companyName: string;
+    url: string;
+    source: JobPostingSource;
+    location: string | null;
+    employmentType: string | null;
+    deadline: string | null;
+    salaryNote: string | null;
+    status: JobPostingCandidateStatus;
+    matchScore: number | null;
+    matchReason: string | null;
+    fetchedAt: string;
+};
+
+export type JobPostingCollectionResult = {
+    saraminEnabled: boolean;
+    saraminCollected: number;
+    expiredCount: number;
+};
+
 export type ExperienceDetailRequest = {
     id?: number | null;
     content: string;

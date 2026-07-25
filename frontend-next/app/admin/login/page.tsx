@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Home, Lock } from 'lucide-react';
+import { Eye, EyeOff, Home, Lock } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export default function AdminLoginPage() {
     const login = useAuthStore((s) => s.login);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,13 +58,27 @@ export default function AdminLoginPage() {
                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                             비밀번호
                         </label>
-                        <input
-                            type="password"
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
-                        />
+                        <div className="relative">
+                            <input
+                                type={isPasswordVisible ? 'text' : 'password'}
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 pr-11 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsPasswordVisible((prev) => !prev)}
+                                aria-label={isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 표시'}
+                                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-700"
+                            >
+                                {isPasswordVisible ? (
+                                    <EyeOff className="h-4 w-4" />
+                                ) : (
+                                    <Eye className="h-4 w-4" />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     {error && <p className="text-xs font-bold text-red-500">{error}</p>}
