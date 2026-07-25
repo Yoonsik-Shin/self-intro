@@ -482,6 +482,8 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                         left: `${hoveredConcept.cardLeft}px`,
                         top: `${hoveredConcept.y}px`,
                         width: `${hoveredConcept.popoverWidth}px`,
+                        maxWidth: 'calc(100% - 32px)',
+                        boxSizing: 'border-box',
                         transform: hoveredConcept.placeBelow
                             ? 'translateY(0)'
                             : 'translateY(-100%)',
@@ -494,32 +496,33 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                             style={{
                                 left: `${hoveredConcept.arrowLeft}px`,
                             }}
-                            className={`absolute -top-1 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-l border-t bg-slate-900/95 ${
-                                isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
+                            className={`absolute -top-1 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-l border-t bg-slate-900 ${
+                                isPinned ? 'border-amber-400' : 'border-sky-400'
                             }`}
                         />
                     )}
 
                     <div
-                        className={`relative rounded-xl border p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10 ${
+                        style={{ boxSizing: 'border-box' }}
+                        className={`relative w-full max-w-full overflow-hidden rounded-xl border p-3.5 shadow-2xl backdrop-blur-md bg-slate-900/98 ${
                             isPinned
-                                ? 'border-amber-400/70 bg-slate-900/98 shadow-amber-500/10'
-                                : 'border-sky-400/40 bg-slate-900/95'
+                                ? 'border-amber-400/80 shadow-amber-500/20 ring-1 ring-amber-400/30'
+                                : 'border-sky-400/70 shadow-sky-500/20 ring-1 ring-sky-400/30'
                         }`}
                     >
-                        <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-bold tracking-wider text-sky-400 uppercase">
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-[11px] font-extrabold tracking-wider text-amber-300 uppercase shrink-0">
                                     {hoveredConcept.info.category}
                                 </span>
                                 {isPinned && (
-                                    <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 border border-amber-400/50">
+                                    <span className="rounded bg-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold text-amber-200 border border-amber-400/60 shrink-0">
                                         📌 고정됨
                                     </span>
                                 )}
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="rounded bg-sky-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-sky-200">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs font-bold text-white border border-slate-700">
                                     {hoveredConcept.info.title}
                                 </span>
                                 {/* ✕ 팝업 헤더 우측 닫기 버튼 UX */}
@@ -530,17 +533,21 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                                         handleClose();
                                     }}
                                     aria-label="팝업 닫기"
-                                    className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-800 text-xs font-bold text-slate-300 transition hover:bg-red-500 hover:text-white"
+                                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-800 text-xs font-extrabold text-slate-200 border border-slate-600 transition hover:bg-red-500 hover:text-white hover:border-red-400"
                                 >
                                     ✕
                                 </button>
                             </div>
                         </div>
-                        <p className="mt-2 text-xs leading-relaxed text-slate-200 break-keep break-words whitespace-normal">
+
+                        {/* Description Paragraph (High Contrast Pure White & Break-words) */}
+                        <p className="mt-2.5 text-xs font-medium leading-relaxed text-slate-100 break-words whitespace-normal">
                             {hoveredConcept.info.desc}
                         </p>
+
+                        {/* Tip Box (High Contrast Vivid Amber Yellow) */}
                         {hoveredConcept.info.tip && (
-                            <div className="mt-2 rounded-lg border border-sky-800/40 bg-sky-950/60 p-2 text-[11px] font-medium text-sky-300 break-keep break-words whitespace-normal">
+                            <div className="mt-2.5 rounded-lg border border-amber-400/40 bg-amber-500/15 p-2.5 text-xs font-semibold text-amber-200 break-words whitespace-normal">
                                 💡 {hoveredConcept.info.tip}
                             </div>
                         )}
@@ -552,8 +559,8 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                             style={{
                                 left: `${hoveredConcept.arrowLeft}px`,
                             }}
-                            className={`absolute -bottom-1 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-b border-r bg-slate-900/95 ${
-                                isPinned ? 'border-amber-400/70' : 'border-sky-400/40'
+                            className={`absolute -bottom-1 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-b border-r bg-slate-900 ${
+                                isPinned ? 'border-amber-400' : 'border-sky-400'
                             }`}
                         />
                     )}
