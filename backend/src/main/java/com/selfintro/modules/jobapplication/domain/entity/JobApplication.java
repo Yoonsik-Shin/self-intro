@@ -53,6 +53,24 @@ public class JobApplication {
     @Column(name = "memo", length = 2000)
     private String memo;
 
+    @Column(name = "job_description", columnDefinition = "TEXT")
+    private String jobDescription;
+
+    @Column(name = "required_qualifications", columnDefinition = "TEXT")
+    private String requiredQualifications;
+
+    @Column(name = "preferred_qualifications", columnDefinition = "TEXT")
+    private String preferredQualifications;
+
+    @Column(name = "hiring_process", columnDefinition = "TEXT")
+    private String hiringProcess;
+
+    @Column(name = "application_method", columnDefinition = "TEXT")
+    private String applicationMethod;
+
+    @Column(name = "compensation_detail", columnDefinition = "TEXT")
+    private String compensationDetail;
+
     @Column(name = "job_posting_candidate_id", updatable = false)
     private Long jobPostingCandidateId;
 
@@ -71,6 +89,12 @@ public class JobApplication {
             LocalDate deadline,
             String salaryNote,
             String memo,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
             Long jobPostingCandidateId,
             LocalDateTime now) {
         this.companyName = companyName;
@@ -82,6 +106,12 @@ public class JobApplication {
         this.currentStage = JobApplicationStage.APPLIED;
         this.salaryNote = salaryNote;
         this.memo = memo;
+        this.jobDescription = jobDescription;
+        this.requiredQualifications = requiredQualifications;
+        this.preferredQualifications = preferredQualifications;
+        this.hiringProcess = hiringProcess;
+        this.applicationMethod = applicationMethod;
+        this.compensationDetail = compensationDetail;
         this.jobPostingCandidateId = jobPostingCandidateId;
         this.createdAt = now;
         this.updatedAt = now;
@@ -96,6 +126,12 @@ public class JobApplication {
             LocalDate deadline,
             String salaryNote,
             String memo,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
             LocalDateTime now) {
         return create(
                 companyName,
@@ -106,6 +142,12 @@ public class JobApplication {
                 deadline,
                 salaryNote,
                 memo,
+                jobDescription,
+                requiredQualifications,
+                preferredQualifications,
+                hiringProcess,
+                applicationMethod,
+                compensationDetail,
                 null,
                 now);
     }
@@ -119,6 +161,12 @@ public class JobApplication {
             LocalDate deadline,
             String salaryNote,
             String memo,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
             Long jobPostingCandidateId,
             LocalDateTime now) {
         return new JobApplication(
@@ -130,6 +178,12 @@ public class JobApplication {
                 deadline,
                 salaryNote,
                 memo,
+                jobDescription,
+                requiredQualifications,
+                preferredQualifications,
+                hiringProcess,
+                applicationMethod,
+                compensationDetail,
                 jobPostingCandidateId,
                 now);
     }
@@ -143,6 +197,12 @@ public class JobApplication {
             LocalDate deadline,
             String salaryNote,
             String memo,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
             LocalDateTime now) {
         this.companyName = companyName;
         this.positionTitle = positionTitle;
@@ -152,6 +212,12 @@ public class JobApplication {
         this.deadline = deadline;
         this.salaryNote = salaryNote;
         this.memo = memo;
+        this.jobDescription = jobDescription;
+        this.requiredQualifications = requiredQualifications;
+        this.preferredQualifications = preferredQualifications;
+        this.hiringProcess = hiringProcess;
+        this.applicationMethod = applicationMethod;
+        this.compensationDetail = compensationDetail;
         this.updatedAt = now;
     }
 

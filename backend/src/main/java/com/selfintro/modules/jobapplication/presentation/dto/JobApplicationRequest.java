@@ -12,4 +12,10 @@ public record JobApplicationRequest(
         @NotNull LocalDate appliedAt,
         LocalDate deadline,
         String salaryNote,
-        String memo) {}
+        String memo,
+        String jobDescription,
+        String requiredQualifications,
+        String preferredQualifications,
+        String hiringProcess,
+        String applicationMethod,
+        String compensationDetail) {}

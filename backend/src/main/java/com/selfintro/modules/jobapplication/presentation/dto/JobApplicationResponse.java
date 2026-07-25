@@ -16,6 +16,12 @@ public record JobApplicationResponse(
         JobApplicationStage currentStage,
         String salaryNote,
         String memo,
+        String jobDescription,
+        String requiredQualifications,
+        String preferredQualifications,
+        String hiringProcess,
+        String applicationMethod,
+        String compensationDetail,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
@@ -31,6 +37,12 @@ public record JobApplicationResponse(
                 entity.getCurrentStage(),
                 entity.getSalaryNote(),
                 entity.getMemo(),
+                entity.getJobDescription(),
+                entity.getRequiredQualifications(),
+                entity.getPreferredQualifications(),
+                entity.getHiringProcess(),
+                entity.getApplicationMethod(),
+                entity.getCompensationDetail(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }

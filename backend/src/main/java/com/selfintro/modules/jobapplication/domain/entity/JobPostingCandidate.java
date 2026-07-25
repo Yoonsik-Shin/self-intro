@@ -118,6 +118,12 @@ public class JobPostingCandidate {
         this.updatedAt = now;
     }
 
+    /** 전환됐던 지원 공고가 삭제됐을 때, 후보를 다시 목록에 보이고 재수집 가능한 상태로 되돌린다. */
+    public void revertToNew(LocalDateTime now) {
+        this.status = JobPostingCandidateStatus.NEW;
+        this.updatedAt = now;
+    }
+
     public void markExpired(LocalDateTime now) {
         this.status = JobPostingCandidateStatus.EXPIRED;
         this.updatedAt = now;

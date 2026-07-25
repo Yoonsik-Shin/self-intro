@@ -4,13 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.jobapplication.domain.entity.JobApplication;
 import com.selfintro.modules.jobapplication.domain.entity.JobApplicationStageEvent;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
 import com.selfintro.modules.jobapplication.domain.enums.JobApplicationStage;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingCandidateStatus;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.repository.JobApplicationRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobApplicationStageEventRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingCandidateRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -30,13 +35,17 @@ class JobApplicationServiceTest {
 
     @Mock private JobApplicationRepository jobApplicationRepository;
     @Mock private JobApplicationStageEventRepository stageEventRepository;
+    @Mock private JobPostingCandidateRepository jobPostingCandidateRepository;
 
     private JobApplicationService jobApplicationService;
 
     @BeforeEach
     void setUp() {
         jobApplicationService =
-                new JobApplicationService(jobApplicationRepository, stageEventRepository);
+                new JobApplicationService(
+                        jobApplicationRepository,
+                        stageEventRepository,
+                        jobPostingCandidateRepository);
     }
 
     private JobApplication newJobApplication() {
@@ -50,6 +59,12 @@ class JobApplicationServiceTest {
                         LocalDate.of(2026, 7, 31),
                         "협의 후 결정",
                         "메모",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         LocalDate.of(2026, 7, 1).atStartOfDay());
         ReflectionTestUtils.setField(jobApplication, "id", 1L);
         return jobApplication;
@@ -74,7 +89,13 @@ class JobApplicationServiceTest {
                         LocalDate.of(2026, 7, 1),
                         LocalDate.of(2026, 7, 31),
                         "협의 후 결정",
-                        "메모");
+                        "메모",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null);
 
         JobApplicationResponse response = jobApplicationService.create(request);
 
@@ -114,6 +135,45 @@ class JobApplicationServiceTest {
                                 jobApplicationService.changeStage(
                                         99L, JobApplicationStage.OFFER, null))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void deleteRemovesApplicationWithoutTouchingCandidateWhenNotConverted() {
+        JobApplication jobApplication = newJobApplication();
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(jobApplication));
+
+        jobApplicationService.delete(1L);
+
+        verify(jobApplicationRepository).delete(jobApplication);
+        verifyNoInteractions(jobPostingCandidateRepository);
+    }
+
+    @Test
+    void deleteRevertsLinkedCandidateBackToNewStatus() {
+        JobApplication jobApplication = newJobApplication();
+        ReflectionTestUtils.setField(jobApplication, "jobPostingCandidateId", 5L);
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(jobApplication));
+
+        JobPostingCandidate candidate =
+                JobPostingCandidate.create(
+                        new JobPostingCandidate.Draft(
+                                null,
+                                "백엔드 개발자",
+                                "테스트 회사",
+                                "https://example.com/posting",
+                                JobPostingSource.URL_INGEST,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        LocalDate.of(2026, 7, 1).atStartOfDay());
+        candidate.markConverted(LocalDate.of(2026, 7, 1).atStartOfDay());
+        when(jobPostingCandidateRepository.findById(5L)).thenReturn(Optional.of(candidate));
+
+        jobApplicationService.delete(1L);
+
+        assertThat(candidate.getStatus()).isEqualTo(JobPostingCandidateStatus.NEW);
     }
 
     @Test

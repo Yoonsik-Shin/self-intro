@@ -5,6 +5,7 @@ import com.selfintro.modules.jobapplication.domain.entity.JobApplicationStageEve
 import com.selfintro.modules.jobapplication.domain.enums.JobApplicationStage;
 import com.selfintro.modules.jobapplication.domain.repository.JobApplicationRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobApplicationStageEventRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingCandidateRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationStageEventResponse;
@@ -22,6 +23,7 @@ public class JobApplicationService {
 
     private final JobApplicationRepository jobApplicationRepository;
     private final JobApplicationStageEventRepository stageEventRepository;
+    private final JobPostingCandidateRepository jobPostingCandidateRepository;
 
     public List<JobApplicationResponse> list() {
         return jobApplicationRepository.findAllByOrderByAppliedAtDesc().stream()
@@ -53,6 +55,12 @@ public class JobApplicationService {
                                 request.deadline(),
                                 request.salaryNote(),
                                 request.memo(),
+                                request.jobDescription(),
+                                request.requiredQualifications(),
+                                request.preferredQualifications(),
+                                request.hiringProcess(),
+                                request.applicationMethod(),
+                                request.compensationDetail(),
                                 jobPostingCandidateId,
                                 now));
         stageEventRepository.save(
@@ -73,6 +81,12 @@ public class JobApplicationService {
                 request.deadline(),
                 request.salaryNote(),
                 request.memo(),
+                request.jobDescription(),
+                request.requiredQualifications(),
+                request.preferredQualifications(),
+                request.hiringProcess(),
+                request.applicationMethod(),
+                request.compensationDetail(),
                 LocalDateTime.now());
         return JobApplicationResponse.from(jobApplication);
     }
@@ -80,7 +94,13 @@ public class JobApplicationService {
     @Transactional
     public void delete(Long id) {
         JobApplication jobApplication = findOrThrow(id);
+        Long candidateId = jobApplication.getJobPostingCandidateId();
         jobApplicationRepository.delete(jobApplication);
+        if (candidateId != null) {
+            jobPostingCandidateRepository
+                    .findById(candidateId)
+                    .ifPresent(candidate -> candidate.revertToNew(LocalDateTime.now()));
+        }
     }
 
     @Transactional
