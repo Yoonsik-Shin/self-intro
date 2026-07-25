@@ -169,9 +169,9 @@ export function StudyDetailClient({ study }: Props) {
                     </article>
                 </div>
 
-                <aside className="block w-full sticky top-24 self-start">
+                <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
                     <div
-                        className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 ${
+                        className={`relative rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-md backdrop-blur-md min-[900px]:flex min-[900px]:flex-col min-[900px]:border-l-4 min-[900px]:border-l-slate-300 max-h-[calc(100vh-7.5rem)] overflow-y-auto custom-scrollbar pb-10 ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
                                 : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
@@ -208,7 +208,7 @@ export function StudyDetailClient({ study }: Props) {
                                         {toc.length}
                                     </span>
                                 </div>
-                                <nav className="max-h-[300px] overflow-y-auto space-y-0.5 pr-1 text-xs scroll-smooth">
+                                <nav className="max-h-[180px] sm:max-h-[220px] overflow-y-auto space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
                                     {toc.map((item) => {
                                         const isActive = activeId === item.id;
                                         return (
