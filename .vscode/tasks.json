@@ -15,6 +15,43 @@
         "clear": true
       },
       "problemMatcher": []
+    },
+    {
+      "label": "Deploy Backend",
+      "type": "shell",
+      "command": "docker compose up -d --build backend",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy Frontend",
+      "type": "shell",
+      "command": "docker compose up -d --build frontend",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy All",
+      "dependsOn": ["Deploy Backend", "Deploy Frontend"],
+      "dependsOrder": "parallel",
+      "group": "build",
+      "problemMatcher": []
     }
   ]
 }
