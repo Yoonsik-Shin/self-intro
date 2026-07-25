@@ -183,7 +183,7 @@ export function StudyDetailClient({ study }: Props) {
 
                 <aside className="block w-full sticky top-24 self-start max-h-[calc(100vh-7.5rem)]">
                     <div
-                        className={`relative flex flex-col max-h-[calc(100vh-7.5rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
+                        className={`relative flex flex-col max-h-[calc(100vh-7.5rem)] rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:p-2'
                                 : 'min-[900px]:gap-3 min-[900px]:p-4'
@@ -288,7 +288,7 @@ export function StudyDetailClient({ study }: Props) {
                                 />
                                 <span>연결 항목</span>
                             </h3>
-                            <p className="mt-0.5 text-[11px] leading-tight text-slate-400 pl-5">
+                            <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
                                 이 학습과 연관된 이력 정보입니다.
                             </p>
                         </div>
@@ -296,25 +296,25 @@ export function StudyDetailClient({ study }: Props) {
                         {/* 연결 항목 List (접기 및 개별 스크롤 적용) */}
                         {isRelatedOpen && (
                             <div
-                                className={`hidden flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3 pr-1 pt-1.5 custom-scrollbar ${
+                                className={`hidden flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3.5 pr-1 pt-2 custom-scrollbar ${
                                     isNavCollapsed ? '' : 'min-[900px]:block'
                                 }`}
                             >
                                 {study.experiences.length > 0 && (
                                     <div>
-                                        <h4 className="mb-1 text-[11px] font-black uppercase text-slate-400">
+                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
                                             관련 프로젝트·경력
                                         </h4>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1.5 pl-0.5">
                                             {study.experiences.map((experience) => (
                                                 <p
                                                     key={experience.id}
-                                                    className="text-xs leading-normal text-slate-600"
+                                                    className="text-xs leading-normal text-slate-600 flex items-start gap-1.5"
                                                 >
-                                                    <span className="mr-1.5 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400">
+                                                    <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400">
                                                         {experience.type}
                                                     </span>
-                                                    {experience.title}
+                                                    <span>{experience.title}</span>
                                                 </p>
                                             ))}
                                         </div>
@@ -323,10 +323,10 @@ export function StudyDetailClient({ study }: Props) {
 
                                 {study.experienceDetails.length > 0 && (
                                     <div>
-                                        <h4 className="mb-1 text-[11px] font-black uppercase text-slate-400">
+                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
                                             관련 경력 항목
                                         </h4>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1.5 pl-0.5">
                                             {study.experienceDetails.map((detail) => (
                                                 <Link
                                                     key={detail.id}
@@ -335,9 +335,9 @@ export function StudyDetailClient({ study }: Props) {
                                                             ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
                                                             : `/experience-detail/${detail.id}`
                                                     }
-                                                    className="flex w-full items-start gap-1 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950"
+                                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                                 >
-                                                    <span className="mt-0.5 shrink-0 font-bold text-slate-400">
+                                                    <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
                                                         ›
                                                     </span>
                                                     <span>{detail.content}</span>
@@ -349,17 +349,17 @@ export function StudyDetailClient({ study }: Props) {
 
                                 {study.relatedStudies.length > 0 && (
                                     <div>
-                                        <h4 className="mb-1 text-[11px] font-black uppercase text-slate-400">
-                                            관련 Study
+                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                            관련 STUDY
                                         </h4>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1.5 pl-0.5">
                                             {study.relatedStudies.map((related) => (
                                                 <Link
                                                     key={`${related.id}-${related.type}`}
                                                     href={`/study/${encodeURIComponent(related.slug)}`}
-                                                    className="flex w-full items-start gap-1 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-900"
+                                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
                                                 >
-                                                    <span className="mt-0.5 shrink-0 font-bold text-slate-400">
+                                                    <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
                                                         ▪
                                                     </span>
                                                     <span>{related.title}</span>
