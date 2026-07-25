@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -71,7 +70,6 @@ public class StudyAiService {
     private final StudyRepository studyRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
-    private final boolean enabled;
     private final AtomicBoolean generating = new AtomicBoolean(false);
 
     public StudyAiService(
@@ -80,27 +78,16 @@ public class StudyAiService {
             ExperienceDetailRepository experienceDetailRepository,
             StudyRepository studyRepository,
             NvidiaNimClient nvidiaNimClient,
-            ObjectMapper objectMapper,
-            @Value("${app.ai.study.enabled:false}") boolean enabled) {
+            ObjectMapper objectMapper) {
         this.skillRepository = skillRepository;
         this.experienceRepository = experienceRepository;
         this.experienceDetailRepository = experienceDetailRepository;
         this.studyRepository = studyRepository;
         this.nvidiaNimClient = nvidiaNimClient;
         this.objectMapper = objectMapper;
-        this.enabled = enabled;
-    }
-
-    private void ensureEnabled() {
-        if (!enabled) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "공부 정리 AI 기능이 비활성화되어 있습니다. NVIDIA API 설정을 확인해주세요.");
-        }
     }
 
     public StudySuggestionResponse suggest(StudySuggestionRequest request) {
-        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 공부 정리 AI 초안을 생성하고 있습니다.");
@@ -116,7 +103,6 @@ public class StudyAiService {
     }
 
     public SseEmitter suggestStream(StudySuggestionRequest request) {
-        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 공부 정리 AI 초안을 생성하고 있습니다.");

@@ -20,7 +20,7 @@ public class NvidiaNimClient {
     public NvidiaNimClient(
             ChatClient.Builder chatClientBuilder,
             @Value("${app.ai.api-key:}") String apiKey,
-            @Value("${app.ai.model:qwen/qwen3.5-122b-a10b}") String model,
+            @Value("${app.ai.model:nvidia/nemotron-3-super-120b-a12b}") String model,
             @Value("${app.ai.max-output-tokens:8192}") int maxOutputTokens,
             @Value("${app.ai.json-response-format:false}") boolean jsonResponseFormat) {
         this.chatClient = chatClientBuilder.build();

@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -40,37 +39,37 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class ExperienceAiService {
     private static final String FACT_CONSOLIDATOR_PROMPT =
             """
-        당신은 개발자의 이력·경력 회고 글을 쓰기 전에 사실관계를 정리하는 편집 보조입니다.
-        입력에 주어진 이력 유형·기본 정보, 선택한 기술/관련 Study/관련 경력 요약, 사용자가 작성한 메모만 사실로 인정하세요.
-        메모는 사용자가 직접 제공한 사실로 신뢰하되, 메모에도 입력 데이터에도 없는 수치·고유명사·성과를 새로 만들어내지 마세요.
-        각 사실에는 근거가 된 스킬/Study/관련 경력 ID를 표시하고, 메모에서만 나온 사실은 ID를 모두 비워두세요.
-        ID는 입력 데이터에 있는 값만 사용하세요.
-        각 사실은 상황(situation), 행동(action), 성과(outcome), 배경(context) 중 어떤 관점인지 aspect로 구분하세요.
-        설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-        {"facts":[{"skillId":null,"studyId":null,"experienceId":null,"aspect":"situation|action|outcome|context","text":""}],"reason":""}
-        """;
+            당신은 개발자의 이력·경력 회고 글을 쓰기 전에 사실관계를 정리하는 편집 보조입니다.
+            입력에 주어진 이력 유형·기본 정보, 선택한 기술/관련 Study/관련 경력 요약, 사용자가 작성한 메모만 사실로 인정하세요.
+            메모는 사용자가 직접 제공한 사실로 신뢰하되, 메모에도 입력 데이터에도 없는 수치·고유명사·성과를 새로 만들어내지 마세요.
+            각 사실에는 근거가 된 스킬/Study/관련 경력 ID를 표시하고, 메모에서만 나온 사실은 ID를 모두 비워두세요.
+            ID는 입력 데이터에 있는 값만 사용하세요.
+            각 사실은 상황(situation), 행동(action), 성과(outcome), 배경(context) 중 어떤 관점인지 aspect로 구분하세요.
+            설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
+            {"facts":[{"skillId":null,"studyId":null,"experienceId":null,"aspect":"situation|action|outcome|context","text":""}],"reason":""}
+            """;
 
     private static final String EXPERIENCE_WRITER_PROMPT =
             """
-        당신은 한국어로 개발자 이력서의 경력 회고를 작성하는 편집자입니다.
-        입력으로 전달된 검증 완료 facts만 근거로 사용하세요. 새로운 사실을 추측하거나 만들지 마세요.
-        summary는 300자 이하, takeaway는 500자 이하로 핵심 배운 점을 요약하세요.
-        details는 상황(situation)-행동(actionDetail)-성과(outcome) 구조의 불릿을 최대 3개 작성하고,
-        각 불릿의 content는 한 줄 요약이어야 하며 skillIds는 facts에 등장한 관련 기술 ID만 포함하세요.
-        후보는 1개만 작성하세요. 충분한 근거가 없으면 suggestions를 빈 배열로 반환하세요.
-        설명이나 마크다운 펜스 없이 반드시 아래 JSON 구조만 반환하세요.
-        {"suggestions":[{"summary":"","takeaway":"","details":[{"content":"","situation":"","actionDetail":"","outcome":"","skillIds":[1]}],"reason":""}]}
-        """;
+            당신은 한국어로 개발자 이력서의 경력 회고를 작성하는 편집자입니다.
+            입력으로 전달된 검증 완료 facts만 근거로 사용하세요. 새로운 사실을 추측하거나 만들지 마세요.
+            summary는 300자 이하, takeaway는 500자 이하로 핵심 배운 점을 요약하세요.
+            details는 상황(situation)-행동(actionDetail)-성과(outcome) 구조의 불릿을 최대 3개 작성하고,
+            각 불릿의 content는 한 줄 요약이어야 하며 skillIds는 facts에 등장한 관련 기술 ID만 포함하세요.
+            후보는 1개만 작성하세요. 충분한 근거가 없으면 suggestions를 빈 배열로 반환하세요.
+            설명이나 마크다운 펜스 없이 반드시 아래 JSON 구조만 반환하세요.
+            {"suggestions":[{"summary":"","takeaway":"","details":[{"content":"","situation":"","actionDetail":"","outcome":"","skillIds":[1]}],"reason":""}]}
+            """;
 
     private static final String NARRATIVE_PROMPT =
             """
-        당신은 한국어로 개발자 이력서의 경력 상세 항목을 자연스러운 한 문단으로 다듬는 편집자입니다.
-        입력으로 한 줄 요약(content)과 상황(situation)·진행 과정(actionDetail)·성과(outcome) 텍스트가 주어집니다. 일부 필드는 비어 있을 수 있습니다.
-        주어진 사실만 사용해 새로운 사실이나 수치를 추가하지 말고, 상황-과정-성과가 자연스럽게 이어지는 하나의 문단으로 재작성하세요.
-        소제목, 글머리 기호, 마크다운 서식 없이 순수한 문장으로만 작성하고 400자 이내로 작성하세요.
-        설명이나 마크다운 펜스 없이 반드시 아래 JSON 구조만 반환하세요.
-        {"narrative":""}
-        """;
+            당신은 한국어로 개발자 이력서의 경력 상세 항목을 자연스러운 한 문단으로 다듬는 편집자입니다.
+            입력으로 한 줄 요약(content)과 상황(situation)·진행 과정(actionDetail)·성과(outcome) 텍스트가 주어집니다. 일부 필드는 비어 있을 수 있습니다.
+            주어진 사실만 사용해 새로운 사실이나 수치를 추가하지 말고, 상황-과정-성과가 자연스럽게 이어지는 하나의 문단으로 재작성하세요.
+            소제목, 글머리 기호, 마크다운 서식 없이 순수한 문장으로만 작성하고 400자 이내로 작성하세요.
+            설명이나 마크다운 펜스 없이 반드시 아래 JSON 구조만 반환하세요.
+            {"narrative":""}
+            """;
 
     private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
 
@@ -79,7 +78,6 @@ public class ExperienceAiService {
     private final StudyRepository studyRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
-    private final boolean enabled;
     private final AtomicBoolean generating = new AtomicBoolean(false);
 
     public ExperienceAiService(
@@ -87,26 +85,15 @@ public class ExperienceAiService {
             ExperienceRepository experienceRepository,
             StudyRepository studyRepository,
             NvidiaNimClient nvidiaNimClient,
-            ObjectMapper objectMapper,
-            @Value("${app.ai.experience.enabled:false}") boolean enabled) {
+            ObjectMapper objectMapper) {
         this.skillRepository = skillRepository;
         this.experienceRepository = experienceRepository;
         this.studyRepository = studyRepository;
         this.nvidiaNimClient = nvidiaNimClient;
         this.objectMapper = objectMapper;
-        this.enabled = enabled;
-    }
-
-    private void ensureEnabled() {
-        if (!enabled) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "이력·경력 AI 기능이 비활성화되어 있습니다. NVIDIA API 설정을 확인해주세요.");
-        }
     }
 
     public ExperienceSuggestionResponse suggest(ExperienceSuggestionRequest request) {
-        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 이력·경력 AI 초안을 생성하고 있습니다.");
@@ -122,7 +109,6 @@ public class ExperienceAiService {
     }
 
     public SseEmitter suggestStream(ExperienceSuggestionRequest request) {
-        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 이력·경력 AI 초안을 생성하고 있습니다.");
@@ -354,7 +340,6 @@ public class ExperienceAiService {
 
     public ExperienceDetailNarrativeResponse generateNarrative(
             ExperienceDetailNarrativeRequest request) {
-        ensureEnabled();
         if (!hasText(request.situation())
                 && !hasText(request.actionDetail())
                 && !hasText(request.outcome())) {

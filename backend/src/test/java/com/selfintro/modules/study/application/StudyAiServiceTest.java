@@ -1,7 +1,6 @@
 package com.selfintro.modules.study.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class StudyAiServiceTest {
@@ -42,8 +40,7 @@ class StudyAiServiceTest {
                         experienceDetailRepository,
                         studyRepository,
                         nvidiaNimClient,
-                        new ObjectMapper(),
-                        true);
+                        new ObjectMapper());
     }
 
     private StudySuggestionRequest emptyRequest() {
@@ -93,21 +90,5 @@ class StudyAiServiceTest {
         assertThat(suggestion.title()).isEqualTo("Kafka 이벤트 파이프라인 정리");
         assertThat(suggestion.tagNames()).containsExactly("Kafka", "이벤트드리븐");
         assertThat(suggestion.contentMarkdown()).contains("배경");
-    }
-
-    @Test
-    void rejectsWhenDisabled() {
-        StudyAiService disabled =
-                new StudyAiService(
-                        skillRepository,
-                        experienceRepository,
-                        experienceDetailRepository,
-                        studyRepository,
-                        nvidiaNimClient,
-                        new ObjectMapper(),
-                        false);
-        assertThatThrownBy(() -> disabled.suggest(emptyRequest()))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("비활성화");
     }
 }

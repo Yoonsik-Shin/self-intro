@@ -45,8 +45,7 @@ class CompetencyAiServiceTest {
                         experienceRepository,
                         studyRepository,
                         nvidiaNimClient,
-                        new ObjectMapper(),
-                        true);
+                        new ObjectMapper());
     }
 
     @Test

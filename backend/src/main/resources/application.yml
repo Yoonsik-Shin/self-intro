@@ -1,6 +1,13 @@
 spring:
   application:
     name: self-intro-backend
+  http:
+    client:
+      # NVIDIA NIM 호출(특히 비전 모델)이 응답 없이 멈출 때 요청 스레드가 무한정 붙잡히지
+      # 않도록 상한을 둔다. 배너 이미지를 여러 장(타일)으로 잘라 한 번에 보내는 멀티이미지 비전
+      # 호출이 90초를 넘기는 경우가 있어 여유를 더 뒀다.
+      connect-timeout: 5s
+      read-timeout: 150s
   ai:
     model:
       chat: openai
@@ -11,7 +18,7 @@ spring:
       api-key: ${NVIDIA_API_KEY:not-configured}
       chat:
         options:
-          model: ${NVIDIA_MODEL:qwen/qwen3.5-122b-a10b}
+          model: ${NVIDIA_MODEL:nvidia/nemotron-3-super-120b-a12b}
           temperature: 0.2
           top-p: 0.9
           max-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:4096}
@@ -67,36 +74,20 @@ app:
   ai:
     base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
     api-key: ${NVIDIA_API_KEY:}
-    model: ${NVIDIA_MODEL:qwen/qwen3.5-122b-a10b}
+    model: ${NVIDIA_MODEL:nvidia/nemotron-3-super-120b-a12b}
+    # 채용공고가 텍스트 대신 배너 이미지로만 정보를 제공할 때 JobApplicationUrlParseService가
+    # 보조로 호출하는 비전 모델. 한국어 OCR 정확도가 좋은 NVIDIA 자체 모델을 기본값으로 사용한다.
+    vision-model: ${NVIDIA_VISION_MODEL:nvidia/nemotron-nano-12b-v2-vl}
     max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:8192}
-    # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환함 (지원 모델에서만 true)
+    # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환했음.
+    # Nemotron으로 교체 후 정상 동작 여부를 재검증하고 필요 시 true로 전환할 것.
     json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
-    competency:
-      enabled: ${COMPETENCY_AI_ENABLED:false}
-    study:
-      enabled: ${STUDY_AI_ENABLED:false}
-    experience:
-      enabled: ${EXPERIENCE_AI_ENABLED:false}
-    job-application:
-      enabled: ${JOB_APPLICATION_AI_ENABLED:false}
-    job-posting-matching:
-      enabled: ${JOB_POSTING_MATCHING_AI_ENABLED:false}
+  # 사람인 access-key(비밀값)만 환경변수로 관리한다. 사용 여부/검색 키워드/개수/정렬/
+  # 지역·직무·업종 코드/매칭 임계치/수집 스케줄 cron은 재배포 없이 바꿀 수 있도록
+  # job_posting_setting 테이블(어드민 설정 화면, JobPostingSettingRepository)에서 관리한다.
   job-posting:
     saramin:
-      enabled: ${SARAMIN_API_ENABLED:false}
       access-key: ${SARAMIN_ACCESS_KEY:}
-      # 비워두면 보유 기술 상위 5개로 자동 검색한다.
-      keywords: ${SARAMIN_SEARCH_KEYWORDS:}
-      count: ${SARAMIN_SEARCH_COUNT:20}
-      sort: ${SARAMIN_SEARCH_SORT:pd}
-      loc-cd: ${SARAMIN_SEARCH_LOC_CD:}
-      job-cd: ${SARAMIN_SEARCH_JOB_CD:}
-      ind-cd: ${SARAMIN_SEARCH_IND_CD:}
-    collector:
-      scheduled-enabled: ${JOB_POSTING_COLLECTOR_SCHEDULED_ENABLED:false}
-      cron: ${JOB_POSTING_COLLECTOR_CRON:0 0 8 * * *}
-    matching:
-      keyword-threshold: ${JOB_POSTING_MATCHING_KEYWORD_THRESHOLD:2}
   donation:
     kofi:
       page-url: ${KOFI_PAGE_URL:https://ko-fi.com}

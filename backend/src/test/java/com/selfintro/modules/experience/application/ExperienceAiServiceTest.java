@@ -1,7 +1,6 @@
 package com.selfintro.modules.experience.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class ExperienceAiServiceTest {
@@ -38,8 +36,7 @@ class ExperienceAiServiceTest {
                         experienceRepository,
                         studyRepository,
                         nvidiaNimClient,
-                        new ObjectMapper(),
-                        true);
+                        new ObjectMapper());
     }
 
     private ExperienceSuggestionRequest emptyRequest() {
@@ -80,20 +77,5 @@ class ExperienceAiServiceTest {
         assertThat(suggestion.summary()).contains("Redis");
         assertThat(suggestion.details()).hasSize(1);
         assertThat(suggestion.details().getFirst().skillIds()).containsExactly(10L);
-    }
-
-    @Test
-    void rejectsWhenDisabled() {
-        ExperienceAiService disabled =
-                new ExperienceAiService(
-                        skillRepository,
-                        experienceRepository,
-                        studyRepository,
-                        nvidiaNimClient,
-                        new ObjectMapper(),
-                        false);
-        assertThatThrownBy(() -> disabled.suggest(emptyRequest()))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("비활성화");
     }
 }

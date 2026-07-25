@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -76,7 +75,6 @@ public class CompetencyAiService {
     private final StudyRepository studyRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
-    private final boolean enabled;
     private final AtomicBoolean generating = new AtomicBoolean(false);
 
     public CompetencyAiService(
@@ -85,27 +83,16 @@ public class CompetencyAiService {
             ExperienceRepository experienceRepository,
             StudyRepository studyRepository,
             NvidiaNimClient nvidiaNimClient,
-            ObjectMapper objectMapper,
-            @Value("${app.ai.competency.enabled:false}") boolean enabled) {
+            ObjectMapper objectMapper) {
         this.competencyRepository = competencyRepository;
         this.skillRepository = skillRepository;
         this.experienceRepository = experienceRepository;
         this.studyRepository = studyRepository;
         this.nvidiaNimClient = nvidiaNimClient;
         this.objectMapper = objectMapper;
-        this.enabled = enabled;
-    }
-
-    private void ensureEnabled() {
-        if (!enabled) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "핵심 역량 AI 기능이 비활성화되어 있습니다. NVIDIA API 설정을 확인해주세요.");
-        }
     }
 
     public CompetencySuggestionResponse suggest(CompetencySuggestionRequest request) {
-        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 핵심 역량 AI 초안을 생성하고 있습니다.");
@@ -121,7 +108,6 @@ public class CompetencyAiService {
     }
 
     public SseEmitter suggestStream(CompetencySuggestionRequest request) {
-        ensureEnabled();
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 핵심 역량 AI 초안을 생성하고 있습니다.");
