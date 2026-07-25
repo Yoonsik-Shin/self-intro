@@ -30,12 +30,15 @@ export function StudyDetailClient({ study }: Props) {
     const router = useRouter();
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
     const [activeId, setActiveId] = useState<string>('');
+    const [showScrollTop, setShowScrollTop] = useState(false);
 
     const toc = useMemo(() => extractToc(study.contentMarkdown), [study.contentMarkdown]);
 
     useEffect(() => {
-        if (toc.length === 0) return;
         const handleScroll = () => {
+            setShowScrollTop(window.scrollY > 300);
+
+            if (toc.length === 0) return;
             const scrollPosition = window.scrollY + 120;
             for (let i = toc.length - 1; i >= 0; i--) {
                 const item = toc[i];
@@ -206,9 +209,23 @@ export function StudyDetailClient({ study }: Props) {
                                         <ListOrdered className="h-3.5 w-3.5 text-blue-600" />
                                         <span>목차</span>
                                     </h3>
-                                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-600">
-                                        {toc.length}
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-600">
+                                            {toc.length}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                                            }
+                                            title="페이지 맨 위로 스크롤"
+                                            aria-label="페이지 맨 위로 스크롤"
+                                            className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+                                        >
+                                            <ArrowUp className="h-3 w-3 text-slate-500" />
+                                            <span>위로</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <nav className="max-h-[160px] min-[1200px]:max-h-[200px] overflow-y-auto overflow-x-hidden space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
                                     {toc.map((item) => {
@@ -243,14 +260,28 @@ export function StudyDetailClient({ study }: Props) {
 
                         {/* 연결 항목 (Related Items) Header */}
                         <div
-                            className={`hidden shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:block min-[900px]:pr-8'}`}
+                            className={`hidden shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:flex min-[900px]:items-center min-[900px]:justify-between min-[900px]:pr-8'}`}
                         >
-                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
-                                연결 항목
-                            </h3>
-                            <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
-                                이 학습과 연관된 이력 정보입니다.
-                            </p>
+                            <div>
+                                <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                                    연결 항목
+                                </h3>
+                                <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
+                                    이 학습과 연관된 이력 정보입니다.
+                                </p>
+                            </div>
+                            {toc.length === 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                    title="페이지 맨 위로 스크롤"
+                                    aria-label="페이지 맨 위로 스크롤"
+                                    className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+                                >
+                                    <ArrowUp className="h-3 w-3 text-slate-500" />
+                                    <span>위로</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* 연결 항목 List (개별 스크롤 적용) */}
@@ -350,29 +381,22 @@ export function StudyDetailClient({ study }: Props) {
                                 <ArrowLeft className="h-4 w-4" />
                             </button>
                         </div>
-
-                        <hr
-                            className={`hidden border-slate-100 shrink-0 ${
-                                isNavCollapsed ? '' : 'min-[900px]:block'
-                            }`}
-                        />
-
-                        <button
-                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="shrink-0 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
-                            title="위로 가기"
-                            aria-label="위로 가기"
-                        >
-                            <ArrowUp className="h-4 w-4 shrink-0" />
-                            <span
-                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
-                            >
-                                위로 가기
-                            </span>
-                        </button>
                     </div>
                 </aside>
             </div>
+
+            {/* Floating scroll to top button stacked above donation widget */}
+            {showScrollTop && (
+                <button
+                    type="button"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="fixed bottom-20 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/90 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 print:hidden"
+                    title="페이지 맨 위로 스크롤"
+                    aria-label="페이지 맨 위로 스크롤"
+                >
+                    <ArrowUp className="h-4 w-4" />
+                </button>
+            )}
         </div>
     );
 }
