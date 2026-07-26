@@ -15,7 +15,7 @@ resources:
 images:
   - name: self-intro-backend
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend
-    newTag: "eb43ab5"
+    newTag: "6ae3846"
 
 configMapGenerator:
   - name: backend-config
