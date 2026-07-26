@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowUp, Briefcase, ChevronLeft, ChevronRight, History, X } from 'lucide-react';
 import type { Experience } from '@/lib/api/types';
@@ -23,30 +23,66 @@ type RecentlyViewedExperienceItem = {
     viewedAt: number;
 };
 
+const RECENTLY_VIEWED_KEY = 'recently_viewed_experiences';
+const RECENTLY_VIEWED_CHANGED_EVENT = 'recently-viewed-experiences-changed';
+const EMPTY_RECENTLY_VIEWED: RecentlyViewedExperienceItem[] = [];
+
+let cachedRaw: string | null = null;
+let cachedParsed: RecentlyViewedExperienceItem[] = EMPTY_RECENTLY_VIEWED;
+
+// localStorage는 서버에 없는 값이라, 하이드레이션 시 서버/클라이언트 첫 렌더가 어긋나지 않도록
+// useSyncExternalStore로 읽는다. getServerSnapshot은 항상 빈 배열을 반환해 서버와 클라이언트
+// 최초 렌더를 일치시키고, 마운트 이후에는 subscribe를 통해 실제 값으로 갱신된다.
+function getRecentlyViewedSnapshot(): RecentlyViewedExperienceItem[] {
+    const raw = localStorage.getItem(RECENTLY_VIEWED_KEY);
+    if (raw === cachedRaw) return cachedParsed;
+    cachedRaw = raw;
+    try {
+        const parsed = raw ? JSON.parse(raw) : EMPTY_RECENTLY_VIEWED;
+        cachedParsed = Array.isArray(parsed) ? parsed : EMPTY_RECENTLY_VIEWED;
+    } catch {
+        cachedParsed = EMPTY_RECENTLY_VIEWED;
+    }
+    return cachedParsed;
+}
+
+function getRecentlyViewedServerSnapshot(): RecentlyViewedExperienceItem[] {
+    return EMPTY_RECENTLY_VIEWED;
+}
+
+function subscribeToRecentlyViewed(onStoreChange: () => void) {
+    window.addEventListener('storage', onStoreChange);
+    window.addEventListener(RECENTLY_VIEWED_CHANGED_EVENT, onStoreChange);
+    return () => {
+        window.removeEventListener('storage', onStoreChange);
+        window.removeEventListener(RECENTLY_VIEWED_CHANGED_EVENT, onStoreChange);
+    };
+}
+
+function writeRecentlyViewed(items: RecentlyViewedExperienceItem[]) {
+    if (items.length === 0) {
+        localStorage.removeItem(RECENTLY_VIEWED_KEY);
+    } else {
+        localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(items));
+    }
+    window.dispatchEvent(new Event(RECENTLY_VIEWED_CHANGED_EVENT));
+}
+
 export function ExperienceListClient({ experiences }: Props) {
     const [selectedTypes, setSelectedTypes] = useState<ExperienceTypeFilter[]>(['ALL']);
     const [selectedYears, setSelectedYears] = useState<number[]>([]);
     const [selectedExperienceIds, setSelectedExperienceIds] = useState<number[]>([]);
     const [search, setSearch] = useState('');
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
-    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedExperienceItem[]>(() => {
-        if (typeof window === 'undefined') return [];
-        try {
-            const raw = localStorage.getItem('recently_viewed_experiences');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-            }
-        } catch {
-            // Ignore
-        }
-        return [];
-    });
+    const recentlyViewed = useSyncExternalStore(
+        subscribeToRecentlyViewed,
+        getRecentlyViewedSnapshot,
+        getRecentlyViewedServerSnapshot
+    );
 
     const handleClearHistory = () => {
         try {
-            localStorage.removeItem('recently_viewed_experiences');
-            setRecentlyViewed([]);
+            writeRecentlyViewed([]);
         } catch {
             // Ignore
         }
@@ -54,13 +90,7 @@ export function ExperienceListClient({ experiences }: Props) {
 
     const handleRemoveItem = (id: number) => {
         try {
-            const next = recentlyViewed.filter((item) => item.id !== id);
-            setRecentlyViewed(next);
-            if (next.length === 0) {
-                localStorage.removeItem('recently_viewed_experiences');
-            } else {
-                localStorage.setItem('recently_viewed_experiences', JSON.stringify(next));
-            }
+            writeRecentlyViewed(recentlyViewed.filter((item) => item.id !== id));
         } catch {
             // Ignore
         }
