@@ -21,14 +21,17 @@ export function PdfPageLayer({
     children,
     hideGuides = false,
 }: PdfPageLayerProps) {
+    const isLastPage = pageIndex === totalPages - 1;
+
     return (
         <div
             data-pdf-page-layer
             data-page-index={pageIndex}
+            data-last-page={isLastPage || undefined}
             className="pdf-page-layer relative w-[210mm] h-[297mm] shrink-0 rounded-md bg-white border border-slate-300/90 shadow-[0_12px_40px_rgba(0,0,0,0.15)] box-border p-[12mm_14mm] print:w-[210mm] print:h-[297mm] print:max-h-[297mm] print:m-0 print:p-[12mm_14mm] print:shadow-none print:rounded-none print:border-none print:bg-white print:overflow-hidden print:box-border"
             style={{
-                breakAfter: 'page',
-                pageBreakAfter: 'always',
+                breakAfter: isLastPage ? 'auto' : 'page',
+                pageBreakAfter: isLastPage ? 'auto' : 'always',
             }}
         >
             {!hideGuides && (

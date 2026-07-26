@@ -186,6 +186,15 @@ body {
         page-break-after: always !important;
     }
 
+    /* 마지막 페이지는 다음 페이지로 강제 이동시키면 안 된다.
+       break-after: page가 마지막 페이지에도 걸려 있으면 브라우저가
+       콘텐츠 없는 페이지를 하나 더 만들어버려 "미리보기보다 인쇄 결과가
+       1장 더 많고 마지막 장이 공백"인 문제가 발생한다. */
+    .pdf-page-layer[data-last-page='true'] {
+        break-after: auto !important;
+        page-break-after: auto !important;
+    }
+
     /* 화면 프리뷰 페이징 파서와 1:1 완벽 100% 동기화:
      프리뷰에서 페이지 분할 마커(data-print-break)가 지정된 모든 항목은
      실제 PDF 인쇄 시에도 바로 그 위치에서 1px 오차 없이 break-before: page 를 강제 실행한다. */
