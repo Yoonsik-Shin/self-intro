@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUp, Briefcase, ChevronLeft, ChevronRight, History, X } from 'lucide-react';
 import type { Experience } from '@/lib/api/types';
@@ -29,19 +29,19 @@ export function ExperienceListClient({ experiences }: Props) {
     const [selectedExperienceIds, setSelectedExperienceIds] = useState<number[]>([]);
     const [search, setSearch] = useState('');
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
-    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedExperienceItem[]>([]);
-
-    useEffect(() => {
+    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedExperienceItem[]>(() => {
+        if (typeof window === 'undefined') return [];
         try {
             const raw = localStorage.getItem('recently_viewed_experiences');
             if (raw) {
                 const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) setRecentlyViewed(parsed);
+                if (Array.isArray(parsed)) return parsed;
             }
         } catch {
             // Ignore
         }
-    }, []);
+        return [];
+    });
 
     const handleClearHistory = () => {
         try {
