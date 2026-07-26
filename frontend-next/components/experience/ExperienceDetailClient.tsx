@@ -12,6 +12,7 @@ import rehypeKatex from 'rehype-katex';
 import {
     ArrowLeft,
     ArrowUp,
+    Briefcase,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
@@ -34,6 +35,7 @@ type Props = {
     detail: ExperienceDetail;
     subProjects?: Experience[];
     relatedStudies: Study[];
+    parentCareer?: Experience;
 };
 
 export function ExperienceDetailClient({
@@ -41,6 +43,7 @@ export function ExperienceDetailClient({
     detail,
     subProjects = [],
     relatedStudies,
+    parentCareer,
 }: Props) {
     const router = useRouter();
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
@@ -125,6 +128,19 @@ export function ExperienceDetailClient({
                     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                         {/* Header Section */}
                         <div className="mb-6 border-b border-slate-100 pb-6">
+                            {parentCareer && (
+                                <Link
+                                    href={`/experience/${parentCareer.id}`}
+                                    className="group/parent mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-blue-600"
+                                >
+                                    <Briefcase className="h-3.5 w-3.5" />
+                                    <span className="group-hover/parent:underline">
+                                        {parentCareer.companyName ?? parentCareer.title} 소속
+                                        프로젝트
+                                    </span>
+                                    <ChevronRight className="h-3.5 w-3.5 opacity-60 transition-opacity group-hover/parent:opacity-100" />
+                                </Link>
+                            )}
                             <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-500">
                                 <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">
                                     {experienceTypeLabel(experience.type)}
@@ -363,7 +379,13 @@ export function ExperienceDetailClient({
                                                         {formatCredentialPeriod(proj)}
                                                     </span>
                                                     <h4 className="text-lg font-black text-slate-900 mt-0.5">
-                                                        {proj.title}
+                                                        <Link
+                                                            href={`/experience/${proj.id}`}
+                                                            className="group/subproj inline-flex items-center gap-1.5 transition hover:text-blue-600 hover:underline"
+                                                        >
+                                                            <span>{proj.title}</span>
+                                                            <ExternalLink className="h-4 w-4 shrink-0 text-blue-600 opacity-40 transition-opacity group-hover/subproj:opacity-100" />
+                                                        </Link>
                                                     </h4>
                                                 </div>
                                                 {proj.repositoryUrl && (
@@ -390,49 +412,110 @@ export function ExperienceDetailClient({
                                                         주요 구현 및 성과
                                                     </h5>
                                                     <ul className="space-y-2">
-                                                        {proj.details.map((d) => (
-                                                            <li
-                                                                key={d.id}
-                                                                className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-white p-3 rounded-lg border border-slate-100 shadow-2xs"
-                                                            >
-                                                                <strong className="font-extrabold text-slate-900 block mb-1">
-                                                                    • {d.content}
-                                                                </strong>
-                                                                {d.narrative ||
-                                                                d.outcome ||
-                                                                d.situation ? (
-                                                                    <div className="markdown-body text-slate-600 pl-3 mt-1">
-                                                                        <ReactMarkdown
-                                                                            remarkPlugins={[
-                                                                                remarkGfm,
-                                                                                remarkBreaks,
-                                                                                remarkMath,
-                                                                                remarkKoreanEmphasis,
-                                                                                remarkDisableIndentedCode,
-                                                                                remarkCalloutToggle,
-                                                                                remarkGithubAlerts,
-                                                                            ]}
-                                                                            rehypePlugins={[
-                                                                                rehypeRaw,
-                                                                                rehypeKatex,
-                                                                            ]}
-                                                                            components={
-                                                                                markdownComponents
-                                                                            }
-                                                                        >
-                                                                            {d.narrative ||
-                                                                                [
-                                                                                    d.situation,
-                                                                                    d.actionDetail,
-                                                                                    d.outcome,
-                                                                                ]
-                                                                                    .filter(Boolean)
-                                                                                    .join('\n\n')}
-                                                                        </ReactMarkdown>
-                                                                    </div>
-                                                                ) : null}
-                                                            </li>
-                                                        ))}
+                                                        {proj.details.map((d) => {
+                                                            const linkedStudies =
+                                                                relatedStudies.filter((study) =>
+                                                                    study.experienceDetails?.some(
+                                                                        (ed) => ed.id === d.id
+                                                                    )
+                                                                );
+                                                            return (
+                                                                <li
+                                                                    key={d.id}
+                                                                    className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-white p-3 rounded-lg border border-slate-100 shadow-2xs"
+                                                                >
+                                                                    <strong className="font-extrabold text-slate-900 block mb-1">
+                                                                        •{' '}
+                                                                        {d.id > 0 ? (
+                                                                            <Link
+                                                                                href={`/experience/${proj.id}/experience-detail/${d.id}`}
+                                                                                className="hover:text-blue-600 hover:underline"
+                                                                            >
+                                                                                {d.content}
+                                                                            </Link>
+                                                                        ) : (
+                                                                            d.content
+                                                                        )}
+                                                                    </strong>
+                                                                    {d.narrative ||
+                                                                    d.outcome ||
+                                                                    d.situation ? (
+                                                                        <div className="markdown-body text-slate-600 pl-3 mt-1">
+                                                                            <ReactMarkdown
+                                                                                remarkPlugins={[
+                                                                                    remarkGfm,
+                                                                                    remarkBreaks,
+                                                                                    remarkMath,
+                                                                                    remarkKoreanEmphasis,
+                                                                                    remarkDisableIndentedCode,
+                                                                                    remarkCalloutToggle,
+                                                                                    remarkGithubAlerts,
+                                                                                ]}
+                                                                                rehypePlugins={[
+                                                                                    rehypeRaw,
+                                                                                    rehypeKatex,
+                                                                                ]}
+                                                                                components={
+                                                                                    markdownComponents
+                                                                                }
+                                                                            >
+                                                                                {d.narrative ||
+                                                                                    [
+                                                                                        d.situation,
+                                                                                        d.actionDetail,
+                                                                                        d.outcome,
+                                                                                    ]
+                                                                                        .filter(
+                                                                                            Boolean
+                                                                                        )
+                                                                                        .join(
+                                                                                            '\n\n'
+                                                                                        )}
+                                                                            </ReactMarkdown>
+                                                                        </div>
+                                                                    ) : null}
+                                                                    {linkedStudies.length > 0 && (
+                                                                        <div className="pl-3 pt-2 space-y-1.5">
+                                                                            <div className="text-xs font-extrabold text-indigo-700 flex items-center gap-1.5">
+                                                                                <span>📖</span> 연관
+                                                                                학습 아티클 (
+                                                                                {
+                                                                                    linkedStudies.length
+                                                                                }
+                                                                                개)
+                                                                            </div>
+                                                                            <ul className="space-y-1 pl-1 text-xs">
+                                                                                {linkedStudies.map(
+                                                                                    (s) => (
+                                                                                        <li
+                                                                                            key={
+                                                                                                s.id
+                                                                                            }
+                                                                                            className="flex items-center gap-1.5"
+                                                                                        >
+                                                                                            <span className="text-indigo-400 font-bold">
+                                                                                                •
+                                                                                            </span>
+                                                                                            <Link
+                                                                                                href={`/study/${encodeURIComponent(s.slug)}`}
+                                                                                                className="font-semibold text-slate-700 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 transition"
+                                                                                            >
+                                                                                                <span>
+                                                                                                    {
+                                                                                                        s.title
+                                                                                                    }
+                                                                                                </span>
+                                                                                                <ChevronRight className="h-3 w-3 text-indigo-500" />
+                                                                                            </Link>
+                                                                                        </li>
+                                                                                    )
+                                                                                )}
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
+                                                                </li>
+                                                            );
+                                                        })}
                                                     </ul>
                                                 </div>
                                             )}

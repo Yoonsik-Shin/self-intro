@@ -10,9 +10,12 @@ type Props = {
     params: Promise<{ id: string }>;
 };
 
-export async function findExperienceById(
-    idParam: string
-): Promise<{ experience: Experience; detail: ExperienceDetail; subProjects: Experience[] } | null> {
+export async function findExperienceById(idParam: string): Promise<{
+    experience: Experience;
+    detail: ExperienceDetail;
+    subProjects: Experience[];
+    parentCareer?: Experience;
+} | null> {
     const experiences = await serverGet<Experience[]>('/api/experiences');
 
     const exp = experiences.find((e) => String(e.id) === idParam || (e.slug && e.slug === idParam));
@@ -32,7 +35,11 @@ export async function findExperienceById(
         exp.type === 'CAREER'
             ? experiences.filter((e) => e.type === 'PROJECT' && e.careerId === exp.id)
             : [];
-    return { experience: exp, detail, subProjects };
+    const parentCareer =
+        exp.type === 'PROJECT' && exp.careerId != null
+            ? experiences.find((e) => e.id === exp.careerId)
+            : undefined;
+    return { experience: exp, detail, subProjects, parentCareer };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -77,8 +84,11 @@ export default async function ExperiencePage({ params }: Props) {
     const found = await findExperienceById(id);
     if (!found) notFound();
 
-    const { experience, detail, subProjects } = found;
-    const relatedStudies = await findRelatedStudies(experience.details);
+    const { experience, detail, subProjects, parentCareer } = found;
+    const relatedStudies = await findRelatedStudies([
+        ...experience.details,
+        ...subProjects.flatMap((p) => p.details),
+    ]);
 
     return (
         <div className="relative mx-auto max-w-[1500px] space-y-1 px-4 py-6 sm:px-6">
@@ -87,6 +97,7 @@ export default async function ExperiencePage({ params }: Props) {
                 detail={detail}
                 subProjects={subProjects}
                 relatedStudies={relatedStudies}
+                parentCareer={parentCareer}
             />
         </div>
     );

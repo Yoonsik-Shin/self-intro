@@ -13,7 +13,12 @@ type Props = {
 export async function findExperienceAndDetail(
     experienceIdParam: string,
     detailIdParam: string
-): Promise<{ experience: Experience; detail: ExperienceDetail; subProjects: Experience[] } | null> {
+): Promise<{
+    experience: Experience;
+    detail: ExperienceDetail;
+    subProjects: Experience[];
+    parentCareer?: Experience;
+} | null> {
     const detailId = Number(detailIdParam);
     const experiences = await serverGet<Experience[]>('/api/experiences');
 
@@ -45,7 +50,11 @@ export async function findExperienceAndDetail(
         exp.type === 'CAREER'
             ? experiences.filter((e) => e.type === 'PROJECT' && e.careerId === exp.id)
             : [];
-    return { experience: exp, detail, subProjects };
+    const parentCareer =
+        exp.type === 'PROJECT' && exp.careerId != null
+            ? experiences.find((e) => e.id === exp.careerId)
+            : undefined;
+    return { experience: exp, detail, subProjects, parentCareer };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -91,8 +100,11 @@ export default async function ExperienceDetailPage({ params }: Props) {
     const found = await findExperienceAndDetail(id, detailId);
     if (!found) notFound();
 
-    const { experience, detail, subProjects } = found;
-    const relatedStudies = await findRelatedStudies(experience.details);
+    const { experience, detail, subProjects, parentCareer } = found;
+    const relatedStudies = await findRelatedStudies([
+        ...experience.details,
+        ...subProjects.flatMap((p) => p.details),
+    ]);
 
     return (
         <div className="relative mx-auto max-w-[1500px] space-y-1 px-4 py-6 sm:px-6">
@@ -101,6 +113,7 @@ export default async function ExperienceDetailPage({ params }: Props) {
                 detail={detail}
                 subProjects={subProjects}
                 relatedStudies={relatedStudies}
+                parentCareer={parentCareer}
             />
         </div>
     );

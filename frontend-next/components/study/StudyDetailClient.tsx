@@ -358,15 +358,18 @@ export function StudyDetailClient({ study }: Props) {
                                         </h4>
                                         <div className="space-y-1.5 pl-0.5">
                                             {study.experiences.map((experience) => (
-                                                <p
+                                                <Link
                                                     key={experience.id}
-                                                    className="text-xs leading-normal text-slate-600 flex items-start gap-1.5"
+                                                    href={`/experience/${experience.id}`}
+                                                    className="flex w-full items-start gap-1.5 text-left text-xs leading-normal text-slate-600 hover:text-slate-950 group"
                                                 >
-                                                    <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400">
+                                                    <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-700">
                                                         {experience.type}
                                                     </span>
-                                                    <span>{experience.title}</span>
-                                                </p>
+                                                    <span className="font-semibold group-hover:text-slate-950">
+                                                        {experience.title}
+                                                    </span>
+                                                </Link>
                                             ))}
                                         </div>
                                     </div>
