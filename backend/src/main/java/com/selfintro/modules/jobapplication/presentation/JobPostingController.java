@@ -71,6 +71,12 @@ public class JobPostingController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/unsave")
+    public ResponseEntity<Void> unsave(@PathVariable Long id) {
+        jobPostingService.unsave(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}/dismiss")
     public ResponseEntity<Void> dismiss(@PathVariable Long id) {
         jobPostingService.dismiss(id);

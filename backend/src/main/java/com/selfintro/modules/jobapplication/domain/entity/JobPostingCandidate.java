@@ -108,6 +108,13 @@ public class JobPostingCandidate {
         }
     }
 
+    public void unsave(LocalDateTime now) {
+        if (status == JobPostingCandidateStatus.SAVED) {
+            this.status = JobPostingCandidateStatus.NEW;
+            this.updatedAt = now;
+        }
+    }
+
     public void dismiss(LocalDateTime now) {
         this.status = JobPostingCandidateStatus.DISMISSED;
         this.updatedAt = now;

@@ -182,6 +182,11 @@ public class JobPostingService {
     }
 
     @Transactional
+    public void unsave(Long id) {
+        findOrThrow(id).unsave(LocalDateTime.now());
+    }
+
+    @Transactional
     public void dismiss(Long id) {
         findOrThrow(id).dismiss(LocalDateTime.now());
     }

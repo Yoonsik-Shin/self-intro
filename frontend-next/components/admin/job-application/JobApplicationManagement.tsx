@@ -10,6 +10,7 @@ import {
     Check,
     ChevronLeft,
     ChevronRight,
+    ExternalLink,
     LayoutGrid,
     Link2,
     List as ListIcon,
@@ -26,6 +27,7 @@ import type {
     JobApplicationRequest,
     JobApplicationStage,
     JobPostingCandidate,
+    JobPostingCandidateStatus,
     JobPostingSettingRequest,
     JobPostingSource,
 } from '@/lib/api/types';
@@ -33,6 +35,14 @@ import type {
 const POSTING_SOURCE_LABELS: Record<JobPostingSource, string> = {
     URL_INGEST: 'URL 수집',
     SARAMIN: '사람인',
+};
+
+const CANDIDATE_STATUS_LABELS: Record<JobPostingCandidateStatus, string> = {
+    NEW: '수집됨',
+    SAVED: '저장됨',
+    DISMISSED: '무시됨',
+    CONVERTED: '전환됨',
+    EXPIRED: '마감',
 };
 
 const STAGE_LABELS: Record<JobApplicationStage, string> = {
@@ -139,6 +149,7 @@ export function JobApplicationManagement() {
         return new Date(now.getFullYear(), now.getMonth(), 1);
     });
     const [drawer, setDrawer] = useState<Drawer>(null);
+    const [candidateDrawerId, setCandidateDrawerId] = useState<number | null>(null);
     const [form, setForm] = useState<JobApplicationRequest>(emptyForm);
     const [search, setSearch] = useState('');
     const [stageDraft, setStageDraft] = useState<JobApplicationStage | null>(null);
@@ -171,6 +182,7 @@ export function JobApplicationManagement() {
 
     const editingId = drawer?.mode === 'edit' ? drawer.id : null;
     const editingApplication = applications.find((item) => item.id === editingId) ?? null;
+    const candidateDrawerItem = candidates.find((item) => item.id === candidateDrawerId) ?? null;
 
     const { data: stageEvents = [], isLoading: isStageEventsLoading } = useQuery({
         queryKey: ['jobApplications', editingId, 'stageEvents'],
@@ -340,6 +352,13 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '저장에 실패했습니다.'),
     });
 
+    const unsaveCandidateMutation = useMutation({
+        mutationFn: (id: number) => jobPostingApi.unsave(id),
+        onSuccess: () => invalidateCandidates(),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '저장 해제에 실패했습니다.'),
+    });
+
     const collectMutation = useMutation({
         mutationFn: () => jobPostingApi.collect(),
         onSuccess: (result) => {
@@ -470,6 +489,14 @@ export function JobApplicationManagement() {
         setForm(emptyForm);
         setStageDraft(null);
         setStageMemo('');
+    }
+
+    function openCandidateDrawer(id: number) {
+        setCandidateDrawerId(id);
+    }
+
+    function closeCandidateDrawer() {
+        setCandidateDrawerId(null);
     }
 
     function handleSubmit(event: FormEvent) {
@@ -640,7 +667,8 @@ export function JobApplicationManagement() {
                                 {filteredCandidates.map((candidate) => (
                                     <tr
                                         key={`candidate-${candidate.id}`}
-                                        className="bg-slate-50/70 text-slate-500"
+                                        onClick={() => openCandidateDrawer(candidate.id)}
+                                        className="cursor-pointer bg-slate-50/70 text-slate-500 transition hover:bg-slate-100"
                                     >
                                         <td className="px-5 py-3">
                                             <span className="font-bold text-slate-700">
@@ -672,11 +700,12 @@ export function JobApplicationManagement() {
                                                 <button
                                                     type="button"
                                                     disabled={convertCandidateMutation.isPending}
-                                                    onClick={() =>
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         convertCandidateMutation.mutate(
                                                             candidate.id
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                     className="text-xs font-bold text-slate-700 hover:text-slate-900"
                                                 >
                                                     지원하기
@@ -684,7 +713,8 @@ export function JobApplicationManagement() {
                                                 <button
                                                     type="button"
                                                     disabled={dismissCandidateMutation.isPending}
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         if (confirm('이 후보를 무시할까요?')) {
                                                             dismissCandidateMutation.mutate(
                                                                 candidate.id
@@ -775,7 +805,8 @@ export function JobApplicationManagement() {
                                     return (
                                         <div
                                             key={candidate.id}
-                                            className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-left shadow-sm"
+                                            onClick={() => openCandidateDrawer(candidate.id)}
+                                            className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow"
                                         >
                                             <p className="truncate text-sm font-extrabold text-slate-800">
                                                 {candidate.companyName}
@@ -813,11 +844,12 @@ export function JobApplicationManagement() {
                                                 <button
                                                     type="button"
                                                     disabled={convertCandidateMutation.isPending}
-                                                    onClick={() =>
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         convertCandidateMutation.mutate(
                                                             candidate.id
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                     className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-slate-900 px-2 py-1 text-[11px] font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     <Check className="h-3 w-3" />
@@ -827,11 +859,12 @@ export function JobApplicationManagement() {
                                                     <button
                                                         type="button"
                                                         disabled={saveCandidateMutation.isPending}
-                                                        onClick={() =>
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
                                                             saveCandidateMutation.mutate(
                                                                 candidate.id
-                                                            )
-                                                        }
+                                                            );
+                                                        }}
                                                         title="저장"
                                                         className="rounded-lg border border-slate-200 px-2 py-1 text-slate-500 transition hover:bg-slate-100"
                                                     >
@@ -839,17 +872,26 @@ export function JobApplicationManagement() {
                                                     </button>
                                                 )}
                                                 {candidate.status === 'SAVED' && (
-                                                    <span
-                                                        title="저장됨"
-                                                        className="rounded-lg border border-slate-200 px-2 py-1 text-emerald-500"
+                                                    <button
+                                                        type="button"
+                                                        disabled={unsaveCandidateMutation.isPending}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            unsaveCandidateMutation.mutate(
+                                                                candidate.id
+                                                            );
+                                                        }}
+                                                        title="저장 해제"
+                                                        className="rounded-lg border border-slate-200 px-2 py-1 text-emerald-500 transition hover:bg-rose-50 hover:text-rose-500"
                                                     >
                                                         <BookmarkCheck className="h-3 w-3" />
-                                                    </span>
+                                                    </button>
                                                 )}
                                                 <button
                                                     type="button"
                                                     disabled={dismissCandidateMutation.isPending}
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         if (confirm('이 후보를 무시할까요?')) {
                                                             dismissCandidateMutation.mutate(
                                                                 candidate.id
@@ -1344,6 +1386,165 @@ export function JobApplicationManagement() {
                                 )}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {candidateDrawerItem && (
+                <div className="fixed inset-0 z-40 flex justify-end">
+                    <div
+                        className="absolute inset-0 bg-slate-900/30"
+                        onClick={closeCandidateDrawer}
+                        aria-hidden
+                    />
+                    <div className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-5 shadow-2xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-lg font-black text-slate-950">수집된 공고 상세</h3>
+                            <button
+                                type="button"
+                                onClick={closeCandidateDrawer}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <span className="mb-3 inline-flex w-fit items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-extrabold text-white">
+                            {candidateDrawerItem.status === 'SAVED' ? (
+                                <BookmarkCheck className="h-3 w-3" />
+                            ) : (
+                                <Bookmark className="h-3 w-3" />
+                            )}
+                            {CANDIDATE_STATUS_LABELS[candidateDrawerItem.status]}
+                        </span>
+
+                        <p className="text-lg font-black text-slate-900">
+                            {candidateDrawerItem.companyName}
+                        </p>
+                        <p className="mt-0.5 text-sm text-slate-500">{candidateDrawerItem.title}</p>
+
+                        <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+                            <div>
+                                <dt className="font-bold text-slate-500">출처</dt>
+                                <dd className="mt-0.5 text-slate-800">
+                                    {POSTING_SOURCE_LABELS[candidateDrawerItem.source]}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="font-bold text-slate-500">마감일</dt>
+                                <dd className="mt-0.5 text-slate-800">
+                                    {candidateDrawerItem.deadline ?? (
+                                        <span className="text-slate-300">—</span>
+                                    )}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="font-bold text-slate-500">근무지</dt>
+                                <dd className="mt-0.5 text-slate-800">
+                                    {candidateDrawerItem.location ?? (
+                                        <span className="text-slate-300">—</span>
+                                    )}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="font-bold text-slate-500">고용형태</dt>
+                                <dd className="mt-0.5 text-slate-800">
+                                    {candidateDrawerItem.employmentType ?? (
+                                        <span className="text-slate-300">—</span>
+                                    )}
+                                </dd>
+                            </div>
+                            <div className="col-span-2">
+                                <dt className="font-bold text-slate-500">연봉/근무조건 메모</dt>
+                                <dd className="mt-0.5 text-slate-800">
+                                    {candidateDrawerItem.salaryNote ?? (
+                                        <span className="text-slate-300">—</span>
+                                    )}
+                                </dd>
+                            </div>
+                            <div className="col-span-2">
+                                <dt className="font-bold text-slate-500">수집 일시</dt>
+                                <dd className="mt-0.5 text-slate-800">
+                                    {candidateDrawerItem.fetchedAt.replace('T', ' ').slice(0, 19)}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        {candidateDrawerItem.matchScore !== null && (
+                            <div className="mt-4 rounded-lg bg-emerald-50 p-3">
+                                <p className="text-xs font-extrabold text-emerald-700">
+                                    AI 매칭 {candidateDrawerItem.matchScore}점
+                                </p>
+                                {candidateDrawerItem.matchReason && (
+                                    <p className="mt-1 text-xs text-emerald-600">
+                                        {candidateDrawerItem.matchReason}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        <a
+                            href={candidateDrawerItem.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-4 flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                        >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            원본 공고 보기
+                        </a>
+
+                        <div className="mt-6 flex items-center gap-2 border-t border-slate-200 pt-4">
+                            <button
+                                type="button"
+                                disabled={convertCandidateMutation.isPending}
+                                onClick={() => {
+                                    convertCandidateMutation.mutate(candidateDrawerItem.id);
+                                    closeCandidateDrawer();
+                                }}
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Check className="h-4 w-4" />
+                                지원하기
+                            </button>
+                            {candidateDrawerItem.status === 'SAVED' ? (
+                                <button
+                                    type="button"
+                                    disabled={unsaveCandidateMutation.isPending}
+                                    onClick={() =>
+                                        unsaveCandidateMutation.mutate(candidateDrawerItem.id)
+                                    }
+                                    title="저장 해제"
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-emerald-500 transition hover:bg-rose-50 hover:text-rose-500"
+                                >
+                                    <BookmarkCheck className="h-4 w-4" />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled={saveCandidateMutation.isPending}
+                                    onClick={() =>
+                                        saveCandidateMutation.mutate(candidateDrawerItem.id)
+                                    }
+                                    title="저장"
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-slate-500 transition hover:bg-slate-100"
+                                >
+                                    <Bookmark className="h-4 w-4" />
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                disabled={dismissCandidateMutation.isPending}
+                                onClick={() => {
+                                    if (confirm('이 후보를 무시할까요?')) {
+                                        dismissCandidateMutation.mutate(candidateDrawerItem.id);
+                                        closeCandidateDrawer();
+                                    }
+                                }}
+                                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100"
+                            >
+                                무시
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

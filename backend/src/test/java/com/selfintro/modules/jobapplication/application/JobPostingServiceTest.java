@@ -152,6 +152,17 @@ class JobPostingServiceTest {
     }
 
     @Test
+    void unsaveMovesSavedCandidateBackToNewStatus() {
+        JobPostingCandidate candidate = newCandidate();
+        candidate.save(LocalDateTime.now());
+        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+
+        jobPostingService.unsave(1L);
+
+        assertThat(candidate.getStatus()).isEqualTo(JobPostingCandidateStatus.NEW);
+    }
+
+    @Test
     void convertToApplicationCreatesApplicationAndMarksCandidateConverted() {
         JobPostingCandidate candidate = newCandidate();
         when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));

@@ -40,6 +40,10 @@ export const jobPostingApi = {
         request<void>(`/api/admin/job-postings/${id}/save`, {
             method: 'PATCH',
         }),
+    unsave: (id: number) =>
+        request<void>(`/api/admin/job-postings/${id}/unsave`, {
+            method: 'PATCH',
+        }),
     dismiss: (id: number) =>
         request<void>(`/api/admin/job-postings/${id}/dismiss`, {
             method: 'PATCH',
