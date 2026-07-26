@@ -455,9 +455,17 @@ export type JobPostingCandidate = {
     employmentType: string | null;
     deadline: string | null;
     salaryNote: string | null;
+    jobDescription: string | null;
+    requiredQualifications: string | null;
+    preferredQualifications: string | null;
+    hiringProcess: string | null;
+    applicationMethod: string | null;
+    compensationDetail: string | null;
     status: JobPostingCandidateStatus;
     matchScore: number | null;
     matchReason: string | null;
+    appealAnalysis: string | null;
+    appealAnalyzedAt: string | null;
     fetchedAt: string;
 };
 

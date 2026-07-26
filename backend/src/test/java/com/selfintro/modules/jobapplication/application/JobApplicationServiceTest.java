@@ -166,6 +166,12 @@ class JobApplicationServiceTest {
                                 null,
                                 null,
                                 null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
                                 null),
                         LocalDate.of(2026, 7, 1).atStartOfDay());
         candidate.markConverted(LocalDate.of(2026, 7, 1).atStartOfDay());

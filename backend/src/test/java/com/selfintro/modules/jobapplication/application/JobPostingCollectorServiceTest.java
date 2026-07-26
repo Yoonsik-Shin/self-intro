@@ -63,6 +63,12 @@ class JobPostingCollectorServiceTest {
                         null,
                         null,
                         LocalDate.now().minusDays(1),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         null),
                 LocalDateTime.now());
     }
@@ -78,6 +84,12 @@ class JobPostingCollectorServiceTest {
                 "서울",
                 null,
                 LocalDate.now().plusDays(30),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null);
     }
 

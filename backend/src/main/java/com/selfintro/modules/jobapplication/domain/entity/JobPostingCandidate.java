@@ -59,6 +59,24 @@ public class JobPostingCandidate {
     @Column(name = "salary_note", length = 200)
     private String salaryNote;
 
+    @Column(name = "job_description", columnDefinition = "TEXT")
+    private String jobDescription;
+
+    @Column(name = "required_qualifications", columnDefinition = "TEXT")
+    private String requiredQualifications;
+
+    @Column(name = "preferred_qualifications", columnDefinition = "TEXT")
+    private String preferredQualifications;
+
+    @Column(name = "hiring_process", columnDefinition = "TEXT")
+    private String hiringProcess;
+
+    @Column(name = "application_method", columnDefinition = "TEXT")
+    private String applicationMethod;
+
+    @Column(name = "compensation_detail", columnDefinition = "TEXT")
+    private String compensationDetail;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private JobPostingCandidateStatus status;
@@ -68,6 +86,12 @@ public class JobPostingCandidate {
 
     @Column(name = "match_reason", length = 500)
     private String matchReason;
+
+    @Column(name = "appeal_analysis", columnDefinition = "TEXT")
+    private String appealAnalysis;
+
+    @Column(name = "appeal_analyzed_at")
+    private LocalDateTime appealAnalyzedAt;
 
     @Column(name = "fetched_at", nullable = false, updatable = false)
     private LocalDateTime fetchedAt;
@@ -86,6 +110,12 @@ public class JobPostingCandidate {
         this.source = draft.source();
         this.deadline = draft.deadline();
         this.salaryNote = draft.salaryNote();
+        this.jobDescription = draft.jobDescription();
+        this.requiredQualifications = draft.requiredQualifications();
+        this.preferredQualifications = draft.preferredQualifications();
+        this.hiringProcess = draft.hiringProcess();
+        this.applicationMethod = draft.applicationMethod();
+        this.compensationDetail = draft.compensationDetail();
         this.status = JobPostingCandidateStatus.NEW;
         this.fetchedAt = now;
         this.updatedAt = now;
@@ -98,6 +128,12 @@ public class JobPostingCandidate {
     public void applyMatch(Integer score, String reason, LocalDateTime now) {
         this.matchScore = score;
         this.matchReason = reason;
+        this.updatedAt = now;
+    }
+
+    public void applyAppealAnalysis(String analysis, LocalDateTime now) {
+        this.appealAnalysis = analysis;
+        this.appealAnalyzedAt = now;
         this.updatedAt = now;
     }
 
@@ -146,5 +182,11 @@ public class JobPostingCandidate {
             String location,
             String employmentType,
             LocalDate deadline,
-            String salaryNote) {}
+            String salaryNote,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail) {}
 }

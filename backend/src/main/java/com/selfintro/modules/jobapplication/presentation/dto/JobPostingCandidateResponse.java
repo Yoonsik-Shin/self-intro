@@ -16,9 +16,17 @@ public record JobPostingCandidateResponse(
         String employmentType,
         LocalDate deadline,
         String salaryNote,
+        String jobDescription,
+        String requiredQualifications,
+        String preferredQualifications,
+        String hiringProcess,
+        String applicationMethod,
+        String compensationDetail,
         JobPostingCandidateStatus status,
         Integer matchScore,
         String matchReason,
+        String appealAnalysis,
+        LocalDateTime appealAnalyzedAt,
         LocalDateTime fetchedAt) {
 
     public static JobPostingCandidateResponse from(JobPostingCandidate entity) {
@@ -32,9 +40,17 @@ public record JobPostingCandidateResponse(
                 entity.getEmploymentType(),
                 entity.getDeadline(),
                 entity.getSalaryNote(),
+                entity.getJobDescription(),
+                entity.getRequiredQualifications(),
+                entity.getPreferredQualifications(),
+                entity.getHiringProcess(),
+                entity.getApplicationMethod(),
+                entity.getCompensationDetail(),
                 entity.getStatus(),
                 entity.getMatchScore(),
                 entity.getMatchReason(),
+                entity.getAppealAnalysis(),
+                entity.getAppealAnalyzedAt(),
                 entity.getFetchedAt());
     }
 }

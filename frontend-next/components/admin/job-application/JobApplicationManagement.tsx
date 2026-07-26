@@ -2,6 +2,9 @@
 
 import { useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { adminDetailMarkdownComponents } from '@/lib/markdown';
 import {
     Bookmark,
     BookmarkCheck,
@@ -357,6 +360,13 @@ export function JobApplicationManagement() {
         onSuccess: () => invalidateCandidates(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '저장 해제에 실패했습니다.'),
+    });
+
+    const analyzeAppealMutation = useMutation({
+        mutationFn: (id: number) => jobPostingApi.analyzeAppeal(id),
+        onSuccess: () => invalidateCandidates(),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '경력 매칭 분석에 실패했습니다.'),
     });
 
     const collectMutation = useMutation({
@@ -1470,6 +1480,42 @@ export function JobApplicationManagement() {
                             </div>
                         </dl>
 
+                        {(candidateDrawerItem.jobDescription ||
+                            candidateDrawerItem.requiredQualifications ||
+                            candidateDrawerItem.preferredQualifications ||
+                            candidateDrawerItem.hiringProcess ||
+                            candidateDrawerItem.applicationMethod ||
+                            candidateDrawerItem.compensationDetail) && (
+                            <details className="mt-4 rounded-lg border border-slate-200">
+                                <summary className="cursor-pointer select-none px-3 py-2 text-sm font-bold text-slate-600">
+                                    상세 정보 (AI 자동분석으로 채워짐)
+                                </summary>
+                                <div className="space-y-3 px-3 pb-3 pt-1 text-sm">
+                                    {(
+                                        [
+                                            ['jobDescription', '직무 상세'],
+                                            ['requiredQualifications', '지원자격'],
+                                            ['preferredQualifications', '우대사항'],
+                                            ['hiringProcess', '전형절차'],
+                                            ['applicationMethod', '지원방법'],
+                                            ['compensationDetail', '처우조건 상세'],
+                                        ] as const
+                                    ).map(([field, label]) =>
+                                        candidateDrawerItem[field] ? (
+                                            <div key={field}>
+                                                <p className="mb-1 font-bold text-slate-500">
+                                                    {label}
+                                                </p>
+                                                <p className="whitespace-pre-wrap text-slate-800">
+                                                    {candidateDrawerItem[field]}
+                                                </p>
+                                            </div>
+                                        ) : null
+                                    )}
+                                </div>
+                            </details>
+                        )}
+
                         {candidateDrawerItem.matchScore !== null && (
                             <div className="mt-4 rounded-lg bg-emerald-50 p-3">
                                 <p className="text-xs font-extrabold text-emerald-700">
@@ -1482,6 +1528,44 @@ export function JobApplicationManagement() {
                                 )}
                             </div>
                         )}
+
+                        <div className="mt-4 rounded-lg border border-slate-200 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-bold text-slate-600">경력 매칭 분석</p>
+                                <button
+                                    type="button"
+                                    disabled={analyzeAppealMutation.isPending}
+                                    onClick={() =>
+                                        analyzeAppealMutation.mutate(candidateDrawerItem.id)
+                                    }
+                                    title="내 경력/핵심역량과 대조해 어필 포인트를 AI로 분석합니다"
+                                    className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                    {analyzeAppealMutation.isPending
+                                        ? '분석 중...'
+                                        : candidateDrawerItem.appealAnalysis
+                                          ? '다시 분석'
+                                          : '분석하기'}
+                                </button>
+                            </div>
+                            {analyzeAppealMutation.isPending && (
+                                <p className="mt-2 text-xs text-slate-400">
+                                    경력·핵심역량 데이터를 모아 AI로 분석하고 있어요. 몇십 초 정도
+                                    걸릴 수 있어요.
+                                </p>
+                            )}
+                            {candidateDrawerItem.appealAnalysis && (
+                                <div className="markdown-body mt-2 text-xs text-slate-700">
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={adminDetailMarkdownComponents}
+                                    >
+                                        {candidateDrawerItem.appealAnalysis}
+                                    </ReactMarkdown>
+                                </div>
+                            )}
+                        </div>
 
                         <a
                             href={candidateDrawerItem.url}

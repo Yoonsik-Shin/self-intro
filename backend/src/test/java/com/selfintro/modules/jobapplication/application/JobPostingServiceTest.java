@@ -70,7 +70,13 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 LocalDate.now().plusDays(10),
-                                "협의"),
+                                "협의",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
                         LocalDateTime.now());
         ReflectionTestUtils.setField(candidate, "id", 1L);
         return candidate;

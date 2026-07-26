@@ -209,7 +209,13 @@ public class SaraminJobPostingClient {
                 location,
                 employmentType,
                 deadline,
-                salaryNote);
+                salaryNote,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     private static String safe(String value) {

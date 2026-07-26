@@ -21,6 +21,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -162,11 +164,17 @@ public class JobPostingService {
                         parsed.companyName(),
                         trimmed,
                         JobPostingSource.URL_INGEST,
-                        null,
+                        combineForMatching(parsed),
                         null,
                         null,
                         parsed.deadline(),
-                        parsed.salaryNote());
+                        parsed.salaryNote(),
+                        parsed.jobDescription(),
+                        parsed.requiredQualifications(),
+                        parsed.preferredQualifications(),
+                        parsed.hiringProcess(),
+                        parsed.applicationMethod(),
+                        parsed.compensationDetail());
         JobPostingCandidate candidate = JobPostingCandidate.create(draft, now);
 
         JobMatchingService.MatchResult match =
@@ -204,15 +212,28 @@ public class JobPostingService {
                         candidate.getDeadline(),
                         candidate.getSalaryNote(),
                         null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null);
+                        candidate.getJobDescription(),
+                        candidate.getRequiredQualifications(),
+                        candidate.getPreferredQualifications(),
+                        candidate.getHiringProcess(),
+                        candidate.getApplicationMethod(),
+                        candidate.getCompensationDetail());
         JobApplicationResponse response = jobApplicationService.create(request, candidate.getId());
         candidate.markConverted(LocalDateTime.now());
         return response;
+    }
+
+    /**
+     * URL 수집은 사람인 API와 달리 별도의 "요구 기술" 필드가 없어, AI가 뽑아낸 자격요건/우대사항/ 직무상세 텍스트를 합쳐 매칭용 원문으로 쓴다 — 그래야
+     * JobMatchingService의 키워드/AI 매칭이 제목만으로 판단하지 않고 실제 요건 텍스트를 근거로 삼을 수 있다.
+     */
+    private String combineForMatching(JobApplicationUrlParseResponse parsed) {
+        return Stream.of(
+                        parsed.jobDescription(),
+                        parsed.requiredQualifications(),
+                        parsed.preferredQualifications())
+                .filter(AiJsonSupport::hasText)
+                .collect(Collectors.joining("\n"));
     }
 
     private String sourceLabel(JobPostingSource source) {

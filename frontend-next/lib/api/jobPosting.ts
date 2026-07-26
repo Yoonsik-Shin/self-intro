@@ -52,4 +52,8 @@ export const jobPostingApi = {
         request<JobApplication>(`/api/admin/job-postings/${id}/convert-to-application`, {
             method: 'POST',
         }),
+    analyzeAppeal: (id: number) =>
+        request<JobPostingCandidate>(`/api/admin/job-postings/${id}/analyze-appeal`, {
+            method: 'POST',
+        }),
 };

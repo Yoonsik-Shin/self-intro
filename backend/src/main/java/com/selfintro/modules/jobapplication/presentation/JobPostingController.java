@@ -1,5 +1,6 @@
 package com.selfintro.modules.jobapplication.presentation;
 
+import com.selfintro.modules.jobapplication.application.JobPostingAppealService;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService.JobPostingCollectionResult;
 import com.selfintro.modules.jobapplication.application.JobPostingService;
@@ -32,6 +33,7 @@ public class JobPostingController {
 
     private final JobPostingService jobPostingService;
     private final JobPostingCollectorService jobPostingCollectorService;
+    private final JobPostingAppealService jobPostingAppealService;
 
     @GetMapping
     public List<JobPostingCandidateResponse> list() {
@@ -86,6 +88,11 @@ public class JobPostingController {
     @PostMapping("/{id}/convert-to-application")
     public JobApplicationResponse convertToApplication(@PathVariable Long id) {
         return jobPostingService.convertToApplication(id);
+    }
+
+    @PostMapping("/{id}/analyze-appeal")
+    public JobPostingCandidateResponse analyzeAppeal(@PathVariable Long id) {
+        return jobPostingAppealService.analyzeAppeal(id);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
