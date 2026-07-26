@@ -1,6 +1,34 @@
 import type { Components } from 'react-markdown';
+import Link from 'next/link';
 import { MarkdownCode, type CodeLanguageChange } from './MarkdownCode';
 import { getNodeText, slugifyHeading } from './toc';
+
+// 콘텐츠(DB 마크다운)에 남아있는 로컬 개발용 절대경로(localhost:3000)나 실제 배포
+// 도메인으로 박제된 링크도 "우리 사이트 내부 링크"로 인식해, 새 창을 띄우지 않고
+// Next.js 클라이언트 라우팅으로 같은 탭에서 이동시키기 위한 판별기.
+const INTERNAL_LINK_HOSTS = new Set([
+    'localhost:3000',
+    'localhost',
+    '127.0.0.1:3000',
+    'unbrdn.me',
+    'www.unbrdn.me',
+]);
+
+function resolveMarkdownLink(href?: string): { isInternal: boolean; path: string } {
+    if (!href) return { isInternal: false, path: '' };
+    if (href.startsWith('/') || href.startsWith('#')) {
+        return { isInternal: true, path: href };
+    }
+    try {
+        const url = new URL(href);
+        if (INTERNAL_LINK_HOSTS.has(url.host)) {
+            return { isInternal: true, path: `${url.pathname}${url.search}${url.hash}` };
+        }
+    } catch {
+        // href가 절대 URL이 아니면(형식이 이상하면) 외부 링크로 취급하고 그대로 둔다.
+    }
+    return { isInternal: false, path: href };
+}
 
 // Headings here are markdown *content* headings, one tier below the page's own
 // h1 title (text-3xl/4xl, set where the article is rendered) — they should read
@@ -145,17 +173,31 @@ const baseMarkdownComponents: Components = {
             </blockquote>
         );
     },
-    a: ({ children, href, node: _node, ...props }) => (
-        <a
-            {...props}
-            href={href}
-            className="font-semibold text-blue-600 hover:text-blue-800 underline decoration-2 transition"
-            target="_blank"
-            rel="noreferrer"
-        >
-            {children}
-        </a>
-    ),
+    a: ({ children, href, node: _node, ...props }) => {
+        const { isInternal, path } = resolveMarkdownLink(href);
+        if (isInternal) {
+            return (
+                <Link
+                    {...props}
+                    href={path}
+                    className="font-semibold text-blue-600 hover:text-blue-800 underline decoration-2 transition"
+                >
+                    {children}
+                </Link>
+            );
+        }
+        return (
+            <a
+                {...props}
+                href={href}
+                className="font-semibold text-blue-600 hover:text-blue-800 underline decoration-2 transition"
+                target="_blank"
+                rel="noreferrer"
+            >
+                {children}
+            </a>
+        );
+    },
     details: ({ children, node: _node, ...props }) => (
         <details
             {...props}
@@ -251,16 +293,29 @@ export const adminDetailMarkdownComponents: Components = {
             {children}
         </blockquote>
     ),
-    a: ({ children, href }) => (
-        <a
-            href={href}
-            className="font-semibold text-blue-600 hover:text-blue-800 underline decoration-2 transition"
-            target="_blank"
-            rel="noreferrer"
-        >
-            {children}
-        </a>
-    ),
+    a: ({ children, href }) => {
+        const { isInternal, path } = resolveMarkdownLink(href);
+        if (isInternal) {
+            return (
+                <Link
+                    href={path}
+                    className="font-semibold text-blue-600 hover:text-blue-800 underline decoration-2 transition"
+                >
+                    {children}
+                </Link>
+            );
+        }
+        return (
+            <a
+                href={href}
+                className="font-semibold text-blue-600 hover:text-blue-800 underline decoration-2 transition"
+                target="_blank"
+                rel="noreferrer"
+            >
+                {children}
+            </a>
+        );
+    },
     pre: ({ children }) => <>{children}</>,
 };
 
