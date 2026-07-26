@@ -5,3 +5,9 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+app:
+  ai:
+    # 코드에는 기본값을 두지 않기로 했지만(운영은 환경변수로만 관리), 통합 테스트가 환경변수 없이도
+    # 항상 재현 가능하게 돌아가도록 테스트 프로필에서만 값을 고정한다.
+    vision-model: nvidia/nemotron-nano-12b-v2-vl

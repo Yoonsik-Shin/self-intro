@@ -132,7 +132,7 @@ public class JobApplicationUrlParseService {
     public JobApplicationUrlParseService(
             NvidiaNimClient nvidiaNimClient,
             ObjectMapper objectMapper,
-            @Value("${app.ai.vision-model:nvidia/nemotron-nano-12b-v2-vl}") String visionModel) {
+            @Value("${app.ai.vision-model}") String visionModel) {
         this.nvidiaNimClient = nvidiaNimClient;
         this.objectMapper = objectMapper;
         this.visionModel = visionModel;
