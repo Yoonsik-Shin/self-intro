@@ -28,6 +28,10 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+    // Docker 런타임 이미지에서 Playwright CLI(브라우저+OS 의존성 설치)를 실행할 때만 쓰는
+    // 클래스패스. build.gradle이 바뀔 때만 무효화되도록 소스 컴파일과 분리해뒀다 — src/**만
+    // 바뀌는 일반적인 배포에서는 Docker 레이어 캐시가 재사용돼 Chromium을 매번 새로 받지 않는다.
+    playwrightRuntime
 }
 
 dependencies {
@@ -47,6 +51,8 @@ dependencies {
     runtimeOnly 'org.flywaydb:flyway-mysql'
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
     implementation 'org.jsoup:jsoup:1.17.2'
+    implementation 'com.microsoft.playwright:playwright:1.52.0'
+    playwrightRuntime 'com.microsoft.playwright:playwright:1.52.0'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'com.mysql:mysql-connector-j'
@@ -60,5 +66,10 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('copyPlaywrightClasspath', Copy) {
+    from configurations.playwrightRuntime
+    into layout.buildDirectory.dir('playwright-classpath')
 }
 // Force deploy trigger to rebuild and redeploy backend with the new endpoints

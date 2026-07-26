@@ -7,6 +7,12 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.options.WaitUntilState;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
@@ -121,6 +127,7 @@ public class JobApplicationUrlParseService {
     private static final int MIN_FILLED_DETAIL_FIELDS = 2;
     private static final int MIN_MEANINGFUL_TEXT_LENGTH = 200;
     private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
+    private static final double HEADLESS_NAVIGATE_TIMEOUT_MILLIS = 20_000;
     private static final ExtractedFields EMPTY_EXTRACTED_FIELDS =
             new ExtractedFields(null, null, null, null, null, null, null, null, null, null, null);
 
@@ -193,6 +200,12 @@ public class JobApplicationUrlParseService {
     public JobApplicationUrlParseResponse parse(String url) {
         URI uri = validateUrl(url);
         Document document = fetchDocument(uri);
+        if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH) {
+            // 정적 HTML에 실제 내용이 거의 없으면 SPA(클라이언트 렌더링) 페이지일 가능성이 높다 —
+            // 헤드리스 브라우저로 JS를 실행한 뒤의 DOM을 대신 사용한다. 렌더링에 실패하면 원래
+            // 정적 문서를 그대로 써서 이후 흐름(이미지 배너 폴백 등)이 기존과 동일하게 동작하게 둔다.
+            document = renderWithHeadlessBrowser(uri).orElse(document);
+        }
         String pageText = AiJsonSupport.limit(document.text(), MAX_PAGE_TEXT_LENGTH);
         String userPrompt = "URL: " + url + "\n\n본문:\n" + pageText;
 
@@ -357,6 +370,53 @@ public class JobApplicationUrlParseService {
         } catch (IOException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "채용공고 페이지에 접속하지 못했습니다.", exception);
+        }
+    }
+
+    /**
+     * 정적 HTML에서 의미 있는 텍스트를 거의 얻지 못했을 때(전형적으로 Angular/React/Vue 등으로 클라이언트에서만 렌더링되는 SPA) 헤드리스
+     * Chromium으로 페이지를 실제로 열어 JS 실행이 끝난 뒤의 DOM을 가져온다. 브라우저 실행 자체가 실패하거나(설치 안 됨 등) 타임아웃이 나면 빈 값을 반환해
+     * 호출부가 기존 정적 문서로 계속 진행하도록 한다.
+     */
+    private Optional<Document> renderWithHeadlessBrowser(URI uri) {
+        try (Playwright playwright = Playwright.create();
+                Browser browser =
+                        playwright
+                                .chromium()
+                                .launch(new BrowserType.LaunchOptions().setHeadless(true))) {
+            try (Page page =
+                    browser.newPage(new Browser.NewPageOptions().setUserAgent(USER_AGENT))) {
+                try {
+                    page.navigate(
+                            uri.toString(),
+                            new Page.NavigateOptions()
+                                    .setTimeout(HEADLESS_NAVIGATE_TIMEOUT_MILLIS)
+                                    .setWaitUntil(WaitUntilState.NETWORKIDLE));
+                } catch (PlaywrightException timeoutLikeException) {
+                    // 채팅 위젯·광고·polling 등 백그라운드 네트워크가 계속 있는 페이지는
+                    // networkidle이 영영 오지 않아 타임아웃이 난다. 그래도 페이지 자체는 이미
+                    // load 이벤트까지 끝나 있는 경우가 대부분이라, 지금까지 렌더링된 DOM을 그대로
+                    // 쓴다 — 여기서 예외를 던지면 애써 로딩된 콘텐츠를 버리고 빈 문서로 되돌아간다.
+                    log.debug("헤드리스 렌더링 networkidle 대기 타임아웃, 현재 DOM으로 계속 진행: {}", uri);
+                }
+                return Optional.of(Jsoup.parse(readContentTolerant(page), uri.toString()));
+            }
+        } catch (Exception exception) {
+            log.warn("헤드리스 브라우저 렌더링 실패: {}", uri, exception);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * networkidle 대기가 타임아웃된 직후에는 페이지가 여전히 내부적으로 리다이렉트/전환 중이라 content() 호출 자체가 "page is navigating
+     * and changing the content" 오류로 실패할 수 있다. 짧게 한 번 더 기다렸다가 재시도한다.
+     */
+    private String readContentTolerant(Page page) {
+        try {
+            return page.content();
+        } catch (PlaywrightException exception) {
+            page.waitForTimeout(1000);
+            return page.content();
         }
     }
 
