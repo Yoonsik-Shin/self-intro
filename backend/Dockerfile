@@ -1,5 +1,8 @@
 # Stage 1: Build stage
-FROM eclipse-temurin:21-jdk-alpine AS builder
+# --platform=$BUILDPLATFORM: 컴파일은 러너와 같은 아키텍처(amd64)로 네이티브 실행하고,
+# arm64로의 크로스 빌드는 아래 런타임 스테이지(jar 복사만 수행)에서만 적용해
+# QEMU 에뮬레이션 하에서 Gradle 빌드 전체가 도는 것을 피한다.
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk-alpine AS builder
 
 WORKDIR /app
 
