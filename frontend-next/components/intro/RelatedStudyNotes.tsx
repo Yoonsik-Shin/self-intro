@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { studyApi } from '@/lib/api';
 
@@ -10,6 +10,8 @@ type Props = {
     experienceId?: number;
     experienceDetailId?: number;
 };
+
+const VISIBLE_LIMIT = 5;
 
 export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }: Props) {
     const relationKey = skillId
@@ -33,6 +35,14 @@ export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }:
 
     if (relatedStudies.length === 0) return null;
 
+    const visibleStudies = relatedStudies.slice(0, VISIBLE_LIMIT);
+    const remainingCount = relatedStudies.length - visibleStudies.length;
+    const moreHref = skillId
+        ? `/study?skillId=${skillId}`
+        : experienceDetailId
+          ? `/study?experienceDetailId=${experienceDetailId}`
+          : `/study?experienceId=${experienceId}`;
+
     return (
         <div className="mt-3 border-t border-slate-100 pt-2.5 print:hidden">
             <p className="resume-label mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-blue-600">
@@ -40,7 +50,7 @@ export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }:
                 관련 학습 · 기술노트
             </p>
             <div className="divide-y divide-slate-100/80">
-                {relatedStudies.map((study) => (
+                {visibleStudies.map((study) => (
                     <Link
                         key={study.id}
                         href={`/study/${encodeURIComponent(study.slug)}`}
@@ -54,6 +64,16 @@ export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }:
                     </Link>
                 ))}
             </div>
+            {remainingCount > 0 && (
+                <Link
+                    href={moreHref}
+                    onClick={(event) => event.stopPropagation()}
+                    className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:bg-slate-50 hover:text-blue-600"
+                >
+                    더보기 +{remainingCount}
+                    <ChevronDown className="h-3 w-3" />
+                </Link>
+            )}
         </div>
     );
 }

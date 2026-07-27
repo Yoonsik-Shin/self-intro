@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUp, BookOpen, ChevronLeft, ChevronRight, History, X } from 'lucide-react';
 import { studyApi } from '@/lib/api';
@@ -20,6 +21,22 @@ type RecentlyViewedItem = {
 };
 
 export function StudyListClient({ initialStudies, categories }: Props) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const skillIdNum = searchParams.get('skillId')
+        ? Number(searchParams.get('skillId'))
+        : undefined;
+    const experienceIdNum = searchParams.get('experienceId')
+        ? Number(searchParams.get('experienceId'))
+        : undefined;
+    const experienceDetailIdNum = searchParams.get('experienceDetailId')
+        ? Number(searchParams.get('experienceDetailId'))
+        : undefined;
+    const hasIdFilter = Boolean(skillIdNum || experienceIdNum || experienceDetailIdNum);
+    const clearIdFilter = () => router.push(pathname);
+
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('ALL');
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
@@ -37,7 +54,7 @@ export function StudyListClient({ initialStudies, categories }: Props) {
         }
         return [];
     });
-    const isDefaultQuery = search === '' && activeCategory === 'ALL';
+    const isDefaultQuery = search === '' && activeCategory === 'ALL' && !hasIdFilter;
 
     const handleClearHistory = () => {
         try {
@@ -63,11 +80,22 @@ export function StudyListClient({ initialStudies, categories }: Props) {
     };
 
     const { data: studyPage } = useQuery<StudyPage>({
-        queryKey: ['studies', 'public', search, activeCategory],
+        queryKey: [
+            'studies',
+            'public',
+            search,
+            activeCategory,
+            skillIdNum,
+            experienceIdNum,
+            experienceDetailIdNum,
+        ],
         queryFn: () =>
             studyApi.list({
                 q: search || undefined,
                 category: activeCategory === 'ALL' ? undefined : activeCategory,
+                skillIds: skillIdNum ? [skillIdNum] : undefined,
+                experienceIds: experienceIdNum ? [experienceIdNum] : undefined,
+                experienceDetailIds: experienceDetailIdNum ? [experienceDetailIdNum] : undefined,
                 size: 100,
             }),
         initialData: isDefaultQuery
@@ -83,6 +111,18 @@ export function StudyListClient({ initialStudies, categories }: Props) {
 
     const studies = studyPage?.content ?? [];
     const recentStudies = studies.slice(0, 5);
+
+    const idFilterLabel = skillIdNum
+        ? studies.flatMap((study) => study.skills).find((skill) => skill.id === skillIdNum)?.name
+        : experienceDetailIdNum
+          ? studies
+                .flatMap((study) => study.experienceDetails)
+                .find((detail) => detail.id === experienceDetailIdNum)?.experienceTitle
+          : experienceIdNum
+            ? studies
+                  .flatMap((study) => study.experiences)
+                  .find((experience) => experience.id === experienceIdNum)?.title
+            : undefined;
 
     return (
         <div
@@ -103,6 +143,23 @@ export function StudyListClient({ initialStudies, categories }: Props) {
                         </p>
                     </div>
                 </div>
+
+                {hasIdFilter && (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm">
+                        <p className="font-bold text-blue-700">
+                            <span className="text-blue-900">{idFilterLabel ?? '선택한 항목'}</span>{' '}
+                            관련 학습만 모아보는 중이에요
+                        </p>
+                        <button
+                            type="button"
+                            onClick={clearIdFilter}
+                            className="flex shrink-0 items-center gap-1 rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-bold text-blue-600 transition hover:bg-blue-100"
+                        >
+                            <X className="h-3 w-3" />
+                            필터 해제
+                        </button>
+                    </div>
+                )}
 
                 <div className="sticky top-16 z-20 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center">
                     <div className="flex flex-wrap items-center gap-1.5">

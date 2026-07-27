@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { serverGet } from '@/lib/api/server';
 import type { StudyCategory, StudyPage } from '@/lib/api/types';
@@ -24,7 +25,9 @@ export default async function StudyListPage() {
 
     return (
         <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
-            <StudyListClient initialStudies={studies} categories={categories} />
+            <Suspense fallback={null}>
+                <StudyListClient initialStudies={studies} categories={categories} />
+            </Suspense>
         </div>
     );
 }
