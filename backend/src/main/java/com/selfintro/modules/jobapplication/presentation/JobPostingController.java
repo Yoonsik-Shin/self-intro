@@ -7,6 +7,7 @@ import com.selfintro.modules.jobapplication.application.JobPostingService;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateUpdateRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -15,6 +16,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -67,6 +69,12 @@ public class JobPostingController {
         return jobPostingCollectorService.collectNow();
     }
 
+    @PatchMapping("/{id}")
+    public JobPostingCandidateResponse update(
+            @PathVariable Long id, @Valid @RequestBody JobPostingCandidateUpdateRequest request) {
+        return jobPostingService.updateCandidate(id, request);
+    }
+
     @PatchMapping("/{id}/save")
     public ResponseEntity<Void> save(@PathVariable Long id) {
         jobPostingService.save(id);
@@ -82,6 +90,18 @@ public class JobPostingController {
     @PatchMapping("/{id}/dismiss")
     public ResponseEntity<Void> dismiss(@PathVariable Long id) {
         jobPostingService.dismiss(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/undismiss")
+    public ResponseEntity<Void> undismiss(@PathVariable Long id) {
+        jobPostingService.undismiss(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCandidate(@PathVariable Long id) {
+        jobPostingService.deleteCandidate(id);
         return ResponseEntity.noContent().build();
     }
 

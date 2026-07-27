@@ -12,6 +12,7 @@ import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationReque
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateUpdateRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -42,8 +43,13 @@ public class JobPostingService {
 
     private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
 
-    private static final List<JobPostingCandidateStatus> ACTIVE_STATUSES =
-            List.of(JobPostingCandidateStatus.NEW, JobPostingCandidateStatus.SAVED);
+    // 제외(DISMISSED)해도 목록에서는 계속 보여준다 — 화면(리스트뷰)에서 걸러내는 게 아니라 여기서
+    // 아예 안 내려주면 리스트에서도 사라지므로, "지금 수집" 정리로 EXPIRED가 되기 전까지는 포함한다.
+    private static final List<JobPostingCandidateStatus> LISTABLE_STATUSES =
+            List.of(
+                    JobPostingCandidateStatus.NEW,
+                    JobPostingCandidateStatus.SAVED,
+                    JobPostingCandidateStatus.DISMISSED);
 
     private final JobPostingCandidateRepository candidateRepository;
     private final JobPostingSettingRepository settingRepository;
@@ -54,7 +60,7 @@ public class JobPostingService {
     private final AtomicBoolean ingesting = new AtomicBoolean(false);
 
     public List<JobPostingCandidateResponse> list() {
-        return candidateRepository.findActiveByStatuses(ACTIVE_STATUSES, LocalDate.now()).stream()
+        return candidateRepository.findByStatusInOrderByFetchedAtDesc(LISTABLE_STATUSES).stream()
                 .map(JobPostingCandidateResponse::from)
                 .toList();
     }
@@ -165,8 +171,8 @@ public class JobPostingService {
                         trimmed,
                         JobPostingSource.URL_INGEST,
                         combineForMatching(parsed),
-                        null,
-                        null,
+                        parsed.location(),
+                        parsed.employmentType(),
                         parsed.deadline(),
                         parsed.salaryNote(),
                         parsed.jobDescription(),
@@ -197,6 +203,41 @@ public class JobPostingService {
     @Transactional
     public void dismiss(Long id) {
         findOrThrow(id).dismiss(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void undismiss(Long id) {
+        findOrThrow(id).undismiss(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void deleteCandidate(Long id) {
+        JobPostingCandidate candidate = findOrThrow(id);
+        if (candidate.getStatus() == JobPostingCandidateStatus.CONVERTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 지원 공고로 전환된 후보는 삭제할 수 없습니다.");
+        }
+        candidateRepository.delete(candidate);
+    }
+
+    @Transactional
+    public JobPostingCandidateResponse updateCandidate(
+            Long id, JobPostingCandidateUpdateRequest request) {
+        JobPostingCandidate candidate = findOrThrow(id);
+        candidate.updateDetails(
+                request.title(),
+                request.companyName(),
+                request.deadline(),
+                request.salaryNote(),
+                request.location(),
+                request.employmentType(),
+                request.jobDescription(),
+                request.requiredQualifications(),
+                request.preferredQualifications(),
+                request.hiringProcess(),
+                request.applicationMethod(),
+                request.compensationDetail(),
+                LocalDateTime.now());
+        return JobPostingCandidateResponse.from(candidate);
     }
 
     @Transactional

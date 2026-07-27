@@ -469,6 +469,21 @@ export type JobPostingCandidate = {
     fetchedAt: string;
 };
 
+export type JobPostingCandidateUpdateRequest = {
+    title: string;
+    companyName: string;
+    deadline?: string | null;
+    salaryNote?: string | null;
+    location?: string | null;
+    employmentType?: string | null;
+    jobDescription?: string | null;
+    requiredQualifications?: string | null;
+    preferredQualifications?: string | null;
+    hiringProcess?: string | null;
+    applicationMethod?: string | null;
+    compensationDetail?: string | null;
+};
+
 export type JobPostingCollectionResult = {
     saraminEnabled: boolean;
     saraminCollected: number;

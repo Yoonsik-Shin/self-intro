@@ -2,6 +2,7 @@ import { request, requestEventStream } from './client';
 import type {
     JobApplication,
     JobPostingCandidate,
+    JobPostingCandidateUpdateRequest,
     JobPostingCollectionResult,
     JobPostingIngestStreamEvent,
     JobPostingSetting,
@@ -48,6 +49,10 @@ export const jobPostingApi = {
         request<void>(`/api/admin/job-postings/${id}/dismiss`, {
             method: 'PATCH',
         }),
+    undismiss: (id: number) =>
+        request<void>(`/api/admin/job-postings/${id}/undismiss`, {
+            method: 'PATCH',
+        }),
     convertToApplication: (id: number) =>
         request<JobApplication>(`/api/admin/job-postings/${id}/convert-to-application`, {
             method: 'POST',
@@ -55,5 +60,14 @@ export const jobPostingApi = {
     analyzeAppeal: (id: number) =>
         request<JobPostingCandidate>(`/api/admin/job-postings/${id}/analyze-appeal`, {
             method: 'POST',
+        }),
+    update: (id: number, payload: JobPostingCandidateUpdateRequest) =>
+        request<JobPostingCandidate>(`/api/admin/job-postings/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+        }),
+    remove: (id: number) =>
+        request<void>(`/api/admin/job-postings/${id}`, {
+            method: 'DELETE',
         }),
 };

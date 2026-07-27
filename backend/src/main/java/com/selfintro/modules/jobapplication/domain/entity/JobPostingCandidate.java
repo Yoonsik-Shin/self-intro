@@ -137,6 +137,35 @@ public class JobPostingCandidate {
         this.updatedAt = now;
     }
 
+    public void updateDetails(
+            String title,
+            String companyName,
+            LocalDate deadline,
+            String salaryNote,
+            String location,
+            String employmentType,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
+            LocalDateTime now) {
+        this.title = title;
+        this.companyName = companyName;
+        this.deadline = deadline;
+        this.salaryNote = salaryNote;
+        this.location = location;
+        this.employmentType = employmentType;
+        this.jobDescription = jobDescription;
+        this.requiredQualifications = requiredQualifications;
+        this.preferredQualifications = preferredQualifications;
+        this.hiringProcess = hiringProcess;
+        this.applicationMethod = applicationMethod;
+        this.compensationDetail = compensationDetail;
+        this.updatedAt = now;
+    }
+
     public void save(LocalDateTime now) {
         if (status == JobPostingCandidateStatus.NEW) {
             this.status = JobPostingCandidateStatus.SAVED;
@@ -154,6 +183,13 @@ public class JobPostingCandidate {
     public void dismiss(LocalDateTime now) {
         this.status = JobPostingCandidateStatus.DISMISSED;
         this.updatedAt = now;
+    }
+
+    public void undismiss(LocalDateTime now) {
+        if (status == JobPostingCandidateStatus.DISMISSED) {
+            this.status = JobPostingCandidateStatus.NEW;
+            this.updatedAt = now;
+        }
     }
 
     public void markConverted(LocalDateTime now) {

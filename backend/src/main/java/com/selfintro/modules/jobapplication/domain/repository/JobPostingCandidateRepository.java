@@ -7,8 +7,6 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 public interface JobPostingCandidateRepository extends JpaRepository<JobPostingCandidate, Long> {
 
@@ -16,13 +14,12 @@ public interface JobPostingCandidateRepository extends JpaRepository<JobPostingC
 
     boolean existsBySourceAndExternalId(JobPostingSource source, String externalId);
 
-    @Query(
-            "select c from JobPostingCandidate c "
-                    + "where c.status in :statuses and (c.deadline is null or c.deadline >= :today) "
-                    + "order by c.fetchedAt desc")
-    List<JobPostingCandidate> findActiveByStatuses(
-            @Param("statuses") Collection<JobPostingCandidateStatus> statuses,
-            @Param("today") LocalDate today);
+    /**
+     * 마감일이 지났다고 바로 숨기지 않는다 — 명시적으로 {@link JobPostingCandidate#markExpired}가 호출돼 EXPIRED 상태가 되기
+     * 전까지는(= "지금 수집"/스케줄 정리가 한 번 돌기 전까지는) 목록에 그대로 보이고, 마감 여부는 프론트에서 D-day 배지로 표시한다.
+     */
+    List<JobPostingCandidate> findByStatusInOrderByFetchedAtDesc(
+            Collection<JobPostingCandidateStatus> statuses);
 
     List<JobPostingCandidate> findByStatusInAndDeadlineBefore(
             Collection<JobPostingCandidateStatus> statuses, LocalDate deadline);

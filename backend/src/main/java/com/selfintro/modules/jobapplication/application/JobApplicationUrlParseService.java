@@ -68,12 +68,20 @@ public class JobApplicationUrlParseService {
             기간으로 표기되어 있으면 마지막 날짜(종료일)를 마감일로 사용하세요. 상시채용이거나 날짜를
             알 수 없으면 null로 반환하세요.
             jobDescription은 담당 업무/직무 상세 설명, requiredQualifications는 지원자격(필수 요건),
-            preferredQualifications는 우대사항, hiringProcess는 전형절차(서류·면접 등 단계와 일정),
-            applicationMethod는 지원방법(접수 방식, 제출 서류 등), compensationDetail은 급여를 제외한
-            처우조건(근무지, 근무형태, 복리후생 등)입니다. 각 항목은 본문에 있는 내용만 줄바꿈으로 구분된
-            목록 형태로 정리하고, 본문에 해당 내용이 없으면 null로 두세요.
+            preferredQualifications는 우대사항, applicationMethod는 지원방법(접수 방식, 제출 서류 등),
+            compensationDetail은 급여를 제외한 처우조건(근무형태, 복리후생 등)입니다.
+            hiringProcess는 전형절차입니다. 서류전형·필기시험·실무면접·임원면접·최종합격 등 각 단계
+            이름을 순서대로 나열하고, 그 단계에 해당하는 날짜나 기간이 본문에 있으면 반드시 단계
+            이름 뒤에 붙여서 함께 적으세요(예: "서류접수: 2026.7.20 ~ 8.2", "필기시험: 2026.8.19(예정)",
+            "실무면접: 2026.8.25(예정)", "인턴십: 2026.8.31 ~ 10.8", "최종합격자 발표: 2026.10.15(예정)").
+            날짜가 본문에 없는 단계는 이름만 적으세요. 날짜를 지어내지 마세요.
+            각 항목은 본문에 있는 내용만 줄바꿈으로 구분된 목록 형태로 정리하고, 본문에 해당 내용이
+            없으면 null로 두세요.
+            location은 근무지입니다. 본문에 있는 표현을 그대로 짧게 옮기세요(예: "서울특별시 종로구",
+            "서울/경기", "재택근무"). employmentType은 고용형태입니다(예: "정규직", "계약직", "인턴",
+            "프리랜서"). 둘 다 본문에 명시되어 있지 않으면 null로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"salaryNote":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     private static final String VISION_PARSE_PROMPT =
@@ -91,12 +99,19 @@ public class JobApplicationUrlParseService {
             섹션 제목 아래에 있는 내용만 담고, 다른 섹션의 내용을 섞어 넣지 마세요:
             jobDescription은 "모집 부문/담당 업무" 섹션, requiredQualifications는 "지원 자격"(필수 요건)
             섹션, preferredQualifications는 "우대 사항" 섹션(자격증·수상 경력 등이 있으면 반드시 이 필드에),
-            hiringProcess는 "전형절차/전형 일정" 섹션(단계 이름과 순서), applicationMethod는 "지원 방법/접수"
-            섹션, compensationDetail은 "처우/근무조건"(급여 제외, 정규직 전환 시 연봉 수준·복리후생 등)
-            섹션입니다. 각 항목은 이미지에 있는 내용만 줄바꿈으로 구분된 목록 형태로 정리하고, 이미지에
+            applicationMethod는 "지원 방법/접수" 섹션, compensationDetail은 "처우/근무조건"(급여 제외,
+            정규직 전환 시 연봉 수준·복리후생 등) 섹션입니다.
+            hiringProcess는 "전형절차/전형 일정" 섹션입니다. 서류전형·필기시험·실무면접·임원면접·
+            최종합격 등 각 단계 이름을 순서대로 나열하고, 그 단계 옆이나 아래에 날짜/기간이 이미지에
+            보이면 반드시 단계 이름 뒤에 붙여서 함께 적으세요(예: "서류접수: 2026.7.20 ~ 8.2",
+            "필기시험: 2026.8.19(예정)", "실무면접: 2026.8.25(예정)", "최종합격자 발표: 2026.10.15(예정)").
+            날짜가 보이지 않는 단계는 이름만 적으세요. 날짜를 지어내지 마세요.
+            각 항목은 이미지에 있는 내용만 줄바꿈으로 구분된 목록 형태로 정리하고, 이미지에
             해당 섹션이 없으면 null로 두세요.
+            location은 근무지, employmentType은 고용형태(정규직/계약직/인턴 등)입니다. 이미지에 보이는
+            표현을 그대로 짧게 옮기고, 없으면 null로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"salaryNote":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     private static final int MAX_PAGE_TEXT_LENGTH = 12000;
@@ -129,7 +144,8 @@ public class JobApplicationUrlParseService {
     private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
     private static final double HEADLESS_NAVIGATE_TIMEOUT_MILLIS = 20_000;
     private static final ExtractedFields EMPTY_EXTRACTED_FIELDS =
-            new ExtractedFields(null, null, null, null, null, null, null, null, null, null, null);
+            new ExtractedFields(
+                    null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
@@ -228,6 +244,8 @@ public class JobApplicationUrlParseService {
                     AiJsonSupport.blankToNull(extracted.source()),
                     parseDate(extracted.deadline()),
                     AiJsonSupport.blankToNull(extracted.salaryNote()),
+                    AiJsonSupport.blankToNull(extracted.location()),
+                    AiJsonSupport.blankToNull(extracted.employmentType()),
                     AiJsonSupport.blankToNull(extracted.jobDescription()),
                     AiJsonSupport.blankToNull(extracted.requiredQualifications()),
                     AiJsonSupport.blankToNull(extracted.preferredQualifications()),
@@ -329,6 +347,8 @@ public class JobApplicationUrlParseService {
                 pick(base.source(), fromImage.source()),
                 pick(base.deadline(), fromImage.deadline()),
                 pick(base.salaryNote(), fromImage.salaryNote()),
+                pick(base.location(), fromImage.location()),
+                pick(base.employmentType(), fromImage.employmentType()),
                 pick(base.jobDescription(), fromImage.jobDescription()),
                 pick(base.requiredQualifications(), fromImage.requiredQualifications()),
                 pick(base.preferredQualifications(), fromImage.preferredQualifications()),
@@ -492,6 +512,8 @@ public class JobApplicationUrlParseService {
             @JsonDeserialize(using = LenientStringDeserializer.class) String source,
             @JsonDeserialize(using = LenientStringDeserializer.class) String deadline,
             @JsonDeserialize(using = LenientStringDeserializer.class) String salaryNote,
+            @JsonDeserialize(using = LenientStringDeserializer.class) String location,
+            @JsonDeserialize(using = LenientStringDeserializer.class) String employmentType,
             @JsonDeserialize(using = LenientStringDeserializer.class) String jobDescription,
             @JsonDeserialize(using = LenientStringDeserializer.class) String requiredQualifications,
             @JsonDeserialize(using = LenientStringDeserializer.class)

@@ -19,6 +19,7 @@ import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationReque
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateUpdateRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -109,6 +110,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
+                                null,
+                                null,
                                 "https://example.com/posting"));
 
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
@@ -134,6 +137,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
+                                null,
+                                null,
                                 "https://example.com/posting"));
         when(candidateRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(matchingService.evaluate(any(), any()))
@@ -145,6 +150,34 @@ class JobPostingServiceTest {
         assertThat(response.companyName()).isEqualTo("테스트 회사");
         assertThat(response.status()).isEqualTo(JobPostingCandidateStatus.NEW);
         assertThat(response.matchScore()).isEqualTo(80);
+    }
+
+    @Test
+    void updateCandidateOverwritesEditableFields() {
+        JobPostingCandidate candidate = newCandidate();
+        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        JobPostingCandidateUpdateRequest request =
+                new JobPostingCandidateUpdateRequest(
+                        "수정된 직무명",
+                        "수정된 회사",
+                        LocalDate.now().plusDays(20),
+                        "연봉 4000만원",
+                        "서울 종로구",
+                        "정규직",
+                        "직무 상세",
+                        "지원자격",
+                        "우대사항",
+                        "전형절차",
+                        "지원방법",
+                        "처우조건");
+
+        JobPostingCandidateResponse response = jobPostingService.updateCandidate(1L, request);
+
+        assertThat(response.title()).isEqualTo("수정된 직무명");
+        assertThat(response.companyName()).isEqualTo("수정된 회사");
+        assertThat(response.location()).isEqualTo("서울 종로구");
+        assertThat(response.employmentType()).isEqualTo("정규직");
+        assertThat(response.requiredQualifications()).isEqualTo("지원자격");
     }
 
     @Test
@@ -208,11 +241,44 @@ class JobPostingServiceTest {
     }
 
     @Test
+    void undismissMovesDismissedCandidateBackToNewStatus() {
+        JobPostingCandidate candidate = newCandidate();
+        candidate.dismiss(LocalDateTime.now());
+        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+
+        jobPostingService.undismiss(1L);
+
+        assertThat(candidate.getStatus()).isEqualTo(JobPostingCandidateStatus.NEW);
+    }
+
+    @Test
     void dismissThrowsWhenCandidateDoesNotExist() {
         when(candidateRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobPostingService.dismiss(99L))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void deleteCandidateRemovesNonConvertedCandidate() {
+        JobPostingCandidate candidate = newCandidate();
+        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+
+        jobPostingService.deleteCandidate(1L);
+
+        verify(candidateRepository).delete(candidate);
+    }
+
+    @Test
+    void deleteCandidateRejectsAlreadyConvertedCandidate() {
+        JobPostingCandidate candidate = newCandidate();
+        candidate.markConverted(LocalDateTime.now());
+        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+
+        assertThatThrownBy(() -> jobPostingService.deleteCandidate(1L))
+                .isInstanceOf(ResponseStatusException.class);
+
+        verify(candidateRepository, never()).delete(any());
     }
 
     @Test

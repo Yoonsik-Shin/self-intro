@@ -22,7 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             {children}
             {process.env.NODE_ENV === 'development' && (
                 <div className="print:hidden">
-                    <ReactQueryDevtools initialIsOpen={false} />
+                    <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
                 </div>
             )}
         </QueryClientProvider>
