@@ -113,8 +113,10 @@ export function partitionAtomsIntoPages(
     const pages: PageLayerData[] = [];
     let currentPageItems: PrintAtomItem[] = [];
     let currentHeight = 0;
-    // 20px 안전 여유 버퍼를 확보하여(1012px), 인쇄 시 벡터 폰트 커닝 오차(+10~15px)가 발생해도 글자가 짤리지 않도록 100% 일치시킴
+    // 자동 분할에는 20px 안전 여유를 두되, 사용자의 강제 배치가 실제 콘텐츠
+    // 영역을 넘기는 것은 허용하지 않는다. 강제 배치는 안전 여유만 사용할 수 있다.
     const maxContentHeight = CONTENT_HEIGHT_PX - 20;
+    const hardContentHeight = CONTENT_HEIGHT_PX;
 
     const startNewPage = () => {
         if (currentPageItems.length > 0) {
@@ -138,8 +140,25 @@ export function partitionAtomsIntoPages(
 
         const itemTotalHeight = measuredHeight + gap;
 
-        // Check if user explicitly forced this item or any later item to stay on the current page
         const forcedPage = forcedPageOverrides[atom.id];
+
+        // 순차 패킹이 이미 다음 페이지로 넘어간 뒤에도 사용자가 지정한 이전 페이지에
+        // 실제 여유 공간이 남아 있으면 해당 atom을 그 페이지 끝에 직접 배치한다.
+        // 기존 로직은 완료된 페이지로 되돌아가지 못해 강제 배치 상태만 표시되고
+        // 항목은 원래 페이지에 남는 문제가 있었다.
+        if (forcedPage !== undefined && forcedPage >= 0 && forcedPage < pages.length) {
+            const targetPage = pages[forcedPage];
+            const targetGap = customGap !== 0 ? customGap : targetPage.items.length > 0 ? 8 : 0;
+            const targetItemTotalHeight = measuredHeight + targetGap;
+
+            if (targetPage.heightUsedPx + targetItemTotalHeight <= hardContentHeight) {
+                targetPage.items.push(atom);
+                targetPage.heightUsedPx += targetItemTotalHeight;
+                continue;
+            }
+        }
+
+        // Check if user explicitly forced this item or any later item to stay on the current page
         const isForcedCurrentPage = forcedPage !== undefined && forcedPage === pages.length;
         const hasLaterItemForcedToCurrentPage = atoms
             .slice(i + 1)
@@ -167,10 +186,17 @@ export function partitionAtomsIntoPages(
             }
         }
 
+        const exceedsAutomaticBoundary =
+            currentHeight + itemTotalHeight > maxContentHeight && currentPageItems.length > 0;
+        const exceedsPhysicalBoundary =
+            currentHeight + itemTotalHeight > hardContentHeight && currentPageItems.length > 0;
+
+        // forcedPageOverrides는 자동 분할의 안전 여유(20px)만 재사용할 수 있다.
+        // 실제 A4 콘텐츠 영역까지 넘기면 화면에서는 다음 페이지 카드 밖으로
+        // 콘텐츠가 새고, 인쇄에서는 잘리므로 강제 배치보다 물리 경계를 우선한다.
         if (
-            !preventPageBreak &&
-            ((currentHeight + itemTotalHeight > maxContentHeight && currentPageItems.length > 0) ||
-                pushHeaderToNextPage)
+            exceedsPhysicalBoundary ||
+            (!preventPageBreak && (exceedsAutomaticBoundary || pushHeaderToNextPage))
         ) {
             startNewPage();
         }

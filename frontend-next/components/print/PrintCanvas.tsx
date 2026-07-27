@@ -609,38 +609,6 @@ export function PrintCanvas({
         orderedMilestones,
     ]);
 
-    useLayoutEffect(() => {
-        const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-atom-id]'));
-        const newHeights = new Map<string, number>();
-        elements.forEach((el) => {
-            const atomId = el.getAttribute('data-atom-id');
-            if (atomId) {
-                const target =
-                    el.querySelector<HTMLElement>('[data-print-el]') ||
-                    (el.firstElementChild as HTMLElement) ||
-                    el;
-                const h =
-                    target.offsetHeight ||
-                    Math.round(target.getBoundingClientRect().height / (store.zoom || 1));
-                if (h > 0) newHeights.set(atomId, h);
-            }
-        });
-
-        const prev = store.atomHeights;
-        if (prev.size !== newHeights.size) {
-            store.setAtomHeights(newHeights);
-            return;
-        }
-        for (const [id, h] of newHeights) {
-            const prevH = prev.get(id);
-            if (prevH === undefined || Math.abs(prevH - h) > 3) {
-                store.setAtomHeights(newHeights);
-                return;
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [printableAtoms, store.sectionGaps]);
-
     const pageLayers = useMemo(
         () =>
             partitionAtomsIntoPages(
@@ -651,6 +619,71 @@ export function PrintCanvas({
             ),
         [printableAtoms, store.atomHeights, store.sectionGaps, store.forcedPageOverrides]
     );
+
+    useLayoutEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || printLayoutFrozenRef.current) return;
+
+        let frame = 0;
+        let disposed = false;
+        let observedTargets: HTMLElement[] = [];
+
+        const measure = () => {
+            frame = 0;
+            if (disposed || printLayoutFrozenRef.current) return;
+
+            const elements = Array.from(canvas.querySelectorAll<HTMLElement>('[data-atom-id]'));
+            const newHeights = new Map<string, number>();
+            elements.forEach((el) => {
+                const atomId = el.dataset.atomId;
+                if (!atomId) return;
+
+                const target =
+                    el.querySelector<HTMLElement>('[data-print-el]') ||
+                    (el.firstElementChild as HTMLElement | null) ||
+                    el;
+                const height =
+                    target.offsetHeight ||
+                    Math.round(target.getBoundingClientRect().height / (store.zoom || 1));
+                if (height > 0) newHeights.set(atomId, height);
+            });
+
+            const previous = usePrintStore.getState().atomHeights;
+            const changed =
+                previous.size !== newHeights.size ||
+                Array.from(newHeights).some(([id, height]) => {
+                    const previousHeight = previous.get(id);
+                    return previousHeight === undefined || Math.abs(previousHeight - height) > 1;
+                });
+
+            if (changed) store.setAtomHeights(newHeights);
+        };
+
+        const scheduleMeasure = () => {
+            if (frame || disposed) return;
+            frame = window.requestAnimationFrame(measure);
+        };
+
+        const observer = new ResizeObserver(scheduleMeasure);
+        observedTargets = Array.from(
+            canvas.querySelectorAll<HTMLElement>('[data-atom-id] [data-print-el]')
+        );
+        observedTargets.forEach((target) => observer.observe(target));
+
+        // 레이아웃 이펙트에서 첫 측정을 수행해 추정 높이가 보이는 시간을 줄이고,
+        // 웹폰트 적용이나 이미지 디코딩으로 뒤늦게 높이가 변하는 경우도 다시 측정한다.
+        measure();
+        void document.fonts.ready.then(scheduleMeasure);
+
+        return () => {
+            disposed = true;
+            if (frame) window.cancelAnimationFrame(frame);
+            observedTargets.forEach((target) => observer.unobserve(target));
+            observer.disconnect();
+        };
+        // pageLayers가 바뀌면 새 페이지 부모 아래에 마운트된 atom들을 다시 관찰한다.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageLayers, printableAtoms, store.sectionGaps, store.zoom, contentOverrides]);
 
     const atomPageMap = useMemo(() => {
         const map = new Map<string, number>();
