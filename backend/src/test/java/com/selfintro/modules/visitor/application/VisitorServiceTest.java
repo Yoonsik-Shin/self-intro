@@ -3,6 +3,7 @@ package com.selfintro.modules.visitor.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,7 +52,7 @@ class VisitorServiceTest {
         when(hourlyVisitorRepository.findByVisitorHashAndVisitedDateAndVisitedHour(
                         VISITOR_HASH, today, 12))
                 .thenReturn(Optional.empty());
-        when(visitorRepository.countByVisitedDate(today)).thenReturn(1L);
+        when(visitorRepository.countByVisitedDateAndBotFalse(today)).thenReturn(1L);
         when(visitorRepository.countDistinctVisitors()).thenReturn(1L);
         when(visitorRepository.sumPageViews()).thenReturn(1L);
 
@@ -86,6 +87,23 @@ class VisitorServiceTest {
         assertThat(existingHourly.getPageViews()).isEqualTo(2);
         verify(visitorRepository, never()).save(any(VisitorDailyVisit.class));
         verify(hourlyVisitorRepository, never()).save(any(VisitorHourlyVisit.class));
+    }
+
+    @Test
+    void recordsDetectedBotOnlyInDailyBotStatistics() {
+        LocalDate today = LocalDate.of(2026, 7, 15);
+        when(visitorRepository.findByVisitorHashAndVisitedDate(VISITOR_HASH, today))
+                .thenReturn(Optional.empty());
+        when(visitorRepository.countByVisitedDateAndBotTrue(today)).thenReturn(1L);
+
+        VisitorSummaryResponse response =
+                visitorService.recordVisit(VISITOR_HASH, "Mediapartners-Google");
+
+        verify(visitorRepository).save(any(VisitorDailyVisit.class));
+        verify(hourlyVisitorRepository, never())
+                .findByVisitorHashAndVisitedDateAndVisitedHour(any(), any(), anyInt());
+        verify(hourlyVisitorRepository, never()).save(any(VisitorHourlyVisit.class));
+        assertThat(response).isEqualTo(new VisitorSummaryResponse(0, 0, 0, 1));
     }
 
     @Test

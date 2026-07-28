@@ -7,7 +7,8 @@ final class BotDetector {
             Pattern.compile(
                     "bot|spider|crawl|slurp|curl|wget|python-requests|python-urllib|scrapy"
                             + "|httpclient|okhttp|go-http-client|java/|libwww-perl|phantomjs"
-                            + "|headlesschrome|postmanruntime|node-fetch|puppeteer|playwright|selenium",
+                            + "|headlesschrome|postmanruntime|node-fetch|puppeteer|playwright|selenium"
+                            + "|mediapartners-google",
                     Pattern.CASE_INSENSITIVE);
 
     private BotDetector() {}

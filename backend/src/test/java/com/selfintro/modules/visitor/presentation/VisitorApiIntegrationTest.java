@@ -30,7 +30,7 @@ class VisitorApiIntegrationTest {
 
     @Test
     void anonymousVisitorCanBeRecordedWithoutCsrfToken() throws Exception {
-        mockMvc.perform(post("/api/visits"))
+        mockMvc.perform(post("/api/visits").header("User-Agent", "Mozilla/5.0"))
                 .andExpect(status().isOk())
                 .andExpect(cookie().httpOnly("portfolio_visitor", true))
                 .andExpect(jsonPath("$.todayVisitors").value(1))
