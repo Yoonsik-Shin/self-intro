@@ -45,15 +45,19 @@ public class VisitorService {
                                                 visitedAt,
                                                 truncatedUserAgent,
                                                 bot)));
-        hourlyVisitorRepository
-                .findByVisitorHashAndVisitedDateAndVisitedHour(
-                        visitorHash, visitedDate, visitedAt.getHour())
-                .ifPresentOrElse(
-                        VisitorHourlyVisit::recordPageView,
-                        () ->
-                                hourlyVisitorRepository.save(
-                                        VisitorHourlyVisit.firstVisit(
-                                                visitorHash, visitedDate, visitedAt.getHour())));
+        if (!bot) {
+            hourlyVisitorRepository
+                    .findByVisitorHashAndVisitedDateAndVisitedHour(
+                            visitorHash, visitedDate, visitedAt.getHour())
+                    .ifPresentOrElse(
+                            VisitorHourlyVisit::recordPageView,
+                            () ->
+                                    hourlyVisitorRepository.save(
+                                            VisitorHourlyVisit.firstVisit(
+                                                    visitorHash,
+                                                    visitedDate,
+                                                    visitedAt.getHour())));
+        }
         visitorRepository.flush();
         return getSummaryFor(visitedDate);
     }
@@ -117,7 +121,7 @@ public class VisitorService {
 
     private VisitorSummaryResponse getSummaryFor(LocalDate date) {
         return new VisitorSummaryResponse(
-                visitorRepository.countByVisitedDate(date),
+                visitorRepository.countByVisitedDateAndBotFalse(date),
                 visitorRepository.countDistinctVisitors(),
                 visitorRepository.sumPageViews(),
                 visitorRepository.countByVisitedDateAndBotTrue(date));

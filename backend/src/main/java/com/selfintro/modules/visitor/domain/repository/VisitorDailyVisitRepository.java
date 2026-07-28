@@ -12,14 +12,16 @@ public interface VisitorDailyVisitRepository extends JpaRepository<VisitorDailyV
     Optional<VisitorDailyVisit> findByVisitorHashAndVisitedDate(
             String visitorHash, LocalDate visitedDate);
 
-    long countByVisitedDate(LocalDate visitedDate);
+    long countByVisitedDateAndBotFalse(LocalDate visitedDate);
 
     long countByVisitedDateAndBotTrue(LocalDate visitedDate);
 
-    @Query("select count(distinct visit.visitorHash) from VisitorDailyVisit visit")
+    @Query(
+            "select count(distinct visit.visitorHash) from VisitorDailyVisit visit where visit.bot = false")
     long countDistinctVisitors();
 
-    @Query("select coalesce(sum(visit.pageViews), 0) from VisitorDailyVisit visit")
+    @Query(
+            "select coalesce(sum(visit.pageViews), 0) from VisitorDailyVisit visit where visit.bot = false")
     long sumPageViews();
 
     @Query(
@@ -29,6 +31,7 @@ public interface VisitorDailyVisitRepository extends JpaRepository<VisitorDailyV
                    sum(visit.pageViews) as pageViews
             from VisitorDailyVisit visit
             where visit.visitedDate between :from and :to
+              and visit.bot = false
             group by visit.visitedDate
             order by visit.visitedDate asc
             """)
