@@ -1781,7 +1781,7 @@ export function JobApplicationManagement() {
                                             editingApplication.compensationDetail) && (
                                             <div>
                                                 <p className="mb-2 text-sm font-bold text-slate-600">
-                                                    상세 정보 (AI 자동분석으로 채워짐)
+                                                    상세 정보
                                                 </p>
                                                 <DetailTabs
                                                     key={editingApplication.id}
@@ -1964,7 +1964,7 @@ export function JobApplicationManagement() {
 
                                     <details className="rounded-lg border border-slate-200">
                                         <summary className="cursor-pointer select-none px-3 py-2 text-sm font-bold text-slate-600">
-                                            상세 정보 (AI 자동분석으로 채워짐)
+                                            상세 정보
                                         </summary>
                                         <div className="space-y-3 px-3 pb-3 pt-1">
                                             {(
@@ -2257,7 +2257,7 @@ export function JobApplicationManagement() {
                                     {!isCandidateDetailMissing(candidateDrawerItem) ? (
                                         <div className="mt-4">
                                             <p className="mb-2 text-sm font-bold text-slate-600">
-                                                상세 정보 (AI 자동분석으로 채워짐)
+                                                상세 정보
                                             </p>
                                             <DetailTabs
                                                 key={candidateDrawerItem.id}
