@@ -36,6 +36,11 @@ export const jobPostingApi = {
             method: 'PUT',
             body: JSON.stringify(payload),
         }),
+    updateMemo: (id: number, memo: string | null) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/memo`, {
+            method: 'PATCH',
+            body: JSON.stringify({ memo }),
+        }),
     remove: (id: number) =>
         request<void>(`/api/admin/job-postings/${id}`, {
             method: 'DELETE',

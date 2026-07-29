@@ -41,6 +41,7 @@ import {
     X,
 } from 'lucide-react';
 import { ApiError, jobPostingApi } from '@/lib/api';
+import { PostingMemoEditor } from './PostingMemoEditor';
 import type {
     JobPosting,
     JobPostingCoverLetterItemRequest,
@@ -2587,6 +2588,15 @@ export function JobApplicationManagement() {
                                                         content: (
                                                             <CoverLetterEditor
                                                                 jobPostingId={drawerItem.id}
+                                                            />
+                                                        ),
+                                                    },
+                                                    {
+                                                        key: 'memo',
+                                                        label: '메모',
+                                                        content: (
+                                                            <PostingMemoEditor
+                                                                jobPosting={drawerItem}
                                                             />
                                                         ),
                                                     },
