@@ -5,7 +5,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2, Save, FileText } from 'lucide-react';
 import { jobPostingApi, ApiError } from '@/lib/api';
 import type { JobPosting } from '@/lib/api/types';
-import { MarkdownEditor } from '../shared/MarkdownEditor';
 
 interface PostingMemoEditorProps {
     jobPosting: JobPosting;
@@ -59,13 +58,13 @@ export function PostingMemoEditor({ jobPosting }: PostingMemoEditorProps) {
     }, [handleSave, isDirty, saveMutation.isPending]);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-slate-500" />
                     <span className="text-sm font-bold text-slate-800">공고 메모</span>
                     <span className="text-xs text-slate-400">
-                        면접 준비, 지원 관련 메모 등을 마크다운으로 작성해보세요. (Cmd+S / Ctrl+S
+                        면접 준비, 담당자 연락처, 특이사항 등을 자유롭게 작성하세요. (Cmd+S / Ctrl+S
                         저장)
                     </span>
                 </div>
@@ -102,8 +101,18 @@ export function PostingMemoEditor({ jobPosting }: PostingMemoEditorProps) {
                 </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white">
-                <MarkdownEditor value={memoText} onChange={setMemoText} />
+            <div className="relative">
+                <textarea
+                    value={memoText}
+                    onChange={(e) => setMemoText(e.target.value)}
+                    placeholder="이 공고에 대한 메모를 자유롭게 입력하세요 (예: 면접 예상 질문, 처우 협상 메모, 담당자 정보 등)"
+                    className="min-h-[280px] w-full rounded-xl border border-slate-200 bg-slate-50/30 p-4 text-sm leading-relaxed text-slate-800 placeholder-slate-400 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <div className="mt-1 flex justify-end">
+                    <span className="text-[11px] font-medium text-slate-400">
+                        {memoText.length.toLocaleString()} 자
+                    </span>
+                </div>
             </div>
         </div>
     );
