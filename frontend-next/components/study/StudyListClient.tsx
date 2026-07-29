@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -40,20 +40,20 @@ export function StudyListClient({ initialStudies, categories }: Props) {
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('ALL');
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
-    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                const raw = localStorage.getItem('recently_viewed_studies');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed)) return parsed;
-                }
-            } catch {
-                // Ignore
+    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('recently_viewed_studies');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) setRecentlyViewed(parsed);
             }
+        } catch {
+            // Ignore (e.g. sandboxed iframe, incognito)
         }
-        return [];
-    });
+    }, []);
+
     const isDefaultQuery = search === '' && activeCategory === 'ALL' && !hasIdFilter;
 
     const handleClearHistory = () => {
@@ -107,6 +107,7 @@ export function StudyListClient({ initialStudies, categories }: Props) {
                   totalPages: 1,
               }
             : undefined,
+        staleTime: 60 * 1000,
     });
 
     const studies = studyPage?.content ?? [];
