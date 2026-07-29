@@ -20,6 +20,7 @@ import {
     BarChart3,
     Heart,
     ClipboardList,
+    GraduationCap,
     X,
 } from 'lucide-react';
 import { bffApi, skillApi } from '@/lib/api';
@@ -27,6 +28,7 @@ import type { Experience, IntroductionResponse, Skill } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
 import { StudyManagement } from './study/StudyManagement';
+import { LearningResourceManagement } from './learning-resource/LearningResourceManagement';
 import { SkillsManagement } from './skills/SkillsManagement';
 import { ExperienceManagement } from './experience/ExperienceManagement';
 import { ProfileManagement } from './profile/ProfileManagement';
@@ -57,13 +59,15 @@ type TabId =
     | 'CORE_PROJECTS'
     | 'ARCHITECTURE'
     | 'PRINT_TEMPLATES'
-    | 'JOB_APPLICATIONS';
+    | 'JOB_APPLICATIONS'
+    | 'LEARNING_RESOURCES';
 
 const ADMIN_MENU_GROUPS = [
     {
         label: '콘텐츠 자산',
         items: [
             { id: 'STUDY', label: '공부 정리 관리', icon: BookOpen },
+            { id: 'LEARNING_RESOURCES', label: '학습 자료 관리', icon: GraduationCap },
             { id: 'SKILLS', label: '기술 스택 관리', icon: Cpu },
             { id: 'EXPERIENCE', label: '이력 및 경력 관리', icon: Briefcase },
         ],
@@ -121,6 +125,7 @@ export function AdminDashboardShell() {
                 'ARCHITECTURE',
                 'PRINT_TEMPLATES',
                 'JOB_APPLICATIONS',
+                'LEARNING_RESOURCES',
             ];
             if (tabInUrl && validTabs.includes(tabInUrl)) {
                 setActiveTab(tabInUrl);
@@ -144,6 +149,8 @@ export function AdminDashboardShell() {
             url.searchParams.set('tab', newTab);
             url.searchParams.delete('studyId');
             url.searchParams.delete('expId');
+            url.searchParams.delete('resourceId');
+            url.searchParams.delete('fromResourceId');
             url.searchParams.delete('action');
             window.history.replaceState(null, '', url.pathname + url.search);
         }
@@ -375,7 +382,12 @@ export function AdminDashboardShell() {
 
     // 공개 페이지에 대응되는 화면이 없는 탭으로 오면 미리보기 패널을 닫는다.
     useEffect(() => {
-        if ((activeTab === 'PRINT_TEMPLATES' || activeTab === 'JOB_APPLICATIONS') && isPreviewOpen)
+        if (
+            (activeTab === 'PRINT_TEMPLATES' ||
+                activeTab === 'JOB_APPLICATIONS' ||
+                activeTab === 'LEARNING_RESOURCES') &&
+            isPreviewOpen
+        )
             closePreviewPanel();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
@@ -573,6 +585,7 @@ export function AdminDashboardShell() {
                             {activeTab === 'ANALYTICS' && <AnalyticsPanel />}
                             {activeTab === 'DONATIONS' && <DonationsPanel />}
                             {activeTab === 'JOB_APPLICATIONS' && <JobApplicationManagement />}
+                            {activeTab === 'LEARNING_RESOURCES' && <LearningResourceManagement />}
                         </section>
                     </div>
                 </div>

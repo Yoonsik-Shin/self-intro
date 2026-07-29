@@ -114,6 +114,90 @@ export type StudySuggestionStreamEvent =
     | { type: 'complete'; suggestions: StudySuggestion[] }
     | { type: 'error'; message: string };
 
+export type LearningResourceType = 'ONLINE_COURSE' | 'BOOK' | 'OFFLINE';
+export type LearningResourceStatus = 'WISHLIST' | 'OWNED' | 'IN_PROGRESS' | 'COMPLETED';
+export type LearningResourcePriorityTier = 'P0' | 'P1' | 'P2' | 'P3';
+export type LearningResourceRelationType = 'PREREQUISITE' | 'RELATED' | 'FOLLOW_UP' | 'OVERLAPS';
+
+export type LearningResourceCategory = {
+    id: number;
+    name: string;
+    slug: string;
+    displayOrder: number;
+};
+
+export type LearningResource = {
+    id: number;
+    slug: string;
+    title: string;
+    resourceType: LearningResourceType;
+    provider?: string;
+    url?: string;
+    instructorOrAuthor?: string;
+    durationMinutes?: number;
+    status: LearningResourceStatus;
+    priorityTier?: LearningResourcePriorityTier;
+    displayOrder: number;
+    category: LearningResourceCategory;
+    summary?: string;
+    detailMarkdown?: string;
+    tags: Tag[];
+    skills: Skill[];
+    relatedResources: Array<
+        Pick<LearningResource, 'id' | 'slug' | 'title'> & { type: LearningResourceRelationType }
+    >;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type LearningResourceRequest = {
+    slug?: string;
+    title: string;
+    resourceType: LearningResourceType;
+    provider?: string;
+    url?: string;
+    instructorOrAuthor?: string;
+    durationMinutes?: number | null;
+    status: LearningResourceStatus;
+    priorityTier?: LearningResourcePriorityTier | null;
+    displayOrder: number;
+    categoryId: number;
+    summary?: string;
+    detailMarkdown?: string;
+    tagNames: string[];
+    skillIds: number[];
+    relatedResources: Array<{ resourceId: number; type: LearningResourceRelationType }>;
+};
+
+export type LearningResourcePage = {
+    content: LearningResource[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+};
+
+export type LearningResourceGraphNode = {
+    id: number;
+    title: string;
+    category: { id: number; name: string; slug: string };
+    resourceType: LearningResourceType;
+    status: LearningResourceStatus;
+    priorityTier?: LearningResourcePriorityTier;
+    durationMinutes?: number;
+};
+
+export type LearningResourceGraphEdge = {
+    sourceId: number;
+    targetId: number;
+    type: LearningResourceRelationType;
+};
+
+export type LearningResourceGraph = {
+    nodes: LearningResourceGraphNode[];
+    edges: LearningResourceGraphEdge[];
+};
+
 export type Profile = {
     id: number;
     name: string;
