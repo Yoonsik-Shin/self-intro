@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -88,6 +89,7 @@ public class LearningResourceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
     public LearningResourceResponse create(LearningResourceRequest request) {
         LearningResourceCategory category = findCategory(request.categoryId());
         String slug = uniqueSlug(request.slug(), request.title(), null);
@@ -114,6 +116,7 @@ public class LearningResourceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
     public LearningResourceResponse update(Long id, LearningResourceRequest request) {
         LearningResource resource =
                 learningResourceRepository
@@ -145,6 +148,7 @@ public class LearningResourceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
     public void delete(Long id) {
         LearningResource resource =
                 learningResourceRepository
@@ -157,6 +161,7 @@ public class LearningResourceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
     public LearningResourceResponse updateStatus(Long id, LearningResourceStatus status) {
         LearningResource resource =
                 learningResourceRepository
