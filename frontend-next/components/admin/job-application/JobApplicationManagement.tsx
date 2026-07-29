@@ -22,6 +22,7 @@ import {
     Calendar as CalendarIcon,
     Check,
     ChevronDown,
+    Clipboard,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
@@ -1086,25 +1087,30 @@ export function JobApplicationManagement() {
 
     function handleFillDroppedUrls(droppedUrls: string[]) {
         if (droppedUrls.length === 0) return;
-        setBulkUrls((prev) => {
-            const next = [...prev];
-            const existingSet = new Set(next.filter(Boolean));
-            const newUrls = droppedUrls.filter((u) => !existingSet.has(u));
 
-            let urlIdx = 0;
-            for (let i = 0; i < 5 && urlIdx < newUrls.length; i++) {
-                if (!next[i].trim()) {
-                    next[i] = newUrls[urlIdx++];
+        if (ingestMode === 'single') {
+            setIngestUrl(droppedUrls[0]);
+        } else {
+            setBulkUrls((prev) => {
+                const next = [...prev];
+                const existingSet = new Set(next.filter(Boolean));
+                const newUrls = droppedUrls.filter((u) => !existingSet.has(u));
+
+                let urlIdx = 0;
+                for (let i = 0; i < 5 && urlIdx < newUrls.length; i++) {
+                    if (!next[i].trim()) {
+                        next[i] = newUrls[urlIdx++];
+                    }
                 }
-            }
-            return next;
-        });
+                return next;
+            });
+        }
     }
 
-    // 수집 모달이 열려있고 다중 수집 탭일 때, 윈도우 전체 레벨에서 dragover/drop을 가로채어
-    // 크롬 브라우저 탭, 주소창 자물쇠 아이콘, 북마크, 링크 어디서 오든 Drop이 받아들여지도록 전역 리스너 등록
+    // 수집 모달이 열려있을 때(단일/다중 공통), 윈도우 전체 레벨에서 dragover/drop을 가로채어
+    // 주소창 자물쇠 아이콘, 북마크, 링크 어디서 오든 Drop이 받아들여지도록 전역 리스너 등록
     useEffect(() => {
-        if (!isIngestDrawerOpen || ingestMode !== 'bulk') return;
+        if (!isIngestDrawerOpen) return;
 
         const handleWindowDragOver = (e: globalThis.DragEvent) => {
             e.preventDefault();
@@ -1132,6 +1138,45 @@ export function JobApplicationManagement() {
             window.removeEventListener('drop', handleWindowDrop);
         };
     }, [isIngestDrawerOpen, ingestMode]);
+
+    // 전역 paste (Cmd+V / Ctrl+V) 이벤트로 클립보드 URL 자동 감지 및 채우기
+    useEffect(() => {
+        if (!isIngestDrawerOpen) return;
+
+        const handlePaste = (e: ClipboardEvent) => {
+            const pastedText = e.clipboardData?.getData('text/plain');
+            if (!pastedText) return;
+
+            const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+            const matches = pastedText.match(urlRegex);
+            if (matches && matches.length > 0) {
+                const cleanedUrls = Array.from(
+                    new Set(matches.map((m) => m.replace(/[)"'>;\.]+$|&quot;/g, '').trim()))
+                );
+                handleFillDroppedUrls(cleanedUrls);
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
+    }, [isIngestDrawerOpen, ingestMode]);
+
+    async function handlePasteClipboardUrls() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (!text) return;
+            const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+            const matches = text.match(urlRegex);
+            if (matches && matches.length > 0) {
+                const cleanedUrls = Array.from(
+                    new Set(matches.map((m) => m.replace(/[)"'>;\.]+$|&quot;/g, '').trim()))
+                );
+                handleFillDroppedUrls(cleanedUrls);
+            }
+        } catch {
+            // ignore permission errors
+        }
+    }
 
     async function requestBulkIngestUrls(urlsToIngest: string[]) {
         const cleaned = urlsToIngest.map((u) => u.trim()).filter(Boolean);
@@ -3418,17 +3463,102 @@ export function JobApplicationManagement() {
 
                             {ingestMode === 'single' ? (
                                 <div>
-                                    <p className="mb-4 text-sm text-slate-500">
-                                        아직 지원하지 않은 채용 공고 URL을 붙여넣으면 AI가
-                                        회사명·직무명·마감일을 분석해 수집됨 목록에 저장합니다.
-                                        나중에 보드에서 지원하기 버튼을 누르면 실제 지원 공고로
-                                        전환됩니다.
-                                    </p>
+                                    <div className="mb-3 space-y-1.5 rounded-lg bg-blue-50/80 p-3 text-xs text-blue-900 border border-blue-100">
+                                        <div className="flex items-center gap-1.5 font-bold text-blue-900">
+                                            <Sparkles className="h-4 w-4 text-blue-600" />
+                                            <span>URL을 채우는 가장 편리한 방법</span>
+                                        </div>
+                                        <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-blue-800">
+                                            <li>
+                                                <b>방법 1 (추천):</b> 주소창의{' '}
+                                                <b>🔒 자물쇠 아이콘</b>을 이 상자로{' '}
+                                                <b>드래그 앤 드롭</b> (100% 동작)
+                                            </li>
+                                            <li>
+                                                <b>방법 2:</b> 공고 주소 복사(Cmd+C) 후 이 창에서{' '}
+                                                <b>Cmd+V (붙여넣기)</b>
+                                            </li>
+                                            <li>
+                                                <b>방법 3:</b> 아래 <b>[클립보드에서 가져오기]</b>{' '}
+                                                버튼 클릭
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    {/* Single Drop Zone */}
+                                    <div
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            e.dataTransfer.dropEffect = 'copy';
+                                            setIsDropZoneOver(true);
+                                        }}
+                                        onDragEnter={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            e.dataTransfer.dropEffect = 'copy';
+                                            setIsDropZoneOver(true);
+                                        }}
+                                        onDragLeave={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsDropZoneOver(false);
+                                        }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsDropZoneOver(false);
+                                            const droppedUrls = extractUrlsFromDataTransfer(
+                                                e.dataTransfer
+                                            );
+                                            if (droppedUrls.length > 0) {
+                                                handleFillDroppedUrls(droppedUrls);
+                                            }
+                                        }}
+                                        className={`mb-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-3 text-center transition ${
+                                            isDropZoneOver
+                                                ? 'border-blue-500 bg-blue-100 text-blue-800 scale-[1.01]'
+                                                : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <Sparkles className="mb-1 h-5 w-5 text-blue-500" />
+                                        <p className="text-xs font-bold text-slate-800">
+                                            주소창 🔒 자물쇠 아이콘, 북마크, 링크를 이 상자로{' '}
+                                            <b>드래그 앤 드롭</b>하세요
+                                        </p>
+                                    </div>
+
                                     <div className="space-y-3">
+                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                            <span>수집할 공고 URL</span>
+                                            <button
+                                                type="button"
+                                                onClick={handlePasteClipboardUrls}
+                                                className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 transition hover:bg-blue-100"
+                                            >
+                                                <Clipboard className="h-3 w-3" />
+                                                클립보드에서 가져오기 (Cmd+V)
+                                            </button>
+                                        </div>
                                         <input
                                             type="url"
                                             autoFocus
                                             value={ingestUrl}
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                e.dataTransfer.dropEffect = 'copy';
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const dropped = extractUrlsFromDataTransfer(
+                                                    e.dataTransfer
+                                                );
+                                                if (dropped.length > 0) {
+                                                    handleFillDroppedUrls(dropped);
+                                                }
+                                            }}
                                             onChange={(e) => setIngestUrl(e.target.value)}
                                             placeholder="https://..."
                                             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
@@ -3455,11 +3585,27 @@ export function JobApplicationManagement() {
                                 </div>
                             ) : (
                                 <div>
-                                    <p className="mb-3 text-sm text-slate-500">
-                                        여러 공고 URL을 한 번에 입력해 동시 수집합니다. 외부 탭이나
-                                        링크를 아래 박스로 **드래그 앤 드롭**하면 자동으로 URL이
-                                        들어갑니다.
-                                    </p>
+                                    <div className="mb-3 space-y-1.5 rounded-lg bg-blue-50/80 p-3 text-xs text-blue-900 border border-blue-100">
+                                        <div className="flex items-center gap-1.5 font-bold text-blue-900">
+                                            <Sparkles className="h-4 w-4 text-blue-600" />
+                                            <span>URL을 채우는 가장 편리한 방법</span>
+                                        </div>
+                                        <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-blue-800">
+                                            <li>
+                                                <b>방법 1 (추천):</b> 주소창의{' '}
+                                                <b>🔒 자물쇠 아이콘</b>을 이 상자로{' '}
+                                                <b>드래그 앤 드롭</b> (100% 동작)
+                                            </li>
+                                            <li>
+                                                <b>방법 2:</b> 공고 주소 복사(Cmd+C) 후 이 창에서{' '}
+                                                <b>Cmd+V (붙여넣기)</b>
+                                            </li>
+                                            <li>
+                                                <b>방법 3:</b> 아래 <b>[클립보드에서 가져오기]</b>{' '}
+                                                버튼 클릭
+                                            </li>
+                                        </ul>
+                                    </div>
 
                                     {/* Drop Zone */}
                                     <div
@@ -3512,18 +3658,28 @@ export function JobApplicationManagement() {
                                     <div className="mb-4 space-y-2">
                                         <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                                             <span>수집할 공고 URL (최대 5개)</span>
-                                            {bulkUrls.some(Boolean) && (
+                                            <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => {
-                                                        setBulkUrls(['', '', '', '', '']);
-                                                        setBulkResults([]);
-                                                    }}
-                                                    className="text-rose-500 hover:underline text-[11px] font-normal"
+                                                    onClick={handlePasteClipboardUrls}
+                                                    className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 transition hover:bg-blue-100"
                                                 >
-                                                    전체 비우기
+                                                    <Clipboard className="h-3 w-3" />
+                                                    클립보드에서 가져오기 (Cmd+V)
                                                 </button>
-                                            )}
+                                                {bulkUrls.some(Boolean) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setBulkUrls(['', '', '', '', '']);
+                                                            setBulkResults([]);
+                                                        }}
+                                                        className="text-rose-500 hover:underline text-[11px] font-normal"
+                                                    >
+                                                        전체 비우기
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                         {bulkUrls.map((url, index) => (
                                             <div key={index} className="flex items-center gap-1.5">
