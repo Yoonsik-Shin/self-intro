@@ -241,20 +241,16 @@ function MatchScoreBadge({
         return <span className="text-slate-300">—</span>;
     }
 
-    let badgeStyle = 'bg-slate-100 text-slate-600 border-slate-200/80';
     if (score >= 80) {
-        badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
-    } else if (score >= 60) {
-        badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200/80';
-    } else if (score >= 40) {
-        badgeStyle = 'bg-amber-50 text-amber-700 border-amber-200/80';
+        return (
+            <span className="font-extrabold text-emerald-600" title={reason ?? undefined}>
+                {score}점
+            </span>
+        );
     }
 
     return (
-        <span
-            className={`inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-extrabold whitespace-nowrap ${badgeStyle}`}
-            title={reason ?? undefined}
-        >
+        <span className="font-medium text-slate-500" title={reason ?? undefined}>
             {score}점
         </span>
     );
