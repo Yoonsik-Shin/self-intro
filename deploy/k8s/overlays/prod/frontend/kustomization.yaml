@@ -10,4 +10,4 @@ resources:
 images:
   - name: self-intro-frontend
     newName: yny.ocir.io/axrywc89b6lf/self-intro/frontend
-    newTag: "af53617"
+    newTag: "89f2990"
