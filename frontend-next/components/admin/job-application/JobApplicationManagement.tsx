@@ -187,6 +187,25 @@ function dDayLabel(deadline: string | null): string | null {
     return `D-${diffDays}`;
 }
 
+function getDDayBadgeStyle(deadline: string | null): string {
+    if (!deadline) return 'bg-slate-100 text-slate-500 border border-slate-200';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(`${deadline}T00:00:00`);
+    const diffDays = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+
+    if (diffDays < 0) {
+        return 'bg-slate-100 text-slate-400 border border-slate-200';
+    }
+    if (diffDays <= 7) {
+        return 'bg-rose-50 text-rose-600 border border-rose-200';
+    }
+    if (diffDays <= 14) {
+        return 'bg-blue-50 text-blue-600 border border-blue-200';
+    }
+    return 'bg-slate-100 text-slate-600 border border-slate-200';
+}
+
 function AlwaysOpenBadge({ rounded = 'rounded' }: { rounded?: 'rounded' | 'rounded-full' }) {
     return (
         <span
@@ -1804,11 +1823,9 @@ export function JobApplicationManagement() {
                                                                     {candidate.deadline}
                                                                     {dDay && (
                                                                         <span
-                                                                            className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold ${
-                                                                                dDay === '마감'
-                                                                                    ? 'bg-slate-200 text-slate-500'
-                                                                                    : 'bg-rose-50 text-rose-500'
-                                                                            }`}
+                                                                            className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
+                                                                                candidate.deadline
+                                                                            )}`}
                                                                         >
                                                                             {dDay}
                                                                         </span>
@@ -2081,11 +2098,9 @@ export function JobApplicationManagement() {
                                                 ) : (
                                                     dDay && (
                                                         <span
-                                                            className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                                                                dDay === '마감'
-                                                                    ? 'bg-slate-100 text-slate-400'
-                                                                    : 'bg-rose-50 text-rose-500'
-                                                            }`}
+                                                            className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
+                                                                candidate.deadline
+                                                            )}`}
                                                         >
                                                             {dDay}
                                                         </span>
@@ -2212,11 +2227,9 @@ export function JobApplicationManagement() {
                                                             <AlwaysOpenBadge rounded="rounded-full" />
                                                         ) : dDay ? (
                                                             <span
-                                                                className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                                                                    dDay === '마감'
-                                                                        ? 'bg-slate-100 text-slate-400'
-                                                                        : 'bg-rose-50 text-rose-500'
-                                                                }`}
+                                                                className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
+                                                                    item.deadline
+                                                                )}`}
                                                             >
                                                                 {dDay}
                                                             </span>
@@ -2425,12 +2438,25 @@ export function JobApplicationManagement() {
                                                     <dd className="mt-0.5 text-slate-800">
                                                         {drawerItem.alwaysOpen ? (
                                                             <AlwaysOpenBadge />
+                                                        ) : drawerItem.deadline ? (
+                                                            <span className="inline-flex items-center gap-1.5">
+                                                                {drawerItem.deadline}
+                                                                {dDayLabel(drawerItem.deadline) && (
+                                                                    <span
+                                                                        className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
+                                                                            drawerItem.deadline
+                                                                        )}`}
+                                                                    >
+                                                                        {dDayLabel(
+                                                                            drawerItem.deadline
+                                                                        )}
+                                                                    </span>
+                                                                )}
+                                                            </span>
                                                         ) : (
-                                                            (drawerItem.deadline ?? (
-                                                                <span className="text-slate-300">
-                                                                    —
-                                                                </span>
-                                                            ))
+                                                            <span className="text-slate-300">
+                                                                —
+                                                            </span>
                                                         )}
                                                     </dd>
                                                 </div>
@@ -3613,14 +3639,16 @@ export function JobApplicationManagement() {
                                         >
                                             취소
                                         </button>
-                                        <button
-                                            type="submit"
-                                            form="job-posting-edit-form"
-                                            disabled={isSaving}
-                                            className="rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            {drawerId !== null ? '수정 저장' : '등록'}
-                                        </button>
+                                        {(!isCreating || showManualForm) && (
+                                            <button
+                                                type="submit"
+                                                form="job-posting-edit-form"
+                                                disabled={isSaving}
+                                                className="rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {drawerId !== null ? '수정 저장' : '등록'}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ) : drawerItem && isPreApplication(drawerItem.status) ? (
