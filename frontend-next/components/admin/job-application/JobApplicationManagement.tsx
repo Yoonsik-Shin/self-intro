@@ -3066,68 +3066,37 @@ export function JobApplicationManagement() {
                                                                     statusRow
                                                                 );
 
-                                                            if (drawerItem.matchScore === null) {
-                                                                return (
+                                                            return (
+                                                                <div className="space-y-4">
+                                                                    {drawerItem.matchScore !==
+                                                                        null && (
+                                                                        <div className="rounded-lg bg-emerald-50 p-3">
+                                                                            <p className="text-base font-extrabold text-emerald-700">
+                                                                                AI 매칭{' '}
+                                                                                {
+                                                                                    drawerItem.matchScore
+                                                                                }
+                                                                                점
+                                                                            </p>
+                                                                            {drawerItem.matchReason && (
+                                                                                <p className="mt-1 text-base text-emerald-600">
+                                                                                    {
+                                                                                        drawerItem.matchReason
+                                                                                    }
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                                     <div className="space-y-3">
                                                                         <div className="mb-1 flex items-center gap-1">
                                                                             <span className="text-base font-extrabold text-slate-700">
                                                                                 AI 어필 포인트 분석
                                                                             </span>
-                                                                            <InfoTooltip text="버튼을 눌러야 실행돼요. 경력·프로젝트 전체와 핵심역량을 이 공고와 대조해 어떤 경험을 어떻게 강조하면 좋을지 긴 글로 분석해줘요." />
+                                                                            <InfoTooltip text="버튼을 누르면 경력·프로젝트 전체와 핵심역량을 이 공고와 대조해 어필 포인트를 분석해줘요." />
                                                                         </div>
                                                                         {appealDetail}
                                                                     </div>
-                                                                );
-                                                            }
-
-                                                            return (
-                                                                <SectionTabs
-                                                                    bordered={false}
-                                                                    size="sm"
-                                                                    tabs={[
-                                                                        {
-                                                                            key: 'score',
-                                                                            label: (
-                                                                                <span className="inline-flex items-center gap-1">
-                                                                                    자동 매칭 점수
-                                                                                    <InfoTooltip
-                                                                                        text="공고를 수집할 때 보유 기술 스택과 자동으로 비교해 계산돼요. 버튼을 누르지 않아도 이미 채워져 있는 값이에요."
-                                                                                        iconClassName="text-emerald-400"
-                                                                                    />
-                                                                                </span>
-                                                                            ),
-                                                                            content: (
-                                                                                <div className="rounded-lg bg-emerald-50 p-3">
-                                                                                    <p className="text-base font-extrabold text-emerald-700">
-                                                                                        AI 매칭{' '}
-                                                                                        {
-                                                                                            drawerItem.matchScore
-                                                                                        }
-                                                                                        점
-                                                                                    </p>
-                                                                                    {drawerItem.matchReason && (
-                                                                                        <p className="mt-1 text-base text-emerald-600">
-                                                                                            {
-                                                                                                drawerItem.matchReason
-                                                                                            }
-                                                                                        </p>
-                                                                                    )}
-                                                                                </div>
-                                                                            ),
-                                                                        },
-                                                                        {
-                                                                            key: 'appeal-detail',
-                                                                            label: (
-                                                                                <span className="inline-flex items-center gap-1">
-                                                                                    AI 어필 포인트
-                                                                                    분석
-                                                                                    <InfoTooltip text="위 자동 점수와 달리, 버튼을 눌러야 실행돼요. 경력·프로젝트 전체와 핵심역량을 이 공고와 대조해 어떤 경험을 어떻게 강조하면 좋을지 긴 글로 분석해줘요." />
-                                                                                </span>
-                                                                            ),
-                                                                            content: appealDetail,
-                                                                        },
-                                                                    ]}
-                                                                />
+                                                                </div>
                                                             );
                                                         })(),
                                                     },
