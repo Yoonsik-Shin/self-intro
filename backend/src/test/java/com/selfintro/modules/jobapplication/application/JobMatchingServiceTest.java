@@ -64,6 +64,23 @@ class JobMatchingServiceTest {
     }
 
     @Test
+    void evaluatesWithoutSkippingWhenThresholdIsZero() {
+        when(skillRepository.findAll())
+                .thenReturn(List.of(skillNamed("Java"), skillNamed("Spring")));
+        when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(0));
+        when(nvidiaNimClient.generate(anyString(), anyString()))
+                .thenReturn("{\"score\":60,\"reason\":\"기본 백엔드 적합도 평가 점수입니다.\"}");
+        JobMatchingService service =
+                new JobMatchingService(
+                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+
+        JobMatchingService.MatchResult result =
+                service.evaluate("프론트엔드 개발자", "React, TypeScript 경험 우대");
+
+        assertThat(result.score()).isEqualTo(60);
+    }
+
+    @Test
     void callsAiAndClampsScoreWhenThresholdMet() {
         when(skillRepository.findAll())
                 .thenReturn(List.of(skillNamed("Java"), skillNamed("Spring")));

@@ -59,7 +59,7 @@ public class JobMatchingService {
                         .count();
 
         int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
-        if (overlapCount < keywordThreshold) {
+        if (keywordThreshold > 0 && overlapCount < keywordThreshold) {
             return MatchResult.empty();
         }
 

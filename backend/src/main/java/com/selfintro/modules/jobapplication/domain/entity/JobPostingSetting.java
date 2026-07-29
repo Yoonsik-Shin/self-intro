@@ -90,7 +90,7 @@ public class JobPostingSetting {
                 null,
                 null,
                 false,
-                2,
+                0,
                 "0 0 8 * * *",
                 now);
     }
