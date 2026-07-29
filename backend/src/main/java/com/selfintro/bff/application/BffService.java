@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class BffService {
     private final StudyService studyService;
     private final CompetencyService competencyService;
 
+    @Cacheable(value = "bff:introduction", key = "'default'")
     public IntroductionResponse getIntroduction() {
         ProfileResponse profile =
                 profileService.getProfile().map(ProfileResponse::from).orElse(null);
@@ -121,6 +123,7 @@ public class BffService {
         return years + "년 " + months + "개월";
     }
 
+    @Cacheable(value = "bff:learning", key = "'default'")
     public LearningResponse getLearning() {
         StudyPageResponse studies =
                 studyService.searchPublished(null, null, null, null, null, null, 0, 100);
