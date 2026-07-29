@@ -1,6 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type DragEvent,
+    type FormEvent,
+    type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
@@ -1092,6 +1100,38 @@ export function JobApplicationManagement() {
             return next;
         });
     }
+
+    // 수집 모달이 열려있고 다중 수집 탭일 때, 윈도우 전체 레벨에서 dragover/drop을 가로채어
+    // 크롬 브라우저 탭, 주소창 자물쇠 아이콘, 북마크, 링크 어디서 오든 Drop이 받아들여지도록 전역 리스너 등록
+    useEffect(() => {
+        if (!isIngestDrawerOpen || ingestMode !== 'bulk') return;
+
+        const handleWindowDragOver = (e: globalThis.DragEvent) => {
+            e.preventDefault();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
+            setIsDropZoneOver(true);
+        };
+
+        const handleWindowDrop = (e: globalThis.DragEvent) => {
+            e.preventDefault();
+            setIsDropZoneOver(false);
+            if (!e.dataTransfer) return;
+            const urls = extractUrlsFromDataTransfer(e.dataTransfer);
+            if (urls.length > 0) {
+                handleFillDroppedUrls(urls);
+            }
+        };
+
+        window.addEventListener('dragover', handleWindowDragOver);
+        window.addEventListener('drop', handleWindowDrop);
+
+        return () => {
+            window.removeEventListener('dragover', handleWindowDragOver);
+            window.removeEventListener('drop', handleWindowDrop);
+        };
+    }, [isIngestDrawerOpen, ingestMode]);
 
     async function requestBulkIngestUrls(urlsToIngest: string[]) {
         const cleaned = urlsToIngest.map((u) => u.trim()).filter(Boolean);
