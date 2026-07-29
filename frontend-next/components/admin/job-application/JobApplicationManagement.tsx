@@ -29,7 +29,6 @@ import {
     EyeOff,
     Info,
     LayoutGrid,
-    Link2,
     List as ListIcon,
     Loader2,
     Pencil,
@@ -822,9 +821,7 @@ export function JobApplicationManagement() {
     const [stageMemo, setStageMemo] = useState('');
     const [dragOverStage, setDragOverStage] = useState<ApplicationStatus | null>(null);
     const [isDragOverCandidates, setIsDragOverCandidates] = useState(false);
-    const [isIngestDrawerOpen, setIsIngestDrawerOpen] = useState(false);
     const [ingestMode, setIngestMode] = useState<'single' | 'bulk'>('single');
-    const [ingestUrl, setIngestUrl] = useState('');
     const [bulkUrls, setBulkUrls] = useState<string[]>(['', '', '', '', '']);
     const [isDropZoneOver, setIsDropZoneOver] = useState(false);
     const [bulkResults, setBulkResults] = useState<
@@ -836,15 +833,12 @@ export function JobApplicationManagement() {
         }>
     >([]);
     const [isBulkIngesting, setIsBulkIngesting] = useState(false);
-    const [isIngesting, setIsIngesting] = useState(false);
-    const [ingestElapsedSeconds, setIngestElapsedSeconds] = useState(0);
     const [isParsingUrl, setIsParsingUrl] = useState(false);
     const [parseElapsedSeconds, setParseElapsedSeconds] = useState(0);
     const parseUrlAbortRef = useRef<AbortController | null>(null);
     const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
     const [settingsForm, setSettingsForm] = useState<JobPostingSettingRequest | null>(null);
     const detailDrawerAnim = useSlideDrawer(!!drawerState);
-    const ingestDrawerAnim = useSlideDrawer(isIngestDrawerOpen);
     const settingsDrawerAnim = useSlideDrawer(isSettingsDrawerOpen && !!settingsForm);
 
     const { data: postings = [], isLoading } = useQuery({
@@ -1000,57 +994,6 @@ export function JobApplicationManagement() {
         }
     }
 
-    // 모달을 닫아도 수집 자체는 백그라운드에서 계속 진행되도록 AbortController를 두지 않는다 —
-    // 완료되면 complete 이벤트로 캐시에 바로 반영된다.
-    async function requestIngestUrl(url: string) {
-        setIsIngesting(true);
-        setIngestElapsedSeconds(0);
-        const startedAt = Date.now();
-        const timer = window.setInterval(() => {
-            setIngestElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
-        }, 1000);
-        try {
-            await jobPostingApi.ingestUrlStream(url, (event) => {
-                if (event.type === 'error') {
-                    alert(event.message);
-                    return;
-                }
-                queryClient.setQueryData(['jobPostings'], (prev: JobPosting[] | undefined) => [
-                    event.response,
-                    ...(prev ?? []),
-                ]);
-                setIngestUrl('');
-                setIsIngestDrawerOpen(false);
-                if (isCandidateDetailMissing(event.response)) {
-                    alert(
-                        '공고를 수집했지만 상세 정보(담당업무·자격요건 등)는 가져오지 못했어요.\n' +
-                            '원본 페이지가 상세 페이지가 아니었거나 사이트가 자동 수집을 차단했을 수 있어요 — 열리는 상세 화면에서 직접 입력해주세요.'
-                    );
-                    openDrawer(event.response);
-                }
-            });
-        } catch (error) {
-            if (error instanceof ApiError && error.status === 409) {
-                setIsIngestDrawerOpen(false);
-                setIngestUrl('');
-                const existing = candidates.find((item) => item.postingUrl === url.trim());
-                if (existing) {
-                    alert('이미 수집된 공고예요. 상세 정보를 열어드릴게요.');
-                    openDrawer(existing);
-                } else {
-                    alert(
-                        '이미 수집된 공고예요. 이미 지원 처리됐을 수 있어요 — 지원 공고 목록에서 확인해주세요.'
-                    );
-                }
-            } else {
-                alert(error instanceof ApiError ? error.message : '공고 수집에 실패했습니다.');
-            }
-        } finally {
-            window.clearInterval(timer);
-            setIsIngesting(false);
-        }
-    }
-
     function extractUrlsFromDataTransfer(dataTransfer: DataTransfer): string[] {
         const foundUrls: string[] = [];
 
@@ -1114,7 +1057,9 @@ export function JobApplicationManagement() {
         if (droppedUrls.length === 0) return;
 
         if (ingestMode === 'single') {
-            setIngestUrl(droppedUrls[0]);
+            const targetUrl = droppedUrls[0];
+            setForm((prev) => ({ ...prev, postingUrl: targetUrl }));
+            requestParseUrl(targetUrl);
         } else {
             setBulkUrls((prev) => {
                 const next = [...prev];
@@ -1132,10 +1077,10 @@ export function JobApplicationManagement() {
         }
     }
 
-    // 수집 모달이 열려있을 때(단일/다중 공통), 윈도우 전체 레벨에서 dragover/drop을 가로채어
+    // 등록/수집 드로어가 열려있을 때(단일/다중 공통), 윈도우 전체 레벨에서 dragover/drop을 가로채어
     // 주소창 자물쇠 아이콘, 북마크, 링크 어디서 오든 Drop이 받아들여지도록 전역 리스너 등록
     useEffect(() => {
-        if (!isIngestDrawerOpen) return;
+        if (!isCreating) return;
 
         const handleWindowDragOver = (e: globalThis.DragEvent) => {
             e.preventDefault();
@@ -1162,11 +1107,11 @@ export function JobApplicationManagement() {
             window.removeEventListener('dragover', handleWindowDragOver);
             window.removeEventListener('drop', handleWindowDrop);
         };
-    }, [isIngestDrawerOpen, ingestMode]);
+    }, [isCreating, ingestMode, handleFillDroppedUrls]);
 
     // 전역 paste (Cmd+V / Ctrl+V) 이벤트로 클립보드 URL 자동 감지 및 채우기
     useEffect(() => {
-        if (!isIngestDrawerOpen) return;
+        if (!isCreating) return;
 
         const handlePaste = (e: ClipboardEvent) => {
             const pastedText = e.clipboardData?.getData('text/plain');
@@ -1184,7 +1129,7 @@ export function JobApplicationManagement() {
 
         window.addEventListener('paste', handlePaste);
         return () => window.removeEventListener('paste', handlePaste);
-    }, [isIngestDrawerOpen, ingestMode]);
+    }, [isCreating, ingestMode, handleFillDroppedUrls]);
 
     async function handlePasteClipboardUrls() {
         try {
@@ -1441,6 +1386,9 @@ export function JobApplicationManagement() {
         setStageDraft(null);
         setStageMemo('');
         setIsEditing(false);
+        setIngestMode('single');
+        setBulkUrls(['', '', '', '', '']);
+        setBulkResults([]);
         setDrawerState({ type: 'create' });
     }
 
@@ -1460,6 +1408,9 @@ export function JobApplicationManagement() {
         setStageDraft(null);
         setStageMemo('');
         setIsEditing(false);
+        setIngestMode('single');
+        setBulkUrls(['', '', '', '', '']);
+        setBulkResults([]);
     }
 
     function startEditing(item: JobPosting) {
@@ -1589,18 +1540,10 @@ export function JobApplicationManagement() {
                     </button>
                     <button
                         type="button"
-                        onClick={() => setIsIngestDrawerOpen(true)}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-                    >
-                        <Link2 className="h-4 w-4" />
-                        공고 수집
-                    </button>
-                    <button
-                        type="button"
                         onClick={openCreateDrawer}
                         className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
                     >
-                        <Plus className="h-4 w-4" />새 지원 공고 등록
+                        <Plus className="h-4 w-4" />새 공고 등록
                     </button>
                 </div>
             </div>
@@ -2912,262 +2855,690 @@ export function JobApplicationManagement() {
                                         </div>
                                     )
                                 ) : (
-                                    <form
-                                        id="job-posting-edit-form"
-                                        onSubmit={handleSubmit}
-                                        className="space-y-4"
-                                    >
-                                        <div>
-                                            <span className="mb-1 block text-sm font-bold text-slate-600">
-                                                공고 URL
-                                            </span>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="url"
-                                                    value={form.postingUrl ?? ''}
-                                                    onChange={(e) =>
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            postingUrl: e.target.value,
-                                                        }))
-                                                    }
-                                                    placeholder="https://..."
-                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                />
+                                    <div className="space-y-4">
+                                        {isCreating && (
+                                            <div className="mb-4 flex border-b border-slate-200">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIngestMode('single')}
+                                                    className={`flex-1 pb-2 text-sm font-bold border-b-2 transition ${
+                                                        ingestMode === 'single'
+                                                            ? 'border-slate-900 text-slate-900'
+                                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                                    }`}
+                                                >
+                                                    단일 공고 등록
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIngestMode('bulk')}
+                                                    className={`flex-1 pb-2 text-sm font-bold border-b-2 transition ${
+                                                        ingestMode === 'bulk'
+                                                            ? 'border-slate-900 text-slate-900'
+                                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                                    }`}
+                                                >
+                                                    다중 일괄 수집 (Bulk)
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {isCreating && ingestMode === 'bulk' ? (
+                                            <div>
+                                                <div className="mb-3 space-y-1.5 rounded-lg bg-blue-50/80 p-3 text-xs text-blue-900 border border-blue-100">
+                                                    <div className="flex items-center gap-1.5 font-bold text-blue-900">
+                                                        <Sparkles className="h-4 w-4 text-blue-600" />
+                                                        <span>다중 공고 수집 방법</span>
+                                                    </div>
+                                                    <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-blue-800">
+                                                        <li>
+                                                            Cmd+V로 여러 URL을 붙여넣거나 자물쇠
+                                                            아이콘을 드래그하세요.
+                                                        </li>
+                                                        <li>
+                                                            수집된 공고는 즉시 후보 공고 목록에 자동
+                                                            생성됩니다.
+                                                        </li>
+                                                    </ul>
+                                                </div>
+
+                                                <div
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (e.dataTransfer)
+                                                            e.dataTransfer.dropEffect = 'copy';
+                                                        setIsDropZoneOver(true);
+                                                    }}
+                                                    onDragEnter={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (e.dataTransfer)
+                                                            e.dataTransfer.dropEffect = 'copy';
+                                                        setIsDropZoneOver(true);
+                                                    }}
+                                                    onDragLeave={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setIsDropZoneOver(false);
+                                                    }}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setIsDropZoneOver(false);
+                                                        const droppedUrls =
+                                                            extractUrlsFromDataTransfer(
+                                                                e.dataTransfer
+                                                            );
+                                                        if (droppedUrls.length > 0) {
+                                                            handleFillDroppedUrls(droppedUrls);
+                                                        }
+                                                    }}
+                                                    className={`mb-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center transition ${
+                                                        isDropZoneOver
+                                                            ? 'border-blue-500 bg-blue-50/90 text-blue-700'
+                                                            : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
+                                                    }`}
+                                                >
+                                                    <Sparkles className="mb-1 h-5 w-5 text-slate-400" />
+                                                    <p className="text-xs font-semibold">
+                                                        브라우저 탭, 링크, 북마크를 이 상자로{' '}
+                                                        <b>드래그 앤 드롭</b>하세요
+                                                    </p>
+                                                </div>
+
+                                                <div className="mb-4 space-y-2">
+                                                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                                        <span>수집할 공고 URL (최대 5개)</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={handlePasteClipboardUrls}
+                                                                className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 transition hover:bg-blue-100"
+                                                            >
+                                                                <Clipboard className="h-3 w-3" />
+                                                                클립보드에서 가져오기 (Cmd+V)
+                                                            </button>
+                                                            {bulkUrls.some(Boolean) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setBulkUrls([
+                                                                            '',
+                                                                            '',
+                                                                            '',
+                                                                            '',
+                                                                            '',
+                                                                        ]);
+                                                                        setBulkResults([]);
+                                                                    }}
+                                                                    className="text-rose-500 hover:underline text-[11px] font-normal"
+                                                                >
+                                                                    전체 비우기
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {bulkUrls.map((url, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className="flex items-center gap-1.5"
+                                                        >
+                                                            <span className="shrink-0 text-xs font-semibold text-slate-400 w-4 text-right">
+                                                                {index + 1}.
+                                                            </span>
+                                                            <input
+                                                                type="url"
+                                                                value={url}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setBulkUrls((prev) => {
+                                                                        const next = [...prev];
+                                                                        next[index] = val;
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                placeholder={`채용 공고 URL ${index + 1}`}
+                                                                className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+
                                                 <button
                                                     type="button"
                                                     disabled={
-                                                        !form.postingUrl?.trim() || isParsingUrl
+                                                        isBulkIngesting ||
+                                                        bulkUrls.filter((u) => u.trim()).length ===
+                                                            0
                                                     }
-                                                    onClick={() =>
-                                                        requestParseUrl(form.postingUrl!.trim())
-                                                    }
-                                                    title="URL 내용을 AI로 분석해 아래 항목을 채웁니다"
-                                                    className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                    onClick={() => requestBulkIngestUrls(bulkUrls)}
+                                                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 mb-3"
                                                 >
-                                                    <Sparkles className="h-3.5 w-3.5" />
-                                                    {isParsingUrl
-                                                        ? `분석 중... (${parseElapsedSeconds}초)`
-                                                        : 'AI 자동분석'}
+                                                    <Sparkles className="h-4 w-4" />
+                                                    {isBulkIngesting
+                                                        ? '다중 수집 진행 중...'
+                                                        : '다중 수집 시작'}
                                                 </button>
+
+                                                {bulkResults.length > 0 && (
+                                                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+                                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                                            <span>수집 진행 현황</span>
+                                                            <span>
+                                                                {
+                                                                    bulkResults.filter(
+                                                                        (r) =>
+                                                                            r.status ===
+                                                                                'success' ||
+                                                                            r.status === 'error'
+                                                                    ).length
+                                                                }{' '}
+                                                                / {bulkResults.length} 완료
+                                                            </span>
+                                                        </div>
+                                                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                                            <div
+                                                                className="h-full bg-slate-900 transition-all duration-300"
+                                                                style={{
+                                                                    width: `${(bulkResults.filter((r) => r.status === 'success' || r.status === 'error').length / bulkResults.length) * 100}%`,
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                                                            {bulkResults.map((item, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="flex flex-col gap-0.5 rounded-lg border border-slate-100 bg-slate-50/70 p-2 text-xs"
+                                                                >
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <span
+                                                                            className="truncate font-mono text-[11px] text-slate-600 max-w-[200px]"
+                                                                            title={item.url}
+                                                                        >
+                                                                            {item.url}
+                                                                        </span>
+                                                                        {item.status ===
+                                                                            'pending' && (
+                                                                            <span className="shrink-0 text-[10px] text-slate-400">
+                                                                                대기 중
+                                                                            </span>
+                                                                        )}
+                                                                        {item.status ===
+                                                                            'processing' && (
+                                                                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-600">
+                                                                                <Loader2 className="h-3 w-3 animate-spin" />{' '}
+                                                                                수집 중
+                                                                            </span>
+                                                                        )}
+                                                                        {item.status ===
+                                                                            'success' && (
+                                                                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-emerald-600">
+                                                                                <Check className="h-3 w-3" />{' '}
+                                                                                성공
+                                                                            </span>
+                                                                        )}
+                                                                        {item.status ===
+                                                                            'error' && (
+                                                                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-rose-600">
+                                                                                <X className="h-3 w-3" />{' '}
+                                                                                실패
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {item.status === 'success' &&
+                                                                        item.response && (
+                                                                            <div className="text-[11px] font-semibold text-slate-800 truncate">
+                                                                                {
+                                                                                    item.response
+                                                                                        .companyName
+                                                                                }{' '}
+                                                                                -{' '}
+                                                                                {
+                                                                                    item.response
+                                                                                        .positionTitle
+                                                                                }
+                                                                            </div>
+                                                                        )}
+                                                                    {item.status === 'error' &&
+                                                                        item.message && (
+                                                                            <div className="text-[11px] text-rose-500">
+                                                                                {item.message}
+                                                                            </div>
+                                                                        )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                            {isParsingUrl && (
-                                                <p className="mt-1 text-xs text-slate-400">
-                                                    이미지 분석까지 필요하면 최대 1~2분 정도 걸릴 수
-                                                    있어요. 멈춘 게 아니니 잠시만 기다려주세요.
-                                                </p>
-                                            )}
-                                        </div>
+                                        ) : (
+                                            <div>
+                                                {isCreating && (
+                                                    <div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 mb-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-1.5 font-bold text-blue-900 text-xs">
+                                                                <Sparkles className="h-4 w-4 text-blue-600" />
+                                                                <span>
+                                                                    URL로 공고 정보 자동 채우기
+                                                                </span>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handlePasteClipboardUrls}
+                                                                className="flex items-center gap-1 rounded bg-blue-100/80 px-2 py-0.5 text-[11px] font-bold text-blue-700 hover:bg-blue-200/80 transition"
+                                                            >
+                                                                <Clipboard className="h-3 w-3" />
+                                                                클립보드 가져오기 (Cmd+V)
+                                                            </button>
+                                                        </div>
 
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                회사명
-                                            </span>
-                                            <input
-                                                required
-                                                value={form.companyName}
-                                                onChange={(e) =>
-                                                    setForm((prev) => ({
-                                                        ...prev,
-                                                        companyName: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                직무명
-                                            </span>
-                                            <input
-                                                required
-                                                value={form.positionTitle}
-                                                onChange={(e) =>
-                                                    setForm((prev) => ({
-                                                        ...prev,
-                                                        positionTitle: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                출처
-                                            </span>
-                                            <input
-                                                required
-                                                placeholder="사람인 / 원티드 / 잡코리아 / 직접입력"
-                                                value={form.source}
-                                                onChange={(e) =>
-                                                    setForm((prev) => ({
-                                                        ...prev,
-                                                        source: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {formIsPostApplication && (
-                                                <label className="block text-sm">
-                                                    <span className="mb-1 block font-bold text-slate-600">
-                                                        지원일
-                                                    </span>
-                                                    <input
-                                                        required
-                                                        type="date"
-                                                        value={form.appliedAt ?? ''}
-                                                        onChange={(e) =>
-                                                            setForm((prev) => ({
-                                                                ...prev,
-                                                                appliedAt: e.target.value,
-                                                            }))
-                                                        }
-                                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                    />
-                                                </label>
-                                            )}
-                                            <label
-                                                className={`block text-sm ${formIsPostApplication ? '' : 'col-span-2'}`}
-                                            >
-                                                <div className="mb-1 flex items-center justify-between">
-                                                    <span className="font-bold text-slate-600">
-                                                        마감일
-                                                    </span>
-                                                    <label className="flex items-center gap-1 text-xs font-bold text-slate-500">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={form.alwaysOpen}
-                                                            onChange={(e) =>
-                                                                setForm((prev) => ({
-                                                                    ...prev,
-                                                                    alwaysOpen: e.target.checked,
-                                                                    deadline: e.target.checked
-                                                                        ? ''
-                                                                        : prev.deadline,
-                                                                }))
-                                                            }
-                                                        />
-                                                        상시채용
-                                                    </label>
-                                                </div>
-                                                <input
-                                                    type="date"
-                                                    disabled={form.alwaysOpen}
-                                                    value={form.deadline ?? ''}
-                                                    onChange={(e) =>
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            deadline: e.target.value,
-                                                        }))
-                                                    }
-                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
-                                                />
-                                            </label>
-                                        </div>
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                연봉/근무조건 메모
-                                            </span>
-                                            <input
-                                                value={form.salaryNote ?? ''}
-                                                onChange={(e) =>
-                                                    setForm((prev) => ({
-                                                        ...prev,
-                                                        salaryNote: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <label className="block text-sm">
-                                                <span className="mb-1 block font-bold text-slate-600">
-                                                    근무지
-                                                </span>
-                                                <input
-                                                    value={form.location ?? ''}
-                                                    onChange={(e) =>
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            location: e.target.value,
-                                                        }))
-                                                    }
-                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                />
-                                            </label>
-                                            <label className="block text-sm">
-                                                <span className="mb-1 block font-bold text-slate-600">
-                                                    고용형태
-                                                </span>
-                                                <input
-                                                    value={form.employmentType ?? ''}
-                                                    onChange={(e) =>
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            employmentType: e.target.value,
-                                                        }))
-                                                    }
-                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                />
-                                            </label>
-                                        </div>
-                                        {formIsPostApplication && (
-                                            <label className="block text-sm">
-                                                <span className="mb-1 block font-bold text-slate-600">
-                                                    메모
-                                                </span>
-                                                <textarea
-                                                    rows={3}
-                                                    value={form.memo ?? ''}
-                                                    onChange={(e) =>
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            memo: e.target.value,
-                                                        }))
-                                                    }
-                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                />
-                                            </label>
-                                        )}
+                                                        <div
+                                                            onDragOver={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                if (e.dataTransfer)
+                                                                    e.dataTransfer.dropEffect =
+                                                                        'copy';
+                                                                setIsDropZoneOver(true);
+                                                            }}
+                                                            onDragEnter={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                if (e.dataTransfer)
+                                                                    e.dataTransfer.dropEffect =
+                                                                        'copy';
+                                                                setIsDropZoneOver(true);
+                                                            }}
+                                                            onDragLeave={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setIsDropZoneOver(false);
+                                                            }}
+                                                            onDrop={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setIsDropZoneOver(false);
+                                                                if (!e.dataTransfer) return;
+                                                                const dropped =
+                                                                    extractUrlsFromDataTransfer(
+                                                                        e.dataTransfer
+                                                                    );
+                                                                if (dropped.length > 0) {
+                                                                    handleFillDroppedUrls(dropped);
+                                                                }
+                                                            }}
+                                                            className={`flex items-center gap-2 rounded-lg border p-2 transition ${
+                                                                isDropZoneOver
+                                                                    ? 'border-blue-500 bg-blue-100 scale-[1.01]'
+                                                                    : 'border-slate-200 bg-white'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="url"
+                                                                value={form.postingUrl ?? ''}
+                                                                onChange={(e) =>
+                                                                    setForm((prev) => ({
+                                                                        ...prev,
+                                                                        postingUrl: e.target.value,
+                                                                    }))
+                                                                }
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        if (
+                                                                            form.postingUrl?.trim()
+                                                                        ) {
+                                                                            requestParseUrl(
+                                                                                form.postingUrl.trim()
+                                                                            );
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                placeholder="https://... 공고 주소 입력 또는 🔒자물쇠/링크 드래그"
+                                                                className="w-full bg-transparent px-2 py-1 text-xs focus:outline-none"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                disabled={
+                                                                    !form.postingUrl?.trim() ||
+                                                                    isParsingUrl
+                                                                }
+                                                                onClick={() =>
+                                                                    requestParseUrl(
+                                                                        form.postingUrl!.trim()
+                                                                    )
+                                                                }
+                                                                className="flex shrink-0 items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 transition"
+                                                            >
+                                                                {isParsingUrl ? (
+                                                                    <>
+                                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                        <span>
+                                                                            분석 중 (
+                                                                            {parseElapsedSeconds}s)
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+                                                                        <span>AI 자동분석</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        </div>
 
-                                        <div>
-                                            <div className="space-y-3">
-                                                {(
-                                                    [
-                                                        ['jobDescription', '직무 상세'],
-                                                        ['requiredQualifications', '지원자격'],
-                                                        ['preferredQualifications', '우대사항'],
-                                                        ['hiringProcess', '전형절차'],
-                                                        ['applicationMethod', '지원방법'],
-                                                        ['compensationDetail', '처우조건 상세'],
-                                                    ] as const
-                                                ).map(([field, label]) => (
-                                                    <label key={field} className="block text-sm">
+                                                        {isParsingUrl ? (
+                                                            <p className="text-[11px] font-semibold text-blue-700 animate-pulse">
+                                                                공고 내용을 수집 및 AI 분석
+                                                                중입니다... 완료되면 아래 폼 항목이
+                                                                자동으로 작성됩니다.
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-[11px] text-blue-800/80">
+                                                                💡 주소창 🔒 자물쇠 아이콘을
+                                                                드래그해 놓거나 Cmd+V로 붙여넣으면
+                                                                공고 정보가 자동 입력됩니다. 부족한
+                                                                정보는 아래 폼에서 직접 작성할 수
+                                                                있습니다.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                <form
+                                                    id="job-posting-edit-form"
+                                                    onSubmit={handleSubmit}
+                                                    className="space-y-4"
+                                                >
+                                                    {!isCreating && (
+                                                        <div>
+                                                            <span className="mb-1 block text-sm font-bold text-slate-600">
+                                                                공고 URL
+                                                            </span>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="url"
+                                                                    value={form.postingUrl ?? ''}
+                                                                    onChange={(e) =>
+                                                                        setForm((prev) => ({
+                                                                            ...prev,
+                                                                            postingUrl:
+                                                                                e.target.value,
+                                                                        }))
+                                                                    }
+                                                                    placeholder="https://..."
+                                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={
+                                                                        !form.postingUrl?.trim() ||
+                                                                        isParsingUrl
+                                                                    }
+                                                                    onClick={() =>
+                                                                        requestParseUrl(
+                                                                            form.postingUrl!.trim()
+                                                                        )
+                                                                    }
+                                                                    title="URL 내용을 AI로 분석해 아래 항목을 채웁니다"
+                                                                    className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                >
+                                                                    <Sparkles className="h-3.5 w-3.5" />
+                                                                    {isParsingUrl
+                                                                        ? `분석 중... (${parseElapsedSeconds}초)`
+                                                                        : 'AI 자동분석'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <label className="block text-sm">
                                                         <span className="mb-1 block font-bold text-slate-600">
-                                                            {label}
+                                                            회사명
                                                         </span>
-                                                        <textarea
-                                                            rows={3}
-                                                            value={form[field] ?? ''}
+                                                        <input
+                                                            required
+                                                            value={form.companyName}
                                                             onChange={(e) =>
                                                                 setForm((prev) => ({
                                                                     ...prev,
-                                                                    [field]: e.target.value,
+                                                                    companyName: e.target.value,
                                                                 }))
                                                             }
                                                             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                                         />
                                                     </label>
-                                                ))}
+                                                    <label className="block text-sm">
+                                                        <span className="mb-1 block font-bold text-slate-600">
+                                                            직무명
+                                                        </span>
+                                                        <input
+                                                            required
+                                                            value={form.positionTitle}
+                                                            onChange={(e) =>
+                                                                setForm((prev) => ({
+                                                                    ...prev,
+                                                                    positionTitle: e.target.value,
+                                                                }))
+                                                            }
+                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                        />
+                                                    </label>
+                                                    <label className="block text-sm">
+                                                        <span className="mb-1 block font-bold text-slate-600">
+                                                            출처
+                                                        </span>
+                                                        <input
+                                                            required
+                                                            placeholder="사람인 / 원티드 / 잡코리아 / 직접입력"
+                                                            value={form.source}
+                                                            onChange={(e) =>
+                                                                setForm((prev) => ({
+                                                                    ...prev,
+                                                                    source: e.target.value,
+                                                                }))
+                                                            }
+                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                        />
+                                                    </label>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {formIsPostApplication && (
+                                                            <label className="block text-sm">
+                                                                <span className="mb-1 block font-bold text-slate-600">
+                                                                    지원일
+                                                                </span>
+                                                                <input
+                                                                    required
+                                                                    type="date"
+                                                                    value={form.appliedAt ?? ''}
+                                                                    onChange={(e) =>
+                                                                        setForm((prev) => ({
+                                                                            ...prev,
+                                                                            appliedAt:
+                                                                                e.target.value,
+                                                                        }))
+                                                                    }
+                                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                />
+                                                            </label>
+                                                        )}
+                                                        <label
+                                                            className={`block text-sm ${formIsPostApplication ? '' : 'col-span-2'}`}
+                                                        >
+                                                            <div className="mb-1 flex items-center justify-between">
+                                                                <span className="font-bold text-slate-600">
+                                                                    마감일
+                                                                </span>
+                                                                <label className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={form.alwaysOpen}
+                                                                        onChange={(e) =>
+                                                                            setForm((prev) => ({
+                                                                                ...prev,
+                                                                                alwaysOpen:
+                                                                                    e.target
+                                                                                        .checked,
+                                                                                deadline: e.target
+                                                                                    .checked
+                                                                                    ? ''
+                                                                                    : prev.deadline,
+                                                                            }))
+                                                                        }
+                                                                    />
+                                                                    상시채용
+                                                                </label>
+                                                            </div>
+                                                            <input
+                                                                type="date"
+                                                                disabled={form.alwaysOpen}
+                                                                value={form.deadline ?? ''}
+                                                                onChange={(e) =>
+                                                                    setForm((prev) => ({
+                                                                        ...prev,
+                                                                        deadline: e.target.value,
+                                                                    }))
+                                                                }
+                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                    <label className="block text-sm">
+                                                        <span className="mb-1 block font-bold text-slate-600">
+                                                            연봉/근무조건 메모
+                                                        </span>
+                                                        <input
+                                                            value={form.salaryNote ?? ''}
+                                                            onChange={(e) =>
+                                                                setForm((prev) => ({
+                                                                    ...prev,
+                                                                    salaryNote: e.target.value,
+                                                                }))
+                                                            }
+                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                        />
+                                                    </label>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <label className="block text-sm">
+                                                            <span className="mb-1 block font-bold text-slate-600">
+                                                                근무지
+                                                            </span>
+                                                            <input
+                                                                value={form.location ?? ''}
+                                                                onChange={(e) =>
+                                                                    setForm((prev) => ({
+                                                                        ...prev,
+                                                                        location: e.target.value,
+                                                                    }))
+                                                                }
+                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                            />
+                                                        </label>
+                                                        <label className="block text-sm">
+                                                            <span className="mb-1 block font-bold text-slate-600">
+                                                                고용형태
+                                                            </span>
+                                                            <input
+                                                                value={form.employmentType ?? ''}
+                                                                onChange={(e) =>
+                                                                    setForm((prev) => ({
+                                                                        ...prev,
+                                                                        employmentType:
+                                                                            e.target.value,
+                                                                    }))
+                                                                }
+                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                    {formIsPostApplication && (
+                                                        <label className="block text-sm">
+                                                            <span className="mb-1 block font-bold text-slate-600">
+                                                                메모
+                                                            </span>
+                                                            <textarea
+                                                                rows={3}
+                                                                value={form.memo ?? ''}
+                                                                onChange={(e) =>
+                                                                    setForm((prev) => ({
+                                                                        ...prev,
+                                                                        memo: e.target.value,
+                                                                    }))
+                                                                }
+                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                            />
+                                                        </label>
+                                                    )}
+
+                                                    <div>
+                                                        <div className="space-y-3">
+                                                            {(
+                                                                [
+                                                                    ['jobDescription', '직무 상세'],
+                                                                    [
+                                                                        'requiredQualifications',
+                                                                        '지원자격',
+                                                                    ],
+                                                                    [
+                                                                        'preferredQualifications',
+                                                                        '우대사항',
+                                                                    ],
+                                                                    ['hiringProcess', '전형절차'],
+                                                                    [
+                                                                        'applicationMethod',
+                                                                        '지원방법',
+                                                                    ],
+                                                                    [
+                                                                        'compensationDetail',
+                                                                        '처우조건 상세',
+                                                                    ],
+                                                                ] as const
+                                                            ).map(([field, label]) => (
+                                                                <label
+                                                                    key={field}
+                                                                    className="block text-sm"
+                                                                >
+                                                                    <span className="mb-1 block font-bold text-slate-600">
+                                                                        {label}
+                                                                    </span>
+                                                                    <textarea
+                                                                        rows={3}
+                                                                        value={form[field] ?? ''}
+                                                                        onChange={(e) =>
+                                                                            setForm((prev) => ({
+                                                                                ...prev,
+                                                                                [field]:
+                                                                                    e.target.value,
+                                                                            }))
+                                                                        }
+                                                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                    />
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </form>
                                             </div>
-                                        </div>
-                                    </form>
+                                        )}
+                                    </div>
                                 )}
                             </div>
 
-                            {isCreating || isEditing ? (
+                            {isCreating && ingestMode === 'bulk' ? (
+                                <div
+                                    key="bulk-footer"
+                                    className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 p-5"
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={closeDrawer}
+                                        className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
+                                    >
+                                        닫기
+                                    </button>
+                                </div>
+                            ) : isCreating || isEditing ? (
                                 <div
                                     key="edit-footer"
                                     className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 p-5"
@@ -3445,444 +3816,6 @@ export function JobApplicationManagement() {
                                         </button>
                                     </div>
                                 )
-                            )}
-                        </div>
-                    </div>,
-                    document.body
-                )}
-
-            {ingestDrawerAnim.shouldRender &&
-                createPortal(
-                    <div className="fixed inset-0 z-40 flex justify-end">
-                        <div
-                            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-300 ease-out ${ingestDrawerAnim.isVisible ? 'opacity-100' : 'opacity-0'}`}
-                            onClick={() => setIsIngestDrawerOpen(false)}
-                            aria-hidden
-                        />
-                        <div
-                            className={`relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-5 shadow-2xl transition-transform duration-300 ease-out ${ingestDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
-                        >
-                            <div className="mb-4 flex items-center justify-between">
-                                <h3 className="text-lg font-black text-slate-950">공고 수집</h3>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsIngestDrawerOpen(false)}
-                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-
-                            {/* 탭 헤더 */}
-                            <div className="mb-4 flex border-b border-slate-200">
-                                <button
-                                    type="button"
-                                    onClick={() => setIngestMode('single')}
-                                    className={`flex-1 pb-2 text-sm font-bold border-b-2 transition ${
-                                        ingestMode === 'single'
-                                            ? 'border-slate-900 text-slate-900'
-                                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                                    }`}
-                                >
-                                    단일 수집
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIngestMode('bulk')}
-                                    className={`flex-1 pb-2 text-sm font-bold border-b-2 transition ${
-                                        ingestMode === 'bulk'
-                                            ? 'border-slate-900 text-slate-900'
-                                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                                    }`}
-                                >
-                                    다중 수집 (Bulk)
-                                </button>
-                            </div>
-
-                            {ingestMode === 'single' ? (
-                                <div>
-                                    <div className="mb-3 space-y-1.5 rounded-lg bg-blue-50/80 p-3 text-xs text-blue-900 border border-blue-100">
-                                        <div className="flex items-center gap-1.5 font-bold text-blue-900">
-                                            <Sparkles className="h-4 w-4 text-blue-600" />
-                                            <span>URL을 채우는 가장 편리한 방법</span>
-                                        </div>
-                                        <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-blue-800">
-                                            <li>
-                                                <b>방법 1 (추천):</b> 주소창의{' '}
-                                                <b>🔒 자물쇠 아이콘</b>을 이 상자로{' '}
-                                                <b>드래그 앤 드롭</b> (100% 동작)
-                                            </li>
-                                            <li>
-                                                <b>방법 2:</b> 공고 주소 복사(Cmd+C) 후 이 창에서{' '}
-                                                <b>Cmd+V (붙여넣기)</b>
-                                            </li>
-                                            <li>
-                                                <b>방법 3:</b> 아래 <b>[클립보드에서 가져오기]</b>{' '}
-                                                버튼 클릭
-                                            </li>
-                                        </ul>
-                                    </div>
-
-                                    {/* Single Drop Zone */}
-                                    <div
-                                        onDragOver={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            e.dataTransfer.dropEffect = 'copy';
-                                            setIsDropZoneOver(true);
-                                        }}
-                                        onDragEnter={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            e.dataTransfer.dropEffect = 'copy';
-                                            setIsDropZoneOver(true);
-                                        }}
-                                        onDragLeave={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setIsDropZoneOver(false);
-                                        }}
-                                        onDrop={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setIsDropZoneOver(false);
-                                            const droppedUrls = extractUrlsFromDataTransfer(
-                                                e.dataTransfer
-                                            );
-                                            if (droppedUrls.length > 0) {
-                                                handleFillDroppedUrls(droppedUrls);
-                                            }
-                                        }}
-                                        className={`mb-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-3 text-center transition ${
-                                            isDropZoneOver
-                                                ? 'border-blue-500 bg-blue-100 text-blue-800 scale-[1.01]'
-                                                : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
-                                        }`}
-                                    >
-                                        <Sparkles className="mb-1 h-5 w-5 text-blue-500" />
-                                        <p className="text-xs font-bold text-slate-800">
-                                            주소창 🔒 자물쇠 아이콘, 북마크, 링크를 이 상자로{' '}
-                                            <b>드래그 앤 드롭</b>하세요
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                                            <span>수집할 공고 URL</span>
-                                            <button
-                                                type="button"
-                                                onClick={handlePasteClipboardUrls}
-                                                className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 transition hover:bg-blue-100"
-                                            >
-                                                <Clipboard className="h-3 w-3" />
-                                                클립보드에서 가져오기 (Cmd+V)
-                                            </button>
-                                        </div>
-                                        <input
-                                            type="url"
-                                            autoFocus
-                                            value={ingestUrl}
-                                            onDragOver={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                e.dataTransfer.dropEffect = 'copy';
-                                            }}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                const dropped = extractUrlsFromDataTransfer(
-                                                    e.dataTransfer
-                                                );
-                                                if (dropped.length > 0) {
-                                                    handleFillDroppedUrls(dropped);
-                                                }
-                                            }}
-                                            onChange={(e) => setIngestUrl(e.target.value)}
-                                            placeholder="https://..."
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                        />
-                                        <button
-                                            type="button"
-                                            disabled={!ingestUrl.trim() || isIngesting}
-                                            onClick={() => requestIngestUrl(ingestUrl.trim())}
-                                            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            <Sparkles className="h-4 w-4" />
-                                            {isIngesting
-                                                ? `수집 중... (${ingestElapsedSeconds}초, 닫아도 계속 진행돼요)`
-                                                : 'AI로 수집'}
-                                        </button>
-                                        {isIngesting && (
-                                            <p className="text-xs text-slate-400">
-                                                이미지 분석까지 필요하면 최대 1~2분 정도 걸릴 수
-                                                있어요. 이 창을 닫으셔도 수집은 계속 진행되고,
-                                                끝나면 목록에 자동으로 나타나요.
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <div className="mb-3 space-y-1.5 rounded-lg bg-blue-50/80 p-3 text-xs text-blue-900 border border-blue-100">
-                                        <div className="flex items-center gap-1.5 font-bold text-blue-900">
-                                            <Sparkles className="h-4 w-4 text-blue-600" />
-                                            <span>URL을 채우는 가장 편리한 방법</span>
-                                        </div>
-                                        <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-blue-800">
-                                            <li>
-                                                <b>방법 1 (추천):</b> 주소창의{' '}
-                                                <b>🔒 자물쇠 아이콘</b>을 이 상자로{' '}
-                                                <b>드래그 앤 드롭</b> (100% 동작)
-                                            </li>
-                                            <li>
-                                                <b>방법 2:</b> 공고 주소 복사(Cmd+C) 후 이 창에서{' '}
-                                                <b>Cmd+V (붙여넣기)</b>
-                                            </li>
-                                            <li>
-                                                <b>방법 3:</b> 아래 <b>[클립보드에서 가져오기]</b>{' '}
-                                                버튼 클릭
-                                            </li>
-                                        </ul>
-                                    </div>
-
-                                    {/* Drop Zone */}
-                                    <div
-                                        onDragOver={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            e.dataTransfer.dropEffect = 'copy';
-                                            setIsDropZoneOver(true);
-                                        }}
-                                        onDragEnter={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            e.dataTransfer.dropEffect = 'copy';
-                                            setIsDropZoneOver(true);
-                                        }}
-                                        onDragLeave={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setIsDropZoneOver(false);
-                                        }}
-                                        onDrop={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setIsDropZoneOver(false);
-                                            const droppedUrls = extractUrlsFromDataTransfer(
-                                                e.dataTransfer
-                                            );
-                                            if (droppedUrls.length > 0) {
-                                                handleFillDroppedUrls(droppedUrls);
-                                            }
-                                        }}
-                                        className={`mb-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center transition ${
-                                            isDropZoneOver
-                                                ? 'border-blue-500 bg-blue-50/90 text-blue-700'
-                                                : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
-                                        }`}
-                                    >
-                                        <Sparkles className="mb-1 h-5 w-5 text-slate-400" />
-                                        <p className="text-xs font-semibold">
-                                            브라우저 탭, 링크, 북마크를 이 상자로{' '}
-                                            <b>드래그 앤 드롭</b>
-                                            하세요
-                                        </p>
-                                        <p className="mt-0.5 text-[11px] text-slate-400">
-                                            자동으로 URL이 추출되어 비어있는 입력칸에 채워집니다.
-                                        </p>
-                                    </div>
-
-                                    {/* 5개 독립된 URL 입력칸 */}
-                                    <div className="mb-4 space-y-2">
-                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                                            <span>수집할 공고 URL (최대 5개)</span>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={handlePasteClipboardUrls}
-                                                    className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 transition hover:bg-blue-100"
-                                                >
-                                                    <Clipboard className="h-3 w-3" />
-                                                    클립보드에서 가져오기 (Cmd+V)
-                                                </button>
-                                                {bulkUrls.some(Boolean) && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setBulkUrls(['', '', '', '', '']);
-                                                            setBulkResults([]);
-                                                        }}
-                                                        className="text-rose-500 hover:underline text-[11px] font-normal"
-                                                    >
-                                                        전체 비우기
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {bulkUrls.map((url, index) => (
-                                            <div key={index} className="flex items-center gap-1.5">
-                                                <span className="shrink-0 text-xs font-semibold text-slate-400 w-4 text-right">
-                                                    {index + 1}.
-                                                </span>
-                                                <input
-                                                    type="url"
-                                                    value={url}
-                                                    onDragOver={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        e.dataTransfer.dropEffect = 'copy';
-                                                    }}
-                                                    onDrop={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        const dropped = extractUrlsFromDataTransfer(
-                                                            e.dataTransfer
-                                                        );
-                                                        if (dropped.length > 0) {
-                                                            handleFillDroppedUrls(dropped);
-                                                        }
-                                                    }}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        setBulkUrls((prev) => {
-                                                            const next = [...prev];
-                                                            next[index] = val;
-                                                            return next;
-                                                        });
-                                                    }}
-                                                    placeholder={`채용 공고 URL ${index + 1}`}
-                                                    className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
-                                                />
-                                                {url && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setBulkUrls((prev) => {
-                                                                const next = [...prev];
-                                                                next[index] = '';
-                                                                return next;
-                                                            });
-                                                        }}
-                                                        className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                                                        title="입력 비우기"
-                                                    >
-                                                        <X className="h-3.5 w-3.5" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        <div className="text-right text-[11px] text-slate-400">
-                                            입력된 URL: {bulkUrls.filter((u) => u.trim()).length} /
-                                            5개
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        disabled={
-                                            isBulkIngesting ||
-                                            bulkUrls.filter((u) => u.trim()).length === 0
-                                        }
-                                        onClick={() => {
-                                            const urls = bulkUrls.filter((u) => u.trim());
-                                            requestBulkIngestUrls(urls);
-                                        }}
-                                        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 mb-3"
-                                    >
-                                        <Sparkles className="h-4 w-4" />
-                                        {isBulkIngesting
-                                            ? '다중 수집 진행 중...'
-                                            : '다중 수집 시작'}
-                                    </button>
-
-                                    {bulkResults.length > 0 && (
-                                        <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
-                                            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                                                <span>수집 진행 현황</span>
-                                                <span>
-                                                    {
-                                                        bulkResults.filter(
-                                                            (r) =>
-                                                                r.status === 'success' ||
-                                                                r.status === 'error'
-                                                        ).length
-                                                    }{' '}
-                                                    / {bulkResults.length} 완료
-                                                </span>
-                                            </div>
-                                            {/* Progress Bar */}
-                                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                                <div
-                                                    className="h-full bg-slate-900 transition-all duration-300"
-                                                    style={{
-                                                        width: `${
-                                                            (bulkResults.filter(
-                                                                (r) =>
-                                                                    r.status === 'success' ||
-                                                                    r.status === 'error'
-                                                            ).length /
-                                                                bulkResults.length) *
-                                                            100
-                                                        }%`,
-                                                    }}
-                                                />
-                                            </div>
-
-                                            <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-                                                {bulkResults.map((item, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        className="flex flex-col gap-0.5 rounded-lg border border-slate-100 bg-slate-50/70 p-2 text-xs"
-                                                    >
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span
-                                                                className="truncate font-mono text-[11px] text-slate-600 max-w-[200px]"
-                                                                title={item.url}
-                                                            >
-                                                                {item.url}
-                                                            </span>
-                                                            {item.status === 'pending' && (
-                                                                <span className="shrink-0 text-[10px] text-slate-400">
-                                                                    대기 중
-                                                                </span>
-                                                            )}
-                                                            {item.status === 'processing' && (
-                                                                <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-600">
-                                                                    <Loader2 className="h-3 w-3 animate-spin" />{' '}
-                                                                    수집 중
-                                                                </span>
-                                                            )}
-                                                            {item.status === 'success' && (
-                                                                <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-emerald-600">
-                                                                    <Check className="h-3 w-3" />{' '}
-                                                                    성공
-                                                                </span>
-                                                            )}
-                                                            {item.status === 'error' && (
-                                                                <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-rose-600">
-                                                                    <X className="h-3 w-3" /> 실패
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        {item.status === 'success' &&
-                                                            item.response && (
-                                                                <div className="text-[11px] font-semibold text-slate-800 truncate">
-                                                                    {item.response.companyName} -{' '}
-                                                                    {item.response.positionTitle}
-                                                                </div>
-                                                            )}
-                                                        {item.status === 'error' &&
-                                                            item.message && (
-                                                                <div className="text-[11px] text-rose-500">
-                                                                    {item.message}
-                                                                </div>
-                                                            )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
                             )}
                         </div>
                     </div>,
