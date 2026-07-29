@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowUp, BookOpen, ChevronLeft, ChevronRight, History, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { ArrowUp, BookOpen, ChevronLeft, ChevronRight, History, Loader2, X } from 'lucide-react';
 import { studyApi } from '@/lib/api';
 import type { Study, StudyCategory, StudyPage } from '@/lib/api/types';
 
 type Props = {
     initialStudies: Study[];
+    initialTotalElements?: number;
+    initialTotalPages?: number;
     categories: StudyCategory[];
 };
 
@@ -20,40 +22,61 @@ type RecentlyViewedItem = {
     viewedAt: number;
 };
 
-export function StudyListClient({ initialStudies, categories }: Props) {
+export function StudyListClient({
+    initialStudies,
+    initialTotalElements,
+    initialTotalPages,
+    categories,
+}: Props) {
     const router = useRouter();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
 
-    const skillIdNum = searchParams.get('skillId')
-        ? Number(searchParams.get('skillId'))
-        : undefined;
-    const experienceIdNum = searchParams.get('experienceId')
-        ? Number(searchParams.get('experienceId'))
-        : undefined;
-    const experienceDetailIdNum = searchParams.get('experienceDetailId')
-        ? Number(searchParams.get('experienceDetailId'))
-        : undefined;
+    const [idFilters, setIdFilters] = useState<{
+        skillIdNum?: number;
+        experienceIdNum?: number;
+        experienceDetailIdNum?: number;
+    }>({});
+
+    const { skillIdNum, experienceIdNum, experienceDetailIdNum } = idFilters;
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            setIdFilters({
+                skillIdNum: params.get('skillId') ? Number(params.get('skillId')) : undefined,
+                experienceIdNum: params.get('experienceId')
+                    ? Number(params.get('experienceId'))
+                    : undefined,
+                experienceDetailIdNum: params.get('experienceDetailId')
+                    ? Number(params.get('experienceDetailId'))
+                    : undefined,
+            });
+        }
+    }, []);
+
     const hasIdFilter = Boolean(skillIdNum || experienceIdNum || experienceDetailIdNum);
-    const clearIdFilter = () => router.push(pathname);
+    const clearIdFilter = () => {
+        setIdFilters({});
+        router.push(pathname);
+    };
 
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('ALL');
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
-    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                const raw = localStorage.getItem('recently_viewed_studies');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed)) return parsed;
-                }
-            } catch {
-                // Ignore
+    const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('recently_viewed_studies');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) setRecentlyViewed(parsed);
             }
+        } catch {
+            // Ignore (e.g. sandboxed iframe, incognito)
         }
-        return [];
-    });
+    }, []);
+
     const isDefaultQuery = search === '' && activeCategory === 'ALL' && !hasIdFilter;
 
     const handleClearHistory = () => {
@@ -79,38 +102,78 @@ export function StudyListClient({ initialStudies, categories }: Props) {
         }
     };
 
-    const { data: studyPage } = useQuery<StudyPage>({
+    const {
+        data: studyInfiniteData,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useInfiniteQuery<StudyPage>({
         queryKey: [
             'studies',
-            'public',
+            'public-infinite',
             search,
             activeCategory,
             skillIdNum,
             experienceIdNum,
             experienceDetailIdNum,
         ],
-        queryFn: () =>
+        queryFn: ({ pageParam = 0 }) =>
             studyApi.list({
                 q: search || undefined,
                 category: activeCategory === 'ALL' ? undefined : activeCategory,
                 skillIds: skillIdNum ? [skillIdNum] : undefined,
                 experienceIds: experienceIdNum ? [experienceIdNum] : undefined,
                 experienceDetailIds: experienceDetailIdNum ? [experienceDetailIdNum] : undefined,
-                size: 100,
+                page: pageParam as number,
+                size: 20,
             }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.page + 1 < lastPage.totalPages) {
+                return lastPage.page + 1;
+            }
+            return undefined;
+        },
+        initialPageParam: 0,
         initialData: isDefaultQuery
             ? {
-                  content: initialStudies,
-                  page: 0,
-                  size: initialStudies.length,
-                  totalElements: initialStudies.length,
-                  totalPages: 1,
+                  pages: [
+                      {
+                          content: initialStudies,
+                          page: 0,
+                          size: 20,
+                          totalElements: initialTotalElements ?? initialStudies.length,
+                          totalPages: initialTotalPages ?? 1,
+                      },
+                  ],
+                  pageParams: [0],
               }
             : undefined,
+        staleTime: 60 * 1000,
     });
 
-    const studies = studyPage?.content ?? [];
+    const studies = studyInfiniteData
+        ? studyInfiniteData.pages.flatMap((page) => page.content)
+        : initialStudies;
     const recentStudies = studies.slice(0, 5);
+
+    const observerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const el = observerRef.current;
+        if (!el || !hasNextPage || isFetchingNextPage) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    fetchNextPage();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     const idFilterLabel = skillIdNum
         ? studies.flatMap((study) => study.skills).find((skill) => skill.id === skillIdNum)?.name
@@ -226,6 +289,31 @@ export function StudyListClient({ initialStudies, categories }: Props) {
                                 </div>
                             </Link>
                         ))
+                    )}
+
+                    {hasNextPage && (
+                        <div ref={observerRef} className="pt-4 text-center">
+                            <button
+                                type="button"
+                                onClick={() => fetchNextPage()}
+                                disabled={isFetchingNextPage}
+                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                {isFetchingNextPage ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                                        <span>다음 학습 기록을 불러오는 중...</span>
+                                    </>
+                                ) : (
+                                    <span>학습 기록 더 불러오기</span>
+                                )}
+                            </button>
+                        </div>
+                    )}
+                    {!hasNextPage && studies.length > 0 && (
+                        <div className="pt-4 text-center text-xs font-bold text-slate-400">
+                            모든 학습 기록({studies.length}개)을 불러왔습니다.
+                        </div>
                     )}
                 </div>
             </div>
