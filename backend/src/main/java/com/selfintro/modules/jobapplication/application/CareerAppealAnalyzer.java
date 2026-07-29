@@ -1,16 +1,8 @@
 package com.selfintro.modules.jobapplication.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
+import com.selfintro.global.ai.CareerProfileDigestBuilder;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.modules.competency.domain.entity.Competency;
-import com.selfintro.modules.competency.domain.entity.CompetencyEvidence;
-import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
-import com.selfintro.modules.experience.domain.entity.Experience;
-import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
-import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
-import com.selfintro.modules.skill.domain.entity.Skill;
-import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -43,11 +35,7 @@ public class CareerAppealAnalyzer {
             "특별히 부족한 부분은 보이지 않습니다"라고만 쓰세요.)
             """;
 
-    private static final int MAX_PROFILE_DIGEST_LENGTH = 8000;
-    private static final Set<String> CAREER_RELEVANT_TYPES = Set.of("CAREER", "PROJECT");
-
-    private final ExperienceRepository experienceRepository;
-    private final CompetencyRepository competencyRepository;
+    private final CareerProfileDigestBuilder careerProfileDigestBuilder;
     private final NvidiaNimClient nvidiaNimClient;
 
     public String analyze(
@@ -56,7 +44,7 @@ public class CareerAppealAnalyzer {
             String jobDescription,
             String requiredQualifications,
             String preferredQualifications) {
-        String profileDigest = buildProfileDigest();
+        String profileDigest = careerProfileDigestBuilder.build();
         String userPrompt =
                 buildUserPrompt(
                         companyName,
@@ -95,60 +83,5 @@ public class CareerAppealAnalyzer {
         if (AiJsonSupport.hasText(value)) {
             sb.append(label).append(":\n").append(value).append("\n");
         }
-    }
-
-    private String buildProfileDigest() {
-        StringBuilder sb = new StringBuilder();
-
-        experienceRepository.findAllByOrderByDisplayOrderAsc().stream()
-                .filter(experience -> CAREER_RELEVANT_TYPES.contains(experience.getType()))
-                .forEach(experience -> appendExperience(sb, experience));
-
-        competencyRepository.findAllByVisibleTrueOrderByDisplayOrderAsc().stream()
-                .forEach(competency -> appendCompetency(sb, competency));
-
-        return AiJsonSupport.limit(sb.toString(), MAX_PROFILE_DIGEST_LENGTH);
-    }
-
-    private void appendExperience(StringBuilder sb, Experience experience) {
-        sb.append("### ").append(experience.getTitle());
-        sb.append(" (").append(experience.getPeriodStart());
-        if (experience.getPeriodEnd() != null) {
-            sb.append(" ~ ").append(experience.getPeriodEnd());
-        }
-        sb.append(")\n");
-        if (AiJsonSupport.hasText(experience.getSummary())) {
-            sb.append(experience.getSummary()).append("\n");
-        }
-        if (AiJsonSupport.hasText(experience.getTakeaway())) {
-            sb.append("배운 점: ").append(experience.getTakeaway()).append("\n");
-        }
-        List<String> skillNames = experience.getSkills().stream().map(Skill::getName).toList();
-        if (!skillNames.isEmpty()) {
-            sb.append("사용 기술: ").append(String.join(", ", skillNames)).append("\n");
-        }
-        for (ExperienceDetail detail : experience.getDetails()) {
-            if (!detail.isVisible()) continue;
-            sb.append("- ").append(detail.getContent());
-            if (AiJsonSupport.hasText(detail.getOutcome())) {
-                sb.append(" (성과: ").append(detail.getOutcome()).append(")");
-            }
-            sb.append("\n");
-        }
-        sb.append("\n");
-    }
-
-    private void appendCompetency(StringBuilder sb, Competency competency) {
-        sb.append("### 핵심역량: ").append(competency.getTitle()).append("\n");
-        sb.append(competency.getSummary()).append("\n");
-        for (CompetencyEvidence evidence : competency.getEvidences()) {
-            if (!AiJsonSupport.hasText(evidence.getEvidenceSummary())) continue;
-            sb.append("- 근거(")
-                    .append(evidence.getExperience().getTitle())
-                    .append("): ")
-                    .append(evidence.getEvidenceSummary())
-                    .append("\n");
-        }
-        sb.append("\n");
     }
 }
