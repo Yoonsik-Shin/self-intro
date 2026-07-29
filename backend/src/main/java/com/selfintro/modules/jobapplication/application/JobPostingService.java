@@ -450,6 +450,17 @@ public class JobPostingService {
         return AiJsonSupport.hasText(fresh) ? fresh : existing;
     }
 
+    /** 자동 매칭 점수를 현재 보유 기술 스택 기준으로 다시 계산한다(이미 점수가 있어도 덮어쓴다). */
+    @Transactional
+    public JobPostingResponse rematch(Long id) {
+        JobPosting posting = findOrThrow(id);
+        JobMatchingService.MatchResult match =
+                matchingService.evaluate(
+                        posting.getPositionTitle(), posting.getRequiredSkillsRaw());
+        posting.applyMatch(match.score(), match.reason(), LocalDateTime.now());
+        return JobPostingResponse.from(posting);
+    }
+
     @Transactional
     public void save(Long id) {
         findOrThrow(id).save(LocalDateTime.now());

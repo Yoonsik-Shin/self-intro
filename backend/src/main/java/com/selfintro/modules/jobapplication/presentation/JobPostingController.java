@@ -200,6 +200,12 @@ public class JobPostingController {
         return jobPostingAppealService.analyzeAppeal(id);
     }
 
+    /** 자동 매칭 점수를 현재 보유 기술 스택 기준으로 다시 계산한다. */
+    @PostMapping("/{id}/rematch")
+    public JobPostingResponse rematch(@PathVariable Long id) {
+        return jobPostingService.rematch(id);
+    }
+
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<String> handleNotFound(EntityNotFoundException exception) {
         return ResponseEntity.notFound().build();

@@ -1009,6 +1009,13 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '경력 매칭 분석에 실패했습니다.'),
     });
 
+    const rematchMutation = useMutation({
+        mutationFn: (id: number) => jobPostingApi.rematch(id),
+        onSuccess: () => invalidate(),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '매칭 점수 재계산에 실패했습니다.'),
+    });
+
     const refreshMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.refresh(id),
         onSuccess: () => invalidate(),
@@ -3046,20 +3053,6 @@ export function JobApplicationManagement() {
                                                                     statusRow
                                                                 );
 
-                                                            if (drawerItem.matchScore === null) {
-                                                                return (
-                                                                    <div className="space-y-3">
-                                                                        <div className="mb-1 flex items-center gap-1">
-                                                                            <span className="text-base font-extrabold text-slate-700">
-                                                                                AI 어필 포인트 분석
-                                                                            </span>
-                                                                            <InfoTooltip text="버튼을 눌러야 실행돼요. 경력·프로젝트 전체와 핵심역량을 이 공고와 대조해 어떤 경험을 어떻게 강조하면 좋을지 긴 글로 분석해줘요." />
-                                                                        </div>
-                                                                        {appealDetail}
-                                                                    </div>
-                                                                );
-                                                            }
-
                                                             return (
                                                                 <SectionTabs
                                                                     bordered={false}
@@ -3071,22 +3064,52 @@ export function JobApplicationManagement() {
                                                                                 <span className="inline-flex items-center gap-1">
                                                                                     자동 매칭 점수
                                                                                     <InfoTooltip
-                                                                                        text="공고를 수집할 때 보유 기술 스택과 자동으로 비교해 계산돼요. 버튼을 누르지 않아도 이미 채워져 있는 값이에요."
+                                                                                        text="공고를 수집할 때 보유 기술 스택과 자동으로 비교해 계산돼요. 기술 스택을 수정했거나 점수가 오래됐다면 다시 계산 버튼으로 갱신할 수 있어요."
                                                                                         iconClassName="text-emerald-400"
                                                                                     />
                                                                                 </span>
                                                                             ),
                                                                             content: (
                                                                                 <div className="rounded-lg bg-emerald-50 p-3">
-                                                                                    <p className="text-base font-extrabold text-emerald-700">
-                                                                                        AI 매칭{' '}
-                                                                                        {
-                                                                                            drawerItem.matchScore
-                                                                                        }
-                                                                                        점
-                                                                                    </p>
+                                                                                    <div className="flex items-start justify-between gap-3">
+                                                                                        <p
+                                                                                            className={
+                                                                                                drawerItem.matchScore !==
+                                                                                                null
+                                                                                                    ? 'text-lg font-extrabold text-emerald-700'
+                                                                                                    : 'text-sm font-bold text-slate-500'
+                                                                                            }
+                                                                                        >
+                                                                                            {drawerItem.matchScore !==
+                                                                                            null
+                                                                                                ? `AI 매칭 ${drawerItem.matchScore}점`
+                                                                                                : '아직 계산되지 않았어요'}
+                                                                                        </p>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            disabled={
+                                                                                                rematchMutation.isPending
+                                                                                            }
+                                                                                            onClick={() =>
+                                                                                                rematchMutation.mutate(
+                                                                                                    drawerItem.id
+                                                                                                )
+                                                                                            }
+                                                                                            title="현재 보유 기술 스택 기준으로 매칭 점수를 다시 계산합니다"
+                                                                                            className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                                        >
+                                                                                            {rematchMutation.isPending ? (
+                                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                                            ) : (
+                                                                                                <Sparkles className="h-3.5 w-3.5" />
+                                                                                            )}
+                                                                                            {rematchMutation.isPending
+                                                                                                ? '계산 중...'
+                                                                                                : '다시 계산'}
+                                                                                        </button>
+                                                                                    </div>
                                                                                     {drawerItem.matchReason && (
-                                                                                        <p className="mt-1 text-base text-emerald-600">
+                                                                                        <p className="mt-1 text-sm text-emerald-600">
                                                                                             {
                                                                                                 drawerItem.matchReason
                                                                                             }

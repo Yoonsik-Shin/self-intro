@@ -144,4 +144,8 @@ export const jobPostingApi = {
         request<JobPosting>(`/api/admin/job-postings/${id}/analyze-appeal`, {
             method: 'POST',
         }),
+    rematch: (id: number) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/rematch`, {
+            method: 'POST',
+        }),
 };

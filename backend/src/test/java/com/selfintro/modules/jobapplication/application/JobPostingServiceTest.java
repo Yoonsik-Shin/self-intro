@@ -302,6 +302,28 @@ class JobPostingServiceTest {
     }
 
     @Test
+    void rematchRecalculatesScoreEvenWhenAlreadyPresent() {
+        JobPosting candidate = newCandidate();
+        candidate.applyMatch(40, "이전 점수", LocalDateTime.now());
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(matchingService.evaluate(any(), any()))
+                .thenReturn(new JobMatchingService.MatchResult(90, "보유 기술과 일치도가 높습니다."));
+
+        JobPostingResponse response = jobPostingService.rematch(1L);
+
+        assertThat(response.matchScore()).isEqualTo(90);
+        assertThat(response.matchReason()).isEqualTo("보유 기술과 일치도가 높습니다.");
+    }
+
+    @Test
+    void rematchThrowsWhenPostingDoesNotExist() {
+        when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> jobPostingService.rematch(99L))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
     void saveMovesNewCandidateToSavedStatus() {
         JobPosting candidate = newCandidate();
         when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
