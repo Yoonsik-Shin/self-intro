@@ -1792,7 +1792,6 @@ export function JobApplicationManagement() {
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
                                                 <th className="px-5 py-3 font-bold">출처</th>
                                                 <th className="px-5 py-3 font-bold">마감일</th>
-                                                <th className="px-5 py-3 font-bold">현재 단계</th>
                                                 <th className="px-5 py-3 font-bold text-right">
                                                     관리
                                                 </th>
@@ -1814,6 +1813,11 @@ export function JobApplicationManagement() {
                                                             <span className="ml-2 text-slate-400">
                                                                 {candidate.positionTitle}
                                                             </span>
+                                                            {candidate.status === 'DISMISSED' && (
+                                                                <span className="ml-2 inline-flex align-middle rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                    제외됨
+                                                                </span>
+                                                            )}
                                                             {isCandidateDetailMissing(
                                                                 candidate
                                                             ) && (
@@ -1847,22 +1851,6 @@ export function JobApplicationManagement() {
                                                             ) : (
                                                                 <span className="text-slate-300">
                                                                     —
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-5 py-3">
-                                                            {candidate.status === 'DISMISSED' ? (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-extrabold text-slate-500">
-                                                                    {
-                                                                        CANDIDATE_STATUS_LABELS[
-                                                                            candidate.status
-                                                                        ]
-                                                                    }
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-extrabold text-white">
-                                                                    <Bookmark className="h-3 w-3" />
-                                                                    수집됨
                                                                 </span>
                                                             )}
                                                         </td>
