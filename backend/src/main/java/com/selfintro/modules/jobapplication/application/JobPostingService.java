@@ -209,6 +209,10 @@ public class JobPostingService {
         if (cleanedUrls.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수집할 URL이 없습니다.");
         }
+        if (cleanedUrls.size() > 5) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "한 번에 최대 5개의 URL까지 수집할 수 있습니다.");
+        }
 
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
