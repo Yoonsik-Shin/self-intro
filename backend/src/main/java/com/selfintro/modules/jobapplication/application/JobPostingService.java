@@ -366,7 +366,6 @@ public class JobPostingService {
 
     private record BulkCompleteEvent(String type, int total, int successCount, int errorCount) {}
 
-    @Transactional
     public JobPostingResponse ingestUrl(String url) {
         String trimmed = url.trim();
         if (jobPostingRepository.existsByPostingUrl(trimmed)) {
@@ -415,7 +414,6 @@ public class JobPostingService {
      * 상세 항목은 이번에 새로 읽은 값이 있으면 그걸로 덮어쓰되 없으면(일시적 추출 실패 등) 기존 값을 그대로 둔다 — 재수집 한 번 실패했다고 이미 확보한 상세 정보를
      * 지우지 않기 위해서다. 다만 마감일/상시채용 여부는 이번 결과가 "확실한 정보"(날짜를 읽었거나 상시채용이라고 명시됨)일 때만 갱신한다.
      */
-    @Transactional
     public JobPostingResponse refresh(Long id) {
         JobPosting posting = findOrThrow(id);
         if (!AiJsonSupport.hasText(posting.getPostingUrl())) {
@@ -424,6 +422,13 @@ public class JobPostingService {
         }
 
         JobApplicationUrlParseResponse parsed = urlParseService.parse(posting.getPostingUrl());
+        return updateRefreshedPosting(id, parsed);
+    }
+
+    @Transactional
+    public JobPostingResponse updateRefreshedPosting(
+            Long id, JobApplicationUrlParseResponse parsed) {
+        JobPosting posting = findOrThrow(id);
         boolean deadlineKnown = parsed.deadline() != null || parsed.alwaysOpen();
         posting.update(
                 posting.getCompanyName(),

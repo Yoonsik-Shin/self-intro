@@ -38,7 +38,6 @@ public class JobPostingCollectorService {
     private final JobMatchingService matchingService;
     private final AtomicBoolean collecting = new AtomicBoolean(false);
 
-    @Transactional
     public JobPostingCollectionResult collectNow() {
         if (!collecting.compareAndSet(false, true)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "이미 공고 수집이 진행 중입니다.");
