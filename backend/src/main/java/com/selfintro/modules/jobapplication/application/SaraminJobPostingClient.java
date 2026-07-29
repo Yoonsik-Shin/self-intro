@@ -2,7 +2,7 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
+import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
@@ -66,7 +66,7 @@ public class SaraminJobPostingClient {
         this.accessKey = accessKey;
     }
 
-    public List<JobPostingCandidate.Draft> fetchPostings() {
+    public List<JobPosting.Draft> fetchPostings() {
         if (accessKey.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE, "사람인 API access-key가 설정되지 않았습니다.");
@@ -162,7 +162,7 @@ public class SaraminJobPostingClient {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
-    private List<JobPostingCandidate.Draft> toDrafts(SaraminEnvelope envelope) {
+    private List<JobPosting.Draft> toDrafts(SaraminEnvelope envelope) {
         if (envelope.jobs() == null || envelope.jobs().job() == null) {
             return List.of();
         }
@@ -183,13 +183,15 @@ public class SaraminJobPostingClient {
                 && job.url() != null;
     }
 
-    private JobPostingCandidate.Draft toDraft(SaraminJob job) {
+    private JobPosting.Draft toDraft(SaraminJob job) {
         LocalDate deadline =
                 job.expirationTimestamp() != null
                         ? Instant.ofEpochSecond(job.expirationTimestamp())
                                 .atZone(SEOUL)
                                 .toLocalDate()
                         : null;
+        // 사람인은 상시채용 공고에도 별도 플래그 없이 만료 타임스탬프를 아예 내려주지 않는다.
+        boolean alwaysOpen = deadline == null;
         String jobCodeName =
                 job.position().jobCode() != null ? job.position().jobCode().name() : null;
         String requiredSkillsRaw = String.join(" ", safe(jobCodeName), safe(job.keyword())).trim();
@@ -199,16 +201,17 @@ public class SaraminJobPostingClient {
                 job.position().jobType() != null ? job.position().jobType().name() : null;
         String salaryNote = job.salary() != null ? job.salary().name() : null;
 
-        return new JobPostingCandidate.Draft(
-                job.id(),
+        return new JobPosting.Draft(
                 job.position().title(),
                 job.company().detail().name(),
                 job.url(),
+                job.id(),
                 JobPostingSource.SARAMIN,
                 requiredSkillsRaw.isBlank() ? null : requiredSkillsRaw,
                 location,
                 employmentType,
                 deadline,
+                alwaysOpen,
                 salaryNote,
                 null,
                 null,

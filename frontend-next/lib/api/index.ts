@@ -17,5 +17,4 @@ export * from './experiencePlacement';
 export * from './connection';
 export * from './architecture';
 export * from './printTemplate';
-export * from './jobApplication';
 export * from './jobPosting';

@@ -1,10 +1,10 @@
 package com.selfintro.modules.jobapplication.application;
 
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
+import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
-import com.selfintro.modules.jobapplication.domain.enums.JobPostingCandidateStatus;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingCandidateRepository;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -29,10 +29,10 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class JobPostingCollectorService {
 
-    private static final List<JobPostingCandidateStatus> EXPIRABLE_STATUSES =
-            List.of(JobPostingCandidateStatus.NEW, JobPostingCandidateStatus.SAVED);
+    private static final List<JobPostingStatus> EXPIRABLE_STATUSES =
+            List.of(JobPostingStatus.NEW, JobPostingStatus.SAVED);
 
-    private final JobPostingCandidateRepository candidateRepository;
+    private final JobPostingRepository jobPostingRepository;
     private final JobPostingSettingRepository settingRepository;
     private final SaraminJobPostingClient saraminJobPostingClient;
     private final JobMatchingService matchingService;
@@ -62,16 +62,16 @@ public class JobPostingCollectorService {
 
     @Transactional
     public int expireOverdueCandidates() {
-        List<JobPostingCandidate> overdue =
-                candidateRepository.findByStatusInAndDeadlineBefore(
+        List<JobPosting> overdue =
+                jobPostingRepository.findByStatusInAndDeadlineBefore(
                         EXPIRABLE_STATUSES, LocalDate.now());
         LocalDateTime now = LocalDateTime.now();
-        overdue.forEach(candidate -> candidate.markExpired(now));
+        overdue.forEach(posting -> posting.markExpired(now));
         return overdue.size();
     }
 
     private int collectFromSaramin() {
-        List<JobPostingCandidate.Draft> drafts;
+        List<JobPosting.Draft> drafts;
         try {
             drafts = saraminJobPostingClient.fetchPostings();
         } catch (ResponseStatusException exception) {
@@ -81,17 +81,17 @@ public class JobPostingCollectorService {
 
         int savedCount = 0;
         LocalDateTime now = LocalDateTime.now();
-        for (JobPostingCandidate.Draft draft : drafts) {
-            if (candidateRepository.existsBySourceAndExternalId(
+        for (JobPosting.Draft draft : drafts) {
+            if (jobPostingRepository.existsByCollectionMethodAndExternalId(
                     JobPostingSource.SARAMIN, draft.externalId())) {
                 continue;
             }
-            JobPostingCandidate candidate = JobPostingCandidate.create(draft, now);
+            JobPosting posting = JobPosting.collect(draft, now);
             JobMatchingService.MatchResult match =
                     matchingService.evaluate(
-                            candidate.getTitle(), candidate.getRequiredSkillsRaw());
-            candidate.applyMatch(match.score(), match.reason(), now);
-            candidateRepository.save(candidate);
+                            posting.getPositionTitle(), posting.getRequiredSkillsRaw());
+            posting.applyMatch(match.score(), match.reason(), now);
+            jobPostingRepository.save(posting);
             savedCount++;
         }
         return savedCount;

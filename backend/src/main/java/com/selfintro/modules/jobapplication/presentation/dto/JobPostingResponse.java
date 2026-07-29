@@ -1,20 +1,26 @@
 package com.selfintro.modules.jobapplication.presentation.dto;
 
-import com.selfintro.modules.jobapplication.domain.entity.JobApplication;
-import com.selfintro.modules.jobapplication.domain.enums.JobApplicationStage;
+import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public record JobApplicationResponse(
+public record JobPostingResponse(
         Long id,
         String companyName,
         String positionTitle,
         String postingUrl,
+        String externalId,
+        JobPostingSource collectionMethod,
         String source,
+        JobPostingStatus status,
         LocalDate appliedAt,
         LocalDate deadline,
-        JobApplicationStage currentStage,
+        boolean alwaysOpen,
         String salaryNote,
+        String location,
+        String employmentType,
         String memo,
         String jobDescription,
         String requiredQualifications,
@@ -22,20 +28,30 @@ public record JobApplicationResponse(
         String hiringProcess,
         String applicationMethod,
         String compensationDetail,
+        Integer matchScore,
+        String matchReason,
+        String appealAnalysis,
+        LocalDateTime appealAnalyzedAt,
+        LocalDateTime statusChangedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
-    public static JobApplicationResponse from(JobApplication entity) {
-        return new JobApplicationResponse(
+    public static JobPostingResponse from(JobPosting entity) {
+        return new JobPostingResponse(
                 entity.getId(),
                 entity.getCompanyName(),
                 entity.getPositionTitle(),
                 entity.getPostingUrl(),
+                entity.getExternalId(),
+                entity.getCollectionMethod(),
                 entity.getSource(),
+                entity.getStatus(),
                 entity.getAppliedAt(),
                 entity.getDeadline(),
-                entity.getCurrentStage(),
+                entity.isAlwaysOpen(),
                 entity.getSalaryNote(),
+                entity.getLocation(),
+                entity.getEmploymentType(),
                 entity.getMemo(),
                 entity.getJobDescription(),
                 entity.getRequiredQualifications(),
@@ -43,6 +59,11 @@ public record JobApplicationResponse(
                 entity.getHiringProcess(),
                 entity.getApplicationMethod(),
                 entity.getCompensationDetail(),
+                entity.getMatchScore(),
+                entity.getMatchReason(),
+                entity.getAppealAnalysis(),
+                entity.getAppealAnalyzedAt(),
+                entity.getStatusChangedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }

@@ -7,6 +7,7 @@ public record JobApplicationUrlParseResponse(
         String positionTitle,
         String source,
         LocalDate deadline,
+        boolean alwaysOpen,
         String salaryNote,
         String location,
         String employmentType,
