@@ -5,6 +5,8 @@ import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateReposi
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,7 @@ public class PrintTemplateService {
 
     private final PrintTemplateRepository printTemplateRepository;
 
+    @Cacheable(value = "print_template:public")
     public List<PrintTemplate> listPublic() {
         return printTemplateRepository.findAllByVisibleTrueOrderByDisplayOrderAsc();
     }
@@ -24,6 +27,7 @@ public class PrintTemplateService {
     }
 
     @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate create(PrintTemplateRequest request) {
         PrintTemplate template =
                 PrintTemplate.create(
@@ -41,6 +45,7 @@ public class PrintTemplateService {
     }
 
     @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate update(Long id, PrintTemplateRequest request) {
         PrintTemplate template =
                 printTemplateRepository
@@ -68,6 +73,7 @@ public class PrintTemplateService {
     }
 
     @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
     public void delete(Long id) {
         if (!printTemplateRepository.existsById(id)) {
             throw new IllegalArgumentException("PrintTemplate not found: " + id);
