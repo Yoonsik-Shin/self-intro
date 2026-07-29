@@ -17,7 +17,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -66,13 +69,15 @@ public class ExperienceService {
 
     @Transactional
     public List<ExperienceResponse> reorder(List<Long> orderedIds) {
+        List<Experience> list = experienceRepository.findAllById(orderedIds);
+        Map<Long, Experience> map =
+                list.stream().collect(Collectors.toMap(Experience::getId, Function.identity()));
         for (int i = 0; i < orderedIds.size(); i++) {
             Long id = orderedIds.get(i);
-            Experience experience =
-                    experienceRepository
-                            .findById(id)
-                            .orElseThrow(
-                                    () -> new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id));
+            Experience experience = map.get(id);
+            if (experience == null) {
+                throw new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id);
+            }
             experience.changeDisplayOrder(i + 1);
         }
         experienceRepository.flush();

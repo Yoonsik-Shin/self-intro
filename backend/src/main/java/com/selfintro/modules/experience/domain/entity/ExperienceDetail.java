@@ -42,7 +42,7 @@ public class ExperienceDetail {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "experience_detail_skill",
             joinColumns = @JoinColumn(name = "experience_detail_id"),

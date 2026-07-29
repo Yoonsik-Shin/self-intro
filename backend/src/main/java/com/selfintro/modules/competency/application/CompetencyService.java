@@ -11,6 +11,9 @@ import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,13 +101,15 @@ public class CompetencyService {
 
     @Transactional
     public List<CompetencyResponse> reorder(List<Long> orderedIds) {
+        List<Competency> list = competencyRepository.findAllById(orderedIds);
+        Map<Long, Competency> map =
+                list.stream().collect(Collectors.toMap(Competency::getId, Function.identity()));
         for (int i = 0; i < orderedIds.size(); i++) {
             Long id = orderedIds.get(i);
-            Competency competency =
-                    competencyRepository
-                            .findById(id)
-                            .orElseThrow(
-                                    () -> new IllegalArgumentException("존재하지 않는 핵심 역량입니다: " + id));
+            Competency competency = map.get(id);
+            if (competency == null) {
+                throw new IllegalArgumentException("존재하지 않는 핵심 역량입니다: " + id);
+            }
             competency.changeDisplayOrder(i + 1);
         }
         competencyRepository.flush();
@@ -128,30 +133,29 @@ public class CompetencyService {
     }
 
     private void replaceLinks(Competency competency, CompetencyRequest request) {
-        List<Skill> skills =
-                request.skillIds().stream()
-                        .map(
-                                id ->
-                                        skillRepository
-                                                .findById(id)
-                                                .orElseThrow(
-                                                        () ->
-                                                                new IllegalArgumentException(
-                                                                        "존재하지 않는 기술 스택입니다: " + id)))
+        List<Skill> skills = skillRepository.findAllById(request.skillIds());
+        if (skills.size() != request.skillIds().size()) {
+            throw new IllegalArgumentException("존재하지 않는 기술 스택이 포함되어 있습니다.");
+        }
+
+        List<Long> expIds =
+                request.evidences().stream()
+                        .map(CompetencyRequest.EvidenceRequest::experienceId)
                         .toList();
+        List<Experience> experiences = experienceRepository.findAllById(expIds);
+        Map<Long, Experience> expMap =
+                experiences.stream()
+                        .collect(Collectors.toMap(Experience::getId, Function.identity()));
+
         List<Competency.EvidenceDraft> evidences =
                 request.evidences().stream()
                         .map(
                                 item -> {
-                                    Experience experience =
-                                            experienceRepository
-                                                    .findById(item.experienceId())
-                                                    .orElseThrow(
-                                                            () ->
-                                                                    new IllegalArgumentException(
-                                                                            "존재하지 않는 경력/프로젝트입니다: "
-                                                                                    + item
-                                                                                            .experienceId()));
+                                    Experience experience = expMap.get(item.experienceId());
+                                    if (experience == null) {
+                                        throw new IllegalArgumentException(
+                                                "존재하지 않는 경력/프로젝트입니다: " + item.experienceId());
+                                    }
                                     if (!"CAREER".equals(experience.getType())
                                             && !"PROJECT".equals(experience.getType())) {
                                         throw new IllegalArgumentException(
@@ -164,17 +168,11 @@ public class CompetencyService {
                                             item.displayOrder());
                                 })
                         .toList();
-        List<Study> studies =
-                request.studyIds().stream()
-                        .map(
-                                id ->
-                                        studyRepository
-                                                .findById(id)
-                                                .orElseThrow(
-                                                        () ->
-                                                                new IllegalArgumentException(
-                                                                        "존재하지 않는 Study입니다: " + id)))
-                        .toList();
+
+        List<Study> studies = studyRepository.findAllById(request.studyIds());
+        if (studies.size() != request.studyIds().size()) {
+            throw new IllegalArgumentException("존재하지 않는 Study가 포함되어 있습니다.");
+        }
 
         competency.replaceSkills(skills);
         competency.replaceEvidences(evidences);

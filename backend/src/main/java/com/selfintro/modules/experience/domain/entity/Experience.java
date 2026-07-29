@@ -46,12 +46,12 @@ public abstract class Experience {
     @Column(name = "timeline_label", length = 60)
     private String timelineLabel;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JoinColumn(name = "experience_id")
     @OrderBy("displayOrder ASC")
     private List<ExperienceDetail> details = new ArrayList<>();
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "experience_skill",
             joinColumns = @JoinColumn(name = "experience_id"),
@@ -59,7 +59,7 @@ public abstract class Experience {
     @OrderColumn(name = "list_order")
     private List<Skill> skills = new ArrayList<>();
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "experience_tag",
             joinColumns = @JoinColumn(name = "experience_id"),
@@ -67,7 +67,7 @@ public abstract class Experience {
     @OrderBy("name ASC")
     private List<Tag> tags = new ArrayList<>();
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JoinColumn(name = "experience_id")
     @OrderBy("displayOrder ASC")
     private List<ExperienceImage> images = new ArrayList<>();
