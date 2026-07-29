@@ -4,7 +4,6 @@ import static com.selfintro.global.ai.AiJsonSupport.blankToNull;
 import static com.selfintro.global.ai.AiJsonSupport.hasText;
 import static com.selfintro.global.ai.AiJsonSupport.limit;
 import static com.selfintro.global.ai.AiJsonSupport.safe;
-import static com.selfintro.global.ai.AiJsonSupport.select;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -197,29 +196,37 @@ public class StudyAiService {
 
     private PreparedGeneration prepare(StudySuggestionRequest request) {
         List<Skill> skills =
-                select(
-                        skillRepository.findAllByOrderByDisplayOrderAsc(),
-                        request.skillIds(),
-                        Skill::getId,
-                        "기술");
+                request.skillIds() != null && !request.skillIds().isEmpty()
+                        ? fetchAndValidate(
+                                skillRepository.findAllById(request.skillIds()),
+                                request.skillIds(),
+                                "기술")
+                        : skillRepository.findAllByOrderByDisplayOrderAsc();
+
         List<Experience> experiences =
-                select(
-                        experienceRepository.findAllByOrderByDisplayOrderAsc(),
-                        request.experienceIds(),
-                        Experience::getId,
-                        "경력/프로젝트");
+                request.experienceIds() != null && !request.experienceIds().isEmpty()
+                        ? fetchAndValidate(
+                                experienceRepository.findAllById(request.experienceIds()),
+                                request.experienceIds(),
+                                "경력/프로젝트")
+                        : experienceRepository.findAllByOrderByDisplayOrderAsc();
+
         List<ExperienceDetail> experienceDetails =
-                select(
-                        experienceDetailRepository.findAll(),
-                        request.experienceDetailIds(),
-                        ExperienceDetail::getId,
-                        "경력 상세");
+                request.experienceDetailIds() != null && !request.experienceDetailIds().isEmpty()
+                        ? fetchAndValidate(
+                                experienceDetailRepository.findAllById(
+                                        request.experienceDetailIds()),
+                                request.experienceDetailIds(),
+                                "경력 상세")
+                        : experienceDetailRepository.findAll();
+
         List<Study> relatedStudies =
-                select(
-                        studyRepository.findAll(),
-                        request.relatedStudyIds(),
-                        Study::getId,
-                        "관련 Study");
+                request.relatedStudyIds() != null && !request.relatedStudyIds().isEmpty()
+                        ? fetchAndValidate(
+                                studyRepository.findAllById(request.relatedStudyIds()),
+                                request.relatedStudyIds(),
+                                "관련 Study")
+                        : studyRepository.findAll();
 
         ExtractionContext extractionContext =
                 new ExtractionContext(
@@ -237,6 +244,15 @@ public class StudyAiService {
                 AiJsonSupport.toIdSet(experiences, Experience::getId),
                 AiJsonSupport.toIdSet(experienceDetails, ExperienceDetail::getId),
                 AiJsonSupport.toIdSet(relatedStudies, Study::getId));
+    }
+
+    private <T> List<T> fetchAndValidate(
+            List<T> fetchedItems, List<Long> requestedIds, String label) {
+        if (fetchedItems.size() != requestedIds.size()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "존재하지 않는 " + label + " 항목이 포함되어 있습니다.");
+        }
+        return fetchedItems;
     }
 
     private void send(SseEmitter emitter, Object payload) {

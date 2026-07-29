@@ -1,6 +1,7 @@
 package com.selfintro.modules.study.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -23,28 +24,32 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class StudyAiServiceTest {
-    @Mock SkillRepository skillRepository;
-    @Mock ExperienceRepository experienceRepository;
-    @Mock ExperienceDetailRepository experienceDetailRepository;
-    @Mock StudyRepository studyRepository;
-    @Mock NvidiaNimClient nvidiaNimClient;
+    @Mock private SkillRepository skillRepository;
+    @Mock private ExperienceRepository experienceRepository;
+    @Mock private ExperienceDetailRepository experienceDetailRepository;
+    @Mock private StudyRepository studyRepository;
+    @Mock private NvidiaNimClient nvidiaNimClient;
 
     private StudyAiService service;
 
     @BeforeEach
     void setUp() {
-        service =
-                new StudyAiService(
-                        skillRepository,
-                        experienceRepository,
-                        experienceDetailRepository,
-                        studyRepository,
-                        nvidiaNimClient,
-                        new ObjectMapper());
+        service = newService();
     }
 
-    private StudySuggestionRequest emptyRequest() {
-        return new StudySuggestionRequest("", "", "", List.of(), List.of(), List.of(), List.of());
+    private StudyAiService newService() {
+        return new StudyAiService(
+                skillRepository,
+                experienceRepository,
+                experienceDetailRepository,
+                studyRepository,
+                nvidiaNimClient,
+                new ObjectMapper());
+    }
+
+    private StudySuggestionRequest sampleRequest() {
+        return new StudySuggestionRequest(
+                "", "", "", List.of(10L), List.of(20L), List.of(), List.of());
     }
 
     @Test
@@ -53,17 +58,16 @@ class StudyAiServiceTest {
         when(skill.getId()).thenReturn(10L);
         when(skill.getName()).thenReturn("Kafka");
         when(skill.getCategory()).thenReturn("BACKEND");
-        when(skillRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of(skill));
 
         Experience experience = mock(Experience.class);
         when(experience.getId()).thenReturn(20L);
         when(experience.getType()).thenReturn("PROJECT");
         when(experience.getTitle()).thenReturn("이벤트 처리 파이프라인");
-        when(experienceRepository.findAllByOrderByDisplayOrderAsc())
-                .thenReturn(List.of(experience));
 
-        when(experienceDetailRepository.findAll()).thenReturn(List.of());
-        when(studyRepository.findAll()).thenReturn(List.of());
+        when(skillRepository.findAllById(any())).thenReturn(List.of(skill));
+        when(experienceRepository.findAllById(any())).thenReturn(List.of(experience));
+        when(experienceDetailRepository.findAllById(any())).thenReturn(List.of());
+        when(studyRepository.findAllById(any())).thenReturn(List.of());
 
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn(
@@ -83,7 +87,7 @@ class StudyAiServiceTest {
                 }]}
                 """);
 
-        var response = service.suggest(emptyRequest());
+        var response = service.suggest(sampleRequest());
 
         assertThat(response.suggestions()).hasSize(1);
         var suggestion = response.suggestions().getFirst();
