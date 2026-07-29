@@ -207,6 +207,19 @@ function getDDayBadgeStyle(deadline: string | null): string {
     return 'bg-slate-100 text-slate-600 border border-slate-200';
 }
 
+function sortByDeadlineAsc<T extends { deadline: string | null; id: number }>(items: T[]): T[] {
+    return [...items].sort((a, b) => {
+        if (a.deadline && b.deadline) {
+            const cmp = a.deadline.localeCompare(b.deadline);
+            if (cmp !== 0) return cmp;
+            return b.id - a.id;
+        }
+        if (a.deadline && !b.deadline) return -1;
+        if (!a.deadline && b.deadline) return 1;
+        return b.id - a.id;
+    });
+}
+
 function AlwaysOpenBadge({ rounded = 'rounded' }: { rounded?: 'rounded' | 'rounded-full' }) {
     return (
         <span
@@ -1363,7 +1376,7 @@ export function JobApplicationManagement() {
 
     // 보드/캘린더에서는 제외(DISMISSED)된 후보를 숨긴다 — 리스트뷰에서는 계속 보여준다.
     const boardCandidates = useMemo(
-        () => candidates.filter((item) => item.status !== 'DISMISSED'),
+        () => sortByDeadlineAsc(candidates.filter((item) => item.status !== 'DISMISSED')),
         [candidates]
     );
 
@@ -1371,23 +1384,25 @@ export function JobApplicationManagement() {
     const listCandidates = useMemo(() => {
         // 제외됨은 숨김폴더처럼 기본적으로 안 보인다 — 체크박스를 켜거나, 상태 필터에서 직접 "제외됨"을 고르면 노출된다.
         const revealDismissed = showDismissed || candidateStatusFilter === 'DISMISSED';
-        return filteredCandidates.filter((item) => {
+        const filtered = filteredCandidates.filter((item) => {
             if (item.status === 'DISMISSED' && !revealDismissed) return false;
             if (candidateStatusFilter !== 'ALL' && candidateStatusFilter !== item.status)
                 return false;
             if (candidateDeadlineSoonOnly && !isDeadlineSoon(item.deadline)) return false;
             return true;
         });
+        return sortByDeadlineAsc(filtered);
     }, [filteredCandidates, candidateStatusFilter, candidateDeadlineSoonOnly, showDismissed]);
 
     const listApplications = useMemo(() => {
-        return filteredApplications.filter((item) => {
+        const filtered = filteredApplications.filter((item) => {
             if (item.status === 'DISMISSED' && !showDismissed) return false;
             if (applicationStageFilter !== 'ALL' && applicationStageFilter !== item.status)
                 return false;
             if (applicationDeadlineSoonOnly && !isDeadlineSoon(item.deadline)) return false;
             return true;
         });
+        return sortByDeadlineAsc(filtered);
     }, [filteredApplications, applicationStageFilter, applicationDeadlineSoonOnly, showDismissed]);
 
     const isCandidateFilterActive =
@@ -1414,6 +1429,9 @@ export function JobApplicationManagement() {
         filteredApplications.forEach((item) =>
             map.get(item.status as ApplicationStatus)?.push(item)
         );
+        map.forEach((items, stage) => {
+            map.set(stage, sortByDeadlineAsc(items));
+        });
         return map;
     }, [filteredApplications]);
 
