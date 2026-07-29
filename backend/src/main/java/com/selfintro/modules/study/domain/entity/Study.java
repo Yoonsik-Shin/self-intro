@@ -28,6 +28,7 @@ import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Entity
@@ -59,6 +60,7 @@ public class Study {
     @JoinColumn(name = "category_id", nullable = false)
     private StudyCategory category;
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "study_tag",
@@ -67,6 +69,7 @@ public class Study {
     @OrderBy("name ASC")
     private List<Tag> tags = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "study_skill",
@@ -75,6 +78,7 @@ public class Study {
     @OrderBy("displayOrder ASC")
     private List<Skill> skills = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "study_experience",
@@ -83,6 +87,7 @@ public class Study {
     @OrderBy("displayOrder ASC")
     private List<Experience> experiences = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "study_experience_detail",
@@ -91,10 +96,12 @@ public class Study {
     @OrderBy("displayOrder ASC")
     private List<ExperienceDetail> experienceDetails = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "source", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     private List<StudyRelation> relations = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "study_id")
     @OrderBy("displayOrder ASC")

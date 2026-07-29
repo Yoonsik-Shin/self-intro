@@ -28,6 +28,7 @@ import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Entity
@@ -82,6 +83,7 @@ public class LearningResource {
     @Column(name = "detail_markdown", columnDefinition = "LONGTEXT")
     private String detailMarkdown;
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "learning_resource_tag",
@@ -90,6 +92,7 @@ public class LearningResource {
     @OrderBy("name ASC")
     private List<Tag> tags = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "learning_resource_skill",
@@ -98,6 +101,7 @@ public class LearningResource {
     @OrderBy("displayOrder ASC")
     private List<Skill> skills = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "source", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     private List<LearningResourceRelation> relations = new ArrayList<>();

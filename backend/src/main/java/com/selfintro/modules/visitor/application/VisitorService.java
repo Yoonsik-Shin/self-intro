@@ -16,6 +16,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +29,10 @@ public class VisitorService {
     private final Clock visitorClock;
 
     @Transactional
-    public synchronized VisitorSummaryResponse recordVisit(String visitorHash, String userAgent) {
+    @CacheEvict(
+            value = "visitor:summary",
+            key = "T(java.time.LocalDate).now(#root.target.visitorClock)")
+    public VisitorSummaryResponse recordVisit(String visitorHash, String userAgent) {
         LocalDate visitedDate = LocalDate.now(visitorClock);
         LocalDateTime visitedAt = LocalDateTime.now(visitorClock);
         boolean bot = BotDetector.isLikelyBot(userAgent);
@@ -119,7 +124,8 @@ public class VisitorService {
                 .toList();
     }
 
-    private VisitorSummaryResponse getSummaryFor(LocalDate date) {
+    @Cacheable(value = "visitor:summary", key = "#date")
+    public VisitorSummaryResponse getSummaryFor(LocalDate date) {
         return new VisitorSummaryResponse(
                 visitorRepository.countByVisitedDateAndBotFalse(date),
                 visitorRepository.countDistinctVisitors(),
