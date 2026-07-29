@@ -29,9 +29,7 @@ public class VisitorService {
     private final Clock visitorClock;
 
     @Transactional
-    @CacheEvict(
-            value = "visitor:summary",
-            key = "T(java.time.LocalDate).now(#root.target.visitorClock)")
+    @CacheEvict(value = "visitor:summary", allEntries = true)
     public VisitorSummaryResponse recordVisit(String visitorHash, String userAgent) {
         LocalDate visitedDate = LocalDate.now(visitorClock);
         LocalDateTime visitedAt = LocalDateTime.now(visitorClock);
