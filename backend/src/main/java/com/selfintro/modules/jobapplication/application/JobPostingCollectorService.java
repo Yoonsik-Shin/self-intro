@@ -6,6 +6,8 @@ import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,6 +36,7 @@ public class JobPostingCollectorService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSettingRepository settingRepository;
+    private final SkillRepository skillRepository;
     private final SaraminJobPostingClient saraminJobPostingClient;
     private final JobMatchingService matchingService;
     private final AtomicBoolean collecting = new AtomicBoolean(false);
@@ -80,6 +83,9 @@ public class JobPostingCollectorService {
 
         int savedCount = 0;
         LocalDateTime now = LocalDateTime.now();
+        List<String> mySkillNames = skillRepository.findAll().stream().map(Skill::getName).toList();
+        int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
+
         for (JobPosting.Draft draft : drafts) {
             if (jobPostingRepository.existsByCollectionMethodAndExternalId(
                     JobPostingSource.SARAMIN, draft.externalId())) {
@@ -88,7 +94,10 @@ public class JobPostingCollectorService {
             JobPosting posting = JobPosting.collect(draft, now);
             JobMatchingService.MatchResult match =
                     matchingService.evaluate(
-                            posting.getPositionTitle(), posting.getRequiredSkillsRaw());
+                            posting.getPositionTitle(),
+                            posting.getRequiredSkillsRaw(),
+                            mySkillNames,
+                            keywordThreshold);
             posting.applyMatch(match.score(), match.reason(), now);
             jobPostingRepository.save(posting);
             savedCount++;

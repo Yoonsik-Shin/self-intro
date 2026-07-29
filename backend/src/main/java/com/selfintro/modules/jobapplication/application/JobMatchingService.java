@@ -52,13 +52,21 @@ public class JobMatchingService {
 
     public MatchResult evaluate(String title, String requiredSkillsRaw) {
         List<String> mySkillNames = skillRepository.findAll().stream().map(Skill::getName).toList();
+        int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
+        return evaluate(title, requiredSkillsRaw, mySkillNames, keywordThreshold);
+    }
+
+    public MatchResult evaluate(
+            String title,
+            String requiredSkillsRaw,
+            List<String> mySkillNames,
+            int keywordThreshold) {
         String haystack = (safe(title) + " " + safe(requiredSkillsRaw)).toLowerCase(Locale.ROOT);
         long overlapCount =
                 mySkillNames.stream()
                         .filter(name -> haystack.contains(name.toLowerCase(Locale.ROOT)))
                         .count();
 
-        int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
         if (keywordThreshold > 0 && overlapCount < keywordThreshold) {
             return MatchResult.empty();
         }

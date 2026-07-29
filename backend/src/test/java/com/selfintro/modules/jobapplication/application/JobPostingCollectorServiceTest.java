@@ -2,6 +2,7 @@ package com.selfintro.modules.jobapplication.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,7 @@ import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,12 +29,17 @@ class JobPostingCollectorServiceTest {
 
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private JobPostingSettingRepository settingRepository;
+    @Mock private SkillRepository skillRepository;
     @Mock private SaraminJobPostingClient saraminJobPostingClient;
     @Mock private JobMatchingService matchingService;
 
     private JobPostingCollectorService newService() {
         return new JobPostingCollectorService(
-                jobPostingRepository, settingRepository, saraminJobPostingClient, matchingService);
+                jobPostingRepository,
+                settingRepository,
+                skillRepository,
+                saraminJobPostingClient,
+                matchingService);
     }
 
     private JobPostingSetting settingWithSaraminEnabled(boolean saraminEnabled) {
@@ -125,7 +132,7 @@ class JobPostingCollectorServiceTest {
         when(jobPostingRepository.existsByCollectionMethodAndExternalId(
                         JobPostingSource.SARAMIN, "2"))
                 .thenReturn(false);
-        when(matchingService.evaluate(any(), any()))
+        when(matchingService.evaluate(any(), any(), any(), anyInt()))
                 .thenReturn(JobMatchingService.MatchResult.empty());
 
         JobPostingCollectionResult result = service.collectNow();

@@ -3,12 +3,16 @@ package com.selfintro.modules.storage.application;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -68,7 +72,23 @@ public class StorageService {
     }
 
     public void deleteAll(Collection<String> objectKeys) {
-        objectKeys.forEach(this::delete);
+        if (objectKeys == null || objectKeys.isEmpty()) {
+            return;
+        }
+        List<ObjectIdentifier> identifiers =
+                objectKeys.stream()
+                        .filter(key -> key != null && !key.isBlank())
+                        .map(key -> ObjectIdentifier.builder().key(key).build())
+                        .toList();
+
+        if (identifiers.isEmpty()) {
+            return;
+        }
+
+        Delete delete = Delete.builder().objects(identifiers).build();
+        DeleteObjectsRequest deleteObjectsRequest =
+                DeleteObjectsRequest.builder().bucket(bucket).delete(delete).build();
+        s3Client.deleteObjects(deleteObjectsRequest);
     }
 
     public String toPublicUrl(String objectKey) {
