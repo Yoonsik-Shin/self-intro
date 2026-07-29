@@ -230,6 +230,37 @@ function AlwaysOpenBadge({ rounded = 'rounded' }: { rounded?: 'rounded' | 'round
     );
 }
 
+function MatchScoreBadge({
+    score,
+    reason,
+}: {
+    score: number | null | undefined;
+    reason?: string | null;
+}) {
+    if (score === null || score === undefined) {
+        return <span className="text-slate-300">—</span>;
+    }
+
+    let badgeStyle = 'bg-slate-100 text-slate-600 border-slate-200/80';
+    if (score >= 80) {
+        badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+    } else if (score >= 60) {
+        badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200/80';
+    } else if (score >= 40) {
+        badgeStyle = 'bg-amber-50 text-amber-700 border-amber-200/80';
+    }
+
+    return (
+        <span
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-extrabold whitespace-nowrap ${badgeStyle}`}
+            title={reason ?? undefined}
+        >
+            <Sparkles className="h-3 w-3 shrink-0 text-amber-500" />
+            AI {score}점
+        </span>
+    );
+}
+
 /** AI가 자격요건/우대사항 등을 줄바꿈으로 구분된 목록으로 저장해두므로(PARSE_PROMPT 계약),
  * 2줄 이상이면 불릿 리스트로, 1줄이면 기존처럼 문단으로 보여준다. */
 function BulletText({ text }: { text: string }) {
@@ -1838,10 +1869,11 @@ export function JobApplicationManagement() {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[640px] text-left text-sm">
+                                    <table className="w-full min-w-[720px] text-left text-sm">
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
+                                                <th className="px-5 py-3 font-bold">AI 매칭</th>
                                                 <th className="px-5 py-3 font-bold">출처</th>
                                                 <th className="px-5 py-3 font-bold">마감일</th>
                                                 <th className="px-5 py-3 font-bold text-right">
@@ -1880,6 +1912,12 @@ export function JobApplicationManagement() {
                                                                     <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                                                                 </span>
                                                             )}
+                                                        </td>
+                                                        <td className="px-5 py-3 whitespace-nowrap">
+                                                            <MatchScoreBadge
+                                                                score={candidate.matchScore}
+                                                                reason={candidate.matchReason}
+                                                            />
                                                         </td>
                                                         <td className="px-5 py-3">
                                                             {candidate.source}
@@ -2015,10 +2053,11 @@ export function JobApplicationManagement() {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[720px] text-left text-sm">
+                                    <table className="w-full min-w-[800px] text-left text-sm">
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
+                                                <th className="px-5 py-3 font-bold">AI 매칭</th>
                                                 <th className="px-5 py-3 font-bold">출처</th>
                                                 <th className="px-5 py-3 font-bold">지원일</th>
                                                 <th className="px-5 py-3 font-bold">마감일</th>
@@ -2047,6 +2086,12 @@ export function JobApplicationManagement() {
                                                                 숨김됨
                                                             </span>
                                                         )}
+                                                    </td>
+                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                        <MatchScoreBadge
+                                                            score={item.matchScore}
+                                                            reason={item.matchReason}
+                                                        />
                                                     </td>
                                                     <td className="px-5 py-3">{item.source}</td>
                                                     <td className="px-5 py-3 whitespace-nowrap">
