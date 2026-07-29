@@ -38,7 +38,12 @@ export default async function StudyListPage() {
 
     return (
         <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
-            <StudyListClient initialStudies={studies} categories={categories} />
+            <StudyListClient
+                initialStudies={studies}
+                initialTotalElements={studyPage?.totalElements ?? studies.length}
+                initialTotalPages={studyPage?.totalPages ?? 1}
+                categories={categories}
+            />
         </div>
     );
 }
