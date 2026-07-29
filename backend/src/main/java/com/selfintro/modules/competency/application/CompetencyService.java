@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CompetencyService {
+
     private final CompetencyRepository competencyRepository;
     private final SkillRepository skillRepository;
     private final ExperienceRepository experienceRepository;
@@ -40,6 +42,7 @@ public class CompetencyService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public CompetencyResponse create(CompetencyRequest request) {
         validate(request);
         Competency competency =

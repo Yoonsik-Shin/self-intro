@@ -32,6 +32,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -147,6 +148,9 @@ public class StudyService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {"bff:learning", "bff:introduction"},
+            allEntries = true)
     public StudyResponse create(StudyRequest request) {
         StudyCategory category = findCategory(request.categoryId());
         String slug = uniqueSlug(request.slug(), request.title(), null);
@@ -171,6 +175,9 @@ public class StudyService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {"bff:learning", "bff:introduction"},
+            allEntries = true)
     public StudyResponse update(Long id, StudyRequest request) {
         Study study =
                 studyRepository
@@ -197,6 +204,9 @@ public class StudyService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {"bff:learning", "bff:introduction"},
+            allEntries = true)
     public void delete(Long id) {
         Study study =
                 studyRepository

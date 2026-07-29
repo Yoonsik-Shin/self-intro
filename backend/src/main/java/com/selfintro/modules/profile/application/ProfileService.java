@@ -5,6 +5,7 @@ import com.selfintro.modules.profile.domain.repository.ProfileRepository;
 import com.selfintro.modules.profile.presentation.dto.ProfileRequest;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ public class ProfileService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public Profile upsert(ProfileRequest request) {
         Optional<Profile> existing = profileRepository.findFirstProfile();
         if (existing.isPresent()) {

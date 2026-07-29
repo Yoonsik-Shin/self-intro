@@ -11,6 +11,8 @@ import com.selfintro.modules.architecture.presentation.dto.ArchitectureOverviewR
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +24,13 @@ public class ArchitectureService {
     private final ArchitectureOverviewRepository overviewRepository;
     private final ArchitectureLayerRepository layerRepository;
 
+    @Cacheable(value = "architecture:overview", key = "'default'")
     public Optional<ArchitectureOverviewResponse> getOverview() {
         return overviewRepository.findFirstOverview().map(ArchitectureOverviewResponse::from);
     }
 
     @Transactional
+    @CacheEvict(value = "architecture:overview", allEntries = true)
     public ArchitectureOverviewResponse upsertOverview(ArchitectureOverviewRequest request) {
         ArchitectureOverview overview =
                 overviewRepository
@@ -56,6 +60,7 @@ public class ArchitectureService {
                 .toList();
     }
 
+    @Cacheable(value = "architecture:layers", key = "'visible'")
     public List<ArchitectureLayerResponse> getVisibleLayers() {
         return layerRepository.findAllByVisibleTrueOrderByDisplayOrderAsc().stream()
                 .map(ArchitectureLayerResponse::from)
@@ -63,6 +68,7 @@ public class ArchitectureService {
     }
 
     @Transactional
+    @CacheEvict(value = "architecture:layers", allEntries = true)
     public ArchitectureLayerResponse createLayer(ArchitectureLayerRequest request) {
         ArchitectureLayer layer =
                 ArchitectureLayer.create(
@@ -72,6 +78,7 @@ public class ArchitectureService {
     }
 
     @Transactional
+    @CacheEvict(value = "architecture:layers", allEntries = true)
     public ArchitectureLayerResponse updateLayer(Long id, ArchitectureLayerRequest request) {
         ArchitectureLayer layer =
                 layerRepository
@@ -84,6 +91,7 @@ public class ArchitectureService {
     }
 
     @Transactional
+    @CacheEvict(value = "architecture:layers", allEntries = true)
     public void deleteLayer(Long id) {
         if (!layerRepository.existsById(id)) {
             throw new IllegalArgumentException("존재하지 않는 아키텍처 레이어입니다.");

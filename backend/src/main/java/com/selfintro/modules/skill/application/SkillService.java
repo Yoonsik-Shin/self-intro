@@ -5,6 +5,7 @@ import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.presentation.dto.SkillRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ public class SkillService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public Skill create(SkillRequest request) {
         Skill skill =
                 Skill.create(

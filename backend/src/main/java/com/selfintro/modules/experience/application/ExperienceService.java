@@ -23,10 +23,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -47,6 +50,7 @@ public class ExperienceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public ExperienceResponse toggleTimeline(Long id) {
         Experience experience =
                 experienceRepository
