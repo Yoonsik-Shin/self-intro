@@ -462,12 +462,36 @@ public class JobPostingService {
 
     @Transactional
     public void dismiss(Long id) {
-        findOrThrow(id).dismiss(LocalDateTime.now());
+        JobPosting posting = findOrThrow(id);
+        LocalDateTime now = LocalDateTime.now();
+        posting.dismiss(now);
+        statusEventRepository.save(
+                JobPostingStatusEvent.of(
+                        posting.getId(), JobPostingStatus.DISMISSED, "숨김 처리", now));
     }
 
     @Transactional
     public void undismiss(Long id) {
-        findOrThrow(id).undismiss(LocalDateTime.now());
+        JobPosting posting = findOrThrow(id);
+        if (posting.getStatus() == JobPostingStatus.DISMISSED) {
+            LocalDateTime now = LocalDateTime.now();
+            List<JobPostingStatusEvent> events =
+                    statusEventRepository.findByJobPostingIdOrderByChangedAtAsc(id);
+            JobPostingStatus restoreStatus = JobPostingStatus.NEW;
+            for (int i = events.size() - 1; i >= 0; i--) {
+                JobPostingStatus s = events.get(i).getStatus();
+                if (s != JobPostingStatus.DISMISSED) {
+                    restoreStatus = s;
+                    break;
+                }
+            }
+            if (posting.getAppliedAt() != null && restoreStatus == JobPostingStatus.NEW) {
+                restoreStatus = JobPostingStatus.APPLIED;
+            }
+            posting.changeStatus(restoreStatus, now);
+            statusEventRepository.save(
+                    JobPostingStatusEvent.of(posting.getId(), restoreStatus, "숨김 해제", now));
+        }
     }
 
     /** 지원 전 후보를 "지원 완료" 상태로 전환한다("전환" 버튼) — 새 행을 만들지 않고 이 행 자체의 상태를 바꾼다. */
