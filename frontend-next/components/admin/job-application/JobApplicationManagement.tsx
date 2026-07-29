@@ -252,11 +252,10 @@ function MatchScoreBadge({
 
     return (
         <span
-            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-extrabold whitespace-nowrap ${badgeStyle}`}
+            className={`inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-extrabold whitespace-nowrap ${badgeStyle}`}
             title={reason ?? undefined}
         >
-            <Sparkles className="h-3 w-3 shrink-0 text-amber-500" />
-            AI {score}점
+            {score}점
         </span>
     );
 }
