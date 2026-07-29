@@ -947,6 +947,19 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '전형 단계 변경에 실패했습니다.'),
     });
 
+    const deleteStatusEventMutation = useMutation({
+        mutationFn: ({ id, eventId }: { id: number; eventId: number }) =>
+            jobPostingApi.deleteStatusEvent(id, eventId),
+        onSuccess: (_, variables) => {
+            invalidate();
+            queryClient.invalidateQueries({
+                queryKey: ['jobPostings', variables.id, 'statusEvents'],
+            });
+        },
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '상태 이력 삭제에 실패했습니다.'),
+    });
+
     const analyzeAppealMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.analyzeAppeal(id),
         onSuccess: () => invalidate(),
@@ -2701,6 +2714,71 @@ export function JobApplicationManagement() {
                                                                                     statusEventMemo(
                                                                                         event
                                                                                     );
+                                                                                return (
+                                                                                    <li
+                                                                                        key={
+                                                                                            event.id
+                                                                                        }
+                                                                                        className="group flex items-center justify-between gap-2 text-sm"
+                                                                                    >
+                                                                                        <div className="flex items-baseline gap-2 overflow-hidden">
+                                                                                            <span className="whitespace-nowrap font-mono text-xs text-slate-400">
+                                                                                                {event.changedAt
+                                                                                                    .replace(
+                                                                                                        'T',
+                                                                                                        ' '
+                                                                                                    )
+                                                                                                    .slice(
+                                                                                                        0,
+                                                                                                        19
+                                                                                                    )}
+                                                                                            </span>
+                                                                                            <span
+                                                                                                className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${statusEventBadgeClass(event.status)}`}
+                                                                                            >
+                                                                                                {statusEventLabel(
+                                                                                                    event,
+                                                                                                    index,
+                                                                                                    stageEvents
+                                                                                                )}
+                                                                                            </span>
+                                                                                            {memo && (
+                                                                                                <span className="truncate text-xs text-slate-500">
+                                                                                                    {
+                                                                                                        memo
+                                                                                                    }
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        {drawerItem && (
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => {
+                                                                                                    if (
+                                                                                                        confirm(
+                                                                                                            `'${statusEventLabel(event, index, stageEvents)}' 이력을 삭제하시겠습니까?`
+                                                                                                        )
+                                                                                                    ) {
+                                                                                                        deleteStatusEventMutation.mutate(
+                                                                                                            {
+                                                                                                                id: drawerItem.id,
+                                                                                                                eventId:
+                                                                                                                    event.id,
+                                                                                                            }
+                                                                                                        );
+                                                                                                    }
+                                                                                                }}
+                                                                                                disabled={
+                                                                                                    deleteStatusEventMutation.isPending
+                                                                                                }
+                                                                                                className="p-1 text-slate-300 transition-colors hover:text-rose-500 disabled:opacity-50"
+                                                                                                title="이력 삭제"
+                                                                                            >
+                                                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                                            </button>
+                                                                                        )}
+                                                                                    </li>
+                                                                                );
                                                                                 return (
                                                                                     <li
                                                                                         key={

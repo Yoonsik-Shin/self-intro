@@ -507,6 +507,33 @@ public class JobPostingService {
                 .toList();
     }
 
+    @Transactional
+    public JobPostingResponse deleteStatusEvent(Long id, Long eventId) {
+        JobPosting posting = findOrThrow(id);
+        JobPostingStatusEvent event =
+                statusEventRepository
+                        .findById(eventId)
+                        .orElseThrow(
+                                () ->
+                                        new EntityNotFoundException(
+                                                "상태 이력을 찾을 수 없습니다. id=" + eventId));
+
+        if (!event.getJobPostingId().equals(id)) {
+            throw new IllegalArgumentException("해당 공고의 상태 이력이 아닙니다.");
+        }
+
+        statusEventRepository.delete(event);
+
+        List<JobPostingStatusEvent> remainingEvents =
+                statusEventRepository.findByJobPostingIdOrderByChangedAtAsc(id);
+        if (!remainingEvents.isEmpty()) {
+            JobPostingStatusEvent latestEvent = remainingEvents.get(remainingEvents.size() - 1);
+            posting.changeStatus(latestEvent.getStatus(), latestEvent.getChangedAt());
+        }
+
+        return JobPostingResponse.from(posting);
+    }
+
     /**
      * URL 수집은 사람인 API와 달리 별도의 "요구 기술" 필드가 없어, AI가 뽑아낸 자격요건/우대사항/ 직무상세 텍스트를 합쳐 매칭용 원문으로 쓴다 — 그래야
      * JobMatchingService의 키워드/AI 매칭이 제목만으로 판단하지 않고 실제 요건 텍스트를 근거로 삼을 수 있다.

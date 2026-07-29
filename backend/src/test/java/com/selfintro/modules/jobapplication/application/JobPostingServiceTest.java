@@ -463,6 +463,40 @@ class JobPostingServiceTest {
     }
 
     @Test
+    void deleteStatusEventDeletesEventAndUpdatesPostingStatusToLatestRemaining() {
+        JobPosting application = newApplication();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(application));
+
+        JobPostingStatusEvent event1 =
+                JobPostingStatusEvent.of(
+                        1L,
+                        JobPostingStatus.APPLIED,
+                        "지원 등록",
+                        LocalDate.of(2026, 7, 1).atStartOfDay());
+        JobPostingStatusEvent event2 =
+                JobPostingStatusEvent.of(
+                        1L,
+                        JobPostingStatus.WITHDRAWN,
+                        "실수 포기",
+                        LocalDate.of(2026, 7, 2).atStartOfDay());
+        JobPostingStatusEvent event3 =
+                JobPostingStatusEvent.of(
+                        1L,
+                        JobPostingStatus.REJECTED,
+                        "불합격",
+                        LocalDate.of(2026, 7, 3).atStartOfDay());
+
+        when(statusEventRepository.findById(200L)).thenReturn(Optional.of(event2));
+        when(statusEventRepository.findByJobPostingIdOrderByChangedAtAsc(1L))
+                .thenReturn(List.of(event1, event3));
+
+        JobPostingResponse response = jobPostingService.deleteStatusEvent(1L, 200L);
+
+        verify(statusEventRepository).delete(event2);
+        assertThat(response.status()).isEqualTo(JobPostingStatus.REJECTED);
+    }
+
+    @Test
     void updateSettingsPersistsAllFieldsOnTheSingletonRow() {
         JobPostingSetting setting = JobPostingSetting.defaults(LocalDateTime.now());
         when(settingRepository.getOrCreateDefault()).thenReturn(setting);

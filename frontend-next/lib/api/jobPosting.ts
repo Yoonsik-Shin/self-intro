@@ -136,6 +136,10 @@ export const jobPostingApi = {
         }),
     statusEvents: (id: number) =>
         request<JobPostingStatusEvent[]>(`/api/admin/job-postings/${id}/status-events`),
+    deleteStatusEvent: (id: number, eventId: number) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/status-events/${eventId}`, {
+            method: 'DELETE',
+        }),
     analyzeAppeal: (id: number) =>
         request<JobPosting>(`/api/admin/job-postings/${id}/analyze-appeal`, {
             method: 'POST',

@@ -190,6 +190,11 @@ public class JobPostingController {
         return jobPostingService.statusEvents(id);
     }
 
+    @DeleteMapping("/{id}/status-events/{eventId}")
+    public JobPostingResponse deleteStatusEvent(@PathVariable Long id, @PathVariable Long eventId) {
+        return jobPostingService.deleteStatusEvent(id, eventId);
+    }
+
     @PostMapping("/{id}/analyze-appeal")
     public JobPostingResponse analyzeAppeal(@PathVariable Long id) {
         return jobPostingAppealService.analyzeAppeal(id);
