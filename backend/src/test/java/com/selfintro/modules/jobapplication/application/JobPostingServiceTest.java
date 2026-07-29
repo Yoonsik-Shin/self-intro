@@ -3,28 +3,29 @@ package com.selfintro.modules.jobapplication.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingCandidate;
+import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
-import com.selfintro.modules.jobapplication.domain.enums.JobPostingCandidateStatus;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingStatusEvent;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingCandidateRepository;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
-import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationRequest;
-import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingStatusEventRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateResponse;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateUpdateRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingStatusEventResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,9 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 class JobPostingServiceTest {
 
-    @Mock private JobPostingCandidateRepository candidateRepository;
+    @Mock private JobPostingRepository jobPostingRepository;
+    @Mock private JobPostingStatusEventRepository statusEventRepository;
     @Mock private JobPostingSettingRepository settingRepository;
-    @Mock private JobApplicationService jobApplicationService;
     @Mock private JobApplicationUrlParseService urlParseService;
     @Mock private JobMatchingService matchingService;
 
@@ -50,27 +51,28 @@ class JobPostingServiceTest {
     void setUp() {
         jobPostingService =
                 new JobPostingService(
-                        candidateRepository,
+                        jobPostingRepository,
+                        statusEventRepository,
                         settingRepository,
-                        jobApplicationService,
                         urlParseService,
                         matchingService,
                         new ObjectMapper());
     }
 
-    private JobPostingCandidate newCandidate() {
-        JobPostingCandidate candidate =
-                JobPostingCandidate.create(
-                        new JobPostingCandidate.Draft(
-                                null,
+    private JobPosting newCandidate() {
+        JobPosting candidate =
+                JobPosting.collect(
+                        new JobPosting.Draft(
                                 "백엔드 개발자",
                                 "테스트 회사",
                                 "https://example.com/posting",
+                                null,
                                 JobPostingSource.URL_INGEST,
                                 null,
                                 null,
                                 null,
                                 LocalDate.now().plusDays(10),
+                                false,
                                 "협의",
                                 null,
                                 null,
@@ -83,9 +85,35 @@ class JobPostingServiceTest {
         return candidate;
     }
 
+    private JobPosting newApplication() {
+        JobPosting application =
+                JobPosting.registerApplied(
+                        "테스트 회사",
+                        "백엔드 개발자",
+                        "https://example.com/posting",
+                        "사람인",
+                        LocalDate.of(2026, 7, 1),
+                        LocalDate.of(2026, 7, 31),
+                        false,
+                        "협의 후 결정",
+                        null,
+                        null,
+                        "메모",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        LocalDate.of(2026, 7, 1).atStartOfDay());
+        ReflectionTestUtils.setField(application, "id", 1L);
+        return application;
+    }
+
     @Test
     void ingestUrlRejectsAlreadyCollectedUrl() {
-        when(candidateRepository.existsByUrl("https://example.com/posting")).thenReturn(true);
+        when(jobPostingRepository.existsByPostingUrl("https://example.com/posting"))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
                 .isInstanceOf(ResponseStatusException.class);
@@ -95,7 +123,7 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlRejectsWhenAiCannotExtractCoreFields() {
-        when(candidateRepository.existsByUrl(any())).thenReturn(false);
+        when(jobPostingRepository.existsByPostingUrl(any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -103,6 +131,7 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
+                                false,
                                 null,
                                 null,
                                 null,
@@ -117,12 +146,12 @@ class JobPostingServiceTest {
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
                 .isInstanceOf(ResponseStatusException.class);
 
-        verify(candidateRepository, never()).save(any());
+        verify(jobPostingRepository, never()).save(any());
     }
 
     @Test
     void ingestUrlSavesNewCandidateOnSuccess() {
-        when(candidateRepository.existsByUrl(any())).thenReturn(false);
+        when(jobPostingRepository.existsByPostingUrl(any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -130,6 +159,7 @@ class JobPostingServiceTest {
                                 "백엔드 개발자",
                                 "사람인",
                                 LocalDate.now().plusDays(5),
+                                false,
                                 "협의",
                                 null,
                                 null,
@@ -140,30 +170,34 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://example.com/posting"));
-        when(candidateRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(jobPostingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(matchingService.evaluate(any(), any()))
                 .thenReturn(new JobMatchingService.MatchResult(80, "보유 기술과 일치도가 높습니다."));
 
-        JobPostingCandidateResponse response =
-                jobPostingService.ingestUrl("https://example.com/posting");
+        JobPostingResponse response = jobPostingService.ingestUrl("https://example.com/posting");
 
         assertThat(response.companyName()).isEqualTo("테스트 회사");
-        assertThat(response.status()).isEqualTo(JobPostingCandidateStatus.NEW);
+        assertThat(response.status()).isEqualTo(JobPostingStatus.NEW);
         assertThat(response.matchScore()).isEqualTo(80);
     }
 
     @Test
-    void updateCandidateOverwritesEditableFields() {
-        JobPostingCandidate candidate = newCandidate();
-        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
-        JobPostingCandidateUpdateRequest request =
-                new JobPostingCandidateUpdateRequest(
-                        "수정된 직무명",
+    void updateOverwritesEditableFieldsWithoutTouchingStatus() {
+        JobPosting candidate = newCandidate();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        JobPostingRequest request =
+                new JobPostingRequest(
                         "수정된 회사",
+                        "수정된 직무명",
+                        "https://example.com/posting",
+                        "URL 수집",
+                        null,
                         LocalDate.now().plusDays(20),
+                        false,
                         "연봉 4000만원",
                         "서울 종로구",
                         "정규직",
+                        null,
                         "직무 상세",
                         "지원자격",
                         "우대사항",
@@ -171,114 +205,251 @@ class JobPostingServiceTest {
                         "지원방법",
                         "처우조건");
 
-        JobPostingCandidateResponse response = jobPostingService.updateCandidate(1L, request);
+        JobPostingResponse response = jobPostingService.update(1L, request);
 
-        assertThat(response.title()).isEqualTo("수정된 직무명");
+        assertThat(response.positionTitle()).isEqualTo("수정된 직무명");
         assertThat(response.companyName()).isEqualTo("수정된 회사");
         assertThat(response.location()).isEqualTo("서울 종로구");
         assertThat(response.employmentType()).isEqualTo("정규직");
         assertThat(response.requiredQualifications()).isEqualTo("지원자격");
+        assertThat(response.status()).isEqualTo(JobPostingStatus.NEW);
+    }
+
+    @Test
+    void refreshRejectsWhenPostingHasNoUrl() {
+        JobPosting candidate = newCandidate();
+        ReflectionTestUtils.setField(candidate, "postingUrl", null);
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+
+        assertThatThrownBy(() -> jobPostingService.refresh(1L))
+                .isInstanceOf(ResponseStatusException.class);
+
+        verify(urlParseService, never()).parse(any());
+    }
+
+    @Test
+    void refreshOverwritesDeadlineAndDetailFieldsButKeepsIdentityFields() {
+        JobPosting candidate = newCandidate();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        LocalDate freshDeadline = LocalDate.now().plusDays(3);
+        when(urlParseService.parse("https://example.com/posting"))
+                .thenReturn(
+                        new JobApplicationUrlParseResponse(
+                                "다른 회사로 오독된 이름",
+                                "다른 직무명으로 오독됨",
+                                "사람인",
+                                freshDeadline,
+                                false,
+                                "협의",
+                                "서울 종로구",
+                                "정규직",
+                                "새 직무 상세",
+                                "새 지원자격",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "https://example.com/posting"));
+
+        JobPostingResponse response = jobPostingService.refresh(1L);
+
+        assertThat(response.deadline()).isEqualTo(freshDeadline);
+        assertThat(response.alwaysOpen()).isFalse();
+        assertThat(response.location()).isEqualTo("서울 종로구");
+        assertThat(response.jobDescription()).isEqualTo("새 직무 상세");
+        assertThat(response.requiredQualifications()).isEqualTo("새 지원자격");
+        assertThat(response.companyName()).isEqualTo("테스트 회사");
+        assertThat(response.positionTitle()).isEqualTo("백엔드 개발자");
+    }
+
+    @Test
+    void refreshKeepsExistingDeadlineWhenFreshParseCannotDetermineIt() {
+        JobPosting candidate = newCandidate();
+        LocalDate originalDeadline = candidate.getDeadline();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(urlParseService.parse("https://example.com/posting"))
+                .thenReturn(
+                        new JobApplicationUrlParseResponse(
+                                "테스트 회사",
+                                "백엔드 개발자",
+                                "사람인",
+                                null,
+                                false,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "https://example.com/posting"));
+
+        JobPostingResponse response = jobPostingService.refresh(1L);
+
+        assertThat(response.deadline()).isEqualTo(originalDeadline);
     }
 
     @Test
     void saveMovesNewCandidateToSavedStatus() {
-        JobPostingCandidate candidate = newCandidate();
-        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        JobPosting candidate = newCandidate();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
 
         jobPostingService.save(1L);
 
-        assertThat(candidate.getStatus()).isEqualTo(JobPostingCandidateStatus.SAVED);
+        assertThat(candidate.getStatus()).isEqualTo(JobPostingStatus.SAVED);
     }
 
     @Test
     void unsaveMovesSavedCandidateBackToNewStatus() {
-        JobPostingCandidate candidate = newCandidate();
+        JobPosting candidate = newCandidate();
         candidate.save(LocalDateTime.now());
-        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
 
         jobPostingService.unsave(1L);
 
-        assertThat(candidate.getStatus()).isEqualTo(JobPostingCandidateStatus.NEW);
+        assertThat(candidate.getStatus()).isEqualTo(JobPostingStatus.NEW);
     }
 
     @Test
-    void convertToApplicationCreatesApplicationAndMarksCandidateConverted() {
-        JobPostingCandidate candidate = newCandidate();
-        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
-        when(jobApplicationService.create(any(JobApplicationRequest.class), eq(1L)))
-                .thenReturn(
-                        new JobApplicationResponse(
-                                10L,
-                                "테스트 회사",
-                                "백엔드 개발자",
-                                "https://example.com/posting",
-                                "URL 수집",
-                                LocalDate.now(),
-                                candidate.getDeadline(),
-                                com.selfintro.modules.jobapplication.domain.enums
-                                        .JobApplicationStage.APPLIED,
-                                "협의",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                LocalDateTime.now(),
-                                LocalDateTime.now()));
+    void applyTransitionsCandidateToAppliedStatusInPlace() {
+        JobPosting candidate = newCandidate();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
 
-        JobApplicationResponse response = jobPostingService.convertToApplication(1L);
+        JobPostingResponse response = jobPostingService.apply(1L);
 
-        assertThat(response.id()).isEqualTo(10L);
-        assertThat(candidate.getStatus()).isEqualTo(JobPostingCandidateStatus.CONVERTED);
+        assertThat(response.status()).isEqualTo(JobPostingStatus.APPLIED);
+        assertThat(response.appliedAt()).isEqualTo(LocalDate.now());
+        verify(statusEventRepository).save(any(JobPostingStatusEvent.class));
+    }
 
-        ArgumentCaptor<JobApplicationRequest> requestCaptor =
-                ArgumentCaptor.forClass(JobApplicationRequest.class);
-        verify(jobApplicationService).create(requestCaptor.capture(), eq(1L));
-        assertThat(requestCaptor.getValue().companyName()).isEqualTo("테스트 회사");
-        assertThat(requestCaptor.getValue().source()).isEqualTo("URL 수집");
+    @Test
+    void unapplyRevertsAppliedPostingBackToNewStatusAndClearsAppliedAt() {
+        JobPosting posting = newCandidate();
+        posting.apply(LocalDate.now(), LocalDateTime.now());
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
+
+        JobPostingResponse response = jobPostingService.unapply(1L);
+
+        assertThat(response.status()).isEqualTo(JobPostingStatus.NEW);
+        assertThat(response.appliedAt()).isNull();
+        verify(statusEventRepository).save(any(JobPostingStatusEvent.class));
     }
 
     @Test
     void undismissMovesDismissedCandidateBackToNewStatus() {
-        JobPostingCandidate candidate = newCandidate();
+        JobPosting candidate = newCandidate();
         candidate.dismiss(LocalDateTime.now());
-        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
 
         jobPostingService.undismiss(1L);
 
-        assertThat(candidate.getStatus()).isEqualTo(JobPostingCandidateStatus.NEW);
+        assertThat(candidate.getStatus()).isEqualTo(JobPostingStatus.NEW);
     }
 
     @Test
-    void dismissThrowsWhenCandidateDoesNotExist() {
-        when(candidateRepository.findById(99L)).thenReturn(Optional.empty());
+    void dismissThrowsWhenPostingDoesNotExist() {
+        when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobPostingService.dismiss(99L))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
-    void deleteCandidateRemovesNonConvertedCandidate() {
-        JobPostingCandidate candidate = newCandidate();
-        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+    void deleteRemovesPosting() {
+        JobPosting candidate = newCandidate();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
 
-        jobPostingService.deleteCandidate(1L);
+        jobPostingService.delete(1L);
 
-        verify(candidateRepository).delete(candidate);
+        verify(jobPostingRepository).delete(candidate);
     }
 
     @Test
-    void deleteCandidateRejectsAlreadyConvertedCandidate() {
-        JobPostingCandidate candidate = newCandidate();
-        candidate.markConverted(LocalDateTime.now());
-        when(candidateRepository.findById(1L)).thenReturn(Optional.of(candidate));
+    void createPersistsApplicationAndRecordsAppliedStatusEvent() {
+        when(jobPostingRepository.save(any()))
+                .thenAnswer(
+                        invocation -> {
+                            JobPosting argument = invocation.getArgument(0);
+                            ReflectionTestUtils.setField(argument, "id", 1L);
+                            return argument;
+                        });
 
-        assertThatThrownBy(() -> jobPostingService.deleteCandidate(1L))
-                .isInstanceOf(ResponseStatusException.class);
+        JobPostingRequest request =
+                new JobPostingRequest(
+                        "테스트 회사",
+                        "백엔드 개발자",
+                        "https://example.com/posting",
+                        "사람인",
+                        LocalDate.of(2026, 7, 1),
+                        LocalDate.of(2026, 7, 31),
+                        false,
+                        "협의 후 결정",
+                        null,
+                        null,
+                        "메모",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null);
 
-        verify(candidateRepository, never()).delete(any());
+        JobPostingResponse response = jobPostingService.create(request);
+
+        assertThat(response.companyName()).isEqualTo("테스트 회사");
+        assertThat(response.status()).isEqualTo(JobPostingStatus.APPLIED);
+
+        ArgumentCaptor<JobPostingStatusEvent> eventCaptor =
+                ArgumentCaptor.forClass(JobPostingStatusEvent.class);
+        verify(statusEventRepository).save(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getStatus()).isEqualTo(JobPostingStatus.APPLIED);
+        assertThat(eventCaptor.getValue().getJobPostingId()).isEqualTo(1L);
+    }
+
+    @Test
+    void changeStatusUpdatesStatusAndAppendsHistoryEvent() {
+        JobPosting application = newApplication();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(application));
+
+        JobPostingResponse response =
+                jobPostingService.changeStatus(1L, JobPostingStatus.CODING_TEST, "서류 통과");
+
+        assertThat(response.status()).isEqualTo(JobPostingStatus.CODING_TEST);
+
+        ArgumentCaptor<JobPostingStatusEvent> eventCaptor =
+                ArgumentCaptor.forClass(JobPostingStatusEvent.class);
+        verify(statusEventRepository).save(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getStatus()).isEqualTo(JobPostingStatus.CODING_TEST);
+        assertThat(eventCaptor.getValue().getMemo()).isEqualTo("서류 통과");
+    }
+
+    @Test
+    void changeStatusThrowsWhenPostingDoesNotExist() {
+        when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> jobPostingService.changeStatus(99L, JobPostingStatus.OFFER, null))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void statusEventsReturnsHistoryOrderedByChangedAt() {
+        JobPosting application = newApplication();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(application));
+        JobPostingStatusEvent appliedEvent =
+                JobPostingStatusEvent.of(
+                        1L,
+                        JobPostingStatus.APPLIED,
+                        "지원 등록",
+                        LocalDate.of(2026, 7, 1).atStartOfDay());
+        when(statusEventRepository.findByJobPostingIdOrderByChangedAtAsc(1L))
+                .thenReturn(List.of(appliedEvent));
+
+        List<JobPostingStatusEventResponse> events = jobPostingService.statusEvents(1L);
+
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).status()).isEqualTo(JobPostingStatus.APPLIED);
     }
 
     @Test
@@ -316,6 +487,12 @@ class JobPostingServiceTest {
                         true, "Java Spring", 30, "rc", "101000", "84", "10", true, 3, "not a cron");
 
         assertThatThrownBy(() -> jobPostingService.updateSettings(request))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void ingestUrlsStreamThrowsExceptionWhenUrlsEmpty() {
+        assertThatThrownBy(() -> jobPostingService.ingestUrlsStream(List.of("  ", "")))
                 .isInstanceOf(ResponseStatusException.class);
     }
 }

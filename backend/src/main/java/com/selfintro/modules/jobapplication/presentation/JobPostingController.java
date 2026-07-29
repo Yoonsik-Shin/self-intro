@@ -1,15 +1,21 @@
 package com.selfintro.modules.jobapplication.presentation;
 
+import com.selfintro.modules.jobapplication.application.JobApplicationUrlParseService;
 import com.selfintro.modules.jobapplication.application.JobPostingAppealService;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService.JobPostingCollectionResult;
+import com.selfintro.modules.jobapplication.application.JobPostingCoverLetterService;
 import com.selfintro.modules.jobapplication.application.JobPostingService;
-import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseRequest;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateResponse;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCandidateUpdateRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterItemResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterSaveRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingStatusChangeRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingStatusEventResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -34,12 +40,59 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class JobPostingController {
 
     private final JobPostingService jobPostingService;
+    private final JobPostingCoverLetterService coverLetterService;
     private final JobPostingCollectorService jobPostingCollectorService;
     private final JobPostingAppealService jobPostingAppealService;
+    private final JobApplicationUrlParseService urlParseService;
 
     @GetMapping
-    public List<JobPostingCandidateResponse> list() {
+    public List<JobPostingResponse> list() {
         return jobPostingService.list();
+    }
+
+    @GetMapping("/{id}")
+    public JobPostingResponse get(@PathVariable Long id) {
+        return jobPostingService.get(id);
+    }
+
+    @GetMapping("/{id}/cover-letter-items")
+    public List<JobPostingCoverLetterItemResponse> coverLetterItems(@PathVariable Long id) {
+        return coverLetterService.list(id);
+    }
+
+    @PutMapping("/{id}/cover-letter-items")
+    public List<JobPostingCoverLetterItemResponse> replaceCoverLetterItems(
+            @PathVariable Long id, @Valid @RequestBody JobPostingCoverLetterSaveRequest request) {
+        return coverLetterService.replace(id, request);
+    }
+
+    /** "새 지원 공고 등록" — 수집 단계 없이 이미 지원 완료한 공고를 바로 기록한다. */
+    @PostMapping
+    public JobPostingResponse create(@Valid @RequestBody JobPostingRequest request) {
+        return jobPostingService.create(request);
+    }
+
+    @PutMapping("/{id}")
+    public JobPostingResponse update(
+            @PathVariable Long id, @Valid @RequestBody JobPostingRequest request) {
+        return jobPostingService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        jobPostingService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/parse-url")
+    public JobApplicationUrlParseResponse parseUrl(
+            @Valid @RequestBody JobApplicationUrlParseRequest request) {
+        return urlParseService.parse(request.url());
+    }
+
+    @PostMapping(value = "/parse-url/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter parseUrlStream(@Valid @RequestBody JobApplicationUrlParseRequest request) {
+        return urlParseService.parseStream(request.url());
     }
 
     @GetMapping("/settings")
@@ -54,8 +107,7 @@ public class JobPostingController {
     }
 
     @PostMapping("/ingest-url")
-    public JobPostingCandidateResponse ingestUrl(
-            @Valid @RequestBody JobApplicationUrlParseRequest request) {
+    public JobPostingResponse ingestUrl(@Valid @RequestBody JobApplicationUrlParseRequest request) {
         return jobPostingService.ingestUrl(request.url());
     }
 
@@ -64,15 +116,24 @@ public class JobPostingController {
         return jobPostingService.ingestUrlStream(request.url());
     }
 
+    @PostMapping(value = "/ingest-urls/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter ingestUrlsStream(
+            @Valid @RequestBody
+                    com.selfintro.modules.jobapplication.presentation.dto
+                                    .JobApplicationUrlsParseRequest
+                            request) {
+        return jobPostingService.ingestUrlsStream(request.urls());
+    }
+
+    /** 이미 수집/등록된 공고를 원본 URL에서 다시 읽어 최신 정보(마감일 등)로 갱신한다. */
+    @PostMapping("/{id}/refresh")
+    public JobPostingResponse refresh(@PathVariable Long id) {
+        return jobPostingService.refresh(id);
+    }
+
     @PostMapping("/collect")
     public JobPostingCollectionResult collect() {
         return jobPostingCollectorService.collectNow();
-    }
-
-    @PatchMapping("/{id}")
-    public JobPostingCandidateResponse update(
-            @PathVariable Long id, @Valid @RequestBody JobPostingCandidateUpdateRequest request) {
-        return jobPostingService.updateCandidate(id, request);
     }
 
     @PatchMapping("/{id}/save")
@@ -99,19 +160,31 @@ public class JobPostingController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCandidate(@PathVariable Long id) {
-        jobPostingService.deleteCandidate(id);
-        return ResponseEntity.noContent().build();
+    /** 지원 전 후보를 "지원 완료" 상태로 전환한다(예전의 "지원 전환"). */
+    @PostMapping("/{id}/apply")
+    public JobPostingResponse apply(@PathVariable Long id) {
+        return jobPostingService.apply(id);
     }
 
-    @PostMapping("/{id}/convert-to-application")
-    public JobApplicationResponse convertToApplication(@PathVariable Long id) {
-        return jobPostingService.convertToApplication(id);
+    /** 실수로 지원 전환했거나 보드에서 잘못 옮긴 경우 지원 전 상태로 되돌린다. */
+    @PostMapping("/{id}/unapply")
+    public JobPostingResponse unapply(@PathVariable Long id) {
+        return jobPostingService.unapply(id);
+    }
+
+    @PatchMapping("/{id}/status")
+    public JobPostingResponse changeStatus(
+            @PathVariable Long id, @Valid @RequestBody JobPostingStatusChangeRequest request) {
+        return jobPostingService.changeStatus(id, request.status(), request.memo());
+    }
+
+    @GetMapping("/{id}/status-events")
+    public List<JobPostingStatusEventResponse> statusEvents(@PathVariable Long id) {
+        return jobPostingService.statusEvents(id);
     }
 
     @PostMapping("/{id}/analyze-appeal")
-    public JobPostingCandidateResponse analyzeAppeal(@PathVariable Long id) {
+    public JobPostingResponse analyzeAppeal(@PathVariable Long id) {
         return jobPostingAppealService.analyzeAppeal(id);
     }
 

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Frame;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
@@ -31,7 +32,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
@@ -65,8 +65,11 @@ public class JobApplicationUrlParseService {
             source는 URL의 도메인이나 페이지 내용으로 미루어 알 수 있는 채용 플랫폼/회사 채용 페이지 이름입니다
             (예: 사람인, 원티드, 잡코리아, 회사 채용 사이트 등).
             deadline은 지원 마감일을 YYYY-MM-DD 형식으로 반환하세요. "접수기간 2026.7.20~8.2"처럼
-            기간으로 표기되어 있으면 마지막 날짜(종료일)를 마감일로 사용하세요. 상시채용이거나 날짜를
-            알 수 없으면 null로 반환하세요.
+            기간으로 표기되어 있으면 마지막 날짜(종료일)를 마감일로 사용하세요. 날짜를 알 수 없으면
+            null로 반환하세요.
+            alwaysOpen은 본문에 "상시채용", "채용시 마감", "수시채용"처럼 정해진 마감일 없이 계속
+            모집한다는 내용이 명시된 경우에만 true로 반환하세요. 그 경우 deadline은 항상 null이어야
+            합니다. 그런 표현이 없고 단순히 마감일을 못 찾은 경우에는 false로 반환하세요.
             jobDescription은 담당 업무/직무 상세 설명, requiredQualifications는 지원자격(필수 요건),
             preferredQualifications는 우대사항, applicationMethod는 지원방법(접수 방식, 제출 서류 등),
             compensationDetail은 급여를 제외한 처우조건(근무형태, 복리후생 등)입니다.
@@ -81,7 +84,7 @@ public class JobApplicationUrlParseService {
             "서울/경기", "재택근무"). employmentType은 고용형태입니다(예: "정규직", "계약직", "인턴",
             "프리랜서"). 둘 다 본문에 명시되어 있지 않으면 null로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     private static final String VISION_PARSE_PROMPT =
@@ -92,8 +95,11 @@ public class JobApplicationUrlParseService {
             이미지에 실제로 보이는 텍스트만 사실로 인정하고, 보이지 않는 내용은 만들어내지 마세요.
             알 수 없는 값은 null로 두세요.
             deadline은 지원 마감일을 YYYY-MM-DD 형식으로 반환하세요. "2026.7.20(월)~8.2(일)"처럼
-            기간으로 표기되어 있으면 마지막 날짜(종료일)를 마감일로 사용하세요. 상시채용이거나 날짜를
-            알 수 없으면 null로 반환하세요.
+            기간으로 표기되어 있으면 마지막 날짜(종료일)를 마감일로 사용하세요. 날짜를 알 수 없으면
+            null로 반환하세요.
+            alwaysOpen은 이미지에 "상시채용", "채용시 마감", "수시채용"처럼 정해진 마감일 없이 계속
+            모집한다는 내용이 명시된 경우에만 true로 반환하세요. 그 경우 deadline은 항상 null이어야
+            합니다. 그런 표현이 없고 단순히 마감일이 안 보이는 경우에는 false로 반환하세요.
             채용 공고 이미지는 보통 "모집 부문/담당 업무", "지원 자격", "우대 사항", "전형절차 및 일정",
             "지원 방법", "처우"처럼 섹션 제목이 붙은 표나 구획으로 나뉘어 있습니다. 각 필드는 반드시 그
             섹션 제목 아래에 있는 내용만 담고, 다른 섹션의 내용을 섞어 넣지 마세요:
@@ -111,7 +117,7 @@ public class JobApplicationUrlParseService {
             location은 근무지, employmentType은 고용형태(정규직/계약직/인턴 등)입니다. 이미지에 보이는
             표현을 그대로 짧게 옮기고, 없으면 null로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     private static final int MAX_PAGE_TEXT_LENGTH = 12000;
@@ -141,16 +147,23 @@ public class JobApplicationUrlParseService {
     private static final int TILE_OVERLAP_PX = 150;
     private static final int MIN_FILLED_DETAIL_FIELDS = 2;
     private static final int MIN_MEANINGFUL_TEXT_LENGTH = 200;
+    // 상세요강 내용이 있는 채용 공고라면 거의 항상 등장하는 표제어. 잡코리아처럼 정적 HTML은
+    // 텍스트가 충분해도(내비게이션·추천공고 등) 정작 상세요강 본문은 iframe으로 분리되어 있어
+    // 이 표제어들이 하나도 없을 수 있다 — 그런 경우엔 헤드리스 렌더링으로 다시 시도한다.
+    private static final Set<String> DETAIL_SECTION_MARKERS =
+            Set.of("담당업무", "수행업무", "주요업무", "우대사항", "전형절차", "채용전형");
     private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
     private static final double HEADLESS_NAVIGATE_TIMEOUT_MILLIS = 20_000;
     private static final ExtractedFields EMPTY_EXTRACTED_FIELDS =
             new ExtractedFields(
-                    null, null, null, null, null, null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null, null, null, null, null,
+                    null);
 
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
     private final String visionModel;
-    private final AtomicBoolean parsing = new AtomicBoolean(false);
+    private final java.util.concurrent.Semaphore parseSemaphore =
+            new java.util.concurrent.Semaphore(3);
 
     public JobApplicationUrlParseService(
             NvidiaNimClient nvidiaNimClient,
@@ -162,10 +175,6 @@ public class JobApplicationUrlParseService {
     }
 
     public SseEmitter parseStream(String url) {
-        if (!parsing.compareAndSet(false, true)) {
-            throw new ResponseStatusException(
-                    HttpStatus.TOO_MANY_REQUESTS, "이미 채용공고 URL을 분석하고 있습니다.");
-        }
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-application-parse-stream")
@@ -174,7 +183,14 @@ public class JobApplicationUrlParseService {
     }
 
     private void streamParse(String url, SseEmitter emitter) {
+        boolean acquired = false;
         try {
+            if (!parseSemaphore.tryAcquire(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                throw new ResponseStatusException(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        "현재 처리 중인 공고 분석 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+            }
+            acquired = true;
             JobApplicationUrlParseResponse response = parse(url);
             send(emitter, new CompleteEvent("complete", response));
             emitter.complete();
@@ -185,7 +201,9 @@ public class JobApplicationUrlParseService {
             log.warn("채용공고 URL 분석 스트리밍 중 예상하지 못한 오류", exception);
             fail(emitter, "AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.");
         } finally {
-            parsing.set(false);
+            if (acquired) {
+                parseSemaphore.release();
+            }
         }
     }
 
@@ -216,10 +234,13 @@ public class JobApplicationUrlParseService {
     public JobApplicationUrlParseResponse parse(String url) {
         URI uri = validateUrl(url);
         Document document = fetchDocument(uri);
-        if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH) {
-            // 정적 HTML에 실제 내용이 거의 없으면 SPA(클라이언트 렌더링) 페이지일 가능성이 높다 —
-            // 헤드리스 브라우저로 JS를 실행한 뒤의 DOM을 대신 사용한다. 렌더링에 실패하면 원래
-            // 정적 문서를 그대로 써서 이후 흐름(이미지 배너 폴백 등)이 기존과 동일하게 동작하게 둔다.
+        if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH
+                || looksLikeMissingDetailSection(document.text())) {
+            // 정적 HTML에 실제 내용이 거의 없으면 SPA(클라이언트 렌더링) 페이지일 가능성이 높고,
+            // 텍스트 자체는 충분해도 상세요강 표제어가 하나도 없으면 본문이 iframe 등으로 분리되어
+            // 정적 fetch에 아예 안 실렸을 가능성이 높다 — 두 경우 모두 헤드리스 브라우저로 JS를
+            // 실행한 뒤의 DOM을 대신 사용한다. 렌더링에 실패하면 원래 정적 문서를 그대로 써서
+            // 이후 흐름(이미지 배너 폴백 등)이 기존과 동일하게 동작하게 둔다.
             document = renderWithHeadlessBrowser(uri).orElse(document);
         }
         String pageText = AiJsonSupport.limit(document.text(), MAX_PAGE_TEXT_LENGTH);
@@ -238,11 +259,14 @@ public class JobApplicationUrlParseService {
                     || pageText.trim().length() < MIN_MEANINGFUL_TEXT_LENGTH) {
                 extracted = enrichFromBannerImage(extracted, document);
             }
+            LocalDate deadline = parseDate(extracted.deadline());
+            boolean alwaysOpen = deadline == null && Boolean.TRUE.equals(extracted.alwaysOpen());
             return new JobApplicationUrlParseResponse(
                     AiJsonSupport.blankToNull(extracted.companyName()),
                     AiJsonSupport.blankToNull(extracted.positionTitle()),
                     AiJsonSupport.blankToNull(extracted.source()),
-                    parseDate(extracted.deadline()),
+                    deadline,
+                    alwaysOpen,
                     AiJsonSupport.blankToNull(extracted.salaryNote()),
                     AiJsonSupport.blankToNull(extracted.location()),
                     AiJsonSupport.blankToNull(extracted.employmentType()),
@@ -257,6 +281,10 @@ public class JobApplicationUrlParseService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
         }
+    }
+
+    boolean looksLikeMissingDetailSection(String pageText) {
+        return DETAIL_SECTION_MARKERS.stream().noneMatch(pageText::contains);
     }
 
     private boolean looksIncomplete(ExtractedFields fields) {
@@ -346,6 +374,7 @@ public class JobApplicationUrlParseService {
                 pick(base.positionTitle(), fromImage.positionTitle()),
                 pick(base.source(), fromImage.source()),
                 pick(base.deadline(), fromImage.deadline()),
+                base.alwaysOpen() != null ? base.alwaysOpen() : fromImage.alwaysOpen(),
                 pick(base.salaryNote(), fromImage.salaryNote()),
                 pick(base.location(), fromImage.location()),
                 pick(base.employmentType(), fromImage.employmentType()),
@@ -419,11 +448,32 @@ public class JobApplicationUrlParseService {
                     // 쓴다 — 여기서 예외를 던지면 애써 로딩된 콘텐츠를 버리고 빈 문서로 되돌아간다.
                     log.debug("헤드리스 렌더링 networkidle 대기 타임아웃, 현재 DOM으로 계속 진행: {}", uri);
                 }
-                return Optional.of(Jsoup.parse(readContentTolerant(page), uri.toString()));
+                Document document = Jsoup.parse(readContentTolerant(page), uri.toString());
+                prependIframeText(page, document);
+                return Optional.of(document);
             }
         } catch (Exception exception) {
             log.warn("헤드리스 브라우저 렌더링 실패: {}", uri, exception);
             return Optional.empty();
+        }
+    }
+
+    /**
+     * 일부 채용 사이트(잡코리아 등)는 상세요강 본문을 메인 문서가 아니라 별도 iframe 문서로 렌더링한다. page.content()에는 iframe 태그의 src만
+     * 남고 내부 내용은 포함되지 않으므로, 하위 프레임 각각의 본문 텍스트를 모아 메인 문서 맨 앞에 이어 붙인다 — 뒤에 붙이면 내비게이션·추천공고 등 다른 텍스트가 먼저
+     * 채워진 뒤 {@link #MAX_PAGE_TEXT_LENGTH} 자르기에서 정작 중요한 내용이 잘릴 수 있어, 이 보강 텍스트를 최우선으로 둔다.
+     */
+    private void prependIframeText(Page page, Document document) {
+        for (Frame frame : page.frames()) {
+            if (frame.equals(page.mainFrame())) continue;
+            try {
+                String frameText = Jsoup.parse(frame.content()).text();
+                if (AiJsonSupport.hasText(frameText)) {
+                    document.body().prependElement("div").text(frameText);
+                }
+            } catch (PlaywrightException ignored) {
+                // 프레임 콘텐츠를 가져오지 못하면(로딩 실패, 이미 닫힌 프레임 등) 건너뛰고 계속 진행한다
+            }
         }
     }
 
@@ -511,6 +561,7 @@ public class JobApplicationUrlParseService {
             @JsonDeserialize(using = LenientStringDeserializer.class) String positionTitle,
             @JsonDeserialize(using = LenientStringDeserializer.class) String source,
             @JsonDeserialize(using = LenientStringDeserializer.class) String deadline,
+            Boolean alwaysOpen,
             @JsonDeserialize(using = LenientStringDeserializer.class) String salaryNote,
             @JsonDeserialize(using = LenientStringDeserializer.class) String location,
             @JsonDeserialize(using = LenientStringDeserializer.class) String employmentType,
