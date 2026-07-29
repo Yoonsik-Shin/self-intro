@@ -21,6 +21,7 @@ import {
     Heart,
     ClipboardList,
     GraduationCap,
+    CalendarCheck,
     X,
 } from 'lucide-react';
 import { bffApi, skillApi } from '@/lib/api';
@@ -39,6 +40,7 @@ import { PrintTemplateManagement } from './print-template/PrintTemplateManagemen
 import { AnalyticsPanel } from './analytics/AnalyticsPanel';
 import { DonationsPanel } from './donations/DonationsPanel';
 import { JobApplicationManagement } from './job-application/JobApplicationManagement';
+import { StudyPlanManagement } from './study-plan/StudyPlanManagement';
 
 const PREVIEW_MIN_WIDTH = 420;
 const PREVIEW_MAX_WIDTH = 960;
@@ -60,7 +62,8 @@ type TabId =
     | 'ARCHITECTURE'
     | 'PRINT_TEMPLATES'
     | 'JOB_APPLICATIONS'
-    | 'LEARNING_RESOURCES';
+    | 'LEARNING_RESOURCES'
+    | 'STUDY_PLAN';
 
 const ADMIN_MENU_GROUPS = [
     {
@@ -68,6 +71,7 @@ const ADMIN_MENU_GROUPS = [
         items: [
             { id: 'STUDY', label: '공부 정리 관리', icon: BookOpen },
             { id: 'LEARNING_RESOURCES', label: '학습 자료 관리', icon: GraduationCap },
+            { id: 'STUDY_PLAN', label: 'AI 학습 계획', icon: CalendarCheck },
             { id: 'SKILLS', label: '기술 스택 관리', icon: Cpu },
         ],
     },
@@ -128,6 +132,7 @@ export function AdminDashboardShell() {
                 'PRINT_TEMPLATES',
                 'JOB_APPLICATIONS',
                 'LEARNING_RESOURCES',
+                'STUDY_PLAN',
             ];
             if (tabInUrl && validTabs.includes(tabInUrl)) {
                 setActiveTab(tabInUrl);
@@ -387,7 +392,8 @@ export function AdminDashboardShell() {
         if (
             (activeTab === 'PRINT_TEMPLATES' ||
                 activeTab === 'JOB_APPLICATIONS' ||
-                activeTab === 'LEARNING_RESOURCES') &&
+                activeTab === 'LEARNING_RESOURCES' ||
+                activeTab === 'STUDY_PLAN') &&
             isPreviewOpen
         )
             closePreviewPanel();
@@ -588,6 +594,7 @@ export function AdminDashboardShell() {
                             {activeTab === 'DONATIONS' && <DonationsPanel />}
                             {activeTab === 'JOB_APPLICATIONS' && <JobApplicationManagement />}
                             {activeTab === 'LEARNING_RESOURCES' && <LearningResourceManagement />}
+                            {activeTab === 'STUDY_PLAN' && <StudyPlanManagement />}
                         </section>
                     </div>
                 </div>

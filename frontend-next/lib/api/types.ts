@@ -815,3 +815,67 @@ export type PrintTemplateRequest = {
     visible: boolean;
     displayOrder: number;
 };
+
+export type StudyPlanStatus = 'DRAFT' | 'CONFIRMED';
+export type StudyPlanMessageRole = 'USER' | 'ASSISTANT';
+
+export type StudyPlanCheckQuestion = {
+    id: number;
+    question: string;
+    modelAnswerHint: string | null;
+};
+
+export type StudyPlanItem = {
+    id: number;
+    learningResourceId: number | null;
+    resourceTitle: string | null;
+    freeTextLabel: string | null;
+    allocatedMinutes: number;
+    completed: boolean;
+    completedAt: string | null;
+    understandingChecked: boolean;
+    understandingCheckedAt: string | null;
+    notes: string | null;
+    checkQuestions: StudyPlanCheckQuestion[];
+};
+
+export type StudyPlanStage = {
+    id: number;
+    stageOrder: number;
+    theme: string;
+    totalMinutes: number;
+    estimatedDurationLabel: string;
+    items: StudyPlanItem[];
+};
+
+export type StudyPlanMessage = {
+    id: number;
+    role: StudyPlanMessageRole;
+    content: string;
+    createdAt: string;
+};
+
+export type StudyPlan = {
+    id: number;
+    status: StudyPlanStatus;
+    weeklyAvailableMinutes: number;
+    focusGoal: string | null;
+    stages: StudyPlanStage[];
+    messages: StudyPlanMessage[];
+    createdAt: string;
+    updatedAt: string;
+    confirmedAt: string | null;
+};
+
+export type StudyPlanSummary = {
+    id: number;
+    status: StudyPlanStatus;
+    focusGoal: string | null;
+    createdAt: string;
+    confirmedAt: string | null;
+};
+
+export type StudyPlanCreateRequest = {
+    weeklyAvailableMinutes: number;
+    focusGoal?: string | null;
+};

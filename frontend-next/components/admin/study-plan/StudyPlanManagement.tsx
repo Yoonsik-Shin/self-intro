@@ -1,0 +1,426 @@
+'use client';
+
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    CalendarCheck,
+    ChevronDown,
+    ChevronUp,
+    Lightbulb,
+    Loader2,
+    Lock,
+    LockOpen,
+    Plus,
+    Sparkles,
+} from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { adminDetailMarkdownComponents } from '@/lib/markdown';
+import { ApiError, studyPlanApi } from '@/lib/api';
+import type { StudyPlanItem } from '@/lib/api/types';
+import { useAuthStore } from '@/store/useAuthStore';
+
+export function StudyPlanManagement() {
+    const queryClient = useQueryClient();
+    const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
+    const handleMutationError = (error: unknown) => {
+        if (error instanceof ApiError && error.status === 401) setUnauthenticated();
+    };
+    const alertError = (error: unknown, fallback: string) => {
+        handleMutationError(error);
+        alert(error instanceof ApiError ? error.message : fallback);
+    };
+
+    // undefined = 아직 아무것도 선택 안 함(불러와지면 최신 계획 자동 선택) / null = "새 계획" 버튼으로
+    // 명시적으로 선택 해제한 상태(목록이 있어도 자동 선택하지 않음) / number = 명시적으로 고른 계획.
+    const [selectedId, setSelectedId] = useState<number | null | undefined>(undefined);
+    const [weeklyAvailableMinutes, setWeeklyAvailableMinutes] = useState(300);
+    const [focusGoal, setFocusGoal] = useState('');
+    const [feedback, setFeedback] = useState('');
+    const [expandedItemIds, setExpandedItemIds] = useState<Set<number>>(new Set());
+    const [revealedQuestionIds, setRevealedQuestionIds] = useState<Set<number>>(new Set());
+
+    const { data: summaries } = useQuery({
+        queryKey: ['studyPlans'],
+        queryFn: () => studyPlanApi.list(),
+    });
+
+    const effectiveSelectedId =
+        selectedId === undefined
+            ? summaries && summaries.length > 0
+                ? summaries[0].id
+                : null
+            : selectedId;
+
+    const { data: plan, isLoading: isPlanLoading } = useQuery({
+        queryKey: ['studyPlan', effectiveSelectedId],
+        queryFn: () => studyPlanApi.get(effectiveSelectedId as number),
+        enabled: effectiveSelectedId != null,
+    });
+
+    const setPlanCache = (updated: Awaited<ReturnType<typeof studyPlanApi.get>>) => {
+        queryClient.setQueryData(['studyPlan', updated.id], updated);
+        queryClient.invalidateQueries({ queryKey: ['studyPlans'] });
+    };
+
+    const createMutation = useMutation({
+        mutationFn: () =>
+            studyPlanApi.create({
+                weeklyAvailableMinutes,
+                focusGoal: focusGoal.trim() || undefined,
+            }),
+        onSuccess: (created) => {
+            setPlanCache(created);
+            setSelectedId(created.id);
+            setFocusGoal('');
+        },
+        onError: (error) => alertError(error, '학습 계획 생성에 실패했습니다.'),
+    });
+
+    const sendMessageMutation = useMutation({
+        mutationFn: (content: string) =>
+            studyPlanApi.sendMessage(effectiveSelectedId as number, content),
+        onSuccess: (updated) => {
+            setPlanCache(updated);
+            setFeedback('');
+        },
+        onError: (error) => alertError(error, '피드백 반영에 실패했습니다.'),
+    });
+
+    const confirmMutation = useMutation({
+        mutationFn: () => studyPlanApi.confirm(effectiveSelectedId as number),
+        onSuccess: setPlanCache,
+        onError: (error) => alertError(error, '계획 확정에 실패했습니다.'),
+    });
+
+    const unconfirmMutation = useMutation({
+        mutationFn: () => studyPlanApi.unconfirm(effectiveSelectedId as number),
+        onSuccess: setPlanCache,
+        onError: (error) => alertError(error, '잠금 해제에 실패했습니다.'),
+    });
+
+    const toggleCompletedMutation = useMutation({
+        mutationFn: (itemId: number) =>
+            studyPlanApi.toggleCompleted(effectiveSelectedId as number, itemId),
+        onSuccess: setPlanCache,
+        onError: (error) => alertError(error, '완료 체크에 실패했습니다.'),
+    });
+
+    const toggleUnderstandingMutation = useMutation({
+        mutationFn: (itemId: number) =>
+            studyPlanApi.toggleUnderstanding(effectiveSelectedId as number, itemId),
+        onSuccess: setPlanCache,
+        onError: (error) => alertError(error, '이해도 점검 체크에 실패했습니다.'),
+    });
+
+    const toggleItemExpanded = (itemId: number) => {
+        setExpandedItemIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(itemId)) next.delete(itemId);
+            else next.add(itemId);
+            return next;
+        });
+    };
+
+    const toggleHintRevealed = (questionId: number) => {
+        setRevealedQuestionIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(questionId)) next.delete(questionId);
+            else next.add(questionId);
+            return next;
+        });
+    };
+
+    const startNewPlan = () => {
+        setSelectedId(null);
+        setFocusGoal('');
+    };
+
+    const isConfirmed = plan?.status === 'CONFIRMED';
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div>
+                    <h2 className="text-xl font-black text-slate-950">AI 학습 계획</h2>
+                    <p className="text-sm text-slate-500 mt-0.5">
+                        수집한 학습 자료를 순서와 병렬 가능 여부에 맞춰 테마별로 묶은 계획을 AI와
+                        대화하며 다듬습니다.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    {summaries && summaries.length > 0 && (
+                        <select
+                            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            value={effectiveSelectedId ?? ''}
+                            onChange={(e) => setSelectedId(Number(e.target.value))}
+                        >
+                            {summaries.map((summary) => (
+                                <option key={summary.id} value={summary.id}>
+                                    {summary.focusGoal || `계획 #${summary.id}`} (
+                                    {summary.status === 'CONFIRMED' ? '확정' : '초안'})
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                    <button
+                        onClick={startNewPlan}
+                        className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                    >
+                        <Plus className="h-4 w-4" />새 계획
+                    </button>
+                </div>
+            </div>
+
+            {effectiveSelectedId == null ? (
+                <div className="max-w-xl space-y-4 rounded-2xl border border-slate-200 p-5">
+                    <div>
+                        <label className="mb-1 block text-sm font-bold text-slate-700">
+                            주당 가용 시간(분)
+                        </label>
+                        <input
+                            type="number"
+                            min={1}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            value={weeklyAvailableMinutes}
+                            onChange={(e) => setWeeklyAvailableMinutes(Number(e.target.value))}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-bold text-slate-700">
+                            목표/집중 방향 (선택)
+                        </label>
+                        <textarea
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            rows={3}
+                            placeholder="예: 백엔드 심화, 신기술 학습 위주로"
+                            value={focusGoal}
+                            onChange={(e) => setFocusGoal(e.target.value)}
+                        />
+                    </div>
+                    <button
+                        disabled={createMutation.isPending || weeklyAvailableMinutes < 1}
+                        onClick={() => createMutation.mutate()}
+                        className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {createMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Sparkles className="h-4 w-4" />
+                        )}
+                        {createMutation.isPending ? '생성 중...' : '계획 생성'}
+                    </button>
+                </div>
+            ) : isPlanLoading || !plan ? (
+                <p className="text-sm text-slate-500">불러오는 중...</p>
+            ) : (
+                <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+                    <div className="space-y-4">
+                        {plan.stages.map((stage) => (
+                            <div key={stage.id} className="rounded-2xl border border-slate-200 p-4">
+                                <div className="mb-2 flex items-center justify-between">
+                                    <h3 className="text-base font-extrabold text-slate-900">
+                                        {stage.stageOrder}. {stage.theme}
+                                    </h3>
+                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                                        {stage.estimatedDurationLabel}
+                                    </span>
+                                </div>
+                                {stage.items.length > 1 && (
+                                    <p className="mb-2 text-xs text-slate-400">
+                                        이 단계 안 자료들은 병렬로 진행해도 됩니다.
+                                    </p>
+                                )}
+                                <div className="space-y-2">
+                                    {stage.items.map((item) => (
+                                        <StudyPlanItemRow
+                                            key={item.id}
+                                            item={item}
+                                            expanded={expandedItemIds.has(item.id)}
+                                            onToggleExpanded={() => toggleItemExpanded(item.id)}
+                                            revealedQuestionIds={revealedQuestionIds}
+                                            onToggleHint={toggleHintRevealed}
+                                            onToggleCompleted={() =>
+                                                toggleCompletedMutation.mutate(item.id)
+                                            }
+                                            onToggleUnderstanding={() =>
+                                                toggleUnderstandingMutation.mutate(item.id)
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="flex items-center gap-1 text-base font-extrabold text-slate-900">
+                                <CalendarCheck className="h-4 w-4" />
+                                대화로 계획 다듬기
+                            </h3>
+                            {isConfirmed ? (
+                                <button
+                                    disabled={unconfirmMutation.isPending}
+                                    onClick={() => unconfirmMutation.mutate()}
+                                    className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                                >
+                                    <LockOpen className="h-3.5 w-3.5" />
+                                    잠금 해제
+                                </button>
+                            ) : (
+                                <button
+                                    disabled={confirmMutation.isPending}
+                                    onClick={() => confirmMutation.mutate()}
+                                    className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                                >
+                                    <Lock className="h-3.5 w-3.5" />
+                                    계획 확정
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="max-h-[50vh] space-y-3 overflow-y-auto rounded-lg bg-slate-50 p-3">
+                            {plan.messages.map((message) => (
+                                <div key={message.id}>
+                                    {message.role === 'USER' ? (
+                                        <p className="text-right text-sm text-slate-700">
+                                            {message.content}
+                                        </p>
+                                    ) : (
+                                        <div className="markdown-body text-sm text-slate-700">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={adminDetailMarkdownComponents}
+                                            >
+                                                {message.content.replace(/\\n/g, '\n')}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {isConfirmed ? (
+                            <p className="text-xs text-slate-400">
+                                확정된 계획입니다. 잠금 해제 후 다시 피드백을 보낼 수 있어요.
+                            </p>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                <textarea
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                    rows={3}
+                                    placeholder="예: 3단계에 너무 몰림, 분산시켜줘"
+                                    value={feedback}
+                                    onChange={(e) => setFeedback(e.target.value)}
+                                />
+                                <button
+                                    disabled={sendMessageMutation.isPending || !feedback.trim()}
+                                    onClick={() => sendMessageMutation.mutate(feedback.trim())}
+                                    className="flex items-center justify-center gap-2 self-end rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {sendMessageMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="h-4 w-4" />
+                                    )}
+                                    {sendMessageMutation.isPending ? '반영 중...' : '피드백 보내기'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function StudyPlanItemRow({
+    item,
+    expanded,
+    onToggleExpanded,
+    revealedQuestionIds,
+    onToggleHint,
+    onToggleCompleted,
+    onToggleUnderstanding,
+}: {
+    item: StudyPlanItem;
+    expanded: boolean;
+    onToggleExpanded: () => void;
+    revealedQuestionIds: Set<number>;
+    onToggleHint: (questionId: number) => void;
+    onToggleCompleted: () => void;
+    onToggleUnderstanding: () => void;
+}) {
+    const label = item.resourceTitle ?? item.freeTextLabel ?? '삭제된 자료';
+    const hasQuestions = item.checkQuestions.length > 0;
+
+    return (
+        <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-sm font-bold text-slate-800">{label}</p>
+                    <p className="text-xs text-slate-500">
+                        {item.allocatedMinutes}분{item.notes ? ` · ${item.notes}` : ''}
+                    </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                        <input
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={onToggleCompleted}
+                        />
+                        학습 완료
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                        <input
+                            type="checkbox"
+                            checked={item.understandingChecked}
+                            onChange={onToggleUnderstanding}
+                        />
+                        이해도 점검 완료
+                    </label>
+                </div>
+            </div>
+            {hasQuestions && (
+                <div className="mt-2">
+                    <button
+                        onClick={onToggleExpanded}
+                        className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-700"
+                    >
+                        {expanded ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                        ) : (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                        )}
+                        이해도 점검 질문 {item.checkQuestions.length}개
+                    </button>
+                    {expanded && (
+                        <ul className="mt-2 space-y-2">
+                            {item.checkQuestions.map((question) => (
+                                <li
+                                    key={question.id}
+                                    className="rounded-lg bg-white p-2 text-xs text-slate-600"
+                                >
+                                    <p className="font-bold text-slate-700">{question.question}</p>
+                                    {question.modelAnswerHint && (
+                                        <button
+                                            onClick={() => onToggleHint(question.id)}
+                                            className="mt-1 flex items-center gap-1 text-[11px] font-bold text-amber-600"
+                                        >
+                                            <Lightbulb className="h-3 w-3" />
+                                            {revealedQuestionIds.has(question.id)
+                                                ? question.modelAnswerHint
+                                                : '모범답안 힌트 보기'}
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
