@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,6 +75,9 @@ public class ExperienceConnectionService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {"bff:introduction", "bff:learning"},
+            allEntries = true)
     public ExperienceConnections updateExperienceConnections(
             Long experienceId, ExperienceConnections request) {
         Experience experience = requireExperience(experienceId);

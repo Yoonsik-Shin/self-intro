@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +48,9 @@ public class SkillConnectionService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {"bff:introduction", "bff:learning"},
+            allEntries = true)
     public SkillConnections updateSkillConnections(Long skillId, SkillConnections request) {
         Skill skill = requireSkill(skillId);
         Set<Long> studyIds = ids(request.studyIds());
