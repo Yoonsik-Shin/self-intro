@@ -868,11 +868,12 @@ export function JobApplicationManagement() {
 
     useLayoutEffect(() => {
         if (viewMode !== 'BOARD') return;
+        window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
         const calculateBoardHeight = () => {
             if (!boardRef.current) return;
             const rect = boardRef.current.getBoundingClientRect();
-            const remaining = window.innerHeight - rect.top - 24;
-            setBoardHeightPx(Math.max(380, remaining));
+            const remaining = window.innerHeight - rect.top - 44;
+            setBoardHeightPx(Math.max(360, remaining));
         };
 
         calculateBoardHeight();
@@ -885,12 +886,16 @@ export function JobApplicationManagement() {
         queryFn: jobPostingApi.list,
     });
 
+    const isApplicationItem = (item: JobPosting) =>
+        item.appliedAt !== null ||
+        ((item.status as string) !== 'DISMISSED' && !isPreApplication(item.status));
+
     const applications = useMemo(
-        () => postings.filter((item) => !isPreApplication(item.status)),
+        () => postings.filter((item) => isApplicationItem(item)),
         [postings]
     );
     const candidates = useMemo(
-        () => postings.filter((item) => isPreApplication(item.status)),
+        () => postings.filter((item) => !isApplicationItem(item)),
         [postings]
     );
 
@@ -1377,12 +1382,13 @@ export function JobApplicationManagement() {
 
     const listApplications = useMemo(() => {
         return filteredApplications.filter((item) => {
+            if (item.status === 'DISMISSED' && !showDismissed) return false;
             if (applicationStageFilter !== 'ALL' && applicationStageFilter !== item.status)
                 return false;
             if (applicationDeadlineSoonOnly && !isDeadlineSoon(item.deadline)) return false;
             return true;
         });
-    }, [filteredApplications, applicationStageFilter, applicationDeadlineSoonOnly]);
+    }, [filteredApplications, applicationStageFilter, applicationDeadlineSoonOnly, showDismissed]);
 
     const isCandidateFilterActive =
         candidateStatusFilter !== 'ALL' || candidateDeadlineSoonOnly || showDismissed;
@@ -1394,11 +1400,12 @@ export function JobApplicationManagement() {
     }
 
     const isApplicationFilterActive =
-        applicationStageFilter !== 'ALL' || applicationDeadlineSoonOnly;
+        applicationStageFilter !== 'ALL' || applicationDeadlineSoonOnly || showDismissed;
 
     function resetApplicationFilters() {
         setApplicationStageFilter('ALL');
         setApplicationDeadlineSoonOnly(false);
+        setShowDismissed(false);
     }
 
     const byStage = useMemo(() => {
@@ -1707,14 +1714,14 @@ export function JobApplicationManagement() {
                                             </option>
                                         ))}
                                     </select>
-                                    <label className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-500">
+                                    <label className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={showDismissed}
                                             onChange={(e) => setShowDismissed(e.target.checked)}
                                             className="h-3.5 w-3.5 rounded border-slate-300"
                                         />
-                                        제외된 항목도 보기
+                                        숨김 처리된 항목도 보기
                                     </label>
                                     <button
                                         type="button"
@@ -1757,6 +1764,15 @@ export function JobApplicationManagement() {
                                             </option>
                                         ))}
                                     </select>
+                                    <label className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={showDismissed}
+                                            onChange={(e) => setShowDismissed(e.target.checked)}
+                                            className="h-3.5 w-3.5 rounded border-slate-300"
+                                        />
+                                        숨김 처리된 항목도 보기
+                                    </label>
                                     <button
                                         type="button"
                                         onClick={() =>
@@ -1833,7 +1849,7 @@ export function JobApplicationManagement() {
                                                             </span>
                                                             {candidate.status === 'DISMISSED' && (
                                                                 <span className="ml-2 inline-flex align-middle rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
-                                                                    제외됨
+                                                                    숨김됨
                                                                 </span>
                                                             )}
                                                             {isCandidateDetailMissing(
@@ -1904,7 +1920,7 @@ export function JobApplicationManagement() {
                                                                         }}
                                                                         className="text-xs font-bold text-slate-400 hover:text-emerald-600"
                                                                     >
-                                                                        제외 해제
+                                                                        숨김 해제
                                                                     </button>
                                                                 ) : (
                                                                     <button
@@ -1916,7 +1932,7 @@ export function JobApplicationManagement() {
                                                                             e.stopPropagation();
                                                                             if (
                                                                                 confirm(
-                                                                                    '이 후보를 제외할까요?'
+                                                                                    '이 공고를 숨김 처리할까요?'
                                                                                 )
                                                                             ) {
                                                                                 dismissCandidateMutation.mutate(
@@ -1926,7 +1942,7 @@ export function JobApplicationManagement() {
                                                                         }}
                                                                         className="text-xs font-bold text-slate-400 hover:text-rose-600"
                                                                     >
-                                                                        제외
+                                                                        숨김
                                                                     </button>
                                                                 )}
                                                                 <button
@@ -1946,10 +1962,9 @@ export function JobApplicationManagement() {
                                                                             );
                                                                         }
                                                                     }}
-                                                                    title="삭제"
-                                                                    className="text-rose-500 hover:text-rose-700"
+                                                                    className="text-xs font-bold text-rose-500 hover:text-rose-700"
                                                                 >
-                                                                    <Trash2 className="inline h-3.5 w-3.5" />
+                                                                    삭제
                                                                 </button>
                                                             </div>
                                                         </td>
@@ -2009,6 +2024,11 @@ export function JobApplicationManagement() {
                                                         <span className="ml-2 text-slate-400">
                                                             {item.positionTitle}
                                                         </span>
+                                                        {item.status === 'DISMISSED' && (
+                                                            <span className="ml-2 inline-flex align-middle rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                숨김됨
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="px-5 py-3">{item.source}</td>
                                                     <td className="px-5 py-3 whitespace-nowrap">
@@ -2037,23 +2057,66 @@ export function JobApplicationManagement() {
                                                         </span>
                                                     </td>
                                                     <td className="px-5 py-3 text-right">
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (
-                                                                    confirm(
-                                                                        '이 지원 공고를 삭제할까요?'
-                                                                    )
-                                                                ) {
-                                                                    deleteMutation.mutate(item.id);
-                                                                }
-                                                            }}
-                                                            className="text-rose-500 hover:text-rose-700"
-                                                            title="삭제"
-                                                        >
-                                                            <Trash2 className="inline h-3.5 w-3.5" />
-                                                        </button>
+                                                        <div className="flex items-center justify-end gap-3">
+                                                            {item.status === 'DISMISSED' ? (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={
+                                                                        undismissCandidateMutation.isPending
+                                                                    }
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        undismissCandidateMutation.mutate(
+                                                                            item.id
+                                                                        );
+                                                                    }}
+                                                                    className="text-xs font-bold text-slate-400 hover:text-emerald-600"
+                                                                >
+                                                                    숨김 해제
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={
+                                                                        dismissCandidateMutation.isPending
+                                                                    }
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (
+                                                                            confirm(
+                                                                                '이 지원 공고를 숨김 처리할까요?'
+                                                                            )
+                                                                        ) {
+                                                                            dismissCandidateMutation.mutate(
+                                                                                item.id
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="text-xs font-bold text-slate-400 hover:text-rose-600"
+                                                                >
+                                                                    숨김
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                disabled={deleteMutation.isPending}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (
+                                                                        confirm(
+                                                                            '이 지원 공고를 완전히 삭제할까요?'
+                                                                        )
+                                                                    ) {
+                                                                        deleteMutation.mutate(
+                                                                            item.id
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                className="text-xs font-bold text-rose-500 hover:text-rose-700"
+                                                            >
+                                                                삭제
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -2065,13 +2128,13 @@ export function JobApplicationManagement() {
                     )}
                 </div>
             ) : viewMode === 'BOARD' ? (
-                <div className="overflow-x-auto overflow-y-hidden pb-1">
+                <div className="w-full min-w-0 overflow-x-auto overflow-y-hidden pb-3 custom-scrollbar">
                     <div
                         ref={boardRef}
                         className="grid gap-3"
                         style={{
                             gridAutoFlow: 'column',
-                            gridAutoColumns: 'minmax(230px, 1fr)',
+                            gridAutoColumns: '270px',
                             height: boardHeightPx ? `${boardHeightPx}px` : 'calc(100vh - 280px)',
                             minHeight: '380px',
                         }}
@@ -2095,7 +2158,7 @@ export function JobApplicationManagement() {
                                     {boardCandidates.length}
                                 </span>
                             </div>
-                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
+                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain pr-1">
                                 {boardCandidates.map((candidate) => {
                                     const dDay = dDayLabel(candidate.deadline);
                                     return (
@@ -2159,13 +2222,13 @@ export function JobApplicationManagement() {
                                                     disabled={dismissCandidateMutation.isPending}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (confirm('이 후보를 제외할까요?')) {
+                                                        if (confirm('이 공고를 숨김 처리할까요?')) {
                                                             dismissCandidateMutation.mutate(
                                                                 candidate.id
                                                             );
                                                         }
                                                     }}
-                                                    title="후보에서 제외 (목록에서 숨기기)"
+                                                    title="공고 숨김 처리"
                                                     className="shrink-0 text-slate-400 transition hover:text-slate-600 disabled:opacity-50"
                                                 >
                                                     <EyeOff className="h-3.5 w-3.5" />
@@ -2225,7 +2288,7 @@ export function JobApplicationManagement() {
                                             {items.length}
                                         </span>
                                     </div>
-                                    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
+                                    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain pr-1">
                                         {items.map((item) => {
                                             const dDay = dDayLabel(item.deadline);
                                             return (
@@ -2262,9 +2325,51 @@ export function JobApplicationManagement() {
                                                     <p className="mt-1.5 truncate text-sm font-extrabold text-slate-800">
                                                         {item.companyName}
                                                     </p>
-                                                    <p className="mt-0.5 truncate text-xs text-slate-500">
-                                                        {item.positionTitle}
-                                                    </p>
+                                                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                                                        <p className="min-w-0 flex-1 truncate text-xs text-slate-500">
+                                                            {item.positionTitle}
+                                                        </p>
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                dismissCandidateMutation.isPending
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (
+                                                                    confirm(
+                                                                        '이 지원 공고를 숨김 처리할까요?'
+                                                                    )
+                                                                ) {
+                                                                    dismissCandidateMutation.mutate(
+                                                                        item.id
+                                                                    );
+                                                                }
+                                                            }}
+                                                            title="공고 숨김 처리"
+                                                            className="shrink-0 text-slate-400 transition hover:text-slate-600 disabled:opacity-50"
+                                                        >
+                                                            <EyeOff className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={deleteMutation.isPending}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (
+                                                                    confirm(
+                                                                        '이 지원 공고를 완전히 삭제할까요?'
+                                                                    )
+                                                                ) {
+                                                                    deleteMutation.mutate(item.id);
+                                                                }
+                                                            }}
+                                                            title="완전히 삭제"
+                                                            className="shrink-0 text-slate-300 transition hover:text-rose-500 disabled:opacity-50"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             );
                                         })}
