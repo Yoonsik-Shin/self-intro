@@ -12,16 +12,25 @@ export const metadata: Metadata = {
 };
 
 async function getStudies(): Promise<StudyPage> {
-    const search = new URLSearchParams({ page: '0', size: '100' });
-    return serverGet<StudyPage>(`/api/studies?${search}`);
+    try {
+        const search = new URLSearchParams({ page: '0', size: '100' });
+        return await serverGet<StudyPage>(`/api/studies?${search}`);
+    } catch {
+        return { content: [], page: 0, size: 0, totalElements: 0, totalPages: 0 };
+    }
 }
 
 async function getCategories(): Promise<StudyCategory[]> {
-    return serverGet<StudyCategory[]>('/api/study-categories');
+    try {
+        return await serverGet<StudyCategory[]>('/api/study-categories');
+    } catch {
+        return [];
+    }
 }
 
 export default async function StudyListPage() {
-    const [{ content: studies }, categories] = await Promise.all([getStudies(), getCategories()]);
+    const [studyPage, categories] = await Promise.all([getStudies(), getCategories()]);
+    const studies = studyPage?.content ?? [];
 
     return (
         <div className="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
