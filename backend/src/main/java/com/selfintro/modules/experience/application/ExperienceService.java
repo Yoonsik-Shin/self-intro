@@ -62,6 +62,7 @@ public class ExperienceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public List<ExperienceResponse> batchChangeTimeline(List<Long> ids, boolean showOnTimeline) {
         List<Experience> list = experienceRepository.findAllById(ids);
         for (Experience experience : list) {
@@ -72,6 +73,7 @@ public class ExperienceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public List<ExperienceResponse> reorder(List<Long> orderedIds) {
         List<Experience> list = experienceRepository.findAllById(orderedIds);
         Map<Long, Experience> map =
@@ -89,6 +91,7 @@ public class ExperienceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public ExperienceResponse create(ExperienceRequest request) {
         List<Skill> skills =
                 request.skillIds() != null
@@ -175,6 +178,7 @@ public class ExperienceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public ExperienceResponse update(Long id, ExperienceRequest request) {
         Experience exp =
                 experienceRepository
@@ -268,6 +272,7 @@ public class ExperienceService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public void delete(Long id) {
         Experience exp =
                 experienceRepository
