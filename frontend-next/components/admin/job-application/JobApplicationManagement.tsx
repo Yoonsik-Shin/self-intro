@@ -2047,9 +2047,9 @@ export function JobApplicationManagement() {
                     )}
                 </div>
             ) : viewMode === 'BOARD' ? (
-                <div className="overflow-x-auto pb-2">
+                <div className="overflow-x-auto overflow-y-hidden pb-1">
                     <div
-                        className="grid h-[calc(100vh-220px)] min-h-[500px] gap-3"
+                        className="grid h-[calc(100vh-340px)] min-h-[380px] max-h-[calc(100vh-340px)] gap-3"
                         style={{
                             gridAutoFlow: 'column',
                             gridAutoColumns: 'minmax(230px, 1fr)',
@@ -2074,7 +2074,7 @@ export function JobApplicationManagement() {
                                     {boardCandidates.length}
                                 </span>
                             </div>
-                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
                                 {boardCandidates.map((candidate) => {
                                     const dDay = dDayLabel(candidate.deadline);
                                     return (
@@ -2204,7 +2204,7 @@ export function JobApplicationManagement() {
                                             {items.length}
                                         </span>
                                     </div>
-                                    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+                                    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
                                         {items.map((item) => {
                                             const dDay = dDayLabel(item.deadline);
                                             return (
