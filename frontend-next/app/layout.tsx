@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Script from 'next/script';
 import './globals.css';
 import 'katex/dist/katex.min.css';
 import { Providers } from './providers';
@@ -28,14 +27,14 @@ export default function RootLayout({
                     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
                     crossOrigin="anonymous"
                 />
+                <script
+                    async
+                    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6825696073869286"
+                    crossOrigin="anonymous"
+                />
             </head>
             <body className="min-h-full flex flex-col font-['Plus_Jakarta_Sans',Pretendard,sans-serif]">
                 <Providers>{children}</Providers>
-                <Script
-                    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6825696073869286"
-                    strategy="afterInteractive"
-                    crossOrigin="anonymous"
-                />
             </body>
         </html>
     );
