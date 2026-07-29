@@ -424,7 +424,7 @@ export function AdminDashboardShell() {
 
     return (
         <main className="min-h-screen bg-[#f8fafc] text-slate-800">
-            <header className="sticky top-0 z-25 flex items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
+            <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                     <h1 className="text-base font-black text-slate-900">관리자 대시보드</h1>
                 </div>
