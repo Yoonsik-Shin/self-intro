@@ -22,7 +22,7 @@ export const learningResourceApi = {
             priorityTier?: LearningResourcePriorityTier;
         } = {}
     ) => {
-        const search = new URLSearchParams({ size: '200' });
+        const search = new URLSearchParams({ size: '500' });
         if (params.q) search.set('q', params.q);
         if (params.category && params.category !== 'ALL') search.set('category', params.category);
         params.tags?.forEach((tag) => search.append('tags', tag));

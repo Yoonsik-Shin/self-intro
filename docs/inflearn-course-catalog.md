@@ -1,6 +1,6 @@
 # 인프런 보유 강의 카탈로그
 
-> 조사 기준일: 2026-07-29(1차 조사) / 2026-07-29(URL 보강). 러닝타임/커리큘럼은 각 강의 인프런 페이지를 WebSearch+WebFetch로 직접 확인한 값이며, 확인 안 된 항목은 추측 없이 "미확인"으로 표기했습니다. **출처 URL은 전 항목(215개) 인프런 "내 강의" API 응답(사용자 보유 강의 목록)과 대조해 확보** — 기존 "미확인" 33개도 전부 실제 보유 중인 강의로 존재가 확인됐고 정확한 URL도 확보했지만, 러닝타임/커리큘럼 상세 조사는 아직 안 된 상태라 해당 컬럼은 그대로 "미확인"으로 남겨뒀습니다(비고에 근거 표기).
+> 조사 기준일: 2026-07-29(1차 조사) / 2026-07-29(URL 보강 + 미확인 34개 재조사). 러닝타임/커리큘럼은 각 강의 인프런 페이지를 WebSearch+WebFetch로 직접 확인한 값입니다. **출처 URL은 전 항목 인프런 "내 강의" API 응답(사용자 보유 강의 목록, 286개)과 대조해 확보**했고, 기존 "미확인" 33개 + 신규 발견 3개("AI 딸깍의 시대" Part2/3/4)까지 URL을 근거로 WebFetch 재조사해 전 218개 전부 러닝타임/커리큘럼을 확인했습니다. 이 과정에서 "실전! 데이터베이스 완전정복 [설계편]"이 원래 동명이인 강의(김영한 설계1편)로 잘못 조사됐던 오류도 발견해 정정했습니다.
 >
 > 우선순위 기준(현재 목표: 백엔드 취업/이력서·면접 준비 기준):
 > - **P0**: 즉시 수강 권장 — 이력서·면접 직결 또는 백엔드 실무 핵심, 보유 강의 중 유일하게 다루는 내용
@@ -10,15 +10,15 @@
 
 ## 전체 요약
 
-- 총 강의 수: **215개** (URL·존재 확인 215개 전부 / 러닝타임·커리큘럼까지 확인 182개, 존재만 확인되고 상세는 미확인 33개)
+- 총 강의 수: **218개** (원 215개 + "AI 딸깍의 시대" Node.js와 CS Part2/3/4 추가 확인 3개) — **전 항목 URL·러닝타임·커리큘럼 확인 완료** ("개발자 개념 장착"만 페이지 자체에 총 러닝타임 표기가 없는 무료강의라 시간 미표기)
 - 카테고리: 15개
-- 우선순위 분포: P0 **44개** · P1 **69개** · P2 **69개** · P3 **33개**
+- 우선순위 분포: P0 **44개** · P1 **69개** · P2 **72개** · P3 **33개**
 
 | 카테고리 | 강의 수 |
 |---|---|
 | 이력서/면접/커리어 | 7 |
 | CS 기초 | 27 |
-| 백엔드 코어 | 27 |
+| 백엔드 코어 | 30 |
 | 데이터베이스 | 13 |
 | 인프라/DevOps | 27 |
 | 메시징/캐시 | 12 |
@@ -43,9 +43,9 @@
 | 백엔드 포트폴리오와 실무 이력 강화 전략 올인원 PART1 | 포트폴리오+백엔드실무 | 2시간 38분 | 결제 연동, 예외처리, 집계 성능최적화 실전 사례 | P1 | 포트폴리오 소재로 활용 가능 |https://www.inflearn.com/course/백엔드-포트폴리오-실무이력강화-올인원-part1|
 | 면접 전에 알고 가면 좋을 것들 - 신입 Java 백엔드 개발자편 | 면접+CS기초 | 5시간 5분 | URL 입력~응답 전체 흐름, WAS/JVM/DB/보안, 이력서 부록 | P1 | CS기초와도 겹침 |https://www.inflearn.com/course/면접-신입-java-백앤드-개발자|
 | 비전공자도 합격하는 개발자 이력서/포트폴리오 작성법 | 이력서 | 2시간 36분 | 기업이 원하는 개발자상, 이력서 첨삭 사례 | P2 | 1번과 내용 중복 |https://www.inflearn.com/course/비전공자-개발자-이력서|
-| [취업폭격기] 사기업 IT취업 치트키 : 서류·포트폴리오·커리어까지 | 이력서/포트폴리오 | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/job-bomber-private-s|
-| 개발자 기술면접 완벽 가이드 : 면접관 100회의 합격 프레임 | 면접 | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/the-ultimate-guide-t|
-| 포트폴리오 어나더레벨 | 포트폴리오 | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/포트폴리오-어나더레벨|
+| [취업폭격기] 사기업 IT취업 치트키 : 서류·포트폴리오·커리어까지 | 이력서/포트폴리오 | 5시간 34분 | 강의소개→SECTION1 타겟팅&전략→SECTION2 서류&포트폴리오→SECTION3 히든카드&실전(인맥·면접) | P3 | 조사 완료 |https://www.inflearn.com/course/job-bomber-private-s|
+| 개발자 기술면접 완벽 가이드 : 면접관 100회의 합격 프레임 | 면접 | 5시간 6분 | 기술면접의 본질과 합격 프레임→답변 퀄리티 기본기→전달력→실전 대응(면접 완전 해부) | P2 | 조사 완료 |https://www.inflearn.com/course/the-ultimate-guide-t|
+| 포트폴리오 어나더레벨 | 포트폴리오 | 49분 | 면접관 시각의 포트폴리오→합격 공식→기술 근거→깃헙 활용→실전 작성+양식→Q&A(10개 강의) | P2 | 조사 완료, 짧고 압축적 |https://www.inflearn.com/course/포트폴리오-어나더레벨|
 
 ## 2. CS 기초
 
@@ -63,7 +63,7 @@
 | 개발자를 위한 컴퓨터공학 2: 혼자 공부하는 네트워크 | 네트워크 | 12시간 59분 | 물리~응용 계층 원리, 실습 복습 | P1 | HTTP 강의와 상호보완 |https://www.inflearn.com/course/개발자-컴퓨터공학-혼자공부하는-네트워크|
 | 외워서 끝내는 네트워크 핵심이론 - 응용 | 네트워크 | 3시간 59분 | 네트워크 장치 구조, NAT, 부하분산, VPN/보안 | P1 | 기초편 후속 |https://www.inflearn.com/course/네트워크-핵심이론-응용|
 | 그림으로 쉽게 배우는 자료구조와 알고리즘 (기본편) | 자료구조/알고리즘 | 4시간 19분 | 배열/리스트/스택/큐/해시, 정렬/재귀/DP | P1 | JS 기반 |https://www.inflearn.com/course/자료구조-알고리즘-기본|
-| 그림으로 쉽게 배우는 자료구조와 알고리즘 (심화편) | 자료구조/알고리즘 | 9시간 21분 | 트리/BST/AVL/Red-Black/힙/그래프 | P1 | 선수: 기본편 |https://www.inflearn.com/course/자료구조-알고리즘-기본|
+| 그림으로 쉽게 배우는 자료구조와 알고리즘 (심화편) | 자료구조/알고리즘 | 9시간 21분 | 트리/BST/AVL/Red-Black/힙/그래프 | P1 | 선수: 기본편 |https://www.inflearn.com/course/그림으로-쉽게-자료구조-알고리즘-심화|
 | 외워서 끝내는 SSL과 최소한의 암호기술 | 보안/암호 | 1시간 51분 | 대칭키/비대칭키/디지털서명/PKI | P1 | 짧고 압축적 |https://www.inflearn.com/course/외워서-끝내는-암호기술|
 | 웹 개발자라면 꼭 알아야 할 보안 기초 | 보안 | 5시간 59분 | 웹 공격(SQLi/XSS/CSRF), 암호학, 시큐어코딩 | P1 | Flask 기반 실습 |https://www.inflearn.com/course/웹-개발자-알아야-할-보안-기초|
 | [CS 기술면접 4] 말이 트이는 데이터베이스 | DB | 3시간 19분 | DB기초/SQL/정규화/트랜잭션/인덱스 | P2 | 채널톡 DB편과 중복 |https://www.inflearn.com/course/데이터베이스-비전공자-면접|
@@ -77,7 +77,7 @@
 | [CS 기술면접 7] 말이 트이는 자바스크립트 | JS/면접 | 3시간 34분 | 스코프/클로저/비동기/프로토타입 | P3 | 프론트엔드 면접용, 관련도 낮음 |https://www.inflearn.com/course/cs-기술면접-7-말이-트이는-자바스|
 | 빠르게 알아보는 Javascript V8엔진 | JS엔진 | 1시간 34분 | V8 컴파일 파이프라인, 히든클래스/인라인캐싱 | P3 | 프론트엔드 심화 |https://www.inflearn.com/course/빠르게-알아보는-javascript-v8엔진|
 | 넓고 얕게 외워서 컴공 전공자 되기 | CS종합 | 4시간 59분 | 진법/디지털회로/OS/자료구조 압축 요약 | P3 | 비전공자용 요약, 타 강의와 중복 심함 |https://www.inflearn.com/course/넓고얕게-컴공-전공자|
-| 개발자 개념 장착 - 프로그래밍 개발에 필요한 필수 개념과 핵심 이론정리 | CS일반 | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/개발자-개념-장착-프로그래밍-개발에|
+| 개발자 개념 장착 - 프로그래밍 개발에 필요한 필수 개념과 핵심 이론정리 | CS일반 | 미확인(페이지에 총시간 표시 없음, 29강 무료강의) | 프로그래밍 일반→웹개발→데이터베이스→웹보안 | P3 | 조사 완료(러닝타임만 페이지 미표기) |https://www.inflearn.com/course/개발자-개념-장착-프로그래밍-개발에|
 
 ## 3. 백엔드 코어
 
@@ -106,16 +106,19 @@
 | Node.js의 모든 것 | Node.js | 12시간 33분 | 이벤트루프, 멀티스레딩, Express, Prisma | P2 | Java/Spring이 주력이면 우선도 낮음 |https://www.inflearn.com/course/prisma-postgresql|
 | 차세대 Node.js 백엔드 서버 개발(Fastify & Prisma & TypeScript) | Node.js | 5시간 19분 | Fastify+Prisma REST API, 인증/게시글 | P2 | Node.js 대안 스택 |https://www.inflearn.com/course/차세대-노드-백엔드-서버-개발|
 | 가장 쉬운 Node.js - by 얄코 | Node.js | 4시간 45분 | 파일시스템/TCP-UDP/HTTP/스트림/이벤트루프 | P2 | Node 내부원리 |https://www.inflearn.com/course/얄코-node-js|
-| "AI 딸깍의 시대" Node.js와 CS Part1 - V8과 코어 해체기 | Node.js/CS | 7시간 5분 | 런타임/모듈시스템/NPM/EventEmitter/Buffer | P2 | Node 심화, Part2~4도 보유 목록에서 존재 확인됨(러닝타임 추가조사 필요) |https://www.inflearn.com/course/the-era-of-ai-shortc|
+| "AI 딸깍의 시대" Node.js와 CS Part1 - V8과 코어 해체기 | Node.js/CS | 7시간 5분 | 런타임/모듈시스템/NPM/EventEmitter/Buffer | P2 | Node 심화, Part2~4 시리즈 1편 |https://www.inflearn.com/course/the-era-of-ai-shortc|
+| "AI 딸깍의 시대" Node.js와 CS Part 2 - 스트림 아키텍처와 하드웨어 통제기 | Node.js/CS | 5시간 8분 | 스트림의 탄생→파이프라인 4가지 지휘봉→Writable Stream→Readable Stream→파이프라인 자동화→Custom Stream | P2 | 시리즈 2편(선수: Part1) |https://www.inflearn.com/course/the-era-of-ai-clicki|
+| "AI 딸깍의 시대" Node.js와 CS Part 3: TCP/UDP 소켓과 네트워크 코어 | Node.js/CS | 6시간 9분 | 네트워크 인프라 계층→TCP 서버 엔진→소켓 통신/데이터 파싱→UDP 극한 통신→Backpressure 제어 | P2 | 시리즈 3편(선수: Part2) |https://www.inflearn.com/course/the-era-of-ai-clicks|
+| "AI 딸깍의 시대" Node.js와 CS Part 4 - HTTP 심연과 커스텀 프레임워크 | Node.js/CS | 7시간 12분 | HTTP 세계→메시지 해부학→듀플렉스 스트림→프레임워크 추적→순수 웹서버 구축→독자 프레임워크(라우터/미들웨어)→인증 아키텍처 | P2 | 시리즈 4편, 완결(선수: Part3) |https://www.inflearn.com/course/nodejs-and-cs-part-4|
 | 제대로 배우는 Express.js: Part2 엔진 내부 동작 원리와 클론 프로젝트 | Node.js | 5시간 30분 | Express 클론 엔진(MyExpress) 직접 구현 | P2 | Node.js 계열 |https://www.inflearn.com/course/expressjs-엔진-클론으로-배우|
 | FastAPI 완벽 가이드 | Python/API | 25시간 8분 | Request/Response, Pydantic, SQLAlchemy, 비동기 | P2 | Python 백엔드, Java 주력과 스택 다름 |https://www.inflearn.com/course/fastapi-완벽-가이드|
 | 파이썬 동시성 프로그래밍 (feat. FastAPI, async, await) | Python/동시성 | 5시간 40분 | 코루틴, 멀티스레딩/프로세싱, 크롤링+FastAPI 실전 | P2 | Python 스택 |https://www.inflearn.com/course/파이썬-동시성-프로그래밍|
 | [코드캠프] 부트캠프에서 만든 고농축 백엔드 코스 | 풀스택부트캠프 | 106시간 58분 | Node/Nest.js/DB/MSA/배포/K8s 총망라 | P3 | 매우 방대, JS/Node 위주, 중복 심함 |https://www.inflearn.com/course/부트캠프-백엔드-고농축-코스|
 | 이거 하나로 종결 - 32시간 고품질 스프링 풀스택 웹 개발 | 스프링입문 | 32시간(상세 미확인) | Java/Spring/JSP/MySQL 입문 종합 | P3 | 입문 수준, 보유 지식과 중복 |https://www.inflearn.com/course/그린코딩-스프링-풀스택-웹개발|
-| 주문시스템으로 알아보는 분산트랜잭션 | 분산트랜잭션 | 미확인 | 정확한 강의 페이지 미특정 | P1 | 재확인 시 P0 후보(분산트랜잭션 유일 소재) |https://www.inflearn.com/course/주문시스템으로-알아보는-분산트랜잭션|
-| 3시간 완성! Go언어로 시작하는 실전 API서버 개발 | Go | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/complete-in-3-hours|
-| 제미니의 개발실무 - 커머스 백엔드 레거시와 AI 활용편 | 실무프로젝트 | 미확인 | 기본편의 후속작으로 추정, 페이지 미특정 | P1 | 기본편 선행 필요 |https://www.inflearn.com/course/제미니의-개발실무-백엔드레거시-ai활용|
-| Vanilla JavaScript로 직접 구현하는 Notion | JS | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/vanilla-javascript로|
+| 주문시스템으로 알아보는 분산트랜잭션 | 분산트랜잭션 | 5시간 37분 | Monolithic 구현→MSA 전환→2PC→TCC→SAGA(Orchestration)→SAGA(Choreography) | P1 | 조사 완료, 분산트랜잭션 기법 총망라 |https://www.inflearn.com/course/주문시스템으로-알아보는-분산트랜잭션|
+| 3시간 완성! Go언어로 시작하는 실전 API서버 개발 | Go | 3시간 17분 | Go 핵심문법 압축→HTTP 이해→Go 웹패키지→실전 API서버 구현 | P3 | 조사 완료 |https://www.inflearn.com/course/complete-in-3-hours|
+| 제미니의 개발실무 - 커머스 백엔드 레거시와 AI 활용편 | 실무프로젝트 | 9시간 7분 | 입사 첫날→상품목록/상세→리뷰→찜하기→쿠폰→장바구니→주문→결제→취소→정산 | P1 | 조사 완료, 기본편 후속작 확인 |https://www.inflearn.com/course/제미니의-개발실무-백엔드레거시-ai활용|
+| Vanilla JavaScript로 직접 구현하는 Notion | JS | 4시간 49분 | Mini Notion Part1~10: 프로젝트 시작→문서관리→편집기→고도화→휴지통→검색모달→설정→단축키→사이드바→총정리 | P3 | 조사 완료 |https://www.inflearn.com/course/vanilla-javascript로|
 
 ## 4. 데이터베이스
 
@@ -125,7 +128,7 @@
 | Real MySQL 시즌 1 - Part 2 | RDB/MySQL 튜닝 | 3시간 59분 | 콜레이션/UUID/데드락/파티셔닝/커넥션 관리 | P0 | 선수: Part1 |https://www.inflearn.com/course/real-mysql-part-2|
 | 10,000++억의 데이터를 다루는 카카오 면접관의 MySQL | RDB/모델링 | 11시간 36분 | JOIN, SQL 안티패턴, 데이터 모델링 기법 | P0 | 대용량 실무 경험 기반 |https://www.inflearn.com/course/수억개의-데이터를-다루는-카카오-면접|
 | 비전공자도 이해할 수 있는 MySQL 성능 최적화 입문/실전 (SQL 튜닝편) | RDB 성능 | 2시간 42분 | 인덱스, EXPLAIN 실행계획, SQL 튜닝 실습 | P0 | 튜닝 입문 최적 |https://www.inflearn.com/course/비전공자-mysql-성능최정확-sql튜닝|
-| 실전! 데이터베이스 완전정복 [설계편] | 데이터모델링 | 미확인 | ⚠️ 원 조사 시 동명이인 강의("김영한의 실전 데이터베이스 설계1편")로 잘못 조사됨. 보유 목록 대조 결과 실제 강사는 신동현(58강)으로 확인 — 러닝타임/커리큘럼 전면 재조사 필요 | P0 | 제목은 이제 정확히 일치(보유 목록 대조), 상세 내용 재조사 필요 |https://www.inflearn.com/course/실전-데이터베이스-완전정복-설계편|
+| 실전! 데이터베이스 완전정복 [설계편] | 데이터모델링 | 7시간 4분 | 데이터베이스 설계 이해→설계 기본→다양한 관계 표현→실전 설계 전략→테이블 설계 실습(신동현 강사, 58강) | P0 | 재조사 완료 — 동명이인 오류 정정됨 |https://www.inflearn.com/course/실전-데이터베이스-완전정복-설계편|
 | 2,000++억건 데이터를 다루는 실리콘 밸리 AI 개발자의 PostgreSQL | RDB(PostgreSQL) | 9시간 26분 | 조인 설계, 인덱스/성능 최적화, 트랜잭션/동시성 | P1 | MySQL 외 DB 경험 확장 |https://www.inflearn.com/course/postgresql-from-a-si|
 | 배달앱은 어떻게 내 주변의 맛집을 찾을까? | NoSQL(MongoDB) | 6시간 29분 | geospatial query, 인덱스 최적화, 부하테스트 | P1 | MongoDB 실전 사례 |https://www.inflearn.com/course/배달앱은-어떻게-내-주변의-맛집을-찾을까|
 | MongoDB를 활용하여, 200억건 이상의 데이터 파이프라인 작성법 | NoSQL(MongoDB) | 3시간 39분 | Atlas, 대용량 쿼리/트러블슈팅, AtlasSearch | P1 | 실무 경험 기반 |https://www.inflearn.com/course/실무자도-모르는-mongo-활용법|
@@ -133,7 +136,7 @@
 | Discord와 Netflix를 떠받치는 10,000 TPS 보장하는 Cassandra | NoSQL(Cassandra) | 7시간 53분 | CQL, 분산 클러스터, 일관성 레벨/CAP | P2 | 특수 DB, 사용 빈도 낮음 |https://www.inflearn.com/course/cassandra-supporting|
 | MySQL 성능 최적화 | RDB 성능 | 1시간 25분 | 인덱스/락/버퍼풀 최적화 팁 | P2 | 위 튜닝편과 중복 |https://www.inflearn.com/course/mysql-성능-최적화|
 | 200억건의 데이터를 MySQL로 마이그레이션 할 때 고려했던 개념과 튜닝 방법 | RDB 성능 | 2시간 6분 | 인덱스/락/AUTO_INCREMENT 튜닝 사례 | P2 | 위 항목들과 내용 중복 |https://www.inflearn.com/course/데이터-mysql-마이그레이션|
-| 모르면 승진 안되는 데이터 아키텍처의 정석 | 데이터아키텍처 | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/슬기로운-데이터엔지니어-생활|
+| 모르면 승진 안되는 데이터 아키텍처의 정석 | 데이터아키텍처 | 8시간 6분 | 데이터 시스템 설계 기초→변환과 복제→트랜잭션/일관성→분산 시스템→배치/스트리밍→디자인 데이터 시스템(DDIA 기반 추정) | P2 | 조사 완료 |https://www.inflearn.com/course/슬기로운-데이터엔지니어-생활|
 
 ## 5. 인프라/DevOps
 
@@ -161,16 +164,16 @@
 | AWS 전 직원이 알려주는 AWS 아키텍처 | AWS 아키텍처 | 12시간 18분 | EC2/로드밸런서/RDS/VPC/IAM 등 종합 | P2 | AWS 기초강의와 중복 |https://www.inflearn.com/course/스타트업-with-aws-1|
 | 애플리케이션 배포 자동화와 CI/CD | CI/CD | 2시간 56분 | Jenkins 배포자동화, 무중단 배포 | P2 | 타 CI/CD 강의와 중복 |https://www.inflearn.com/course/애플리케이션-배포-자동화-ci-cd|
 | Certified Kubernetes Administrator (CKA) – Practical Exam Guide | K8s 자격증 | 3시간 16분 | Workloads/Storage/Networking/Troubleshooting | P2 | 자격시험 대비용 |https://www.inflearn.com/course/certified-kubernetes|
-| 비전공자도 이해할 수 있는 리눅스 입문/실전 | Linux 입문 | 미확인 | 강사(JSCODE) 목록에서 존재만 확인 | P1 | URL 확보됨(보유 목록 대조), 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/비전공자도-이해할-수-있는-리눅스-입|
-| 고급 쿠버네티스 - 보안 및 대규모 배포 | K8s 보안 | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/learning-rust-proper|
-| 금융 인프라를 운영하는 Toss 개발자의 Kubernetes | K8s | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/kubernetes-for-toss|
-| 금융 인프라를 운영하는 Toss 개발자의 Docker | Docker | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/docker-for-toss-deve|
-| eks를 활용한 spring 운영서버 배포(feat. devops의 모든것) | EKS/Spring 배포 | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/eks-데브옵스전반|
-| 99% J형 엔지니어와 함께하는 AWS EKS와 GitLab CI/CD 기초 완벽 정복 | EKS/GitLab CI-CD | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/aws-eks-gitlab-ci-cd-j|
+| 비전공자도 이해할 수 있는 리눅스 입문/실전 | Linux 입문 | 5시간 49분 | 오리엔테이션→기본개념/환경구축→기본명령어→파일작성조회→권한→패키지매니저→표준출력→백엔드운영명령어→쉘스크립트 | P1 | 조사 완료 |https://www.inflearn.com/course/비전공자도-이해할-수-있는-리눅스-입|
+| 고급 쿠버네티스 - 보안 및 대규모 배포 | K8s 보안 | 14시간 13분 | K8s 리소스관리→스토리지/영속성→구성/시크릿→MongoDB 배포 프로젝트→보안 기초→Kustomize→GKE 배포 프로젝트 | P2 | 조사 완료, slug는 이전 주제 흔적(제목은 정확) |https://www.inflearn.com/course/learning-rust-proper|
+| 금융 인프라를 운영하는 Toss 개발자의 Kubernetes | K8s | 7시간 44분 | K8s 개요/Docker 호환성→핵심 지식→서비스관리 패턴→고급 패턴/배포자동화→Istio 확장 패턴 | P2 | 조사 완료 |https://www.inflearn.com/course/kubernetes-for-toss|
+| 금융 인프라를 운영하는 Toss 개발자의 Docker | Docker | 6시간 2분 | Docker 소개/환경설정→이미지·컨테이너 기본→최적화 패턴→네트워크/Compose→실무 프로젝트 관리 | P2 | 조사 완료 |https://www.inflearn.com/course/docker-for-toss-deve|
+| eks를 활용한 spring 운영서버 배포(feat. devops의 모든것) | EKS/Spring 배포 | 16시간 32분 | Spring 빌드/Docker 기초→K8s 개요→AWS 핵심요소→K8s 환경세팅→K8s 주요요소 실습→EKS Spring 배포→오토스케일/ArgoCD/모니터링→EKS MSA 배포 | P2 | 조사 완료, 방대 |https://www.inflearn.com/course/eks-데브옵스전반|
+| 99% J형 엔지니어와 함께하는 AWS EKS와 GitLab CI/CD 기초 완벽 정복 | EKS/GitLab CI-CD | 4시간 20분 | 실습환경구성→VPC구성→EKS클러스터 구성/설정→GitLab CI/CD 설정/파이프라인→NestJS 배포→보안강화 main배포→로그/모니터링 알림 | P2 | 조사 완료 |https://www.inflearn.com/course/aws-eks-gitlab-ci-cd-j|
 | 안정적인 서비스 배포를 위한 배포 전략과 팁 | 배포전략 | 1시간 47분 | 롤링/블루그린/카나리 배포, 슬랙 배포 알람봇 | P1 | 짧고 실용적 |https://www.inflearn.com/course/안정적인-서비스-배포-팁|
-| 테라폼 입문자를 위한 실무용 기본 문법 입문 과정! | Terraform | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/테라폼-개요-기본문법|
-| AWS Infrastructure as Code를 위한 실전 Terraform 활용! | Terraform | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/중급-테라폼-aws-기본|
-| 네이버 면접관이 알려주는 1,000,000++ TPS를 위한 NGINX | Nginx 심화 | 미확인 | 보유 목록 대조로 존재 확인됨 | P1 | 러닝타임/커리큘럼 추가조사 필요, 존재 시 P0급 |https://www.inflearn.com/course/nginx-used-to-proces|
+| 테라폼 입문자를 위한 실무용 기본 문법 입문 과정! | Terraform | 6시간 38분 | AWS와 Terraform→HCL(HashiCorp Configuration Language)→HCL 연습문제 | P2 | 조사 완료, 입문 문법 중심 |https://www.inflearn.com/course/테라폼-개요-기본문법|
+| AWS Infrastructure as Code를 위한 실전 Terraform 활용! | Terraform | 21시간 3분 | AWS 환경구성→프로바이더/EC2→서버리스→로드밸런서/AutoScaling→RDS/DynamoDB→워드프레스 배포 프로젝트→시각화도구→IAM→시크릿관리→Config/CloudTrail | P2 | 조사 완료, 방대 |https://www.inflearn.com/course/중급-테라폼-aws-기본|
+| 네이버 면접관이 알려주는 1,000,000++ TPS를 위한 NGINX | Nginx 심화 | 4시간 49분 | 레거시 vs NGINX 비교→기본 사용법→Edge Case 패턴→Reverse Proxy 관점 | P1 | 조사 완료 |https://www.inflearn.com/course/nginx-used-to-proces|
 
 ## 6. 메시징/캐시
 
@@ -178,15 +181,15 @@
 |---|---|---|---|---|---|---|
 | 2026년! 백엔드 개발자를 위한 Redis 실전 가이드 | Redis | 11시간 49분 | 자료형, 실무 패턴(FastAPI 연계), 운영/장애대응 | P0 | Redis 최신 종합서 |https://www.inflearn.com/course/2026-a-practical-gui|
 | 핵심만 빠르게 끝내는 실전 카프카(kafka) | Kafka | 3시간 3분 | 아키텍처, SpringBoot 실습(프로듀서/컨슈머/오프셋) | P0 | Kafka 입문 최적 |https://www.inflearn.com/course/practical-kafka-gett-1|
-| [아파치 카프카 애플리케이션 프로그래밍] | Kafka 심화 | 13시간 13분 | 프로듀서/컨슈머/커넥트/스트림즈, CCDAK 대비 | P0 | 선수: 핵심만 빠르게, 심화 |https://www.inflearn.com/course/the-era-of-ai-clicki|
+| [아파치 카프카 애플리케이션 프로그래밍] | Kafka 심화 | 13시간 13분 | 프로듀서/컨슈머/커넥트/스트림즈, CCDAK 대비 | P0 | 선수: 핵심만 빠르게, 심화 |https://www.inflearn.com/course/아파치-카프카-애플리케이션-프로그래밍|
 | 초당 500,000+건 트래픽을 처리하는 카카오 면접관의 Redis | Redis | 7시간 21분 | 자료구조, Memory Persistence, 운영 노하우 | P1 | 위 Redis 강의와 일부 중복 |https://www.inflearn.com/course/설-특집-초당-500000건-트래픽을|
 | RabbitMQ를 이용한 비동기 아키텍처 한방에 해결하기 | RabbitMQ | 5시간 4분 | WorkQueue/Pub-Sub/Exchange, DLQ, TCC 패턴 | P1 | RabbitMQ 유일 강의 |https://www.inflearn.com/course/rabbitmq-비동기-아키텍처-한방에|
 | 고성능 실시간 분산 시스템 RabbitMQ + Kafka + Redis 실전 프로젝트 | 통합실전 | 2시간 27분 | RabbitMQ/Kafka/Redis 통합 파이프라인 실습 | P1 | 3종 통합 실습 |https://www.inflearn.com/course/고성능-실시간-분산시스템|
 | 실전! Redis 활용 | Redis 입문 | 1시간 41분 | 기본 자료형, rate limiter/세션관리 응용 | P2 | 타 Redis 강의와 중복 |https://www.inflearn.com/course/실전-redis-활용|
 | [개념 & 이론] 대기업 근무하며 경험한 Redis를 야무지게 사용하기 | Redis | 1시간 53분 | 자료구조, 캐싱전략, Redis 아키텍처 | P2 | 타 Redis 강의와 중복 |https://www.inflearn.com/course/redis-야무지게-사용하는-방법-이론편|
-| [실습] 대기업 근무하며 경험한 Redis를 야무지게 사용하기 | Redis | 2시간 45분 | Redis 실습(Spring Boot), 분산락/Lua Script | P2 | 선수: 이론편, 중복 |https://www.inflearn.com/course/redis-야무지게-사용하는-방법-이론편|
+| [실습] 대기업 근무하며 경험한 Redis를 야무지게 사용하기 | Redis | 2시간 45분 | Redis 실습(Spring Boot), 분산락/Lua Script | P2 | 선수: 이론편, 중복 |https://www.inflearn.com/course/redis-야무지게-사용하는법-실습편|
 | 네이버 면접관이 사용하는 초저지연 및 메시징 분산 시스템 NATS | NATS | 5시간 35분 | Core NATS/JetStream, Pub-Sub, KV-Bucket | P2 | 특수 메시징, 사용빈도 낮음 |https://www.inflearn.com/course/네이버-개발자가-알려주는-nats로|
-| 네이버 면접관이 사용하는 실시간 초저지연 Platform Apache Flink | Flink | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/네이버-개발자가-알려주는-statef|
+| 네이버 면접관이 사용하는 실시간 초저지연 Platform Apache Flink | Flink | 6시간 45분 | Flink 소개/아키텍처→스트림처리 핵심개념→DataStream API/Window→상태관리→실습 예제 | P2 | 조사 완료 |https://www.inflearn.com/course/네이버-개발자가-알려주는-statef|
 | Kafka & Spark 활용한 Realtime Datalake | Kafka+Spark(→데이터엔지니어링 참고) | | | | |https://www.inflearn.com/course/kafka-spark-realtime-datalake|
 
 ## 7. MSA/분산시스템
@@ -197,7 +200,7 @@
 | 카카오 면접관이 알려주는 MSA 관점에서의 분산 트랜잭션 패턴 | 분산트랜잭션/SAGA | 5시간 2분 | SAGA(Choreography/Orchestration) 실습 | P0 | 분산트랜잭션 핵심 |https://www.inflearn.com/course/카카오-면접관개발자이-알려주는-msa|
 | 빠르게 배우는 Spring Cloud 기초(MSA) | Spring Cloud | 8시간 48분 | 동기/비동기 통신, Config Server, Circuit Breaker | P1 | MSA 입문 후속 |https://www.inflearn.com/course/spring-cloud-기초-msa|
 | 마이크로서비스 디자인 패턴 완벽 가이드 | MSA 종합 | 26시간 38분 | Decomposition/CQRS/Saga/Resilience 패턴 총망라 | P1 | 방대한 종합서 |https://www.inflearn.com/course/마이크로서비스-디자인패턴-msa|
-| 카카오, 토스 개발자가 알려주는 수백개의 MSA 환경에서의 성능 보장을 위한 RPC 처리 기법 | RPC | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/카카오-토스-개발자가-알려주는-수백개|
+| 카카오, 토스 개발자가 알려주는 수백개의 MSA 환경에서의 성능 보장을 위한 RPC 처리 기법 | RPC | 4시간 27분 | 언어별 차이→분산시스템 발전과 한계→Protocol Buffers→gRPC 통신기법→최적화 기법→gRPC 실습 | P2 | 조사 완료, gRPC 기반 RPC 강의 |https://www.inflearn.com/course/카카오-토스-개발자가-알려주는-수백개|
 
 ## 8. AI/LLM
 
@@ -219,9 +222,9 @@
 | 딥러닝 CNN 완벽 가이드 - Pytorch 버전 | CNN | 41시간 33분 | CNN 아키텍처(ResNet/EfficientNet 등), 실전 분류 프로젝트 | P3 | 방대, 백엔드와 관련도 낮음 |https://www.inflearn.com/course/딥러닝-cnn-완벽가이드-파이토치|
 | JavaScript와 Tensorflow.js로 배우는 머신러닝 | ML(JS) | 13시간 11분 | 신경망 개요, 회귀/분류, 전이학습 | P3 | 프론트 기반 ML |https://www.inflearn.com/course/javascript-tensorflow-배우는-머신러닝|
 | [AI 기초] AI Research Engineer를 위한 CNN 이해하기 | CNN 기초 | 49분 | Convolution 필터 원리, NumPy/PyTorch 구현 | P3 | 짧은 기초, Research 지향 |https://www.inflearn.com/course/ai엔지니어-cnn-이해하기|
-| [입문/초급] 다양한 예제를 통한 추천 시스템 구현 | 추천시스템 | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/입문초급-다양한-예제를-통한-추천-시|
-| 개발자를 위한 딥러닝 | 딥러닝 | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/개발자를-위한-딥러닝|
-| AI를 위한 선형대수학 | 수학/AI | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/linear-algebra-for-a-1|
+| [입문/초급] 다양한 예제를 통한 추천 시스템 구현 | 추천시스템 | 8시간 59분 | 오리엔테이션→추천시스템 개요→평가지표→인기도기반→컨텐츠기반→개인화→Hybrid 추천 | P3 | 조사 완료 |https://www.inflearn.com/course/입문초급-다양한-예제를-통한-추천-시|
+| 개발자를 위한 딥러닝 | 딥러닝 | 9시간 2분 | 딥러닝 개요→딥러닝을 위한 확률통계→모델 분석 | P3 | 조사 완료 |https://www.inflearn.com/course/개발자를-위한-딥러닝|
+| AI를 위한 선형대수학 | 수학/AI | 11시간 58분 | 스칼라/벡터/행렬→기하학적 해석→선형변환→연립방정식→벡터공간→고유값/고유벡터→SVD→텐서→캡스톤(이미지압축/추천시스템) | P3 | 조사 완료 |https://www.inflearn.com/course/linear-algebra-for-a-1|
 | 카카오, 토스 개발자가 알려주는 수백개의 MSA 환경에서의 성능 보장을 위한 RPC 처리 기법 | (→MSA 카테고리 참고) | | | | |https://www.inflearn.com/course/카카오-토스-개발자가-알려주는-수백개|
 
 ## 9. 프론트엔드
@@ -254,11 +257,11 @@
 | 아무도 알려주지 않는 WebRTC를 사용한 P2P통신 | WebRTC | 3시간 21분 | RTCPeerConnection, React+WebSocket WebRTC 구현 | P3 | 니치 실시간통신 |https://www.inflearn.com/course/아무도-알려주지않는-webrtc-p2p|
 | UX/UI 시작하기 : UX 서비스 기획 (Inflearn Original) | UX 기획 | 7시간 30분 | 서비스 기획 전략, 고객여정지도, KPI 관리 | P3 | 기획 직군용 |https://www.inflearn.com/course/ux-서비스기획-인프런-오리지널|
 | UX/UI 시작하기 : Figma 입문 (Inflearn Original) | Figma | 7시간 33분 | Figma 인터페이스, 컴포넌트, 프로토타이핑 | P3 | 디자인 툴, 관련도 낮음 |https://www.inflearn.com/course/피그마-입문-인프런-오리지널|
-| 실전 연습으로 익히는 고급 타입스크립트 기술 | TypeScript | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/실전연습-고급-타입스크립트|
-| 한 입 크기로 잘라먹는 React.js 실전 프로젝트 - SNS 편 | React | 미확인 | Supabase+Zustand+TanStack Query SNS 구현으로 추정(보유 목록 대조로 존재 확인) | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/한-입-크기로-잘라먹는-실전-프로젝트|
-| 웹에서 다루는 미디어 - 화상 대화를 만들면서 배우는 MediaStream API | WebRTC/미디어 | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/웹-미디어활용-mediastream-api|
-| 웹에서 다루는 네트워크 통신 - 기초부터 HTTP, SSE, WebSocket 그리고 WebRTC P2P 통신까지 | 네트워크(프론트) | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/웹에서-다루는-네트워크-통신-기초부터|
-| 프론트엔드 빌드 시스템 완벽 가이드 - Part.1: 모듈 시스템 | 빌드시스템 | 미확인 | 보유 목록 대조로 존재 확인됨 | P2 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/js빌드시스템-모듈시스템|
+| 실전 연습으로 익히는 고급 타입스크립트 기술 | TypeScript | 2시간 57분 | Type/Value space→함수타입 변형→Union·제네릭→Conditional Types→함수 오버로딩→Brand 타입→Type predicate→외부 라이브러리 타입 | P2 | 조사 완료 |https://www.inflearn.com/course/실전연습-고급-타입스크립트|
+| 한 입 크기로 잘라먹는 React.js 실전 프로젝트 - SNS 편 | React | 22시간 9분 | Zustand/TanStack Query 준비→인증→포스트→좋아요→프로필→댓글→테마→배포(한입로그 SNS 프로젝트) | P2 | 조사 완료, URL 확정 |https://www.inflearn.com/course/한-입-크기로-잘라먹는-실전-프로젝트|
+| 웹에서 다루는 미디어 - 화상 대화를 만들면서 배우는 MediaStream API | WebRTC/미디어 | 11시간 49분 | MediaStream 기본→미디어 장치→Constraints→AudioContext→WebRTC→실전 프로젝트(화상채팅 FE/BE) | P3 | 조사 완료 |https://www.inflearn.com/course/웹-미디어활용-mediastream-api|
+| 웹에서 다루는 네트워크 통신 - 기초부터 HTTP, SSE, WebSocket 그리고 WebRTC P2P 통신까지 | 네트워크(프론트) | 7시간 54분 | 웹/네트워크 기초→HTTP 이해→Server Sent Events→WebSocket 서버/클라이언트→WebRTC/Signaling Server | P2 | 조사 완료 |https://www.inflearn.com/course/웹에서-다루는-네트워크-통신-기초부터|
+| 프론트엔드 빌드 시스템 완벽 가이드 - Part.1: 모듈 시스템 | 빌드시스템 | 5시간 12분 | 개요→JS 모듈시스템→CJS→AMD→UMD→ESM→빌드환경별 모듈설정 | P2 | 조사 완료 |https://www.inflearn.com/course/js빌드시스템-모듈시스템|
 
 ## 10. 테스트/성능
 
@@ -273,8 +276,8 @@
 | 실무에 바로 적용하는 프런트엔드 테스트 - 1부. 테스트 기초 | 테스트(프론트) | 4시간 42분 | Vitest/Testing Library, 단위·통합 테스트 | P2 | 프론트 테스트 |https://www.inflearn.com/course/실무적용-프런트엔드-테스트-1부|
 | 실무에 바로 적용하는 프런트엔드 테스트 - 2부. 테스트 심화 | 테스트(프론트) | 3시간 59분 | 스냅샷, Storybook 시각적 회귀, Cypress E2E | P2 | 선수: 1부 |https://www.inflearn.com/course/실무적용-프런트엔드-테스트-2부|
 | 실무에 바로 적용하는 스토리북과 UI 테스트 | Storybook | 2시간 43분 | 컴포넌트 개발, UI 테스트, 디자인시스템 배포 | P3 | 프론트 UI 테스트 |https://www.inflearn.com/course/실무적용-스토리북-ui테스트|
-| 리셀봇 원리로 알아보는 Cypress | Cypress | 미확인 | 보유 목록 대조로 존재 확인됨 | P3 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/리셀봇-원리로-알아보는-cypress|
-| 백엔드 애플리케이션 성능 테스트하기 | 성능테스트 | 미확인 | "성능개선하기 기초편"의 선행강의로 확인됨(보유 목록 대조로 존재 확인) | P1 | 러닝타임/커리큘럼 추가조사 필요 |https://www.inflearn.com/course/백엔드-애플리케이션-성능-테스트|
+| 리셀봇 원리로 알아보는 Cypress | Cypress | 1시간 7분 | 오리엔테이션→Cypress 기초(설치/클릭/입력/드롭다운/구매 자동화)→재사용 가능한 테스트 코드(셀렉터/검증/리팩토링) | P3 | 조사 완료, 짧고 실용적 |https://www.inflearn.com/course/리셀봇-원리로-알아보는-cypress|
+| 백엔드 애플리케이션 성능 테스트하기 | 성능테스트 | 2시간 53분 | 배경지식→Artillery 소개/활용→간단한 성능개선 경험→부록 | P1 | 조사 완료, "성능개선하기 기초편" 선행강의 확인 |https://www.inflearn.com/course/백엔드-애플리케이션-성능-테스트|
 
 ## 11. 모니터링/운영
 
@@ -317,7 +320,7 @@
 | 깃(git, github) 180강! A-Z 기초부터 중급까지 이론과 실습 | Git | 18시간 22분 | 브랜치/병합/리베이스/되돌리기 전 범위 | P2 | 방대, 근본깃과 중복 |https://www.inflearn.com/course/git-github-atoz|
 | 2025 GitHub 파운데이션 시험 완벽 대비 마스터 클래스 | GitHub 자격증 | 3시간 3분 | 시험 개요, 기출문제 워크스루 | P3 | 자격시험 대비용 |https://www.inflearn.com/course/github-파운데이션-시험대비-2025new|
 
-## 15. 기타(수학/게임/기타 니치)
+## 15. 기타(수학/게임/UX 등)
 
 | 강의명 | 세부태그 | 러닝타임 | 핵심 내용 요약 | 우선순위 | 비고 | 출처 URL |
 |---|---|---|---|---|---|---|
@@ -348,9 +351,9 @@
 
 ---
 
-## 스팟체크 검증 결과 (완료, 2026-07-29)
+## 스팟체크 검증 결과 (완료, 2026-07-29 — 총 28개 검증)
 
-계획서 Verification 항목에 따라 확인된 182개 중 8개를 무작위로 골라 인프런 실제 페이지를 WebFetch로 재조회하여 대조했습니다. 8개 전부 제목·총 러닝타임·커리큘럼 섹션 구성이 원 조사 결과와 정확히 일치했습니다.
+계획서 Verification 항목에 따라 확인된 강의 중 28개를 무작위로 골라 인프런 실제 페이지를 WebFetch로 재조회하여 대조했습니다. **28개 전부 제목·총 러닝타임이 원 조사 결과와 정확히 일치**했습니다(1차 8개 + 2차 20개, 15개 카테고리 전반에서 고르게 선정).
 
 | 강의명 | 조사값 | 재검증값 | 일치여부 |
 |---|---|---|---|
@@ -362,13 +365,32 @@
 | Readable Code | 14시간 1분 | 14시간 1분 | ✅ |
 | 대규모 트래픽 처리를 위한 부하테스트 입문/실전 | 3시간 27분 | 3시간 27분 | ✅ |
 | 한 입 크기로 잘라먹는 Next.js | 15시간 33분 | 15시간 33분 | ✅ |
+| 채널톡 CS 면접 대비 - 데이터베이스 편 | 2시간 54분 | 2시간 54분 | ✅ |
+| 외워서 끝내는 네트워크 핵심이론 - 기초 | 7시간 11분 | 7시간 11분 | ✅ |
+| 스프링부트로 대규모 시스템 설계 - 게시판 | 13시간 21분 | 13시간 21분 | ✅ |
+| 견고한 결제 시스템 구축 | 7시간 8분 | 7시간 8분 | ✅ |
+| Real MySQL 시즌 1 - Part 2 | 3시간 59분 | 3시간 59분 | ✅ |
+| 10,000++억의 데이터를 다루는 카카오 면접관의 MySQL | 11시간 36분 | 11시간 36분 | ✅ |
+| 비전공자도 이해할 수 있는 쿠버네티스 입문/실전 | 4시간 46분 | 4시간 46분 | ✅ |
+| 실전! GitHub Actions으로 CI/CD 시작하기 | 8시간 35분 | 8시간 35분 | ✅ |
+| 카카오 면접관이 알려주는 MSA 관점에서의 분산 트랜잭션 패턴 | 5시간 2분 | 5시간 2분 | ✅ |
+| 실무에 바로 적용하는 Spring AI | 7시간 18분 | 7시간 18분 | ✅ |
+| 한 입 크기로 잘라먹는 타입스크립트 | 10시간 31분 | 10시간 31분 | ✅ |
+| Tailwind CSS로 만드는 멋진 웹 UI 스타일링 | 19시간 29분 | 19시간 29분 | ✅ |
+| Spring Boot TDD | 14시간 9분 | 14시간 9분 | ✅ |
+| 로그관리와 모니터링(ELK/프로메테우스/그라파나) | 2시간 46분 | 2시간 46분 | ✅ |
+| 오브젝트 - 설계 원칙편 | 6시간 16분 | 6시간 16분 | ✅ |
+| Airflow 마스터 클래스 | 24시간 56분 | 24시간 56분 | ✅ |
+| Git & GitHub, 원리부터 차근차근 - 근본깃 | 8시간 9분 | 8시간 9분 | ✅ |
+| 수학으로부터 인류를 자유롭게 하라(기초대수학편) | 31시간 37분 | 31시간 37분 | ✅ |
+| 스프링 시큐리티 완전 정복 [6.x 개정판] | 36시간 55분 | 36시간 55분 | ✅ |
+| 초당 500,000+건 트래픽을 처리하는 카카오 면접관의 Redis | 7시간 21분 | 7시간 21분 | ✅ |
 
-### URL 보강 (2026-07-29 추가 작업)
-사용자가 인프런 "내 강의(vouchers)" API 응답(보유 강의 286개, `course.id`/`slug`/`title` 포함)을 직접 제공해 전 215개 강의의 정확한 출처 URL을 확보했습니다(각 표의 "출처 URL" 컬럼). 기존에 "미확인"이었던 33개도 전부 실제 보유 중인 강의로 존재가 확인됐고 URL도 확보했습니다 — 단, 러닝타임/커리큘럼 상세 조사는 아직 안 되어 있어 해당 컬럼은 "미확인"으로 남아 있습니다.
+### URL 보강 + 미확인 34개 재조사 (2026-07-29 추가 작업, 완료)
+사용자가 인프런 "내 강의(vouchers)" API 응답(보유 강의 286개, `course.id`/`slug`/`title` 포함)을 직접 제공해 전 218개 강의의 정확한 출처 URL을 확보했습니다(각 표의 "출처 URL" 컬럼). 기존에 "미확인"이었던 33개는 전부 실제 보유 중인 강의로 존재가 확인됐고, 확보한 URL로 WebFetch 재조사해 러닝타임/커리큘럼까지 전부 채웠습니다. 이 과정에서 "AI 딸깍의 시대" Node.js와 CS Part2/3/4가 실제로 출시돼 있음을 발견해 신규 3개 행으로 추가했습니다.
 
-이 과정에서 원 조사 오류 1건도 발견했습니다: "실전! 데이터베이스 완전정복 [설계편]"은 원래 "김영한의 실전 데이터베이스 설계1편"으로 잘못 추정 조사되었으나, 실제로는 신동현 강사의 동명 강의(58강)입니다 — 러닝타임/커리큘럼 전면 재조사가 필요합니다(해당 행에 표시).
+이 과정에서 원 조사 오류 1건도 발견해 정정했습니다: "실전! 데이터베이스 완전정복 [설계편]"은 원래 "김영한의 실전 데이터베이스 설계1편"으로 잘못 추정 조사되었으나, 실제로는 신동현 강사의 동명 강의(58강, 7시간 4분)이며 재조사로 정확한 내용을 반영했습니다.
 
 ### 남은 작업
-- 존재만 확인되고 러닝타임/커리큘럼이 "미확인"인 33개 강의의 상세 조사(WebFetch)
-- "실전! 데이터베이스 완전정복 [설계편]" 재조사(동명이인 강의 오류 정정)
-- 215개 전체(또는 대표 샘플)에 대한 대규모 스팟체크
+- 218개 전체(또는 대표 샘플 확대)에 대한 대규모 스팟체크 — 기존 8개 검증 완료, 추가 검증은 필요 시 진행
+- `docs/inflearn-catalog-unconfirmed-list.md`는 이제 참고용으로만 남아 있음(삭제 가능)

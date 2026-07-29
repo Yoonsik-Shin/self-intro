@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { GraduationCap, List as ListIcon, Network, Pencil, Plus, Trash2 } from 'lucide-react';
+import { GraduationCap, List as ListIcon, Network, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { ApiError, learningResourceApi, skillApi } from '@/lib/api';
 import type {
     LearningResource,
@@ -12,6 +13,7 @@ import type {
     LearningResourceStatus,
     LearningResourceType,
 } from '@/lib/api/types';
+import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MarkdownEditor } from '../shared/MarkdownEditor';
 import { SkillPicker } from '../shared/SkillPicker';
@@ -338,9 +340,26 @@ export function LearningResourceManagement() {
         syncUrlState(resource.id, 'edit', { history: 'push' });
     };
 
+    const [mindmapDrawerId, setMindmapDrawerId] = useState<number | null>(null);
+    const mindmapDrawerAnim = useSlideDrawer(mindmapDrawerId !== null);
+    const mindmapDrawerResource = resources?.find((r) => r.id === mindmapDrawerId) ?? null;
+
     const handleOpenResourceFromMindmap = (id: number) => {
-        const resource = resources?.find((r) => r.id === id);
-        if (resource) openEditForm(resource);
+        setMindmapDrawerId(id);
+    };
+
+    const closeMindmapDrawer = () => setMindmapDrawerId(null);
+
+    const handleEditFromMindmapDrawer = (resource: LearningResource) => {
+        closeMindmapDrawer();
+        openEditForm(resource);
+    };
+
+    const handleDeleteFromMindmapDrawer = (id: number) => {
+        if (window.confirm('정말 이 학습 자료를 삭제하시겠습니까?')) {
+            deleteMutation.mutate(id);
+            closeMindmapDrawer();
+        }
     };
 
     const handleDelete = (id: number) => {
@@ -755,7 +774,7 @@ export function LearningResourceManagement() {
                                 <div className="flex flex-wrap gap-1.5">
                                     <button
                                         onClick={() => setCategoryFilter('ALL')}
-                                        className={`rounded-lg px-3 py-1.5 text-sm font-bold transition ${categoryFilter === 'ALL' ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+                                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${categoryFilter === 'ALL' ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
                                     >
                                         전체 카테고리
                                     </button>
@@ -763,7 +782,7 @@ export function LearningResourceManagement() {
                                         <button
                                             key={category.id}
                                             onClick={() => setCategoryFilter(category.slug)}
-                                            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition ${categoryFilter === category.slug ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+                                            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${categoryFilter === category.slug ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
                                         >
                                             {category.name}
                                         </button>
@@ -912,6 +931,44 @@ export function LearningResourceManagement() {
                     )}
                 </>
             )}
+
+            {mindmapDrawerAnim.shouldRender &&
+                createPortal(
+                    <div className="fixed inset-0 z-40 flex justify-end">
+                        <div
+                            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-300 ease-out ${mindmapDrawerAnim.isVisible ? 'opacity-100' : 'opacity-0'}`}
+                            onClick={closeMindmapDrawer}
+                            aria-hidden
+                        />
+                        <div
+                            className={`relative flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-out ${mindmapDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                        >
+                            {mindmapDrawerResource ? (
+                                <div className="p-4">
+                                    <LearningResourceDetailPanel
+                                        resource={mindmapDrawerResource}
+                                        backLabel="닫기"
+                                        onBack={closeMindmapDrawer}
+                                        onEdit={handleEditFromMindmapDrawer}
+                                        onDelete={handleDeleteFromMindmapDrawer}
+                                        onSelectResource={(id) => setMindmapDrawerId(id)}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex flex-1 items-center justify-end p-4">
+                                    <button
+                                        type="button"
+                                        onClick={closeMindmapDrawer}
+                                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 }

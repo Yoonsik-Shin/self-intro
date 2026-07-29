@@ -23,3 +23,16 @@ export function colorForCategory(slug: string): string {
     }
     return PALETTE[hash % PALETTE.length];
 }
+
+const PRIORITY_COLOR: Record<string, string> = {
+    P0: '#EF4444', // red-500
+    P1: '#FB923C', // orange-400
+    P2: '#FDE047', // yellow-300
+    P3: '#CBD5E1', // slate-300
+};
+const PRIORITY_UNSET_COLOR = '#94A3B8'; // slate-400 (우선순위 미지정)
+
+export function colorForPriority(tier?: string | null): string {
+    if (!tier) return PRIORITY_UNSET_COLOR;
+    return PRIORITY_COLOR[tier] ?? PRIORITY_UNSET_COLOR;
+}
