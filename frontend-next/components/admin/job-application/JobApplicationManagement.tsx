@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,12 +12,16 @@ import {
     Briefcase,
     Calendar as CalendarIcon,
     Check,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
+    EyeOff,
+    Info,
     LayoutGrid,
     Link2,
     List as ListIcon,
+    Loader2,
     Pencil,
     Plus,
     RefreshCw,
@@ -26,32 +30,34 @@ import {
     Trash2,
     X,
 } from 'lucide-react';
-import { ApiError, jobApplicationApi, jobPostingApi } from '@/lib/api';
+import { ApiError, jobPostingApi } from '@/lib/api';
 import type {
-    JobApplication,
-    JobApplicationRequest,
-    JobApplicationStage,
-    JobPostingCandidate,
-    JobPostingCandidateStatus,
-    JobPostingCandidateUpdateRequest,
+    JobPosting,
+    JobPostingCoverLetterItemRequest,
+    JobPostingRequest,
     JobPostingSettingRequest,
-    JobPostingSource,
+    JobPostingStatus,
+    JobPostingStatusEvent,
 } from '@/lib/api/types';
 
-const POSTING_SOURCE_LABELS: Record<JobPostingSource, string> = {
-    URL_INGEST: 'URL 수집',
-    SARAMIN: '사람인',
-};
+/** status가 이 중 하나면 아직 지원 전(수집 후보) 단계다 — 나머지는 전형 진행 단계. */
+type PreApplicationStatus = 'NEW' | 'SAVED' | 'DISMISSED' | 'EXPIRED';
+type ApplicationStatus = Exclude<JobPostingStatus, PreApplicationStatus>;
 
-const CANDIDATE_STATUS_LABELS: Record<JobPostingCandidateStatus, string> = {
+const PRE_APPLICATION_STATUSES: PreApplicationStatus[] = ['NEW', 'SAVED', 'DISMISSED', 'EXPIRED'];
+
+function isPreApplication(status: JobPostingStatus): status is PreApplicationStatus {
+    return (PRE_APPLICATION_STATUSES as JobPostingStatus[]).includes(status);
+}
+
+const CANDIDATE_STATUS_LABELS: Record<PreApplicationStatus, string> = {
     NEW: '수집됨',
     SAVED: '저장됨',
     DISMISSED: '제외됨',
-    CONVERTED: '전환됨',
     EXPIRED: '마감',
 };
 
-const STAGE_LABELS: Record<JobApplicationStage, string> = {
+const STAGE_LABELS: Record<ApplicationStatus, string> = {
     APPLIED: '지원완료',
     CODING_TEST: '코딩테스트',
     ASSIGNMENT: '과제전형',
@@ -64,7 +70,12 @@ const STAGE_LABELS: Record<JobApplicationStage, string> = {
     WITHDRAWN: '지원포기',
 };
 
-const STAGE_ORDER: JobApplicationStage[] = [
+const STATUS_LABELS: Record<JobPostingStatus, string> = {
+    ...CANDIDATE_STATUS_LABELS,
+    ...STAGE_LABELS,
+};
+
+const STAGE_ORDER: ApplicationStatus[] = [
     'APPLIED',
     'CODING_TEST',
     'ASSIGNMENT',
@@ -77,7 +88,7 @@ const STAGE_ORDER: JobApplicationStage[] = [
     'WITHDRAWN',
 ];
 
-const STAGE_ACCENT: Record<JobApplicationStage, string> = {
+const STAGE_ACCENT: Record<ApplicationStatus, string> = {
     APPLIED: 'text-blue-600 bg-blue-50',
     CODING_TEST: 'text-amber-600 bg-amber-50',
     ASSIGNMENT: 'text-teal-600 bg-teal-50',
@@ -90,14 +101,45 @@ const STAGE_ACCENT: Record<JobApplicationStage, string> = {
     WITHDRAWN: 'text-slate-500 bg-slate-100',
 };
 
-function stageBadgeClass(stage: JobApplicationStage): string {
-    if (stage === 'OFFER') return 'bg-emerald-50 text-emerald-600';
-    if (stage === 'REJECTED' || stage === 'WITHDRAWN') return 'bg-rose-50 text-rose-600';
+function stageBadgeClass(status: ApplicationStatus): string {
+    if (status === 'OFFER') return 'bg-emerald-50 text-emerald-600';
+    if (status === 'REJECTED' || status === 'WITHDRAWN') return 'bg-rose-50 text-rose-600';
     return 'bg-slate-100 text-slate-600';
 }
 
-// candidates 목록에는 LISTABLE_STATUSES(백엔드)로 인해 NEW/SAVED/DISMISSED만 내려온다.
-const CANDIDATE_FILTERABLE_STATUSES: JobPostingCandidateStatus[] = ['NEW', 'SAVED', 'DISMISSED'];
+function statusEventBadgeClass(status: JobPostingStatus): string {
+    if (!isPreApplication(status)) return stageBadgeClass(status);
+    if (status === 'NEW') return 'bg-blue-50 text-blue-600';
+    if (status === 'SAVED') return 'bg-amber-50 text-amber-700';
+    if (status === 'DISMISSED') return 'bg-slate-100 text-slate-500';
+    return 'bg-rose-50 text-rose-600';
+}
+
+function statusEventLabel(
+    event: JobPostingStatusEvent,
+    index: number,
+    events: JobPostingStatusEvent[]
+): string {
+    if (event.status === 'NEW' && event.memo === '지원 취소') return '지원 취소';
+    if (
+        event.status === 'APPLIED' &&
+        events
+            .slice(0, index)
+            .some((previous) => previous.status === 'NEW' && previous.memo === '지원 취소')
+    ) {
+        return '재지원 완료';
+    }
+    return STATUS_LABELS[event.status];
+}
+
+function statusEventMemo(event: JobPostingStatusEvent): string | null {
+    if (event.status === 'NEW' && event.memo === '지원 취소') return '수집됨 복귀';
+    if (event.status === 'APPLIED' && event.memo === '지원 전환') return null;
+    return event.memo;
+}
+
+// candidates 목록에는 백엔드가 EXPIRED를 제외하고 내려주므로 실질적으로 NEW/SAVED/DISMISSED만 나온다.
+const CANDIDATE_FILTERABLE_STATUSES: PreApplicationStatus[] = ['NEW', 'SAVED', 'DISMISSED'];
 
 const DEADLINE_SOON_THRESHOLD_DAYS = 7;
 
@@ -112,7 +154,7 @@ function isDeadlineSoon(deadline: string | null): boolean {
 
 /** AI가 담당업무/자격요건/우대사항/전형절차/지원방법/처우조건을 하나도 못 뽑아냈으면, 원본 URL이
  * 상세 페이지가 아니었거나 사이트가 자동 수집을 막았을 가능성이 높다 — 이럴 땐 수동 입력을 유도한다. */
-function isCandidateDetailMissing(candidate: JobPostingCandidate): boolean {
+function isCandidateDetailMissing(candidate: JobPosting): boolean {
     return (
         !candidate.jobDescription &&
         !candidate.requiredQualifications &&
@@ -132,6 +174,16 @@ function dDayLabel(deadline: string | null): string | null {
     if (diffDays < 0) return '마감';
     if (diffDays === 0) return 'D-day';
     return `D-${diffDays}`;
+}
+
+function AlwaysOpenBadge({ rounded = 'rounded' }: { rounded?: 'rounded' | 'rounded-full' }) {
+    return (
+        <span
+            className={`${rounded} shrink-0 whitespace-nowrap px-1.5 py-0.5 text-[10px] font-extrabold bg-emerald-50 text-emerald-600`}
+        >
+            상시채용
+        </span>
+    );
 }
 
 /** AI가 자격요건/우대사항 등을 줄바꿈으로 구분된 목록으로 저장해두므로(PARSE_PROMPT 계약),
@@ -189,13 +241,13 @@ function DetailTabs({ fields }: { fields: Partial<Record<DetailFieldKey, string 
 
     return (
         <div>
-            <div className="flex gap-4 overflow-x-auto border-b border-slate-200">
+            <div className="flex gap-3 overflow-x-auto border-b border-slate-100">
                 {available.map((key) => (
                     <button
                         key={key}
                         type="button"
                         onClick={() => setActiveTab(key)}
-                        className={`-mb-px shrink-0 border-b-2 px-0.5 pb-2 text-sm font-bold transition ${
+                        className={`-mb-px shrink-0 border-b px-0.5 pb-1.5 text-[13px] font-semibold transition ${
                             current === key
                                 ? 'border-slate-900 text-slate-900'
                                 : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -210,10 +262,470 @@ function DetailTabs({ fields }: { fields: Partial<Record<DetailFieldKey, string 
     );
 }
 
+type SectionTab = { key: string; label: ReactNode; content: ReactNode };
+
+const SECTION_TABS_SIZE = {
+    lg: {
+        gap: 'gap-6',
+        border: 'border-b-[3px]',
+        pad: 'pb-2.5',
+        text: 'text-[15px] font-extrabold',
+    },
+    sm: { gap: 'gap-4', border: 'border-b-2', pad: 'pb-1.5', text: 'text-sm font-bold' },
+} as const;
+
+/** 상세 정보 탭(DetailTabs)과 나란히 있던 다른 섹션(전형 진행, 경력 매칭 분석 등)을 같은 층위의
+ * 탭으로 묶어 이중 탭 구조를 만든다. 부모가 `key={item.id}`로 렌더링해야 대상이 바뀔 때 선택된
+ * 탭이 자연스럽게 초기화된다. `bordered=false`를 주면 상단 구분선을 생략한다 — 이미 다른 탭의
+ * 내용(content) 안에 중첩돼 그 자체로 구분되는 경우(예: 경력 매칭 분석 내부)에 쓴다. 중첩된 하단
+ * 탭은 `size="sm"`으로 상위 탭보다 한 단계 작게 그려 계층을 눈으로 구분할 수 있게 한다. */
+function SectionTabs({
+    tabs,
+    bordered = true,
+    size = 'lg',
+}: {
+    tabs: SectionTab[];
+    bordered?: boolean;
+    size?: keyof typeof SECTION_TABS_SIZE;
+}) {
+    const [activeKey, setActiveKey] = useState(tabs[0]?.key);
+    if (tabs.length === 0) return null;
+    const current = tabs.find((tab) => tab.key === activeKey) ?? tabs[0];
+    const s = SECTION_TABS_SIZE[size];
+
+    return (
+        <div className={bordered ? 'border-t border-slate-200 pt-5' : ''}>
+            <div className={`flex ${s.gap} border-b border-slate-200`}>
+                {tabs.map((tab) => (
+                    <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveKey(tab.key)}
+                        className={`-mb-px shrink-0 ${s.border} px-0.5 ${s.pad} ${s.text} transition ${
+                            current.key === tab.key
+                                ? 'border-slate-900 text-slate-900'
+                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+            <div className="pt-4">{current.content}</div>
+        </div>
+    );
+}
+
+/** 마우스를 올리면 짧은 설명을 보여주는 작은 정보 아이콘. 브라우저 기본 `title` 툴팁은 등장이
+ * 느리고 스타일을 못 입혀서, hover 시 즉시 뜨는 커스텀 말풍선으로 대신한다. */
+function InfoTooltip({
+    text,
+    iconClassName = 'text-slate-300',
+}: {
+    text: string;
+    iconClassName?: string;
+}) {
+    return (
+        <span className="group relative inline-flex">
+            <Info className={`h-3.5 w-3.5 ${iconClassName}`} />
+            <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1.5 w-56 max-w-[70vw] rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-normal normal-case leading-snug text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                {text}
+            </span>
+        </span>
+    );
+}
+
+type CoverLetterDraft = JobPostingCoverLetterItemRequest & { clientId: string };
+
+function newCoverLetterDraft(
+    item: JobPostingCoverLetterItemRequest = {
+        question: '',
+        answer: '',
+        characterLimit: null,
+    }
+): CoverLetterDraft {
+    return {
+        ...item,
+        clientId: crypto.randomUUID(),
+    };
+}
+
+/** 질문과 글자 수 제한은 "문항 관리"에서 구성하고, 답변은 평소 화면에서 언제든 바로 수정한다.
+ * 답변이 비어 있어도 문항만 먼저 저장할 수 있으며 수정 이력은 만들지 않는다. */
+function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
+    const queryClient = useQueryClient();
+    const queryKey = ['jobPostings', jobPostingId, 'coverLetterItems'] as const;
+    const [isManaging, setIsManaging] = useState(false);
+    const [drafts, setDrafts] = useState<CoverLetterDraft[]>([]);
+    const [answerDrafts, setAnswerDrafts] = useState<Record<number, string>>({});
+    const [expandedIndexes, setExpandedIndexes] = useState<Set<number>>(() => new Set());
+
+    const {
+        data: items = [],
+        isLoading,
+        isError,
+    } = useQuery({
+        queryKey,
+        queryFn: () => jobPostingApi.coverLetterItems(jobPostingId),
+    });
+
+    const saveMutation = useMutation({
+        mutationFn: (payload: JobPostingCoverLetterItemRequest[]) =>
+            jobPostingApi.replaceCoverLetterItems(jobPostingId, payload),
+        onSuccess: (savedItems) => {
+            queryClient.setQueryData(queryKey, savedItems);
+            setIsManaging(false);
+            setAnswerDrafts({});
+        },
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '자소서 저장에 실패했습니다.'),
+    });
+
+    function startManaging() {
+        setDrafts(
+            items.length > 0
+                ? items.map((item) =>
+                      newCoverLetterDraft({
+                          question: item.question,
+                          answer: answerDrafts[item.id] ?? item.answer,
+                          characterLimit: item.characterLimit,
+                      })
+                  )
+                : [newCoverLetterDraft()]
+        );
+        setIsManaging(true);
+    }
+
+    function saveQuestions() {
+        const payload = drafts.map(({ question, answer, characterLimit }) => ({
+            question: question.trim(),
+            answer,
+            characterLimit,
+        }));
+        if (payload.some((item) => !item.question)) {
+            alert('각 자소서 문항의 질문을 입력해주세요.');
+            return;
+        }
+        saveMutation.mutate(payload);
+    }
+
+    function saveAnswers() {
+        saveMutation.mutate(
+            items.map((item) => ({
+                question: item.question,
+                answer: answerDrafts[item.id] ?? item.answer,
+                characterLimit: item.characterLimit,
+            }))
+        );
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center gap-2 py-6 text-sm font-semibold text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                자소서를 불러오는 중입니다.
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <p className="py-6 text-sm font-semibold text-rose-500">
+                자소서를 불러오지 못했습니다.
+            </p>
+        );
+    }
+
+    if (!isManaging) {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold text-slate-400">
+                        문항을 먼저 등록하고 답변은 필요할 때마다 바로 수정하세요.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={startManaging}
+                        className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                    >
+                        {items.length > 0 ? (
+                            <SettingsIcon className="h-3.5 w-3.5" />
+                        ) : (
+                            <Plus className="h-3.5 w-3.5" />
+                        )}
+                        {items.length > 0 ? '문항 관리' : '문항 추가'}
+                    </button>
+                </div>
+
+                {items.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
+                        <p className="text-sm font-bold text-slate-500">
+                            저장된 자소서가 없습니다.
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                            질문과 글자 수 제한을 먼저 등록해보세요.
+                        </p>
+                    </div>
+                ) : (
+                    <ol className="space-y-4">
+                        {items.map((item, index) => (
+                            <li
+                                key={item.id}
+                                className="overflow-hidden rounded-xl border border-slate-200"
+                            >
+                                <button
+                                    type="button"
+                                    aria-expanded={expandedIndexes.has(index)}
+                                    aria-controls={`cover-letter-answer-${item.id}`}
+                                    onClick={() =>
+                                        setExpandedIndexes((current) => {
+                                            const next = new Set(current);
+                                            if (next.has(index)) next.delete(index);
+                                            else next.add(index);
+                                            return next;
+                                        })
+                                    }
+                                    className="flex w-full items-start justify-between gap-3 p-4 text-left transition hover:bg-slate-50"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-extrabold text-slate-400">
+                                            문항 {index + 1}
+                                        </p>
+                                        <p className="mt-1 whitespace-pre-wrap text-sm font-extrabold text-slate-800">
+                                            {item.question}
+                                        </p>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                                            {item.characterLimit
+                                                ? `${item.characterLimit.toLocaleString()}자`
+                                                : '제한 없음'}
+                                        </span>
+                                        <ChevronDown
+                                            className={`mt-0.5 h-4 w-4 text-slate-400 transition-transform ${
+                                                expandedIndexes.has(index) ? 'rotate-180' : ''
+                                            }`}
+                                        />
+                                    </div>
+                                </button>
+                                {expandedIndexes.has(index) && (
+                                    <div
+                                        id={`cover-letter-answer-${item.id}`}
+                                        className="border-t border-slate-100 p-4"
+                                    >
+                                        <label className="block">
+                                            <span className="mb-1 block text-xs font-bold text-slate-500">
+                                                답변
+                                            </span>
+                                            <textarea
+                                                rows={9}
+                                                value={answerDrafts[item.id] ?? item.answer}
+                                                onChange={(event) =>
+                                                    setAnswerDrafts((current) => ({
+                                                        ...current,
+                                                        [item.id]: event.target.value,
+                                                    }))
+                                                }
+                                                placeholder="답변을 작성하세요. 비워둔 상태로도 문항은 유지됩니다."
+                                                className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm leading-6 focus:border-slate-400 focus:outline-none"
+                                            />
+                                        </label>
+                                        <div className="mt-1 flex items-center justify-between gap-3">
+                                            {(() => {
+                                                const length = (
+                                                    answerDrafts[item.id] ?? item.answer
+                                                ).length;
+                                                const overLimit =
+                                                    item.characterLimit !== null &&
+                                                    length > item.characterLimit;
+                                                return (
+                                                    <span
+                                                        className={`text-[11px] font-semibold ${
+                                                            overLimit
+                                                                ? 'text-rose-500'
+                                                                : 'text-slate-400'
+                                                        }`}
+                                                    >
+                                                        {length.toLocaleString()}자
+                                                        {item.characterLimit !== null &&
+                                                            ` / ${item.characterLimit.toLocaleString()}자`}
+                                                        {overLimit &&
+                                                            ` · ${(length - item.characterLimit!).toLocaleString()}자 초과`}
+                                                    </span>
+                                                );
+                                            })()}
+                                            <button
+                                                type="button"
+                                                disabled={
+                                                    saveMutation.isPending ||
+                                                    (answerDrafts[item.id] ?? item.answer) ===
+                                                        item.answer
+                                                }
+                                                onClick={saveAnswers}
+                                                className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+                                            >
+                                                {saveMutation.isPending ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Check className="h-3.5 w-3.5" />
+                                                )}
+                                                답변 저장
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </li>
+                        ))}
+                    </ol>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            {drafts.map((draft, index) => (
+                <div key={draft.clientId} className="rounded-xl border border-slate-200 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                        <p className="text-xs font-extrabold text-slate-500">문항 {index + 1}</p>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setDrafts((current) =>
+                                    current.filter((item) => item.clientId !== draft.clientId)
+                                )
+                            }
+                            aria-label={`${index + 1}번 문항 삭제`}
+                            className="rounded-md p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                    <label className="block">
+                        <span className="mb-1 block text-xs font-bold text-slate-500">질문</span>
+                        <textarea
+                            rows={2}
+                            value={draft.question}
+                            onChange={(event) =>
+                                setDrafts((current) =>
+                                    current.map((item) =>
+                                        item.clientId === draft.clientId
+                                            ? { ...item, question: event.target.value }
+                                            : item
+                                    )
+                                )
+                            }
+                            placeholder="자기소개서 문항을 입력하세요."
+                            className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                        />
+                    </label>
+                    <label className="mt-3 block">
+                        <span className="mb-1 block text-xs font-bold text-slate-500">
+                            글자 수 제한
+                        </span>
+                        <input
+                            type="number"
+                            min={1}
+                            value={draft.characterLimit ?? ''}
+                            onChange={(event) =>
+                                setDrafts((current) =>
+                                    current.map((item) =>
+                                        item.clientId === draft.clientId
+                                            ? {
+                                                  ...item,
+                                                  characterLimit: event.target.value
+                                                      ? Number(event.target.value)
+                                                      : null,
+                                              }
+                                            : item
+                                    )
+                                )
+                            }
+                            placeholder="제한이 없으면 비워두세요."
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                        />
+                    </label>
+                </div>
+            ))}
+
+            <button
+                type="button"
+                onClick={() => setDrafts((current) => [...current, newCoverLetterDraft()])}
+                className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 py-2.5 text-sm font-bold text-slate-500 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+                <Plus className="h-4 w-4" />
+                문항 추가
+            </button>
+
+            <div className="flex justify-end gap-2">
+                <button
+                    type="button"
+                    disabled={saveMutation.isPending}
+                    onClick={() => setIsManaging(false)}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                >
+                    취소
+                </button>
+                <button
+                    type="button"
+                    disabled={saveMutation.isPending}
+                    onClick={saveQuestions}
+                    className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                    {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    문항 저장
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/** 어필 분석 결과는 항상 전체 내용으로 보여주되, 긴 분석이 드로어 전체를 밀어내지 않도록
+ * 본문에만 최대 높이를 두고 내부 스크롤한다. */
+function AppealAnalysisView({
+    markdown: rawMarkdown,
+    headerExtra,
+}: {
+    markdown: string;
+    headerExtra?: ReactNode;
+}) {
+    // 일부 저장된 분석 결과는 실제 줄바꿈 대신 글자 그대로의 "\n"이 들어있다(백엔드에서 이미
+    // 새로 생성되는 결과는 고쳤지만, 이전에 저장된 결과는 여기서도 방어적으로 풀어준다) —
+    // 안 풀면 포인트 구분/줄바꿈이 다 뭉개진 채로 렌더링된다.
+    const markdown = useMemo(() => rawMarkdown.replace(/\\n/g, '\n'), [rawMarkdown]);
+    // 섹션을 나누는 용도 외엔 보여줄 내용이 없는 상위 표제는 반복하지 않는다.
+    const fullMarkdown = useMemo(
+        () =>
+            markdown
+                .replace(/^#{1,3}\s+어필하기\s+좋은\s+포인트\s*$/m, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim(),
+        [markdown]
+    );
+
+    return (
+        <div>
+            {headerExtra && <div className="mb-3">{headerExtra}</div>}
+            <div className="markdown-body max-h-[45vh] overflow-y-auto overscroll-contain pr-2 text-sm text-slate-700">
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={adminDetailMarkdownComponents}
+                >
+                    {fullMarkdown}
+                </ReactMarkdown>
+            </div>
+        </div>
+    );
+}
+
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 function toDateKey(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatBoardStatusDate(value: string): string {
+    return value.slice(2, 10).replaceAll('-', '.');
 }
 
 type CalendarCell = { date: Date | null };
@@ -230,14 +742,17 @@ function buildCalendarCells(monthStart: Date): CalendarCell[] {
     return cells;
 }
 
-const emptyForm: JobApplicationRequest = {
+const emptyForm: JobPostingRequest = {
     companyName: '',
     positionTitle: '',
     postingUrl: '',
     source: '',
     appliedAt: new Date().toISOString().slice(0, 10),
     deadline: '',
+    alwaysOpen: false,
     salaryNote: '',
+    location: '',
+    employmentType: '',
     memo: '',
     jobDescription: '',
     requiredQualifications: '',
@@ -247,22 +762,7 @@ const emptyForm: JobApplicationRequest = {
     compensationDetail: '',
 };
 
-const emptyCandidateForm: JobPostingCandidateUpdateRequest = {
-    title: '',
-    companyName: '',
-    deadline: '',
-    salaryNote: '',
-    location: '',
-    employmentType: '',
-    jobDescription: '',
-    requiredQualifications: '',
-    preferredQualifications: '',
-    hiringProcess: '',
-    applicationMethod: '',
-    compensationDetail: '',
-};
-
-type Drawer = { mode: 'create' } | { mode: 'edit'; id: number } | null;
+type DrawerState = { type: 'create' } | { type: 'existing'; id: number };
 type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR';
 
 export function JobApplicationManagement() {
@@ -272,29 +772,38 @@ export function JobApplicationManagement() {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
     });
-    const [drawer, setDrawer] = useState<Drawer>(null);
-    const [isApplicationEditing, setIsApplicationEditing] = useState(false);
-    const [candidateDrawerId, setCandidateDrawerId] = useState<number | null>(null);
-    const [isCandidateEditing, setIsCandidateEditing] = useState(false);
-    const [candidateForm, setCandidateForm] =
-        useState<JobPostingCandidateUpdateRequest>(emptyCandidateForm);
-    const [form, setForm] = useState<JobApplicationRequest>(emptyForm);
+    const [drawerState, setDrawerState] = useState<DrawerState | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [form, setForm] = useState<JobPostingRequest>(emptyForm);
     const [search, setSearch] = useState('');
     const [listSection, setListSection] = useState<'CANDIDATES' | 'APPLICATIONS'>('CANDIDATES');
     const [candidateStatusFilter, setCandidateStatusFilter] = useState<
-        'ALL' | JobPostingCandidateStatus
+        'ALL' | PreApplicationStatus
     >('ALL');
     const [candidateDeadlineSoonOnly, setCandidateDeadlineSoonOnly] = useState(false);
     const [showDismissed, setShowDismissed] = useState(false);
-    const [applicationStageFilter, setApplicationStageFilter] = useState<
-        'ALL' | JobApplicationStage
-    >('ALL');
+    const [applicationStageFilter, setApplicationStageFilter] = useState<'ALL' | ApplicationStatus>(
+        'ALL'
+    );
     const [applicationDeadlineSoonOnly, setApplicationDeadlineSoonOnly] = useState(false);
-    const [stageDraft, setStageDraft] = useState<JobApplicationStage | null>(null);
+    const [stageDraft, setStageDraft] = useState<ApplicationStatus | null>(null);
     const [stageMemo, setStageMemo] = useState('');
-    const [dragOverStage, setDragOverStage] = useState<JobApplicationStage | null>(null);
+    const [dragOverStage, setDragOverStage] = useState<ApplicationStatus | null>(null);
+    const [isDragOverCandidates, setIsDragOverCandidates] = useState(false);
     const [isIngestDrawerOpen, setIsIngestDrawerOpen] = useState(false);
+    const [ingestMode, setIngestMode] = useState<'single' | 'bulk'>('single');
     const [ingestUrl, setIngestUrl] = useState('');
+    const [bulkUrlsText, setBulkUrlsText] = useState('');
+    const [isDropZoneOver, setIsDropZoneOver] = useState(false);
+    const [bulkResults, setBulkResults] = useState<
+        Array<{
+            url: string;
+            status: 'pending' | 'processing' | 'success' | 'error';
+            message?: string;
+            response?: JobPosting;
+        }>
+    >([]);
+    const [isBulkIngesting, setIsBulkIngesting] = useState(false);
     const [isIngesting, setIsIngesting] = useState(false);
     const [ingestElapsedSeconds, setIngestElapsedSeconds] = useState(0);
     const [isParsingUrl, setIsParsingUrl] = useState(false);
@@ -303,35 +812,41 @@ export function JobApplicationManagement() {
     const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
     const [settingsForm, setSettingsForm] = useState<JobPostingSettingRequest | null>(null);
 
-    const { data: applications = [], isLoading } = useQuery({
-        queryKey: ['jobApplications'],
-        queryFn: jobApplicationApi.list,
-    });
-
-    const { data: candidates = [] } = useQuery({
-        queryKey: ['jobPostingCandidates'],
+    const { data: postings = [], isLoading } = useQuery({
+        queryKey: ['jobPostings'],
         queryFn: jobPostingApi.list,
     });
+
+    const applications = useMemo(
+        () => postings.filter((item) => !isPreApplication(item.status)),
+        [postings]
+    );
+    const candidates = useMemo(
+        () => postings.filter((item) => isPreApplication(item.status)),
+        [postings]
+    );
 
     const { data: settings } = useQuery({
         queryKey: ['jobPostingSettings'],
         queryFn: jobPostingApi.getSettings,
     });
 
-    const editingId = drawer?.mode === 'edit' ? drawer.id : null;
-    const editingApplication = applications.find((item) => item.id === editingId) ?? null;
-    const candidateDrawerItem = candidates.find((item) => item.id === candidateDrawerId) ?? null;
+    const isCreating = drawerState?.type === 'create';
+    const drawerId = drawerState?.type === 'existing' ? drawerState.id : null;
+    const drawerItem = postings.find((item) => item.id === drawerId) ?? null;
+    const isPostApplicationItem = drawerItem !== null && !isPreApplication(drawerItem.status);
+    const formIsPostApplication = isCreating || isPostApplicationItem;
 
     const { data: stageEvents = [], isLoading: isStageEventsLoading } = useQuery({
-        queryKey: ['jobApplications', editingId, 'stageEvents'],
-        queryFn: () => jobApplicationApi.stageEvents(editingId!),
-        enabled: editingId !== null,
+        queryKey: ['jobPostings', drawerId, 'statusEvents'],
+        queryFn: () => jobPostingApi.statusEvents(drawerId!),
+        enabled: drawerId !== null,
     });
 
-    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['jobApplications'] });
+    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['jobPostings'] });
 
     const createMutation = useMutation({
-        mutationFn: (payload: JobApplicationRequest) => jobApplicationApi.create(payload),
+        mutationFn: (payload: JobPostingRequest) => jobPostingApi.create(payload),
         onSuccess: () => {
             invalidate();
             closeDrawer();
@@ -341,18 +856,18 @@ export function JobApplicationManagement() {
     });
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, payload }: { id: number; payload: JobApplicationRequest }) =>
-            jobApplicationApi.update(id, payload),
+        mutationFn: ({ id, payload }: { id: number; payload: JobPostingRequest }) =>
+            jobPostingApi.update(id, payload),
         onSuccess: () => {
             invalidate();
-            setIsApplicationEditing(false);
+            setIsEditing(false);
         },
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '수정에 실패했습니다.'),
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => jobApplicationApi.remove(id),
+        mutationFn: (id: number) => jobPostingApi.remove(id),
         onSuccess: () => {
             invalidate();
             closeDrawer();
@@ -361,25 +876,41 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '삭제에 실패했습니다.'),
     });
 
-    const stageMutation = useMutation({
+    const statusMutation = useMutation({
         mutationFn: ({
             id,
-            stage,
+            status,
             memo,
         }: {
             id: number;
-            stage: JobApplicationStage;
+            status: ApplicationStatus;
             memo?: string;
-        }) => jobApplicationApi.changeStage(id, stage, memo),
+        }) => jobPostingApi.changeStatus(id, status, memo),
         onSuccess: (_, variables) => {
             invalidate();
             queryClient.invalidateQueries({
-                queryKey: ['jobApplications', variables.id, 'stageEvents'],
+                queryKey: ['jobPostings', variables.id, 'statusEvents'],
             });
             setStageMemo('');
         },
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '전형 단계 변경에 실패했습니다.'),
+    });
+
+    const analyzeAppealMutation = useMutation({
+        mutationFn: (id: number) => jobPostingApi.analyzeAppeal(id),
+        onSuccess: () => invalidate(),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '경력 매칭 분석에 실패했습니다.'),
+    });
+
+    const refreshMutation = useMutation({
+        mutationFn: (id: number) => jobPostingApi.refresh(id),
+        onSuccess: () => invalidate(),
+        onError: (error) =>
+            alert(
+                error instanceof ApiError ? error.message : '공고 정보를 다시 수집하지 못했습니다.'
+            ),
     });
 
     async function requestParseUrl(url: string) {
@@ -392,7 +923,7 @@ export function JobApplicationManagement() {
         const controller = new AbortController();
         parseUrlAbortRef.current = controller;
         try {
-            await jobApplicationApi.parseUrlStream(
+            await jobPostingApi.parseUrlStream(
                 url,
                 (event) => {
                     if (event.type === 'error') {
@@ -406,6 +937,7 @@ export function JobApplicationManagement() {
                         positionTitle: data.positionTitle || prev.positionTitle,
                         source: data.source || prev.source,
                         deadline: data.deadline || prev.deadline,
+                        alwaysOpen: data.alwaysOpen || prev.alwaysOpen,
                         salaryNote: data.salaryNote || prev.salaryNote,
                         jobDescription: data.jobDescription || prev.jobDescription,
                         requiredQualifications:
@@ -433,9 +965,6 @@ export function JobApplicationManagement() {
         }
     }
 
-    const invalidateCandidates = () =>
-        queryClient.invalidateQueries({ queryKey: ['jobPostingCandidates'] });
-
     // 모달을 닫아도 수집 자체는 백그라운드에서 계속 진행되도록 AbortController를 두지 않는다 —
     // 완료되면 complete 이벤트로 캐시에 바로 반영된다.
     async function requestIngestUrl(url: string) {
@@ -451,10 +980,10 @@ export function JobApplicationManagement() {
                     alert(event.message);
                     return;
                 }
-                queryClient.setQueryData(
-                    ['jobPostingCandidates'],
-                    (prev: JobPostingCandidate[] | undefined) => [event.response, ...(prev ?? [])]
-                );
+                queryClient.setQueryData(['jobPostings'], (prev: JobPosting[] | undefined) => [
+                    event.response,
+                    ...(prev ?? []),
+                ]);
                 setIngestUrl('');
                 setIsIngestDrawerOpen(false);
                 if (isCandidateDetailMissing(event.response)) {
@@ -462,17 +991,17 @@ export function JobApplicationManagement() {
                         '공고를 수집했지만 상세 정보(담당업무·자격요건 등)는 가져오지 못했어요.\n' +
                             '원본 페이지가 상세 페이지가 아니었거나 사이트가 자동 수집을 차단했을 수 있어요 — 열리는 상세 화면에서 직접 입력해주세요.'
                     );
-                    openCandidateDrawer(event.response.id);
+                    openDrawer(event.response);
                 }
             });
         } catch (error) {
             if (error instanceof ApiError && error.status === 409) {
                 setIsIngestDrawerOpen(false);
                 setIngestUrl('');
-                const existing = candidates.find((item) => item.url === url.trim());
+                const existing = candidates.find((item) => item.postingUrl === url.trim());
                 if (existing) {
                     alert('이미 수집된 공고예요. 상세 정보를 열어드릴게요.');
-                    openCandidateDrawer(existing.id);
+                    openDrawer(existing);
                 } else {
                     alert(
                         '이미 수집된 공고예요. 이미 지원 처리됐을 수 있어요 — 지원 공고 목록에서 확인해주세요.'
@@ -487,76 +1016,128 @@ export function JobApplicationManagement() {
         }
     }
 
+    function extractUrlsFromDataTransfer(dataTransfer: DataTransfer): string[] {
+        const foundUrls: string[] = [];
+        const uriList = dataTransfer.getData('text/uri-list');
+        if (uriList) {
+            uriList.split('\n').forEach((line) => {
+                const trimmed = line.trim();
+                if (
+                    trimmed &&
+                    !trimmed.startsWith('#') &&
+                    (trimmed.startsWith('http://') || trimmed.startsWith('https://'))
+                ) {
+                    foundUrls.push(trimmed);
+                }
+            });
+        }
+        const plainText = dataTransfer.getData('text/plain');
+        if (plainText) {
+            const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
+            const matches = plainText.match(urlRegex);
+            if (matches) {
+                matches.forEach((m) => foundUrls.push(m.trim()));
+            }
+        }
+        return Array.from(new Set(foundUrls));
+    }
+
+    async function requestBulkIngestUrls(urlsToIngest: string[]) {
+        const cleaned = urlsToIngest.map((u) => u.trim()).filter(Boolean);
+        if (cleaned.length === 0) return;
+
+        setIsBulkIngesting(true);
+        setBulkResults(cleaned.map((url) => ({ url, status: 'pending' })));
+
+        try {
+            await jobPostingApi.ingestUrlsStream(cleaned, (event) => {
+                if (event.type === 'progress') {
+                    setBulkResults((prev) =>
+                        prev.map((item) =>
+                            item.url === event.url ? { ...item, status: 'processing' } : item
+                        )
+                    );
+                } else if (event.type === 'item_success') {
+                    setBulkResults((prev) =>
+                        prev.map((item) =>
+                            item.url === event.url
+                                ? { ...item, status: 'success', response: event.response }
+                                : item
+                        )
+                    );
+                    queryClient.setQueryData(['jobPostings'], (prev: JobPosting[] | undefined) => [
+                        event.response,
+                        ...(prev ?? []),
+                    ]);
+                } else if (event.type === 'item_error') {
+                    setBulkResults((prev) =>
+                        prev.map((item) =>
+                            item.url === event.url
+                                ? { ...item, status: 'error', message: event.message }
+                                : item
+                        )
+                    );
+                } else if (event.type === 'complete') {
+                    // 완료
+                } else if (event.type === 'error') {
+                    alert(event.message);
+                }
+            });
+        } catch (error) {
+            alert(
+                error instanceof ApiError ? error.message : '다중 공고 수집 중 오류가 발생했습니다.'
+            );
+        } finally {
+            setIsBulkIngesting(false);
+        }
+    }
+
     const dismissCandidateMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.dismiss(id),
-        onSuccess: () => invalidateCandidates(),
+        onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '제외 처리에 실패했습니다.'),
     });
 
     const undismissCandidateMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.undismiss(id),
-        onSuccess: () => invalidateCandidates(),
+        onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '제외 해제에 실패했습니다.'),
     });
 
-    const deleteCandidateMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.remove(id),
-        onSuccess: () => {
-            invalidateCandidates();
-            closeCandidateDrawer();
-        },
-        onError: (error) =>
-            alert(error instanceof ApiError ? error.message : '삭제에 실패했습니다.'),
-    });
-
-    const convertCandidateMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.convertToApplication(id),
-        onSuccess: () => {
-            invalidateCandidates();
-            invalidate();
-        },
+    const applyMutation = useMutation({
+        mutationFn: (id: number) => jobPostingApi.apply(id),
+        onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '지원 전환에 실패했습니다.'),
     });
 
+    const unapplyMutation = useMutation({
+        mutationFn: (id: number) => jobPostingApi.unapply(id),
+        onSuccess: () => invalidate(),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '지원 취소에 실패했습니다.'),
+    });
+
     const saveCandidateMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.save(id),
-        onSuccess: () => invalidateCandidates(),
+        onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '저장에 실패했습니다.'),
     });
 
     const unsaveCandidateMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.unsave(id),
-        onSuccess: () => invalidateCandidates(),
+        onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '저장 해제에 실패했습니다.'),
-    });
-
-    const analyzeAppealMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.analyzeAppeal(id),
-        onSuccess: () => invalidateCandidates(),
-        onError: (error) =>
-            alert(error instanceof ApiError ? error.message : '경력 매칭 분석에 실패했습니다.'),
-    });
-
-    const updateCandidateMutation = useMutation({
-        mutationFn: ({ id, payload }: { id: number; payload: JobPostingCandidateUpdateRequest }) =>
-            jobPostingApi.update(id, payload),
-        onSuccess: () => {
-            invalidateCandidates();
-            setIsCandidateEditing(false);
-        },
-        onError: (error) =>
-            alert(error instanceof ApiError ? error.message : '수정에 실패했습니다.'),
     });
 
     const collectMutation = useMutation({
         mutationFn: () => jobPostingApi.collect(),
         onSuccess: (result) => {
-            invalidateCandidates();
+            invalidate();
             const parts = [`만료 처리 ${result.expiredCount}건`];
             parts.push(
                 result.saraminEnabled ? `사람인 ${result.saraminCollected}건` : '사람인 비활성화'
@@ -609,7 +1190,7 @@ export function JobApplicationManagement() {
         const keyword = search.trim().toLowerCase();
         if (!keyword) return candidates;
         return candidates.filter((item) =>
-            `${item.companyName} ${item.title} ${POSTING_SOURCE_LABELS[item.source]}`
+            `${item.companyName} ${item.positionTitle} ${item.source}`
                 .toLowerCase()
                 .includes(keyword)
         );
@@ -636,7 +1217,7 @@ export function JobApplicationManagement() {
 
     const listApplications = useMemo(() => {
         return filteredApplications.filter((item) => {
-            if (applicationStageFilter !== 'ALL' && applicationStageFilter !== item.currentStage)
+            if (applicationStageFilter !== 'ALL' && applicationStageFilter !== item.status)
                 return false;
             if (applicationDeadlineSoonOnly && !isDeadlineSoon(item.deadline)) return false;
             return true;
@@ -661,19 +1242,18 @@ export function JobApplicationManagement() {
     }
 
     const byStage = useMemo(() => {
-        const map = new Map<JobApplicationStage, JobApplication[]>();
+        const map = new Map<ApplicationStatus, JobPosting[]>();
         STAGE_ORDER.forEach((stage) => map.set(stage, []));
-        filteredApplications.forEach((item) => map.get(item.currentStage)?.push(item));
+        filteredApplications.forEach((item) =>
+            map.get(item.status as ApplicationStatus)?.push(item)
+        );
         return map;
     }, [filteredApplications]);
 
     const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth]);
 
     const deadlineEventsByDate = useMemo(() => {
-        const map = new Map<
-            string,
-            { applications: JobApplication[]; candidates: JobPostingCandidate[] }
-        >();
+        const map = new Map<string, { applications: JobPosting[]; candidates: JobPosting[] }>();
         applications.forEach((item) => {
             if (!item.deadline) return;
             if (!map.has(item.deadline))
@@ -697,53 +1277,31 @@ export function JobApplicationManagement() {
 
     function openCreateDrawer() {
         setForm(emptyForm);
-        setDrawer({ mode: 'create' });
+        setStageDraft(null);
+        setStageMemo('');
+        setIsEditing(false);
+        setDrawerState({ type: 'create' });
     }
 
-    function openEditDrawer(item: JobApplication) {
-        setForm({
-            companyName: item.companyName,
-            positionTitle: item.positionTitle,
-            postingUrl: item.postingUrl ?? '',
-            source: item.source,
-            appliedAt: item.appliedAt,
-            deadline: item.deadline ?? '',
-            salaryNote: item.salaryNote ?? '',
-            memo: item.memo ?? '',
-            jobDescription: item.jobDescription ?? '',
-            requiredQualifications: item.requiredQualifications ?? '',
-            preferredQualifications: item.preferredQualifications ?? '',
-            hiringProcess: item.hiringProcess ?? '',
-            applicationMethod: item.applicationMethod ?? '',
-            compensationDetail: item.compensationDetail ?? '',
-        });
-        setStageDraft(item.currentStage);
+    function openDrawer(item: JobPosting) {
+        setStageDraft(!isPreApplication(item.status) ? (item.status as ApplicationStatus) : null);
         setStageMemo('');
-        setDrawer({ mode: 'edit', id: item.id });
+        setIsEditing(false);
+        setDrawerState({ type: 'existing', id: item.id });
     }
 
     function closeDrawer() {
         parseUrlAbortRef.current?.abort();
         parseUrlAbortRef.current = null;
         setIsParsingUrl(false);
-        setDrawer(null);
+        setDrawerState(null);
         setForm(emptyForm);
         setStageDraft(null);
         setStageMemo('');
-        setIsApplicationEditing(false);
+        setIsEditing(false);
     }
 
-    function openCandidateDrawer(id: number) {
-        setCandidateDrawerId(id);
-        setIsCandidateEditing(false);
-    }
-
-    function closeCandidateDrawer() {
-        setCandidateDrawerId(null);
-        setIsCandidateEditing(false);
-    }
-
-    function startEditingApplication(item: JobApplication) {
+    function startEditing(item: JobPosting) {
         setForm({
             companyName: item.companyName,
             positionTitle: item.positionTitle,
@@ -751,7 +1309,10 @@ export function JobApplicationManagement() {
             source: item.source,
             appliedAt: item.appliedAt,
             deadline: item.deadline ?? '',
+            alwaysOpen: item.alwaysOpen,
             salaryNote: item.salaryNote ?? '',
+            location: item.location ?? '',
+            employmentType: item.employmentType ?? '',
             memo: item.memo ?? '',
             jobDescription: item.jobDescription ?? '',
             requiredQualifications: item.requiredQualifications ?? '',
@@ -760,52 +1321,18 @@ export function JobApplicationManagement() {
             applicationMethod: item.applicationMethod ?? '',
             compensationDetail: item.compensationDetail ?? '',
         });
-        setIsApplicationEditing(true);
-    }
-
-    function startEditingCandidate(item: JobPostingCandidate) {
-        setCandidateForm({
-            title: item.title,
-            companyName: item.companyName,
-            deadline: item.deadline ?? '',
-            salaryNote: item.salaryNote ?? '',
-            location: item.location ?? '',
-            employmentType: item.employmentType ?? '',
-            jobDescription: item.jobDescription ?? '',
-            requiredQualifications: item.requiredQualifications ?? '',
-            preferredQualifications: item.preferredQualifications ?? '',
-            hiringProcess: item.hiringProcess ?? '',
-            applicationMethod: item.applicationMethod ?? '',
-            compensationDetail: item.compensationDetail ?? '',
-        });
-        setIsCandidateEditing(true);
-    }
-
-    function handleCandidateSubmit(event: FormEvent, id: number) {
-        event.preventDefault();
-        const payload: JobPostingCandidateUpdateRequest = {
-            ...candidateForm,
-            deadline: candidateForm.deadline?.trim() || null,
-            salaryNote: candidateForm.salaryNote?.trim() || null,
-            location: candidateForm.location?.trim() || null,
-            employmentType: candidateForm.employmentType?.trim() || null,
-            jobDescription: candidateForm.jobDescription?.trim() || null,
-            requiredQualifications: candidateForm.requiredQualifications?.trim() || null,
-            preferredQualifications: candidateForm.preferredQualifications?.trim() || null,
-            hiringProcess: candidateForm.hiringProcess?.trim() || null,
-            applicationMethod: candidateForm.applicationMethod?.trim() || null,
-            compensationDetail: candidateForm.compensationDetail?.trim() || null,
-        };
-        updateCandidateMutation.mutate({ id, payload });
+        setIsEditing(true);
     }
 
     function handleSubmit(event: FormEvent) {
         event.preventDefault();
-        const payload: JobApplicationRequest = {
+        const payload: JobPostingRequest = {
             ...form,
             postingUrl: form.postingUrl?.trim() || null,
-            deadline: form.deadline?.trim() || null,
+            deadline: form.alwaysOpen ? null : form.deadline?.trim() || null,
             salaryNote: form.salaryNote?.trim() || null,
+            location: form.location?.trim() || null,
+            employmentType: form.employmentType?.trim() || null,
             memo: form.memo?.trim() || null,
             jobDescription: form.jobDescription?.trim() || null,
             requiredQualifications: form.requiredQualifications?.trim() || null,
@@ -814,8 +1341,8 @@ export function JobApplicationManagement() {
             applicationMethod: form.applicationMethod?.trim() || null,
             compensationDetail: form.compensationDetail?.trim() || null,
         };
-        if (editingId !== null) {
-            updateMutation.mutate({ id: editingId, payload });
+        if (drawerId !== null) {
+            updateMutation.mutate({ id: drawerId, payload });
         } else {
             createMutation.mutate(payload);
         }
@@ -826,19 +1353,45 @@ export function JobApplicationManagement() {
         event.dataTransfer.effectAllowed = 'move';
     }
 
-    function handleColumnDragOver(event: DragEvent<HTMLDivElement>, stage: JobApplicationStage) {
+    function handleColumnDragOver(event: DragEvent<HTMLDivElement>, stage: ApplicationStatus) {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
         if (dragOverStage !== stage) setDragOverStage(stage);
     }
 
-    function handleColumnDrop(event: DragEvent<HTMLDivElement>, stage: JobApplicationStage) {
+    function handleColumnDrop(event: DragEvent<HTMLDivElement>, stage: ApplicationStatus) {
         event.preventDefault();
         setDragOverStage(null);
         const id = Number(event.dataTransfer.getData('text/plain'));
-        const target = applications.find((item) => item.id === id);
-        if (!target || Number.isNaN(id) || target.currentStage === stage) return;
-        stageMutation.mutate({ id, stage });
+        if (Number.isNaN(id)) return;
+        const target = postings.find((item) => item.id === id);
+        if (!target) return;
+        if (isPreApplication(target.status)) {
+            applyMutation.mutate(id);
+            return;
+        }
+        if (target.status === stage) return;
+        statusMutation.mutate({ id, status: stage });
+    }
+
+    function handleCandidateColumnDragOver(event: DragEvent<HTMLDivElement>) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        if (!isDragOverCandidates) setIsDragOverCandidates(true);
+    }
+
+    /** 전형 진행 단계에 있는 카드를 실수로 옮겼을 때를 대비해, "수집됨" 칼럼에 놓으면 지원 전
+     * 상태로 되돌릴 수 있게 한다 — 확인창을 거쳐야 실제로 되돌아간다. */
+    function handleCandidateColumnDrop(event: DragEvent<HTMLDivElement>) {
+        event.preventDefault();
+        setIsDragOverCandidates(false);
+        const id = Number(event.dataTransfer.getData('text/plain'));
+        if (Number.isNaN(id)) return;
+        const target = postings.find((item) => item.id === id);
+        if (!target || isPreApplication(target.status)) return;
+        if (confirm('이 공고를 지원 전(수집됨) 상태로 되돌릴까요?')) {
+            unapplyMutation.mutate(id);
+        }
     }
 
     const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -983,7 +1536,7 @@ export function JobApplicationManagement() {
                                         value={candidateStatusFilter}
                                         onChange={(e) =>
                                             setCandidateStatusFilter(
-                                                e.target.value as 'ALL' | JobPostingCandidateStatus
+                                                e.target.value as 'ALL' | PreApplicationStatus
                                             )
                                         }
                                         className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 focus:border-slate-400 focus:outline-none"
@@ -1033,7 +1586,7 @@ export function JobApplicationManagement() {
                                         value={applicationStageFilter}
                                         onChange={(e) =>
                                             setApplicationStageFilter(
-                                                e.target.value as 'ALL' | JobApplicationStage
+                                                e.target.value as 'ALL' | ApplicationStatus
                                             )
                                         }
                                         className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 focus:border-slate-400 focus:outline-none"
@@ -1110,9 +1663,7 @@ export function JobApplicationManagement() {
                                                 return (
                                                     <tr
                                                         key={candidate.id}
-                                                        onClick={() =>
-                                                            openCandidateDrawer(candidate.id)
-                                                        }
+                                                        onClick={() => openDrawer(candidate)}
                                                         className="cursor-pointer text-slate-500 transition hover:bg-slate-50"
                                                     >
                                                         <td className="px-5 py-3">
@@ -1120,7 +1671,7 @@ export function JobApplicationManagement() {
                                                                 {candidate.companyName}
                                                             </span>
                                                             <span className="ml-2 text-slate-400">
-                                                                {candidate.title}
+                                                                {candidate.positionTitle}
                                                             </span>
                                                             {isCandidateDetailMissing(
                                                                 candidate
@@ -1134,14 +1685,12 @@ export function JobApplicationManagement() {
                                                             )}
                                                         </td>
                                                         <td className="px-5 py-3">
-                                                            {
-                                                                POSTING_SOURCE_LABELS[
-                                                                    candidate.source
-                                                                ]
-                                                            }
+                                                            {candidate.source}
                                                         </td>
                                                         <td className="px-5 py-3 whitespace-nowrap">
-                                                            {candidate.deadline ? (
+                                                            {candidate.alwaysOpen ? (
+                                                                <AlwaysOpenBadge />
+                                                            ) : candidate.deadline ? (
                                                                 <span className="inline-flex items-center gap-1.5">
                                                                     {candidate.deadline}
                                                                     {dDay && (
@@ -1183,11 +1732,11 @@ export function JobApplicationManagement() {
                                                                 <button
                                                                     type="button"
                                                                     disabled={
-                                                                        convertCandidateMutation.isPending
+                                                                        applyMutation.isPending
                                                                     }
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        convertCandidateMutation.mutate(
+                                                                        applyMutation.mutate(
                                                                             candidate.id
                                                                         );
                                                                     }}
@@ -1238,7 +1787,7 @@ export function JobApplicationManagement() {
                                                                 <button
                                                                     type="button"
                                                                     disabled={
-                                                                        deleteCandidateMutation.isPending
+                                                                        deleteMutation.isPending
                                                                     }
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -1247,7 +1796,7 @@ export function JobApplicationManagement() {
                                                                                 '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
                                                                             )
                                                                         ) {
-                                                                            deleteCandidateMutation.mutate(
+                                                                            deleteMutation.mutate(
                                                                                 candidate.id
                                                                             );
                                                                         }
@@ -1305,7 +1854,7 @@ export function JobApplicationManagement() {
                                             {listApplications.map((item) => (
                                                 <tr
                                                     key={item.id}
-                                                    onClick={() => openEditDrawer(item)}
+                                                    onClick={() => openDrawer(item)}
                                                     className="cursor-pointer text-slate-600 transition hover:bg-slate-50"
                                                 >
                                                     <td className="px-5 py-3">
@@ -1321,17 +1870,25 @@ export function JobApplicationManagement() {
                                                         {item.appliedAt}
                                                     </td>
                                                     <td className="px-5 py-3 whitespace-nowrap">
-                                                        {item.deadline ?? (
-                                                            <span className="text-slate-300">
-                                                                —
-                                                            </span>
+                                                        {item.alwaysOpen ? (
+                                                            <AlwaysOpenBadge />
+                                                        ) : (
+                                                            (item.deadline ?? (
+                                                                <span className="text-slate-300">
+                                                                    —
+                                                                </span>
+                                                            ))
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-3">
                                                         <span
-                                                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[item.currentStage]}`}
+                                                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[item.status as ApplicationStatus]}`}
                                                         >
-                                                            {STAGE_LABELS[item.currentStage]}
+                                                            {
+                                                                STAGE_LABELS[
+                                                                    item.status as ApplicationStatus
+                                                                ]
+                                                            }
                                                         </span>
                                                     </td>
                                                     <td className="px-5 py-3 text-right">
@@ -1371,7 +1928,16 @@ export function JobApplicationManagement() {
                             gridAutoColumns: 'minmax(220px, 1fr)',
                         }}
                     >
-                        <div className="flex h-full min-w-0 flex-col rounded-2xl border border-dashed border-slate-300 bg-white p-2.5">
+                        <div
+                            onDragOver={handleCandidateColumnDragOver}
+                            onDragLeave={() => setIsDragOverCandidates(false)}
+                            onDrop={handleCandidateColumnDrop}
+                            className={`flex h-full min-w-0 flex-col rounded-2xl border border-dashed p-2.5 transition ${
+                                isDragOverCandidates
+                                    ? 'border-slate-400 bg-slate-100'
+                                    : 'border-slate-300 bg-white'
+                            }`}
+                        >
                             <div className="mb-2 flex shrink-0 items-center justify-between px-1.5">
                                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-extrabold text-white">
                                     <Bookmark className="h-3 w-3" />
@@ -1387,97 +1953,60 @@ export function JobApplicationManagement() {
                                     return (
                                         <div
                                             key={candidate.id}
-                                            onClick={() => openCandidateDrawer(candidate.id)}
-                                            className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow"
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, candidate.id)}
+                                            onClick={() => openDrawer(candidate)}
+                                            className="cursor-grab rounded-xl border border-slate-200 bg-slate-50 p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow active:cursor-grabbing"
                                         >
-                                            <p className="truncate text-sm font-extrabold text-slate-800">
-                                                {candidate.companyName}
-                                            </p>
-                                            <p className="mt-0.5 truncate text-xs text-slate-500">
-                                                {candidate.title}
-                                            </p>
-                                            <div className="mt-2 flex items-center justify-between">
-                                                <span className="flex items-center gap-1">
-                                                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                                                        {POSTING_SOURCE_LABELS[candidate.source]}
-                                                    </span>
-                                                    {isCandidateDetailMissing(candidate) && (
-                                                        <span
-                                                            className="inline-flex"
-                                                            title="상세 정보를 자동으로 가져오지 못했어요"
-                                                        >
-                                                            <AlertTriangle className="h-3 w-3 text-amber-500" />
-                                                        </span>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span
+                                                    className="truncate text-[11px] font-semibold text-slate-400"
+                                                    title="수집됨 상태로 마지막 변경된 날짜"
+                                                >
+                                                    {formatBoardStatusDate(
+                                                        candidate.statusChangedAt
                                                     )}
                                                 </span>
-                                                {dDay && (
+                                                {candidate.alwaysOpen ? (
+                                                    <AlwaysOpenBadge rounded="rounded-full" />
+                                                ) : (
+                                                    dDay && (
+                                                        <span
+                                                            className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                                                                dDay === '마감'
+                                                                    ? 'bg-slate-100 text-slate-400'
+                                                                    : 'bg-rose-50 text-rose-500'
+                                                            }`}
+                                                        >
+                                                            {dDay}
+                                                        </span>
+                                                    )
+                                                )}
+                                            </div>
+                                            <div className="mt-1.5 flex min-w-0 items-center gap-2">
+                                                <p className="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800">
+                                                    {candidate.companyName}
+                                                </p>
+                                                {candidate.matchScore !== null && (
                                                     <span
-                                                        className={`text-[10px] font-extrabold ${
-                                                            dDay === '마감'
-                                                                ? 'text-slate-300'
-                                                                : 'text-rose-500'
-                                                        }`}
+                                                        className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600"
+                                                        title={candidate.matchReason ?? undefined}
                                                     >
-                                                        {dDay}
+                                                        매칭 {candidate.matchScore}점
                                                     </span>
                                                 )}
                                             </div>
-                                            {candidate.matchScore !== null && (
-                                                <div
-                                                    className="mt-1.5 flex items-center gap-1"
-                                                    title={candidate.matchReason ?? undefined}
-                                                >
-                                                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600">
-                                                        매칭 {candidate.matchScore}점
+                                            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                                                <p className="min-w-0 flex-1 truncate text-xs text-slate-500">
+                                                    {candidate.positionTitle}
+                                                </p>
+                                                {isCandidateDetailMissing(candidate) && (
+                                                    <span
+                                                        className="inline-flex shrink-0"
+                                                        title="상세 정보를 자동으로 가져오지 못했어요"
+                                                    >
+                                                        <AlertTriangle className="h-3 w-3 text-amber-500" />
                                                     </span>
-                                                </div>
-                                            )}
-                                            <div className="mt-2 flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    disabled={convertCandidateMutation.isPending}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        convertCandidateMutation.mutate(
-                                                            candidate.id
-                                                        );
-                                                    }}
-                                                    className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-slate-900 px-2 py-1 text-[11px] font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    <Check className="h-3 w-3" />
-                                                    지원하기
-                                                </button>
-                                                {candidate.status === 'NEW' && (
-                                                    <button
-                                                        type="button"
-                                                        disabled={saveCandidateMutation.isPending}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            saveCandidateMutation.mutate(
-                                                                candidate.id
-                                                            );
-                                                        }}
-                                                        title="저장"
-                                                        className="rounded-lg border border-slate-200 px-2 py-1 text-slate-500 transition hover:bg-slate-100"
-                                                    >
-                                                        <Bookmark className="h-3 w-3" />
-                                                    </button>
-                                                )}
-                                                {candidate.status === 'SAVED' && (
-                                                    <button
-                                                        type="button"
-                                                        disabled={unsaveCandidateMutation.isPending}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            unsaveCandidateMutation.mutate(
-                                                                candidate.id
-                                                            );
-                                                        }}
-                                                        title="저장 해제"
-                                                        className="rounded-lg border border-slate-200 px-2 py-1 text-emerald-500 transition hover:bg-rose-50 hover:text-rose-500"
-                                                    >
-                                                        <BookmarkCheck className="h-3 w-3" />
-                                                    </button>
                                                 )}
                                                 <button
                                                     type="button"
@@ -1490,13 +2019,14 @@ export function JobApplicationManagement() {
                                                             );
                                                         }
                                                     }}
-                                                    className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-500 transition hover:bg-slate-100"
+                                                    title="후보에서 제외 (목록에서 숨기기)"
+                                                    className="shrink-0 text-slate-400 transition hover:text-slate-600 disabled:opacity-50"
                                                 >
-                                                    제외
+                                                    <EyeOff className="h-3.5 w-3.5" />
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled={deleteCandidateMutation.isPending}
+                                                    disabled={deleteMutation.isPending}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         if (
@@ -1504,15 +2034,13 @@ export function JobApplicationManagement() {
                                                                 '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
                                                             )
                                                         ) {
-                                                            deleteCandidateMutation.mutate(
-                                                                candidate.id
-                                                            );
+                                                            deleteMutation.mutate(candidate.id);
                                                         }
                                                     }}
-                                                    title="삭제"
-                                                    className="rounded-lg border border-slate-200 px-2 py-1 text-rose-500 transition hover:bg-rose-50"
+                                                    title="완전히 삭제 (같은 URL 재수집 가능)"
+                                                    className="shrink-0 text-slate-300 transition hover:text-rose-500 disabled:opacity-50"
                                                 >
-                                                    <Trash2 className="h-3 w-3" />
+                                                    <Trash2 className="h-3.5 w-3.5" />
                                                 </button>
                                             </div>
                                         </div>
@@ -1559,31 +2087,40 @@ export function JobApplicationManagement() {
                                                     key={item.id}
                                                     draggable
                                                     onDragStart={(e) => handleDragStart(e, item.id)}
-                                                    onClick={() => openEditDrawer(item)}
+                                                    onClick={() => openDrawer(item)}
                                                     className="cursor-grab rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow active:cursor-grabbing"
                                                 >
-                                                    <p className="truncate text-sm font-extrabold text-slate-800">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span
+                                                            className="truncate text-[11px] font-semibold text-slate-400"
+                                                            title={`${STAGE_LABELS[stage]} 상태로 마지막 변경된 날짜`}
+                                                        >
+                                                            {formatBoardStatusDate(
+                                                                item.statusChangedAt
+                                                            )}
+                                                        </span>
+                                                        {item.alwaysOpen ? (
+                                                            <AlwaysOpenBadge rounded="rounded-full" />
+                                                        ) : dDay ? (
+                                                            <span
+                                                                className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                                                                    dDay === '마감'
+                                                                        ? 'bg-slate-100 text-slate-400'
+                                                                        : 'bg-rose-50 text-rose-500'
+                                                                }`}
+                                                            >
+                                                                {dDay}
+                                                            </span>
+                                                        ) : (
+                                                            <span />
+                                                        )}
+                                                    </div>
+                                                    <p className="mt-1.5 truncate text-sm font-extrabold text-slate-800">
                                                         {item.companyName}
                                                     </p>
                                                     <p className="mt-0.5 truncate text-xs text-slate-500">
                                                         {item.positionTitle}
                                                     </p>
-                                                    <div className="mt-2 flex items-center justify-between">
-                                                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                                                            {item.source}
-                                                        </span>
-                                                        {dDay && (
-                                                            <span
-                                                                className={`text-[10px] font-extrabold ${
-                                                                    dDay === '마감'
-                                                                        ? 'text-slate-300'
-                                                                        : 'text-rose-500'
-                                                                }`}
-                                                            >
-                                                                {dDay}
-                                                            </span>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             );
                                         })}
@@ -1653,7 +2190,7 @@ export function JobApplicationManagement() {
                                             <button
                                                 key={`app-${item.id}`}
                                                 type="button"
-                                                onClick={() => openEditDrawer(item)}
+                                                onClick={() => openDrawer(item)}
                                                 title={`${item.companyName} · 마감일`}
                                                 className="block w-full truncate rounded bg-blue-50 px-1 py-0.5 text-left text-[10px] font-bold text-blue-700 transition hover:bg-blue-100"
                                             >
@@ -1663,7 +2200,7 @@ export function JobApplicationManagement() {
                                         {events?.candidates.map((item) => (
                                             <div
                                                 key={`cand-${item.id}`}
-                                                title={`${item.companyName} · ${POSTING_SOURCE_LABELS[item.source]} (수집됨)`}
+                                                title={`${item.companyName} · ${item.source} (수집됨)`}
                                                 className="truncate rounded border border-dashed border-slate-300 px-1 py-0.5 text-[10px] font-bold text-slate-500"
                                             >
                                                 {item.companyName}
@@ -1686,7 +2223,7 @@ export function JobApplicationManagement() {
                 </div>
             )}
 
-            {drawer && (
+            {drawerState && (
                 <div className="fixed inset-0 z-40 flex justify-end">
                     <div
                         className="absolute inset-0 bg-slate-900/30"
@@ -1697,11 +2234,15 @@ export function JobApplicationManagement() {
                         <div className="flex-1 overflow-y-auto p-5">
                             <div className="mb-4 flex items-center justify-between">
                                 <h3 className="text-lg font-black text-slate-950">
-                                    {editingId === null
+                                    {isCreating
                                         ? '새 지원 공고 등록'
-                                        : isApplicationEditing
-                                          ? '지원 공고 수정'
-                                          : '지원 공고 상세'}
+                                        : drawerItem && isPreApplication(drawerItem.status)
+                                          ? isEditing
+                                              ? '수집된 공고 수정'
+                                              : '수집된 공고 상세'
+                                          : isEditing
+                                            ? '지원 공고 수정'
+                                            : '지원 공고 상세'}
                                 </h3>
                                 <button
                                     type="button"
@@ -1712,42 +2253,68 @@ export function JobApplicationManagement() {
                                 </button>
                             </div>
 
-                            {editingId !== null && !isApplicationEditing ? (
-                                editingApplication && (
+                            {!isCreating && !isEditing ? (
+                                drawerItem && (
                                     <div className="space-y-4">
-                                        <div>
-                                            <p className="text-lg font-black text-slate-900">
-                                                {editingApplication.companyName}
-                                            </p>
-                                            <p className="mt-0.5 text-sm text-slate-500">
-                                                {editingApplication.positionTitle}
-                                            </p>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div>
+                                                <p className="text-lg font-black text-slate-900">
+                                                    {drawerItem.companyName}
+                                                </p>
+                                                <p className="mt-0.5 text-sm text-slate-500">
+                                                    {drawerItem.positionTitle}
+                                                </p>
+                                            </div>
+                                            {isPreApplication(drawerItem.status) ? (
+                                                <span className="inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-extrabold text-white">
+                                                    {drawerItem.status === 'SAVED' ? (
+                                                        <BookmarkCheck className="h-3 w-3" />
+                                                    ) : (
+                                                        <Bookmark className="h-3 w-3" />
+                                                    )}
+                                                    {CANDIDATE_STATUS_LABELS[drawerItem.status]}
+                                                </span>
+                                            ) : (
+                                                <span
+                                                    className={`inline-flex w-fit shrink-0 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[drawerItem.status as ApplicationStatus]}`}
+                                                >
+                                                    {
+                                                        STAGE_LABELS[
+                                                            drawerItem.status as ApplicationStatus
+                                                        ]
+                                                    }
+                                                </span>
+                                            )}
                                         </div>
-
-                                        <span
-                                            className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[editingApplication.currentStage]}`}
-                                        >
-                                            {STAGE_LABELS[editingApplication.currentStage]}
-                                        </span>
 
                                         <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
                                             <div>
                                                 <dt className="font-bold text-slate-500">출처</dt>
                                                 <dd className="mt-0.5 text-slate-800">
-                                                    {editingApplication.source}
+                                                    {drawerItem.source}
                                                 </dd>
                                             </div>
-                                            <div>
-                                                <dt className="font-bold text-slate-500">지원일</dt>
-                                                <dd className="mt-0.5 text-slate-800">
-                                                    {editingApplication.appliedAt}
-                                                </dd>
-                                            </div>
+                                            {!isPreApplication(drawerItem.status) && (
+                                                <div>
+                                                    <dt className="font-bold text-slate-500">
+                                                        지원일
+                                                    </dt>
+                                                    <dd className="mt-0.5 text-slate-800">
+                                                        {drawerItem.appliedAt}
+                                                    </dd>
+                                                </div>
+                                            )}
                                             <div>
                                                 <dt className="font-bold text-slate-500">마감일</dt>
                                                 <dd className="mt-0.5 text-slate-800">
-                                                    {editingApplication.deadline ?? (
-                                                        <span className="text-slate-300">—</span>
+                                                    {drawerItem.alwaysOpen ? (
+                                                        <AlwaysOpenBadge />
+                                                    ) : (
+                                                        (drawerItem.deadline ?? (
+                                                            <span className="text-slate-300">
+                                                                —
+                                                            </span>
+                                                        ))
                                                     )}
                                                 </dd>
                                             </div>
@@ -1756,56 +2323,404 @@ export function JobApplicationManagement() {
                                                     연봉/근무조건 메모
                                                 </dt>
                                                 <dd className="mt-0.5 text-slate-800">
-                                                    {editingApplication.salaryNote ?? (
+                                                    {drawerItem.salaryNote ?? (
                                                         <span className="text-slate-300">—</span>
                                                     )}
                                                 </dd>
                                             </div>
-                                            {editingApplication.memo && (
-                                                <div className="col-span-2">
+                                            <div>
+                                                <dt className="font-bold text-slate-500">근무지</dt>
+                                                <dd className="mt-0.5 text-slate-800">
+                                                    {drawerItem.location ?? (
+                                                        <span className="text-slate-300">—</span>
+                                                    )}
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt className="font-bold text-slate-500">
+                                                    고용형태
+                                                </dt>
+                                                <dd className="mt-0.5 text-slate-800">
+                                                    {drawerItem.employmentType ?? (
+                                                        <span className="text-slate-300">—</span>
+                                                    )}
+                                                </dd>
+                                            </div>
+                                            {isPreApplication(drawerItem.status) && (
+                                                <div>
                                                     <dt className="font-bold text-slate-500">
-                                                        메모
+                                                        수집 일시
                                                     </dt>
-                                                    <dd className="mt-0.5 whitespace-pre-wrap text-slate-800">
-                                                        {editingApplication.memo}
+                                                    <dd className="mt-0.5 text-slate-800">
+                                                        {drawerItem.createdAt
+                                                            .replace('T', ' ')
+                                                            .slice(0, 19)}
                                                     </dd>
                                                 </div>
                                             )}
+                                            {!isPreApplication(drawerItem.status) &&
+                                                drawerItem.memo && (
+                                                    <div className="col-span-2">
+                                                        <dt className="font-bold text-slate-500">
+                                                            메모
+                                                        </dt>
+                                                        <dd className="mt-0.5 whitespace-pre-wrap text-slate-800">
+                                                            {drawerItem.memo}
+                                                        </dd>
+                                                    </div>
+                                                )}
                                         </dl>
 
-                                        {(editingApplication.jobDescription ||
-                                            editingApplication.requiredQualifications ||
-                                            editingApplication.preferredQualifications ||
-                                            editingApplication.hiringProcess ||
-                                            editingApplication.applicationMethod ||
-                                            editingApplication.compensationDetail) && (
-                                            <div>
-                                                <p className="mb-2 text-sm font-bold text-slate-600">
-                                                    상세 정보
-                                                </p>
-                                                <DetailTabs
-                                                    key={editingApplication.id}
-                                                    fields={{
-                                                        jobDescription:
-                                                            editingApplication.jobDescription,
-                                                        requiredQualifications:
-                                                            editingApplication.requiredQualifications,
-                                                        preferredQualifications:
-                                                            editingApplication.preferredQualifications,
-                                                        hiringProcess:
-                                                            editingApplication.hiringProcess,
-                                                        applicationMethod:
-                                                            editingApplication.applicationMethod,
-                                                        compensationDetail:
-                                                            editingApplication.compensationDetail,
-                                                    }}
-                                                />
-                                            </div>
-                                        )}
+                                        <SectionTabs
+                                            key={drawerItem.id}
+                                            tabs={[
+                                                {
+                                                    key: 'detail',
+                                                    label: '상세 정보',
+                                                    content: !isCandidateDetailMissing(
+                                                        drawerItem
+                                                    ) ? (
+                                                        <DetailTabs
+                                                            fields={{
+                                                                jobDescription:
+                                                                    drawerItem.jobDescription,
+                                                                requiredQualifications:
+                                                                    drawerItem.requiredQualifications,
+                                                                preferredQualifications:
+                                                                    drawerItem.preferredQualifications,
+                                                                hiringProcess:
+                                                                    drawerItem.hiringProcess,
+                                                                applicationMethod:
+                                                                    drawerItem.applicationMethod,
+                                                                compensationDetail:
+                                                                    drawerItem.compensationDetail,
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                                                            <div className="flex items-start gap-2">
+                                                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                                                                <div>
+                                                                    <p className="text-sm font-bold text-amber-800">
+                                                                        상세 정보를 자동으로
+                                                                        가져오지 못했어요
+                                                                    </p>
+                                                                    <p className="mt-1 text-xs text-amber-700">
+                                                                        원본 페이지가 채용공고
+                                                                        상세가 아니었거나, 사이트가
+                                                                        자동 수집을 차단했을 수
+                                                                        있어요. 아래 &ldquo;직접
+                                                                        입력하기&rdquo;로
+                                                                        담당업무·자격요건 등을
+                                                                        채워주세요.
+                                                                    </p>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            startEditing(drawerItem)
+                                                                        }
+                                                                        className="mt-2 flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-900"
+                                                                    >
+                                                                        <Pencil className="h-3 w-3" />
+                                                                        직접 입력하기
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ),
+                                                },
+                                                {
+                                                    key: 'cover-letter',
+                                                    label: '자소서',
+                                                    content: (
+                                                        <CoverLetterEditor
+                                                            jobPostingId={drawerItem.id}
+                                                        />
+                                                    ),
+                                                },
+                                                {
+                                                    key: 'stage',
+                                                    label: '상태 이력',
+                                                    content: (
+                                                        <div>
+                                                            {!isPreApplication(
+                                                                drawerItem.status
+                                                            ) && (
+                                                                <>
+                                                                    <p className="mb-2 text-sm font-bold text-slate-600">
+                                                                        전형 단계 변경
+                                                                    </p>
+                                                                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                                                                        <select
+                                                                            value={
+                                                                                stageDraft ??
+                                                                                (drawerItem.status as ApplicationStatus)
+                                                                            }
+                                                                            onChange={(e) =>
+                                                                                setStageDraft(
+                                                                                    e.target
+                                                                                        .value as ApplicationStatus
+                                                                                )
+                                                                            }
+                                                                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
+                                                                        >
+                                                                            {STAGE_ORDER.map(
+                                                                                (stage) => (
+                                                                                    <option
+                                                                                        key={stage}
+                                                                                        value={
+                                                                                            stage
+                                                                                        }
+                                                                                    >
+                                                                                        {
+                                                                                            STAGE_LABELS[
+                                                                                                stage
+                                                                                            ]
+                                                                                        }
+                                                                                    </option>
+                                                                                )
+                                                                            )}
+                                                                        </select>
+                                                                        <input
+                                                                            value={stageMemo}
+                                                                            onChange={(e) =>
+                                                                                setStageMemo(
+                                                                                    e.target.value
+                                                                                )
+                                                                            }
+                                                                            placeholder="메모(선택)"
+                                                                            className="w-36 rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
+                                                                        />
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={
+                                                                                statusMutation.isPending
+                                                                            }
+                                                                            onClick={() =>
+                                                                                statusMutation.mutate(
+                                                                                    {
+                                                                                        id: drawerItem.id,
+                                                                                        status:
+                                                                                            stageDraft ??
+                                                                                            (drawerItem.status as ApplicationStatus),
+                                                                                        memo:
+                                                                                            stageMemo.trim() ||
+                                                                                            undefined,
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                        >
+                                                                            적용
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            )}
+
+                                                            <p className="mb-2 text-sm font-bold text-slate-600">
+                                                                상태 변경 타임라인
+                                                            </p>
+                                                            {isStageEventsLoading ? (
+                                                                <p className="text-sm font-semibold text-slate-400">
+                                                                    불러오는 중입니다.
+                                                                </p>
+                                                            ) : stageEvents.length === 0 ? (
+                                                                <p className="text-sm font-semibold text-slate-400">
+                                                                    기록된 이력이 없습니다.
+                                                                </p>
+                                                            ) : (
+                                                                <ol className="space-y-2">
+                                                                    {stageEvents.map(
+                                                                        (event, index) => {
+                                                                            const memo =
+                                                                                statusEventMemo(
+                                                                                    event
+                                                                                );
+                                                                            return (
+                                                                                <li
+                                                                                    key={event.id}
+                                                                                    className="flex items-baseline gap-2 text-sm"
+                                                                                >
+                                                                                    <span className="whitespace-nowrap font-mono text-xs text-slate-400">
+                                                                                        {event.changedAt
+                                                                                            .replace(
+                                                                                                'T',
+                                                                                                ' '
+                                                                                            )
+                                                                                            .slice(
+                                                                                                0,
+                                                                                                19
+                                                                                            )}
+                                                                                    </span>
+                                                                                    <span
+                                                                                        className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${statusEventBadgeClass(event.status)}`}
+                                                                                    >
+                                                                                        {statusEventLabel(
+                                                                                            event,
+                                                                                            index,
+                                                                                            stageEvents
+                                                                                        )}
+                                                                                    </span>
+                                                                                    {memo && (
+                                                                                        <span className="truncate text-xs text-slate-500">
+                                                                                            {memo}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </li>
+                                                                            );
+                                                                        }
+                                                                    )}
+                                                                </ol>
+                                                            )}
+                                                        </div>
+                                                    ),
+                                                },
+                                                {
+                                                    key: 'appeal',
+                                                    label: '경력 매칭 분석',
+                                                    content: (() => {
+                                                        const statusRow = (
+                                                            <div
+                                                                className={`flex flex-1 items-center justify-between gap-3 rounded-lg transition-colors ${
+                                                                    analyzeAppealMutation.isPending
+                                                                        ? 'bg-indigo-50/70 px-3 py-2'
+                                                                        : ''
+                                                                }`}
+                                                            >
+                                                                <p
+                                                                    className={`text-xs font-semibold ${
+                                                                        analyzeAppealMutation.isPending
+                                                                            ? 'animate-pulse text-indigo-600'
+                                                                            : 'text-slate-500'
+                                                                    }`}
+                                                                >
+                                                                    {analyzeAppealMutation.isPending
+                                                                        ? '경력·핵심역량 데이터를 모아 분석하고 있어요. 몇십 초 정도 걸릴 수 있어요.'
+                                                                        : drawerItem.appealAnalyzedAt
+                                                                          ? `마지막 분석 · ${drawerItem.appealAnalyzedAt.replace('T', ' ').slice(0, 16)}`
+                                                                          : '아직 분석 전이에요. 내 경력과 대조해 어필 포인트를 확인해보세요.'}
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={
+                                                                        analyzeAppealMutation.isPending
+                                                                    }
+                                                                    onClick={() =>
+                                                                        analyzeAppealMutation.mutate(
+                                                                            drawerItem.id
+                                                                        )
+                                                                    }
+                                                                    title="내 경력/핵심역량과 대조해 어필 포인트를 AI로 분석합니다"
+                                                                    className={`flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1 text-sm font-bold transition disabled:cursor-not-allowed ${
+                                                                        analyzeAppealMutation.isPending
+                                                                            ? 'border-indigo-200 bg-white text-indigo-600'
+                                                                            : 'border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40'
+                                                                    }`}
+                                                                >
+                                                                    {analyzeAppealMutation.isPending ? (
+                                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                    ) : (
+                                                                        <Sparkles className="h-3.5 w-3.5" />
+                                                                    )}
+                                                                    {analyzeAppealMutation.isPending
+                                                                        ? '분석 중...'
+                                                                        : drawerItem.appealAnalysis
+                                                                          ? '다시 분석'
+                                                                          : '분석하기'}
+                                                                </button>
+                                                            </div>
+                                                        );
+
+                                                        const appealDetail =
+                                                            drawerItem.appealAnalysis ? (
+                                                                <AppealAnalysisView
+                                                                    key={
+                                                                        drawerItem.appealAnalyzedAt ??
+                                                                        'none'
+                                                                    }
+                                                                    markdown={
+                                                                        drawerItem.appealAnalysis
+                                                                    }
+                                                                    headerExtra={statusRow}
+                                                                />
+                                                            ) : (
+                                                                statusRow
+                                                            );
+
+                                                        if (drawerItem.matchScore === null) {
+                                                            return (
+                                                                <div className="space-y-3">
+                                                                    <div className="mb-1 flex items-center gap-1">
+                                                                        <span className="text-base font-extrabold text-slate-700">
+                                                                            AI 어필 포인트 분석
+                                                                        </span>
+                                                                        <InfoTooltip text="버튼을 눌러야 실행돼요. 경력·프로젝트 전체와 핵심역량을 이 공고와 대조해 어떤 경험을 어떻게 강조하면 좋을지 긴 글로 분석해줘요." />
+                                                                    </div>
+                                                                    {appealDetail}
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <SectionTabs
+                                                                bordered={false}
+                                                                size="sm"
+                                                                tabs={[
+                                                                    {
+                                                                        key: 'score',
+                                                                        label: (
+                                                                            <span className="inline-flex items-center gap-1">
+                                                                                자동 매칭 점수
+                                                                                <InfoTooltip
+                                                                                    text="공고를 수집할 때 보유 기술 스택과 자동으로 비교해 계산돼요. 버튼을 누르지 않아도 이미 채워져 있는 값이에요."
+                                                                                    iconClassName="text-emerald-400"
+                                                                                />
+                                                                            </span>
+                                                                        ),
+                                                                        content: (
+                                                                            <div className="rounded-lg bg-emerald-50 p-3">
+                                                                                <p className="text-base font-extrabold text-emerald-700">
+                                                                                    AI 매칭{' '}
+                                                                                    {
+                                                                                        drawerItem.matchScore
+                                                                                    }
+                                                                                    점
+                                                                                </p>
+                                                                                {drawerItem.matchReason && (
+                                                                                    <p className="mt-1 text-base text-emerald-600">
+                                                                                        {
+                                                                                            drawerItem.matchReason
+                                                                                        }
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                        ),
+                                                                    },
+                                                                    {
+                                                                        key: 'appeal-detail',
+                                                                        label: (
+                                                                            <span className="inline-flex items-center gap-1">
+                                                                                AI 어필 포인트 분석
+                                                                                <InfoTooltip text="위 자동 점수와 달리, 버튼을 눌러야 실행돼요. 경력·프로젝트 전체와 핵심역량을 이 공고와 대조해 어떤 경험을 어떻게 강조하면 좋을지 긴 글로 분석해줘요." />
+                                                                            </span>
+                                                                        ),
+                                                                        content: appealDetail,
+                                                                    },
+                                                                ]}
+                                                            />
+                                                        );
+                                                    })(),
+                                                },
+                                            ]}
+                                        />
                                     </div>
                                 )
                             ) : (
-                                <form onSubmit={handleSubmit} className="space-y-4">
+                                <form
+                                    id="job-posting-edit-form"
+                                    onSubmit={handleSubmit}
+                                    className="space-y-4"
+                                >
                                     <div>
                                         <span className="mb-1 block text-sm font-bold text-slate-600">
                                             공고 URL
@@ -1896,29 +2811,52 @@ export function JobApplicationManagement() {
                                         />
                                     </label>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                지원일
-                                            </span>
+                                        {formIsPostApplication && (
+                                            <label className="block text-sm">
+                                                <span className="mb-1 block font-bold text-slate-600">
+                                                    지원일
+                                                </span>
+                                                <input
+                                                    required
+                                                    type="date"
+                                                    value={form.appliedAt ?? ''}
+                                                    onChange={(e) =>
+                                                        setForm((prev) => ({
+                                                            ...prev,
+                                                            appliedAt: e.target.value,
+                                                        }))
+                                                    }
+                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                />
+                                            </label>
+                                        )}
+                                        <label
+                                            className={`block text-sm ${formIsPostApplication ? '' : 'col-span-2'}`}
+                                        >
+                                            <div className="mb-1 flex items-center justify-between">
+                                                <span className="font-bold text-slate-600">
+                                                    마감일
+                                                </span>
+                                                <label className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={form.alwaysOpen}
+                                                        onChange={(e) =>
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                alwaysOpen: e.target.checked,
+                                                                deadline: e.target.checked
+                                                                    ? ''
+                                                                    : prev.deadline,
+                                                            }))
+                                                        }
+                                                    />
+                                                    상시채용
+                                                </label>
+                                            </div>
                                             <input
-                                                required
                                                 type="date"
-                                                value={form.appliedAt}
-                                                onChange={(e) =>
-                                                    setForm((prev) => ({
-                                                        ...prev,
-                                                        appliedAt: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                마감일
-                                            </span>
-                                            <input
-                                                type="date"
+                                                disabled={form.alwaysOpen}
                                                 value={form.deadline ?? ''}
                                                 onChange={(e) =>
                                                     setForm((prev) => ({
@@ -1926,7 +2864,7 @@ export function JobApplicationManagement() {
                                                         deadline: e.target.value,
                                                     }))
                                                 }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
                                             />
                                         </label>
                                     </div>
@@ -1945,28 +2883,59 @@ export function JobApplicationManagement() {
                                             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                         />
                                     </label>
-                                    <label className="block text-sm">
-                                        <span className="mb-1 block font-bold text-slate-600">
-                                            메모
-                                        </span>
-                                        <textarea
-                                            rows={3}
-                                            value={form.memo ?? ''}
-                                            onChange={(e) =>
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    memo: e.target.value,
-                                                }))
-                                            }
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                        />
-                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <label className="block text-sm">
+                                            <span className="mb-1 block font-bold text-slate-600">
+                                                근무지
+                                            </span>
+                                            <input
+                                                value={form.location ?? ''}
+                                                onChange={(e) =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        location: e.target.value,
+                                                    }))
+                                                }
+                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                            />
+                                        </label>
+                                        <label className="block text-sm">
+                                            <span className="mb-1 block font-bold text-slate-600">
+                                                고용형태
+                                            </span>
+                                            <input
+                                                value={form.employmentType ?? ''}
+                                                onChange={(e) =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        employmentType: e.target.value,
+                                                    }))
+                                                }
+                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                            />
+                                        </label>
+                                    </div>
+                                    {formIsPostApplication && (
+                                        <label className="block text-sm">
+                                            <span className="mb-1 block font-bold text-slate-600">
+                                                메모
+                                            </span>
+                                            <textarea
+                                                rows={3}
+                                                value={form.memo ?? ''}
+                                                onChange={(e) =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        memo: e.target.value,
+                                                    }))
+                                                }
+                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                            />
+                                        </label>
+                                    )}
 
-                                    <details className="rounded-lg border border-slate-200">
-                                        <summary className="cursor-pointer select-none px-3 py-2 text-sm font-bold text-slate-600">
-                                            상세 정보
-                                        </summary>
-                                        <div className="space-y-3 px-3 pb-3 pt-1">
+                                    <div>
+                                        <div className="space-y-3">
                                             {(
                                                 [
                                                     ['jobDescription', '직무 상세'],
@@ -1995,630 +2964,280 @@ export function JobApplicationManagement() {
                                                 </label>
                                             ))}
                                         </div>
-                                    </details>
-
-                                    <div className="flex items-center justify-between gap-2 pt-1">
-                                        {editingId !== null ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (confirm('이 지원 공고를 삭제할까요?')) {
-                                                        deleteMutation.mutate(editingId);
-                                                    }
-                                                }}
-                                                className="flex items-center gap-1 text-xs font-bold text-rose-500 hover:text-rose-700"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                                삭제
-                                            </button>
-                                        ) : (
-                                            <span />
-                                        )}
-                                        <div className="flex gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    editingId !== null
-                                                        ? setIsApplicationEditing(false)
-                                                        : closeDrawer()
-                                                }
-                                                className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
-                                            >
-                                                취소
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={isSaving}
-                                                className="rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                {editingId !== null ? '수정 저장' : '등록'}
-                                            </button>
-                                        </div>
                                     </div>
                                 </form>
                             )}
-
-                            {editingId !== null && editingApplication && (
-                                <div className="mt-6 border-t border-slate-200 pt-5">
-                                    <p className="mb-2 text-sm font-bold text-slate-600">
-                                        전형 단계 변경
-                                    </p>
-                                    <div className="mb-4 flex flex-wrap items-center gap-2">
-                                        <select
-                                            value={stageDraft ?? editingApplication.currentStage}
-                                            onChange={(e) =>
-                                                setStageDraft(e.target.value as JobApplicationStage)
-                                            }
-                                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
-                                        >
-                                            {STAGE_ORDER.map((stage) => (
-                                                <option key={stage} value={stage}>
-                                                    {STAGE_LABELS[stage]}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <input
-                                            value={stageMemo}
-                                            onChange={(e) => setStageMemo(e.target.value)}
-                                            placeholder="메모(선택)"
-                                            className="w-36 rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
-                                        />
-                                        <button
-                                            type="button"
-                                            disabled={stageMutation.isPending}
-                                            onClick={() =>
-                                                stageMutation.mutate({
-                                                    id: editingId,
-                                                    stage:
-                                                        stageDraft ??
-                                                        editingApplication.currentStage,
-                                                    memo: stageMemo.trim() || undefined,
-                                                })
-                                            }
-                                            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            적용
-                                        </button>
-                                    </div>
-
-                                    <p className="mb-2 text-sm font-bold text-slate-600">
-                                        전형 진행 타임라인
-                                    </p>
-                                    {isStageEventsLoading ? (
-                                        <p className="text-sm font-semibold text-slate-400">
-                                            불러오는 중입니다.
-                                        </p>
-                                    ) : stageEvents.length === 0 ? (
-                                        <p className="text-sm font-semibold text-slate-400">
-                                            기록된 이력이 없습니다.
-                                        </p>
-                                    ) : (
-                                        <ol className="space-y-2">
-                                            {stageEvents.map((event) => (
-                                                <li
-                                                    key={event.id}
-                                                    className="flex items-baseline gap-2 text-sm"
-                                                >
-                                                    <span className="whitespace-nowrap font-mono text-xs text-slate-400">
-                                                        {event.changedAt
-                                                            .replace('T', ' ')
-                                                            .slice(0, 19)}
-                                                    </span>
-                                                    <span
-                                                        className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${stageBadgeClass(event.stage)}`}
-                                                    >
-                                                        {STAGE_LABELS[event.stage]}
-                                                    </span>
-                                                    {event.memo && (
-                                                        <span className="truncate text-xs text-slate-500">
-                                                            {event.memo}
-                                                        </span>
-                                                    )}
-                                                </li>
-                                            ))}
-                                        </ol>
-                                    )}
-                                </div>
-                            )}
                         </div>
 
-                        {editingId !== null && !isApplicationEditing && editingApplication && (
-                            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 p-5">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (confirm('이 지원 공고를 삭제할까요?')) {
-                                            deleteMutation.mutate(editingId);
-                                        }
-                                    }}
-                                    className="flex items-center gap-1.5 rounded-lg border border-rose-200 px-3.5 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-50"
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    삭제
-                                </button>
-                                <div className="flex items-center gap-2">
-                                    {editingApplication.postingUrl && (
-                                        <a
-                                            href={editingApplication.postingUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-                                        >
-                                            <ExternalLink className="h-3.5 w-3.5" />
-                                            원본 공고 보기
-                                        </a>
-                                    )}
+                        {isCreating || isEditing ? (
+                            <div
+                                key="edit-footer"
+                                className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 p-5"
+                            >
+                                {drawerId !== null ? (
                                     <button
                                         type="button"
-                                        onClick={() => startEditingApplication(editingApplication)}
-                                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                                        onClick={() => {
+                                            const message =
+                                                drawerItem && isPreApplication(drawerItem.status)
+                                                    ? '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
+                                                    : '이 지원 공고를 삭제할까요?';
+                                            if (confirm(message)) {
+                                                deleteMutation.mutate(drawerId);
+                                            }
+                                        }}
+                                        className="flex items-center gap-1.5 rounded-lg border border-rose-200 px-3.5 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-50"
                                     >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                        수정
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        삭제
+                                    </button>
+                                ) : (
+                                    <span />
+                                )}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            drawerId !== null ? setIsEditing(false) : closeDrawer()
+                                        }
+                                        className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+                                    >
+                                        취소
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        form="job-posting-edit-form"
+                                        disabled={isSaving}
+                                        className="rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {drawerId !== null ? '수정 저장' : '등록'}
                                     </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {candidateDrawerItem && (
-                <div className="fixed inset-0 z-40 flex justify-end">
-                    <div
-                        className="absolute inset-0 bg-slate-900/30"
-                        onClick={closeCandidateDrawer}
-                        aria-hidden
-                    />
-                    <div className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-                        <div className="flex-1 overflow-y-auto p-5">
-                            <div className="mb-4 flex items-center justify-between">
-                                <h3 className="text-lg font-black text-slate-950">
-                                    수집된 공고 상세
-                                </h3>
+                        ) : drawerItem && isPreApplication(drawerItem.status) ? (
+                            <div
+                                key="view-footer-pre"
+                                className="shrink-0 space-y-2 border-t border-slate-200 p-4"
+                            >
                                 <button
                                     type="button"
-                                    onClick={closeCandidateDrawer}
-                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-
-                            {!isCandidateEditing ? (
-                                <>
-                                    <p className="text-lg font-black text-slate-900">
-                                        {candidateDrawerItem.companyName}
-                                    </p>
-                                    <p className="mt-0.5 text-sm text-slate-500">
-                                        {candidateDrawerItem.title}
-                                    </p>
-
-                                    <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-extrabold text-white">
-                                        {candidateDrawerItem.status === 'SAVED' ? (
-                                            <BookmarkCheck className="h-3 w-3" />
-                                        ) : (
-                                            <Bookmark className="h-3 w-3" />
-                                        )}
-                                        {CANDIDATE_STATUS_LABELS[candidateDrawerItem.status]}
-                                    </span>
-
-                                    <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
-                                        <div>
-                                            <dt className="font-bold text-slate-500">출처</dt>
-                                            <dd className="mt-0.5 text-slate-800">
-                                                {POSTING_SOURCE_LABELS[candidateDrawerItem.source]}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="font-bold text-slate-500">마감일</dt>
-                                            <dd className="mt-0.5 text-slate-800">
-                                                {candidateDrawerItem.deadline ?? (
-                                                    <span className="text-slate-300">—</span>
-                                                )}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="font-bold text-slate-500">근무지</dt>
-                                            <dd className="mt-0.5 text-slate-800">
-                                                {candidateDrawerItem.location ?? (
-                                                    <span className="text-slate-300">—</span>
-                                                )}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="font-bold text-slate-500">고용형태</dt>
-                                            <dd className="mt-0.5 text-slate-800">
-                                                {candidateDrawerItem.employmentType ?? (
-                                                    <span className="text-slate-300">—</span>
-                                                )}
-                                            </dd>
-                                        </div>
-                                        <div className="col-span-2">
-                                            <dt className="font-bold text-slate-500">
-                                                연봉/근무조건 메모
-                                            </dt>
-                                            <dd className="mt-0.5 text-slate-800">
-                                                {candidateDrawerItem.salaryNote ?? (
-                                                    <span className="text-slate-300">—</span>
-                                                )}
-                                            </dd>
-                                        </div>
-                                        <div className="col-span-2">
-                                            <dt className="font-bold text-slate-500">수집 일시</dt>
-                                            <dd className="mt-0.5 text-slate-800">
-                                                {candidateDrawerItem.fetchedAt
-                                                    .replace('T', ' ')
-                                                    .slice(0, 19)}
-                                            </dd>
-                                        </div>
-                                    </dl>
-
-                                    {!isCandidateDetailMissing(candidateDrawerItem) ? (
-                                        <div className="mt-4">
-                                            <p className="mb-2 text-sm font-bold text-slate-600">
-                                                상세 정보
-                                            </p>
-                                            <DetailTabs
-                                                key={candidateDrawerItem.id}
-                                                fields={{
-                                                    jobDescription:
-                                                        candidateDrawerItem.jobDescription,
-                                                    requiredQualifications:
-                                                        candidateDrawerItem.requiredQualifications,
-                                                    preferredQualifications:
-                                                        candidateDrawerItem.preferredQualifications,
-                                                    hiringProcess:
-                                                        candidateDrawerItem.hiringProcess,
-                                                    applicationMethod:
-                                                        candidateDrawerItem.applicationMethod,
-                                                    compensationDetail:
-                                                        candidateDrawerItem.compensationDetail,
-                                                }}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                                            <div className="flex items-start gap-2">
-                                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                                                <div>
-                                                    <p className="text-sm font-bold text-amber-800">
-                                                        상세 정보를 자동으로 가져오지 못했어요
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-amber-700">
-                                                        원본 페이지가 채용공고 상세가 아니었거나,
-                                                        사이트가 자동 수집을 차단했을 수 있어요.
-                                                        아래 &ldquo;직접 입력하기&rdquo;로
-                                                        담당업무·자격요건 등을 채워주세요.
-                                                    </p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            startEditingCandidate(
-                                                                candidateDrawerItem
-                                                            )
-                                                        }
-                                                        className="mt-2 flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-900"
-                                                    >
-                                                        <Pencil className="h-3 w-3" />
-                                                        직접 입력하기
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {candidateDrawerItem.matchScore !== null && (
-                                        <div className="mt-4 rounded-lg bg-emerald-50 p-3">
-                                            <p className="text-xs font-extrabold text-emerald-700">
-                                                AI 매칭 {candidateDrawerItem.matchScore}점
-                                            </p>
-                                            {candidateDrawerItem.matchReason && (
-                                                <p className="mt-1 text-xs text-emerald-600">
-                                                    {candidateDrawerItem.matchReason}
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    <div className="mt-4">
-                                        <div className="flex items-center justify-between gap-2 border-b border-slate-200">
-                                            <span className="-mb-px shrink-0 border-b-2 border-slate-900 px-0.5 pb-2 text-sm font-bold text-slate-900">
-                                                경력 매칭 분석
-                                            </span>
-                                            <button
-                                                type="button"
-                                                disabled={analyzeAppealMutation.isPending}
-                                                onClick={() =>
-                                                    analyzeAppealMutation.mutate(
-                                                        candidateDrawerItem.id
-                                                    )
-                                                }
-                                                title="내 경력/핵심역량과 대조해 어필 포인트를 AI로 분석합니다"
-                                                className="mb-1.5 flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                            >
-                                                <Sparkles className="h-3.5 w-3.5" />
-                                                {analyzeAppealMutation.isPending
-                                                    ? '분석 중...'
-                                                    : candidateDrawerItem.appealAnalysis
-                                                      ? '다시 분석'
-                                                      : '분석하기'}
-                                            </button>
-                                        </div>
-                                        {analyzeAppealMutation.isPending && (
-                                            <p className="pt-3 text-xs text-slate-400">
-                                                경력·핵심역량 데이터를 모아 AI로 분석하고 있어요.
-                                                몇십 초 정도 걸릴 수 있어요.
-                                            </p>
-                                        )}
-                                        {candidateDrawerItem.appealAnalysis && (
-                                            <div className="markdown-body pt-3 text-xs text-slate-700">
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={adminDetailMarkdownComponents}
-                                                >
-                                                    {candidateDrawerItem.appealAnalysis}
-                                                </ReactMarkdown>
-                                            </div>
-                                        )}
-                                    </div>
-                                </>
-                            ) : (
-                                <form
-                                    onSubmit={(e) =>
-                                        handleCandidateSubmit(e, candidateDrawerItem.id)
-                                    }
-                                    className="space-y-4"
-                                >
-                                    <label className="block text-sm">
-                                        <span className="mb-1 block font-bold text-slate-600">
-                                            회사명
-                                        </span>
-                                        <input
-                                            required
-                                            value={candidateForm.companyName}
-                                            onChange={(e) =>
-                                                setCandidateForm((prev) => ({
-                                                    ...prev,
-                                                    companyName: e.target.value,
-                                                }))
-                                            }
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                        />
-                                    </label>
-                                    <label className="block text-sm">
-                                        <span className="mb-1 block font-bold text-slate-600">
-                                            직무명
-                                        </span>
-                                        <input
-                                            required
-                                            value={candidateForm.title}
-                                            onChange={(e) =>
-                                                setCandidateForm((prev) => ({
-                                                    ...prev,
-                                                    title: e.target.value,
-                                                }))
-                                            }
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                        />
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                마감일
-                                            </span>
-                                            <input
-                                                type="date"
-                                                value={candidateForm.deadline ?? ''}
-                                                onChange={(e) =>
-                                                    setCandidateForm((prev) => ({
-                                                        ...prev,
-                                                        deadline: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                연봉/근무조건 메모
-                                            </span>
-                                            <input
-                                                value={candidateForm.salaryNote ?? ''}
-                                                onChange={(e) =>
-                                                    setCandidateForm((prev) => ({
-                                                        ...prev,
-                                                        salaryNote: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                근무지
-                                            </span>
-                                            <input
-                                                value={candidateForm.location ?? ''}
-                                                onChange={(e) =>
-                                                    setCandidateForm((prev) => ({
-                                                        ...prev,
-                                                        location: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                        <label className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                고용형태
-                                            </span>
-                                            <input
-                                                value={candidateForm.employmentType ?? ''}
-                                                onChange={(e) =>
-                                                    setCandidateForm((prev) => ({
-                                                        ...prev,
-                                                        employmentType: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                    </div>
-
-                                    {(
-                                        [
-                                            ['jobDescription', '직무 상세'],
-                                            ['requiredQualifications', '지원자격'],
-                                            ['preferredQualifications', '우대사항'],
-                                            ['hiringProcess', '전형절차'],
-                                            ['applicationMethod', '지원방법'],
-                                            ['compensationDetail', '처우조건 상세'],
-                                        ] as const
-                                    ).map(([field, label]) => (
-                                        <label key={field} className="block text-sm">
-                                            <span className="mb-1 block font-bold text-slate-600">
-                                                {label}
-                                            </span>
-                                            <textarea
-                                                rows={3}
-                                                value={candidateForm[field] ?? ''}
-                                                onChange={(e) =>
-                                                    setCandidateForm((prev) => ({
-                                                        ...prev,
-                                                        [field]: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                            />
-                                        </label>
-                                    ))}
-
-                                    <div className="flex justify-end gap-2 pt-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsCandidateEditing(false)}
-                                            className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
-                                        >
-                                            취소
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={updateCandidateMutation.isPending}
-                                            className="rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            저장
-                                        </button>
-                                    </div>
-                                </form>
-                            )}
-                        </div>
-
-                        {!isCandidateEditing && (
-                            <div className="flex shrink-0 items-center gap-2 border-t border-slate-200 p-5">
-                                <button
-                                    type="button"
-                                    disabled={convertCandidateMutation.isPending}
+                                    disabled={applyMutation.isPending}
                                     onClick={() => {
-                                        convertCandidateMutation.mutate(candidateDrawerItem.id);
-                                        closeCandidateDrawer();
+                                        applyMutation.mutate(drawerItem.id);
+                                        closeDrawer();
                                     }}
-                                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     <Check className="h-4 w-4" />
                                     지원하기
                                 </button>
-                                {candidateDrawerItem.status === 'SAVED' ? (
-                                    <button
-                                        type="button"
-                                        disabled={unsaveCandidateMutation.isPending}
-                                        onClick={() =>
-                                            unsaveCandidateMutation.mutate(candidateDrawerItem.id)
-                                        }
-                                        title="저장 해제"
-                                        className="rounded-lg border border-slate-200 px-3 py-2 text-emerald-500 transition hover:bg-rose-50 hover:text-rose-500"
-                                    >
-                                        <BookmarkCheck className="h-4 w-4" />
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        disabled={saveCandidateMutation.isPending}
-                                        onClick={() =>
-                                            saveCandidateMutation.mutate(candidateDrawerItem.id)
-                                        }
-                                        title="저장"
-                                        className="rounded-lg border border-slate-200 px-3 py-2 text-slate-500 transition hover:bg-slate-100"
-                                    >
-                                        <Bookmark className="h-4 w-4" />
-                                    </button>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={() => startEditingCandidate(candidateDrawerItem)}
-                                    title="수정"
-                                    className="rounded-lg border border-slate-200 px-3 py-2 text-slate-500 transition hover:bg-slate-100"
+                                <div
+                                    className={`grid gap-2 ${
+                                        drawerItem.postingUrl ? 'grid-cols-6' : 'grid-cols-4'
+                                    }`}
                                 >
-                                    <Pencil className="h-4 w-4" />
-                                </button>
-                                <a
-                                    href={candidateDrawerItem.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    title="원본 공고 보기"
-                                    className="rounded-lg border border-slate-200 px-3 py-2 text-slate-500 transition hover:bg-slate-100"
-                                >
-                                    <ExternalLink className="h-4 w-4" />
-                                </a>
-                                {candidateDrawerItem.status === 'DISMISSED' ? (
+                                    {drawerItem.status === 'SAVED' ? (
+                                        <button
+                                            type="button"
+                                            disabled={unsaveCandidateMutation.isPending}
+                                            onClick={() =>
+                                                unsaveCandidateMutation.mutate(drawerItem.id)
+                                            }
+                                            title="관심 공고 저장을 해제합니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-emerald-500 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
+                                        >
+                                            <BookmarkCheck className="h-4 w-4" />
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                저장 해제
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled={saveCandidateMutation.isPending}
+                                            onClick={() =>
+                                                saveCandidateMutation.mutate(drawerItem.id)
+                                            }
+                                            title="나중에 다시 볼 관심 공고로 저장합니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
+                                        >
+                                            <Bookmark className="h-4 w-4" />
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                관심 저장
+                                            </span>
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
-                                        disabled={undismissCandidateMutation.isPending}
-                                        onClick={() =>
-                                            undismissCandidateMutation.mutate(
-                                                candidateDrawerItem.id
-                                            )
-                                        }
-                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600"
+                                        onClick={() => startEditing(drawerItem)}
+                                        title="회사명, 공고 내용 등 정보를 수정합니다"
+                                        className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100"
                                     >
-                                        제외 해제
+                                        <Pencil className="h-4 w-4" />
+                                        <span className="whitespace-nowrap text-[10px] font-bold">
+                                            정보 수정
+                                        </span>
                                     </button>
-                                ) : (
+                                    {drawerItem.postingUrl && (
+                                        <a
+                                            href={drawerItem.postingUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            title="채용 사이트의 원본 공고를 새 창에서 엽니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100"
+                                        >
+                                            <ExternalLink className="h-4 w-4" />
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                원본 보기
+                                            </span>
+                                        </a>
+                                    )}
+                                    {drawerItem.postingUrl && (
+                                        <button
+                                            type="button"
+                                            disabled={refreshMutation.isPending}
+                                            onClick={() => refreshMutation.mutate(drawerItem.id)}
+                                            title="원본 URL에서 마감일 등 최신 정보를 다시 가져옵니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
+                                        >
+                                            {refreshMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <RefreshCw className="h-4 w-4" />
+                                            )}
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                {refreshMutation.isPending
+                                                    ? '수집 중...'
+                                                    : '정보 새로고침'}
+                                            </span>
+                                        </button>
+                                    )}
+                                    {drawerItem.status === 'DISMISSED' ? (
+                                        <button
+                                            type="button"
+                                            disabled={undismissCandidateMutation.isPending}
+                                            onClick={() =>
+                                                undismissCandidateMutation.mutate(drawerItem.id)
+                                            }
+                                            title="제외한 공고를 수집 목록으로 되돌립니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50"
+                                        >
+                                            <X className="h-4 w-4" />
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                제외 해제
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled={dismissCandidateMutation.isPending}
+                                            onClick={() => {
+                                                if (confirm('이 후보를 목록에서 제외할까요?')) {
+                                                    dismissCandidateMutation.mutate(drawerItem.id);
+                                                }
+                                            }}
+                                            title="공고를 삭제하지 않고 수집 목록에서 제외합니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
+                                        >
+                                            <X className="h-4 w-4" />
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                목록 제외
+                                            </span>
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
-                                        disabled={dismissCandidateMutation.isPending}
+                                        disabled={deleteMutation.isPending}
                                         onClick={() => {
-                                            if (confirm('이 후보를 제외할까요?')) {
-                                                dismissCandidateMutation.mutate(
-                                                    candidateDrawerItem.id
-                                                );
+                                            if (
+                                                confirm(
+                                                    '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
+                                                )
+                                            ) {
+                                                deleteMutation.mutate(drawerItem.id);
                                             }
                                         }}
-                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100"
+                                        title="공고 기록을 완전히 삭제합니다"
+                                        className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-rose-200 px-1 py-2 text-rose-500 transition hover:bg-rose-50 disabled:opacity-50"
                                     >
-                                        제외
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="whitespace-nowrap text-[10px] font-bold">
+                                            완전 삭제
+                                        </span>
                                     </button>
-                                )}
-                                <button
-                                    type="button"
-                                    disabled={deleteCandidateMutation.isPending}
-                                    onClick={() => {
-                                        if (
-                                            confirm(
-                                                '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
-                                            )
-                                        ) {
-                                            deleteCandidateMutation.mutate(candidateDrawerItem.id);
-                                        }
-                                    }}
-                                    title="삭제"
-                                    className="rounded-lg border border-slate-200 px-3 py-2 text-rose-500 transition hover:bg-rose-50"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
+                                </div>
                             </div>
+                        ) : (
+                            drawerItem && (
+                                <div
+                                    key="view-footer-post"
+                                    className={`grid shrink-0 gap-2 border-t border-slate-200 p-4 ${
+                                        drawerItem.postingUrl ? 'grid-cols-4' : 'grid-cols-2'
+                                    }`}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => startEditing(drawerItem)}
+                                        title="회사명, 공고 내용 등 정보를 수정합니다"
+                                        className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                        <span className="whitespace-nowrap text-[10px] font-bold">
+                                            정보 수정
+                                        </span>
+                                    </button>
+                                    {drawerItem.postingUrl && (
+                                        <a
+                                            href={drawerItem.postingUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            title="채용 사이트의 원본 공고를 새 창에서 엽니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100"
+                                        >
+                                            <ExternalLink className="h-4 w-4" />
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                원본 공고 보기
+                                            </span>
+                                        </a>
+                                    )}
+                                    {drawerItem.postingUrl && (
+                                        <button
+                                            type="button"
+                                            disabled={refreshMutation.isPending}
+                                            onClick={() => refreshMutation.mutate(drawerItem.id)}
+                                            title="원본 URL에서 마감일 등 최신 정보를 다시 가져옵니다"
+                                            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
+                                        >
+                                            {refreshMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <RefreshCw className="h-4 w-4" />
+                                            )}
+                                            <span className="whitespace-nowrap text-[10px] font-bold">
+                                                {refreshMutation.isPending
+                                                    ? '수집 중...'
+                                                    : '정보 새로고침'}
+                                            </span>
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        disabled={deleteMutation.isPending}
+                                        onClick={() => {
+                                            if (confirm('이 지원 공고를 완전히 삭제할까요?')) {
+                                                deleteMutation.mutate(drawerItem.id);
+                                            }
+                                        }}
+                                        title="지원 공고 기록을 완전히 삭제합니다"
+                                        className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-rose-200 px-1 py-2 text-rose-500 transition hover:bg-rose-50 disabled:opacity-50"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="whitespace-nowrap text-[10px] font-bold">
+                                            완전 삭제
+                                        </span>
+                                    </button>
+                                </div>
+                            )
                         )}
                     </div>
                 </div>
@@ -2631,7 +3250,7 @@ export function JobApplicationManagement() {
                         onClick={() => setIsIngestDrawerOpen(false)}
                         aria-hidden
                     />
-                    <div className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-5 shadow-2xl">
+                    <div className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-5 shadow-2xl">
                         <div className="mb-4 flex items-center justify-between">
                             <h3 className="text-lg font-black text-slate-950">공고 수집</h3>
                             <button
@@ -2642,38 +3261,272 @@ export function JobApplicationManagement() {
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
-                        <p className="mb-4 text-sm text-slate-500">
-                            아직 지원하지 않은 채용 공고 URL을 붙여넣으면 AI가
-                            회사명·직무명·마감일을 분석해 수집됨 목록에 저장합니다. 나중에 보드에서
-                            지원하기 버튼을 누르면 실제 지원 공고로 전환됩니다.
-                        </p>
-                        <div className="space-y-3">
-                            <input
-                                type="url"
-                                autoFocus
-                                value={ingestUrl}
-                                onChange={(e) => setIngestUrl(e.target.value)}
-                                placeholder="https://..."
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                            />
+
+                        {/* 탭 헤더 */}
+                        <div className="mb-4 flex border-b border-slate-200">
                             <button
                                 type="button"
-                                disabled={!ingestUrl.trim() || isIngesting}
-                                onClick={() => requestIngestUrl(ingestUrl.trim())}
-                                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                onClick={() => setIngestMode('single')}
+                                className={`flex-1 pb-2 text-sm font-bold border-b-2 transition ${
+                                    ingestMode === 'single'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                                }`}
                             >
-                                <Sparkles className="h-4 w-4" />
-                                {isIngesting
-                                    ? `수집 중... (${ingestElapsedSeconds}초, 닫아도 계속 진행돼요)`
-                                    : 'AI로 수집'}
+                                단일 수집
                             </button>
-                            {isIngesting && (
-                                <p className="text-xs text-slate-400">
-                                    이미지 분석까지 필요하면 최대 1~2분 정도 걸릴 수 있어요. 이 창을
-                                    닫으셔도 수집은 계속 진행되고, 끝나면 목록에 자동으로 나타나요.
-                                </p>
-                            )}
+                            <button
+                                type="button"
+                                onClick={() => setIngestMode('bulk')}
+                                className={`flex-1 pb-2 text-sm font-bold border-b-2 transition ${
+                                    ingestMode === 'bulk'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                                }`}
+                            >
+                                다중 수집 (Bulk)
+                            </button>
                         </div>
+
+                        {ingestMode === 'single' ? (
+                            <div>
+                                <p className="mb-4 text-sm text-slate-500">
+                                    아직 지원하지 않은 채용 공고 URL을 붙여넣으면 AI가
+                                    회사명·직무명·마감일을 분석해 수집됨 목록에 저장합니다. 나중에
+                                    보드에서 지원하기 버튼을 누르면 실제 지원 공고로 전환됩니다.
+                                </p>
+                                <div className="space-y-3">
+                                    <input
+                                        type="url"
+                                        autoFocus
+                                        value={ingestUrl}
+                                        onChange={(e) => setIngestUrl(e.target.value)}
+                                        placeholder="https://..."
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={!ingestUrl.trim() || isIngesting}
+                                        onClick={() => requestIngestUrl(ingestUrl.trim())}
+                                        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Sparkles className="h-4 w-4" />
+                                        {isIngesting
+                                            ? `수집 중... (${ingestElapsedSeconds}초, 닫아도 계속 진행돼요)`
+                                            : 'AI로 수집'}
+                                    </button>
+                                    {isIngesting && (
+                                        <p className="text-xs text-slate-400">
+                                            이미지 분석까지 필요하면 최대 1~2분 정도 걸릴 수 있어요.
+                                            이 창을 닫으셔도 수집은 계속 진행되고, 끝나면 목록에
+                                            자동으로 나타나요.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <p className="mb-3 text-sm text-slate-500">
+                                    여러 공고 URL을 한 번에 입력해 동시 수집합니다. 외부 탭이나
+                                    링크를 아래 박스로 **드래그 앤 드롭**하면 자동으로 URL이
+                                    들어갑니다.
+                                </p>
+
+                                {/* Drop Zone */}
+                                <div
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsDropZoneOver(true);
+                                    }}
+                                    onDragLeave={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsDropZoneOver(false);
+                                    }}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsDropZoneOver(false);
+                                        const droppedUrls = extractUrlsFromDataTransfer(
+                                            e.dataTransfer
+                                        );
+                                        if (droppedUrls.length > 0) {
+                                            setBulkUrlsText((prev) => {
+                                                const existing = prev
+                                                    .split('\n')
+                                                    .map((s) => s.trim())
+                                                    .filter(Boolean);
+                                                const combined = Array.from(
+                                                    new Set([...existing, ...droppedUrls])
+                                                );
+                                                return combined.join('\n');
+                                            });
+                                        }
+                                    }}
+                                    className={`mb-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center transition ${
+                                        isDropZoneOver
+                                            ? 'border-blue-500 bg-blue-50/80 text-blue-700'
+                                            : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
+                                    }`}
+                                >
+                                    <Sparkles className="mb-1 h-5 w-5 text-slate-400" />
+                                    <p className="text-xs font-semibold">
+                                        브라우저 탭, 링크, 북마크를 이 상자로 <b>드래그 앤 드롭</b>
+                                        하세요
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] text-slate-400">
+                                        자동으로 URL이 추출되어 아래 목록에 추가됩니다.
+                                    </p>
+                                </div>
+
+                                <div className="mb-3 space-y-1">
+                                    <label className="block text-xs font-bold text-slate-600">
+                                        URL 목록 (한 줄에 하나씩)
+                                    </label>
+                                    <textarea
+                                        rows={5}
+                                        value={bulkUrlsText}
+                                        onChange={(e) => setBulkUrlsText(e.target.value)}
+                                        placeholder={
+                                            'https://www.saramin.co.kr/...\nhttps://www.wanted.co.kr/wd/...'
+                                        }
+                                        className="w-full rounded-lg border border-slate-200 p-2.5 text-xs font-mono focus:border-slate-400 focus:outline-none resize-none"
+                                    />
+                                    <div className="flex justify-between text-[11px] text-slate-400">
+                                        <span>
+                                            감지된 URL:{' '}
+                                            {
+                                                bulkUrlsText
+                                                    .split('\n')
+                                                    .map((s) => s.trim())
+                                                    .filter(Boolean).length
+                                            }
+                                            개
+                                        </span>
+                                        {bulkUrlsText && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setBulkUrlsText('');
+                                                    setBulkResults([]);
+                                                }}
+                                                className="text-rose-500 hover:underline"
+                                            >
+                                                초기화
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    disabled={
+                                        isBulkIngesting ||
+                                        bulkUrlsText
+                                            .split('\n')
+                                            .map((s) => s.trim())
+                                            .filter(Boolean).length === 0
+                                    }
+                                    onClick={() => {
+                                        const urls = bulkUrlsText
+                                            .split('\n')
+                                            .map((s) => s.trim())
+                                            .filter(Boolean);
+                                        requestBulkIngestUrls(urls);
+                                    }}
+                                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 mb-3"
+                                >
+                                    <Sparkles className="h-4 w-4" />
+                                    {isBulkIngesting ? '다중 수집 진행 중...' : '다중 수집 시작'}
+                                </button>
+
+                                {bulkResults.length > 0 && (
+                                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                            <span>수집 진행 현황</span>
+                                            <span>
+                                                {
+                                                    bulkResults.filter(
+                                                        (r) =>
+                                                            r.status === 'success' ||
+                                                            r.status === 'error'
+                                                    ).length
+                                                }{' '}
+                                                / {bulkResults.length} 완료
+                                            </span>
+                                        </div>
+                                        {/* Progress Bar */}
+                                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                            <div
+                                                className="h-full bg-slate-900 transition-all duration-300"
+                                                style={{
+                                                    width: `${
+                                                        (bulkResults.filter(
+                                                            (r) =>
+                                                                r.status === 'success' ||
+                                                                r.status === 'error'
+                                                        ).length /
+                                                            bulkResults.length) *
+                                                        100
+                                                    }%`,
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                                            {bulkResults.map((item, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="flex flex-col gap-0.5 rounded-lg border border-slate-100 bg-slate-50/70 p-2 text-xs"
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span
+                                                            className="truncate font-mono text-[11px] text-slate-600 max-w-[200px]"
+                                                            title={item.url}
+                                                        >
+                                                            {item.url}
+                                                        </span>
+                                                        {item.status === 'pending' && (
+                                                            <span className="shrink-0 text-[10px] text-slate-400">
+                                                                대기 중
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'processing' && (
+                                                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-600">
+                                                                <Loader2 className="h-3 w-3 animate-spin" />{' '}
+                                                                수집 중
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'success' && (
+                                                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-emerald-600">
+                                                                <Check className="h-3 w-3" /> 성공
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'error' && (
+                                                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-rose-600">
+                                                                <X className="h-3 w-3" /> 실패
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {item.status === 'success' && item.response && (
+                                                        <div className="text-[11px] font-semibold text-slate-800 truncate">
+                                                            {item.response.companyName} -{' '}
+                                                            {item.response.positionTitle}
+                                                        </div>
+                                                    )}
+                                                    {item.status === 'error' && item.message && (
+                                                        <div className="text-[11px] text-rose-500">
+                                                            {item.message}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

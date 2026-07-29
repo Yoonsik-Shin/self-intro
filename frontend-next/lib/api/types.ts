@@ -365,7 +365,11 @@ export type DonationEvent = {
     createdAt: string;
 };
 
-export type JobApplicationStage =
+export type JobPostingStatus =
+    | 'NEW'
+    | 'SAVED'
+    | 'DISMISSED'
+    | 'EXPIRED'
     | 'APPLIED'
     | 'CODING_TEST'
     | 'ASSIGNMENT'
@@ -377,16 +381,25 @@ export type JobApplicationStage =
     | 'REJECTED'
     | 'WITHDRAWN';
 
-export type JobApplication = {
+export type JobPostingSource = 'URL_INGEST' | 'SARAMIN' | 'MANUAL';
+
+/** 채용 공고 하나를 발견(수집)부터 지원 결과까지 하나로 추적한다. status가 NEW~EXPIRED이면 아직
+ * 지원 전(수집 후보), APPLIED 이상이면 지원 완료 단계다. */
+export type JobPosting = {
     id: number;
     companyName: string;
     positionTitle: string;
     postingUrl: string | null;
+    externalId: string | null;
+    collectionMethod: JobPostingSource;
     source: string;
-    appliedAt: string;
+    status: JobPostingStatus;
+    appliedAt: string | null;
     deadline: string | null;
-    currentStage: JobApplicationStage;
+    alwaysOpen: boolean;
     salaryNote: string | null;
+    location: string | null;
+    employmentType: string | null;
     memo: string | null;
     jobDescription: string | null;
     requiredQualifications: string | null;
@@ -394,18 +407,26 @@ export type JobApplication = {
     hiringProcess: string | null;
     applicationMethod: string | null;
     compensationDetail: string | null;
+    matchScore: number | null;
+    matchReason: string | null;
+    appealAnalysis: string | null;
+    appealAnalyzedAt: string | null;
+    statusChangedAt: string;
     createdAt: string;
     updatedAt: string;
 };
 
-export type JobApplicationRequest = {
+export type JobPostingRequest = {
     companyName: string;
     positionTitle: string;
     postingUrl?: string | null;
     source: string;
-    appliedAt: string;
+    appliedAt?: string | null;
     deadline?: string | null;
+    alwaysOpen: boolean;
     salaryNote?: string | null;
+    location?: string | null;
+    employmentType?: string | null;
     memo?: string | null;
     jobDescription?: string | null;
     requiredQualifications?: string | null;
@@ -415,11 +436,27 @@ export type JobApplicationRequest = {
     compensationDetail?: string | null;
 };
 
-export type JobApplicationStageEvent = {
+export type JobPostingStatusEvent = {
     id: number;
-    stage: JobApplicationStage;
+    status: JobPostingStatus;
     memo: string | null;
     changedAt: string;
+};
+
+export type JobPostingCoverLetterItem = {
+    id: number;
+    question: string;
+    answer: string;
+    characterLimit: number | null;
+    displayOrder: number;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type JobPostingCoverLetterItemRequest = {
+    question: string;
+    answer: string;
+    characterLimit: number | null;
 };
 
 export type JobApplicationUrlParseResponse = {
@@ -427,6 +464,7 @@ export type JobApplicationUrlParseResponse = {
     positionTitle: string | null;
     source: string | null;
     deadline: string | null;
+    alwaysOpen: boolean;
     salaryNote: string | null;
     jobDescription: string | null;
     requiredQualifications: string | null;
@@ -441,49 +479,6 @@ export type JobApplicationUrlParseStreamEvent =
     | { type: 'complete'; response: JobApplicationUrlParseResponse }
     | { type: 'error'; message: string };
 
-export type JobPostingSource = 'URL_INGEST' | 'SARAMIN';
-
-export type JobPostingCandidateStatus = 'NEW' | 'SAVED' | 'DISMISSED' | 'CONVERTED' | 'EXPIRED';
-
-export type JobPostingCandidate = {
-    id: number;
-    title: string;
-    companyName: string;
-    url: string;
-    source: JobPostingSource;
-    location: string | null;
-    employmentType: string | null;
-    deadline: string | null;
-    salaryNote: string | null;
-    jobDescription: string | null;
-    requiredQualifications: string | null;
-    preferredQualifications: string | null;
-    hiringProcess: string | null;
-    applicationMethod: string | null;
-    compensationDetail: string | null;
-    status: JobPostingCandidateStatus;
-    matchScore: number | null;
-    matchReason: string | null;
-    appealAnalysis: string | null;
-    appealAnalyzedAt: string | null;
-    fetchedAt: string;
-};
-
-export type JobPostingCandidateUpdateRequest = {
-    title: string;
-    companyName: string;
-    deadline?: string | null;
-    salaryNote?: string | null;
-    location?: string | null;
-    employmentType?: string | null;
-    jobDescription?: string | null;
-    requiredQualifications?: string | null;
-    preferredQualifications?: string | null;
-    hiringProcess?: string | null;
-    applicationMethod?: string | null;
-    compensationDetail?: string | null;
-};
-
 export type JobPostingCollectionResult = {
     saraminEnabled: boolean;
     saraminCollected: number;
@@ -491,7 +486,14 @@ export type JobPostingCollectionResult = {
 };
 
 export type JobPostingIngestStreamEvent =
-    { type: 'complete'; response: JobPostingCandidate } | { type: 'error'; message: string };
+    { type: 'complete'; response: JobPosting } | { type: 'error'; message: string };
+
+export type JobPostingBulkIngestStreamEvent =
+    | { type: 'progress'; total: number; current: number; url: string; status: string }
+    | { type: 'item_success'; total: number; current: number; url: string; response: JobPosting }
+    | { type: 'item_error'; total: number; current: number; url: string; message: string }
+    | { type: 'complete'; total: number; successCount: number; errorCount: number }
+    | { type: 'error'; message: string };
 
 export type JobPostingSetting = {
     saraminEnabled: boolean;

@@ -1,16 +1,61 @@
 import { request, requestEventStream } from './client';
 import type {
-    JobApplication,
-    JobPostingCandidate,
-    JobPostingCandidateUpdateRequest,
+    JobApplicationUrlParseResponse,
+    JobApplicationUrlParseStreamEvent,
+    JobPosting,
+    JobPostingBulkIngestStreamEvent,
+    JobPostingCoverLetterItem,
+    JobPostingCoverLetterItemRequest,
     JobPostingCollectionResult,
     JobPostingIngestStreamEvent,
+    JobPostingRequest,
     JobPostingSetting,
     JobPostingSettingRequest,
+    JobPostingStatus,
+    JobPostingStatusEvent,
 } from './types';
 
 export const jobPostingApi = {
-    list: () => request<JobPostingCandidate[]>('/api/admin/job-postings'),
+    list: () => request<JobPosting[]>('/api/admin/job-postings'),
+    get: (id: number) => request<JobPosting>(`/api/admin/job-postings/${id}`),
+    coverLetterItems: (id: number) =>
+        request<JobPostingCoverLetterItem[]>(`/api/admin/job-postings/${id}/cover-letter-items`),
+    replaceCoverLetterItems: (id: number, items: JobPostingCoverLetterItemRequest[]) =>
+        request<JobPostingCoverLetterItem[]>(`/api/admin/job-postings/${id}/cover-letter-items`, {
+            method: 'PUT',
+            body: JSON.stringify({ items }),
+        }),
+    /** "새 지원 공고 등록" — 수집 단계 없이 이미 지원 완료한 공고를 바로 기록한다. */
+    create: (payload: JobPostingRequest) =>
+        request<JobPosting>('/api/admin/job-postings', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }),
+    update: (id: number, payload: JobPostingRequest) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        }),
+    remove: (id: number) =>
+        request<void>(`/api/admin/job-postings/${id}`, {
+            method: 'DELETE',
+        }),
+    parseUrl: (url: string) =>
+        request<JobApplicationUrlParseResponse>('/api/admin/job-postings/parse-url', {
+            method: 'POST',
+            body: JSON.stringify({ url }),
+        }),
+    parseUrlStream: (
+        url: string,
+        onEvent: (event: JobApplicationUrlParseStreamEvent) => void,
+        signal?: AbortSignal
+    ) =>
+        requestEventStream<JobApplicationUrlParseStreamEvent>(
+            '/api/admin/job-postings/parse-url/stream',
+            { url },
+            onEvent,
+            signal
+        ),
     getSettings: () => request<JobPostingSetting>('/api/admin/job-postings/settings'),
     updateSettings: (payload: JobPostingSettingRequest) =>
         request<JobPostingSetting>('/api/admin/job-postings/settings', {
@@ -18,7 +63,7 @@ export const jobPostingApi = {
             body: JSON.stringify(payload),
         }),
     ingestUrl: (url: string) =>
-        request<JobPostingCandidate>('/api/admin/job-postings/ingest-url', {
+        request<JobPosting>('/api/admin/job-postings/ingest-url', {
             method: 'POST',
             body: JSON.stringify({ url }),
         }),
@@ -33,8 +78,24 @@ export const jobPostingApi = {
             onEvent,
             signal
         ),
+    ingestUrlsStream: (
+        urls: string[],
+        onEvent: (event: JobPostingBulkIngestStreamEvent) => void,
+        signal?: AbortSignal
+    ) =>
+        requestEventStream<JobPostingBulkIngestStreamEvent>(
+            '/api/admin/job-postings/ingest-urls/stream',
+            { urls },
+            onEvent,
+            signal
+        ),
     collect: () =>
         request<JobPostingCollectionResult>('/api/admin/job-postings/collect', {
+            method: 'POST',
+        }),
+    /** 이미 수집/등록된 공고를 원본 URL에서 다시 읽어 최신 정보(마감일 등)로 갱신한다. */
+    refresh: (id: number) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/refresh`, {
             method: 'POST',
         }),
     save: (id: number) =>
@@ -53,21 +114,25 @@ export const jobPostingApi = {
         request<void>(`/api/admin/job-postings/${id}/undismiss`, {
             method: 'PATCH',
         }),
-    convertToApplication: (id: number) =>
-        request<JobApplication>(`/api/admin/job-postings/${id}/convert-to-application`, {
+    /** 지원 전 후보를 "지원 완료" 상태로 전환한다(예전의 "지원 전환"). */
+    apply: (id: number) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/apply`, {
             method: 'POST',
         }),
-    analyzeAppeal: (id: number) =>
-        request<JobPostingCandidate>(`/api/admin/job-postings/${id}/analyze-appeal`, {
+    /** 실수로 지원 전환했거나 보드에서 잘못 옮긴 경우 지원 전 상태로 되돌린다. */
+    unapply: (id: number) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/unapply`, {
             method: 'POST',
         }),
-    update: (id: number, payload: JobPostingCandidateUpdateRequest) =>
-        request<JobPostingCandidate>(`/api/admin/job-postings/${id}`, {
+    changeStatus: (id: number, status: JobPostingStatus, memo?: string) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/status`, {
             method: 'PATCH',
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ status, memo }),
         }),
-    remove: (id: number) =>
-        request<void>(`/api/admin/job-postings/${id}`, {
-            method: 'DELETE',
+    statusEvents: (id: number) =>
+        request<JobPostingStatusEvent[]>(`/api/admin/job-postings/${id}/status-events`),
+    analyzeAppeal: (id: number) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/analyze-appeal`, {
+            method: 'POST',
         }),
 };
