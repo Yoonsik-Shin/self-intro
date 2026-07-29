@@ -776,6 +776,27 @@ const emptyForm: JobPostingRequest = {
 type DrawerState = { type: 'create' } | { type: 'existing'; id: number };
 type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR';
 
+function useSlideDrawer(open: boolean) {
+    const [shouldRender, setShouldRender] = useState(open);
+    const [enterCompleted, setEnterCompleted] = useState(false);
+
+    if (open && !shouldRender) {
+        setShouldRender(true);
+        setEnterCompleted(false);
+    }
+
+    useEffect(() => {
+        if (!open) {
+            const timeout = setTimeout(() => setShouldRender(false), 300);
+            return () => clearTimeout(timeout);
+        }
+        const raf = requestAnimationFrame(() => setEnterCompleted(true));
+        return () => cancelAnimationFrame(raf);
+    }, [open]);
+
+    return { shouldRender, isVisible: open && enterCompleted };
+}
+
 export function JobApplicationManagement() {
     const queryClient = useQueryClient();
     const [viewMode, setViewMode] = useState<ViewMode>('LIST');
@@ -822,6 +843,9 @@ export function JobApplicationManagement() {
     const parseUrlAbortRef = useRef<AbortController | null>(null);
     const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
     const [settingsForm, setSettingsForm] = useState<JobPostingSettingRequest | null>(null);
+    const detailDrawerAnim = useSlideDrawer(!!drawerState);
+    const ingestDrawerAnim = useSlideDrawer(isIngestDrawerOpen);
+    const settingsDrawerAnim = useSlideDrawer(isSettingsDrawerOpen && !!settingsForm);
 
     const { data: postings = [], isLoading } = useQuery({
         queryKey: ['jobPostings'],
@@ -2360,15 +2384,17 @@ export function JobApplicationManagement() {
                 </div>
             )}
 
-            {drawerState &&
+            {detailDrawerAnim.shouldRender &&
                 createPortal(
                     <div className="fixed inset-0 z-40 flex justify-end">
                         <div
-                            className="absolute inset-0 bg-slate-900/30"
+                            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-300 ease-out ${detailDrawerAnim.isVisible ? 'opacity-100' : 'opacity-0'}`}
                             onClick={closeDrawer}
                             aria-hidden
                         />
-                        <div className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
+                        <div
+                            className={`relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${detailDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                        >
                             <div className="flex-1 overflow-y-auto p-5">
                                 <div className="mb-4 flex items-center justify-between">
                                     <h3 className="text-lg font-black text-slate-950">
@@ -3425,15 +3451,17 @@ export function JobApplicationManagement() {
                     document.body
                 )}
 
-            {isIngestDrawerOpen &&
+            {ingestDrawerAnim.shouldRender &&
                 createPortal(
                     <div className="fixed inset-0 z-40 flex justify-end">
                         <div
-                            className="absolute inset-0 bg-slate-900/30"
+                            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-300 ease-out ${ingestDrawerAnim.isVisible ? 'opacity-100' : 'opacity-0'}`}
                             onClick={() => setIsIngestDrawerOpen(false)}
                             aria-hidden
                         />
-                        <div className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-5 shadow-2xl">
+                        <div
+                            className={`relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-5 shadow-2xl transition-transform duration-300 ease-out ${ingestDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                        >
                             <div className="mb-4 flex items-center justify-between">
                                 <h3 className="text-lg font-black text-slate-950">공고 수집</h3>
                                 <button
@@ -3861,16 +3889,18 @@ export function JobApplicationManagement() {
                     document.body
                 )}
 
-            {isSettingsDrawerOpen &&
+            {settingsDrawerAnim.shouldRender &&
                 settingsForm &&
                 createPortal(
                     <div className="fixed inset-0 z-40 flex justify-end">
                         <div
-                            className="absolute inset-0 bg-slate-900/30"
+                            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-300 ease-out ${settingsDrawerAnim.isVisible ? 'opacity-100' : 'opacity-0'}`}
                             onClick={() => setIsSettingsDrawerOpen(false)}
                             aria-hidden
                         />
-                        <div className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-5 shadow-2xl">
+                        <div
+                            className={`relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white p-5 shadow-2xl transition-transform duration-300 ease-out ${settingsDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                        >
                             <div className="mb-4 flex items-center justify-between">
                                 <h3 className="text-lg font-black text-slate-950">수집 설정</h3>
                                 <button
