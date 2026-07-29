@@ -10,6 +10,7 @@ import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlPa
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterItemResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterSaveRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingMemoRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
@@ -76,6 +77,12 @@ public class JobPostingController {
     public JobPostingResponse update(
             @PathVariable Long id, @Valid @RequestBody JobPostingRequest request) {
         return jobPostingService.update(id, request);
+    }
+
+    @PatchMapping("/{id}/memo")
+    public JobPostingResponse updateMemo(
+            @PathVariable Long id, @RequestBody JobPostingMemoRequest request) {
+        return jobPostingService.updateMemo(id, request != null ? request.memo() : null);
     }
 
     @DeleteMapping("/{id}")

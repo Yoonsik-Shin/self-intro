@@ -157,6 +157,13 @@ public class JobPostingService {
     }
 
     @Transactional
+    public JobPostingResponse updateMemo(Long id, String memo) {
+        JobPosting posting = findOrThrow(id);
+        posting.updateMemo(memo, LocalDateTime.now());
+        return JobPostingResponse.from(posting);
+    }
+
+    @Transactional
     public void delete(Long id) {
         jobPostingRepository.delete(findOrThrow(id));
     }

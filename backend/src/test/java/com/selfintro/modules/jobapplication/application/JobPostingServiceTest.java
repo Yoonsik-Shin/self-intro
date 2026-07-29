@@ -216,6 +216,16 @@ class JobPostingServiceTest {
     }
 
     @Test
+    void updateMemoUpdatesMemoSuccessfully() {
+        JobPosting candidate = newCandidate();
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+
+        JobPostingResponse response = jobPostingService.updateMemo(1L, "새로운 상세 메모 작성");
+
+        assertThat(response.memo()).isEqualTo("새로운 상세 메모 작성");
+    }
+
+    @Test
     void refreshRejectsWhenPostingHasNoUrl() {
         JobPosting candidate = newCandidate();
         ReflectionTestUtils.setField(candidate, "postingUrl", null);
