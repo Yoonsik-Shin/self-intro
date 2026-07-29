@@ -1019,6 +1019,18 @@ export function JobApplicationManagement() {
 
     function extractUrlsFromDataTransfer(dataTransfer: DataTransfer): string[] {
         const foundUrls: string[] = [];
+
+        function addCandidate(raw: string) {
+            if (!raw) return;
+            const cleaned = raw
+                .trim()
+                .replace(/^["'<(\[]+|[)"'>;,\]\.]+$|&quot;/g, '')
+                .trim();
+            if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+                foundUrls.push(cleaned);
+            }
+        }
+
         const types = Array.from(dataTransfer.types || []);
         for (const type of types) {
             try {
@@ -1027,20 +1039,35 @@ export function JobApplicationManagement() {
 
                 if (type === 'text/x-moz-url') {
                     const firstLine = data.split('\n')[0].trim();
-                    if (firstLine.startsWith('http://') || firstLine.startsWith('https://')) {
-                        foundUrls.push(firstLine);
+                    addCandidate(firstLine);
+                }
+
+                if (type.includes('html')) {
+                    try {
+                        const doc = new DOMParser().parseFromString(data, 'text/html');
+                        const anchors = doc.querySelectorAll('a[href]');
+                        anchors.forEach((a) => {
+                            const href = a.getAttribute('href');
+                            if (href) addCandidate(href);
+                        });
+                    } catch {
+                        // ignore DOMParser fail
                     }
+                }
+
+                if (type === 'text/uri-list' || type === 'URL') {
+                    data.split('\n').forEach((line) => {
+                        const trimmed = line.trim();
+                        if (trimmed && !trimmed.startsWith('#')) {
+                            addCandidate(trimmed);
+                        }
+                    });
                 }
 
                 const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
                 const matches = data.match(urlRegex);
                 if (matches) {
-                    matches.forEach((m) => {
-                        const cleaned = m.replace(/[)"'>;\.]+$|&quot;/g, '').trim();
-                        if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
-                            foundUrls.push(cleaned);
-                        }
-                    });
+                    matches.forEach((m) => addCandidate(m));
                 }
             } catch {
                 // ignore
@@ -3399,6 +3426,13 @@ export function JobApplicationManagement() {
                                         onDragOver={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
+                                            e.dataTransfer.dropEffect = 'copy';
+                                            setIsDropZoneOver(true);
+                                        }}
+                                        onDragEnter={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            e.dataTransfer.dropEffect = 'copy';
                                             setIsDropZoneOver(true);
                                         }}
                                         onDragLeave={(e) => {
@@ -3459,6 +3493,21 @@ export function JobApplicationManagement() {
                                                 <input
                                                     type="url"
                                                     value={url}
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        e.dataTransfer.dropEffect = 'copy';
+                                                    }}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        const dropped = extractUrlsFromDataTransfer(
+                                                            e.dataTransfer
+                                                        );
+                                                        if (dropped.length > 0) {
+                                                            handleFillDroppedUrls(dropped);
+                                                        }
+                                                    }}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
                                                         setBulkUrls((prev) => {
