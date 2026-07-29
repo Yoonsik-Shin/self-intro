@@ -6,7 +6,6 @@ import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
-import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -83,7 +82,7 @@ public class JobPostingCollectorService {
 
         int savedCount = 0;
         LocalDateTime now = LocalDateTime.now();
-        List<String> mySkillNames = skillRepository.findAll().stream().map(Skill::getName).toList();
+        List<String> mySkillNames = skillRepository.findAllSkillNames();
         int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
 
         for (JobPosting.Draft draft : drafts) {
