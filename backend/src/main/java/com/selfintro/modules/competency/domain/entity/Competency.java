@@ -11,6 +11,7 @@ import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Entity
@@ -40,14 +41,17 @@ public class Competency {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "competency", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     private List<CompetencySkill> skillLinks = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "competency", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     private List<CompetencyEvidence> evidences = new ArrayList<>();
 
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "competency", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     private List<CompetencyStudy> studyLinks = new ArrayList<>();
