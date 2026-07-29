@@ -824,6 +824,7 @@ export function JobApplicationManagement() {
     const [isDragOverCandidates, setIsDragOverCandidates] = useState(false);
     const [ingestMode, setIngestMode] = useState<'single' | 'bulk'>('single');
     const [singleUrl, setSingleUrl] = useState('');
+    const [showManualForm, setShowManualForm] = useState(false);
     const [isSingleIngesting, setIsSingleIngesting] = useState(false);
     const [singleIngestElapsedSeconds, setSingleIngestElapsedSeconds] = useState(0);
     const [bulkUrls, setBulkUrls] = useState<string[]>(['', '', '', '', '']);
@@ -1391,6 +1392,7 @@ export function JobApplicationManagement() {
         setIsEditing(false);
         setIngestMode('single');
         setSingleUrl('');
+        setShowManualForm(false);
         setBulkUrls(['', '', '', '', '']);
         setBulkResults([]);
         setDrawerState({ type: 'create' });
@@ -1411,6 +1413,7 @@ export function JobApplicationManagement() {
         setIsEditing(false);
         setIngestMode('single');
         setSingleUrl('');
+        setShowManualForm(false);
         setBulkUrls(['', '', '', '', '']);
         setBulkResults([]);
     }
@@ -3170,50 +3173,40 @@ export function JobApplicationManagement() {
                                                                     handleFillDroppedUrls(dropped);
                                                                 }
                                                             }}
-                                                            className={`flex flex-col gap-2 rounded-lg border p-2.5 transition ${
+                                                            className={`flex items-center gap-2 rounded-lg border p-2.5 transition ${
                                                                 isDropZoneOver
                                                                     ? 'border-blue-500 bg-blue-100 scale-[1.01]'
                                                                     : 'border-slate-200 bg-white'
                                                             }`}
                                                         >
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="url"
-                                                                    value={singleUrl}
-                                                                    onChange={(e) =>
-                                                                        setSingleUrl(e.target.value)
+                                                            <input
+                                                                type="url"
+                                                                value={singleUrl}
+                                                                onChange={(e) =>
+                                                                    setSingleUrl(e.target.value)
+                                                                }
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        if (singleUrl.trim()) {
+                                                                            requestIngestSingleUrl(
+                                                                                singleUrl.trim()
+                                                                            );
+                                                                        }
                                                                     }
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') {
-                                                                            e.preventDefault();
-                                                                            if (singleUrl.trim()) {
-                                                                                requestIngestSingleUrl(
-                                                                                    singleUrl.trim()
-                                                                                );
-                                                                            }
-                                                                        }
-                                                                    }}
-                                                                    placeholder="https://... 공고 주소 입력 또는 🔒자물쇠/링크 드래그"
-                                                                    className="w-full bg-transparent px-2 py-1 text-xs focus:outline-none"
-                                                                />
-                                                                {singleUrl && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setSingleUrl('')
-                                                                        }
-                                                                        className="shrink-0 p-1 text-slate-400 hover:text-slate-600"
-                                                                    >
-                                                                        <X className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                            <p className="text-[11px] text-slate-500 px-1">
-                                                                💡 주소를 넣은 후 아래{' '}
-                                                                <b>[✨ AI로 수집 및 자동 등록]</b>{' '}
-                                                                버튼을 누르면 즉시 수집·등록되며
-                                                                상세 페이지로 이동합니다.
-                                                            </p>
+                                                                }}
+                                                                placeholder="https://... 공고 주소 입력 또는 🔒자물쇠/링크 드래그"
+                                                                className="w-full bg-transparent px-2 py-1 text-xs focus:outline-none"
+                                                            />
+                                                            {singleUrl && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSingleUrl('')}
+                                                                    className="shrink-0 p-1 text-slate-400 hover:text-slate-600"
+                                                                >
+                                                                    <X className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            )}
                                                         </div>
 
                                                         <button
@@ -3237,271 +3230,332 @@ export function JobApplicationManagement() {
                                                     </div>
                                                 )}
 
-                                                {isCreating && (
+                                                {isCreating && !showManualForm ? (
                                                     <div className="relative my-5 flex items-center justify-center">
                                                         <div className="absolute inset-0 flex items-center">
                                                             <div className="w-full border-t border-slate-200" />
                                                         </div>
-                                                        <span className="relative bg-white px-3 text-[11px] font-bold text-slate-400">
-                                                            또는 직접 수동 작성 등록
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                <form
-                                                    id="job-posting-edit-form"
-                                                    onSubmit={handleSubmit}
-                                                    className="space-y-4"
-                                                >
-                                                    {!isCreating && (
-                                                        <div>
-                                                            <span className="mb-1 block text-sm font-bold text-slate-600">
-                                                                공고 URL
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowManualForm(true)}
+                                                            className="relative bg-white px-3.5 py-1.5 text-[11px] font-bold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition flex items-center gap-1.5 cursor-pointer"
+                                                        >
+                                                            <span>
+                                                                ✍️ 수동으로 공고 직접 작성하기
                                                             </span>
-                                                            <div className="flex gap-2">
-                                                                <input
-                                                                    type="url"
-                                                                    value={form.postingUrl ?? ''}
-                                                                    onChange={(e) =>
-                                                                        setForm((prev) => ({
-                                                                            ...prev,
-                                                                            postingUrl:
-                                                                                e.target.value,
-                                                                        }))
+                                                            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        {isCreating && showManualForm && (
+                                                            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
+                                                                <span className="text-xs font-bold text-slate-700">
+                                                                    ✍️ 수동 작성 등록
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setShowManualForm(false)
                                                                     }
-                                                                    placeholder="https://..."
-                                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                                />
+                                                                    className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition"
+                                                                >
+                                                                    접기 ▲
+                                                                </button>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                        <form
+                                                            id="job-posting-edit-form"
+                                                            onSubmit={handleSubmit}
+                                                            className="space-y-4"
+                                                        >
+                                                            {!isCreating && (
+                                                                <div>
+                                                                    <span className="mb-1 block text-sm font-bold text-slate-600">
+                                                                        공고 URL
+                                                                    </span>
+                                                                    <div className="flex gap-2">
+                                                                        <input
+                                                                            type="url"
+                                                                            value={
+                                                                                form.postingUrl ??
+                                                                                ''
+                                                                            }
+                                                                            onChange={(e) =>
+                                                                                setForm((prev) => ({
+                                                                                    ...prev,
+                                                                                    postingUrl:
+                                                                                        e.target
+                                                                                            .value,
+                                                                                }))
+                                                                            }
+                                                                            placeholder="https://..."
+                                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
 
-                                                    <label className="block text-sm">
-                                                        <span className="mb-1 block font-bold text-slate-600">
-                                                            회사명
-                                                        </span>
-                                                        <input
-                                                            required
-                                                            value={form.companyName}
-                                                            onChange={(e) =>
-                                                                setForm((prev) => ({
-                                                                    ...prev,
-                                                                    companyName: e.target.value,
-                                                                }))
-                                                            }
-                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                        />
-                                                    </label>
-                                                    <label className="block text-sm">
-                                                        <span className="mb-1 block font-bold text-slate-600">
-                                                            직무명
-                                                        </span>
-                                                        <input
-                                                            required
-                                                            value={form.positionTitle}
-                                                            onChange={(e) =>
-                                                                setForm((prev) => ({
-                                                                    ...prev,
-                                                                    positionTitle: e.target.value,
-                                                                }))
-                                                            }
-                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                        />
-                                                    </label>
-                                                    <label className="block text-sm">
-                                                        <span className="mb-1 block font-bold text-slate-600">
-                                                            출처
-                                                        </span>
-                                                        <input
-                                                            required
-                                                            placeholder="사람인 / 원티드 / 잡코리아 / 직접입력"
-                                                            value={form.source}
-                                                            onChange={(e) =>
-                                                                setForm((prev) => ({
-                                                                    ...prev,
-                                                                    source: e.target.value,
-                                                                }))
-                                                            }
-                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                        />
-                                                    </label>
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        {formIsPostApplication && (
                                                             <label className="block text-sm">
                                                                 <span className="mb-1 block font-bold text-slate-600">
-                                                                    지원일
+                                                                    회사명
                                                                 </span>
                                                                 <input
                                                                     required
-                                                                    type="date"
-                                                                    value={form.appliedAt ?? ''}
+                                                                    value={form.companyName}
                                                                     onChange={(e) =>
                                                                         setForm((prev) => ({
                                                                             ...prev,
-                                                                            appliedAt:
+                                                                            companyName:
                                                                                 e.target.value,
                                                                         }))
                                                                     }
                                                                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                                                 />
                                                             </label>
-                                                        )}
-                                                        <label
-                                                            className={`block text-sm ${formIsPostApplication ? '' : 'col-span-2'}`}
-                                                        >
-                                                            <div className="mb-1 flex items-center justify-between">
-                                                                <span className="font-bold text-slate-600">
-                                                                    마감일
+                                                            <label className="block text-sm">
+                                                                <span className="mb-1 block font-bold text-slate-600">
+                                                                    직무명
                                                                 </span>
-                                                                <label className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                                                                <input
+                                                                    required
+                                                                    value={form.positionTitle}
+                                                                    onChange={(e) =>
+                                                                        setForm((prev) => ({
+                                                                            ...prev,
+                                                                            positionTitle:
+                                                                                e.target.value,
+                                                                        }))
+                                                                    }
+                                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                />
+                                                            </label>
+                                                            <label className="block text-sm">
+                                                                <span className="mb-1 block font-bold text-slate-600">
+                                                                    출처
+                                                                </span>
+                                                                <input
+                                                                    required
+                                                                    placeholder="사람인 / 원티드 / 잡코리아 / 직접입력"
+                                                                    value={form.source}
+                                                                    onChange={(e) =>
+                                                                        setForm((prev) => ({
+                                                                            ...prev,
+                                                                            source: e.target.value,
+                                                                        }))
+                                                                    }
+                                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                />
+                                                            </label>
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                {formIsPostApplication && (
+                                                                    <label className="block text-sm">
+                                                                        <span className="mb-1 block font-bold text-slate-600">
+                                                                            지원일
+                                                                        </span>
+                                                                        <input
+                                                                            required
+                                                                            type="date"
+                                                                            value={
+                                                                                form.appliedAt ?? ''
+                                                                            }
+                                                                            onChange={(e) =>
+                                                                                setForm((prev) => ({
+                                                                                    ...prev,
+                                                                                    appliedAt:
+                                                                                        e.target
+                                                                                            .value,
+                                                                                }))
+                                                                            }
+                                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                        />
+                                                                    </label>
+                                                                )}
+                                                                <label
+                                                                    className={`block text-sm ${formIsPostApplication ? '' : 'col-span-2'}`}
+                                                                >
+                                                                    <div className="mb-1 flex items-center justify-between">
+                                                                        <span className="font-bold text-slate-600">
+                                                                            마감일
+                                                                        </span>
+                                                                        <label className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={
+                                                                                    form.alwaysOpen
+                                                                                }
+                                                                                onChange={(e) =>
+                                                                                    setForm(
+                                                                                        (prev) => ({
+                                                                                            ...prev,
+                                                                                            alwaysOpen:
+                                                                                                e
+                                                                                                    .target
+                                                                                                    .checked,
+                                                                                            deadline:
+                                                                                                e
+                                                                                                    .target
+                                                                                                    .checked
+                                                                                                    ? ''
+                                                                                                    : prev.deadline,
+                                                                                        })
+                                                                                    )
+                                                                                }
+                                                                            />
+                                                                            상시채용
+                                                                        </label>
+                                                                    </div>
                                                                     <input
-                                                                        type="checkbox"
-                                                                        checked={form.alwaysOpen}
+                                                                        type="date"
+                                                                        disabled={form.alwaysOpen}
+                                                                        value={form.deadline ?? ''}
                                                                         onChange={(e) =>
                                                                             setForm((prev) => ({
                                                                                 ...prev,
-                                                                                alwaysOpen:
-                                                                                    e.target
-                                                                                        .checked,
-                                                                                deadline: e.target
-                                                                                    .checked
-                                                                                    ? ''
-                                                                                    : prev.deadline,
+                                                                                deadline:
+                                                                                    e.target.value,
                                                                             }))
                                                                         }
+                                                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
                                                                     />
-                                                                    상시채용
                                                                 </label>
                                                             </div>
-                                                            <input
-                                                                type="date"
-                                                                disabled={form.alwaysOpen}
-                                                                value={form.deadline ?? ''}
-                                                                onChange={(e) =>
-                                                                    setForm((prev) => ({
-                                                                        ...prev,
-                                                                        deadline: e.target.value,
-                                                                    }))
-                                                                }
-                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
-                                                            />
-                                                        </label>
-                                                    </div>
-                                                    <label className="block text-sm">
-                                                        <span className="mb-1 block font-bold text-slate-600">
-                                                            연봉/근무조건 메모
-                                                        </span>
-                                                        <input
-                                                            value={form.salaryNote ?? ''}
-                                                            onChange={(e) =>
-                                                                setForm((prev) => ({
-                                                                    ...prev,
-                                                                    salaryNote: e.target.value,
-                                                                }))
-                                                            }
-                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                        />
-                                                    </label>
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <label className="block text-sm">
-                                                            <span className="mb-1 block font-bold text-slate-600">
-                                                                근무지
-                                                            </span>
-                                                            <input
-                                                                value={form.location ?? ''}
-                                                                onChange={(e) =>
-                                                                    setForm((prev) => ({
-                                                                        ...prev,
-                                                                        location: e.target.value,
-                                                                    }))
-                                                                }
-                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                            />
-                                                        </label>
-                                                        <label className="block text-sm">
-                                                            <span className="mb-1 block font-bold text-slate-600">
-                                                                고용형태
-                                                            </span>
-                                                            <input
-                                                                value={form.employmentType ?? ''}
-                                                                onChange={(e) =>
-                                                                    setForm((prev) => ({
-                                                                        ...prev,
-                                                                        employmentType:
-                                                                            e.target.value,
-                                                                    }))
-                                                                }
-                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                            />
-                                                        </label>
-                                                    </div>
-                                                    {formIsPostApplication && (
-                                                        <label className="block text-sm">
-                                                            <span className="mb-1 block font-bold text-slate-600">
-                                                                메모
-                                                            </span>
-                                                            <textarea
-                                                                rows={3}
-                                                                value={form.memo ?? ''}
-                                                                onChange={(e) =>
-                                                                    setForm((prev) => ({
-                                                                        ...prev,
-                                                                        memo: e.target.value,
-                                                                    }))
-                                                                }
-                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                                                            />
-                                                        </label>
-                                                    )}
-
-                                                    <div>
-                                                        <div className="space-y-3">
-                                                            {(
-                                                                [
-                                                                    ['jobDescription', '직무 상세'],
-                                                                    [
-                                                                        'requiredQualifications',
-                                                                        '지원자격',
-                                                                    ],
-                                                                    [
-                                                                        'preferredQualifications',
-                                                                        '우대사항',
-                                                                    ],
-                                                                    ['hiringProcess', '전형절차'],
-                                                                    [
-                                                                        'applicationMethod',
-                                                                        '지원방법',
-                                                                    ],
-                                                                    [
-                                                                        'compensationDetail',
-                                                                        '처우조건 상세',
-                                                                    ],
-                                                                ] as const
-                                                            ).map(([field, label]) => (
-                                                                <label
-                                                                    key={field}
-                                                                    className="block text-sm"
-                                                                >
+                                                            <label className="block text-sm">
+                                                                <span className="mb-1 block font-bold text-slate-600">
+                                                                    연봉/근무조건 메모
+                                                                </span>
+                                                                <input
+                                                                    value={form.salaryNote ?? ''}
+                                                                    onChange={(e) =>
+                                                                        setForm((prev) => ({
+                                                                            ...prev,
+                                                                            salaryNote:
+                                                                                e.target.value,
+                                                                        }))
+                                                                    }
+                                                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                />
+                                                            </label>
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <label className="block text-sm">
                                                                     <span className="mb-1 block font-bold text-slate-600">
-                                                                        {label}
+                                                                        근무지
                                                                     </span>
-                                                                    <textarea
-                                                                        rows={3}
-                                                                        value={form[field] ?? ''}
+                                                                    <input
+                                                                        value={form.location ?? ''}
                                                                         onChange={(e) =>
                                                                             setForm((prev) => ({
                                                                                 ...prev,
-                                                                                [field]:
+                                                                                location:
                                                                                     e.target.value,
                                                                             }))
                                                                         }
                                                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                                                     />
                                                                 </label>
-                                                            ))}
-                                                        </div>
+                                                                <label className="block text-sm">
+                                                                    <span className="mb-1 block font-bold text-slate-600">
+                                                                        고용형태
+                                                                    </span>
+                                                                    <input
+                                                                        value={
+                                                                            form.employmentType ??
+                                                                            ''
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setForm((prev) => ({
+                                                                                ...prev,
+                                                                                employmentType:
+                                                                                    e.target.value,
+                                                                            }))
+                                                                        }
+                                                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                    />
+                                                                </label>
+                                                            </div>
+                                                            {formIsPostApplication && (
+                                                                <label className="block text-sm">
+                                                                    <span className="mb-1 block font-bold text-slate-600">
+                                                                        메모
+                                                                    </span>
+                                                                    <textarea
+                                                                        rows={3}
+                                                                        value={form.memo ?? ''}
+                                                                        onChange={(e) =>
+                                                                            setForm((prev) => ({
+                                                                                ...prev,
+                                                                                memo: e.target
+                                                                                    .value,
+                                                                            }))
+                                                                        }
+                                                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                    />
+                                                                </label>
+                                                            )}
+
+                                                            <div>
+                                                                <div className="space-y-3">
+                                                                    {(
+                                                                        [
+                                                                            [
+                                                                                'jobDescription',
+                                                                                '직무 상세',
+                                                                            ],
+                                                                            [
+                                                                                'requiredQualifications',
+                                                                                '지원자격',
+                                                                            ],
+                                                                            [
+                                                                                'preferredQualifications',
+                                                                                '우대사항',
+                                                                            ],
+                                                                            [
+                                                                                'hiringProcess',
+                                                                                '전형절차',
+                                                                            ],
+                                                                            [
+                                                                                'applicationMethod',
+                                                                                '지원방법',
+                                                                            ],
+                                                                            [
+                                                                                'compensationDetail',
+                                                                                '처우조건 상세',
+                                                                            ],
+                                                                        ] as const
+                                                                    ).map(([field, label]) => (
+                                                                        <label
+                                                                            key={field}
+                                                                            className="block text-sm"
+                                                                        >
+                                                                            <span className="mb-1 block font-bold text-slate-600">
+                                                                                {label}
+                                                                            </span>
+                                                                            <textarea
+                                                                                rows={3}
+                                                                                value={
+                                                                                    form[field] ??
+                                                                                    ''
+                                                                                }
+                                                                                onChange={(e) =>
+                                                                                    setForm(
+                                                                                        (prev) => ({
+                                                                                            ...prev,
+                                                                                            [field]:
+                                                                                                e
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        })
+                                                                                    )
+                                                                                }
+                                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+                                                                            />
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </form>
                                                     </div>
-                                                </form>
+                                                )}
                                             </div>
                                         )}
                                     </div>
