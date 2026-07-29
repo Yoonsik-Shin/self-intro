@@ -69,12 +69,14 @@ const ADMIN_MENU_GROUPS = [
             { id: 'STUDY', label: '공부 정리 관리', icon: BookOpen },
             { id: 'LEARNING_RESOURCES', label: '학습 자료 관리', icon: GraduationCap },
             { id: 'SKILLS', label: '기술 스택 관리', icon: Cpu },
-            { id: 'EXPERIENCE', label: '이력 및 경력 관리', icon: Briefcase },
         ],
     },
     {
         label: '커리어 관리',
-        items: [{ id: 'JOB_APPLICATIONS', label: '지원 공고 관리', icon: ClipboardList }],
+        items: [
+            { id: 'EXPERIENCE', label: '이력 및 경력 관리', icon: Briefcase },
+            { id: 'JOB_APPLICATIONS', label: '지원 공고 관리', icon: ClipboardList },
+        ],
     },
     {
         label: '페이지 구성',
