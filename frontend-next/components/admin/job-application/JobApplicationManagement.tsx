@@ -1,6 +1,7 @@
 'use client';
 
 import {
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -822,6 +823,9 @@ export function JobApplicationManagement() {
     const [dragOverStage, setDragOverStage] = useState<ApplicationStatus | null>(null);
     const [isDragOverCandidates, setIsDragOverCandidates] = useState(false);
     const [ingestMode, setIngestMode] = useState<'single' | 'bulk'>('single');
+    const [singleUrl, setSingleUrl] = useState('');
+    const [isSingleIngesting, setIsSingleIngesting] = useState(false);
+    const [singleIngestElapsedSeconds, setSingleIngestElapsedSeconds] = useState(0);
     const [bulkUrls, setBulkUrls] = useState<string[]>(['', '', '', '', '']);
     const [isDropZoneOver, setIsDropZoneOver] = useState(false);
     const [bulkResults, setBulkResults] = useState<
@@ -833,9 +837,6 @@ export function JobApplicationManagement() {
         }>
     >([]);
     const [isBulkIngesting, setIsBulkIngesting] = useState(false);
-    const [isParsingUrl, setIsParsingUrl] = useState(false);
-    const [parseElapsedSeconds, setParseElapsedSeconds] = useState(0);
-    const parseUrlAbortRef = useRef<AbortController | null>(null);
     const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
     const [settingsForm, setSettingsForm] = useState<JobPostingSettingRequest | null>(null);
     const detailDrawerAnim = useSlideDrawer(!!drawerState);
@@ -942,55 +943,54 @@ export function JobApplicationManagement() {
             ),
     });
 
-    async function requestParseUrl(url: string) {
-        setIsParsingUrl(true);
-        setParseElapsedSeconds(0);
+    async function requestIngestSingleUrl(url: string) {
+        if (!url.trim()) return;
+        setIsSingleIngesting(true);
+        setSingleIngestElapsedSeconds(0);
         const startedAt = Date.now();
         const timer = window.setInterval(() => {
-            setParseElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+            setSingleIngestElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
         }, 1000);
-        const controller = new AbortController();
-        parseUrlAbortRef.current = controller;
+
         try {
-            await jobPostingApi.parseUrlStream(
-                url,
-                (event) => {
-                    if (event.type === 'error') {
-                        alert(event.message);
-                        return;
-                    }
-                    const data = event.response;
-                    setForm((prev) => ({
-                        ...prev,
-                        companyName: data.companyName || prev.companyName,
-                        positionTitle: data.positionTitle || prev.positionTitle,
-                        source: data.source || prev.source,
-                        deadline: data.deadline || prev.deadline,
-                        alwaysOpen: data.alwaysOpen || prev.alwaysOpen,
-                        salaryNote: data.salaryNote || prev.salaryNote,
-                        jobDescription: data.jobDescription || prev.jobDescription,
-                        requiredQualifications:
-                            data.requiredQualifications || prev.requiredQualifications,
-                        preferredQualifications:
-                            data.preferredQualifications || prev.preferredQualifications,
-                        hiringProcess: data.hiringProcess || prev.hiringProcess,
-                        applicationMethod: data.applicationMethod || prev.applicationMethod,
-                        compensationDetail: data.compensationDetail || prev.compensationDetail,
-                        postingUrl: data.postingUrl,
-                    }));
-                },
-                controller.signal
-            );
+            await jobPostingApi.ingestUrlStream(url.trim(), (event) => {
+                if (event.type === 'error') {
+                    alert(event.message);
+                    return;
+                }
+                queryClient.setQueryData(['jobPostings'], (prev: JobPosting[] | undefined) => [
+                    event.response,
+                    ...(prev ?? []),
+                ]);
+                setSingleUrl('');
+                closeDrawer();
+                openDrawer(event.response);
+
+                if (isCandidateDetailMissing(event.response)) {
+                    alert(
+                        '공고를 수집해 자동 등록했어요!\n' +
+                            '상세 내용(담당업무, 자격요건 등) 일부가 부족할 수 있으니 열린 상세 화면에서 확인 후 필요 시 수정해 주세요.'
+                    );
+                }
+            });
         } catch (error) {
-            if (!controller.signal.aborted) {
-                alert(error instanceof ApiError ? error.message : 'URL 자동분석에 실패했습니다.');
+            if (error instanceof ApiError && error.status === 409) {
+                const existing = candidates.find((item) => item.postingUrl === url.trim());
+                if (existing) {
+                    alert('이미 수집된 공고예요. 해당 공고의 상세 페이지를 열어드릴게요.');
+                    closeDrawer();
+                    openDrawer(existing);
+                } else {
+                    alert('이미 등록된 공고입니다.');
+                }
+            } else {
+                alert(
+                    error instanceof ApiError ? error.message : '공고 수집 및 등록에 실패했습니다.'
+                );
             }
         } finally {
             window.clearInterval(timer);
-            if (parseUrlAbortRef.current === controller) {
-                parseUrlAbortRef.current = null;
-                setIsParsingUrl(false);
-            }
+            setIsSingleIngesting(false);
         }
     }
 
@@ -1053,29 +1053,32 @@ export function JobApplicationManagement() {
         return Array.from(new Set(foundUrls));
     }
 
-    function handleFillDroppedUrls(droppedUrls: string[]) {
-        if (droppedUrls.length === 0) return;
+    const handleFillDroppedUrls = useCallback(
+        (droppedUrls: string[]) => {
+            if (droppedUrls.length === 0) return;
 
-        if (ingestMode === 'single') {
-            const targetUrl = droppedUrls[0];
-            setForm((prev) => ({ ...prev, postingUrl: targetUrl }));
-            requestParseUrl(targetUrl);
-        } else {
-            setBulkUrls((prev) => {
-                const next = [...prev];
-                const existingSet = new Set(next.filter(Boolean));
-                const newUrls = droppedUrls.filter((u) => !existingSet.has(u));
+            if (ingestMode === 'single') {
+                const targetUrl = droppedUrls[0];
+                setSingleUrl(targetUrl);
+                setForm((prev) => ({ ...prev, postingUrl: targetUrl }));
+            } else {
+                setBulkUrls((prev) => {
+                    const next = [...prev];
+                    const existingSet = new Set(next.filter(Boolean));
+                    const newUrls = droppedUrls.filter((u) => !existingSet.has(u));
 
-                let urlIdx = 0;
-                for (let i = 0; i < 5 && urlIdx < newUrls.length; i++) {
-                    if (!next[i].trim()) {
-                        next[i] = newUrls[urlIdx++];
+                    let urlIdx = 0;
+                    for (let i = 0; i < 5 && urlIdx < newUrls.length; i++) {
+                        if (!next[i].trim()) {
+                            next[i] = newUrls[urlIdx++];
+                        }
                     }
-                }
-                return next;
-            });
-        }
-    }
+                    return next;
+                });
+            }
+        },
+        [ingestMode]
+    );
 
     // 등록/수집 드로어가 열려있을 때(단일/다중 공통), 윈도우 전체 레벨에서 dragover/drop을 가로채어
     // 주소창 자물쇠 아이콘, 북마크, 링크 어디서 오든 Drop이 받아들여지도록 전역 리스너 등록
@@ -1387,6 +1390,7 @@ export function JobApplicationManagement() {
         setStageMemo('');
         setIsEditing(false);
         setIngestMode('single');
+        setSingleUrl('');
         setBulkUrls(['', '', '', '', '']);
         setBulkResults([]);
         setDrawerState({ type: 'create' });
@@ -1400,15 +1404,13 @@ export function JobApplicationManagement() {
     }
 
     function closeDrawer() {
-        parseUrlAbortRef.current?.abort();
-        parseUrlAbortRef.current = null;
-        setIsParsingUrl(false);
         setDrawerState(null);
         setForm(emptyForm);
         setStageDraft(null);
         setStageMemo('');
         setIsEditing(false);
         setIngestMode('single');
+        setSingleUrl('');
         setBulkUrls(['', '', '', '', '']);
         setBulkResults([]);
     }
@@ -3115,12 +3117,12 @@ export function JobApplicationManagement() {
                                         ) : (
                                             <div>
                                                 {isCreating && (
-                                                    <div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 mb-4">
+                                                    <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 mb-4">
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-1.5 font-bold text-blue-900 text-xs">
                                                                 <Sparkles className="h-4 w-4 text-blue-600" />
                                                                 <span>
-                                                                    URL로 공고 정보 자동 채우기
+                                                                    AI 공고 수집 및 자동 등록
                                                                 </span>
                                                             </div>
                                                             <button
@@ -3168,81 +3170,81 @@ export function JobApplicationManagement() {
                                                                     handleFillDroppedUrls(dropped);
                                                                 }
                                                             }}
-                                                            className={`flex items-center gap-2 rounded-lg border p-2 transition ${
+                                                            className={`flex flex-col gap-2 rounded-lg border p-2.5 transition ${
                                                                 isDropZoneOver
                                                                     ? 'border-blue-500 bg-blue-100 scale-[1.01]'
                                                                     : 'border-slate-200 bg-white'
                                                             }`}
                                                         >
-                                                            <input
-                                                                type="url"
-                                                                value={form.postingUrl ?? ''}
-                                                                onChange={(e) =>
-                                                                    setForm((prev) => ({
-                                                                        ...prev,
-                                                                        postingUrl: e.target.value,
-                                                                    }))
-                                                                }
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        if (
-                                                                            form.postingUrl?.trim()
-                                                                        ) {
-                                                                            requestParseUrl(
-                                                                                form.postingUrl.trim()
-                                                                            );
-                                                                        }
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="url"
+                                                                    value={singleUrl}
+                                                                    onChange={(e) =>
+                                                                        setSingleUrl(e.target.value)
                                                                     }
-                                                                }}
-                                                                placeholder="https://... 공고 주소 입력 또는 🔒자물쇠/링크 드래그"
-                                                                className="w-full bg-transparent px-2 py-1 text-xs focus:outline-none"
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                disabled={
-                                                                    !form.postingUrl?.trim() ||
-                                                                    isParsingUrl
-                                                                }
-                                                                onClick={() =>
-                                                                    requestParseUrl(
-                                                                        form.postingUrl!.trim()
-                                                                    )
-                                                                }
-                                                                className="flex shrink-0 items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 transition"
-                                                            >
-                                                                {isParsingUrl ? (
-                                                                    <>
-                                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                        <span>
-                                                                            분석 중 (
-                                                                            {parseElapsedSeconds}s)
-                                                                        </span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
-                                                                        <span>AI 자동분석</span>
-                                                                    </>
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            if (singleUrl.trim()) {
+                                                                                requestIngestSingleUrl(
+                                                                                    singleUrl.trim()
+                                                                                );
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    placeholder="https://... 공고 주소 입력 또는 🔒자물쇠/링크 드래그"
+                                                                    className="w-full bg-transparent px-2 py-1 text-xs focus:outline-none"
+                                                                />
+                                                                {singleUrl && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setSingleUrl('')
+                                                                        }
+                                                                        className="shrink-0 p-1 text-slate-400 hover:text-slate-600"
+                                                                    >
+                                                                        <X className="h-3.5 w-3.5" />
+                                                                    </button>
                                                                 )}
-                                                            </button>
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-500 px-1">
+                                                                💡 주소를 넣은 후 아래{' '}
+                                                                <b>[✨ AI로 수집 및 자동 등록]</b>{' '}
+                                                                버튼을 누르면 즉시 수집·등록되며
+                                                                상세 페이지로 이동합니다.
+                                                            </p>
                                                         </div>
 
-                                                        {isParsingUrl ? (
-                                                            <p className="text-[11px] font-semibold text-blue-700 animate-pulse">
-                                                                공고 내용을 수집 및 AI 분석
-                                                                중입니다... 완료되면 아래 폼 항목이
-                                                                자동으로 작성됩니다.
-                                                            </p>
-                                                        ) : (
-                                                            <p className="text-[11px] text-blue-800/80">
-                                                                💡 주소창 🔒 자물쇠 아이콘을
-                                                                드래그해 놓거나 Cmd+V로 붙여넣으면
-                                                                공고 정보가 자동 입력됩니다. 부족한
-                                                                정보는 아래 폼에서 직접 작성할 수
-                                                                있습니다.
-                                                            </p>
-                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                !singleUrl.trim() ||
+                                                                isSingleIngesting
+                                                            }
+                                                            onClick={() =>
+                                                                requestIngestSingleUrl(
+                                                                    singleUrl.trim()
+                                                                )
+                                                            }
+                                                            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            <Sparkles className="h-4 w-4" />
+                                                            {isSingleIngesting
+                                                                ? `수집 및 등록 중... (${singleIngestElapsedSeconds}초)`
+                                                                : '✨ AI로 수집 및 자동 등록'}
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {isCreating && (
+                                                    <div className="relative my-5 flex items-center justify-center">
+                                                        <div className="absolute inset-0 flex items-center">
+                                                            <div className="w-full border-t border-slate-200" />
+                                                        </div>
+                                                        <span className="relative bg-white px-3 text-[11px] font-bold text-slate-400">
+                                                            또는 직접 수동 작성 등록
+                                                        </span>
                                                     </div>
                                                 )}
 
@@ -3270,25 +3272,6 @@ export function JobApplicationManagement() {
                                                                     placeholder="https://..."
                                                                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                                                 />
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                        !form.postingUrl?.trim() ||
-                                                                        isParsingUrl
-                                                                    }
-                                                                    onClick={() =>
-                                                                        requestParseUrl(
-                                                                            form.postingUrl!.trim()
-                                                                        )
-                                                                    }
-                                                                    title="URL 내용을 AI로 분석해 아래 항목을 채웁니다"
-                                                                    className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                                                >
-                                                                    <Sparkles className="h-3.5 w-3.5" />
-                                                                    {isParsingUrl
-                                                                        ? `분석 중... (${parseElapsedSeconds}초)`
-                                                                        : 'AI 자동분석'}
-                                                                </button>
                                                             </div>
                                                         </div>
                                                     )}
