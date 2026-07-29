@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUp, BookOpen, ChevronLeft, ChevronRight, History, X } from 'lucide-react';
 import { studyApi } from '@/lib/api';
@@ -23,19 +23,35 @@ type RecentlyViewedItem = {
 export function StudyListClient({ initialStudies, categories }: Props) {
     const router = useRouter();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
 
-    const skillIdNum = searchParams.get('skillId')
-        ? Number(searchParams.get('skillId'))
-        : undefined;
-    const experienceIdNum = searchParams.get('experienceId')
-        ? Number(searchParams.get('experienceId'))
-        : undefined;
-    const experienceDetailIdNum = searchParams.get('experienceDetailId')
-        ? Number(searchParams.get('experienceDetailId'))
-        : undefined;
+    const [idFilters, setIdFilters] = useState<{
+        skillIdNum?: number;
+        experienceIdNum?: number;
+        experienceDetailIdNum?: number;
+    }>({});
+
+    const { skillIdNum, experienceIdNum, experienceDetailIdNum } = idFilters;
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            setIdFilters({
+                skillIdNum: params.get('skillId') ? Number(params.get('skillId')) : undefined,
+                experienceIdNum: params.get('experienceId')
+                    ? Number(params.get('experienceId'))
+                    : undefined,
+                experienceDetailIdNum: params.get('experienceDetailId')
+                    ? Number(params.get('experienceDetailId'))
+                    : undefined,
+            });
+        }
+    }, []);
+
     const hasIdFilter = Boolean(skillIdNum || experienceIdNum || experienceDetailIdNum);
-    const clearIdFilter = () => router.push(pathname);
+    const clearIdFilter = () => {
+        setIdFilters({});
+        router.push(pathname);
+    };
 
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('ALL');
