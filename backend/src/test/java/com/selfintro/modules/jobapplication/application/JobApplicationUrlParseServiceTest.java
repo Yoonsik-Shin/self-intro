@@ -1,8 +1,11 @@
 package com.selfintro.modules.jobapplication.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
@@ -19,11 +22,22 @@ import org.springframework.web.server.ResponseStatusException;
 
 class JobApplicationUrlParseServiceTest {
 
+    private final NvidiaNimClient nimClient = mock(NvidiaNimClient.class);
     private final JobApplicationUrlParseService service =
             new JobApplicationUrlParseService(
-                    mock(NvidiaNimClient.class),
-                    new ObjectMapper(),
-                    "nvidia/nemotron-nano-12b-v2-vl");
+                    nimClient, new ObjectMapper(), "nvidia/nemotron-nano-12b-v2-vl");
+
+    @Test
+    void acceptsSaraminRelayUrl() {
+        when(nimClient.generate(anyString(), anyString()))
+                .thenReturn("{\"companyName\":\"테스트\",\"positionTitle\":\"개발자\"}");
+
+        assertThatCode(
+                        () ->
+                                service.parse(
+                                        "https://www.saramin.co.kr/zf_user/jobs/relay/view?view_type=list&rec_idx=54581696#seq=0"))
+                .doesNotThrowAnyException();
+    }
 
     @Test
     void parsesIsoDeadline() {
@@ -48,6 +62,18 @@ class JobApplicationUrlParseServiceTest {
     @Test
     void returnsNullForBlankDeadline() {
         assertThat(service.parseDate("  ")).isNull();
+    }
+
+    @Test
+    void looksLikeMissingDetailSectionWhenNoDetailMarkerPresent() {
+        assertThat(service.looksLikeMissingDetailSection("회사 소개\n지원자격\n경력 신입·경력\n학력 대졸이상\n스킬 LLM"))
+                .isTrue();
+    }
+
+    @Test
+    void looksLikeMissingDetailSectionFalseWhenDetailMarkerPresent() {
+        assertThat(service.looksLikeMissingDetailSection("포지션 및 자격요건\n수행업무\n담당 업무 내용\n우대사항\n관련 경험"))
+                .isFalse();
     }
 
     @Test

@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -232,7 +234,7 @@ public class JobApplicationUrlParseService {
     private record ErrorEvent(String type, String message) {}
 
     public JobApplicationUrlParseResponse parse(String url) {
-        URI uri = validateUrl(url);
+        URI uri = normalizeSaraminRelayUrl(validateUrl(url));
         Document document = fetchDocument(uri);
         if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH
                 || looksLikeMissingDetailSection(document.text())) {
@@ -394,8 +396,10 @@ public class JobApplicationUrlParseService {
         if (url == null || url.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "URL을 입력해주세요.");
         }
-        String cleaned =
-                url.replaceAll("[\\u200B-\\u200D\\uFEFF\\u00A0]", "").replace("&amp;", "&").trim();
+        // \p{Cf}는 유니코드 "서식(Format)" 카테고리로 zero-width space/joiner, BOM, 방향 표시자 등
+        // 눈에 안 보이는 문자를 폭넓게 잡아낸다. 일부 채용 사이트는 스크래핑 방지 목적으로 URL
+        // 중간에 이런 문자를 끼워 넣는다.
+        String cleaned = url.replaceAll("[\\p{Cf}\\u00A0]", "").replace("&amp;", "&").trim();
         if (!cleaned.contains("://")) {
             cleaned = "https://" + cleaned;
         }
@@ -404,8 +408,14 @@ public class JobApplicationUrlParseService {
             uri = new URI(cleaned);
         } catch (URISyntaxException exception) {
             try {
-                // If URI(String) threw due to unescaped chars, normalize using URI.create
-                uri = URI.create(cleaned);
+                // new URI(String)이 실패하는 전형적인 원인은 쿼리스트링 등에 인코딩되지 않은 문자가
+                // 섞여 있는 경우다. UriComponentsBuilder로 느슨하게 파싱한 뒤 encode()로 문제
+                // 문자만 퍼센트 인코딩해 재시도한다.
+                uri =
+                        org.springframework.web.util.UriComponentsBuilder.fromUriString(cleaned)
+                                .build(false)
+                                .encode()
+                                .toUri();
             } catch (Exception ex) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바르지 않은 URL입니다.");
             }
@@ -416,6 +426,43 @@ public class JobApplicationUrlParseService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "http(s) URL만 지원합니다.");
         }
         return uri;
+    }
+
+    /**
+     * 사람인 공고를 목록에서 열람할 때 쓰는 relay/view URL(예: zf_user/jobs/relay/view?rec_idx=123)은 상세요강을 정적 HTML에
+     * 내려주지 않고 페이지 로드 후 별도 AJAX 호출로 채운다. 같은 공고의 정식 상세 페이지 URL(zf_user/jobs/view?rec_idx=123)은 로그인
+     * 없이도 상세요강이 정적 HTML에 그대로 포함되어 있으므로, relay/view는 rec_idx만 뽑아 정식 URL로 바꿔 가져온다.
+     */
+    private URI normalizeSaraminRelayUrl(URI uri) {
+        String host = uri.getHost();
+        if (host == null
+                || !host.toLowerCase(Locale.ROOT).endsWith("saramin.co.kr")
+                || uri.getPath() == null
+                || !uri.getPath().contains("/relay/view")) {
+            return uri;
+        }
+        String recIdx = queryParam(uri, "rec_idx");
+        if (recIdx == null || recIdx.isBlank()) {
+            return uri;
+        }
+        return URI.create("https://www.saramin.co.kr/zf_user/jobs/view?rec_idx=" + encode(recIdx));
+    }
+
+    private static String queryParam(URI uri, String name) {
+        String query = uri.getQuery();
+        if (query == null) return null;
+        for (String pair : query.split("&")) {
+            int eq = pair.indexOf('=');
+            String key = eq >= 0 ? pair.substring(0, eq) : pair;
+            if (name.equals(key)) {
+                return eq >= 0 ? pair.substring(eq + 1) : "";
+            }
+        }
+        return null;
+    }
+
+    private static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private Document fetchDocument(URI uri) {
