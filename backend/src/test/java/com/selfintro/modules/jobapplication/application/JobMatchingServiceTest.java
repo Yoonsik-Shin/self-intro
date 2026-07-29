@@ -49,8 +49,7 @@ class JobMatchingServiceTest {
 
     @Test
     void returnsEmptyWhenKeywordOverlapBelowThreshold() {
-        when(skillRepository.findAll())
-                .thenReturn(List.of(skillNamed("Java"), skillNamed("Spring")));
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(2));
         JobMatchingService service =
                 new JobMatchingService(
@@ -65,8 +64,7 @@ class JobMatchingServiceTest {
 
     @Test
     void evaluatesWithoutSkippingWhenThresholdIsZero() {
-        when(skillRepository.findAll())
-                .thenReturn(List.of(skillNamed("Java"), skillNamed("Spring")));
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(0));
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn("{\"score\":60,\"reason\":\"기본 백엔드 적합도 평가 점수입니다.\"}");
@@ -82,8 +80,7 @@ class JobMatchingServiceTest {
 
     @Test
     void callsAiAndClampsScoreWhenThresholdMet() {
-        when(skillRepository.findAll())
-                .thenReturn(List.of(skillNamed("Java"), skillNamed("Spring")));
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn("{\"score\":140,\"reason\":\"Java와 Spring 경험이 일치합니다.\"}");
@@ -100,8 +97,7 @@ class JobMatchingServiceTest {
 
     @Test
     void returnsEmptyWhenNvidiaClientThrowsBecauseKeyMissing() {
-        when(skillRepository.findAll())
-                .thenReturn(List.of(skillNamed("Java"), skillNamed("Spring")));
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenThrow(

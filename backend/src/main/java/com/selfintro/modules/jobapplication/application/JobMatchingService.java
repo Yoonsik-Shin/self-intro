@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
-import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.util.List;
 import java.util.Locale;
@@ -51,7 +50,7 @@ public class JobMatchingService {
     }
 
     public MatchResult evaluate(String title, String requiredSkillsRaw) {
-        List<String> mySkillNames = skillRepository.findAll().stream().map(Skill::getName).toList();
+        List<String> mySkillNames = skillRepository.findAllSkillNames();
         int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
         return evaluate(title, requiredSkillsRaw, mySkillNames, keywordThreshold);
     }
