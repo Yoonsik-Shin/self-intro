@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -153,6 +155,8 @@ public class DonationService {
     }
 
     /** 설정 행이 없으면(마이그레이션 전/테스트) 기본 노출로 간주한다. */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "donation:enabled", key = "'default'")
     public boolean isDonationEnabled() {
         return donationSettingRepository
                 .findById(DonationSetting.SINGLETON_ID)
@@ -161,6 +165,7 @@ public class DonationService {
     }
 
     @Transactional
+    @CacheEvict(value = "donation:enabled", allEntries = true)
     public boolean updateDonationEnabled(boolean enabled) {
         LocalDateTime now = LocalDateTime.now(donationClock);
         DonationSetting setting =

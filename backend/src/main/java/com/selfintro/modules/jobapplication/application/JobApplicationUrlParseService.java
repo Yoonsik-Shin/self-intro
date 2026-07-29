@@ -564,19 +564,41 @@ public class JobApplicationUrlParseService {
                         .limit(MAX_IMAGE_CANDIDATES)
                         .toList();
 
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<java.util.concurrent.CompletableFuture<ImageCandidate>> futures =
+                candidates.stream()
+                        .map(
+                                src ->
+                                        java.util.concurrent.CompletableFuture.supplyAsync(
+                                                () -> {
+                                                    try {
+                                                        byte[] bytes = downloadImage(src);
+                                                        if (bytes.length >= MIN_BANNER_IMAGE_BYTES
+                                                                && bytes.length
+                                                                        <= MAX_BANNER_IMAGE_BYTES) {
+                                                            return new ImageCandidate(
+                                                                    bytes, guessMimeType(src));
+                                                        }
+                                                    } catch (Exception ignored) {
+                                                    }
+                                                    return null;
+                                                }))
+                        .toList();
+
+        java.util.concurrent.CompletableFuture.allOf(
+                        futures.toArray(new java.util.concurrent.CompletableFuture[0]))
+                .join();
+
         ImageCandidate best = null;
-        for (String src : candidates) {
-            byte[] bytes;
-            try {
-                bytes = downloadImage(src);
-            } catch (IOException exception) {
-                continue;
-            }
-            if (bytes.length < MIN_BANNER_IMAGE_BYTES || bytes.length > MAX_BANNER_IMAGE_BYTES) {
-                continue;
-            }
-            if (best == null || bytes.length > best.bytes().length) {
-                best = new ImageCandidate(bytes, guessMimeType(src));
+        for (java.util.concurrent.CompletableFuture<ImageCandidate> future : futures) {
+            ImageCandidate candidate = future.join();
+            if (candidate != null) {
+                if (best == null || candidate.bytes().length > best.bytes().length) {
+                    best = candidate;
+                }
             }
         }
         return Optional.ofNullable(best);
