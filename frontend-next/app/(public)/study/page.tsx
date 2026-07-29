@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 async function getStudies(): Promise<StudyPage> {
     try {
-        const search = new URLSearchParams({ page: '0', size: '100' });
+        const search = new URLSearchParams({ page: '0', size: '20' });
         return await serverGet<StudyPage>(`/api/studies?${search}`);
     } catch {
         return { content: [], page: 0, size: 0, totalElements: 0, totalPages: 0 };
