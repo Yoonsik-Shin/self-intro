@@ -2049,10 +2049,10 @@ export function JobApplicationManagement() {
             ) : viewMode === 'BOARD' ? (
                 <div className="overflow-x-auto pb-2">
                     <div
-                        className="grid h-[calc(100vh-320px)] min-h-[420px] gap-3"
+                        className="grid h-[calc(100vh-220px)] min-h-[500px] gap-3"
                         style={{
                             gridAutoFlow: 'column',
-                            gridAutoColumns: 'minmax(220px, 1fr)',
+                            gridAutoColumns: 'minmax(230px, 1fr)',
                         }}
                     >
                         <div
