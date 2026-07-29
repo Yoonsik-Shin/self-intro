@@ -391,11 +391,24 @@ public class JobApplicationUrlParseService {
     }
 
     private URI validateUrl(String url) {
+        if (url == null || url.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "URL을 입력해주세요.");
+        }
+        String cleaned =
+                url.replaceAll("[\\u200B-\\u200D\\uFEFF\\u00A0]", "").replace("&amp;", "&").trim();
+        if (!cleaned.contains("://")) {
+            cleaned = "https://" + cleaned;
+        }
         URI uri;
         try {
-            uri = new URI(url.trim());
+            uri = new URI(cleaned);
         } catch (URISyntaxException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바르지 않은 URL입니다.");
+            try {
+                // If URI(String) threw due to unescaped chars, normalize using URI.create
+                uri = URI.create(cleaned);
+            } catch (Exception ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바르지 않은 URL입니다.");
+            }
         }
         String scheme = uri.getScheme();
         if (scheme == null
