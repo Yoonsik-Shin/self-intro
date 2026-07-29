@@ -4,7 +4,6 @@ import static com.selfintro.global.ai.AiJsonSupport.blankToNull;
 import static com.selfintro.global.ai.AiJsonSupport.hasText;
 import static com.selfintro.global.ai.AiJsonSupport.limit;
 import static com.selfintro.global.ai.AiJsonSupport.safe;
-import static com.selfintro.global.ai.AiJsonSupport.select;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -200,17 +199,24 @@ public class ExperienceAiService {
 
     private PreparedGeneration prepare(ExperienceSuggestionRequest request) {
         List<Skill> skills =
-                select(
-                        skillRepository.findAllByOrderByDisplayOrderAsc(),
+                fetchAndValidate(
                         request.skillIds(),
+                        skillRepository::findAllById,
+                        skillRepository::findAllByOrderByDisplayOrderAsc,
                         Skill::getId,
                         "기술");
         List<Study> studies =
-                select(studyRepository.findAll(), request.studyIds(), Study::getId, "Study");
+                fetchAndValidate(
+                        request.studyIds(),
+                        studyRepository::findAllById,
+                        studyRepository::findAll,
+                        Study::getId,
+                        "Study");
         List<Experience> relatedExperiences =
-                select(
-                        experienceRepository.findAllByOrderByDisplayOrderAsc(),
+                fetchAndValidate(
                         request.relatedExperienceIds(),
+                        experienceRepository::findAllById,
+                        experienceRepository::findAllByOrderByDisplayOrderAsc,
                         Experience::getId,
                         "관련 경력");
 
@@ -443,5 +449,26 @@ public class ExperienceAiService {
             return new ExperienceFact(
                     value.getId(), value.getType(), value.getTitle(), value.getSummary());
         }
+    }
+
+    private <T> List<T> fetchAndValidate(
+            List<Long> requestedIds,
+            java.util.function.Function<List<Long>, List<T>> batchFetcher,
+            java.util.function.Supplier<List<T>> fallbackAll,
+            java.util.function.Function<T, Long> idExtractor,
+            String label) {
+        if (requestedIds == null || requestedIds.isEmpty()) {
+            return fallbackAll.get();
+        }
+        List<T> found = batchFetcher.apply(requestedIds);
+        if (found.size() != requestedIds.size()) {
+            Set<Long> foundIds =
+                    found.stream().map(idExtractor).collect(java.util.stream.Collectors.toSet());
+            List<Long> missing =
+                    requestedIds.stream().filter(id -> !foundIds.contains(id)).toList();
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "존재하지 않는 " + label + " ID가 포함되어 있습니다: " + missing);
+        }
+        return found;
     }
 }

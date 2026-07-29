@@ -5,7 +5,6 @@ import static com.selfintro.global.ai.AiJsonSupport.distinctBy;
 import static com.selfintro.global.ai.AiJsonSupport.hasText;
 import static com.selfintro.global.ai.AiJsonSupport.limit;
 import static com.selfintro.global.ai.AiJsonSupport.safe;
-import static com.selfintro.global.ai.AiJsonSupport.select;
 import static com.selfintro.global.ai.AiJsonSupport.toIdSet;
 import static com.selfintro.global.ai.AiJsonSupport.toLinkedSet;
 
@@ -232,24 +231,32 @@ public class CompetencyAiService {
 
     private PreparedGeneration prepare(CompetencySuggestionRequest request) {
         List<Skill> skills =
-                select(
-                        skillRepository.findAllByOrderByDisplayOrderAsc(),
+                fetchAndValidate(
                         request.skillIds(),
+                        skillRepository::findAllById,
+                        skillRepository::findAllByOrderByDisplayOrderAsc,
                         Skill::getId,
                         "기술");
         List<Experience> experiences =
-                select(
-                        experienceRepository.findAllByOrderByDisplayOrderAsc().stream()
-                                .filter(
-                                        item ->
-                                                "CAREER".equals(item.getType())
-                                                        || "PROJECT".equals(item.getType()))
-                                .toList(),
+                fetchAndValidate(
                         request.experienceIds(),
+                        experienceRepository::findAllById,
+                        () ->
+                                experienceRepository.findAllByOrderByDisplayOrderAsc().stream()
+                                        .filter(
+                                                item ->
+                                                        "CAREER".equals(item.getType())
+                                                                || "PROJECT".equals(item.getType()))
+                                        .toList(),
                         Experience::getId,
                         "경력/프로젝트");
         List<Study> studies =
-                select(studyRepository.findAll(), request.studyIds(), Study::getId, "Study");
+                fetchAndValidate(
+                        request.studyIds(),
+                        studyRepository::findAllById,
+                        studyRepository::findAll,
+                        Study::getId,
+                        "Study");
         List<ExistingCompetency> existingCompetencies =
                 competencyRepository.findAllByOrderByDisplayOrderAsc().stream()
                         .map(ExistingCompetency::from)
@@ -543,5 +550,26 @@ public class CompetencyAiService {
                     value.getStatus().name(),
                     value.getSkills().stream().map(Skill::getName).toList());
         }
+    }
+
+    private <T> List<T> fetchAndValidate(
+            List<Long> requestedIds,
+            java.util.function.Function<List<Long>, List<T>> batchFetcher,
+            java.util.function.Supplier<List<T>> fallbackAll,
+            java.util.function.Function<T, Long> idExtractor,
+            String label) {
+        if (requestedIds == null || requestedIds.isEmpty()) {
+            return fallbackAll.get();
+        }
+        List<T> found = batchFetcher.apply(requestedIds);
+        if (found.size() != requestedIds.size()) {
+            Set<Long> foundIds =
+                    found.stream().map(idExtractor).collect(java.util.stream.Collectors.toSet());
+            List<Long> missing =
+                    requestedIds.stream().filter(id -> !foundIds.contains(id)).toList();
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "존재하지 않는 " + label + " ID가 포함되어 있습니다: " + missing);
+        }
+        return found;
     }
 }
