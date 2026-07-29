@@ -3,6 +3,7 @@ package com.selfintro.modules.study.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -64,10 +65,12 @@ class StudyAiServiceTest {
         when(experience.getType()).thenReturn("PROJECT");
         when(experience.getTitle()).thenReturn("이벤트 처리 파이프라인");
 
-        when(skillRepository.findAllById(any())).thenReturn(List.of(skill));
-        when(experienceRepository.findAllById(any())).thenReturn(List.of(experience));
-        when(experienceDetailRepository.findAllById(any())).thenReturn(List.of());
-        when(studyRepository.findAllById(any())).thenReturn(List.of());
+        lenient().when(skillRepository.findAllById(any())).thenReturn(List.of(skill));
+        lenient().when(experienceRepository.findAllById(any())).thenReturn(List.of(experience));
+        lenient().when(experienceDetailRepository.findAllById(any())).thenReturn(List.of());
+        lenient().when(experienceDetailRepository.findAll()).thenReturn(List.of());
+        lenient().when(studyRepository.findAllById(any())).thenReturn(List.of());
+        lenient().when(studyRepository.findAll()).thenReturn(List.of());
 
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn(

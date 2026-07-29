@@ -36,21 +36,18 @@ public class NvidiaNimClient {
 
     public String generate(String systemPrompt, String userPrompt) {
         ensureAvailable();
-        try {
-            String content =
-                    chatClient
-                            .prompt()
-                            .system(systemPrompt)
-                            .user(userPrompt)
-                            .options(buildOptions())
-                            .call()
-                            .content();
-            return requireContent(content);
-        } catch (ResponseStatusException exception) {
-            throw exception;
-        } catch (Exception exception) {
-            throw translate(exception);
-        }
+        return executeWithRetry(
+                () -> {
+                    String content =
+                            chatClient
+                                    .prompt()
+                                    .system(systemPrompt)
+                                    .user(userPrompt)
+                                    .options(buildOptions())
+                                    .call()
+                                    .content();
+                    return requireContent(content);
+                });
     }
 
     public String generateWithImage(
@@ -172,5 +169,31 @@ public class NvidiaNimClient {
                 HttpStatus.BAD_GATEWAY,
                 "Spring AI를 통한 NVIDIA API 호출에 실패했습니다. API 키와 모델 설정을 확인해주세요.",
                 exception);
+    }
+
+    private <T> T executeWithRetry(java.util.function.Supplier<T> supplier) {
+        int maxAttempts = 3;
+        long backoffMs = 500;
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return supplier.get();
+            } catch (ResponseStatusException exception) {
+                throw exception;
+            } catch (Exception exception) {
+                lastException = exception;
+                if (attempt < maxAttempts) {
+                    try {
+                        Thread.sleep(backoffMs);
+                    } catch (InterruptedException interruptedException) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                    backoffMs *= 2;
+                }
+            }
+        }
+        throw translate(lastException);
     }
 }
