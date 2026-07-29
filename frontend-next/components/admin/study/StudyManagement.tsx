@@ -18,6 +18,8 @@ import type { GalleryImage, Study, StudyRequest, StudySuggestion } from '@/lib/a
 import { useAuthStore } from '@/store/useAuthStore';
 import { ImageGalleryEditor } from '../shared/ImageGalleryEditor';
 import { MarkdownEditor } from '../shared/MarkdownEditor';
+import { SkillPicker } from '../shared/SkillPicker';
+import { TagInput } from '../shared/TagInput';
 import { StudyDetailPanel } from './StudyDetailPanel';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
 
@@ -201,7 +203,6 @@ export function StudyManagement() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    const [studySkillSearch, setStudySkillSearch] = useState('');
     const [studyExperienceSearch, setStudyExperienceSearch] = useState('');
     const [studyExperienceDetailSearch, setStudyExperienceDetailSearch] = useState('');
     const [relatedStudySearch, setRelatedStudySearch] = useState('');
@@ -260,16 +261,6 @@ export function StudyManagement() {
         () => studies?.find((study) => study.id === selectedStudyId) ?? null,
         [studies, selectedStudyId]
     );
-
-    const selectableStudySkills = useMemo(() => {
-        const keyword = studySkillSearch.trim().toLowerCase();
-        if (!keyword) return skillsList ?? [];
-        return (skillsList ?? []).filter(
-            (skill) =>
-                skill.name.toLowerCase().includes(keyword) ||
-                skill.category.toLowerCase().includes(keyword)
-        );
-    }, [skillsList, studySkillSearch]);
 
     const selectableStudyExperiences = useMemo(() => {
         const keyword = studyExperienceSearch.trim().toLowerCase();
@@ -972,66 +963,18 @@ export function StudyManagement() {
                         />
                     </div>
 
-                    <div>
-                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                            태그 (쉼표 구분)
-                        </label>
-                        <input
-                            type="text"
-                            value={studyForm.tagNames}
-                            onChange={(e) =>
-                                setStudyForm({ ...studyForm, tagNames: e.target.value })
-                            }
-                            placeholder="트랜잭션, 동시성, 장애대응"
-                            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                        />
-                    </div>
+                    <TagInput
+                        value={studyForm.tagNames}
+                        onChange={(value) => setStudyForm({ ...studyForm, tagNames: value })}
+                        placeholder="트랜잭션, 동시성, 장애대응"
+                    />
 
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                기술 스택
-                            </label>
-                            <div className="relative mb-2">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="search"
-                                    value={studySkillSearch}
-                                    onChange={(event) => setStudySkillSearch(event.target.value)}
-                                    placeholder="기술명 또는 분류 검색"
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-200"
-                                />
-                            </div>
-                            <div className="max-h-44 space-y-1 overflow-auto rounded-xl border border-slate-200 p-3">
-                                {selectableStudySkills.map((skill) => (
-                                    <label
-                                        key={skill.id}
-                                        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={studyForm.skillIds.includes(skill.id)}
-                                            onChange={(event) =>
-                                                setStudyForm({
-                                                    ...studyForm,
-                                                    skillIds: event.target.checked
-                                                        ? [...studyForm.skillIds, skill.id]
-                                                        : studyForm.skillIds.filter(
-                                                              (id) => id !== skill.id
-                                                          ),
-                                                })
-                                            }
-                                        />
-                                        {skill.name}
-                                    </label>
-                                ))}
-                                {selectableStudySkills.length === 0 && (
-                                    <p className="py-4 text-center text-xs font-semibold text-slate-400">
-                                        검색 결과가 없습니다.
-                                    </p>
-                                )}
-                            </div>
-                        </div>
+                        <SkillPicker
+                            skills={skillsList ?? []}
+                            selectedIds={studyForm.skillIds}
+                            onChange={(ids) => setStudyForm({ ...studyForm, skillIds: ids })}
+                        />
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
                                 관련 프로젝트·경력

@@ -14,6 +14,8 @@ import type {
 } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MarkdownEditor } from '../shared/MarkdownEditor';
+import { SkillPicker } from '../shared/SkillPicker';
+import { TagInput } from '../shared/TagInput';
 import { LearningResourceDetailPanel } from './LearningResourceDetailPanel';
 import { LearningResourceMindmap } from './LearningResourceMindmap';
 
@@ -222,7 +224,6 @@ export function LearningResourceManagement() {
         return () => window.removeEventListener('popstate', syncFromUrl);
     }, []);
 
-    const [skillSearch, setSkillSearch] = useState('');
     const [relatedResourceSearch, setRelatedResourceSearch] = useState('');
     const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
     const [statusFilter, setStatusFilter] = useState<'ALL' | LearningResourceStatus>('ALL');
@@ -257,9 +258,6 @@ export function LearningResourceManagement() {
         });
     }, [resources, categoryFilter, statusFilter, priorityFilter, search]);
 
-    const selectableSkills = (skillsList ?? []).filter(
-        (skill) => !skillSearch || skill.name.toLowerCase().includes(skillSearch.toLowerCase())
-    );
     const selectableRelatedResources = (resources ?? []).filter(
         (resource) =>
             resource.id !== editingId &&
@@ -582,58 +580,22 @@ export function LearningResourceManagement() {
                         />
                     </div>
 
-                    <div>
-                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                            태그 (쉼표 구분)
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="예: Redis, 캐시전략"
-                            value={form.tagNames}
-                            onChange={(e) => setForm({ ...form, tagNames: e.target.value })}
-                            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                        />
-                    </div>
+                    <TagInput
+                        value={form.tagNames}
+                        onChange={(value) => setForm({ ...form, tagNames: value })}
+                        placeholder="예: Redis, 캐시전략"
+                    />
 
                     <div className="grid gap-4 lg:grid-cols-2">
                         <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                관련 기술 스택 · {form.skillIds.length}개
-                            </label>
-                            <input
-                                type="search"
-                                value={skillSearch}
-                                onChange={(e) => setSkillSearch(e.target.value)}
-                                placeholder="기술명 검색"
-                                className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-800"
+                            <SkillPicker
+                                skills={skillsList ?? []}
+                                selectedIds={form.skillIds}
+                                onChange={(ids) => setForm({ ...form, skillIds: ids })}
+                                label="관련 기술 스택"
+                                searchPlaceholder="기술명 검색"
+                                variant="boxed"
                             />
-                            <div className="max-h-48 space-y-1.5 overflow-auto">
-                                {selectableSkills.map((skill) => (
-                                    <label
-                                        key={skill.id}
-                                        className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={form.skillIds.includes(skill.id)}
-                                            onChange={() =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    skillIds: current.skillIds.includes(skill.id)
-                                                        ? current.skillIds.filter(
-                                                              (id) => id !== skill.id
-                                                          )
-                                                        : [...current.skillIds, skill.id],
-                                                }))
-                                            }
-                                            className="mt-0.5"
-                                        />
-                                        <span className="font-semibold text-slate-700">
-                                            {skill.name}
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
                         </div>
 
                         <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
