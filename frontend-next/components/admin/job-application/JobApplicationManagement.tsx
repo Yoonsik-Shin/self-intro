@@ -3,6 +3,7 @@
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -861,6 +862,23 @@ export function JobApplicationManagement() {
     const [settingsForm, setSettingsForm] = useState<JobPostingSettingRequest | null>(null);
     const detailDrawerAnim = useSlideDrawer(!!drawerState);
     const settingsDrawerAnim = useSlideDrawer(isSettingsDrawerOpen && !!settingsForm);
+
+    const boardRef = useRef<HTMLDivElement>(null);
+    const [boardHeightPx, setBoardHeightPx] = useState<number | null>(null);
+
+    useLayoutEffect(() => {
+        if (viewMode !== 'BOARD') return;
+        const calculateBoardHeight = () => {
+            if (!boardRef.current) return;
+            const rect = boardRef.current.getBoundingClientRect();
+            const remaining = window.innerHeight - rect.top - 24;
+            setBoardHeightPx(Math.max(380, remaining));
+        };
+
+        calculateBoardHeight();
+        window.addEventListener('resize', calculateBoardHeight);
+        return () => window.removeEventListener('resize', calculateBoardHeight);
+    }, [viewMode]);
 
     const { data: postings = [], isLoading } = useQuery({
         queryKey: ['jobPostings'],
@@ -2049,17 +2067,20 @@ export function JobApplicationManagement() {
             ) : viewMode === 'BOARD' ? (
                 <div className="overflow-x-auto overflow-y-hidden pb-1">
                     <div
-                        className="grid h-[calc(100vh-340px)] min-h-[380px] max-h-[calc(100vh-340px)] gap-3"
+                        ref={boardRef}
+                        className="grid gap-3"
                         style={{
                             gridAutoFlow: 'column',
                             gridAutoColumns: 'minmax(230px, 1fr)',
+                            height: boardHeightPx ? `${boardHeightPx}px` : 'calc(100vh - 280px)',
+                            minHeight: '380px',
                         }}
                     >
                         <div
                             onDragOver={handleCandidateColumnDragOver}
                             onDragLeave={() => setIsDragOverCandidates(false)}
                             onDrop={handleCandidateColumnDrop}
-                            className={`flex h-full min-w-0 flex-col rounded-2xl border border-dashed p-2.5 transition ${
+                            className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-dashed p-2.5 transition ${
                                 isDragOverCandidates
                                     ? 'border-slate-400 bg-slate-100'
                                     : 'border-slate-300 bg-white'
@@ -2188,7 +2209,7 @@ export function JobApplicationManagement() {
                                         setDragOverStage((prev) => (prev === stage ? null : prev))
                                     }
                                     onDrop={(e) => handleColumnDrop(e, stage)}
-                                    className={`flex h-full min-w-0 flex-col rounded-2xl border p-2.5 transition ${
+                                    className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border p-2.5 transition ${
                                         dragOverStage === stage
                                             ? 'border-slate-400 bg-slate-100'
                                             : 'border-slate-200 bg-slate-50'
