@@ -18,11 +18,7 @@ public class ExperienceController {
 
     @GetMapping
     public ResponseEntity<List<ExperienceResponse>> list() {
-        List<ExperienceResponse> responses =
-                experienceService.getAllExperiences().stream()
-                        .map(experienceService::toResponse)
-                        .toList();
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok(experienceService.listAll());
     }
 
     @PostMapping

@@ -45,6 +45,12 @@ public class ExperienceService {
         return experienceRepository.findAllByOrderByDisplayOrderAsc();
     }
 
+    public List<ExperienceResponse> listAll() {
+        return experienceRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     public ExperienceResponse toResponse(Experience experience) {
         return ExperienceResponse.from(experience, storageService::toPublicUrl);
     }
