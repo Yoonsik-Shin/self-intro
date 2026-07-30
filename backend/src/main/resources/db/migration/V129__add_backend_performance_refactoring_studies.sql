@@ -1,5 +1,6 @@
 -- 백엔드 전수 조사를 통해 수행한 4가지 핵심 분야별 성능 리팩토링 및 아키텍처 개선 성과를
--- 문제상황 - 대안비교 - 의사결정 - 트레이드오프 - 해결방안/코드 - 정량성과 6단계 구조화 양식으로 심도 있게 작성하여 등록한다.
+-- 1. 핵심 기술 개념 및 원리 -> 2. 문제 상황 및 배경 -> 3. 의사결정 과정 및 대안 비교 -> 4. 트레이드오프 -> 5. 구체적 해결방안/코드 -> 6. 정량성과
+-- 6단계 엔지니어링 딥 다이브 표준 규격(기술 이론 내장형)으로 전면 작성하여 등록한다.
 
 -- 1. Spring Cache & Redis 기반 BFF 응답 캐싱과 CUD 캐시 무효화 전략
 INSERT INTO `study` (`slug`, `title`, `summary`, `content_markdown`, `status`, `category_id`, `learned_at`, `published_at`, `created_at`, `updated_at`)
@@ -9,7 +10,20 @@ VALUES (
   '포트폴리오 백엔드 서버의 BFF(Backend For Frontend) 응답 성능 향상을 위해 Redis 기반 Spring Cache를 구축하고, 어드민 CUD 및 연관 엔티티 변경 시 @CacheEvict를 통한 실시간 캐시 무효화 및 Redis 장애 대응 Fallback 로직을 적용한 아키텍처 개선 기록.',
   '# Spring Cache & Redis 기반 BFF 응답 캐싱과 CUD 캐시 무효화(Cache Invalidation) 전략
 
-## 1. 문제 상황 및 배경
+## 1. 핵심 기술 개념 및 원리
+
+### 1) Spring Cache 추상화와 AOP(Aspect-Oriented Programming) 작동 메커니즘
+Spring Cache는 서비스 계층의 소스 코드를 특정 캐시 저장소(Redis, EHCache, Caffeine 등) 기술에 직접 결합시키지 않고, **Spring AOP 프록시 패턴**을 통해 캐싱 동작을 선언적으로 삽입하는 캐시 추상화 레이어(`CacheManager`, `Cache`)를 제공합니다.
+- **`@Cacheable` 메커니즘**: AOP 프록시(`CacheInterceptor`)가 메서드 호출을 가로채어 Redis 캐시 네임스페이스 및 키 존재 여부를 확인합니다. Cache Hit 발생 시 메서드 본문 실행을 Skip 하고 Redis에서 읽은 JSON 직렬화 데이터를 즉시 반환하며, Cache Miss 발생 시 실제 Target 메서드를 실행한 후 결과 객체를 Redis에 저장합니다.
+- **`@CacheEvict` 메커니즘**: 데이터의 변경(CUD)이 발생하는 메서드가 성공적으로 실행을 마친 시점에 AOP 프록시가 해당 캐시 키 또는 네임스페이스 전체(`allEntries = true`)를 Redis `DEL` 명령어 형태로 무효화(Invalidation)합니다.
+
+### 2) Redis In-Memory 구조 및 Jackson 직렬화(Serialization)
+Redis는 모든 데이터를 메모리(RAM)에 저장하여 $O(1)$의 초고속 읽기/쓰기를 보장하는 인메모리 키-값(Key-Value) 데이터 저장소입니다.
+- 자바 객체를 Redis에 저장하려면 직렬화 바이너리/문자열 변환 과정이 필요합니다. `GenericJackson2JsonRedisSerializer`는 객체의 타입 정보(`@class` 메타데이터 필드)를 JSON 내부에 함께 포함하여 직렬화하므로, 복합 DTO 객체가 역직렬화될 때 별도의 Casting 없이 안전하게 자바 객체 튜플로 복원됩니다.
+
+---
+
+## 2. 문제 상황 및 배경
 
 Self-Intro 포트폴리오 백엔드는 메인 소개 화면, 학습 자료 오버뷰, 서식 인쇄 등의 조회를 위해 여러 도메인 엔티티(`Experience`, `Skill`, `Competency`, `Study` 등)를 복합 조합하여 한 번에 응답하는 **BFF(Backend For Frontend) 엔드포인트** (`bff:introduction`, `bff:learning`, `bff:architecture`, `print_template:public`)를 운영하고 있습니다.
 
@@ -18,7 +32,7 @@ Self-Intro 포트폴리오 백엔드는 메인 소개 화면, 학습 자료 오�
 
 ---
 
-## 2. 의사결정 과정 및 대안 비교
+## 3. 의사결정 과정 및 대안 비교
 
 BFF 응답 최적화와 데이터 정합성 보장을 위해 다음 3가지 대안을 검토했습니다.
 
@@ -32,7 +46,7 @@ BFF 응답 최적화와 데이터 정합성 보장을 위해 다음 3가지 대�
 
 ---
 
-## 3. 트레이드오프 분석 (Trade-offs)
+## 4. 트레이드오프 분석 (Trade-offs)
 
 - **이득 (Pros)**: 어드민에서 경력, 기술스택, 핵심역량, 서식 등의 수정을 완료하는 즉시 Redis 캐시가 제거되어, 사용자는 단 1ms의 시차도 없이 최신 변경사항을 확인(100% 정합성 보장)할 수 있습니다.
 - **비용 (Cons)**: 관리자가 단 1건의 데이터를 수정했을 때 해당 BFF 캐시 전체가 지워지므로, 바로 다음 첫 번째 조회 클라이언트는 DB를 탐색하는 약 100ms의 Cache Miss 비용을 치러야 합니다.
@@ -40,9 +54,9 @@ BFF 응답 최적화와 데이터 정합성 보장을 위해 다음 3가지 대�
 
 ---
 
-## 4. 구체적 해결 방향 및 구현 코드
+## 5. 구체적 해결 방향 및 구현 코드
 
-### 4.1 Redis 기반 Spring Cache configuration
+### 5.1 Redis 기반 Spring Cache configuration
 ```java
 @Configuration
 @EnableCaching
@@ -62,7 +76,7 @@ public class CacheConfig {
 }
 ```
 
-### 4.2 CUD 및 연관 관계 수정 시 명시적 @CacheEvict 무효화 사이클
+### 5.2 CUD 및 연관 관계 수정 시 명시적 @CacheEvict 무효화 사이클
 경력(`Experience`), 스킬(`Skill`), 학습(`Study`), 서식(`PrintTemplate`) 서비스의 CUD 및 순서 변경 메서드 전체를 전수 조사하여 명시적 캐시 무효화를 부착했습니다.
 
 ```java
@@ -100,7 +114,7 @@ public class ExperienceService {
 
 ---
 
-## 5. 정량적 성과 및 검증
+## 6. 정량적 성과 및 검증
 
 - **응답 시간 97.3% 감축**: BFF 엔드포인트 응답 속도가 기존 **120ms~180ms에서 3.2ms로 획기적으로 단축**되었습니다.
 - **캐시 불일치 0건**: 어드민 데이터 수정 후 0초 만에 메인 화면에 즉각 반사됨을 확인했습니다.',
@@ -123,7 +137,20 @@ VALUES (
   'JPA FetchType.LAZY 전환, findById 반복 호출의 findAllById 배치 조회 개선, @BatchSize(size=100)를 통한 연관 컬렉션 조율, 그리고 전체 엔티티 메모리 로딩을 방지하는 JPQL 프로젝션(SELECT s.name) 쿼리 도입으로 DB 부하를 대폭 절감한 데이터 접근 계층 최적화 기록.',
   '# JPA N+1 쿼리 해결, BatchSize 튜닝 및 JPQL 프로젝션을 활용한 DB 메모리·조회 최적화
 
-## 1. 문제 상황 및 배경
+## 1. 핵심 기술 개념 및 원리
+
+### 1) JPA 영속성 컨텍스트(Persistence Context)와 힙 메모리 라이프사이클
+JPA(Java Persistence API)의 영속성 컨텍스트는 엔티티를 관리하는 1차 캐시(First-level Cache) 및 스냅샷 버퍼 구조입니다.
+- **엔티티 Hydration 메모리 오버헤드**: `JpaRepository.findAll()`을 통해 엔티티를 가져오면, JPA는 1차 캐시 테이블에 객체 인스턴스를 저장하고 변경 감지(Dirty Checking)를 위해 원본 복사본인 **Entity Snapshot Buffer**를 추가로 생성합니다. 단순 조회 목적임에도 객체당 메모리가 2배로 소비되며 GC 대상을 늘립니다.
+- **JPQL Scalar Projection**: `SELECT s.name FROM Skill s`와 같은 스칼라 프로젝션은 JPA 영속성 컨텍스트의 1차 캐시나 스냅샷 버퍼를 생성하지 않고, 데이터베이스 커서로부터 가져온 문자열 데이터(`String`)를 직렬화하여 반환하므로 힙 메모리 메모리 소비가 $0$에 수렴합니다.
+
+### 2) Hibernate N+1 문제 발생 원인과 `@BatchSize` 내부 쿼리 메커니즘
+N+1 문제란 1개의 부모 엔티티 조회를 위한 SQL 실행 후, 연관된 자식 엔티티/컬렉션을 접근할 때 자식 개수(N)만큼의 추가 SELECT SQL이 연쇄 실행되는 현상입니다.
+- **`@BatchSize(size = N)` 작동 원리**: Hibernate는 프록시 객체나 미초기화된 연관 컬렉션에 접근할 때, 1개씩 단건 쿼리를 날리는 대신 영속성 컨텍스트에 대기 중인 엔티티 ID를 모아 `WHERE parent_id IN (?, ?, ?, ...)` 형태의 배치 쿼리를 생성합니다. 100개의 자식 조회를 100번의 SQL 대신 단 1번의 `IN` SQL로 처리하여 라운드트립 비용을 획기적으로 줄입니다.
+
+---
+
+## 2. 문제 상황 및 배경
 
 Spring Data JPA 환경에서 자주 맞닥뜨리는 대표적인 ORM 최적화 과제는 **1) 컬렉션 조인 시 발생하는 N+1 폭포수 SELECT 쿼리**, **2) ID 목록을 다룰 때 루프문 내부에서 반복 발송되는 findById 단건 쿼리**, 그리고 **3) 단순 기술명 문자열(`List<String>`) 매칭에 불과한 작업에서 묵직한 JPA 엔티티 전체를 메모리로 덤프 로딩하는 메모리 낭비**입니다.
 
@@ -131,7 +158,7 @@ Self-Intro 백엔드 전수 조사 결과, AI 추천 서비스 및 채용 매칭
 
 ---
 
-## 2. 의사결정 과정 및 대안 비교
+## 3. 의사결정 과정 및 대안 비교
 
 N+1 문제 해결 및 메모리 절감을 위해 검토한 대안입니다.
 
@@ -145,7 +172,7 @@ N+1 문제 해결 및 메모리 절감을 위해 검토한 대안입니다.
 
 ---
 
-## 3. 트레이드오프 분석 (Trade-offs)
+## 4. 트레이드오프 분석 (Trade-offs)
 
 - **이득 (Pros)**: MultipleBagFetchException이나 카테시안 곱 중복 데이터 없이 단 1~2회의 `IN (?, ?, ...)` 쿼리로 연관 데이터를 배치 로딩할 수 있습니다. 단순 키워드 매칭 로직에서는 JPA 1차 캐시 등록 및 영속 스냅샷 생성 비용이 100% 제거됩니다.
 - **비용 (Cons)**: JPQL 프로젝션으로 반환된 `List<String>`은 JPA 영속성 컨텍스트가 관리하지 않으므로 변경 감지(Dirty Checking)나 수정을 수행할 수 없습니다.
@@ -153,9 +180,9 @@ N+1 문제 해결 및 메모리 절감을 위해 검토한 대안입니다.
 
 ---
 
-## 4. 구체적 해결 방향 및 구현 코드
+## 5. 구체적 해결 방향 및 구현 코드
 
-### 4.1 @BatchSize(size = 100)를 통한 IN 절 배치 로딩
+### 5.1 @BatchSize(size = 100)를 통한 IN 절 배치 로딩
 ```java
 @Entity
 @Getter
@@ -176,7 +203,7 @@ public class Competency {
 }
 ```
 
-### 4.2 findAllById 배치 조회 및 검증 헬퍼 패턴
+### 5.2 findAllById 배치 조회 및 검증 헬퍼 패턴
 AI 서비스에서 루프 findById 대신 `findAllById(ids)` 1회 호출로 변경하고 요청 ID의 존재 여부를 일괄 검증하도록 개선했습니다.
 
 ```java
@@ -200,7 +227,7 @@ public class CompetencyAiService {
 }
 ```
 
-### 4.3 JPQL 프로젝션(findAllSkillNames)을 통한 힙 메모리 최적화
+### 5.3 JPQL 프로젝션(findAllSkillNames)을 통한 힙 메모리 최적화
 엔티티 덤프 로딩 대신 기술 스택 명칭만 반환하는 JPQL 쿼리를 작성하여 사용했습니다.
 
 ```java
@@ -220,7 +247,7 @@ List<String> mySkillNames = skillRepository.findAllSkillNames(); // 스칼라 St
 
 ---
 
-## 5. 정량적 성과 및 검증
+## 6. 정량적 성과 및 검증
 
 - **SQL 실행 횟수 32회 → 2회 감축**: N+1 쿼리로 쏟아지던 SELECT문이 `@BatchSize` 배치 로딩으로 대폭 감소했습니다.
 - **힙 메모리 오버헤드 100% 제거**: `findAllSkillNames()` 프로젝션 도입으로 1차 캐시 등록 및 객체 생성 오버헤드 없이 키워드 평가를 즉시 수행합니다.',
@@ -243,7 +270,24 @@ VALUES (
   '외부 채용 API 수집과 DB 저장 간 트랜잭션 경계를 분리하여 커넥션 락 점유 시간을 최소화하고, 후보 배너 이미지 수집을 CompletableFuture 기반 병렬 멀티스레드로 6배 이상 단축시켰으며, 외부 LLM API 429/5xx 에러에 대비한 지수 백오프(Exponential Backoff) 재시도 패턴을 구축한 성능·회복성 설계 기록.',
   '# 트랜잭션 경계 분리, CompletableFuture 병렬화 및 외부 API 지수 백오프(Exponential Backoff) 재시도 구조 설계
 
-## 1. 문제 상황 및 배경
+## 1. 핵심 기술 개념 및 원리
+
+### 1) Java `CompletableFuture` 비동기 태스크 파이프라인
+`CompletableFuture`는 자바 8에 도입된 `Future` 및 `CompletionStage` 구현체로, Non-blocking 병렬 태스크 조합과 파이프라인 처리를 지원합니다.
+- **스레드 풀 결합 (`Executor`)**: 기본 `ForkJoinPool.commonPool()` 대신 I/O 전용 커스텀 `ThreadPoolExecutor`를 결합하여 `supplyAsync()`를 호출하면, 메인 스레드를 블로킹하지 않고 별도의 작업 스레드들이 병렬로 HTTP 다운로드를 수행합니다. `CompletableFuture.allOf()` 또는 Stream `join()`을 통해 모든 비동기 작업의 완료 시점을 안전하게 동기화합니다.
+
+### 2) 트랜잭션 수명주기(Lifecycle)와 DB Connection Pool 대여 원리
+Spring의 `@Transactional`은 AOP 프록시를 통해 락 및 DB Connection leasing을 수행합니다.
+- **Connection Leak 위험**: 트랜잭션 메서드가 시작되면 HikariCP 파이프라인에서 커넥션을 대여받아 스레드에 바인딩합니다. 메서드 내부에서 네트워크 통신(외부 HTTP API 호출)을 수행하면, 외부 서버가 응답을 줄 때까지 **DB 커넥션을 쥐고 있는 상태에서 블로킹**되므로 시스템 전체의 HikariCP 커넥션 풀 고갈을 유발합니다.
+
+### 3) Exponential Backoff + Random Jitter 알고리즘
+외부 API 호출 시 429(Rate Limit)나 5xx 에러 발생 시 재시도하는 알고리즘 원리입니다.
+- **수식**: $T_{wait} = T_0 \cdot 2^{k} + \text{Jitter}$ ($k$: 재시도 횟수, Jitter: 무작위 노이즈 시간)
+- 지수적으로 대기 시간을 2배씩 늘리고 무작위 Jitter 시간(100ms~200ms)을 더해, 동시 재시도로 인한 외부 서버의 Thundering Herd Problem(순간 폭주) 현상을 예방합니다.
+
+---
+
+## 2. 문제 상황 및 배경
 
 외부 네트워크 I/O(사람인 채용 공고 API, 외부 배너 이미지 다운로드, NVIDIA NIM AI LLM API)와 데이터베이스 트랜잭션이 결합되면 두 가지 치명적인 문제가 발생합니다.
 
@@ -253,7 +297,7 @@ VALUES (
 
 ---
 
-## 2. 의사결정 과정 및 대안 비교
+## 3. 의사결정 과정 및 대안 비교
 
 외부 네트워크 연동의 안정성과 속도 향상을 위해 검토한 대안입니다.
 
@@ -267,7 +311,7 @@ VALUES (
 
 ---
 
-## 3. 트레이드오프 분석 (Trade-offs)
+## 4. 트레이드오프 분석 (Trade-offs)
 
 - **이득 (Pros)**: 외부 네트워크 I/O 대기시간 동안 DB Connection Lock 점유가 0ms로 최소화됩니다. 10여 개의 배너 이미지를 동시에 병렬 다운로드하여 처리 시간이 85% 이상 단축됩니다.
 - **비용 (Cons)**: 멀티스레드로 동시 HTTP 요청을 보낼 때 타겟 서버(사람인/이미지 CDN)로부터 IP 차단(429/403)을 당할 위험이 발생합니다.
@@ -275,9 +319,9 @@ VALUES (
 
 ---
 
-## 4. 구체적 해결 방향 및 구현 코드
+## 5. 구체적 해결 방향 및 구현 코드
 
-### 4.1 수집(네트워크 I/O)과 저장(DB 트랜잭션)의 계층 분리
+### 5.1 수집(네트워크 I/O)과 저장(DB 트랜잭션)의 계층 분리
 `JobPostingCollectorService`에서는 외부 통신만 수행하고, 수집된 DTO 리스트를 `JobPostingService`의 짧은 `@Transactional` 메서드로 넘겨 저장하도록 구조를 이원화했습니다.
 
 ```java
@@ -298,7 +342,7 @@ public class JobPostingCollectorService {
 }
 ```
 
-### 4.2 CompletableFuture 기반 멀티스레드 병렬 다운로드
+### 5.2 CompletableFuture 기반 멀티스레드 병렬 다운로드
 ```java
 public List<byte[]> downloadImagesInParallel(List<String> imageUrls) {
     List<CompletableFuture<byte[]>> futures = imageUrls.stream()
@@ -312,7 +356,7 @@ public List<byte[]> downloadImagesInParallel(List<String> imageUrls) {
 }
 ```
 
-### 4.3 NVIDIA NIM AI 클라이언트 지수 백오프(Exponential Backoff + Jitter)
+### 5.3 NVIDIA NIM AI 클라이언트 지수 백오프(Exponential Backoff + Jitter)
 ```java
 private <T> T executeWithRetry(Supplier<T> action) {
     int maxAttempts = 3;
@@ -340,7 +384,7 @@ private <T> T executeWithRetry(Supplier<T> action) {
 
 ---
 
-## 5. 정량적 성과 및 검증
+## 6. 정량적 성과 및 검증
 
 - **배너 수집 시간 1.2초 → 0.18초 감축 (85% 단축)**: 병렬 비동기 수집으로 6배 이상 처리 속도가 향상되었습니다.
 - **외부 AI 통신 성공률 99.9% 보장**: 429 Rate Limit 및 일시적 5xx 장애 발생 시 지수 백오프 재시도를 통해 안정적으로 AI 분석 응답을 수신합니다.',
@@ -363,7 +407,24 @@ VALUES (
   '데이터베이스 스키마 마이그레이션 도구(Flyway)를 활용해 외래키 및 자주 조회되는 텍스트 필드에 B-Tree 인덱스를 구축(V127)하고, 채용 공고 상태 변화 이력 조회 시 발생하던 Filesort 정렬 병목을 (job_posting_id, changed_at) 복합 인덱스(V128)로 해결한 쿼리 실행 계획 최적화 기록.',
   '# Flyway 마이그레이션을 통한 커버링 인덱스 구축 및 Filesort 정렬 병목 개선
 
-## 1. 문제 상황 및 배경
+## 1. 핵심 기술 개념 및 원리
+
+### 1) MySQL InnoDB B+Tree 인덱스 및 복합 인덱스 순서 규칙 (Leftmost Prefix Rule)
+MySQL InnoDB 엔진은 인덱스를 **B+Tree 자료구조**로 관리합니다. 리프 노드(Leaf Node)는 실제 레코드의 주소(또는 Primary Key)를 가리키며 양방향 연결 리스트(Doubly Linked List)로 연결되어 정렬 상태를 유지합니다.
+- **복합 인덱스(Composite Index) 정렬 원리**: `(job_posting_id, changed_at)` 복합 인덱스는 첫 번째 컬럼(`job_posting_id`)을 기준으로 먼저 정렬되고, 그 안에서 두 번째 컬럼(`changed_at`)으로 다시 연속 정렬되어 저장됩니다.
+- 따라서 `WHERE job_posting_id = 42 ORDER BY changed_at ASC` 쿼리를 실행하면, DB 엔진은 인덱스 B+Tree 리프 노드의 정렬 순서대로 연속 탐색(Index Range Scan / Backward Scan)을 수행하므로 **별도의 정렬(Sort) 연산이 0ms**에 완료됩니다.
+
+### 2) Filesort 및 Sort Buffer 메커니즘
+DB 엔진이 `ORDER BY` 연산을 수행할 때 적절한 인덱스 정렬의 도움을 받지 못하면 **Filesort 작업**을 실행합니다.
+- **Sort Buffer 작동**: DB는 `sort_buffer_size` 범위의 힙 메모리를 할당하여 레코드를 가져와 정렬을 시도합니다. 대상 레코드 수가 Sort Buffer 크기를 초과하면 디스크 임시 파일(Temporary Disk File)을 생성하여 병합 정렬(Merge Sort)을 수행하므로 엄청난 I/O 오버헤드와 CPU 사용률 급증을 유발합니다.
+
+### 3) Flyway 데이터베이스 버전 관리 및 스키마 검증 수명주기
+Flyway는 `flyway_schema_history` 테이블에 적용된 마이그레이션 스크립트의 버전, 설명, 타입, 파일 Checksum(SHA-256)을 저장하여 스키마 형상을 추적합니다.
+- **수명주기**: `validate` (로컬 스크립트 ↔ DB history checksum 비교) → `repair` (실패 이력 복구) → `migrate` (신규 버전 마이그레이션 수행) 순으로 작동하여, 멀티 인스턴스/K8s 환경에서 백엔드 Pod가 뜰 때 안전한 스키마 갱신을 달성합니다.
+
+---
+
+## 2. 문제 상황 및 배경
 
 운영 데이터베이스(MySQL 8.0 / HeatWave) 환경에서 데이터 적재량이 지속적으로 증가함에 따라 **1) 외래키 및 검색 중복 조건 컬럼의 B-Tree 인덱스 부재로 인한 Full Table Scan**과 **2) `ORDER BY` 절 실행 시 발생하는 DB 수준의 Filesort 및 Temporary Table 오버헤드**가 관측되었습니다.
 
@@ -371,7 +432,7 @@ VALUES (
 
 ---
 
-## 2. 의사결정 과정 및 대안 비교
+## 3. 의사결정 과정 및 대안 비교
 
 Filesort 및 Full Table Scan 병목 해결을 위해 검토한 대안입니다.
 
@@ -385,7 +446,7 @@ Filesort 및 Full Table Scan 병목 해결을 위해 검토한 대안입니다.
 
 ---
 
-## 3. 트레이드오프 분석 (Trade-offs)
+## 4. 트레이드오프 분석 (Trade-offs)
 
 - **이득 (Pros)**: MySQL 옵티마이저가 정렬 연산을 완전히 건너뛰고 인덱스 리프 노드를 순서대로 읽기만 하는 `Backward index scan` / `Index range scan`으로 전환되어 **정렬 수행 시간이 0ms로 수렴**합니다.
 - **비용 (Cons)**: 새로운 상태 이벤트가 추가(INSERT)될 때마다 복합 B-Tree 인덱스 노드를 갱신해야 하므로 쓰기 성능이 소폭(수 Microsecond) 감소합니다.
@@ -393,9 +454,9 @@ Filesort 및 Full Table Scan 병목 해결을 위해 검토한 대안입니다.
 
 ---
 
-## 4. 구체적 해결 방향 및 구현 코드
+## 5. 구체적 해결 방향 및 구현 코드
 
-### 4.1 V127 외래키 및 B-Tree 인덱스 마이그레이션 (`V127__add_performance_indexes.sql`)
+### 5.1 V127 외래키 및 B-Tree 인덱스 마이그레이션 (`V127__add_performance_indexes.sql`)
 ```sql
 ALTER TABLE `job_posting`
   ADD INDEX `idx_job_posting_url` (`posting_url`),
@@ -408,13 +469,13 @@ ALTER TABLE `learning_resource`
   ADD INDEX `idx_learning_resource_cat_order` (`category_id`, `display_order`);
 ```
 
-### 4.2 V128 복합 인덱스 마이그레이션 (`V128__add_status_event_index.sql`)
+### 5.2 V128 복합 인덱스 마이그레이션 (`V128__add_status_event_index.sql`)
 ```sql
 ALTER TABLE `job_posting_status_event`
   ADD INDEX `idx_job_posting_status_event_posting_changed` (`job_posting_id`, `changed_at`);
 ```
 
-### 4.3 쿼리 실행 계획(EXPLAIN) 트러블슈팅 로그 비교
+### 5.3 쿼리 실행 계획(EXPLAIN) 트러블슈팅 로그 비교
 
 - **인덱스 적용 전 (Filesort 발생)**:
 ```text
@@ -437,7 +498,7 @@ EXPLAIN SELECT * FROM job_posting_status_event WHERE job_posting_id = 42 ORDER B
 
 ---
 
-## 5. 정량적 성과 및 검증
+## 6. 정량적 성과 및 검증
 
 - **Filesort 완전 소멸**: `EXPLAIN` 분석 결과 `Extra: Using filesort`가 완전히 사라지고 인덱스 순차 스캔으로 대체되었습니다.
 - **쿼리 지연시간 45ms → 0.1ms 미만 감축**: DB 엔진 레벨의 정렬 부하가 소멸되었습니다.',
