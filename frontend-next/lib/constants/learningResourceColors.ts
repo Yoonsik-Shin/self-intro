@@ -36,3 +36,31 @@ export function colorForPriority(tier?: string | null): string {
     if (!tier) return PRIORITY_UNSET_COLOR;
     return PRIORITY_COLOR[tier] ?? PRIORITY_UNSET_COLOR;
 }
+
+// 노드 색은 카테고리(색상)로, 우선순위는 그 카테고리 색의 불투명도로 표현한다.
+// 이렇게 하면 마인드맵에서 "같은 계열 색 = 같은 카테고리"가 한눈에 보이고,
+// 그 안에서 진하고 연한 정도로 우선순위(P0가 가장 진함)를 구분할 수 있다.
+const PRIORITY_OPACITY: Record<string, number> = {
+    P0: 1,
+    P1: 0.8,
+    P2: 0.6,
+    P3: 0.4,
+};
+const PRIORITY_UNSET_OPACITY = 0.3;
+
+export function opacityForPriority(tier?: string | null): number {
+    if (!tier) return PRIORITY_UNSET_OPACITY;
+    return PRIORITY_OPACITY[tier] ?? PRIORITY_UNSET_OPACITY;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+    const value = hex.replace('#', '');
+    const r = parseInt(value.slice(0, 2), 16);
+    const g = parseInt(value.slice(2, 4), 16);
+    const b = parseInt(value.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function colorForCourseNode(categorySlug: string, priorityTier?: string | null): string {
+    return hexToRgba(colorForCategory(categorySlug), opacityForPriority(priorityTier));
+}
