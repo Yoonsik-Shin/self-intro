@@ -1,6 +1,7 @@
 package com.selfintro.modules.studyplan.presentation;
 
 import com.selfintro.modules.studyplan.application.StudyPlanService;
+import com.selfintro.modules.studyplan.presentation.dto.StudyPlanCategorySelectionRequest;
 import com.selfintro.modules.studyplan.presentation.dto.StudyPlanCreateRequest;
 import com.selfintro.modules.studyplan.presentation.dto.StudyPlanMessageRequest;
 import com.selfintro.modules.studyplan.presentation.dto.StudyPlanResponse;
@@ -64,6 +65,18 @@ public class StudyPlanController {
     @PostMapping("/{id}/unconfirm")
     public StudyPlanResponse unconfirm(@PathVariable Long id) {
         return studyPlanService.unconfirm(id);
+    }
+
+    @PatchMapping("/{id}/candidates/{resourceId}/toggle-selected")
+    public StudyPlanResponse toggleCandidateSelected(
+            @PathVariable Long id, @PathVariable Long resourceId) {
+        return studyPlanService.toggleCandidateSelected(id, resourceId);
+    }
+
+    @PatchMapping("/{id}/candidates/category-selection")
+    public StudyPlanResponse setCategorySelected(
+            @PathVariable Long id, @Valid @RequestBody StudyPlanCategorySelectionRequest request) {
+        return studyPlanService.setCategorySelected(id, request.category(), request.selected());
     }
 
     @PatchMapping("/{id}/items/{itemId}/toggle-completed")

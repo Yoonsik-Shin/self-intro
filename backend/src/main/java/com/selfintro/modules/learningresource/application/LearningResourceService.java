@@ -70,6 +70,14 @@ public class LearningResourceService {
         return LearningResourcePageResponse.from(result);
     }
 
+    public LearningResourceResponse get(Long id) {
+        return learningResourceRepository
+                .findById(id)
+                .map(LearningResourceResponse::from)
+                .orElseThrow(
+                        () -> new EntityNotFoundException("Learning resource not found: " + id));
+    }
+
     public LearningResourceGraphResponse findGraph() {
         List<LearningResource> resources = learningResourceRepository.findAll();
         List<LearningResourceGraphResponse.NodeResponse> nodes =

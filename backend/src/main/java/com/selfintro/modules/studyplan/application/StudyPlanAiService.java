@@ -96,7 +96,7 @@ detailed thinking off
     }
 
     public GeneratedPlan regenerate(StudyPlan plan, String feedbackContent) {
-        CandidateSet candidates = loadCandidates(plan.getCandidates());
+        CandidateSet candidates = loadCandidates(plan.getSelectedResources());
         String userPrompt = buildRegenerateUserPrompt(candidates, plan, feedbackContent);
         return callAndValidate(userPrompt, candidates);
     }

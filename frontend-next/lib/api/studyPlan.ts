@@ -16,6 +16,16 @@ export const studyPlanApi = {
         }),
     generate: (id: number) =>
         request<StudyPlan>(`/api/admin/study-plans/${id}/generate`, { method: 'POST' }),
+    toggleCandidateSelected: (planId: number, resourceId: number) =>
+        request<StudyPlan>(
+            `/api/admin/study-plans/${planId}/candidates/${resourceId}/toggle-selected`,
+            { method: 'PATCH' }
+        ),
+    setCategorySelected: (planId: number, category: string, selected: boolean) =>
+        request<StudyPlan>(`/api/admin/study-plans/${planId}/candidates/category-selection`, {
+            method: 'PATCH',
+            body: JSON.stringify({ category, selected }),
+        }),
     confirm: (id: number) =>
         request<StudyPlan>(`/api/admin/study-plans/${id}/confirm`, { method: 'POST' }),
     unconfirm: (id: number) =>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     CalendarCheck,
@@ -12,13 +13,16 @@ import {
     LockOpen,
     Plus,
     Sparkles,
+    X,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { adminDetailMarkdownComponents } from '@/lib/markdown';
-import { ApiError, studyPlanApi } from '@/lib/api';
-import type { StudyPlan, StudyPlanItem, StudyPlanStage } from '@/lib/api/types';
+import { ApiError, learningResourceApi, studyPlanApi } from '@/lib/api';
+import type { StudyPlan, StudyPlanCandidate, StudyPlanItem, StudyPlanStage } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
+import { LearningResourceDetailPanel } from '@/components/admin/learning-resource/LearningResourceDetailPanel';
 
 export function StudyPlanManagement() {
     const queryClient = useQueryClient();
@@ -39,6 +43,7 @@ export function StudyPlanManagement() {
     const [feedback, setFeedback] = useState('');
     const [expandedItemIds, setExpandedItemIds] = useState<Set<number>>(new Set());
     const [revealedQuestionIds, setRevealedQuestionIds] = useState<Set<number>>(new Set());
+    const [drawerResourceId, setDrawerResourceId] = useState<number | null>(null);
 
     const { data: summaries } = useQuery({
         queryKey: ['studyPlans'],
@@ -119,6 +124,20 @@ export function StudyPlanManagement() {
         onError: (error) => alertError(error, '이해도 점검 체크에 실패했습니다.'),
     });
 
+    const toggleCandidateMutation = useMutation({
+        mutationFn: (resourceId: number) =>
+            studyPlanApi.toggleCandidateSelected(effectiveSelectedId as number, resourceId),
+        onSuccess: setPlanCache,
+        onError: (error) => alertError(error, '후보 선택 변경에 실패했습니다.'),
+    });
+
+    const setCategorySelectedMutation = useMutation({
+        mutationFn: ({ category, selected }: { category: string; selected: boolean }) =>
+            studyPlanApi.setCategorySelected(effectiveSelectedId as number, category, selected),
+        onSuccess: setPlanCache,
+        onError: (error) => alertError(error, '카테고리 일괄 선택에 실패했습니다.'),
+    });
+
     const toggleItemExpanded = (itemId: number) => {
         setExpandedItemIds((prev) => {
             const next = new Set(prev);
@@ -157,6 +176,29 @@ export function StudyPlanManagement() {
         }
         return [...map.entries()].sort(([a], [b]) => a - b);
     }, [plan]);
+
+    // 후보를 카테고리별로 묶는다 — 처음 등장한 순서를 그대로 유지한다.
+    const candidatesByCategory = useMemo(() => {
+        if (!plan) return [];
+        const map = new Map<string, StudyPlanCandidate[]>();
+        for (const candidate of plan.candidates) {
+            const list = map.get(candidate.category) ?? [];
+            list.push(candidate);
+            map.set(candidate.category, list);
+        }
+        return [...map.entries()];
+    }, [plan]);
+
+    const selectedCandidateCount = plan?.candidates.filter((c) => c.selected).length ?? 0;
+
+    const closeDrawer = () => setDrawerResourceId(null);
+    const drawerAnim = useSlideDrawer(drawerResourceId !== null);
+    const { data: drawerResource } = useQuery({
+        queryKey: ['learningResource', drawerResourceId],
+        queryFn: () => learningResourceApi.get(drawerResourceId as number),
+        enabled: drawerResourceId != null,
+    });
+    const notEditableHere = () => alert('자료 수정/삭제는 "학습 자료 관리" 화면에서 해주세요.');
 
     return (
         <div className="space-y-6">
@@ -245,12 +287,13 @@ export function StudyPlanManagement() {
                             <div className="rounded-2xl border border-slate-200 p-4">
                                 <div className="mb-3 flex items-center justify-between">
                                     <h3 className="text-base font-extrabold text-slate-900">
-                                        후보 학습 자료 ({plan.candidates.length}개)
+                                        후보 학습 자료 (선택 {selectedCandidateCount}/
+                                        {plan.candidates.length}개)
                                     </h3>
                                     <button
                                         disabled={
                                             generateMutation.isPending ||
-                                            plan.candidates.length === 0
+                                            selectedCandidateCount === 0
                                         }
                                         onClick={() => generateMutation.mutate()}
                                         className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -271,24 +314,71 @@ export function StudyPlanManagement() {
                                         키워드를 알려주세요.
                                     </p>
                                 ) : (
-                                    <ul className="max-h-[55vh] space-y-1 overflow-y-auto">
-                                        {plan.candidates.map((candidate) => (
-                                            <li
-                                                key={candidate.id}
-                                                className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
-                                            >
-                                                <span className="font-bold text-slate-700">
-                                                    {candidate.title}
-                                                </span>
-                                                <span className="shrink-0 text-xs text-slate-400">
-                                                    {candidate.category}
-                                                    {candidate.durationMinutes
-                                                        ? ` · ${candidate.durationMinutes}분`
-                                                        : ''}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <div className="max-h-[55vh] space-y-3 overflow-y-auto">
+                                        {candidatesByCategory.map(([category, list]) => {
+                                            const allSelected = list.every((c) => c.selected);
+                                            return (
+                                                <div key={category}>
+                                                    <label className="flex cursor-pointer items-center gap-2 border-b border-slate-100 px-1 pb-1 text-xs font-black text-slate-500">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={allSelected}
+                                                            onChange={() =>
+                                                                setCategorySelectedMutation.mutate({
+                                                                    category,
+                                                                    selected: !allSelected,
+                                                                })
+                                                            }
+                                                        />
+                                                        {category} (
+                                                        {list.filter((c) => c.selected).length}/
+                                                        {list.length})
+                                                    </label>
+                                                    <ul className="mt-1 space-y-0.5">
+                                                        {list.map((candidate) => (
+                                                            <li
+                                                                key={candidate.id}
+                                                                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={candidate.selected}
+                                                                    onChange={() =>
+                                                                        toggleCandidateMutation.mutate(
+                                                                            candidate.id
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setDrawerResourceId(
+                                                                            candidate.id
+                                                                        )
+                                                                    }
+                                                                    className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+                                                                >
+                                                                    <span className="truncate font-bold text-slate-700">
+                                                                        {candidate.title}
+                                                                    </span>
+                                                                    <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400">
+                                                                        {candidate.familiar && (
+                                                                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
+                                                                                이미 아는 개념
+                                                                            </span>
+                                                                        )}
+                                                                        {candidate.durationMinutes
+                                                                            ? `${candidate.durationMinutes}분`
+                                                                            : ''}
+                                                                    </span>
+                                                                </button>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         ) : (
@@ -441,6 +531,44 @@ export function StudyPlanManagement() {
                     </div>
                 </div>
             )}
+
+            {drawerAnim.shouldRender &&
+                createPortal(
+                    <div className="fixed inset-0 z-40 flex justify-end">
+                        <div
+                            className={`absolute inset-0 bg-slate-900/30 transition-opacity duration-300 ease-out ${drawerAnim.isVisible ? 'opacity-100' : 'opacity-0'}`}
+                            onClick={closeDrawer}
+                            aria-hidden
+                        />
+                        <div
+                            className={`relative flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-out ${drawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                        >
+                            {drawerResource ? (
+                                <div className="p-4">
+                                    <LearningResourceDetailPanel
+                                        resource={drawerResource}
+                                        backLabel="닫기"
+                                        onBack={closeDrawer}
+                                        onEdit={notEditableHere}
+                                        onDelete={notEditableHere}
+                                        onSelectResource={(id) => setDrawerResourceId(id)}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex flex-1 items-center justify-end p-4">
+                                    <button
+                                        type="button"
+                                        onClick={closeDrawer}
+                                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 }

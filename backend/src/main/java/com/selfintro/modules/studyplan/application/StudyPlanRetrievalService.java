@@ -6,13 +6,15 @@ import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.learningresource.application.LearningResourceService;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceResponse;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class StudyPlanRetrievalService {
 
     private static final int DEFAULT_LIMIT = 40;
+    private static final int BROAD_POOL_LIMIT = 80;
 
     private static final String INTENT_PROMPT =
             """
@@ -53,18 +56,27 @@ public class StudyPlanRetrievalService {
 
     private final LearningResourceService learningResourceService;
     private final LearningResourceRepository learningResourceRepository;
+    private final SkillRepository skillRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
 
-    /** 최초 생성 폼의 목표 텍스트로부터 후보를 모은다. 목표가 비어 있거나 검색 결과가 없으면 우선순위 높은 자료로 대체한다. */
-    public List<LearningResource> collectInitial(String focusGoal) {
+    /** 검색으로 찾은 학습 자료 하나와, 내 스킬과 겹쳐서 "이미 아는 개념"으로 표시할지. */
+    public record CollectedCandidate(LearningResource resource, boolean familiar) {}
+
+    /**
+     * 최초 생성 폼의 목표 텍스트로부터 후보를 모은다. 목표가 있으면 키워드 검색으로 좁히고, 없으면 체크박스로 사람이 직접 고를 수 있도록 우선순위 상관없이 폭넓게
+     * 가져온다(자격 있는 자료 전체, 상한만 넉넉히 둠).
+     */
+    public List<CollectedCandidate> collectInitial(String focusGoal) {
         List<String> keywords = extractKeywords(focusGoal);
-        List<LearningResource> found = searchByKeywords(keywords, DEFAULT_LIMIT);
-        return found.isEmpty() ? fallbackByPriority(DEFAULT_LIMIT) : found;
+        List<LearningResource> found =
+                keywords.isEmpty() ? List.of() : searchByKeywords(keywords, DEFAULT_LIMIT);
+        List<LearningResource> pool = found.isEmpty() ? fallbackBroadPool(BROAD_POOL_LIMIT) : found;
+        return annotateFamiliarity(pool);
     }
 
     /** 대화형 피드백을 반영해 현재 후보 목록을 add/remove로 조정한다. */
-    public List<LearningResource> adjust(List<LearningResource> current, String feedback) {
+    public List<CollectedCandidate> adjust(List<LearningResource> current, String feedback) {
         Map<Long, LearningResource> byId = new LinkedHashMap<>();
         current.forEach(r -> byId.put(r.getId(), r));
 
@@ -87,7 +99,26 @@ public class StudyPlanRetrievalService {
                         AiJsonSupport.safe(response.additionalKeywords()), DEFAULT_LIMIT)) {
             byId.putIfAbsent(added.getId(), added);
         }
-        return new ArrayList<>(byId.values());
+        return annotateFamiliarity(new ArrayList<>(byId.values()));
+    }
+
+    /** 내 스킬 이름이 자료의 제목/카테고리에 부분 포함되면(대소문자 무시) "이미 아는 개념"으로 표시한다. */
+    private List<CollectedCandidate> annotateFamiliarity(List<LearningResource> resources) {
+        Set<String> myKeywords =
+                skillRepository.findAllSkillNames().stream()
+                        .filter(AiJsonSupport::hasText)
+                        .map(String::toLowerCase)
+                        .collect(Collectors.toSet());
+        return resources.stream()
+                .map(
+                        resource -> {
+                            String haystack =
+                                    (resource.getTitle() + " " + resource.getCategory().getName())
+                                            .toLowerCase();
+                            boolean familiar = myKeywords.stream().anyMatch(haystack::contains);
+                            return new CollectedCandidate(resource, familiar);
+                        })
+                .toList();
     }
 
     private List<String> extractKeywords(String focusGoal) {
@@ -125,19 +156,11 @@ public class StudyPlanRetrievalService {
         return byId.values().stream().limit(limit).toList();
     }
 
-    private List<LearningResource> fallbackByPriority(int limit) {
+    /** 목표가 없거나 키워드 검색이 비어 있을 때, 우선순위 무관하게 폭넓게 가져와 체크박스로 사람이 직접 고르게 한다. */
+    private List<LearningResource> fallbackBroadPool(int limit) {
         List<Long> ids =
                 learningResourceService
-                        .searchAdmin(
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                LearningResourcePriorityTier.P0,
-                                0,
-                                limit)
+                        .searchAdmin(null, null, null, null, null, null, null, 0, limit)
                         .content()
                         .stream()
                         .map(LearningResourceResponse::id)

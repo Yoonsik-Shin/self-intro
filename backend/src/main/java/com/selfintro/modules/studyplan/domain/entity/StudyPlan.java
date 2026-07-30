@@ -11,15 +11,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -67,12 +63,9 @@ public class StudyPlan {
     private List<StudyPlanMessage> messages = new ArrayList<>();
 
     /** 채팅으로 좁힌, 계획 생성에 쓸 학습자료 후보. {@link #generate}로 Stage/Item을 만들기 전까지 이 목록만 존재한다. */
-    @ManyToMany
-    @JoinTable(
-            name = "study_plan_candidate",
-            joinColumns = @JoinColumn(name = "study_plan_id"),
-            inverseJoinColumns = @JoinColumn(name = "learning_resource_id"))
-    private List<LearningResource> candidates = new ArrayList<>();
+    @OneToMany(mappedBy = "studyPlan", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id ASC")
+    private List<StudyPlanCandidate> candidates = new ArrayList<>();
 
     private StudyPlan(int weeklyAvailableMinutes, String focusGoal, LocalDateTime now) {
         this.status = StudyPlanStatus.COLLECTING;
@@ -87,10 +80,18 @@ public class StudyPlan {
         return new StudyPlan(weeklyAvailableMinutes, focusGoal, now);
     }
 
-    public void replaceCandidates(Collection<LearningResource> newCandidates, LocalDateTime now) {
+    public void replaceCandidates(List<StudyPlanCandidate> newCandidates, LocalDateTime now) {
         candidates.clear();
         candidates.addAll(newCandidates);
         this.updatedAt = now;
+    }
+
+    /** 계획 생성({@link StudyPlanAiService#generateInitial})에 실제로 넘길, 체크박스로 선택된 자료만 뽑는다. */
+    public List<LearningResource> getSelectedResources() {
+        return candidates.stream()
+                .filter(StudyPlanCandidate::isSelected)
+                .map(StudyPlanCandidate::getLearningResource)
+                .toList();
     }
 
     public void replaceStages(List<StudyPlanStage> newStages, LocalDateTime now) {

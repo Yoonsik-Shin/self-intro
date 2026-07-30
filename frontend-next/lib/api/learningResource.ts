@@ -32,6 +32,7 @@ export const learningResourceApi = {
         if (params.priorityTier) search.set('priorityTier', params.priorityTier);
         return request<LearningResourcePage>(`/api/admin/learning-resources?${search}`);
     },
+    get: (id: number) => request<LearningResource>(`/api/admin/learning-resources/${id}`),
     categories: () =>
         request<LearningResourceCategory[]>('/api/admin/learning-resource-categories'),
     graph: () => request<LearningResourceGraph>('/api/admin/learning-resources/graph'),

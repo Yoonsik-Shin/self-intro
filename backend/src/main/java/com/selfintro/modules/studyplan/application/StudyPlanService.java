@@ -6,7 +6,9 @@ import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedC
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedItem;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedPlan;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedStage;
+import com.selfintro.modules.studyplan.application.StudyPlanRetrievalService.CollectedCandidate;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlan;
+import com.selfintro.modules.studyplan.domain.entity.StudyPlanCandidate;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanCheckQuestion;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanItem;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanStage;
@@ -60,14 +62,14 @@ public class StudyPlanService {
     public StudyPlanResponse create(int weeklyAvailableMinutes, String focusGoal) {
         LocalDateTime now = LocalDateTime.now();
         StudyPlan plan = StudyPlan.create(weeklyAvailableMinutes, focusGoal, now);
-        List<LearningResource> candidates = studyPlanRetrievalService.collectInitial(focusGoal);
-        plan.replaceCandidates(candidates, now);
+        List<CollectedCandidate> collected = studyPlanRetrievalService.collectInitial(focusGoal);
+        plan.replaceCandidates(toCandidateEntities(plan, collected, Map.of()), now);
         plan.addMessage(
                 StudyPlanMessageRole.USER,
                 buildCreationSummary(weeklyAvailableMinutes, focusGoal),
                 now);
         plan.addMessage(
-                StudyPlanMessageRole.ASSISTANT, buildCandidatesFoundSummary(candidates), now);
+                StudyPlanMessageRole.ASSISTANT, buildCandidatesFoundSummary(collected), now);
         return StudyPlanResponse.from(studyPlanRepository.save(plan));
     }
 
@@ -78,9 +80,19 @@ public class StudyPlanService {
 
         if (plan.isCollecting()) {
             int beforeCount = plan.getCandidates().size();
-            List<LearningResource> adjusted =
-                    studyPlanRetrievalService.adjust(plan.getCandidates(), content);
-            plan.replaceCandidates(adjusted, now);
+            List<LearningResource> currentResources =
+                    plan.getCandidates().stream()
+                            .map(StudyPlanCandidate::getLearningResource)
+                            .toList();
+            Map<Long, Boolean> priorSelection =
+                    plan.getCandidates().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            StudyPlanCandidate::getLearningResourceId,
+                                            StudyPlanCandidate::isSelected));
+            List<CollectedCandidate> adjusted =
+                    studyPlanRetrievalService.adjust(currentResources, content);
+            plan.replaceCandidates(toCandidateEntities(plan, adjusted, priorSelection), now);
             plan.addMessage(StudyPlanMessageRole.USER, content, now);
             plan.addMessage(
                     StudyPlanMessageRole.ASSISTANT, buildAdjustSummary(beforeCount, adjusted), now);
@@ -110,15 +122,14 @@ public class StudyPlanService {
         if (!plan.isCollecting()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 계획이 생성된 상태입니다.");
         }
-        if (plan.getCandidates().isEmpty()) {
+        List<LearningResource> selected = plan.getSelectedResources();
+        if (selected.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택된 학습 자료 후보가 없습니다.");
         }
         LocalDateTime now = LocalDateTime.now();
         GeneratedPlan generated =
                 studyPlanAiService.generateInitial(
-                        plan.getCandidates(),
-                        plan.getWeeklyAvailableMinutes(),
-                        plan.getFocusGoal());
+                        selected, plan.getWeeklyAvailableMinutes(), plan.getFocusGoal());
         applyGeneratedPlan(plan, generated, Map.of(), now);
         plan.markGenerated(now);
         plan.addMessage(StudyPlanMessageRole.USER, "이 자료들로 계획을 생성해주세요.", now);
@@ -164,6 +175,32 @@ public class StudyPlanService {
         studyPlanRepository.delete(findOrThrow(id));
     }
 
+    /** 후보 하나의 체크박스를 켜고 끈다 — AI를 거치지 않는, 목록엔 남기되 계획 생성 포함 여부만 바꾸는 조작. */
+    @Transactional
+    public StudyPlanResponse toggleCandidateSelected(Long planId, Long resourceId) {
+        StudyPlan plan = findOrThrow(planId);
+        StudyPlanCandidate candidate = findCandidateOrThrow(plan, resourceId);
+        candidate.setSelected(!candidate.isSelected());
+        return StudyPlanResponse.from(plan);
+    }
+
+    /** 카테고리 전체를 한 번에 선택/해제한다. */
+    @Transactional
+    public StudyPlanResponse setCategorySelected(Long planId, String category, boolean selected) {
+        StudyPlan plan = findOrThrow(planId);
+        plan.getCandidates().stream()
+                .filter(c -> c.getLearningResource().getCategory().getName().equals(category))
+                .forEach(c -> c.setSelected(selected));
+        return StudyPlanResponse.from(plan);
+    }
+
+    private StudyPlanCandidate findCandidateOrThrow(StudyPlan plan, Long resourceId) {
+        return plan.getCandidates().stream()
+                .filter(c -> c.getLearningResourceId().equals(resourceId))
+                .findFirst()
+                .orElseThrow(EntityNotFoundException::new);
+    }
+
     private StudyPlan findOrThrow(Long id) {
         return studyPlanRepository.findById(id).orElseThrow(EntityNotFoundException::new);
     }
@@ -186,7 +223,20 @@ public class StudyPlanService {
         return sb.toString();
     }
 
-    private String buildCandidatesFoundSummary(List<LearningResource> candidates) {
+    private List<StudyPlanCandidate> toCandidateEntities(
+            StudyPlan plan, List<CollectedCandidate> collected, Map<Long, Boolean> priorSelection) {
+        return collected.stream()
+                .map(
+                        c ->
+                                StudyPlanCandidate.create(
+                                        plan,
+                                        c.resource(),
+                                        priorSelection.getOrDefault(c.resource().getId(), true),
+                                        c.familiar()))
+                .toList();
+    }
+
+    private String buildCandidatesFoundSummary(List<CollectedCandidate> candidates) {
         if (candidates.isEmpty()) {
             return "조건에 맞는 학습 자료를 찾지 못했어요. 목표를 조금 더 구체적으로 알려주시겠어요?";
         }
@@ -194,7 +244,7 @@ public class StudyPlanService {
                 candidates.stream()
                         .collect(
                                 Collectors.groupingBy(
-                                        r -> r.getCategory().getName(),
+                                        c -> c.resource().getCategory().getName(),
                                         LinkedHashMap::new,
                                         Collectors.counting()));
         String breakdown =
@@ -205,10 +255,10 @@ public class StudyPlanService {
                 + candidates.size()
                 + "개 후보를 찾았어요: "
                 + breakdown
-                + ". 마음에 안 드는 게 있으면 말씀해주세요 — 괜찮으면 '이 자료들로 계획 생성' 버튼을 눌러주세요.";
+                + ". 체크박스로 직접 골라도 되고, 마음에 안 드는 게 있으면 말씀해주셔도 돼요 — 괜찮으면 '이 자료들로 계획 생성' 버튼을 눌러주세요.";
     }
 
-    private String buildAdjustSummary(int beforeCount, List<LearningResource> after) {
+    private String buildAdjustSummary(int beforeCount, List<CollectedCandidate> after) {
         return "후보를 조정했어요(이전 "
                 + beforeCount
                 + "개 -> 현재 "

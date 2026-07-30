@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
@@ -17,6 +18,7 @@ import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedC
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedItem;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedPlan;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedStage;
+import com.selfintro.modules.studyplan.application.StudyPlanRetrievalService.CollectedCandidate;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlan;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanCheckQuestion;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanItem;
@@ -63,6 +65,10 @@ class StudyPlanServiceTest {
         ReflectionTestUtils.setField(category, "slug", "backend");
     }
 
+    private List<CollectedCandidate> toCollected(List<LearningResource> resources) {
+        return resources.stream().map(r -> new CollectedCandidate(r, false)).toList();
+    }
+
     private LearningResource newResource(long id, String title) {
         LearningResource resource =
                 LearningResource.create(
@@ -90,7 +96,7 @@ class StudyPlanServiceTest {
     private StudyPlan createAndRegister(
             List<LearningResource> candidates, GeneratedPlan generated) {
         ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
-        when(studyPlanRetrievalService.collectInitial("목표")).thenReturn(candidates);
+        when(studyPlanRetrievalService.collectInitial("목표")).thenReturn(toCollected(candidates));
         when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
         service.create(300, "목표");
@@ -115,6 +121,17 @@ class StudyPlanServiceTest {
                 }
             }
         }
+        return saved;
+    }
+
+    private StudyPlan createCollectingPlan(List<LearningResource> resources) {
+        ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
+        when(studyPlanRetrievalService.collectInitial("목표")).thenReturn(toCollected(resources));
+        when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        service.create(300, "목표");
+        StudyPlan saved = captor.getValue();
+        ReflectionTestUtils.setField(saved, "id", 1L);
+        when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
         return saved;
     }
 
@@ -208,7 +225,7 @@ class StudyPlanServiceTest {
         LearningResource resourceA = newResource(10L, "자바 기초");
         LearningResource resourceB = newResource(20L, "프론트엔드 자료");
         when(studyPlanRetrievalService.collectInitial("목표"))
-                .thenReturn(List.of(resourceA, resourceB));
+                .thenReturn(toCollected(List.of(resourceA, resourceB)));
         ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
         when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
         service.create(300, "목표");
@@ -217,7 +234,7 @@ class StudyPlanServiceTest {
         when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
 
         when(studyPlanRetrievalService.adjust(List.of(resourceA, resourceB), "프론트엔드는 빼줘"))
-                .thenReturn(List.of(resourceA));
+                .thenReturn(toCollected(List.of(resourceA)));
 
         StudyPlanResponse response = service.sendMessage(1L, "프론트엔드는 빼줘");
 
@@ -225,6 +242,55 @@ class StudyPlanServiceTest {
         assertThat(response.candidates()).hasSize(1);
         assertThat(response.candidates().get(0).id()).isEqualTo(10L);
         assertThat(response.stages()).isEmpty();
+    }
+
+    @Test
+    void toggleCandidateSelectedFlipsSelection() {
+        LearningResource resource = newResource(10L, "자바 기초");
+        createCollectingPlan(List.of(resource));
+
+        StudyPlanResponse response = service.toggleCandidateSelected(1L, 10L);
+        assertThat(response.candidates().get(0).selected()).isFalse();
+
+        StudyPlanResponse toggledBack = service.toggleCandidateSelected(1L, 10L);
+        assertThat(toggledBack.candidates().get(0).selected()).isTrue();
+    }
+
+    @Test
+    void setCategorySelectedBulkTogglesCategoryCandidates() {
+        LearningResource resourceA = newResource(10L, "자바 기초");
+        LearningResource resourceB = newResource(20L, "스프링 기초");
+        createCollectingPlan(List.of(resourceA, resourceB));
+
+        StudyPlanResponse response = service.setCategorySelected(1L, "백엔드", false);
+
+        assertThat(response.candidates()).allSatisfy(c -> assertThat(c.selected()).isFalse());
+    }
+
+    @Test
+    void generatePlanUsesOnlySelectedCandidates() {
+        LearningResource resourceA = newResource(10L, "자바 기초");
+        LearningResource resourceB = newResource(20L, "스프링 기초");
+        createCollectingPlan(List.of(resourceA, resourceB));
+        service.toggleCandidateSelected(1L, 20L);
+
+        GeneratedPlan generated =
+                new GeneratedPlan(
+                        "요약",
+                        List.of(
+                                new GeneratedStage(
+                                        1,
+                                        "기본기",
+                                        List.of(
+                                                new GeneratedItem(
+                                                        10L, null, 60, null, List.of())))));
+        when(studyPlanAiService.generateInitial(eq(List.of(resourceA)), eq(300), eq("목표")))
+                .thenReturn(generated);
+        when(learningResourceRepository.findAllById(any())).thenReturn(List.of(resourceA));
+
+        service.generatePlan(1L);
+
+        verify(studyPlanAiService).generateInitial(eq(List.of(resourceA)), eq(300), eq("목표"));
     }
 
     @Test

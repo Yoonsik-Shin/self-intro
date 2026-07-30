@@ -826,6 +826,8 @@ export type StudyPlanCandidate = {
     resourceType: string;
     priorityTier: string | null;
     durationMinutes: number | null;
+    selected: boolean;
+    familiar: boolean;
 };
 
 export type StudyPlanCheckQuestion = {

@@ -20,6 +20,8 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourcePageResponse;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceResponse;
+import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.studyplan.application.StudyPlanRetrievalService.CollectedCandidate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,7 @@ class StudyPlanRetrievalServiceTest {
 
     @Mock private LearningResourceService learningResourceService;
     @Mock private LearningResourceRepository learningResourceRepository;
+    @Mock private SkillRepository skillRepository;
     @Mock private NvidiaNimClient nvidiaNimClient;
 
     private StudyPlanRetrievalService service;
@@ -44,6 +47,7 @@ class StudyPlanRetrievalServiceTest {
                 new StudyPlanRetrievalService(
                         learningResourceService,
                         learningResourceRepository,
+                        skillRepository,
                         nvidiaNimClient,
                         new ObjectMapper());
         var constructor = LearningResourceCategory.class.getDeclaredConstructor();
@@ -52,6 +56,7 @@ class StudyPlanRetrievalServiceTest {
         ReflectionTestUtils.setField(category, "id", 1L);
         ReflectionTestUtils.setField(category, "name", "백엔드");
         ReflectionTestUtils.setField(category, "slug", "backend");
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("스프링"));
     }
 
     private LearningResource newResource(long id, String title) {
@@ -80,6 +85,10 @@ class StudyPlanRetrievalServiceTest {
         return new LearningResourcePageResponse(content, 0, 40, content.size(), 1);
     }
 
+    private List<LearningResource> resourcesOf(List<CollectedCandidate> collected) {
+        return collected.stream().map(CollectedCandidate::resource).toList();
+    }
+
     @Test
     void collectInitialSearchesByExtractedKeywords() {
         LearningResource resource = newResource(5L, "스프링 부트 강의");
@@ -91,30 +100,24 @@ class StudyPlanRetrievalServiceTest {
                 .thenReturn(pageOf(resource));
         when(learningResourceRepository.findAllById(List.of(5L))).thenReturn(List.of(resource));
 
-        List<LearningResource> result = service.collectInitial("백엔드 심화 학습");
+        List<CollectedCandidate> result = service.collectInitial("백엔드 심화 학습");
 
-        assertThat(result).containsExactly(resource);
+        assertThat(resourcesOf(result)).containsExactly(resource);
+        assertThat(result.get(0).familiar()).isTrue();
     }
 
     @Test
-    void collectInitialFallsBackToPriorityWhenNoFocusGoal() {
-        LearningResource resource = newResource(7L, "P0 우선순위 자료");
+    void collectInitialFallsBackToBroadPoolWhenNoFocusGoal() {
+        LearningResource resource = newResource(7L, "아무 자료");
         when(learningResourceService.searchAdmin(
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        eq(LearningResourcePriorityTier.P0),
-                        eq(0),
+                        isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0),
                         anyInt()))
                 .thenReturn(pageOf(resource));
         when(learningResourceRepository.findAllById(List.of(7L))).thenReturn(List.of(resource));
 
-        List<LearningResource> result = service.collectInitial(null);
+        List<CollectedCandidate> result = service.collectInitial(null);
 
-        assertThat(result).containsExactly(resource);
+        assertThat(resourcesOf(result)).containsExactly(resource);
         verify(nvidiaNimClient, org.mockito.Mockito.never()).generate(anyString(), anyString());
     }
 
@@ -125,9 +128,9 @@ class StudyPlanRetrievalServiceTest {
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn("{\"removeResourceIds\":[20],\"additionalKeywords\":[]}");
 
-        List<LearningResource> result = service.adjust(List.of(keep, remove), "프론트엔드는 빼줘");
+        List<CollectedCandidate> result = service.adjust(List.of(keep, remove), "프론트엔드는 빼줘");
 
-        assertThat(result).containsExactly(keep);
+        assertThat(resourcesOf(result)).containsExactly(keep);
     }
 
     @Test
@@ -141,8 +144,8 @@ class StudyPlanRetrievalServiceTest {
                 .thenReturn(pageOf(added));
         when(learningResourceRepository.findAllById(List.of(30L))).thenReturn(List.of(added));
 
-        List<LearningResource> result = service.adjust(List.of(current), "책도 넣어줘");
+        List<CollectedCandidate> result = service.adjust(List.of(current), "책도 넣어줘");
 
-        assertThat(result).containsExactlyInAnyOrder(current, added);
+        assertThat(resourcesOf(result)).containsExactlyInAnyOrder(current, added);
     }
 }

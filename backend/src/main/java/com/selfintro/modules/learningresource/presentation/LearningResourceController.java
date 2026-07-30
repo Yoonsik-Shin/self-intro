@@ -48,6 +48,11 @@ public class LearningResourceController {
                 q, category, tags, skillIds, resourceType, status, priorityTier, page, size);
     }
 
+    @GetMapping("/api/admin/learning-resources/{id}")
+    public LearningResourceResponse get(@PathVariable Long id) {
+        return learningResourceService.get(id);
+    }
+
     @GetMapping("/api/admin/learning-resources/graph")
     public LearningResourceGraphResponse graph() {
         return learningResourceService.findGraph();
