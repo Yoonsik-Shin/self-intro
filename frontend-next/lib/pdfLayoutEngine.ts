@@ -113,10 +113,9 @@ export function partitionAtomsIntoPages(
     const pages: PageLayerData[] = [];
     let currentPageItems: PrintAtomItem[] = [];
     let currentHeight = 0;
-    // 자동 분할에는 20px 안전 여유를 두되, 사용자의 강제 배치가 실제 콘텐츠
-    // 영역을 넘기는 것은 허용하지 않는다. 강제 배치는 안전 여유만 사용할 수 있다.
+    // 자동 분할에는 20px 안전 여유를 둔다. forcedPageOverrides는 사용자가
+    // 페이지를 명시적으로 지정한 값이므로 자동/물리 경계보다 우선한다.
     const maxContentHeight = CONTENT_HEIGHT_PX - 20;
-    const hardContentHeight = CONTENT_HEIGHT_PX;
 
     const startNewPage = () => {
         if (currentPageItems.length > 0) {
@@ -142,34 +141,28 @@ export function partitionAtomsIntoPages(
 
         const forcedPage = forcedPageOverrides[atom.id];
 
-        // 순차 패킹이 이미 다음 페이지로 넘어간 뒤에도 사용자가 지정한 이전 페이지에
-        // 실제 여유 공간이 남아 있으면 해당 atom을 그 페이지 끝에 직접 배치한다.
-        // 기존 로직은 완료된 페이지로 되돌아가지 못해 강제 배치 상태만 표시되고
-        // 항목은 원래 페이지에 남는 문제가 있었다.
+        // 순차 패킹이 이미 다음 페이지로 넘어간 뒤에도 지정한 페이지에 직접 배치한다.
+        // 강제 배치를 용량 검사로 거부하면 override는 남고 atom만 원래 페이지에
+        // 머물러 UI 상태와 실제 레이아웃이 달라진다.
         if (forcedPage !== undefined && forcedPage >= 0 && forcedPage < pages.length) {
             const targetPage = pages[forcedPage];
             const targetGap = customGap !== 0 ? customGap : targetPage.items.length > 0 ? 8 : 0;
             const targetItemTotalHeight = measuredHeight + targetGap;
 
-            if (targetPage.heightUsedPx + targetItemTotalHeight <= hardContentHeight) {
-                targetPage.items.push(atom);
-                targetPage.heightUsedPx += targetItemTotalHeight;
-                continue;
-            }
+            targetPage.items.push(atom);
+            targetPage.heightUsedPx += targetItemTotalHeight;
+            continue;
         }
 
-        // Check if user explicitly forced this item or any later item to stay on the current page
+        // 현재 atom 자체에 지정된 강제 배치만 자동 분할을 막는다. 뒤쪽 atom의
+        // override 때문에 앞선 모든 atom의 분할까지 막으면, 그 항목들이 페이지
+        // 공간을 먼저 소진해 정작 강제 항목이 다음 페이지로 밀릴 수 있다.
         const isForcedCurrentPage = forcedPage !== undefined && forcedPage === pages.length;
-        const hasLaterItemForcedToCurrentPage = atoms
-            .slice(i + 1)
-            .some((laterAtom) => forcedPageOverrides[laterAtom.id] === pages.length);
-
-        const preventPageBreak = isForcedCurrentPage || hasLaterItemForcedToCurrentPage;
 
         // If an item is a header (e.g., 'career-header'), check if the NEXT item fits on this page too.
         // If header fits but next item doesn't, push header to next page so it's not orphaned.
         let pushHeaderToNextPage = false;
-        if (!preventPageBreak && atom.isHeader && i + 1 < atoms.length) {
+        if (!isForcedCurrentPage && atom.isHeader && i + 1 < atoms.length) {
             const nextAtom = atoms[i + 1];
             const nextHeight = itemHeights.get(nextAtom.id) || getAtomEstimatedHeight(nextAtom);
             const nextCustomGap =
@@ -186,17 +179,10 @@ export function partitionAtomsIntoPages(
             }
         }
 
-        const exceedsAutomaticBoundary =
-            currentHeight + itemTotalHeight > maxContentHeight && currentPageItems.length > 0;
-        const exceedsPhysicalBoundary =
-            currentHeight + itemTotalHeight > hardContentHeight && currentPageItems.length > 0;
-
-        // forcedPageOverrides는 자동 분할의 안전 여유(20px)만 재사용할 수 있다.
-        // 실제 A4 콘텐츠 영역까지 넘기면 화면에서는 다음 페이지 카드 밖으로
-        // 콘텐츠가 새고, 인쇄에서는 잘리므로 강제 배치보다 물리 경계를 우선한다.
         if (
-            exceedsPhysicalBoundary ||
-            (!preventPageBreak && (exceedsAutomaticBoundary || pushHeaderToNextPage))
+            !isForcedCurrentPage &&
+            ((currentHeight + itemTotalHeight > maxContentHeight && currentPageItems.length > 0) ||
+                pushHeaderToNextPage)
         ) {
             startNewPage();
         }

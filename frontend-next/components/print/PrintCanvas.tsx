@@ -1863,7 +1863,7 @@ export function PrintCanvas({
                                         <div
                                             key={atom.id}
                                             data-atom-id={atom.id}
-                                            className="w-full"
+                                            className="relative w-full"
                                         >
                                             {renderAtomContent(atom)}
                                         </div>
