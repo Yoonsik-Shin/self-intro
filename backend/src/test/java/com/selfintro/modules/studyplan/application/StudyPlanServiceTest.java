@@ -42,6 +42,7 @@ class StudyPlanServiceTest {
     @Mock private StudyPlanRepository studyPlanRepository;
     @Mock private LearningResourceRepository learningResourceRepository;
     @Mock private StudyPlanAiService studyPlanAiService;
+    @Mock private StudyPlanRetrievalService studyPlanRetrievalService;
 
     private StudyPlanService service;
     private LearningResourceCategory category;
@@ -50,7 +51,10 @@ class StudyPlanServiceTest {
     void setUp() throws Exception {
         service =
                 new StudyPlanService(
-                        studyPlanRepository, learningResourceRepository, studyPlanAiService);
+                        studyPlanRepository,
+                        learningResourceRepository,
+                        studyPlanAiService,
+                        studyPlanRetrievalService);
         var constructor = LearningResourceCategory.class.getDeclaredConstructor();
         constructor.setAccessible(true);
         category = constructor.newInstance();
@@ -79,17 +83,26 @@ class StudyPlanServiceTest {
         return resource;
     }
 
-    /** create()로 계획을 만든 뒤 후속 테스트에서 findById로 재조회할 수 있도록 저장된 엔티티에 id를 부여하고 mock을 연결한다. */
-    private StudyPlan createAndRegister(GeneratedPlan generated, List<LearningResource> resources) {
+    /**
+     * create()로 COLLECTING 계획을 만들고 후보를 등록한 뒤, generatePlan()으로 Stage/Item까지 만든다. 이후 테스트에서 findById로
+     * 재조회할 수 있도록 저장된 엔티티에 id를 부여하고 mock을 연결한다.
+     */
+    private StudyPlan createAndRegister(
+            List<LearningResource> candidates, GeneratedPlan generated) {
         ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
-        when(studyPlanAiService.generateInitial(300, "목표")).thenReturn(generated);
-        when(learningResourceRepository.findAllById(any())).thenReturn(resources);
+        when(studyPlanRetrievalService.collectInitial("목표")).thenReturn(candidates);
         when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
         service.create(300, "목표");
 
         StudyPlan saved = captor.getValue();
         ReflectionTestUtils.setField(saved, "id", 1L);
+        lenient().when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
+
+        when(studyPlanAiService.generateInitial(any(), eq(300), eq("목표"))).thenReturn(generated);
+        when(learningResourceRepository.findAllById(any())).thenReturn(candidates);
+        service.generatePlan(1L);
+
         // 실제 JPA라면 저장 시 id가 채번되지만, 이 테스트는 repository를 mock했으므로 직접 채번을
         // 흉내낸다 — toggle 계열 테스트가 item id로 조회할 수 있어야 하기 때문.
         long[] sequence = {100L};
@@ -102,7 +115,6 @@ class StudyPlanServiceTest {
                 }
             }
         }
-        lenient().when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
         return saved;
     }
 
@@ -116,7 +128,7 @@ class StudyPlanServiceTest {
     }
 
     @Test
-    void createBuildsInitialPlanFromAiResponse() {
+    void generatePlanBuildsStagesFromAiResponse() {
         LearningResource resource = newResource(10L, "자바 기초");
         GeneratedPlan generated =
                 new GeneratedPlan(
@@ -135,9 +147,10 @@ class StudyPlanServiceTest {
                                                                 new GeneratedCheckQuestion(
                                                                         "질문?", "힌트")))))));
 
-        StudyPlan saved = createAndRegister(generated, List.of(resource));
+        StudyPlan saved = createAndRegister(List.of(resource), generated);
         StudyPlanResponse response = StudyPlanResponse.from(saved);
 
+        assertThat(response.status().name()).isEqualTo("DRAFT");
         assertThat(response.stages()).hasSize(1);
         assertThat(response.stages().get(0).theme()).isEqualTo("기본기 다지기");
         StudyPlanItemResponse item = response.stages().get(0).items().get(0);
@@ -162,10 +175,10 @@ class StudyPlanServiceTest {
                                                 new GeneratedItem(10L, null, 60, null, List.of()),
                                                 new GeneratedItem(
                                                         20L, null, 60, null, List.of())))));
-        createAndRegister(initial, List.of(resourceA, resourceB));
+        createAndRegister(List.of(resourceA, resourceB), initial);
 
-        StudyPlanResponse afterCreate = service.get(1L);
-        Long itemAId = itemIdOf(afterCreate, 10L);
+        StudyPlanResponse afterGenerate = service.get(1L);
+        Long itemAId = itemIdOf(afterGenerate, 10L);
         service.toggleCompleted(1L, itemAId);
 
         GeneratedPlan regenerated =
@@ -191,6 +204,53 @@ class StudyPlanServiceTest {
     }
 
     @Test
+    void sendMessageDuringCollectingAdjustsCandidatesInstead() {
+        LearningResource resourceA = newResource(10L, "자바 기초");
+        LearningResource resourceB = newResource(20L, "프론트엔드 자료");
+        when(studyPlanRetrievalService.collectInitial("목표"))
+                .thenReturn(List.of(resourceA, resourceB));
+        ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
+        when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        service.create(300, "목표");
+        StudyPlan saved = captor.getValue();
+        ReflectionTestUtils.setField(saved, "id", 1L);
+        when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
+
+        when(studyPlanRetrievalService.adjust(List.of(resourceA, resourceB), "프론트엔드는 빼줘"))
+                .thenReturn(List.of(resourceA));
+
+        StudyPlanResponse response = service.sendMessage(1L, "프론트엔드는 빼줘");
+
+        assertThat(response.status().name()).isEqualTo("COLLECTING");
+        assertThat(response.candidates()).hasSize(1);
+        assertThat(response.candidates().get(0).id()).isEqualTo(10L);
+        assertThat(response.stages()).isEmpty();
+    }
+
+    @Test
+    void generatePlanFailsWhenNotCollecting() {
+        LearningResource resource = newResource(10L, "자바 기초");
+        GeneratedPlan generated =
+                new GeneratedPlan(
+                        "요약",
+                        List.of(
+                                new GeneratedStage(
+                                        1,
+                                        "기본기",
+                                        List.of(
+                                                new GeneratedItem(
+                                                        10L, null, 60, null, List.of())))));
+        createAndRegister(List.of(resource), generated);
+
+        assertThatThrownBy(() -> service.generatePlan(1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(
+                        e ->
+                                assertThat(((ResponseStatusException) e).getStatusCode())
+                                        .isEqualTo(HttpStatus.CONFLICT));
+    }
+
+    @Test
     void sendMessageThrowsConflictWhenPlanAlreadyConfirmed() {
         GeneratedPlan generated =
                 new GeneratedPlan(
@@ -202,8 +262,7 @@ class StudyPlanServiceTest {
                                         List.of(
                                                 new GeneratedItem(
                                                         null, "복습", 30, null, List.of())))));
-        when(learningResourceRepository.findAllById(any())).thenReturn(List.of());
-        createAndRegister(generated, List.of());
+        createAndRegister(List.of(newResource(99L, "더미 자료")), generated);
         service.confirm(1L);
 
         assertThatThrownBy(() -> service.sendMessage(1L, "피드백"))
@@ -227,7 +286,7 @@ class StudyPlanServiceTest {
                                         List.of(
                                                 new GeneratedItem(
                                                         10L, null, 60, null, List.of())))));
-        createAndRegister(generated, List.of(resource));
+        createAndRegister(List.of(resource), generated);
         Long itemId = itemIdOf(service.get(1L), 10L);
 
         StudyPlanResponse response = service.toggleUnderstanding(1L, itemId);

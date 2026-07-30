@@ -51,6 +51,11 @@ public class StudyPlanController {
         return studyPlanService.sendMessage(id, request.content());
     }
 
+    @PostMapping("/{id}/generate")
+    public StudyPlanResponse generatePlan(@PathVariable Long id) {
+        return studyPlanService.generatePlan(id);
+    }
+
     @PostMapping("/{id}/confirm")
     public StudyPlanResponse confirm(@PathVariable Long id) {
         return studyPlanService.confirm(id);

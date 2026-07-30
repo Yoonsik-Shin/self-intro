@@ -816,8 +816,17 @@ export type PrintTemplateRequest = {
     displayOrder: number;
 };
 
-export type StudyPlanStatus = 'DRAFT' | 'CONFIRMED';
+export type StudyPlanStatus = 'COLLECTING' | 'DRAFT' | 'CONFIRMED';
 export type StudyPlanMessageRole = 'USER' | 'ASSISTANT';
+
+export type StudyPlanCandidate = {
+    id: number;
+    title: string;
+    category: string;
+    resourceType: string;
+    priorityTier: string | null;
+    durationMinutes: number | null;
+};
 
 export type StudyPlanCheckQuestion = {
     id: number;
@@ -860,6 +869,7 @@ export type StudyPlan = {
     status: StudyPlanStatus;
     weeklyAvailableMinutes: number;
     focusGoal: string | null;
+    candidates: StudyPlanCandidate[];
     stages: StudyPlanStage[];
     messages: StudyPlanMessage[];
     createdAt: string;

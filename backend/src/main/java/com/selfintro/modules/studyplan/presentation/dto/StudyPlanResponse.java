@@ -10,6 +10,7 @@ public record StudyPlanResponse(
         StudyPlanStatus status,
         int weeklyAvailableMinutes,
         String focusGoal,
+        List<StudyPlanCandidateResponse> candidates,
         List<StudyPlanStageResponse> stages,
         List<StudyPlanMessageResponse> messages,
         LocalDateTime createdAt,
@@ -23,6 +24,7 @@ public record StudyPlanResponse(
                 plan.getStatus(),
                 weeklyAvailableMinutes,
                 plan.getFocusGoal(),
+                plan.getCandidates().stream().map(StudyPlanCandidateResponse::from).toList(),
                 plan.getStages().stream()
                         .map(stage -> StudyPlanStageResponse.from(stage, weeklyAvailableMinutes))
                         .toList(),

@@ -9,7 +9,6 @@ import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
-import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlan;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanItem;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanMessage;
@@ -17,6 +16,7 @@ import com.selfintro.modules.studyplan.domain.entity.StudyPlanStage;
 import com.selfintro.modules.studyplan.domain.enums.StudyPlanMessageRole;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -30,7 +30,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * 학습 자료 후보를 선후관계(PREREQUISITE) 제약과 함께 AI에게 넘겨, 의미 있는 테마 Stage로 묶은 계획을 생성/재생성한다.
+ * 이미 확정된(좁혀진) 학습 자료 후보를, 선후관계(PREREQUISITE) 제약과 함께 AI에게 넘겨 의미 있는 테마 Stage로 묶은 계획을 생성/재생성한다. 후보 자체를
+ * 모으는 일(검색/좁히기)은 {@link StudyPlanRetrievalService}의 몫이고, 이 클래스는 "이미 정해진 소수 후보로 계획 짜기"만 담당한다.
+ *
+ * <p>Stage의 의미: {@code stageOrder}는 "순번"이 아니라 "레벨"이다. 같은 레벨을 가진 여러 Stage는 서로 독립적인 병렬 트랙(동시에 진행해도
+ * 됨)이고, 레벨이 다르면 낮은 레벨이 먼저다. 하나의 Stage(테마)에는 보통 관련 자료 여러 개가 함께 담긴다.
  *
  * <p>선후관계는 AI가 스스로 추론하지 않도록 이 클래스가 미리 계산해 제약으로 준다. AI는 그 제약 안에서 카테고리·자료 성격을 근거로 테마를 나누고 시간 배분을 정할
  * 뿐이고, 실제로 순서를 지켰는지는 파싱 후 이 클래스가 다시 검증해 위반이 있으면 결정적으로 자동 보정한다 — 순서 무결성은 AI가 아니라 코드가 보장한다.
@@ -42,82 +46,134 @@ public class StudyPlanAiService {
 
     private static final int MAX_RECENT_MESSAGES = 6;
 
+    // 항목마다 자가점검 질문을 3~5개씩 요구하다 보니 응답 자체가 길어서, 기본 max-output-tokens로는
+    // 응답이 중간에 잘려 JSON을 못 닫는 경우가 있었다 — 이 호출만 상한을 넉넉히 준다.
+    private static final int MAX_OUTPUT_TOKENS = 16384;
+
+    // 항목마다 이해도 점검 질문을 3~5개씩 만들다 보니, 후보가 많으면 응답이 아무리 토큰 한도를
+    // 올려도 다 못 담고 중간에 잘린다. retrieval 단계에서 이미 후보를 좁혀오는 게 정상 흐름이라
+    // 여기 상한은 방어적 안전망일 뿐이다.
+    private static final int MAX_CANDIDATES = 50;
+
     private static final String SYSTEM_PROMPT =
             """
-            당신은 개인 학습 계획을 짜주는 코치입니다. 아래 규칙을 반드시 지키세요.
-            1. 입력으로 주어진 학습 자료 후보의 id만 사용하세요. 새 자료를 지어내지 마세요.
-            2. 카테고리와 자료 성격(기초/응용/신기술 등)을 근거로 3~6개 정도의 의미 있는 테마로
-               묶으세요. 예: "기본기 다지기", "실전/응용", "신기술 학습".
-            3. 입력으로 주어지는 "선행 제약"(A는 반드시 B보다 앞 Stage)은 절대 어기지 마세요.
-            4. 같은 Stage 안 자료들은 서로 병렬로 진행해도 된다는 뜻이니, 그 안에는 선후관계가 없는
-               자료끼리만 묶으세요.
-            5. 각 Stage의 총 배분 시간이 사용자의 주당 가용 시간 기준으로 너무 크지 않게 나누세요.
-            6. learningResourceId가 있는 각 항목마다 이해도를 스스로 점검할 수 있는 자유서술형
-               질문을 3~5개 만드세요. 채점용 정답이 아니라 "이런 내용이 들어가면 좋다" 정도의 짧은
-               모범답안 힌트도 함께 주세요. learningResourceId가 없는(자유 항목) 경우
-               checkQuestions는 빈 배열로 두세요.
-            7. 설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"assistantReply":"","stages":[{"stageOrder":1,"theme":"","items":[{"learningResourceId":1,"freeTextLabel":null,"allocatedMinutes":60,"notes":"","checkQuestions":[{"question":"","modelAnswerHint":""}]}]}]}
-            """;
+detailed thinking off
+당신은 개인 학습 계획을 짜주는 코치입니다. 아래 규칙을 반드시 지키세요.
+1. 입력으로 주어진 학습 자료 후보의 id만 사용하세요. 새 자료를 지어내지 마세요.
+2. 카테고리와 자료 성격(기초/응용/신기술 등)을 근거로 3~6개 정도의 의미 있는 테마로
+   묶으세요. 예: "기본기 다지기", "실전/응용", "신기술 학습". **하나의 테마 Stage에는
+   보통 관련 자료가 여러 개 담깁니다 — 자료 하나마다 Stage를 따로 만들지 마세요.**
+   예를 들어 "CS 기초" 관련 자료가 3개면 "CS 기초"라는 Stage 하나에 그 3개를 모두
+   담으세요.
+3. stageOrder는 "순서"가 아니라 "레벨"입니다. 서로 선후관계가 없는 테마 2개는
+   **같은 stageOrder 값을 가진 별도의 Stage로 만들어도 됩니다** — 이는 두 테마를
+   동시에(병렬로) 진행해도 된다는 뜻입니다. 예: "CS 기초"와 "데이터베이스"가 서로
+   의존관계 없으면 둘 다 stageOrder=1로 주고 theme만 다르게 하세요.
+4. 입력으로 주어지는 "선행 제약"(A는 반드시 B보다 앞 Stage)은 절대 어기지 마세요.
+   선후관계로 연결된 두 자료를 같은 Stage(같은 테마)나 같은 레벨에 두지 마세요.
+5. 각 Stage의 총 배분 시간이 사용자의 주당 가용 시간 기준으로 너무 크지 않게 나누세요.
+6. learningResourceId가 있는 각 항목마다 이해도를 스스로 점검할 수 있는 자유서술형
+   질문을 3~5개 만드세요. 채점용 정답이 아니라 "이런 내용이 들어가면 좋다" 정도의 짧은
+   모범답안 힌트도 함께 주세요. learningResourceId가 없는(자유 항목) 경우
+   checkQuestions는 빈 배열로 두세요.
+7. 설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요. (아래 예시는 "기본기1"과
+   "기본기2"가 서로 무관해 같은 레벨 1에 병렬 배치되고, "응용"은 "기본기1"을 선행으로
+   요구해 레벨 2에 배치된 경우입니다.)
+{"assistantReply":"","stages":[{"stageOrder":1,"theme":"기본기1","items":[{"learningResourceId":1,"freeTextLabel":null,"allocatedMinutes":60,"notes":"","checkQuestions":[{"question":"","modelAnswerHint":""}]}]},{"stageOrder":1,"theme":"기본기2","items":[{"learningResourceId":2,"freeTextLabel":null,"allocatedMinutes":60,"notes":"","checkQuestions":[]}]},{"stageOrder":2,"theme":"응용","items":[{"learningResourceId":3,"freeTextLabel":null,"allocatedMinutes":60,"notes":"","checkQuestions":[]}]}]}
+""";
 
-    private final LearningResourceRepository learningResourceRepository;
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
 
-    public GeneratedPlan generateInitial(int weeklyAvailableMinutes, String focusGoal) {
-        CandidateSet candidates = loadCandidates();
+    public GeneratedPlan generateInitial(
+            Collection<LearningResource> confirmedCandidates,
+            int weeklyAvailableMinutes,
+            String focusGoal) {
+        CandidateSet candidates = loadCandidates(confirmedCandidates);
         String userPrompt = buildInitialUserPrompt(candidates, weeklyAvailableMinutes, focusGoal);
         return callAndValidate(userPrompt, candidates);
     }
 
     public GeneratedPlan regenerate(StudyPlan plan, String feedbackContent) {
-        CandidateSet candidates = loadCandidates();
+        CandidateSet candidates = loadCandidates(plan.getCandidates());
         String userPrompt = buildRegenerateUserPrompt(candidates, plan, feedbackContent);
         return callAndValidate(userPrompt, candidates);
     }
 
     private GeneratedPlan callAndValidate(String userPrompt, CandidateSet candidates) {
-        String raw = nvidiaNimClient.generate(SYSTEM_PROMPT, userPrompt);
+        String raw = nvidiaNimClient.generate(SYSTEM_PROMPT, userPrompt, MAX_OUTPUT_TOKENS);
         StudyPlanAiResponse response;
         try {
             response =
                     AiJsonSupport.parseJson(
                             objectMapper, raw, StudyPlanAiResponse.class, "학습 계획 생성");
         } catch (JsonProcessingException exception) {
+            log.warn("StudyPlan AI 응답 파싱 실패, 원문: {}", AiJsonSupport.limit(raw, 4000), exception);
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI가 학습 계획 응답을 올바른 형식으로 반환하지 않았습니다.", exception);
+        } catch (ResponseStatusException exception) {
+            log.warn("StudyPlan AI 응답에 JSON 중괄호가 없음, 원문: {}", AiJsonSupport.limit(raw, 4000));
+            throw exception;
         }
         return validateAndCorrect(response, candidates);
     }
 
     // ---------------------------------------------------------------------
-    // 후보 추출 + 선후관계 제약 계산
+    // 후보 정리 + 선후관계 제약 계산 (후보 자체는 이미 StudyPlanRetrievalService가 좁혀온 것)
     // ---------------------------------------------------------------------
 
-    private CandidateSet loadCandidates() {
-        List<LearningResource> all = learningResourceRepository.findAll();
-        Map<Long, LearningResource> byId = new LinkedHashMap<>();
-        for (LearningResource resource : all) {
+    private CandidateSet loadCandidates(Collection<LearningResource> confirmedCandidates) {
+        Map<Long, LearningResource> eligible = new LinkedHashMap<>();
+        for (LearningResource resource : confirmedCandidates) {
             if (resource.getStatus() == LearningResourceStatus.COMPLETED) continue;
             if (resource.getDurationMinutes() == null) continue;
-            byId.put(resource.getId(), resource);
+            eligible.put(resource.getId(), resource);
         }
 
+        List<PrerequisitePair> eligiblePairs =
+                collectPrerequisitePairs(eligible.values(), eligible.keySet());
+        Map<Long, Integer> eligibleDepth = computeDepth(eligible.keySet(), eligiblePairs);
+
+        Map<Long, LearningResource> byId =
+                eligible.values().stream()
+                        .sorted(
+                                Comparator.comparing(
+                                                (LearningResource r) ->
+                                                        eligibleDepth.get(r.getId()))
+                                        .thenComparing(
+                                                r ->
+                                                        r.getPriorityTier() == null
+                                                                ? 99
+                                                                : r.getPriorityTier().ordinal())
+                                        .thenComparing(LearningResource::getId))
+                        .limit(MAX_CANDIDATES)
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        LearningResource::getId,
+                                        r -> r,
+                                        (a, b) -> a,
+                                        LinkedHashMap::new));
+
+        List<PrerequisitePair> pairs = collectPrerequisitePairs(byId.values(), byId.keySet());
+        Map<Long, Integer> depth = computeDepth(byId.keySet(), pairs);
+        return new CandidateSet(byId, pairs, depth);
+    }
+
+    private List<PrerequisitePair> collectPrerequisitePairs(
+            Collection<LearningResource> resources, Set<Long> candidateIds) {
         List<PrerequisitePair> pairs = new ArrayList<>();
-        for (LearningResource resource : all) {
+        for (LearningResource resource : resources) {
             for (LearningResourceRelation relation : resource.getRelations()) {
                 if (relation.getType() != LearningResourceRelationType.PREREQUISITE) continue;
                 Long sourceId = relation.getSource().getId();
                 Long targetId = relation.getTarget().getId();
-                if (byId.containsKey(sourceId) && byId.containsKey(targetId)) {
+                if (candidateIds.contains(sourceId) && candidateIds.contains(targetId)) {
                     pairs.add(new PrerequisitePair(sourceId, targetId));
                 }
             }
         }
-
-        Map<Long, Integer> depth = computeDepth(byId.keySet(), pairs);
-        return new CandidateSet(byId, pairs, depth);
+        return pairs;
     }
 
     /** 참고용 깊이(depth) — AI에게 "대략 몇 단계쯤 뒤에 와야 하는지" 감을 주는 힌트일 뿐, Stage 경계를 강제하지 않는다. */
@@ -252,9 +308,9 @@ public class StudyPlanAiService {
     private void appendCurrentPlan(StringBuilder sb, StudyPlan plan) {
         sb.append("## 현재 계획\n");
         for (StudyPlanStage stage : plan.getStages()) {
-            sb.append("Stage ")
+            sb.append("Stage(레벨 ")
                     .append(stage.getStageOrder())
-                    .append(": ")
+                    .append("): ")
                     .append(stage.getTheme())
                     .append("\n");
             for (StudyPlanItem item : stage.getItems()) {
@@ -292,13 +348,15 @@ public class StudyPlanAiService {
     private GeneratedPlan validateAndCorrect(
             StudyPlanAiResponse response, CandidateSet candidates) {
         record FlatItem(
-                String originalTheme,
                 Long learningResourceId,
                 String freeTextLabel,
                 int allocatedMinutes,
                 String notes,
                 List<GeneratedCheckQuestion> checkQuestions,
-                int[] stageOrder) {}
+                int originalOrder,
+                String originalTheme,
+                int[] stageOrder,
+                String[] theme) {}
 
         List<FlatItem> flat = new ArrayList<>();
         for (StageAi stage : response.stages()) {
@@ -321,22 +379,25 @@ public class StudyPlanAiService {
                                                         new GeneratedCheckQuestion(
                                                                 q.question(), q.modelAnswerHint()))
                                         .toList();
+                int order = stage.stageOrder() == null ? 1 : stage.stageOrder();
                 flat.add(
                         new FlatItem(
-                                stage.theme(),
                                 item.learningResourceId(),
                                 item.freeTextLabel(),
                                 item.allocatedMinutes(),
                                 item.notes(),
                                 questions,
-                                new int[] {stage.stageOrder() == null ? 1 : stage.stageOrder()}));
+                                order,
+                                stage.theme(),
+                                new int[] {order},
+                                new String[] {stage.theme()}));
             }
         }
 
-        Map<Long, int[]> stageOrderByResourceId = new HashMap<>();
+        Map<Long, FlatItem> itemByResourceId = new HashMap<>();
         for (FlatItem item : flat) {
             if (item.learningResourceId() != null) {
-                stageOrderByResourceId.put(item.learningResourceId(), item.stageOrder());
+                itemByResourceId.put(item.learningResourceId(), item);
             }
         }
 
@@ -346,11 +407,19 @@ public class StudyPlanAiService {
         while (changed && guard++ < safetyCap) {
             changed = false;
             for (PrerequisitePair pair : candidates.prerequisitePairs()) {
-                int[] beforeOrder = stageOrderByResourceId.get(pair.beforeId());
-                int[] afterOrder = stageOrderByResourceId.get(pair.afterId());
-                if (beforeOrder == null || afterOrder == null) continue;
-                if (afterOrder[0] <= beforeOrder[0]) {
-                    afterOrder[0] = beforeOrder[0] + 1;
+                FlatItem before = itemByResourceId.get(pair.beforeId());
+                FlatItem after = itemByResourceId.get(pair.afterId());
+                if (before == null || after == null) continue;
+                if (after.stageOrder()[0] <= before.stageOrder()[0]) {
+                    boolean wasSameOriginalStage =
+                            before.originalOrder() == after.originalOrder()
+                                    && before.originalTheme().equals(after.originalTheme());
+                    after.stageOrder()[0] = before.stageOrder()[0] + 1;
+                    if (wasSameOriginalStage) {
+                        // 원래 AI가 둘을 같은 테마로 묶었던 경우 — 뒤로 뺀 자료는 테마 이름을
+                        // 그대로 두면 "같은 이름의 Stage가 레벨만 다르게 두 번" 나오니 구분해준다.
+                        after.theme()[0] = after.originalTheme() + " (심화)";
+                    }
                     changed = true;
                 }
             }
@@ -366,13 +435,14 @@ public class StudyPlanAiService {
             bucketFinalOrder.put(distinctOrders.get(i), i + 1);
         }
 
-        Map<Integer, String> themeByBucket = new LinkedHashMap<>();
-        Map<Integer, List<GeneratedItem>> itemsByBucket = new LinkedHashMap<>();
+        record StageKey(int order, String theme) {}
+
+        Map<StageKey, List<GeneratedItem>> itemsByBucket = new LinkedHashMap<>();
         for (FlatItem item : flat) {
             int finalOrder = bucketFinalOrder.get(item.stageOrder()[0]);
-            themeByBucket.putIfAbsent(finalOrder, item.originalTheme());
+            StageKey key = new StageKey(finalOrder, item.theme()[0]);
             itemsByBucket
-                    .computeIfAbsent(finalOrder, k -> new ArrayList<>())
+                    .computeIfAbsent(key, k -> new ArrayList<>())
                     .add(
                             new GeneratedItem(
                                     item.learningResourceId(),
@@ -383,14 +453,14 @@ public class StudyPlanAiService {
         }
 
         List<GeneratedStage> stages =
-                itemsByBucket.keySet().stream()
-                        .sorted()
+                itemsByBucket.entrySet().stream()
+                        .sorted(Comparator.comparingInt(e -> e.getKey().order()))
                         .map(
-                                order ->
+                                e ->
                                         new GeneratedStage(
-                                                order,
-                                                themeByBucket.get(order),
-                                                itemsByBucket.get(order)))
+                                                e.getKey().order(),
+                                                e.getKey().theme(),
+                                                e.getValue()))
                         .toList();
 
         return new GeneratedPlan(response.assistantReply(), stages);

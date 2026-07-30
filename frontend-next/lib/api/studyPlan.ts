@@ -14,6 +14,8 @@ export const studyPlanApi = {
             method: 'POST',
             body: JSON.stringify({ content }),
         }),
+    generate: (id: number) =>
+        request<StudyPlan>(`/api/admin/study-plans/${id}/generate`, { method: 'POST' }),
     confirm: (id: number) =>
         request<StudyPlan>(`/api/admin/study-plans/${id}/confirm`, { method: 'POST' }),
     unconfirm: (id: number) =>

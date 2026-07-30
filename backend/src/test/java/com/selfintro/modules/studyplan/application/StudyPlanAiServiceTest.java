@@ -2,6 +2,7 @@ package com.selfintro.modules.studyplan.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -15,7 +16,6 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourcePrior
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
-import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedItem;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedPlan;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedStage;
@@ -32,7 +32,6 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 class StudyPlanAiServiceTest {
 
-    @Mock private LearningResourceRepository learningResourceRepository;
     @Mock private CareerProfileDigestBuilder careerProfileDigestBuilder;
     @Mock private NvidiaNimClient nvidiaNimClient;
 
@@ -43,10 +42,7 @@ class StudyPlanAiServiceTest {
     void setUp() throws Exception {
         service =
                 new StudyPlanAiService(
-                        learningResourceRepository,
-                        careerProfileDigestBuilder,
-                        nvidiaNimClient,
-                        new ObjectMapper());
+                        careerProfileDigestBuilder, nvidiaNimClient, new ObjectMapper());
         var constructor = LearningResourceCategory.class.getDeclaredConstructor();
         constructor.setAccessible(true);
         category = constructor.newInstance();
@@ -78,8 +74,7 @@ class StudyPlanAiServiceTest {
     @Test
     void throwsBadGatewayWhenAiReturnsUnknownResourceId() {
         LearningResource resource = newResource(1L, "A");
-        when(learningResourceRepository.findAll()).thenReturn(List.of(resource));
-        when(nvidiaNimClient.generate(anyString(), anyString()))
+        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
                 .thenReturn(
                         """
                         {"assistantReply":"ok","stages":[{"stageOrder":1,"theme":"기본기",
@@ -87,7 +82,7 @@ class StudyPlanAiServiceTest {
                         "notes":null,"checkQuestions":[]}]}]}
                         """);
 
-        assertThatThrownBy(() -> service.generateInitial(300, null))
+        assertThatThrownBy(() -> service.generateInitial(List.of(resource), 300, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -97,10 +92,10 @@ class StudyPlanAiServiceTest {
 
     @Test
     void throwsBadGatewayWhenAiResponseIsNotJson() {
-        when(learningResourceRepository.findAll()).thenReturn(List.of());
-        when(nvidiaNimClient.generate(anyString(), anyString())).thenReturn("이건 JSON이 아닙니다");
+        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
+                .thenReturn("이건 JSON이 아닙니다");
 
-        assertThatThrownBy(() -> service.generateInitial(300, null))
+        assertThatThrownBy(() -> service.generateInitial(List.of(), 300, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -117,11 +112,10 @@ class StudyPlanAiServiceTest {
                 List.of(
                         LearningResourceRelation.create(
                                 before, after, LearningResourceRelationType.PREREQUISITE, 0)));
-        when(learningResourceRepository.findAll()).thenReturn(List.of(before, after));
 
         // AI mistakenly puts the dependent(after=2) in an earlier stage than its
         // prerequisite(before=1).
-        when(nvidiaNimClient.generate(anyString(), anyString()))
+        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
                 .thenReturn(
                         """
                         {"assistantReply":"ok","stages":[
@@ -130,11 +124,33 @@ class StudyPlanAiServiceTest {
                         ]}
                         """);
 
-        GeneratedPlan plan = service.generateInitial(300, null);
+        GeneratedPlan plan = service.generateInitial(List.of(before, after), 300, null);
 
         int beforeStageIndex = stageIndexOf(plan, 1L);
         int afterStageIndex = stageIndexOf(plan, 2L);
         assertThat(beforeStageIndex).isLessThan(afterStageIndex);
+    }
+
+    @Test
+    void keepsDistinctThemesAtSameLevelAsSeparateParallelStages() {
+        LearningResource a = newResource(1L, "CS 기초 자료");
+        LearningResource b = newResource(2L, "데이터베이스 자료");
+        // 둘 사이엔 선후관계가 없다 — 같은 레벨에 서로 다른 테마로 나와도 하나로 합쳐지면 안 된다.
+        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
+                .thenReturn(
+                        """
+                        {"assistantReply":"ok","stages":[
+                          {"stageOrder":1,"theme":"CS 기초","items":[{"learningResourceId":1,"freeTextLabel":null,"allocatedMinutes":30,"notes":null,"checkQuestions":[]}]},
+                          {"stageOrder":1,"theme":"데이터베이스","items":[{"learningResourceId":2,"freeTextLabel":null,"allocatedMinutes":30,"notes":null,"checkQuestions":[]}]}
+                        ]}
+                        """);
+
+        GeneratedPlan plan = service.generateInitial(List.of(a, b), 300, null);
+
+        assertThat(plan.stages()).hasSize(2);
+        assertThat(plan.stages()).allSatisfy(stage -> assertThat(stage.stageOrder()).isEqualTo(1));
+        assertThat(plan.stages().stream().map(GeneratedStage::theme))
+                .containsExactlyInAnyOrder("CS 기초", "데이터베이스");
     }
 
     private int stageIndexOf(GeneratedPlan plan, Long resourceId) {

@@ -1,5 +1,6 @@
 package com.selfintro.modules.studyplan.domain.entity;
 
+import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.studyplan.domain.enums.StudyPlanMessageRole;
 import com.selfintro.modules.studyplan.domain.enums.StudyPlanStatus;
 import jakarta.persistence.CascadeType;
@@ -10,11 +11,15 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -61,8 +66,16 @@ public class StudyPlan {
     @OrderBy("createdAt ASC")
     private List<StudyPlanMessage> messages = new ArrayList<>();
 
+    /** 채팅으로 좁힌, 계획 생성에 쓸 학습자료 후보. {@link #generate}로 Stage/Item을 만들기 전까지 이 목록만 존재한다. */
+    @ManyToMany
+    @JoinTable(
+            name = "study_plan_candidate",
+            joinColumns = @JoinColumn(name = "study_plan_id"),
+            inverseJoinColumns = @JoinColumn(name = "learning_resource_id"))
+    private List<LearningResource> candidates = new ArrayList<>();
+
     private StudyPlan(int weeklyAvailableMinutes, String focusGoal, LocalDateTime now) {
-        this.status = StudyPlanStatus.DRAFT;
+        this.status = StudyPlanStatus.COLLECTING;
         this.weeklyAvailableMinutes = weeklyAvailableMinutes;
         this.focusGoal = focusGoal;
         this.createdAt = now;
@@ -72,6 +85,12 @@ public class StudyPlan {
     public static StudyPlan create(
             int weeklyAvailableMinutes, String focusGoal, LocalDateTime now) {
         return new StudyPlan(weeklyAvailableMinutes, focusGoal, now);
+    }
+
+    public void replaceCandidates(Collection<LearningResource> newCandidates, LocalDateTime now) {
+        candidates.clear();
+        candidates.addAll(newCandidates);
+        this.updatedAt = now;
     }
 
     public void replaceStages(List<StudyPlanStage> newStages, LocalDateTime now) {
@@ -84,6 +103,12 @@ public class StudyPlan {
         messages.add(StudyPlanMessage.create(this, role, content, now));
     }
 
+    /** COLLECTING 단계에서 확정된 candidates로 최초 계획(Stage/Item)이 만들어졌을 때 호출 — DRAFT로 전환. */
+    public void markGenerated(LocalDateTime now) {
+        this.status = StudyPlanStatus.DRAFT;
+        this.updatedAt = now;
+    }
+
     public void confirm(LocalDateTime now) {
         this.status = StudyPlanStatus.CONFIRMED;
         this.confirmedAt = now;
@@ -94,6 +119,10 @@ public class StudyPlan {
         this.status = StudyPlanStatus.DRAFT;
         this.confirmedAt = null;
         this.updatedAt = now;
+    }
+
+    public boolean isCollecting() {
+        return status == StudyPlanStatus.COLLECTING;
     }
 
     public boolean isConfirmed() {

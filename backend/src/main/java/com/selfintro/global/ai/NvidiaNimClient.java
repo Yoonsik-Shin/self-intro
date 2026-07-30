@@ -35,6 +35,14 @@ public class NvidiaNimClient {
     }
 
     public String generate(String systemPrompt, String userPrompt) {
+        return generate(systemPrompt, userPrompt, maxOutputTokens);
+    }
+
+    /**
+     * 응답 자체가 길어질 수밖에 없는 호출(예: 항목별 자가점검 질문까지 포함하는 학습 계획 생성)을 위해 기본 {@code
+     * app.ai.max-output-tokens}보다 큰 상한을 지정하고 싶을 때 사용한다.
+     */
+    public String generate(String systemPrompt, String userPrompt, int maxOutputTokensOverride) {
         ensureAvailable();
         return executeWithRetry(
                 () -> {
@@ -43,7 +51,7 @@ public class NvidiaNimClient {
                                     .prompt()
                                     .system(systemPrompt)
                                     .user(userPrompt)
-                                    .options(buildOptions())
+                                    .options(buildOptions(model, maxOutputTokensOverride))
                                     .call()
                                     .content();
                     return requireContent(content);
@@ -128,16 +136,20 @@ public class NvidiaNimClient {
     }
 
     private OpenAiChatOptions buildOptions() {
-        return buildOptions(model);
+        return buildOptions(model, maxOutputTokens);
     }
 
     private OpenAiChatOptions buildOptions(String modelOverride) {
+        return buildOptions(modelOverride, maxOutputTokens);
+    }
+
+    private OpenAiChatOptions buildOptions(String modelOverride, int maxTokensOverride) {
         OpenAiChatOptions.Builder builder =
                 OpenAiChatOptions.builder()
                         .model(modelOverride)
                         .temperature(0.2)
                         .topP(0.9)
-                        .maxTokens(maxOutputTokens);
+                        .maxTokens(maxTokensOverride);
         if (jsonResponseFormat) {
             // NVIDIA NIM의 Qwen3.5 엔드포인트는 response_format 지정 시 빈 응답을 반환해 기본값을 비활성으로 뒀었다.
             // Nemotron으로 교체 후 정상 동작 여부를 재검증하고 필요 시 true로 전환할 것.

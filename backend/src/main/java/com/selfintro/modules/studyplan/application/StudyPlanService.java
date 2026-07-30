@@ -18,6 +18,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,8 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * AI 학습 계획의 생성/재생성/확정/진행 체크를 관장한다. 재생성은 항상 계획 전체를 새로 만들어 교체하지만, 같은 학습 자료가 새 계획에도 남아 있으면 "학습
- * 완료"/"이해도 점검 완료" 체크는 그대로 이어받는다.
+ * AI 학습 계획의 후보 수집/조정/생성/재생성/확정/진행 체크를 관장한다.
+ *
+ * <p>계획은 두 단계를 거친다: (1) {@code COLLECTING} — 채팅으로 학습자료 후보를 좁히는 단계, Stage/Item은 아직 없다. (2) {@code
+ * DRAFT}/{@code CONFIRMED} — {@link #generatePlan}으로 후보가 확정된 뒤 실제 Stage/Item이 생긴 단계. 재생성은 항상 계획 전체를
+ * 새로 만들어 교체하지만, 같은 학습 자료가 새 계획에도 남아 있으면 "학습 완료"/"이해도 점검 완료" 체크는 그대로 이어받는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -40,6 +44,7 @@ public class StudyPlanService {
     private final StudyPlanRepository studyPlanRepository;
     private final LearningResourceRepository learningResourceRepository;
     private final StudyPlanAiService studyPlanAiService;
+    private final StudyPlanRetrievalService studyPlanRetrievalService;
 
     public List<StudyPlanSummaryResponse> list() {
         return studyPlanRepository.findAllByOrderByCreatedAtDesc().stream()
@@ -55,29 +60,70 @@ public class StudyPlanService {
     public StudyPlanResponse create(int weeklyAvailableMinutes, String focusGoal) {
         LocalDateTime now = LocalDateTime.now();
         StudyPlan plan = StudyPlan.create(weeklyAvailableMinutes, focusGoal, now);
-        GeneratedPlan generated =
-                studyPlanAiService.generateInitial(weeklyAvailableMinutes, focusGoal);
-        applyGeneratedPlan(plan, generated, Map.of(), now);
+        List<LearningResource> candidates = studyPlanRetrievalService.collectInitial(focusGoal);
+        plan.replaceCandidates(candidates, now);
         plan.addMessage(
                 StudyPlanMessageRole.USER,
                 buildCreationSummary(weeklyAvailableMinutes, focusGoal),
                 now);
-        plan.addMessage(StudyPlanMessageRole.ASSISTANT, generated.assistantReply(), now);
+        plan.addMessage(
+                StudyPlanMessageRole.ASSISTANT, buildCandidatesFoundSummary(candidates), now);
         return StudyPlanResponse.from(studyPlanRepository.save(plan));
     }
 
     @Transactional
     public StudyPlanResponse sendMessage(Long id, String content) {
         StudyPlan plan = findOrThrow(id);
+        LocalDateTime now = LocalDateTime.now();
+
+        if (plan.isCollecting()) {
+            int beforeCount = plan.getCandidates().size();
+            List<LearningResource> adjusted =
+                    studyPlanRetrievalService.adjust(plan.getCandidates(), content);
+            plan.replaceCandidates(adjusted, now);
+            plan.addMessage(StudyPlanMessageRole.USER, content, now);
+            plan.addMessage(
+                    StudyPlanMessageRole.ASSISTANT, buildAdjustSummary(beforeCount, adjusted), now);
+            // 새로 추가한 메시지들은 flush 전엔 id가 아직 채번되지 않는다(이 메서드는 이미 영속 상태인
+            // plan을 그냥 변경만 할 뿐 save()를 따로 호출하지 않으므로) — 응답 만들기 전에 강제로
+            // flush해서 프론트가 각 메시지를 고유 id로 구분할 수 있게 한다.
+            studyPlanRepository.flush();
+            return StudyPlanResponse.from(plan);
+        }
         if (plan.isConfirmed()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "확정된 계획입니다. 잠금 해제 후 다시 시도하세요.");
         }
-        LocalDateTime now = LocalDateTime.now();
+
         Map<Long, CompletionState> snapshot = snapshotCompletion(plan);
         GeneratedPlan generated = studyPlanAiService.regenerate(plan, content);
         applyGeneratedPlan(plan, generated, snapshot, now);
         plan.addMessage(StudyPlanMessageRole.USER, content, now);
         plan.addMessage(StudyPlanMessageRole.ASSISTANT, generated.assistantReply(), now);
+        studyPlanRepository.flush();
+        return StudyPlanResponse.from(plan);
+    }
+
+    /** COLLECTING 단계에서 확정된 후보로 최초 Stage/Item을 만들고 DRAFT로 전환한다. */
+    @Transactional
+    public StudyPlanResponse generatePlan(Long id) {
+        StudyPlan plan = findOrThrow(id);
+        if (!plan.isCollecting()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 계획이 생성된 상태입니다.");
+        }
+        if (plan.getCandidates().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택된 학습 자료 후보가 없습니다.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        GeneratedPlan generated =
+                studyPlanAiService.generateInitial(
+                        plan.getCandidates(),
+                        plan.getWeeklyAvailableMinutes(),
+                        plan.getFocusGoal());
+        applyGeneratedPlan(plan, generated, Map.of(), now);
+        plan.markGenerated(now);
+        plan.addMessage(StudyPlanMessageRole.USER, "이 자료들로 계획을 생성해주세요.", now);
+        plan.addMessage(StudyPlanMessageRole.ASSISTANT, generated.assistantReply(), now);
+        studyPlanRepository.flush();
         return StudyPlanResponse.from(plan);
     }
 
@@ -136,8 +182,38 @@ public class StudyPlanService {
         if (focusGoal != null && !focusGoal.isBlank()) {
             sb.append(", 목표: ").append(focusGoal);
         }
-        sb.append("으로 학습 계획을 생성해주세요.");
+        sb.append("에 맞는 학습 자료를 찾아주세요.");
         return sb.toString();
+    }
+
+    private String buildCandidatesFoundSummary(List<LearningResource> candidates) {
+        if (candidates.isEmpty()) {
+            return "조건에 맞는 학습 자료를 찾지 못했어요. 목표를 조금 더 구체적으로 알려주시겠어요?";
+        }
+        Map<String, Long> countByCategory =
+                candidates.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        r -> r.getCategory().getName(),
+                                        LinkedHashMap::new,
+                                        Collectors.counting()));
+        String breakdown =
+                countByCategory.entrySet().stream()
+                        .map(e -> e.getKey() + " " + e.getValue() + "개")
+                        .collect(Collectors.joining(", "));
+        return "총 "
+                + candidates.size()
+                + "개 후보를 찾았어요: "
+                + breakdown
+                + ". 마음에 안 드는 게 있으면 말씀해주세요 — 괜찮으면 '이 자료들로 계획 생성' 버튼을 눌러주세요.";
+    }
+
+    private String buildAdjustSummary(int beforeCount, List<LearningResource> after) {
+        return "후보를 조정했어요(이전 "
+                + beforeCount
+                + "개 -> 현재 "
+                + after.size()
+                + "개). 더 조정하시겠어요? 괜찮으면 '이 자료들로 계획 생성' 버튼을 눌러주세요.";
     }
 
     private Map<Long, CompletionState> snapshotCompletion(StudyPlan plan) {
