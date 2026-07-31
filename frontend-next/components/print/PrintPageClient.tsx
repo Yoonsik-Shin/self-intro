@@ -3,17 +3,19 @@
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import type { IntroductionResponse } from '@/lib/api/types';
-import { printTemplateApi } from '@/lib/api';
+import { jobPostingApi, printTemplateApi } from '@/lib/api';
 import { PrintCanvas } from './PrintCanvas';
 
 export function PrintPageClient({
     introData,
     adminMode,
     templateId,
+    jobPostingId,
 }: {
     introData: IntroductionResponse;
     adminMode: boolean;
     templateId: number | null;
+    jobPostingId: number | null;
 }) {
     const router = useRouter();
     const { data: templates = [], isLoading } = useQuery({
@@ -22,6 +24,12 @@ export function PrintPageClient({
         enabled: templateId != null,
     });
     const initialTemplate = templateId == null ? null : templates.find((t) => t.id === templateId);
+
+    const { data: coverLetterItems = [] } = useQuery({
+        queryKey: ['jobPostingCoverLetterItems', jobPostingId],
+        queryFn: () => jobPostingApi.coverLetterItems(jobPostingId as number),
+        enabled: adminMode && jobPostingId != null,
+    });
 
     if (templateId != null && isLoading) {
         return (
@@ -45,6 +53,8 @@ export function PrintPageClient({
             introData={introData}
             adminMode={adminMode}
             initialTemplate={initialTemplate}
+            coverLetterItems={coverLetterItems}
+            jobPostingId={jobPostingId}
             onExit={() => router.push(adminMode ? '/admin' : '/')}
         />
     );

@@ -37,7 +37,9 @@ export type AtomType =
     | 'project-item'
     | 'project-details-header'
     | 'project-detail-item'
-    | 'project-skills';
+    | 'project-skills'
+    | 'cover-letter-header'
+    | 'cover-letter-item';
 
 export interface PrintAtomItem {
     id: string; // e.g. 'intro-profile', 'skills', 'competency-header', 'competency:1', 'career-project:10'
@@ -90,6 +92,10 @@ function getAtomEstimatedHeight(atom: PrintAtomItem): number {
             return 75;
         case 'project-skills':
             return 35;
+        case 'cover-letter-header':
+            return 45;
+        case 'cover-letter-item':
+            return 160;
         default:
             return 120;
     }

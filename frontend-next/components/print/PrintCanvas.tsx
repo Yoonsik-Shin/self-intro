@@ -9,7 +9,10 @@ import {
     Cpu,
     FolderGit2,
     GraduationCap,
+    MessageSquareText,
     MoveVertical,
+    Pin,
+    PinOff,
     Sparkles,
     Settings,
     Plus,
@@ -17,6 +20,7 @@ import {
 } from 'lucide-react';
 import type {
     IntroductionResponse,
+    JobPostingCoverLetterItem,
     PrintTemplate,
     PrintTemplateContentOverrides,
 } from '@/lib/api/types';
@@ -93,6 +97,8 @@ type Props = {
     onExit: () => void;
     adminMode?: boolean;
     initialTemplate?: PrintTemplate | null;
+    coverLetterItems?: JobPostingCoverLetterItem[];
+    jobPostingId?: number | null;
 };
 
 function renderDetailFields(
@@ -151,11 +157,35 @@ function renderDetailFields(
     );
 }
 
+/** 저장된 순서(override)를 기준으로 자연 순서 배열을 재정렬한다. override에 없는 새 항목은 뒤에 붙는다. */
+function applyOrder<T>(
+    items: T[],
+    scopeId: string,
+    idOf: (item: T) => string,
+    overrides: Record<string, string[]>
+): T[] {
+    const order = overrides[scopeId];
+    if (!order || order.length === 0) return items;
+    const byId = new Map(items.map((item) => [idOf(item), item]));
+    const ordered: T[] = [];
+    order.forEach((id) => {
+        const item = byId.get(id);
+        if (item) {
+            ordered.push(item);
+            byId.delete(id);
+        }
+    });
+    byId.forEach((item) => ordered.push(item));
+    return ordered;
+}
+
 export function PrintCanvas({
     introData,
     onExit,
     adminMode = false,
     initialTemplate = null,
+    coverLetterItems = [],
+    jobPostingId = null,
 }: Props) {
     const store = usePrintStore();
     const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -294,6 +324,61 @@ export function PrintCanvas({
         });
     };
 
+    // 사전질문(자소서) 답변 인라인 수정 — 공통 contentOverrides와 달리 job posting별로
+    // 휘발성 있는 데이터라 별도 로컬 상태로 두고, 서버/로컬 템플릿 저장 대상에서는 제외한다.
+    const [coverLetterOverrides, setCoverLetterOverrides] = useState<
+        Record<number, { question?: string; answer?: string }>
+    >({});
+    // 인쇄 캔버스에서만 즉석으로 추가한 사전질문 항목. 음수 id로 서버 항목과 구분하며,
+    // "자소서" 탭의 실제 데이터에는 저장되지 않는다(인쇄 결과에만 반영).
+    const [addedCoverLetterItems, setAddedCoverLetterItems] = useState<JobPostingCoverLetterItem[]>(
+        []
+    );
+    const addCoverLetterItem = () => {
+        const newId = -Date.now();
+        setAddedCoverLetterItems((current) => [
+            ...current,
+            {
+                id: newId,
+                question: '',
+                answer: '',
+                characterLimit: null,
+                displayOrder: coverLetterItems.length + current.length,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+        ]);
+    };
+    const updateAddedCoverLetterItem = (
+        itemId: number,
+        field: 'question' | 'answer',
+        val: string | undefined
+    ) => {
+        setAddedCoverLetterItems((current) =>
+            current.map((i) => (i.id === itemId ? { ...i, [field]: val ?? '' } : i))
+        );
+    };
+    const removeAddedCoverLetterItem = (itemId: number) => {
+        setAddedCoverLetterItems((current) => current.filter((i) => i.id !== itemId));
+    };
+
+    const setCoverLetterOverride = (
+        itemId: number,
+        field: 'question' | 'answer',
+        val: string | undefined,
+        baseVal: string
+    ) => {
+        setCoverLetterOverrides((current) => {
+            const next = { ...current };
+            const fields = { ...(next[itemId] ?? {}) };
+            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+            else fields[field] = val;
+            if (Object.keys(fields).length > 0) next[itemId] = fields;
+            else delete next[itemId];
+            return next;
+        });
+    };
+
     const setDetailOverride = (
         detailId: number,
         field: 'content' | 'narrative',
@@ -406,27 +491,85 @@ export function PrintCanvas({
         () => groupCoreSkills(resolvedIntroData.skills),
         [resolvedIntroData]
     );
-    const orderedCareerCards = useMemo(
-        () => buildCareerCards(resolvedIntroData.experiences),
-        [resolvedIntroData]
-    );
+    const orderedCareerCards = useMemo(() => {
+        const companies = applyOrder(
+            buildCareerCards(resolvedIntroData.experiences),
+            'group:career-company',
+            (c) => `career-company:${c.id}`,
+            store.itemOrderOverrides
+        );
+        return companies.map((company) => {
+            const projects = applyOrder(
+                company.projects,
+                `career-company:${company.id}`,
+                (p) => `career-project:${p.id}`,
+                store.itemOrderOverrides
+            ).map((project) => ({
+                ...project,
+                details: applyOrder(
+                    project.details,
+                    `career-project:${project.id}`,
+                    (d) => `career-detail:${d.id}`,
+                    store.itemOrderOverrides
+                ),
+            }));
+            return { ...company, projects };
+        });
+    }, [resolvedIntroData, store.itemOrderOverrides]);
     const orderedCompetencies = useMemo(
-        () => resolvedIntroData.competencies.filter((c) => c.visible),
-        [resolvedIntroData]
+        () =>
+            applyOrder(
+                resolvedIntroData.competencies.filter((c) => c.visible),
+                'group:competencies',
+                (c) => `competency:${c.id}`,
+                store.itemOrderOverrides
+            ),
+        [resolvedIntroData, store.itemOrderOverrides]
     );
-    const orderedMilestones = useMemo(
-        () => buildMilestones(resolvedIntroData),
-        [resolvedIntroData]
-    );
+    const orderedMilestones = useMemo(() => {
+        const milestones = applyOrder(
+            buildMilestones(resolvedIntroData),
+            'group:projects',
+            (m) => `project:${m.id}`,
+            store.itemOrderOverrides
+        );
+        return milestones.map((m) => ({
+            ...m,
+            details: applyOrder(
+                m.details,
+                `project:${m.id}`,
+                (d) => `project-detail:${d.id}`,
+                store.itemOrderOverrides
+            ),
+        }));
+    }, [resolvedIntroData, store.itemOrderOverrides]);
     const orderedCredentialExperiences = useMemo(
-        () => buildOrderedCredentials(resolvedIntroData.experiences),
-        [resolvedIntroData]
+        () =>
+            applyOrder(
+                buildOrderedCredentials(resolvedIntroData.experiences),
+                'group:credentials',
+                (c) => `credential:${c.id}`,
+                store.itemOrderOverrides
+            ),
+        [resolvedIntroData, store.itemOrderOverrides]
     );
+    const orderedCoverLetterItems = useMemo(() => {
+        const merged = [...coverLetterItems, ...addedCoverLetterItems].map((item) => {
+            const override = coverLetterOverrides[item.id];
+            return override ? { ...item, ...override } : item;
+        });
+        return applyOrder(
+            merged.sort((a, b) => a.displayOrder - b.displayOrder),
+            'group:cover-letter',
+            (c) => `cover-letter-item:${c.id}`,
+            store.itemOrderOverrides
+        );
+    }, [coverLetterItems, addedCoverLetterItems, coverLetterOverrides, store.itemOrderOverrides]);
 
     useEffect(() => {
         if (!sanitizedInitialTemplate) return;
         const rawGaps = sanitizedInitialTemplate.sectionGaps as Record<string, unknown>;
-        const { __forcedPageOverrides, ...pureGaps } = rawGaps;
+        const { __forcedPageOverrides, __itemOrderOverrides, ...pureGaps } = rawGaps;
         store.applyTemplate({
             excludedIds: sanitizedInitialTemplate.excludedIds,
             sectionOrder: sanitizedInitialTemplate.sectionOrder,
@@ -434,6 +577,10 @@ export function PrintCanvas({
             forcedPageOverrides:
                 __forcedPageOverrides && typeof __forcedPageOverrides === 'object'
                     ? (__forcedPageOverrides as Record<string, number>)
+                    : {},
+            itemOrderOverrides:
+                __itemOrderOverrides && typeof __itemOrderOverrides === 'object'
+                    ? (__itemOrderOverrides as Record<string, string[]>)
                     : {},
         });
         // 초기 템플릿은 이 컴포넌트가 마운트될 때 한 번만 적용한다.
@@ -544,8 +691,10 @@ export function PrintCanvas({
                     isHeader: true,
                 });
                 orderedCareerCards.forEach((career) => {
+                    const companyId = `career-company:${career.id}`;
+                    if (store.printExcludedIds.includes(companyId)) return;
                     atoms.push({
-                        id: `career-company:${career.id}`,
+                        id: companyId,
                         type: 'career-company',
                         sectionId: 'career',
                         dataId: career.id,
@@ -622,6 +771,30 @@ export function PrintCanvas({
                         });
                     }
                 });
+            } else if (section.id === 'cover-letter') {
+                // 항목이 하나도 없어도 관리자 편집 모드에서는 헤더(질문 추가 버튼)는 보여준다.
+                // 그래야 첫 질문을 추가할 진입점이 생긴다. 공개/인쇄 시점엔 완전히 숨긴다.
+                if (orderedCoverLetterItems.length === 0 && !(adminMode && inlineEditMode)) {
+                    return;
+                }
+                atoms.push({
+                    id: 'cover-letter-header',
+                    type: 'cover-letter-header',
+                    sectionId: 'cover-letter',
+                    isHeader: true,
+                });
+                orderedCoverLetterItems.forEach((item) => {
+                    const id = `cover-letter-item:${item.id}`;
+                    if (!store.printExcludedIds.includes(id)) {
+                        atoms.push({
+                            id,
+                            type: 'cover-letter-item',
+                            sectionId: 'cover-letter',
+                            dataId: item.id,
+                            title: item.question,
+                        });
+                    }
+                });
             }
         });
         return atoms;
@@ -634,6 +807,9 @@ export function PrintCanvas({
         orderedCareerCards,
         orderedCredentialExperiences,
         orderedMilestones,
+        orderedCoverLetterItems,
+        adminMode,
+        inlineEditMode,
     ]);
 
     const pageLayers = useMemo(
@@ -720,23 +896,6 @@ export function PrintCanvas({
         return map;
     }, [pageLayers]);
 
-    const splitSectionIds = useMemo(() => {
-        const sectionPagesMap = new Map<string, Set<number>>();
-        printableAtoms.forEach((atom) => {
-            const page = atomPageMap.get(atom.id);
-            if (page !== undefined) {
-                if (!sectionPagesMap.has(atom.sectionId))
-                    sectionPagesMap.set(atom.sectionId, new Set());
-                sectionPagesMap.get(atom.sectionId)!.add(page);
-            }
-        });
-        const splitSet = new Set<string>();
-        sectionPagesMap.forEach((pages, sectionId) => {
-            if (pages.size > 1) splitSet.add(sectionId);
-        });
-        return splitSet;
-    }, [printableAtoms, atomPageMap]);
-
     const pageBreakBoundaryAtomIds = useMemo(() => {
         const set = new Set<string>();
         for (let p = 1; p < pageLayers.length; p++) {
@@ -794,7 +953,14 @@ export function PrintCanvas({
         if (atomId === 'career-header' || atomId === 'career') return '경력 사항';
         if (atomId === 'credentials-header' || atomId === 'credentials') return '학력 / 자격증';
         if (atomId === 'projects-header' || atomId === 'projects') return '프로젝트 목록';
+        if (atomId === 'cover-letter-header' || atomId === 'cover-letter') return '사전질문';
 
+        if (atomId.startsWith('cover-letter-item:')) {
+            const itemId = atomId.replace('cover-letter-item:', '');
+            const item = orderedCoverLetterItems.find((c) => String(c.id) === itemId);
+            if (item?.question) return `'${item.question}'`;
+            return '사전질문 항목';
+        }
         if (atomId.startsWith('competency:')) {
             const compId = atomId.replace('competency:', '');
             const c = (resolvedIntroData.competencies || []).find(
@@ -850,18 +1016,13 @@ export function PrintCanvas({
         return '해당 항목';
     };
 
-    const renderPageBreakControl = (id: string, sectionId: string) => {
-        if (store.hidePrintGuides) return null;
-        if (id === 'intro-profile') return null;
-        const isSplit = splitSectionIds.has(sectionId);
-        const isBoundary = pageBreakBoundaryAtomIds.has(id);
-        const currentGap = store.sectionGaps[id] ?? 0;
+    // 배지(강제배치/분할지점) 안에서 이미 핀·여백조절을 제공하는지 판별.
+    // 호버 시 뜨는 .pp-controls 알약과 좌표가 겹치므로, 배지가 보이는 항목은
+    // 알약을 아예 띄우지 않고 배지 하나로 컨트롤을 통일한다.
+    const isPageBreakBannerVisible = (id: string): boolean => {
+        if (store.hidePrintGuides) return false;
+        if (id === 'intro-profile') return false;
         const forcedPage = store.forcedPageOverrides[id];
-        const currentPage = atomPageMap.get(id);
-        void isSplit;
-
-        const itemTitle = getAtomDisplayTitle(id);
-
         if (forcedPage !== undefined) {
             const isChildDetail =
                 id.startsWith('project-detail:') || id.startsWith('career-detail:');
@@ -881,9 +1042,53 @@ export function PrintCanvas({
                     if (p) parentHeaderId = `career-details-header:${p.id}`;
                 }
                 if (parentHeaderId && store.forcedPageOverrides[parentHeaderId] !== undefined)
-                    return null;
+                    return false;
             }
+            return true;
+        }
+        const isBoundary = pageBreakBoundaryAtomIds.has(id);
+        const currentGap = store.sectionGaps[id] ?? 0;
+        return isBoundary || currentGap > 0;
+    };
 
+    const renderPageBreakControl = (id: string, sectionId: string) => {
+        if (!isPageBreakBannerVisible(id)) return null;
+        void sectionId;
+
+        const isBoundary = pageBreakBoundaryAtomIds.has(id);
+        const forcedPage = store.forcedPageOverrides[id];
+        const currentPage = atomPageMap.get(id);
+        const itemTitle = getAtomDisplayTitle(id);
+        const isExcluded = store.printExcludedIds.includes(id);
+
+        const pinAndGapButtons = (
+            <>
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        store.toggleExcluded(id);
+                    }}
+                    title={isExcluded ? '핀 고정하여 인쇄 포함' : '핀 해제하여 인쇄 제외'}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full shadow-sm transition cursor-pointer ${
+                        isExcluded
+                            ? 'bg-slate-700 hover:bg-slate-600'
+                            : 'bg-blue-600 hover:bg-blue-500'
+                    }`}
+                >
+                    {isExcluded ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                </button>
+                <div
+                    onMouseDown={startGapDrag(id)}
+                    title="마우스를 위아래로 끌어서 간격 세밀 조절"
+                    className="flex h-6 w-6 cursor-ns-resize items-center justify-center rounded-full bg-slate-700 hover:bg-slate-600 transition"
+                >
+                    <MoveVertical className="h-3 w-3" />
+                </div>
+            </>
+        );
+
+        if (forcedPage !== undefined) {
             const labelText = `${itemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
 
             return (
@@ -923,12 +1128,12 @@ export function PrintCanvas({
                             <ArrowDown className="h-3.5 w-3.5" />
                             <span>강제 배치 해제 (원래 위치로)</span>
                         </button>
+                        {pinAndGapButtons}
                     </div>
                 </div>
             );
         }
 
-        if (!isBoundary && currentGap === 0) return null;
         const targetPrevPage = (currentPage ?? 1) - 1;
 
         return (
@@ -969,6 +1174,21 @@ export function PrintCanvas({
                         <MoveVertical className="h-3.5 w-3.5" />
                         <span>위치/여백 조절</span>
                     </div>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            store.toggleExcluded(id);
+                        }}
+                        title={isExcluded ? '핀 고정하여 인쇄 포함' : '핀 해제하여 인쇄 제외'}
+                        className={`flex h-6 w-6 items-center justify-center rounded-full shadow-sm transition cursor-pointer ${
+                            isExcluded
+                                ? 'bg-slate-700 hover:bg-slate-600'
+                                : 'bg-blue-600 hover:bg-blue-500'
+                        }`}
+                    >
+                        {isExcluded ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                    </button>
                 </div>
             </div>
         );
@@ -995,6 +1215,10 @@ export function PrintCanvas({
     };
 
     const renderItemControls = (id: string) => {
+        // 배지(강제배치/분할지점)가 이미 핀·여백조절을 제공하는 항목은
+        // 좌표가 겹치는 호버 알약을 띄우지 않는다.
+        if (isPageBreakBannerVisible(id)) return null;
+
         const isForced = store.forcedPageOverrides[id] !== undefined;
         const forcedPage = store.forcedPageOverrides[id];
         const nextPageNum = (forcedPage ?? 0) + 2;
@@ -1182,61 +1406,77 @@ export function PrintCanvas({
                                         {groupLabel}
                                     </h4>
                                 </div>
-                                <div className="resume-skill-badges flex flex-wrap gap-1.5 border-l-2 border-slate-100 pl-2 pt-0.5">
-                                    {displaySkills.map((skill) => {
+                                <div className="resume-skill-badges flex flex-wrap items-center gap-x-0.5 gap-y-1 border-l-2 border-slate-100 pl-2 pt-0.5">
+                                    {displaySkills.map((skill, idx) => {
                                         const isSelected =
                                             !contentOverrides.selectedSkillIds ||
                                             contentOverrides.selectedSkillIds.includes(skill.id);
+                                        const separator = idx > 0 && (
+                                            <span
+                                                aria-hidden
+                                                className="mx-1.5 text-slate-300 font-normal"
+                                            >
+                                                ·
+                                            </span>
+                                        );
 
                                         if (!inlineEditMode) {
                                             return (
                                                 <span
                                                     key={skill.id}
-                                                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-black text-slate-800"
+                                                    className="inline-flex items-center"
                                                 >
-                                                    {skill.name}
-                                                    {skill.skillVersion && (
-                                                        <span className="rounded bg-slate-100 px-1 py-0.2 text-[9px] font-bold text-slate-500">
-                                                            v{skill.skillVersion}
-                                                        </span>
-                                                    )}
+                                                    {separator}
+                                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-800">
+                                                        {skill.name}
+                                                        {skill.skillVersion && (
+                                                            <span className="text-[8px] font-bold text-slate-400">
+                                                                v{skill.skillVersion}
+                                                            </span>
+                                                        )}
+                                                    </span>
                                                 </span>
                                             );
                                         }
 
                                         return (
-                                            <button
-                                                type="button"
+                                            <span
                                                 key={skill.id}
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    toggleSkillSelection(skill.id);
-                                                }}
-                                                className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-black transition cursor-pointer print:hidden ${
-                                                    isSelected
-                                                        ? 'border-blue-400 bg-blue-50/60 text-slate-900 outline-1 outline-blue-400 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-900'
-                                                        : 'border-dashed border-slate-300 bg-slate-100/60 text-slate-400 line-through opacity-70 hover:border-blue-400 hover:text-blue-600'
-                                                }`}
-                                                title={
-                                                    isSelected
-                                                        ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
-                                                        : `'${skill.name}' 템플릿에 포함하기 (클릭)`
-                                                }
+                                                className="inline-flex items-center print:hidden"
                                             >
-                                                <span>{skill.name}</span>
-                                                {skill.skillVersion && (
-                                                    <span
-                                                        className={`rounded px-1 py-0.2 text-[9px] font-bold ${
-                                                            isSelected
-                                                                ? 'bg-slate-100 text-slate-600'
-                                                                : 'bg-slate-200 text-slate-400'
-                                                        }`}
-                                                    >
-                                                        v{skill.skillVersion}
-                                                    </span>
-                                                )}
-                                            </button>
+                                                {separator}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        toggleSkillSelection(skill.id);
+                                                    }}
+                                                    className={`inline-flex items-center gap-0.5 text-[10px] font-bold transition cursor-pointer ${
+                                                        isSelected
+                                                            ? 'text-slate-900 hover:text-rose-600'
+                                                            : 'text-slate-400 line-through opacity-70 hover:text-blue-600'
+                                                    }`}
+                                                    title={
+                                                        isSelected
+                                                            ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
+                                                            : `'${skill.name}' 템플릿에 포함하기 (클릭)`
+                                                    }
+                                                >
+                                                    <span>{skill.name}</span>
+                                                    {skill.skillVersion && (
+                                                        <span
+                                                            className={
+                                                                isSelected
+                                                                    ? 'text-[8px] font-bold text-slate-400'
+                                                                    : 'text-[8px] font-bold text-slate-300'
+                                                            }
+                                                        >
+                                                            v{skill.skillVersion}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            </span>
                                         );
                                     })}
                                 </div>
@@ -1740,6 +1980,113 @@ export function PrintCanvas({
                 );
             }
 
+            case 'cover-letter-header':
+                return (
+                    <div
+                        data-print-el
+                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
+                    >
+                        {renderSectionGap('cover-letter')}
+                        {renderSectionControls('cover-letter')}
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 w-full">
+                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
+                                <MessageSquareText className="h-4 w-4 text-slate-900" />
+                                사전질문
+                            </h2>
+                            {inlineEditMode && (
+                                <button
+                                    type="button"
+                                    onClick={addCoverLetterItem}
+                                    className="print:hidden flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
+                                >
+                                    <Plus className="h-3 w-3" />
+                                    질문 추가
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+
+            case 'cover-letter-item': {
+                const item = orderedCoverLetterItems.find((c) => c.id === atom.dataId);
+                if (!item) return null;
+                const itemId = `cover-letter-item:${item.id}`;
+                const isAdded = item.id < 0;
+                const origItem = coverLetterItems.find((c) => c.id === item.id);
+                const origQuestion = isAdded
+                    ? item.question
+                    : (origItem?.question ?? item.question);
+                const origAnswer = isAdded ? item.answer : (origItem?.answer ?? item.answer);
+                const onQuestionChange = isAdded
+                    ? (val: string | undefined) =>
+                          updateAddedCoverLetterItem(item.id, 'question', val)
+                    : (val: string | undefined) =>
+                          setCoverLetterOverride(item.id, 'question', val, origQuestion);
+                const onAnswerChange = isAdded
+                    ? (val: string | undefined) =>
+                          updateAddedCoverLetterItem(item.id, 'answer', val)
+                    : (val: string | undefined) =>
+                          setCoverLetterOverride(item.id, 'answer', val, origAnswer);
+
+                return (
+                    <Fragment key={atom.id}>
+                        {renderItemGap(itemId, 'cover-letter')}
+                        <div
+                            data-print-el
+                            className="py-2.5 border-b border-slate-100 last:border-b-0 w-full relative"
+                        >
+                            {renderItemControls(itemId)}
+                            {inlineEditMode && isAdded && (
+                                <button
+                                    type="button"
+                                    onClick={() => removeAddedCoverLetterItem(item.id)}
+                                    title="추가한 질문 삭제"
+                                    className="print:hidden absolute right-8 top-2 z-20 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white hover:bg-rose-600"
+                                >
+                                    삭제
+                                </button>
+                            )}
+                            <div className="flex items-start gap-1 font-bold text-slate-900 text-xs">
+                                <span className="shrink-0">Q.</span>
+                                {renderInlineText({
+                                    value: item.question,
+                                    baseValue: origQuestion,
+                                    textClassName: 'font-bold text-slate-900 text-xs',
+                                    placeholder: '질문을 입력하세요',
+                                    onChange: onQuestionChange,
+                                })}
+                            </div>
+                            {inlineEditMode ? (
+                                <div className="resume-detail-text relative mt-1 text-[12px] leading-relaxed text-slate-600">
+                                    <div aria-hidden="true" className="invisible">
+                                        <ReactMarkdown components={resumeMarkdownComponents}>
+                                            {item.answer}
+                                        </ReactMarkdown>
+                                    </div>
+                                    <div className="absolute inset-0">
+                                        {renderInlineText({
+                                            value: item.answer,
+                                            baseValue: origAnswer,
+                                            multiline: true,
+                                            textClassName:
+                                                'h-full text-[12px] leading-relaxed text-slate-600',
+                                            placeholder: '답변을 입력하세요',
+                                            onChange: onAnswerChange,
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
+                                    <ReactMarkdown components={resumeMarkdownComponents}>
+                                        {item.answer}
+                                    </ReactMarkdown>
+                                </div>
+                            )}
+                        </div>
+                    </Fragment>
+                );
+            }
+
             default:
                 return null;
         }
@@ -1812,6 +2159,59 @@ export function PrintCanvas({
 
     const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
 
+    const navItemGroups = useMemo(
+        () => [
+            {
+                sectionId: 'competencies',
+                scopeId: 'group:competencies',
+                items: orderedCompetencies.map((c) => ({
+                    id: `competency:${c.id}`,
+                    label: c.title,
+                })),
+            },
+            {
+                sectionId: 'career',
+                scopeId: 'group:career-company',
+                items: orderedCareerCards.map((career) => ({
+                    id: `career-company:${career.id}`,
+                    label: career.companyName,
+                    scopeId: `career-company:${career.id}`,
+                    children: career.projects.map((p) => ({
+                        id: `career-project:${p.id}`,
+                        label: p.title,
+                        scopeId: `career-project:${p.id}`,
+                        children: p.details.map((d) => ({
+                            id: `career-detail:${d.id}`,
+                            label: d.content,
+                        })),
+                    })),
+                })),
+            },
+            {
+                sectionId: 'credentials',
+                scopeId: 'group:credentials',
+                items: orderedCredentialExperiences.map((c) => ({
+                    id: `credential:${c.id}`,
+                    label: c.title,
+                })),
+            },
+            {
+                sectionId: 'projects',
+                scopeId: 'group:projects',
+                items: orderedMilestones.map((m) => ({
+                    id: `project:${m.id}`,
+                    label: m.title,
+                    scopeId: `project:${m.id}`,
+                    children: m.details.map((d) => ({
+                        id: `project-detail:${d.id}`,
+                        label: d.content,
+                    })),
+                })),
+            },
+        ],
+        [orderedCompetencies, orderedCareerCards, orderedCredentialExperiences, orderedMilestones]
+    );
+
     return (
         <>
             <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
@@ -1843,6 +2243,7 @@ export function PrintCanvas({
                             sectionOrder: store.printSectionOrder,
                             sectionGaps: store.sectionGaps,
                             forcedPageOverrides: store.forcedPageOverrides,
+                            itemOrderOverrides: store.itemOrderOverrides,
                         });
                         alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
                     }}
@@ -1907,42 +2308,12 @@ export function PrintCanvas({
                         <PrintPreviewNav
                             sections={orderedPrintableSections}
                             excludedIds={store.printExcludedIds}
-                            itemGroups={[
-                                {
-                                    sectionId: 'competencies',
-                                    items: orderedCompetencies.map((c) => ({
-                                        id: `competency:${c.id}`,
-                                        label: c.title,
-                                    })),
-                                },
-                                {
-                                    sectionId: 'career',
-                                    items: orderedCareerCards.flatMap((career) =>
-                                        career.projects.map((p) => ({
-                                            id: `career-project:${p.id}`,
-                                            label: p.title,
-                                        }))
-                                    ),
-                                },
-                                {
-                                    sectionId: 'credentials',
-                                    items: orderedCredentialExperiences.map((c) => ({
-                                        id: `credential:${c.id}`,
-                                        label: c.title,
-                                    })),
-                                },
-                                {
-                                    sectionId: 'projects',
-                                    items: orderedMilestones.map((m) => ({
-                                        id: `project:${m.id}`,
-                                        label: m.title,
-                                    })),
-                                },
-                            ]}
+                            itemGroups={navItemGroups}
                             lockedSectionIds={[LOCKED_PRINT_SECTION_ID]}
                             open={store.navPanelOpen}
                             onRequestToggle={() => store.setNavPanelOpen(!store.navPanelOpen)}
                             onToggle={store.toggleExcluded}
+                            onReorderItem={store.reorderItemInScope}
                             onReorder={store.reorderSections}
                             onNavigate={(id) => {
                                 const el =
@@ -1990,11 +2361,13 @@ export function PrintCanvas({
                     sectionOrder: store.printSectionOrder,
                     sectionGaps: store.sectionGaps,
                     forcedPageOverrides: store.forcedPageOverrides,
+                    itemOrderOverrides: store.itemOrderOverrides,
                     targetRole: activeTemplate?.targetRole ?? 'GENERAL',
                     contentOverrides,
                     baseContentFingerprint: getPrintContentFingerprint(introData),
                 }}
                 editingTemplate={activeTemplate}
+                defaultJobPostingId={jobPostingId}
             />
 
             {skillSelectorModalOpen && (

@@ -17,13 +17,15 @@ async function getIntroduction(): Promise<IntroductionResponse> {
 export default async function PrintPage({
     searchParams,
 }: {
-    searchParams: Promise<{ templateId?: string; admin?: string }>;
+    searchParams: Promise<{ templateId?: string; admin?: string; jobPostingId?: string }>;
 }) {
     const introData = await getIntroduction();
     const query = await searchParams;
     const parsedTemplateId = Number(query.templateId);
     const templateId = Number.isFinite(parsedTemplateId) ? parsedTemplateId : null;
     const adminMode = query.admin === '1';
+    const parsedJobPostingId = Number(query.jobPostingId);
+    const jobPostingId = Number.isFinite(parsedJobPostingId) ? parsedJobPostingId : null;
 
     if (!introData.profile) {
         return (
@@ -33,5 +35,12 @@ export default async function PrintPage({
         );
     }
 
-    return <PrintPageClient introData={introData} adminMode={adminMode} templateId={templateId} />;
+    return (
+        <PrintPageClient
+            introData={introData}
+            adminMode={adminMode}
+            templateId={templateId}
+            jobPostingId={jobPostingId}
+        />
+    );
 }
