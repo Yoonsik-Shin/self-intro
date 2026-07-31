@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Printer, Check, X } from 'lucide-react';
-import { printTemplateApi } from '@/lib/api';
+import { jobPostingApi, printTemplateApi } from '@/lib/api';
 import type {
     PrintTemplate,
     PrintTemplateContentOverrides,
@@ -18,11 +18,14 @@ type SaveServerTemplateModalProps = {
         sectionOrder: string[];
         sectionGaps: Record<string, number>;
         forcedPageOverrides?: Record<string, number>;
+        itemOrderOverrides?: Record<string, string[]>;
         targetRole: string;
         contentOverrides: PrintTemplateContentOverrides;
         baseContentFingerprint: string;
     };
     editingTemplate?: PrintTemplate | null;
+    /** 지원 공고를 통해 PDF를 내보낸 경우 그 공고 id로 미리 채워둔다(직접 바꿀 수 있음). */
+    defaultJobPostingId?: number | null;
     onSaved?: () => void;
 };
 
@@ -32,11 +35,29 @@ export function SaveServerTemplateModal({
     onClose,
     currentSettings,
     editingTemplate,
+    defaultJobPostingId = null,
     onSaved,
 }: SaveServerTemplateModalProps) {
     const queryClient = useQueryClient();
     const [name, setName] = useState(editingTemplate?.name || '');
     const [visible, setVisible] = useState(editingTemplate?.visible ?? true);
+    const [jobPostingId, setJobPostingId] = useState<number | null>(
+        editingTemplate?.jobPostingId ?? defaultJobPostingId
+    );
+
+    const { data: jobPostings = [] } = useQuery({
+        queryKey: ['jobPostings', 'for-print-template-link'],
+        queryFn: jobPostingApi.list,
+        enabled: open,
+    });
+
+    // 새 템플릿이고 지원 공고가 선택돼 있으면 회사명을 이름 제안으로 사용한다.
+    // 실제 입력값(name)이 비어 있을 때만 제출 시점에 이 값을 대신 쓴다.
+    const selectedJobPosting = jobPostings.find((p) => p.id === jobPostingId);
+    const suggestedName =
+        !editingTemplate && selectedJobPosting
+            ? `${selectedJobPosting.companyName} · ${selectedJobPosting.positionTitle}`
+            : '';
 
     const createMutation = useMutation({
         mutationFn: (payload: PrintTemplateRequest) => printTemplateApi.create(payload),
@@ -63,18 +84,20 @@ export function SaveServerTemplateModal({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim()) {
+        const finalName = name.trim() || suggestedName;
+        if (!finalName) {
             alert('템플릿 이름을 입력해 주세요.');
             return;
         }
 
         const payload: PrintTemplateRequest = {
-            name: name.trim(),
+            name: finalName,
             excludedIds: JSON.stringify(currentSettings.excludedIds),
             sectionOrder: JSON.stringify(currentSettings.sectionOrder),
             sectionGaps: JSON.stringify({
                 ...currentSettings.sectionGaps,
                 __forcedPageOverrides: currentSettings.forcedPageOverrides ?? {},
+                __itemOrderOverrides: currentSettings.itemOrderOverrides ?? {},
             }),
             targetRole: currentSettings.targetRole,
             contentOverrides: JSON.stringify(currentSettings.contentOverrides),
@@ -82,6 +105,7 @@ export function SaveServerTemplateModal({
             schemaVersion: 2,
             visible,
             displayOrder: editingTemplate?.displayOrder ?? 1,
+            jobPostingId,
         };
 
         if (editingTemplate?.id) {
@@ -127,11 +151,15 @@ export function SaveServerTemplateModal({
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="예: Backend 이력서용, 핵심 요약본 등"
+                            placeholder={suggestedName || '예: Backend 이력서용, 핵심 요약본 등'}
                             className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 outline-none focus:border-slate-900"
                             autoFocus
-                            required
                         />
+                        {suggestedName && !name.trim() && (
+                            <p className="mt-1.5 text-xs font-medium text-slate-500">
+                                비워두면 &ldquo;{suggestedName}&rdquo;로 저장됩니다.
+                            </p>
+                        )}
                     </div>
 
                     <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-slate-200 p-3.5 bg-slate-50/50 hover:bg-slate-50">
@@ -150,6 +178,30 @@ export function SaveServerTemplateModal({
                             </span>
                         </div>
                     </label>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                            연동할 지원 공고
+                        </label>
+                        <select
+                            value={jobPostingId ?? ''}
+                            onChange={(e) =>
+                                setJobPostingId(e.target.value ? Number(e.target.value) : null)
+                            }
+                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 outline-none focus:border-slate-900"
+                        >
+                            <option value="">연동 안 함</option>
+                            {jobPostings.map((jp) => (
+                                <option key={jp.id} value={jp.id}>
+                                    {jp.companyName} · {jp.positionTitle}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-1.5 text-xs font-medium text-slate-500">
+                            연동하면 해당 공고 상세의 &ldquo;PDF 템플릿&rdquo; 탭에서 이 템플릿을
+                            확인·최종 제출본 지정할 수 있습니다.
+                        </p>
+                    </div>
 
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-600 space-y-1">
                         <div className="font-bold text-slate-700">저장될 현재 프리뷰 상태:</div>
