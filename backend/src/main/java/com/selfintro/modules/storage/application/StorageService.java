@@ -21,7 +21,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 public class StorageService {
 
     private static final Set<String> ALLOWED_CONTENT_TYPES =
-            Set.of("image/png", "image/jpeg", "image/webp", "image/gif");
+            Set.of("image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf");
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
@@ -110,7 +110,7 @@ public class StorageService {
         int dotIndex = fileName.lastIndexOf('.');
         if (dotIndex >= 0) {
             String extension = fileName.substring(dotIndex).toLowerCase(Locale.ROOT);
-            if (Set.of(".png", ".jpg", ".jpeg", ".webp", ".gif").contains(extension)) {
+            if (Set.of(".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf").contains(extension)) {
                 return extension;
             }
         }
@@ -119,6 +119,7 @@ public class StorageService {
             case "image/jpeg" -> ".jpg";
             case "image/webp" -> ".webp";
             case "image/gif" -> ".gif";
+            case "application/pdf" -> ".pdf";
             default -> "";
         };
     }

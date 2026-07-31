@@ -14,4 +14,5 @@ public record PrintTemplateRequest(
         @Size(max = 64) String baseContentFingerprint,
         Integer schemaVersion,
         @NotNull Boolean visible,
-        int displayOrder) {}
+        int displayOrder,
+        Long jobPostingId) {}

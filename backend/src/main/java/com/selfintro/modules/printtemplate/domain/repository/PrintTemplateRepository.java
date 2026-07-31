@@ -9,4 +9,8 @@ public interface PrintTemplateRepository extends JpaRepository<PrintTemplate, Lo
     List<PrintTemplate> findAllByVisibleTrueOrderByDisplayOrderAsc();
 
     List<PrintTemplate> findAllByOrderByDisplayOrderAsc();
+
+    List<PrintTemplate> findAllByJobPostingIdOrderByDisplayOrderAsc(Long jobPostingId);
+
+    List<PrintTemplate> findAllByJobPostingIdAndFinalSubmissionTrue(Long jobPostingId);
 }

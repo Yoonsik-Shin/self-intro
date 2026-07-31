@@ -1,6 +1,7 @@
 package com.selfintro.modules.printtemplate.presentation.dto;
 
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import java.util.function.Function;
 
 public record PrintTemplateResponse(
         Long id,
@@ -13,8 +14,12 @@ public record PrintTemplateResponse(
         String baseContentFingerprint,
         int schemaVersion,
         boolean visible,
-        int displayOrder) {
-    public static PrintTemplateResponse from(PrintTemplate entity) {
+        int displayOrder,
+        Long jobPostingId,
+        boolean isFinalSubmission,
+        String finalPdfUrl) {
+    public static PrintTemplateResponse from(
+            PrintTemplate entity, Function<String, String> urlResolver) {
         return new PrintTemplateResponse(
                 entity.getId(),
                 entity.getName(),
@@ -26,6 +31,11 @@ public record PrintTemplateResponse(
                 entity.getBaseContentFingerprint(),
                 entity.getSchemaVersion(),
                 entity.isVisible(),
-                entity.getDisplayOrder());
+                entity.getDisplayOrder(),
+                entity.getJobPostingId(),
+                entity.isFinalSubmission(),
+                entity.getFinalPdfObjectKey() == null
+                        ? null
+                        : urlResolver.apply(entity.getFinalPdfObjectKey()));
     }
 }

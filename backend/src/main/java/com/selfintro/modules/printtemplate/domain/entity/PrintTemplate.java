@@ -41,6 +41,15 @@ public class PrintTemplate {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
+    @Column(name = "job_posting_id")
+    private Long jobPostingId;
+
+    @Column(name = "is_final_submission", nullable = false)
+    private boolean finalSubmission;
+
+    @Column(name = "final_pdf_object_key", length = 300)
+    private String finalPdfObjectKey;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -61,7 +70,8 @@ public class PrintTemplate {
             String baseContentFingerprint,
             int schemaVersion,
             boolean visible,
-            int displayOrder) {
+            int displayOrder,
+            Long jobPostingId) {
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
@@ -72,6 +82,8 @@ public class PrintTemplate {
         this.schemaVersion = schemaVersion;
         this.visible = visible;
         this.displayOrder = displayOrder;
+        this.jobPostingId = jobPostingId;
+        this.finalSubmission = false;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -86,7 +98,8 @@ public class PrintTemplate {
             String baseContentFingerprint,
             int schemaVersion,
             boolean visible,
-            int displayOrder) {
+            int displayOrder,
+            Long jobPostingId) {
         return new PrintTemplate(
                 name,
                 excludedIds,
@@ -97,7 +110,8 @@ public class PrintTemplate {
                 baseContentFingerprint,
                 schemaVersion,
                 visible,
-                displayOrder);
+                displayOrder,
+                jobPostingId);
     }
 
     public static PrintTemplate create(
@@ -117,7 +131,8 @@ public class PrintTemplate {
                 null,
                 2,
                 visible,
-                displayOrder);
+                displayOrder,
+                null);
     }
 
     public void update(
@@ -130,7 +145,8 @@ public class PrintTemplate {
             String baseContentFingerprint,
             int schemaVersion,
             boolean visible,
-            int displayOrder) {
+            int displayOrder,
+            Long jobPostingId) {
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
@@ -141,6 +157,26 @@ public class PrintTemplate {
         this.schemaVersion = schemaVersion;
         this.visible = visible;
         this.displayOrder = displayOrder;
+        if (!java.util.Objects.equals(this.jobPostingId, jobPostingId)) {
+            // 연동된 공고 자체가 바뀌면 이전 공고 기준의 "최종 제출" 표시는 의미가 없다.
+            this.finalSubmission = false;
+        }
+        this.jobPostingId = jobPostingId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void markFinalSubmission(boolean finalSubmission) {
+        this.finalSubmission = finalSubmission;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void attachFinalPdf(String objectKey) {
+        this.finalPdfObjectKey = objectKey;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void clearFinalPdf() {
+        this.finalPdfObjectKey = null;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -187,6 +223,18 @@ public class PrintTemplate {
 
     public int getDisplayOrder() {
         return displayOrder;
+    }
+
+    public Long getJobPostingId() {
+        return jobPostingId;
+    }
+
+    public boolean isFinalSubmission() {
+        return finalSubmission;
+    }
+
+    public String getFinalPdfObjectKey() {
+        return finalPdfObjectKey;
     }
 
     public LocalDateTime getCreatedAt() {

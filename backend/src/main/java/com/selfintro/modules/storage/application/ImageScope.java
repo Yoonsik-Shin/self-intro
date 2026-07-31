@@ -3,7 +3,8 @@ package com.selfintro.modules.storage.application;
 public enum ImageScope {
     STUDY_GALLERY("study/gallery"),
     EXPERIENCE_GALLERY("experience/gallery"),
-    STUDY_MARKDOWN("study/markdown");
+    STUDY_MARKDOWN("study/markdown"),
+    PRINT_TEMPLATE_FINAL_PDF("print-template/final-pdf");
 
     private final String prefix;
 
