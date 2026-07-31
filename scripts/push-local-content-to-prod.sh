@@ -15,6 +15,7 @@
 # 교체 (로컬 -> 운영, 전체 삭제 후 재삽입):
 #   - 프로필, 스킬, 경력/프로젝트(career, project, experience*), 역량, Study,
 #     아키텍처 콘텐츠, 핵심 프로젝트 편성(experience_placement*)
+#   - 지원 공고(job_posting, job_posting_status_event, job_posting_cover_letter_item)
 
 set -euo pipefail
 
@@ -51,6 +52,9 @@ CONTENT_TABLES=(
   experience_relation
   experience_skill
   experience_tag
+  job_posting
+  job_posting_status_event
+  job_posting_cover_letter_item
   print_template
   profile
   project
