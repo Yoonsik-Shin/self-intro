@@ -49,37 +49,41 @@ import { PrintModeModal } from './PrintModeModal';
 import { SaveServerTemplateModal } from './SaveServerTemplateModal';
 import { PrintSkillSelectorModal } from './PrintSkillSelectorModal';
 
-function AutoResizingTextarea({
+function InlineEditableText({
     value,
     onChange,
     placeholder,
+    multiline,
     className = '',
-    rows = 1,
 }: {
     value: string;
-    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    onChange: (value: string) => void;
     placeholder?: string;
+    multiline: boolean;
     className?: string;
-    rows?: number;
 }) {
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const editorRef = useRef<HTMLSpanElement | null>(null);
 
     useLayoutEffect(() => {
-        const el = textareaRef.current;
-        if (el) {
-            el.style.height = 'auto';
-            el.style.height = `${el.scrollHeight}px`;
-        }
+        const editor = editorRef.current;
+        if (!editor || document.activeElement === editor) return;
+        if (editor.innerText !== value) editor.innerText = value;
     }, [value]);
 
     return (
-        <textarea
-            ref={textareaRef}
-            rows={rows}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            className={`resize-none overflow-hidden ${className}`}
+        <span
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            role="textbox"
+            aria-multiline={multiline}
+            aria-label={placeholder || '문구 편집'}
+            data-placeholder={placeholder}
+            onInput={(e) => onChange(e.currentTarget.innerText.replace(/\r/g, ''))}
+            onKeyDown={(e) => {
+                if (!multiline && e.key === 'Enter') e.preventDefault();
+            }}
+            className={`inline-editable-text ${className}`}
         />
     );
 }
@@ -114,19 +118,28 @@ function renderDetailFields(
     const merged =
         detail.narrative ||
         [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
-    if (!merged && !inlineEditMode) return null;
+    // 편집 모드라는 이유만으로 비어 있던 상세 입력란을 추가하면 atom 높이가 달라져
+    // 일반 미리보기와 페이지 구성이 달라진다. 기존 문구가 있는 필드만 인라인 편집한다.
+    if (!merged) return null;
 
     if (inlineEditMode) {
         return (
-            <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
-                {renderInlineTextHelper({
-                    value: detail.narrative ?? merged ?? '',
-                    baseValue: origNarrative,
-                    multiline: true,
-                    textClassName: 'text-[12px] leading-relaxed text-slate-600',
-                    placeholder: '상세 성과 및 기술적 설명을 입력하세요',
-                    onChange: onNarrativeChange,
-                })}
+            <div className="resume-detail-text relative mt-1 text-[12px] leading-relaxed text-slate-600">
+                {/* 마크다운을 원래 렌더링한 결과가 레이아웃 높이를 계속 담당한다.
+                    원문 textarea는 위에 겹쳐져 편집 모드 전환만으로 높이가 바뀌지 않는다. */}
+                <div aria-hidden="true" className="invisible">
+                    <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
+                </div>
+                <div className="absolute inset-0">
+                    {renderInlineTextHelper({
+                        value: detail.narrative ?? merged ?? '',
+                        baseValue: origNarrative,
+                        multiline: true,
+                        textClassName: 'h-full text-[12px] leading-relaxed text-slate-600',
+                        placeholder: '상세 성과 및 기술적 설명을 입력하세요',
+                        onChange: onNarrativeChange,
+                    })}
+                </div>
             </div>
         );
     }
@@ -183,6 +196,7 @@ export function PrintCanvas({
     const renderInlineText = ({
         value,
         baseValue,
+        multiline = false,
         textClassName = '',
         placeholder = '',
         onChange,
@@ -204,12 +218,25 @@ export function PrintCanvas({
 
         return (
             <span className={`group/edit relative inline-block w-full max-w-full ${textClassName}`}>
-                <AutoResizingTextarea
+                {/* 편집기 자체가 높이를 만들면 textarea의 UA line box/scrollHeight 때문에
+                    일반 문구와 atom 높이가 달라져 페이지 재배치가 발생한다. 동일 문구의
+                    숨은 미러가 원래 레이아웃을 유지하고 textarea는 그 위에 겹친다. */}
+                <span
+                    aria-hidden="true"
+                    className={`invisible block w-full max-w-full ${
+                        multiline ? 'whitespace-pre-line' : ''
+                    }`}
+                >
+                    {value || '\u00a0'}
+                </span>
+                <InlineEditableText
                     value={value}
-                    onChange={(e) => onChange(e.target.value)}
+                    onChange={(newValue) => onChange(newValue)}
                     placeholder={placeholder}
-                    rows={1}
-                    className="w-full rounded-none border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 p-0 m-0 font-[inherit] text-[inherit] leading-[inherit] tracking-[inherit] color-[inherit] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    multiline={multiline}
+                    className={`absolute inset-0 block min-h-full w-full overflow-visible box-border rounded-none border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 p-0 m-0 font-[inherit] text-[inherit] leading-[inherit] tracking-[inherit] text-inherit [white-space:inherit] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${
+                        multiline ? 'whitespace-pre-line' : ''
+                    }`}
                 />
                 {isOverridden && (
                     <button
@@ -1129,9 +1156,9 @@ export function PrintCanvas({
                     (g) => g.value === atom.dataId
                 );
                 const activeGroup = groupedCoreSkills.find((g) => g.value === atom.dataId);
-                const displaySkills = inlineEditMode
-                    ? (fullGroup?.skills ?? [])
-                    : (activeGroup?.skills ?? []);
+                // 편집 모드에서도 현재 선택된 기술만 렌더링해야 A4 높이와 줄바꿈이
+                // 일반 미리보기와 동일하다. 추가 선택은 상단 기술 선택 모달에서 처리한다.
+                const displaySkills = activeGroup?.skills ?? [];
 
                 if (displaySkills.length === 0) return null;
                 const itemId = `skills-group:${atom.dataId}`;
@@ -1362,7 +1389,7 @@ export function PrintCanvas({
                             <p className="resume-meta font-semibold text-slate-500 text-xs">
                                 {career.department} / {career.role}
                             </p>
-                            {(career.summary || inlineEditMode) && (
+                            {career.summary && (
                                 <div className="resume-body mt-2 text-xs text-slate-600">
                                     {renderInlineText({
                                         value: career.summary ?? '',
@@ -1436,7 +1463,7 @@ export function PrintCanvas({
                                     </span>
                                 </span>
                             </div>
-                            {(project.summary || inlineEditMode) && (
+                            {project.summary && (
                                 <div className="mt-1.5">
                                     <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider text-[10px]">
                                         프로젝트 설명 및 역할

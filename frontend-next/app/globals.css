@@ -653,7 +653,8 @@ body {
 
 [data-print-el]:hover:not(:has([data-print-el]:hover)) {
     cursor: grab;
-    border: 2px dashed #3b82f6 !important;
+    outline: 2px dashed #3b82f6;
+    outline-offset: -2px;
     border-radius: 8px;
     background-color: rgba(59, 130, 246, 0.03);
 }
@@ -690,6 +691,14 @@ body {
    섹션/아이템 모두 .pp-controls가 항상 첫 자식이므로 바로 다음 형제의 margin만 0으로 되돌린다. */
 .pp-controls + * {
     margin-top: 0 !important;
+}
+
+/* textarea는 자체 line box와 내부 스크롤 영역 때문에 마지막 줄이 잘릴 수 있다.
+   인라인 편집기는 일반 텍스트와 같은 레이아웃 엔진을 쓰며, 빈 값일 때만 안내 문구를 표시한다. */
+.inline-editable-text:empty::before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+    pointer-events: none;
 }
 
 /* 섹션 간격 스페이서: 화면 미리보기에서만 빗금으로 표시(실제 인쇄에서는 빈 공간) */
