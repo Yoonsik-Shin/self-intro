@@ -27,6 +27,7 @@ type PrintSettings = {
     sectionOrder: string[];
     sectionGaps: Record<string, number>;
     forcedPageOverrides?: Record<string, number>;
+    itemOrderOverrides?: Record<string, string[]>;
     contentOverrides?: PrintTemplateContentOverrides;
     selectedTemplate?: PrintTemplate;
 };
@@ -75,8 +76,12 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
 
     const handleSelectServer = (t: PrintTemplate) => {
         const rawGaps = (t.sectionGaps || {}) as Record<string, unknown>;
-        const { __forcedPageOverrides, ...pureGaps } = rawGaps as Record<string, number> & {
+        const { __forcedPageOverrides, __itemOrderOverrides, ...pureGaps } = rawGaps as Record<
+            string,
+            number
+        > & {
             __forcedPageOverrides?: unknown;
+            __itemOrderOverrides?: unknown;
         };
         onApplyTemplate({
             excludedIds: t.excludedIds || [],
@@ -85,6 +90,10 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
             forcedPageOverrides:
                 __forcedPageOverrides && typeof __forcedPageOverrides === 'object'
                     ? (__forcedPageOverrides as Record<string, number>)
+                    : {},
+            itemOrderOverrides:
+                __itemOrderOverrides && typeof __itemOrderOverrides === 'object'
+                    ? (__itemOrderOverrides as Record<string, string[]>)
                     : {},
             contentOverrides: t.contentOverrides || {},
             selectedTemplate: t,
@@ -97,6 +106,7 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
             sectionOrder: s.sectionOrder || [],
             sectionGaps: s.sectionGaps || {},
             forcedPageOverrides: s.forcedPageOverrides || {},
+            itemOrderOverrides: s.itemOrderOverrides || {},
             contentOverrides: {},
         });
     };

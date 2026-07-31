@@ -17,9 +17,19 @@ type PrintPreviewNavSection = {
     icon: LucideIcon;
 };
 
+export type PrintPreviewNavItem = {
+    id: string;
+    label: string;
+    /** 이 항목의 자식들을 재정렬할 때 쓰이는 scope id. 생략 시 item.id를 사용한다. */
+    scopeId?: string;
+    children?: PrintPreviewNavItem[];
+};
+
 type PrintPreviewNavItemGroup = {
     sectionId: string;
-    items: { id: string; label: string }[];
+    /** 이 그룹의 최상위 items를 재정렬할 때 쓰이는 scope id. */
+    scopeId: string;
+    items: PrintPreviewNavItem[];
 };
 
 type PrintPreviewNavProps = {
@@ -31,6 +41,12 @@ type PrintPreviewNavProps = {
     onRequestToggle: () => void;
     onToggle: (id: string) => void;
     onReorder: (draggedId: string, targetId: string) => void;
+    onReorderItem: (
+        scopeId: string,
+        siblingIds: string[],
+        draggedId: string,
+        targetId: string
+    ) => void;
     onNavigate: (id: string) => void;
     onToggleAll?: () => void;
     excludedCount?: number;
@@ -65,6 +81,148 @@ function ToggleSwitch({
     );
 }
 
+/** 항목(경력사/프로젝트/자격증 등) → 하위 항목(세부 불릿) 트리를 재귀적으로 렌더링.
+ *  각 레벨은 자신의 형제들끼리 드래그로 순서를 바꿀 수 있고, 토글로 인쇄 포함/제외를 켤 수 있다. */
+function NavTreeNode({
+    item,
+    depth,
+    scopeId,
+    siblingIds,
+    excludedIds,
+    collapsedIds,
+    onToggleCollapse,
+    onToggle,
+    onReorderItem,
+    onNavigate,
+    draggedId,
+    dragOverId,
+    onDragStateChange,
+}: {
+    item: PrintPreviewNavItem;
+    depth: number;
+    scopeId: string;
+    siblingIds: string[];
+    excludedIds: string[];
+    collapsedIds: string[];
+    onToggleCollapse: (id: string) => void;
+    onToggle: (id: string) => void;
+    onReorderItem: (
+        scopeId: string,
+        siblingIds: string[],
+        draggedId: string,
+        targetId: string
+    ) => void;
+    onNavigate: (id: string) => void;
+    draggedId: string | null;
+    dragOverId: string | null;
+    onDragStateChange: (draggedId: string | null, dragOverId: string | null) => void;
+}) {
+    const excluded = excludedIds.includes(item.id);
+    const hasChildren = Boolean(item.children && item.children.length > 0);
+    const isCollapsed = collapsedIds.includes(item.id);
+    const isDraggingThis = draggedId === item.id;
+    const isOverThis = dragOverId === item.id;
+    const childScopeId = item.scopeId ?? item.id;
+    const childIds = item.children?.map((c) => c.id) ?? [];
+
+    return (
+        <div>
+            <div
+                draggable
+                onDragStart={(e) => {
+                    e.stopPropagation();
+                    e.dataTransfer.setData('text/plain', item.id);
+                    onDragStateChange(item.id, null);
+                }}
+                onDragEnd={() => onDragStateChange(null, null)}
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (draggedId && draggedId !== item.id) onDragStateChange(draggedId, item.id);
+                }}
+                onDragLeave={(e) => {
+                    e.stopPropagation();
+                    if (dragOverId === item.id) onDragStateChange(draggedId, null);
+                }}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const fromId = e.dataTransfer.getData('text/plain') || draggedId;
+                    if (fromId && fromId !== item.id)
+                        onReorderItem(scopeId, siblingIds, fromId, item.id);
+                    onDragStateChange(null, null);
+                }}
+                onClick={() => onNavigate(item.id)}
+                style={{ paddingLeft: 6 + depth * 14 }}
+                className={`group flex items-center gap-1.5 rounded-lg py-1.5 pr-2 cursor-pointer text-[11px] transition ${
+                    isDraggingThis ? 'opacity-30' : ''
+                } ${isOverThis ? 'ring-1 ring-blue-500 bg-blue-500/10' : 'hover:bg-slate-800/60'}`}
+            >
+                <GripVertical className="h-3 w-3 shrink-0 text-slate-600 group-hover:text-slate-300 cursor-grab active:cursor-grabbing" />
+                {hasChildren ? (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleCollapse(item.id);
+                        }}
+                        className="shrink-0 p-0.5 text-slate-400 hover:text-white"
+                        title={isCollapsed ? '하위 항목 펼치기' : '하위 항목 접기'}
+                    >
+                        {isCollapsed ? (
+                            <ChevronRight className="h-3 w-3" />
+                        ) : (
+                            <ChevronDown className="h-3 w-3" />
+                        )}
+                    </button>
+                ) : (
+                    <span className="w-3.5 shrink-0" />
+                )}
+                <span
+                    className={`flex-1 truncate ${excluded ? 'text-slate-500 line-through' : 'text-slate-300'}`}
+                >
+                    {item.label}
+                </span>
+                <ToggleSwitch size="sm" on={!excluded} onClick={() => onToggle(item.id)} />
+            </div>
+
+            {hasChildren && !isCollapsed && (
+                <div>
+                    {item.children!.map((child) => (
+                        <NavTreeNode
+                            key={child.id}
+                            item={child}
+                            depth={depth + 1}
+                            scopeId={childScopeId}
+                            siblingIds={childIds}
+                            excludedIds={excludedIds}
+                            collapsedIds={collapsedIds}
+                            onToggleCollapse={onToggleCollapse}
+                            onToggle={onToggle}
+                            onReorderItem={onReorderItem}
+                            onNavigate={onNavigate}
+                            draggedId={draggedId}
+                            dragOverId={dragOverId}
+                            onDragStateChange={onDragStateChange}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function collectIdsWithChildren(items: PrintPreviewNavItem[]): string[] {
+    let ids: string[] = [];
+    items.forEach((it) => {
+        if (it.children && it.children.length > 0) {
+            ids.push(it.id);
+            ids = ids.concat(collectIdsWithChildren(it.children));
+        }
+    });
+    return ids;
+}
+
 export function PrintPreviewNav({
     sections,
     excludedIds,
@@ -74,17 +232,21 @@ export function PrintPreviewNav({
     onRequestToggle,
     onToggle,
     onReorder,
+    onReorderItem,
     onNavigate,
     onToggleAll,
     excludedCount = 0,
 }: PrintPreviewNavProps) {
-    const [draggedId, setDraggedId] = useState<string | null>(null);
-    const [dragOverId, setDragOverId] = useState<string | null>(null);
-    const [collapsedIds, setCollapsedIds] = useState<string[]>(() =>
-        itemGroups.map((g) => g.sectionId)
-    );
+    const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+    const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
+    const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+    const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+    const [collapsedIds, setCollapsedIds] = useState<string[]>(() => [
+        ...itemGroups.map((g) => g.sectionId),
+        ...itemGroups.flatMap((g) => collectIdsWithChildren(g.items)),
+    ]);
 
-    const itemsBySection = new Map(itemGroups.map((g) => [g.sectionId, g.items]));
+    const itemsBySection = new Map(itemGroups.map((g) => [g.sectionId, g]));
 
     const toggleCollapsed = (id: string) => {
         setCollapsedIds((prev) =>
@@ -168,11 +330,13 @@ export function PrintPreviewNav({
                 {sections.map((sec) => {
                     const excluded = excludedIds.includes(sec.id);
                     const isLocked = lockedSectionIds.includes(sec.id);
-                    const items = itemsBySection.get(sec.id) || [];
+                    const group = itemsBySection.get(sec.id);
+                    const items = group?.items ?? [];
                     const hasItems = items.length > 0;
                     const isCollapsed = collapsedIds.includes(sec.id);
-                    const isDraggingThis = draggedId === sec.id;
-                    const isOverThis = dragOverId === sec.id;
+                    const isDraggingThis = draggedSectionId === sec.id;
+                    const isOverThis = dragOverSectionId === sec.id;
+                    const itemIds = items.map((it) => it.id);
 
                     return (
                         <div
@@ -181,25 +345,27 @@ export function PrintPreviewNav({
                             onDragStart={(e) => {
                                 if (isLocked) return;
                                 e.dataTransfer.setData('text/plain', sec.id);
-                                setDraggedId(sec.id);
+                                setDraggedSectionId(sec.id);
                             }}
                             onDragEnd={() => {
-                                setDraggedId(null);
-                                setDragOverId(null);
+                                setDraggedSectionId(null);
+                                setDragOverSectionId(null);
                             }}
                             onDragOver={(e) => {
                                 e.preventDefault();
-                                if (draggedId && draggedId !== sec.id) setDragOverId(sec.id);
+                                if (draggedSectionId && draggedSectionId !== sec.id)
+                                    setDragOverSectionId(sec.id);
                             }}
                             onDragLeave={() => {
-                                if (dragOverId === sec.id) setDragOverId(null);
+                                if (dragOverSectionId === sec.id) setDragOverSectionId(null);
                             }}
                             onDrop={(e) => {
                                 e.preventDefault();
-                                const fromId = e.dataTransfer.getData('text/plain') || draggedId;
+                                const fromId =
+                                    e.dataTransfer.getData('text/plain') || draggedSectionId;
                                 if (fromId && fromId !== sec.id) onReorder(fromId, sec.id);
-                                setDraggedId(null);
-                                setDragOverId(null);
+                                setDraggedSectionId(null);
+                                setDragOverSectionId(null);
                             }}
                             className={`group rounded-xl border transition ${
                                 excluded
@@ -246,29 +412,29 @@ export function PrintPreviewNav({
                                 )}
                             </div>
 
-                            {hasItems && !isCollapsed && (
-                                <div className="border-t border-slate-800/80 px-2 py-1 space-y-1 bg-slate-950/30">
-                                    {items.map((it) => {
-                                        const itemExcluded = excludedIds.includes(it.id);
-                                        return (
-                                            <div
-                                                key={it.id}
-                                                onClick={() => onNavigate(it.id)}
-                                                className="flex items-center justify-between gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-800/60 cursor-pointer text-[11px]"
-                                            >
-                                                <span
-                                                    className={`truncate ${itemExcluded ? 'text-slate-500 line-through' : 'text-slate-300'}`}
-                                                >
-                                                    {it.label}
-                                                </span>
-                                                <ToggleSwitch
-                                                    size="sm"
-                                                    on={!itemExcluded}
-                                                    onClick={() => onToggle(it.id)}
-                                                />
-                                            </div>
-                                        );
-                                    })}
+                            {hasItems && !isCollapsed && group && (
+                                <div className="border-t border-slate-800/80 px-2 py-1 space-y-0.5 bg-slate-950/30">
+                                    {items.map((item) => (
+                                        <NavTreeNode
+                                            key={item.id}
+                                            item={item}
+                                            depth={0}
+                                            scopeId={group.scopeId}
+                                            siblingIds={itemIds}
+                                            excludedIds={excludedIds}
+                                            collapsedIds={collapsedIds}
+                                            onToggleCollapse={toggleCollapsed}
+                                            onToggle={onToggle}
+                                            onReorderItem={onReorderItem}
+                                            onNavigate={onNavigate}
+                                            draggedId={draggedItemId}
+                                            dragOverId={dragOverItemId}
+                                            onDragStateChange={(d, o) => {
+                                                setDraggedItemId(d);
+                                                setDragOverItemId(o);
+                                            }}
+                                        />
+                                    ))}
                                 </div>
                             )}
                         </div>

@@ -55,13 +55,15 @@ export function PdfPageLayer({
                         </span>
                     </div>
 
-                    {/* 하단 285mm 가이드라인 (화면 프리뷰 전용) */}
+                    {/* 하단 285mm 가이드라인 (화면 프리뷰 전용). 라벨은 항상 비어있는 하단
+                        12mm 여백대(285mm~297mm) 안, 즉 선 "아래"에 둬서 본문 텍스트가 경계선에
+                        바싹 붙어도 라벨이 글자 위에 겹쳐 잘린 것처럼 보이지 않게 한다. */}
                     <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-x-0 top-[285mm] border-b-2 border-dashed border-rose-500/70 print:hidden"
+                        className="pointer-events-none absolute inset-x-0 top-[285mm] border-b border-dashed border-rose-400/40 print:hidden"
                     >
-                        <span className="absolute -top-2.5 right-16 bg-rose-500 text-white px-2 py-0.5 text-[9px] font-extrabold rounded shadow-md opacity-85">
-                            BOTTOM BOUNDARY (285mm / 하단 12mm)
+                        <span className="absolute top-1.5 right-4 bg-rose-500/90 text-white px-1.5 py-0.5 text-[8px] font-bold rounded shadow-sm opacity-75">
+                            BOTTOM (12mm)
                         </span>
                     </div>
 

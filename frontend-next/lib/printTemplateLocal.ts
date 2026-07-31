@@ -10,6 +10,7 @@ export type LocalPrintSave = {
     sectionOrder: string[];
     sectionGaps: Record<string, number>;
     forcedPageOverrides?: Record<string, number>;
+    itemOrderOverrides?: Record<string, string[]>;
     baseContentFingerprint?: string;
     savedAt: string; // ISO timestamp
 };

@@ -9,6 +9,7 @@ type PrintState = {
     printSectionOrder: string[];
     sectionGaps: Record<string, number>;
     forcedPageOverrides: Record<string, number>;
+    itemOrderOverrides: Record<string, string[]>;
     hidePrintGuides: boolean;
     navPanelOpen: boolean;
     printPending: boolean;
@@ -25,6 +26,14 @@ type PrintState = {
     toggleAllExcluded: () => void;
     reorderSections: (draggedId: string, targetId: string, position?: 'before' | 'after') => void;
     setSectionOrder: (order: string[]) => void;
+    reorderItemInScope: (
+        scopeId: string,
+        currentOrder: string[],
+        draggedId: string,
+        targetId: string,
+        position?: 'before' | 'after'
+    ) => void;
+    setItemOrderOverrides: (overrides: Record<string, string[]>) => void;
     setGap: (id: string, px: number) => void;
     setSectionGaps: (gaps: Record<string, number>) => void;
     forcePage: (ids: string[], pageIndex: number) => void;
@@ -43,6 +52,7 @@ type PrintState = {
         sectionOrder: string[];
         sectionGaps: Record<string, number>;
         forcedPageOverrides?: Record<string, number>;
+        itemOrderOverrides?: Record<string, string[]>;
     }) => void;
 };
 
@@ -61,6 +71,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     printSectionOrder: reorderablePrintSections.map((s) => s.id),
     sectionGaps: {},
     forcedPageOverrides: {},
+    itemOrderOverrides: {},
     hidePrintGuides: readHidePrintGuides(),
     navPanelOpen: false,
     printPending: false,
@@ -116,6 +127,23 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     },
 
     setSectionOrder: (order) => set({ printSectionOrder: order }),
+
+    reorderItemInScope: (scopeId, currentOrder, draggedId, targetId, position = 'before') => {
+        if (draggedId === targetId) return;
+        set((state) => {
+            const base = state.itemOrderOverrides[scopeId] ?? currentOrder;
+            const next = base.filter((id) => id !== draggedId);
+            let targetIndex = next.indexOf(targetId);
+            if (targetIndex === -1) targetIndex = next.length;
+            if (position === 'after') targetIndex += 1;
+            next.splice(targetIndex, 0, draggedId);
+            return {
+                itemOrderOverrides: { ...state.itemOrderOverrides, [scopeId]: next },
+            };
+        });
+    },
+
+    setItemOrderOverrides: (overrides) => set({ itemOrderOverrides: overrides }),
 
     setGap: (id, px) =>
         set((state) => ({
@@ -175,6 +203,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             printSectionOrder: reorderablePrintSections.map((s) => s.id),
             sectionGaps: {},
             forcedPageOverrides: {},
+            itemOrderOverrides: {},
             printPending: false,
             printModeResolved: true,
         }),
@@ -195,6 +224,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             printSectionOrder: merged,
             sectionGaps: settings.sectionGaps || {},
             forcedPageOverrides: overrides,
+            itemOrderOverrides: settings.itemOrderOverrides || {},
             printPending: false,
             printModeResolved: true,
         });
