@@ -41,7 +41,7 @@ import {
     Trash2,
     X,
 } from 'lucide-react';
-import { ApiError, jobPostingApi } from '@/lib/api';
+import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { PostingMemoEditor } from './PostingMemoEditor';
 import type {
@@ -365,8 +365,10 @@ function SectionTabs({
     const s = SECTION_TABS_SIZE[size];
 
     return (
-        <div className={bordered ? 'border-t border-slate-200 pt-5' : ''}>
-            <div className={`flex ${s.gap} border-b border-slate-200`}>
+        <div className={`min-w-0 ${bordered ? 'border-t border-slate-200 pt-5' : ''}`}>
+            <div
+                className={`flex ${s.gap} min-w-0 overflow-x-auto overflow-y-hidden border-b border-slate-200`}
+            >
                 {tabs.map((tab) => (
                     <button
                         key={tab.key}
@@ -747,6 +749,233 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                     문항 저장
                 </button>
             </div>
+        </div>
+    );
+}
+
+/** 이 지원 공고와 연동된 PDF 인쇄 템플릿 목록. 공고당 여러 초안을 만들 수 있고,
+ * 그중 실제로 제출한 것 하나를 "최종 제출본"으로 표시해둘 수 있다. */
+const MAX_FINAL_PDF_SIZE_BYTES = 20 * 1024 * 1024;
+
+function PrintTemplatesPanel({ jobPostingId }: { jobPostingId: number }) {
+    const queryClient = useQueryClient();
+    const queryKey = ['jobPostings', jobPostingId, 'printTemplates'] as const;
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [pendingUploadId, setPendingUploadId] = useState<number | null>(null);
+    const [uploadingId, setUploadingId] = useState<number | null>(null);
+
+    const {
+        data: templates = [],
+        isLoading,
+        isError,
+    } = useQuery({
+        queryKey,
+        queryFn: () => printTemplateApi.listByJobPosting(jobPostingId),
+    });
+
+    const markFinalMutation = useMutation({
+        mutationFn: (id: number) => printTemplateApi.markFinal(id),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '최종 제출본 지정에 실패했습니다.'),
+    });
+
+    const unmarkFinalMutation = useMutation({
+        mutationFn: (id: number) => printTemplateApi.unmarkFinal(id),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '최종 제출본 해제에 실패했습니다.'),
+    });
+
+    const removeFinalPdfMutation = useMutation({
+        mutationFn: (id: number) => printTemplateApi.removeFinalPdf(id),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : 'PDF 삭제에 실패했습니다.'),
+    });
+
+    function requestUpload(templateId: number) {
+        setPendingUploadId(templateId);
+        fileInputRef.current?.click();
+    }
+
+    async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        const templateId = pendingUploadId;
+        e.target.value = '';
+        setPendingUploadId(null);
+        if (!file || !templateId) return;
+
+        if (file.type !== 'application/pdf') {
+            alert('PDF 파일만 업로드할 수 있습니다.');
+            return;
+        }
+        if (file.size > MAX_FINAL_PDF_SIZE_BYTES) {
+            alert('파일이 너무 큽니다(최대 20MB).');
+            return;
+        }
+
+        setUploadingId(templateId);
+        try {
+            const presigned = await imageApi.requestPresignedUpload(
+                'PRINT_TEMPLATE_FINAL_PDF',
+                file.name,
+                file.type
+            );
+            await imageApi.uploadToPresignedUrl(presigned.uploadUrl, file);
+            await printTemplateApi.attachFinalPdf(templateId, presigned.objectKey);
+            queryClient.invalidateQueries({ queryKey });
+        } catch (error) {
+            alert(error instanceof ApiError ? error.message : 'PDF 업로드에 실패했습니다.');
+        } finally {
+            setUploadingId(null);
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center gap-2 py-6 text-sm font-semibold text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                연동된 PDF 템플릿을 불러오는 중입니다.
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <p className="py-6 text-sm font-semibold text-rose-500">
+                PDF 템플릿 목록을 불러오지 못했습니다.
+            </p>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleFileSelected}
+            />
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-slate-400">
+                    실제로 제출한 PDF 파일을 올려두면 그 자체가 최종 제출본이 됩니다(이후 이력서
+                    내용이 바뀌어도 이 파일은 그대로 남습니다).
+                </p>
+                <a
+                    href={`/print?admin=1&jobPostingId=${jobPostingId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                >
+                    <Plus className="h-3.5 w-3.5" />새 템플릿 만들기
+                </a>
+            </div>
+
+            {templates.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
+                    <p className="text-sm font-bold text-slate-500">
+                        아직 연동된 PDF 템플릿이 없습니다.
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                        위 버튼으로 인쇄 화면을 열고 &ldquo;템플릿으로 저장&rdquo;할 때 이 공고를
+                        선택하면 여기 나타납니다.
+                    </p>
+                </div>
+            ) : (
+                <ul className="space-y-2">
+                    {templates.map((t) => (
+                        <li
+                            key={t.id}
+                            className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 ${
+                                t.isFinalSubmission
+                                    ? 'border-emerald-300 bg-emerald-50'
+                                    : 'border-slate-200 bg-white'
+                            }`}
+                        >
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="truncate text-sm font-bold text-slate-900">
+                                        {t.name}
+                                    </span>
+                                    {t.isFinalSubmission && (
+                                        <span className="shrink-0 rounded bg-emerald-600 px-1.5 py-0.5 text-[9px] font-black text-white">
+                                            최종 제출본
+                                        </span>
+                                    )}
+                                    {t.finalPdfUrl && (
+                                        <span className="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                                            PDF 첨부됨
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                                <a
+                                    href={`/print?admin=1&templateId=${t.id}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                >
+                                    설정 열기
+                                </a>
+                                {t.finalPdfUrl && (
+                                    <a
+                                        href={t.finalPdfUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                    >
+                                        PDF 보기
+                                    </a>
+                                )}
+                                <button
+                                    type="button"
+                                    disabled={uploadingId === t.id}
+                                    onClick={() => requestUpload(t.id)}
+                                    className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                    {uploadingId === t.id && (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    )}
+                                    {t.finalPdfUrl ? 'PDF 교체' : 'PDF 업로드'}
+                                </button>
+                                {t.finalPdfUrl && (
+                                    <button
+                                        type="button"
+                                        disabled={removeFinalPdfMutation.isPending}
+                                        onClick={() => removeFinalPdfMutation.mutate(t.id)}
+                                        className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                                    >
+                                        PDF 삭제
+                                    </button>
+                                )}
+                                {!t.finalPdfUrl &&
+                                    (t.isFinalSubmission ? (
+                                        <button
+                                            type="button"
+                                            disabled={unmarkFinalMutation.isPending}
+                                            onClick={() => unmarkFinalMutation.mutate(t.id)}
+                                            className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                        >
+                                            지정 해제
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled={markFinalMutation.isPending}
+                                            onClick={() => markFinalMutation.mutate(t.id)}
+                                            className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                                        >
+                                            최종 제출본으로 지정
+                                        </button>
+                                    ))}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </div>
     );
 }
@@ -2759,6 +2988,15 @@ export function JobApplicationManagement() {
                                                         label: '자소서',
                                                         content: (
                                                             <CoverLetterEditor
+                                                                jobPostingId={drawerItem.id}
+                                                            />
+                                                        ),
+                                                    },
+                                                    {
+                                                        key: 'print-templates',
+                                                        label: 'PDF 템플릿',
+                                                        content: (
+                                                            <PrintTemplatesPanel
                                                                 jobPostingId={drawerItem.id}
                                                             />
                                                         ),
