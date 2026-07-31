@@ -23,6 +23,9 @@ function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
         schemaVersion: raw.schemaVersion || 1,
         visible: raw.visible,
         displayOrder: raw.displayOrder,
+        jobPostingId: raw.jobPostingId,
+        isFinalSubmission: raw.isFinalSubmission,
+        finalPdfUrl: raw.finalPdfUrl,
     };
 }
 
@@ -33,6 +36,12 @@ export const printTemplateApi = {
     },
     adminList: async () => {
         const raws = await request<PrintTemplateRaw[]>('/api/admin/print-templates');
+        return raws.map(parsePrintTemplate);
+    },
+    listByJobPosting: async (jobPostingId: number) => {
+        const raws = await request<PrintTemplateRaw[]>(
+            `/api/admin/print-templates?jobPostingId=${jobPostingId}`
+        );
         return raws.map(parsePrintTemplate);
     },
     create: async (t: PrintTemplateRequest) => {
@@ -49,5 +58,31 @@ export const printTemplateApi = {
         });
         return parsePrintTemplate(raw);
     },
+    markFinal: async (id: number) => {
+        const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/mark-final`, {
+            method: 'PATCH',
+        });
+        return parsePrintTemplate(raw);
+    },
+    unmarkFinal: async (id: number) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/admin/print-templates/${id}/unmark-final`,
+            { method: 'PATCH' }
+        );
+        return parsePrintTemplate(raw);
+    },
     remove: (id: number) => request<void>(`/api/admin/print-templates/${id}`, { method: 'DELETE' }),
+    attachFinalPdf: async (id: number, objectKey: string) => {
+        const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/final-pdf`, {
+            method: 'PUT',
+            body: JSON.stringify({ objectKey }),
+        });
+        return parsePrintTemplate(raw);
+    },
+    removeFinalPdf: async (id: number) => {
+        const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/final-pdf`, {
+            method: 'DELETE',
+        });
+        return parsePrintTemplate(raw);
+    },
 };

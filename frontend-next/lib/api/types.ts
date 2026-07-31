@@ -1,7 +1,8 @@
 export type StudyStatus = 'DRAFT' | 'PUBLISHED';
 export type StudyRelationType = 'RELATED' | 'PREREQUISITE' | 'FOLLOW_UP' | 'APPLIED_TO';
 
-export type ImageScope = 'STUDY_GALLERY' | 'EXPERIENCE_GALLERY' | 'STUDY_MARKDOWN';
+export type ImageScope =
+    'STUDY_GALLERY' | 'EXPERIENCE_GALLERY' | 'STUDY_MARKDOWN' | 'PRINT_TEMPLATE_FINAL_PDF';
 
 export type GalleryImage = {
     id?: number;
@@ -767,6 +768,9 @@ export type PrintTemplateRaw = {
     schemaVersion: number;
     visible: boolean;
     displayOrder: number;
+    jobPostingId: number | null;
+    isFinalSubmission: boolean;
+    finalPdfUrl: string | null;
 };
 
 export type PrintTemplateContentOverrides = {
@@ -801,6 +805,9 @@ export type PrintTemplate = {
     schemaVersion: number;
     visible: boolean;
     displayOrder: number;
+    jobPostingId: number | null;
+    isFinalSubmission: boolean;
+    finalPdfUrl: string | null;
 };
 
 export type PrintTemplateRequest = {
@@ -814,6 +821,7 @@ export type PrintTemplateRequest = {
     schemaVersion: number;
     visible: boolean;
     displayOrder: number;
+    jobPostingId: number | null;
 };
 
 export type StudyPlanStatus = 'COLLECTING' | 'DRAFT' | 'CONFIRMED';
