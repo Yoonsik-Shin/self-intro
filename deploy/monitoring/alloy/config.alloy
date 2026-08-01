@@ -1,0 +1,29 @@
+logging {
+  level = "info"
+}
+
+local.file_match "self_intro_backend" {
+  path_targets = [
+    {
+      "__path__" = "/var/log/containers/*self-intro-backend*.log",
+      "service"  = "self-intro-backend",
+      "log_type" = "application",
+    },
+    {
+      "__path__" = "/app/logs/*.log",
+      "service"  = "self-intro-backend",
+      "log_type" = "application",
+    },
+  ]
+}
+
+loki.source.file "self_intro_backend" {
+  targets    = local.file_match.self_intro_backend.targets
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
