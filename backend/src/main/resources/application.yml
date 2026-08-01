@@ -72,7 +72,7 @@ management:
 
 logging:
   file:
-    name: ${LOG_FILE_PATH:/app/logs}/application.log
+    name: ${LOG_FILE_PATH:}
   pattern:
     level: "%5p [%X{traceId:-},%X{spanId:-}]"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] --- [%t] %-40.40logger{39} : %m%n"

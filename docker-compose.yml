@@ -45,6 +45,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SPRING_SESSION_STORE_TYPE=redis
+      - LOG_FILE_PATH=/app/logs/application.log
     volumes:
       - backend_logs:/app/logs
     depends_on:
