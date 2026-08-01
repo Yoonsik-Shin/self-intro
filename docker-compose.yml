@@ -45,6 +45,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SPRING_SESSION_STORE_TYPE=redis
+    volumes:
+      - backend_logs:/app/logs
     depends_on:
       backend-db:
         condition: service_healthy
@@ -152,6 +154,7 @@ services:
     volumes:
       - ./deploy/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/log/containers:/var/log/containers:ro
+      - backend_logs:/app/logs:ro
     depends_on:
       - loki
 
@@ -179,3 +182,4 @@ volumes:
   prometheus_data:
   loki_data:
   grafana_data:
+  backend_logs:
