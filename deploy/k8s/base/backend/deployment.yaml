@@ -53,3 +53,9 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
+          volumeMounts:
+            - name: backend-logs
+              mountPath: /app/logs
+      volumes:
+        - name: backend-logs
+          emptyDir: {}
