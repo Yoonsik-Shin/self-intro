@@ -3,6 +3,7 @@ package com.selfintro.modules.jobapplication.presentation.dto;
 import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -32,6 +33,11 @@ public record JobPostingResponse(
         String matchReason,
         String appealAnalysis,
         LocalDateTime appealAnalyzedAt,
+        BigDecimal jobplanetRating,
+        Integer jobplanetReviewCount,
+        String jobplanetCompanyName,
+        String jobplanetCompanyUrl,
+        LocalDateTime jobplanetCheckedAt,
         LocalDateTime statusChangedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
@@ -63,6 +69,11 @@ public record JobPostingResponse(
                 entity.getMatchReason(),
                 entity.getAppealAnalysis(),
                 entity.getAppealAnalyzedAt(),
+                entity.getJobplanetRating(),
+                entity.getJobplanetReviewCount(),
+                entity.getJobplanetCompanyName(),
+                entity.getJobplanetCompanyUrl(),
+                entity.getJobplanetCheckedAt(),
                 entity.getStatusChangedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());

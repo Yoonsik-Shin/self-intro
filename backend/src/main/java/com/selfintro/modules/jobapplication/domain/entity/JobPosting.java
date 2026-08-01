@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -114,6 +115,21 @@ public class JobPosting {
 
     @Column(name = "appeal_analyzed_at")
     private LocalDateTime appealAnalyzedAt;
+
+    @Column(name = "jobplanet_rating", precision = 2, scale = 1)
+    private BigDecimal jobplanetRating;
+
+    @Column(name = "jobplanet_review_count")
+    private Integer jobplanetReviewCount;
+
+    @Column(name = "jobplanet_company_name", length = 120)
+    private String jobplanetCompanyName;
+
+    @Column(name = "jobplanet_company_url", length = 500)
+    private String jobplanetCompanyUrl;
+
+    @Column(name = "jobplanet_checked_at")
+    private LocalDateTime jobplanetCheckedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -301,6 +317,29 @@ public class JobPosting {
     public void applyAppealAnalysis(String analysis, LocalDateTime now) {
         this.appealAnalysis = analysis;
         this.appealAnalyzedAt = now;
+        this.updatedAt = now;
+    }
+
+    public void updateJobplanet(
+            BigDecimal rating,
+            Integer reviewCount,
+            String companyName,
+            String companyUrl,
+            LocalDateTime now) {
+        this.jobplanetRating = rating;
+        this.jobplanetReviewCount = reviewCount;
+        this.jobplanetCompanyName = companyName;
+        this.jobplanetCompanyUrl = companyUrl;
+        this.jobplanetCheckedAt = now;
+        this.updatedAt = now;
+    }
+
+    public void clearJobplanet(LocalDateTime now) {
+        this.jobplanetRating = null;
+        this.jobplanetReviewCount = null;
+        this.jobplanetCompanyName = null;
+        this.jobplanetCompanyUrl = null;
+        this.jobplanetCheckedAt = null;
         this.updatedAt = now;
     }
 
