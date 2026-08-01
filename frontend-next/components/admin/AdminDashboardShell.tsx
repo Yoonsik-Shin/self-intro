@@ -23,6 +23,9 @@ import {
     GraduationCap,
     CalendarCheck,
     X,
+    Activity,
+    GitBranch,
+    ExternalLink,
 } from 'lucide-react';
 import { bffApi, skillApi } from '@/lib/api';
 import type { Experience, IntroductionResponse, Skill } from '@/lib/api/types';
@@ -474,6 +477,28 @@ export function AdminDashboardShell() {
                         <Eye className="h-3.5 w-3.5" />
                         미리보기
                     </button>
+                    <a
+                        href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'https://grafana.unbrdn.me'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Grafana 메트릭 & 로그 대시보드로 이동합니다"
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+                    >
+                        <Activity className="h-3.5 w-3.5 text-orange-500" />
+                        Grafana
+                        <ExternalLink className="h-3 w-3 opacity-40" />
+                    </a>
+                    <a
+                        href={process.env.NEXT_PUBLIC_ARGOCD_URL || 'https://argocd.unbrdn.me'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="ArgoCD 배포 관리자로 이동합니다"
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-600"
+                    >
+                        <GitBranch className="h-3.5 w-3.5 text-sky-500" />
+                        ArgoCD
+                        <ExternalLink className="h-3 w-3 opacity-40" />
+                    </a>
                     <a
                         href="/"
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
