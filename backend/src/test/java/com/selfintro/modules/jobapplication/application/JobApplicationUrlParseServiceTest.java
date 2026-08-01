@@ -38,7 +38,7 @@ class JobApplicationUrlParseServiceTest {
 
     @Test
     void acceptsSaraminRelayUrl() {
-        when(nimClient.generateOnce(anyString(), anyString(), anyInt(), any(Duration.class)))
+        when(nimClient.generateJsonOnce(anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("{\"companyName\":\"테스트\",\"positionTitle\":\"개발자\"}");
 
         assertThatCode(

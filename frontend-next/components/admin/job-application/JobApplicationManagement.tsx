@@ -2242,11 +2242,17 @@ export function JobApplicationManagement() {
         setStageDraft(null);
         setStageMemo('');
         setIsEditing(false);
-        setIngestMode('single');
         setSingleUrl('');
         setShowManualForm(false);
-        setBulkUrls(['', '', '', '', '']);
-        setBulkResults([]);
+        // 다중 수집이 진행 중이면 URL 입력값/진행 현황을 그대로 두고 다중 탭으로 복귀시켜
+        // 창을 닫았다 다시 열어도 진행 상황을 이어서 볼 수 있게 한다.
+        if (isBulkIngesting) {
+            setIngestMode('bulk');
+        } else {
+            setIngestMode('single');
+            setBulkUrls(['', '', '', '', '']);
+            setBulkResults([]);
+        }
         setDrawerState({ type: 'create' });
     }
 
@@ -2263,11 +2269,15 @@ export function JobApplicationManagement() {
         setStageDraft(null);
         setStageMemo('');
         setIsEditing(false);
-        setIngestMode('single');
         setSingleUrl('');
         setShowManualForm(false);
-        setBulkUrls(['', '', '', '', '']);
-        setBulkResults([]);
+        // 다중 수집이 진행 중일 때 닫으면 URL 입력값/진행 현황은 남겨둔다 — 다시 열었을 때
+        // openCreateDrawer가 이어서 보여준다.
+        if (!isBulkIngesting) {
+            setIngestMode('single');
+            setBulkUrls(['', '', '', '', '']);
+            setBulkResults([]);
+        }
     }
 
     function startEditing(item: JobPosting) {

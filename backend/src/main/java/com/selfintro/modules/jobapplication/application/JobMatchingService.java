@@ -89,10 +89,16 @@ public class JobMatchingService {
                             + safe(title)
                             + "\n공고 요건: "
                             + safe(requiredSkillsRaw);
-            String raw =
-                    nvidiaNimClient.generateJsonOnce(
-                            MATCH_PROMPT, userPrompt, MATCH_MAX_OUTPUT_TOKENS, MATCH_AI_TIMEOUT);
-            ScoreResponse response = parseScoreResponse(raw);
+            ScoreResponse response =
+                    AiJsonSupport.generateAndParse(
+                            () ->
+                                    nvidiaNimClient.generateJsonOnce(
+                                            MATCH_PROMPT,
+                                            userPrompt,
+                                            MATCH_MAX_OUTPUT_TOKENS,
+                                            MATCH_AI_TIMEOUT),
+                            this::parseScoreResponse,
+                            2);
             String reason =
                     AiJsonSupport.hasText(response.reason())
                             ? AiJsonSupport.limit(response.reason(), 500)

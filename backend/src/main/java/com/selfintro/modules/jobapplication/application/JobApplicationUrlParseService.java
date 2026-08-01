@@ -125,7 +125,9 @@ public class JobApplicationUrlParseService {
             """;
 
     private static final int MAX_PAGE_TEXT_LENGTH = 12000;
-    private static final int PARSE_MAX_OUTPUT_TOKENS = 2048;
+    // 한글은 토크나이저 특성상 음절당 소모 토큰이 커서, 상세 항목(업무/자격/전형절차 등)이
+    // 많은 공고는 4096 토큰으로도 LENGTH(토큰 한도)에 걸려 JSON을 못 닫는 사례가 있었다.
+    private static final int PARSE_MAX_OUTPUT_TOKENS = 8192;
     private static final int VISION_MAX_OUTPUT_TOKENS = 2048;
     private static final Duration PARSE_AI_TIMEOUT = Duration.ofSeconds(90);
     private static final Duration VISION_AI_TIMEOUT = Duration.ofSeconds(120);
@@ -272,13 +274,8 @@ public class JobApplicationUrlParseService {
             // 텍스트가 못 채운 항목을 보충하는 역할만 한다 — 세로로 긴 배너 이미지는 축소되면서
             // 작은 글씨(로고 등)를 오독하기 쉬워, 텍스트로 이미 확인된 값을 이미지 결과로 덮어쓰지 않는다.
             long parseAiStartedAt = System.nanoTime();
-            String raw =
-                    nvidiaNimClient.generateOnce(
-                            PARSE_PROMPT, userPrompt, PARSE_MAX_OUTPUT_TOKENS, PARSE_AI_TIMEOUT);
+            ExtractedFields extracted = extractFields(userPrompt);
             long parseAiMillis = elapsedMillis(parseAiStartedAt);
-            ExtractedFields extracted =
-                    AiJsonSupport.parseJson(
-                            objectMapper, raw, ExtractedFields.class, "채용공고 URL 분석");
             if ((looksIncomplete(extracted)
                     || pageText.trim().length() < MIN_MEANINGFUL_TEXT_LENGTH)) {
                 extracted = enrichFromBannerImage(extracted, document);
@@ -313,6 +310,20 @@ public class JobApplicationUrlParseService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
         }
+    }
+
+    private ExtractedFields extractFields(String userPrompt) throws JsonProcessingException {
+        return AiJsonSupport.generateAndParse(
+                () ->
+                        nvidiaNimClient.generateJsonOnce(
+                                PARSE_PROMPT,
+                                userPrompt,
+                                PARSE_MAX_OUTPUT_TOKENS,
+                                PARSE_AI_TIMEOUT),
+                raw ->
+                        AiJsonSupport.parseJson(
+                                objectMapper, raw, ExtractedFields.class, "채용공고 URL 분석"),
+                2);
     }
 
     private static JobApplicationUrlParseResponse logGreetingHrResult(
@@ -484,9 +495,21 @@ public class JobApplicationUrlParseService {
             String applicationMethod,
             String compensationDetail) {}
 
+    // 공고 본문과 무관한 영역(내비게이션/푸터/광고/'다른 추천 공고' 위젯 등)이 같은 페이지에
+    // 섞여 있으면 AI에 넘기는 텍스트가 불필요하게 길어지고, 출력에도 엉뚱한 내용이 섞이거나
+    // 토큰 한도를 더 빨리 소진하는 원인이 된다. 실제 공고 텍스트를 건드리지 않도록 원본
+    // document는 그대로 두고 복제본에서만 이런 영역을 제거한다.
+    private static final String NOISE_SELECTOR =
+            "script, style, noscript, iframe, nav, header, footer, aside, form, "
+                    + "[class*=gnb], [class*=lnb], [class*=snb], [class*=header], [class*=footer], "
+                    + "[class*=nav], [class*=banner], [class*=ad-], [class*=recommend], "
+                    + "[class*=similar], [id*=ad-]";
+
     String extractPageText(URI uri, Document document) {
         if (!isGreetingHr(uri)) {
-            return AiJsonSupport.limit(document.text(), MAX_PAGE_TEXT_LENGTH);
+            Document cleaned = document.clone();
+            cleaned.select(NOISE_SELECTOR).remove();
+            return AiJsonSupport.limit(cleaned.text(), MAX_PAGE_TEXT_LENGTH);
         }
 
         List<String> sections = new ArrayList<>();

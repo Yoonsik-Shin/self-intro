@@ -7,7 +7,10 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.ResponseFormat;
@@ -20,6 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Component
 public class NvidiaNimClient {
+    private static final Logger log = LoggerFactory.getLogger(NvidiaNimClient.class);
+
     private final ChatClient chatClient;
     private final String apiKey;
     private final String model;
@@ -73,10 +78,22 @@ public class NvidiaNimClient {
                 systemPrompt, userPrompt, maxOutputTokensOverride, timeout, jsonResponseFormat);
     }
 
-    /** 구조화 응답이 반드시 필요한 짧은 호출에만 OpenAI 호환 JSON object 모드를 강제한다. */
+    /**
+     * 구조화 응답이 반드시 필요한 짧은 호출에만 OpenAI 호환 JSON object 모드를 강제한다.
+     *
+     * <p>Nemotron 계열 reasoning 모델은 시스템 프롬프트에 명시적으로 끄지 않으면 최종 JSON 대신 사고 과정 텍스트를 답으로 내놓다가 출력 토큰을 다
+     * 써버리는 경우가 있다. 이 진입점을 쓰는 모든 호출에 일괄 적용되도록 여기서 한 번만 처리하고, 개별 서비스의 프롬프트 문자열에는 반복해서 넣지 않는다.
+     */
     public String generateJsonOnce(
             String systemPrompt, String userPrompt, int maxOutputTokensOverride, Duration timeout) {
-        return generateOnce(systemPrompt, userPrompt, maxOutputTokensOverride, timeout, true);
+        return generateOnce(
+                withThinkingOff(systemPrompt), userPrompt, maxOutputTokensOverride, timeout, true);
+    }
+
+    private static String withThinkingOff(String systemPrompt) {
+        return systemPrompt.startsWith("detailed thinking off")
+                ? systemPrompt
+                : "detailed thinking off\n" + systemPrompt;
     }
 
     private String generateOnce(
@@ -88,7 +105,7 @@ public class NvidiaNimClient {
         ensureAvailable();
         return executeWithTimeout(
                 () -> {
-                    String content =
+                    ChatResponse chatResponse =
                             chatClient
                                     .prompt()
                                     .system(systemPrompt)
@@ -99,7 +116,20 @@ public class NvidiaNimClient {
                                                     maxOutputTokensOverride,
                                                     forceJsonResponse))
                                     .call()
-                                    .content();
+                                    .chatResponse();
+                    String finishReason =
+                            chatResponse == null || chatResponse.getResult() == null
+                                    ? "unknown"
+                                    : chatResponse.getResult().getMetadata().getFinishReason();
+                    String content =
+                            chatResponse == null || chatResponse.getResult() == null
+                                    ? null
+                                    : chatResponse.getResult().getOutput().getText();
+                    log.info(
+                            "NVIDIA NIM 응답: model={}, finishReason={}, contentLength={}",
+                            model,
+                            finishReason,
+                            content == null ? 0 : content.length());
                     return requireContent(content);
                 },
                 timeout);
@@ -254,6 +284,12 @@ public class NvidiaNimClient {
             return new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS,
                     "NVIDIA API 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
+                    exception);
+        }
+        if (message.contains("503") || message.contains("resourceexhausted")) {
+            return new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "NVIDIA API 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.",
                     exception);
         }
         if (message.contains("timeout") || message.contains("timed out")) {
