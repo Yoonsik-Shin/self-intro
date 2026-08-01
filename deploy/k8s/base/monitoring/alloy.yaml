@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
         - name: alloy
-          image: grafana/alloy:v1.0.0
+          image: docker.io/grafana/alloy:v1.0.0
           args:
             - run
             - --server.http.listen-addr=0.0.0.0:12345
