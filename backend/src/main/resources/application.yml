@@ -56,10 +56,23 @@ management:
     health:
       probes:
         enabled: true
+    prometheus:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus,metrics
+  tracing:
+    sampling:
+      probability: 1.0
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  pattern:
+    level: "%5p [%X{traceId:-},%X{spanId:-}]"
 
 app:
   cors:
