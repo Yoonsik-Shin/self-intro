@@ -6,8 +6,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # 검색엔진 색인 완전 차단 (Google/Naver noindex)
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;
+    nginx.ingress.kubernetes.io/custom-response-headers: "X-Robots-Tag: noindex, nofollow, noarchive, nosnippet"
 spec:
   ingressClassName: nginx
   tls:
