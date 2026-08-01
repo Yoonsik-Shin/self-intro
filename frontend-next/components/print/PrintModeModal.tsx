@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     Printer,
@@ -16,9 +16,9 @@ import {
 import { printTemplateApi } from '@/lib/api';
 import type { PrintTemplate, PrintTemplateContentOverrides } from '@/lib/api/types';
 import {
-    getLocalSaves,
     removeLocal,
     renameLocal,
+    useLocalPrintSaves,
     type LocalPrintSave,
 } from '@/lib/printTemplateLocal';
 
@@ -44,6 +44,14 @@ type PrintModeModalProps = {
  *  Step 2 (TEMPLATE_LIST): 저장된 템플릿 목록 (서버 템플릿 + 내 브라우저 로컬 저장) */
 export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: PrintModeModalProps) {
     const [step, setStep] = useState<'MAIN' | 'TEMPLATE_LIST'>('MAIN');
+    const [prevOpen, setPrevOpen] = useState(open);
+
+    if (open !== prevOpen) {
+        setPrevOpen(open);
+        if (open) {
+            setStep('MAIN');
+        }
+    }
 
     const { data: serverTemplates = [] } = useQuery({
         queryKey: ['printTemplates'],
@@ -51,19 +59,11 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
         staleTime: 5 * 60 * 1000,
     });
 
-    const [localSaves, setLocalSaves] = useState<LocalPrintSave[]>([]);
-
-    useEffect(() => {
-        if (open) {
-            setStep('MAIN');
-            setLocalSaves(getLocalSaves());
-        }
-    }, [open]);
+    const localSaves = useLocalPrintSaves();
 
     const handleRemoveLocal = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         removeLocal(id);
-        setLocalSaves(getLocalSaves());
     };
 
     const handleRenameLocal = (s: LocalPrintSave, e: React.MouseEvent) => {
@@ -71,7 +71,6 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
         const newName = window.prompt('새로운 인쇄 설정 이름을 입력하세요:', s.memo);
         if (newName === null || !newName.trim() || newName.trim() === s.memo) return;
         renameLocal(s.id, newName.trim());
-        setLocalSaves(getLocalSaves());
     };
 
     const handleSelectServer = (t: PrintTemplate) => {
