@@ -5,6 +5,11 @@ metadata:
   # 이름이면 나중에 실제 컷오버 시 prod ingress를 적용할 때 이 리소스를 덮어써 버린다.
   name: self-intro-frontend-staging
   namespace: self-intro
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # 검색엔진 색인 완전 차단 (Google/Naver noindex)
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;
 spec:
   ingressClassName: nginx
   tls:

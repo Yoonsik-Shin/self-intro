@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: self-intro
+data:
+  config.alloy: |
+    logging {
+      level = "info"
+    }
+
+    local.file_match "self_intro_backend" {
+      path_targets = [
+        {
+          "__path__" = "/var/log/containers/*self-intro-backend*.log",
+          "service"  = "self-intro-backend",
+          "log_type" = "application",
+        },
+      ]
+    }
+
+    loki.source.file "self_intro_backend" {
+      targets    = local.file_match.self_intro_backend.targets
+      forward_to = [loki.write.local.receiver]
+    }
+
+    loki.write "local" {
+      endpoint {
+        url = "http://loki.self-intro.svc.cluster.local:3100/loki/api/v1/push"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: grafana-alloy
+  namespace: self-intro
+spec:
+  selector:
+    matchLabels:
+      app: grafana-alloy
+  template:
+    metadata:
+      labels:
+        app: grafana-alloy
+    spec:
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.0.0
+          args:
+            - run
+            - --server.http.listen-addr=0.0.0.0:12345
+            - /etc/alloy/config.alloy
+          resources:
+            requests:
+              cpu: 30m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/alloy
+            - name: varlog
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlibdocker
+              mountPath: /var/log/pods
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: alloy-config
+        - name: varlog
+          hostPath:
+            path: /var/log/containers
+        - name: varlibdocker
+          hostPath:
+            path: /var/log/pods
