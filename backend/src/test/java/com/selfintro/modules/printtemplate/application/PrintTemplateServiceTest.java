@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
+import com.selfintro.modules.storage.application.StorageService;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,12 +18,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class PrintTemplateServiceTest {
     @Mock PrintTemplateRepository repository;
+    @Mock StorageService storageService;
 
     private PrintTemplateService service;
 
     @BeforeEach
     void setUp() {
-        service = new PrintTemplateService(repository);
+        service = new PrintTemplateService(repository, storageService);
         when(repository.save(any(PrintTemplate.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -31,7 +33,7 @@ class PrintTemplateServiceTest {
     void oldRequestGetsCompatibleContentDefaults() {
         PrintTemplateRequest request =
                 new PrintTemplateRequest(
-                        "기본", "[]", "[\"skills\"]", "{}", null, null, null, null, true, 1);
+                        "기본", "[]", "[\"skills\"]", "{}", null, null, null, null, true, 1, null);
 
         PrintTemplate saved = service.create(request);
 
@@ -53,11 +55,22 @@ class PrintTemplateServiceTest {
                         "v2-12345678",
                         2,
                         true,
-                        1);
+                        1,
+                        null);
         when(repository.findById(1L)).thenReturn(Optional.of(existing));
         PrintTemplateRequest request =
                 new PrintTemplateRequest(
-                        "백엔드 수정", "[]", "[\"skills\"]", "{}", null, null, null, null, true, 1);
+                        "백엔드 수정",
+                        "[]",
+                        "[\"skills\"]",
+                        "{}",
+                        null,
+                        null,
+                        null,
+                        null,
+                        true,
+                        1,
+                        null);
 
         PrintTemplate saved = service.update(1L, request);
 

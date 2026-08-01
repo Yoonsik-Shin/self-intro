@@ -1,6 +1,7 @@
 package com.selfintro.modules.printtemplate.presentation.dto;
 
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import java.time.LocalDateTime;
 import java.util.function.Function;
 
 public record PrintTemplateResponse(
@@ -13,6 +14,9 @@ public record PrintTemplateResponse(
         String contentOverrides,
         String baseContentFingerprint,
         int schemaVersion,
+        String source,
+        String generationMetadata,
+        LocalDateTime generatedAt,
         boolean visible,
         int displayOrder,
         Long jobPostingId,
@@ -30,6 +34,9 @@ public record PrintTemplateResponse(
                 entity.getContentOverrides(),
                 entity.getBaseContentFingerprint(),
                 entity.getSchemaVersion(),
+                entity.getSource(),
+                entity.getGenerationMetadata(),
+                entity.getGeneratedAt(),
                 entity.isVisible(),
                 entity.getDisplayOrder(),
                 entity.getJobPostingId(),

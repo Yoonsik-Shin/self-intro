@@ -35,6 +35,15 @@ public class PrintTemplate {
     @Column(name = "schema_version", nullable = false)
     private int schemaVersion;
 
+    @Column(nullable = false, length = 20)
+    private String source;
+
+    @Column(name = "generation_metadata", columnDefinition = "LONGTEXT")
+    private String generationMetadata;
+
+    @Column(name = "generated_at")
+    private LocalDateTime generatedAt;
+
     @Column(nullable = false)
     private boolean visible;
 
@@ -71,7 +80,10 @@ public class PrintTemplate {
             int schemaVersion,
             boolean visible,
             int displayOrder,
-            Long jobPostingId) {
+            Long jobPostingId,
+            String source,
+            String generationMetadata,
+            LocalDateTime generatedAt) {
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
@@ -83,6 +95,9 @@ public class PrintTemplate {
         this.visible = visible;
         this.displayOrder = displayOrder;
         this.jobPostingId = jobPostingId;
+        this.source = source;
+        this.generationMetadata = generationMetadata;
+        this.generatedAt = generatedAt;
         this.finalSubmission = false;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
@@ -111,7 +126,38 @@ public class PrintTemplate {
                 schemaVersion,
                 visible,
                 displayOrder,
-                jobPostingId);
+                jobPostingId,
+                "MANUAL",
+                null,
+                null);
+    }
+
+    public static PrintTemplate createAiDraft(
+            String name,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            String targetRole,
+            String contentOverrides,
+            String generationMetadata,
+            int displayOrder,
+            Long jobPostingId) {
+        LocalDateTime now = LocalDateTime.now();
+        return new PrintTemplate(
+                name,
+                excludedIds,
+                sectionOrder,
+                sectionGaps,
+                targetRole,
+                contentOverrides,
+                null,
+                2,
+                false,
+                displayOrder,
+                jobPostingId,
+                "AI",
+                generationMetadata,
+                now);
     }
 
     public static PrintTemplate create(
@@ -215,6 +261,18 @@ public class PrintTemplate {
 
     public int getSchemaVersion() {
         return schemaVersion;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getGenerationMetadata() {
+        return generationMetadata;
+    }
+
+    public LocalDateTime getGeneratedAt() {
+        return generatedAt;
     }
 
     public boolean isVisible() {

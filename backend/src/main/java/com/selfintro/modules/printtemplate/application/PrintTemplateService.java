@@ -53,6 +53,34 @@ public class PrintTemplateService {
 
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate createAiDraft(
+            Long jobPostingId,
+            String companyName,
+            String positionTitle,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            String targetRole,
+            String contentOverrides,
+            String generationMetadata) {
+        long version = printTemplateRepository.countByJobPostingId(jobPostingId) + 1;
+        String name = companyName + " " + positionTitle + " AI 초안 v" + version;
+        PrintTemplate template =
+                PrintTemplate.createAiDraft(
+                        name,
+                        excludedIds,
+                        sectionOrder,
+                        sectionGaps,
+                        defaultString(targetRole, "GENERAL"),
+                        defaultString(contentOverrides, "{}"),
+                        defaultString(generationMetadata, "{}"),
+                        Math.toIntExact(version - 1),
+                        jobPostingId);
+        return printTemplateRepository.save(template);
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate update(Long id, PrintTemplateRequest request) {
         PrintTemplate template =
                 printTemplateRepository
