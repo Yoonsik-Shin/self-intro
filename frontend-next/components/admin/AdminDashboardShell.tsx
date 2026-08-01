@@ -215,6 +215,13 @@ export function AdminDashboardShell() {
         return () => window.removeEventListener('resize', handleWindowResize);
     }, []);
 
+    const grafanaUrl =
+        process.env.NEXT_PUBLIC_GRAFANA_URL ||
+        (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+            ? 'http://localhost:3001'
+            : 'https://grafana.unbrdn.me');
+    const argocdUrl = process.env.NEXT_PUBLIC_ARGOCD_URL || 'https://argocd.unbrdn.me';
+
     // 미리보기를 도킹했을 때 사이드바/admin 콘텐츠를 침범하지 않는 최대 폭.
     const previewMaxAllowedWidth = Math.min(
         PREVIEW_MAX_WIDTH,
@@ -478,7 +485,7 @@ export function AdminDashboardShell() {
                         미리보기
                     </button>
                     <a
-                        href={process.env.NEXT_PUBLIC_GRAFANA_URL || 'https://grafana.unbrdn.me'}
+                        href={grafanaUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         title="Grafana 메트릭 & 로그 대시보드로 이동합니다"
@@ -489,7 +496,7 @@ export function AdminDashboardShell() {
                         <ExternalLink className="h-3 w-3 opacity-40" />
                     </a>
                     <a
-                        href={process.env.NEXT_PUBLIC_ARGOCD_URL || 'https://argocd.unbrdn.me'}
+                        href={argocdUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         title="ArgoCD 배포 관리자로 이동합니다"
