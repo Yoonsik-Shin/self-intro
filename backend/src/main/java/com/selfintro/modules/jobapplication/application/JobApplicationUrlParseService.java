@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -41,6 +42,7 @@ import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -123,6 +125,10 @@ public class JobApplicationUrlParseService {
             """;
 
     private static final int MAX_PAGE_TEXT_LENGTH = 12000;
+    private static final int PARSE_MAX_OUTPUT_TOKENS = 2048;
+    private static final int VISION_MAX_OUTPUT_TOKENS = 2048;
+    private static final Duration PARSE_AI_TIMEOUT = Duration.ofSeconds(90);
+    private static final Duration VISION_AI_TIMEOUT = Duration.ofSeconds(120);
     private static final int MAX_RAW_BODY_SIZE = 2_000_000;
     private static final int FETCH_TIMEOUT_MILLIS = 8000;
     private static final List<DateTimeFormatter> DEADLINE_FORMATTERS =
@@ -154,7 +160,7 @@ public class JobApplicationUrlParseService {
     // 이 표제어들이 하나도 없을 수 있다 — 그런 경우엔 헤드리스 렌더링으로 다시 시도한다.
     private static final Set<String> DETAIL_SECTION_MARKERS =
             Set.of("담당업무", "수행업무", "주요업무", "우대사항", "전형절차", "채용전형");
-    private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
+    private static final long STREAM_TIMEOUT_MILLIS = 360_000L;
     private static final double HEADLESS_NAVIGATE_TIMEOUT_MILLIS = 20_000;
     private static final ExtractedFields EMPTY_EXTRACTED_FIELDS =
             new ExtractedFields(
@@ -234,8 +240,16 @@ public class JobApplicationUrlParseService {
     private record ErrorEvent(String type, String message) {}
 
     public JobApplicationUrlParseResponse parse(String url) {
+        long startedAt = System.nanoTime();
         URI uri = normalizeSaraminRelayUrl(validateUrl(url));
+        long fetchStartedAt = System.nanoTime();
         Document document = fetchDocument(uri);
+        long fetchMillis = elapsedMillis(fetchStartedAt);
+        Optional<JobApplicationUrlParseResponse> greetingHrResponse =
+                parseGreetingHrDocument(uri, document, url);
+        if (greetingHrResponse.isPresent()) {
+            return logGreetingHrResult(uri, fetchMillis, startedAt, greetingHrResponse.get());
+        }
         if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH
                 || looksLikeMissingDetailSection(document.text())) {
             // 정적 HTML에 실제 내용이 거의 없으면 SPA(클라이언트 렌더링) 페이지일 가능성이 높고,
@@ -245,7 +259,11 @@ public class JobApplicationUrlParseService {
             // 이후 흐름(이미지 배너 폴백 등)이 기존과 동일하게 동작하게 둔다.
             document = renderWithHeadlessBrowser(uri).orElse(document);
         }
-        String pageText = AiJsonSupport.limit(document.text(), MAX_PAGE_TEXT_LENGTH);
+        greetingHrResponse = parseGreetingHrDocument(uri, document, url);
+        if (greetingHrResponse.isPresent()) {
+            return logGreetingHrResult(uri, fetchMillis, startedAt, greetingHrResponse.get());
+        }
+        String pageText = extractPageText(uri, document);
         String userPrompt = "URL: " + url + "\n\n본문:\n" + pageText;
 
         try {
@@ -253,36 +271,257 @@ public class JobApplicationUrlParseService {
             // 텍스트 모델은 항상 먼저 실행한다. merge()가 텍스트 값을 우선하므로, 비전 모델은 어디까지나
             // 텍스트가 못 채운 항목을 보충하는 역할만 한다 — 세로로 긴 배너 이미지는 축소되면서
             // 작은 글씨(로고 등)를 오독하기 쉬워, 텍스트로 이미 확인된 값을 이미지 결과로 덮어쓰지 않는다.
-            String raw = nvidiaNimClient.generate(PARSE_PROMPT, userPrompt);
+            long parseAiStartedAt = System.nanoTime();
+            String raw =
+                    nvidiaNimClient.generateOnce(
+                            PARSE_PROMPT, userPrompt, PARSE_MAX_OUTPUT_TOKENS, PARSE_AI_TIMEOUT);
+            long parseAiMillis = elapsedMillis(parseAiStartedAt);
             ExtractedFields extracted =
                     AiJsonSupport.parseJson(
                             objectMapper, raw, ExtractedFields.class, "채용공고 URL 분석");
-            if (looksIncomplete(extracted)
-                    || pageText.trim().length() < MIN_MEANINGFUL_TEXT_LENGTH) {
+            if ((looksIncomplete(extracted)
+                    || pageText.trim().length() < MIN_MEANINGFUL_TEXT_LENGTH)) {
                 extracted = enrichFromBannerImage(extracted, document);
             }
             LocalDate deadline = parseDate(extracted.deadline());
             boolean alwaysOpen = deadline == null && Boolean.TRUE.equals(extracted.alwaysOpen());
-            return new JobApplicationUrlParseResponse(
-                    AiJsonSupport.blankToNull(extracted.companyName()),
-                    AiJsonSupport.blankToNull(extracted.positionTitle()),
-                    AiJsonSupport.blankToNull(extracted.source()),
-                    deadline,
-                    alwaysOpen,
-                    AiJsonSupport.blankToNull(extracted.salaryNote()),
-                    AiJsonSupport.blankToNull(extracted.location()),
-                    AiJsonSupport.blankToNull(extracted.employmentType()),
-                    AiJsonSupport.blankToNull(extracted.jobDescription()),
-                    AiJsonSupport.blankToNull(extracted.requiredQualifications()),
-                    AiJsonSupport.blankToNull(extracted.preferredQualifications()),
-                    AiJsonSupport.blankToNull(extracted.hiringProcess()),
-                    AiJsonSupport.blankToNull(extracted.applicationMethod()),
-                    AiJsonSupport.blankToNull(extracted.compensationDetail()),
-                    url);
+            JobApplicationUrlParseResponse response =
+                    new JobApplicationUrlParseResponse(
+                            AiJsonSupport.blankToNull(extracted.companyName()),
+                            AiJsonSupport.blankToNull(extracted.positionTitle()),
+                            AiJsonSupport.blankToNull(extracted.source()),
+                            deadline,
+                            alwaysOpen,
+                            AiJsonSupport.blankToNull(extracted.salaryNote()),
+                            AiJsonSupport.blankToNull(extracted.location()),
+                            AiJsonSupport.blankToNull(extracted.employmentType()),
+                            AiJsonSupport.blankToNull(extracted.jobDescription()),
+                            AiJsonSupport.blankToNull(extracted.requiredQualifications()),
+                            AiJsonSupport.blankToNull(extracted.preferredQualifications()),
+                            AiJsonSupport.blankToNull(extracted.hiringProcess()),
+                            AiJsonSupport.blankToNull(extracted.applicationMethod()),
+                            AiJsonSupport.blankToNull(extracted.compensationDetail()),
+                            url);
+            log.info(
+                    "채용공고 URL 분석 완료: host={}, fetch={}ms, parseAi={}ms, total={}ms",
+                    uri.getHost(),
+                    fetchMillis,
+                    parseAiMillis,
+                    elapsedMillis(startedAt));
+            return response;
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
         }
+    }
+
+    private static JobApplicationUrlParseResponse logGreetingHrResult(
+            URI uri, long fetchMillis, long startedAt, JobApplicationUrlParseResponse response) {
+        log.info(
+                "GreetingHR 공고 구조 분석 완료: host={}, fetch={}ms, total={}ms",
+                uri.getHost(),
+                fetchMillis,
+                elapsedMillis(startedAt));
+        return response;
+    }
+
+    /**
+     * GreetingHR 공고는 제목, 회사명, 요약 정보와 Quill 본문을 정적 HTML에 모두 포함한다. 이 정보를 다시 LLM에 보내면 결과가 달라지지 않으면서 외부
+     * AI 장애의 영향을 받고 수집 시간이 길어지므로 DOM을 직접 구조화한다. 필수 값이나 본문이 없는 예외적인 페이지만 기존 AI 경로로 되돌린다.
+     */
+    Optional<JobApplicationUrlParseResponse> parseGreetingHrDocument(
+            URI uri, Document document, String postingUrl) {
+        if (!isGreetingHr(uri)) {
+            return Optional.empty();
+        }
+
+        String companyName =
+                AiJsonSupport.blankToNull(
+                        document.selectFirst("meta[property=og:site_name]") == null
+                                ? null
+                                : document.selectFirst("meta[property=og:site_name]")
+                                        .attr("content"));
+        String positionTitle =
+                AiJsonSupport.blankToNull(
+                        document.selectFirst("meta[property=og:title]") == null
+                                ? null
+                                : document.selectFirst("meta[property=og:title]").attr("content"));
+        Element editor = document.selectFirst(".ql-editor");
+        if (!AiJsonSupport.hasText(companyName)
+                || !AiJsonSupport.hasText(positionTitle)
+                || editor == null
+                || !AiJsonSupport.hasText(editor.text())) {
+            return Optional.empty();
+        }
+
+        String location = greetingHrSummaryValue(document, "근무지");
+        String employmentType = greetingHrSummaryValue(document, "고용형태");
+        GreetingHrSections sections = extractGreetingHrSections(editor);
+        boolean alwaysOpen =
+                Stream.of("상시채용", "상시 채용", "채용시 마감", "수시채용", "수시 채용")
+                        .anyMatch(editor.text()::contains);
+
+        return Optional.of(
+                new JobApplicationUrlParseResponse(
+                        companyName,
+                        positionTitle,
+                        "그리팅",
+                        null,
+                        alwaysOpen,
+                        null,
+                        location,
+                        employmentType,
+                        pickSection(sections.jobDescription(), editor.text()),
+                        sections.requiredQualifications(),
+                        sections.preferredQualifications(),
+                        sections.hiringProcess(),
+                        sections.applicationMethod(),
+                        sections.compensationDetail(),
+                        postingUrl));
+    }
+
+    private static String greetingHrSummaryValue(Document document, String wantedLabel) {
+        for (Element item : document.select("[data-testid=공고_요약_컴포넌트]")) {
+            Element label = item.selectFirst("[data-testid=공고_요약_컴포넌트_제목]");
+            Element value = item.selectFirst("[data-testid=공고_요약_컴포넌트_내용]");
+            if (label != null && value != null && wantedLabel.equals(label.text().trim())) {
+                return AiJsonSupport.blankToNull(value.text());
+            }
+        }
+        return null;
+    }
+
+    private static GreetingHrSections extractGreetingHrSections(Element editor) {
+        List<String> job = new ArrayList<>();
+        List<String> required = new ArrayList<>();
+        List<String> preferred = new ArrayList<>();
+        List<String> hiring = new ArrayList<>();
+        List<String> application = new ArrayList<>();
+        List<String> compensation = new ArrayList<>();
+        List<String> current = null;
+
+        for (Element child : editor.children()) {
+            String text = child.text().trim();
+            if (!AiJsonSupport.hasText(text)) {
+                continue;
+            }
+            if (child.tagName().matches("h[1-6]")) {
+                current =
+                        classifyGreetingHrSection(
+                                text, job, required, preferred, application, compensation);
+                continue;
+            }
+            if (current != null) {
+                addDistinct(current, text);
+            }
+        }
+
+        // GreetingHR는 지원 섹션 안에 전형 과정·제출 서류·채용 조건을 함께 넣는 경우가 많다.
+        // 해당 줄은 목적별 필드에도 복사해 사용자가 수집 후 바로 확인할 수 있게 한다.
+        for (String line : List.copyOf(application)) {
+            if (line.contains("채용 과정") || line.contains("전형 과정") || line.contains("전형절차")) {
+                addDistinct(hiring, line);
+            }
+            if (line.contains("채용 조건") || line.contains("근무 조건")) {
+                addDistinct(compensation, line);
+            }
+        }
+
+        return new GreetingHrSections(
+                joinSection(job),
+                joinSection(required),
+                joinSection(preferred),
+                joinSection(hiring),
+                joinSection(application),
+                joinSection(compensation));
+    }
+
+    private static List<String> classifyGreetingHrSection(
+            String heading,
+            List<String> job,
+            List<String> required,
+            List<String> preferred,
+            List<String> application,
+            List<String> compensation) {
+        String normalized = heading.replace(" ", "");
+        if (normalized.contains("주요업무") || normalized.contains("담당업무")) {
+            return job;
+        }
+        if (normalized.contains("자격요건")
+                || normalized.contains("지원자격")
+                || normalized.contains("필수요건")) {
+            return required;
+        }
+        if (normalized.contains("우대사항") || normalized.contains("우대요건")) {
+            return preferred;
+        }
+        if (normalized.contains("혜택") || normalized.contains("복지") || normalized.contains("근무조건")) {
+            return compensation;
+        }
+        if (normalized.contains("지원")
+                || normalized.contains("채용절차")
+                || normalized.contains("전형절차")) {
+            return application;
+        }
+        return null;
+    }
+
+    private static String joinSection(List<String> lines) {
+        return lines.isEmpty() ? null : String.join("\n", lines);
+    }
+
+    private static String pickSection(String section, String fallback) {
+        return AiJsonSupport.hasText(section)
+                ? section
+                : AiJsonSupport.limit(fallback, MAX_PAGE_TEXT_LENGTH);
+    }
+
+    private record GreetingHrSections(
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail) {}
+
+    String extractPageText(URI uri, Document document) {
+        if (!isGreetingHr(uri)) {
+            return AiJsonSupport.limit(document.text(), MAX_PAGE_TEXT_LENGTH);
+        }
+
+        List<String> sections = new ArrayList<>();
+        addLabeled(sections, "회사명", document.select("meta[property=og:site_name]").attr("content"));
+        addLabeled(sections, "직무명", document.select("meta[property=og:title]").attr("content"));
+        document.select("[data-testid=공고_상세_정보], .ql-editor").stream()
+                .map(element -> element.text().trim())
+                .filter(AiJsonSupport::hasText)
+                .forEach(text -> addDistinct(sections, text));
+
+        String focusedText = String.join("\n", sections);
+        return AiJsonSupport.limit(
+                AiJsonSupport.hasText(focusedText) ? focusedText : document.text(),
+                MAX_PAGE_TEXT_LENGTH);
+    }
+
+    private static void addLabeled(List<String> sections, String label, String value) {
+        if (AiJsonSupport.hasText(value)) {
+            addDistinct(sections, label + ": " + value.trim());
+        }
+    }
+
+    private static void addDistinct(List<String> sections, String value) {
+        if (AiJsonSupport.hasText(value) && !sections.contains(value.trim())) {
+            sections.add(value.trim());
+        }
+    }
+
+    private static boolean isGreetingHr(URI uri) {
+        String host = uri.getHost();
+        return host != null && host.toLowerCase(Locale.ROOT).endsWith("greetinghr.com");
+    }
+
+    private static long elapsedMillis(long startedAt) {
+        return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
     boolean looksLikeMissingDetailSection(String pageText) {
@@ -321,7 +560,12 @@ public class JobApplicationUrlParseService {
                             : "채용 공고 이미지에서 정보를 추출하세요.";
             String raw =
                     nvidiaNimClient.generateWithImages(
-                            VISION_PARSE_PROMPT, userPrompt, visionModel, parts);
+                            VISION_PARSE_PROMPT,
+                            userPrompt,
+                            visionModel,
+                            parts,
+                            VISION_MAX_OUTPUT_TOKENS,
+                            VISION_AI_TIMEOUT);
             return AiJsonSupport.parseJson(objectMapper, raw, ExtractedFields.class, "채용공고 이미지 분석");
         } catch (Exception exception) {
             log.warn("채용공고 배너 이미지 분석 실패", exception);

@@ -3,19 +3,28 @@ package com.selfintro.modules.jobapplication.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import javax.imageio.ImageIO;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,7 +38,7 @@ class JobApplicationUrlParseServiceTest {
 
     @Test
     void acceptsSaraminRelayUrl() {
-        when(nimClient.generate(anyString(), anyString()))
+        when(nimClient.generateOnce(anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("{\"companyName\":\"테스트\",\"positionTitle\":\"개발자\"}");
 
         assertThatCode(
@@ -74,6 +83,84 @@ class JobApplicationUrlParseServiceTest {
     void looksLikeMissingDetailSectionFalseWhenDetailMarkerPresent() {
         assertThat(service.looksLikeMissingDetailSection("포지션 및 자격요건\n수행업무\n담당 업무 내용\n우대사항\n관련 경험"))
                 .isFalse();
+    }
+
+    @Test
+    void greetingHrUsesFocusedStructuredTextWithoutDuplicateDesktopBody() {
+        Document document =
+                Jsoup.parse(
+                        """
+                        <html><head>
+                          <meta property="og:site_name" content="넥스트그라운드">
+                          <meta property="og:title" content="백엔드 개발자 (전환형 인턴)">
+                        </head><body>
+                          <nav>전체 공고 메뉴 추천 공고 불필요한 텍스트</nav>
+                          <div data-testid="공고_상세_정보">고용형태 인턴 근무지 서울 강남구</div>
+                          <div class="ql-editor">담당업무 Spring 백엔드 개발 지원자격 Java</div>
+                          <div class="ql-editor">담당업무 Spring 백엔드 개발 지원자격 Java</div>
+                        </body></html>
+                        """,
+                        "https://nextground.career.greetinghr.com/ko/o/101668");
+
+        String text =
+                service.extractPageText(
+                        URI.create("https://nextground.career.greetinghr.com/ko/o/101668"),
+                        document);
+
+        assertThat(text).contains("회사명: 넥스트그라운드");
+        assertThat(text).contains("직무명: 백엔드 개발자 (전환형 인턴)");
+        assertThat(text).contains("고용형태 인턴 근무지 서울 강남구");
+        assertThat(text).doesNotContain("전체 공고 메뉴");
+        assertThat(text.split("담당업무", -1)).hasSize(2);
+    }
+
+    @Test
+    void greetingHrStructuredHtmlIsParsedWithoutAiCall() {
+        Document document =
+                Jsoup.parse(
+                        """
+                        <html><head>
+                          <meta property="og:site_name" content="넥스트그라운드">
+                          <meta property="og:title" content="백엔드 개발자 (전환형 인턴)">
+                        </head><body>
+                          <div data-testid="공고_요약_컴포넌트">
+                            <span data-testid="공고_요약_컴포넌트_제목">고용형태</span>
+                            <span data-testid="공고_요약_컴포넌트_내용">인턴</span>
+                          </div>
+                          <div data-testid="공고_요약_컴포넌트">
+                            <span data-testid="공고_요약_컴포넌트_제목">근무지</span>
+                            <span data-testid="공고_요약_컴포넌트_내용">서울특별시 강남구</span>
+                          </div>
+                          <div class="ql-editor">
+                            <h3>주요 업무</h3><ul><li>Spring 백엔드 개발</li></ul>
+                            <h3>자격 요건</h3><ul><li>Java 개발 경험</li></ul>
+                            <h3>우대 사항</h3><ul><li>서비스 운영 경험</li></ul>
+                            <h3>지금 바로 지원하세요!</h3>
+                            <ul><li>제출 서류: 이력서</li><li>채용 과정: 서류 → 인터뷰</li></ul>
+                          </div>
+                        </body></html>
+                        """,
+                        "https://nextground.career.greetinghr.com/ko/o/101668");
+
+        JobApplicationUrlParseResponse response =
+                service.parseGreetingHrDocument(
+                                URI.create("https://nextground.career.greetinghr.com/ko/o/101668"),
+                                document,
+                                "https://nextground.career.greetinghr.com/ko/o/101668")
+                        .orElseThrow();
+
+        assertThat(response.companyName()).isEqualTo("넥스트그라운드");
+        assertThat(response.positionTitle()).isEqualTo("백엔드 개발자 (전환형 인턴)");
+        assertThat(response.source()).isEqualTo("그리팅");
+        assertThat(response.location()).isEqualTo("서울특별시 강남구");
+        assertThat(response.employmentType()).isEqualTo("인턴");
+        assertThat(response.jobDescription()).contains("Spring 백엔드 개발");
+        assertThat(response.requiredQualifications()).contains("Java 개발 경험");
+        assertThat(response.preferredQualifications()).contains("서비스 운영 경험");
+        assertThat(response.applicationMethod()).contains("제출 서류: 이력서");
+        assertThat(response.hiringProcess()).contains("채용 과정: 서류 → 인터뷰");
+        verify(nimClient, never())
+                .generateOnce(anyString(), anyString(), anyInt(), any(Duration.class));
     }
 
     @Test

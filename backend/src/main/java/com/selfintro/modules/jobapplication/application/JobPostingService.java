@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.support.CronExpression;
@@ -47,7 +48,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Transactional(readOnly = true)
 public class JobPostingService {
 
-    private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
+    private static final long STREAM_TIMEOUT_MILLIS = 360_000L;
+    private static final long HEARTBEAT_INTERVAL_MILLIS = 20_000L;
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingStatusEventRepository statusEventRepository;
@@ -55,7 +57,17 @@ public class JobPostingService {
     private final JobApplicationUrlParseService urlParseService;
     private final JobMatchingService matchingService;
     private final ObjectMapper objectMapper;
-    private final Semaphore ingestSemaphore = new Semaphore(3);
+    // 이 세마포어는 외부 AI의 전역 쿼터가 아니라 현재 JVM(Pod)의 수집 작업량을 제한한다.
+    // bulk 입력 상한과 같은 5를 기본값으로 둬 한 요청의 모든 URL이 즉시 시작되게 한다.
+    private Semaphore ingestSemaphore = new Semaphore(5, true);
+
+    @Value("${app.job-posting.ingest-concurrency:5}")
+    void configureIngestConcurrency(int concurrency) {
+        if (concurrency < 1) {
+            throw new IllegalArgumentException("공고 수집 동시성은 1 이상이어야 합니다.");
+        }
+        ingestSemaphore = new Semaphore(concurrency, true);
+    }
 
     public List<JobPostingResponse> list() {
         return jobPostingRepository
@@ -182,6 +194,7 @@ public class JobPostingService {
 
     private void streamIngest(String url, SseEmitter emitter) {
         boolean acquired = false;
+        Thread heartbeat = startHeartbeat(emitter);
         try {
             if (!ingestSemaphore.tryAcquire(10, TimeUnit.SECONDS)) {
                 throw new ResponseStatusException(
@@ -199,6 +212,7 @@ public class JobPostingService {
             log.warn("채용공고 수집 스트리밍 중 예상하지 못한 오류", exception);
             fail(emitter, "공고 수집 중 오류가 발생했습니다. 다시 시도해주세요.");
         } finally {
+            heartbeat.interrupt();
             if (acquired) {
                 ingestSemaphore.release();
             }
@@ -229,6 +243,7 @@ public class JobPostingService {
     }
 
     private void streamBulkIngest(List<String> urls, SseEmitter emitter) {
+        Thread heartbeat = startHeartbeat(emitter);
         int total = urls.size();
         java.util.concurrent.atomic.AtomicInteger completed =
                 new java.util.concurrent.atomic.AtomicInteger(0);
@@ -246,6 +261,11 @@ public class JobPostingService {
                                         () -> {
                                             boolean acquired = false;
                                             try {
+                                                // 한 번에 최대 3건만 AI 분석하되, 같은 bulk 요청 안의 나머지 URL은
+                                                // 30초 뒤 실패시키지 않고 앞선 작업이 끝날 때까지 대기시킨다.
+                                                // 최대 5건이라는 입력 상한이 있어 대기열이 무한히 늘어나지 않는다.
+                                                ingestSemaphore.acquire();
+                                                acquired = true;
                                                 send(
                                                         emitter,
                                                         new BulkProgressEvent(
@@ -254,20 +274,6 @@ public class JobPostingService {
                                                                 completed.get(),
                                                                 url,
                                                                 "processing"));
-                                                if (!ingestSemaphore.tryAcquire(
-                                                        30, TimeUnit.SECONDS)) {
-                                                    errorCount.incrementAndGet();
-                                                    send(
-                                                            emitter,
-                                                            new BulkItemErrorEvent(
-                                                                    "item_error",
-                                                                    total,
-                                                                    completed.incrementAndGet(),
-                                                                    url,
-                                                                    "서버가 바빠 수집을 시작하지 못했습니다."));
-                                                    return;
-                                                }
-                                                acquired = true;
 
                                                 JobPostingResponse response = ingestUrl(url);
                                                 successCount.incrementAndGet();
@@ -293,6 +299,17 @@ public class JobPostingService {
                                                                 completed.incrementAndGet(),
                                                                 url,
                                                                 msg));
+                                            } catch (InterruptedException ex) {
+                                                Thread.currentThread().interrupt();
+                                                errorCount.incrementAndGet();
+                                                send(
+                                                        emitter,
+                                                        new BulkItemErrorEvent(
+                                                                "item_error",
+                                                                total,
+                                                                completed.incrementAndGet(),
+                                                                url,
+                                                                "공고 수집 대기가 중단되었습니다."));
                                             } catch (Exception ex) {
                                                 log.warn("다중 공고 수집 중 오류: url={}", url, ex);
                                                 errorCount.incrementAndGet();
@@ -328,7 +345,27 @@ public class JobPostingService {
         } catch (Exception ex) {
             log.warn("다중 공고 수집 스트림 중 예외 발생", ex);
             fail(emitter, "다중 공고 수집 처리 중 오류가 발생했습니다.");
+        } finally {
+            heartbeat.interrupt();
         }
+    }
+
+    private Thread startHeartbeat(SseEmitter emitter) {
+        return Thread.ofVirtual()
+                .name("job-posting-sse-heartbeat")
+                .start(
+                        () -> {
+                            try {
+                                while (!Thread.currentThread().isInterrupted()) {
+                                    Thread.sleep(HEARTBEAT_INTERVAL_MILLIS);
+                                    emitter.send(SseEmitter.event().comment("keepalive"));
+                                }
+                            } catch (InterruptedException exception) {
+                                Thread.currentThread().interrupt();
+                            } catch (IOException | IllegalStateException exception) {
+                                log.debug("채용공고 SSE heartbeat 종료", exception);
+                            }
+                        });
     }
 
     private void send(SseEmitter emitter, Object payload) {

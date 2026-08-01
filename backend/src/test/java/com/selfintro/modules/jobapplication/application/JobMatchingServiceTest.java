@@ -1,6 +1,8 @@
 package com.selfintro.modules.jobapplication.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -12,6 +14,7 @@ import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -59,14 +62,16 @@ class JobMatchingServiceTest {
                 service.evaluate("프론트엔드 개발자", "React, TypeScript 경험 우대");
 
         assertThat(result.score()).isNull();
-        verify(nvidiaNimClient, never()).generate(anyString(), anyString());
+        verify(nvidiaNimClient, never())
+                .generateJsonOnce(anyString(), anyString(), anyInt(), any(Duration.class));
     }
 
     @Test
     void evaluatesWithoutSkippingWhenThresholdIsZero() {
         when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(0));
-        when(nvidiaNimClient.generate(anyString(), anyString()))
+        when(nvidiaNimClient.generateJsonOnce(
+                        anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("{\"score\":60,\"reason\":\"기본 백엔드 적합도 평가 점수입니다.\"}");
         JobMatchingService service =
                 new JobMatchingService(
@@ -82,7 +87,8 @@ class JobMatchingServiceTest {
     void callsAiAndClampsScoreWhenThresholdMet() {
         when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
-        when(nvidiaNimClient.generate(anyString(), anyString()))
+        when(nvidiaNimClient.generateJsonOnce(
+                        anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("{\"score\":140,\"reason\":\"Java와 Spring 경험이 일치합니다.\"}");
         JobMatchingService service =
                 new JobMatchingService(
@@ -96,10 +102,46 @@ class JobMatchingServiceTest {
     }
 
     @Test
+    void acceptsSchemaFieldsWhenModelOmitsJsonBraces() {
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
+        when(nvidiaNimClient.generateJsonOnce(
+                        anyString(), anyString(), anyInt(), any(Duration.class)))
+                .thenReturn("score: 85\nreason: Java와 Spring 기술이 공고와 일치합니다.");
+        JobMatchingService service =
+                new JobMatchingService(
+                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+
+        JobMatchingService.MatchResult result =
+                service.evaluate("백엔드 개발자", "Java, Spring Boot 경험자");
+
+        assertThat(result.score()).isEqualTo(85);
+        assertThat(result.reason()).contains("기술이 공고와 일치");
+    }
+
+    @Test
+    void suppliesEvidenceBasedReasonWhenModelReturnsBlankReason() {
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
+        when(nvidiaNimClient.generateJsonOnce(
+                        anyString(), anyString(), anyInt(), any(Duration.class)))
+                .thenReturn("{\"score\":82,\"reason\":\"\"}");
+        JobMatchingService service =
+                new JobMatchingService(
+                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+
+        JobMatchingService.MatchResult result = service.evaluate("백엔드 개발자", "Java와 Spring 경험");
+
+        assertThat(result.score()).isEqualTo(82);
+        assertThat(result.reason()).contains("2개가");
+    }
+
+    @Test
     void returnsEmptyWhenNvidiaClientThrowsBecauseKeyMissing() {
         when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
-        when(nvidiaNimClient.generate(anyString(), anyString()))
+        when(nvidiaNimClient.generateJsonOnce(
+                        anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenThrow(
                         new org.springframework.web.server.ResponseStatusException(
                                 org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "no key"));

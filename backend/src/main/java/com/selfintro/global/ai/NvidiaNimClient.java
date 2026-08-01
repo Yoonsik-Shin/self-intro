@@ -1,6 +1,11 @@
 package com.selfintro.global.ai;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.content.Media;
@@ -58,6 +63,48 @@ public class NvidiaNimClient {
                 });
     }
 
+    /**
+     * 사용자 요청 수명 안에서 반드시 끝나야 하는 짧은 구조화 추출용 호출이다. 공용 HTTP read timeout과 재시도 정책을 그대로 쓰면 한 번의 느린 응답이
+     * SSE 전체 제한을 모두 소비할 수 있어, 호출별 작업 시간과 출력량을 별도로 제한한다.
+     */
+    public String generateOnce(
+            String systemPrompt, String userPrompt, int maxOutputTokensOverride, Duration timeout) {
+        return generateOnce(
+                systemPrompt, userPrompt, maxOutputTokensOverride, timeout, jsonResponseFormat);
+    }
+
+    /** 구조화 응답이 반드시 필요한 짧은 호출에만 OpenAI 호환 JSON object 모드를 강제한다. */
+    public String generateJsonOnce(
+            String systemPrompt, String userPrompt, int maxOutputTokensOverride, Duration timeout) {
+        return generateOnce(systemPrompt, userPrompt, maxOutputTokensOverride, timeout, true);
+    }
+
+    private String generateOnce(
+            String systemPrompt,
+            String userPrompt,
+            int maxOutputTokensOverride,
+            Duration timeout,
+            boolean forceJsonResponse) {
+        ensureAvailable();
+        return executeWithTimeout(
+                () -> {
+                    String content =
+                            chatClient
+                                    .prompt()
+                                    .system(systemPrompt)
+                                    .user(userPrompt)
+                                    .options(
+                                            buildOptions(
+                                                    model,
+                                                    maxOutputTokensOverride,
+                                                    forceJsonResponse))
+                                    .call()
+                                    .content();
+                    return requireContent(content);
+                },
+                timeout);
+    }
+
     public String generateWithImage(
             String systemPrompt,
             String userPrompt,
@@ -98,6 +145,37 @@ public class NvidiaNimClient {
         } catch (Exception exception) {
             throw translate(exception);
         }
+    }
+
+    public String generateWithImages(
+            String systemPrompt,
+            String userPrompt,
+            String model,
+            List<ImagePart> images,
+            int maxOutputTokensOverride,
+            Duration timeout) {
+        ensureAvailable();
+        return executeWithTimeout(
+                () -> {
+                    Media[] media =
+                            images.stream()
+                                    .map(
+                                            image ->
+                                                    new Media(
+                                                            MimeType.valueOf(image.mimeType()),
+                                                            new ByteArrayResource(image.bytes())))
+                                    .toArray(Media[]::new);
+                    String content =
+                            chatClient
+                                    .prompt()
+                                    .system(systemPrompt)
+                                    .user(u -> u.text(userPrompt).media(media))
+                                    .options(buildOptions(model, maxOutputTokensOverride))
+                                    .call()
+                                    .content();
+                    return requireContent(content);
+                },
+                timeout);
     }
 
     public record ImagePart(byte[] bytes, String mimeType) {}
@@ -144,13 +222,18 @@ public class NvidiaNimClient {
     }
 
     private OpenAiChatOptions buildOptions(String modelOverride, int maxTokensOverride) {
+        return buildOptions(modelOverride, maxTokensOverride, jsonResponseFormat);
+    }
+
+    private OpenAiChatOptions buildOptions(
+            String modelOverride, int maxTokensOverride, boolean useJsonResponseFormat) {
         OpenAiChatOptions.Builder builder =
                 OpenAiChatOptions.builder()
                         .model(modelOverride)
                         .temperature(0.2)
                         .topP(0.9)
                         .maxTokens(maxTokensOverride);
-        if (jsonResponseFormat) {
+        if (useJsonResponseFormat) {
             // NVIDIA NIM의 Qwen3.5 엔드포인트는 response_format 지정 시 빈 응답을 반환해 기본값을 비활성으로 뒀었다.
             // Nemotron으로 교체 후 정상 동작 여부를 재검증하고 필요 시 true로 전환할 것.
             builder.responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_OBJECT, null));
@@ -207,5 +290,36 @@ public class NvidiaNimClient {
             }
         }
         throw translate(lastException);
+    }
+
+    private <T> T executeWithTimeout(java.util.concurrent.Callable<T> callable, Duration timeout) {
+        FutureTask<T> task = new FutureTask<>(callable);
+        Thread worker = Thread.ofVirtual().name("nvidia-nim-bounded-call").start(task);
+        try {
+            return task.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException exception) {
+            task.cancel(true);
+            worker.interrupt();
+            throw new ResponseStatusException(
+                    HttpStatus.GATEWAY_TIMEOUT,
+                    "NVIDIA API가 제한 시간 " + timeout.toSeconds() + "초 안에 응답하지 않았습니다.",
+                    exception);
+        } catch (InterruptedException exception) {
+            task.cancel(true);
+            worker.interrupt();
+            Thread.currentThread().interrupt();
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "NVIDIA API 호출이 중단되었습니다.", exception);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof ResponseStatusException responseStatusException) {
+                throw responseStatusException;
+            }
+            if (cause instanceof Exception nestedException) {
+                throw translate(nestedException);
+            }
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY, "NVIDIA API 호출에 실패했습니다.", cause);
+        }
     }
 }

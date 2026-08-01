@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +58,24 @@ class JobPostingServiceTest {
                         urlParseService,
                         matchingService,
                         new ObjectMapper());
+    }
+
+    @Test
+    void configuresPerInstanceIngestConcurrency() {
+        jobPostingService.configureIngestConcurrency(5);
+
+        Semaphore semaphore =
+                (Semaphore) ReflectionTestUtils.getField(jobPostingService, "ingestSemaphore");
+        assertThat(semaphore).isNotNull();
+        assertThat(semaphore.availablePermits()).isEqualTo(5);
+        assertThat(semaphore.isFair()).isTrue();
+    }
+
+    @Test
+    void rejectsInvalidIngestConcurrency() {
+        assertThatThrownBy(() -> jobPostingService.configureIngestConcurrency(0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1 이상");
     }
 
     private JobPosting newCandidate() {

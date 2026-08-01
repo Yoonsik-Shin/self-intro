@@ -88,6 +88,9 @@ app:
   # 지역·직무·업종 코드/매칭 임계치/수집 스케줄 cron은 재배포 없이 바꿀 수 있도록
   # job_posting_setting 테이블(어드민 설정 화면, JobPostingSettingRepository)에서 관리한다.
   job-posting:
+    # 백엔드 인스턴스 하나가 동시에 처리할 URL 수집 작업 수. 다중 수집 입력 상한(5)과 맞춰
+    # 한 bulk 요청의 모든 공고가 즉시 시작되게 한다. 전역 NVIDIA 쿼터 제한값이 아니다.
+    ingest-concurrency: ${JOB_POSTING_INGEST_CONCURRENCY:5}
     saramin:
       access-key: ${SARAMIN_ACCESS_KEY:}
   donation:

@@ -6,10 +6,14 @@ import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 공고와 내 기술 스택 간 적합도를 2단계로 평가한다: 1) 키워드 사전 필터로 AI 호출 여부를 결정하고, 2) 통과한 공고만 NVIDIA NIM으로 최종 점수/근거를
@@ -22,6 +26,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class JobMatchingService {
+
+    private static final int MATCH_MAX_OUTPUT_TOKENS = 1024;
+    private static final Duration MATCH_AI_TIMEOUT = Duration.ofSeconds(60);
+    private static final Pattern SCORE_PATTERN =
+            Pattern.compile("(?i)(?:\\\"?score\\\"?|점수)\\s*[:：]?\\s*(\\d{1,3})");
+    private static final Pattern REASON_PATTERN =
+            Pattern.compile("(?is)(?:\\\"?reason\\\"?|이유)\\s*[:：]?\\s*[\\\"]?(.+?)[\\\"]?\\s*$");
 
     private static final String MATCH_PROMPT =
             """
@@ -78,17 +89,41 @@ public class JobMatchingService {
                             + safe(title)
                             + "\n공고 요건: "
                             + safe(requiredSkillsRaw);
-            String raw = nvidiaNimClient.generate(MATCH_PROMPT, userPrompt);
-            ScoreResponse response =
-                    AiJsonSupport.parseJson(objectMapper, raw, ScoreResponse.class, "채용 공고 매칭 평가");
-            return new MatchResult(
-                    clampScore(response.score()), AiJsonSupport.limit(response.reason(), 500));
+            String raw =
+                    nvidiaNimClient.generateJsonOnce(
+                            MATCH_PROMPT, userPrompt, MATCH_MAX_OUTPUT_TOKENS, MATCH_AI_TIMEOUT);
+            ScoreResponse response = parseScoreResponse(raw);
+            String reason =
+                    AiJsonSupport.hasText(response.reason())
+                            ? AiJsonSupport.limit(response.reason(), 500)
+                            : "보유 기술 중 " + overlapCount + "개가 공고 제목 또는 요건과 일치한 결과를 바탕으로 산정했습니다.";
+            return new MatchResult(clampScore(response.score()), reason);
         } catch (JsonProcessingException exception) {
             log.warn("채용 공고 매칭 평가 응답 처리 실패", exception);
+            return MatchResult.empty();
+        } catch (ResponseStatusException exception) {
+            log.warn("채용 공고 매칭 평가 실패: {}", exception.getReason());
             return MatchResult.empty();
         } catch (RuntimeException exception) {
             log.warn("채용 공고 매칭 평가 중 오류", exception);
             return MatchResult.empty();
+        }
+    }
+
+    private ScoreResponse parseScoreResponse(String raw) throws JsonProcessingException {
+        try {
+            return AiJsonSupport.parseJson(objectMapper, raw, ScoreResponse.class, "채용 공고 매칭 평가");
+        } catch (ResponseStatusException exception) {
+            // 일부 OpenAI 호환 모델은 JSON mode에서도 드물게 `score: 80\nreason: ...`처럼
+            // 객체 괄호를 생략한다. 단순한 두 필드 응답만 제한적으로 복구하고, 임의 숫자는 점수로
+            // 오인하지 않는다.
+            Matcher scoreMatcher = SCORE_PATTERN.matcher(raw);
+            if (!scoreMatcher.find()) {
+                throw exception;
+            }
+            Matcher reasonMatcher = REASON_PATTERN.matcher(raw);
+            String reason = reasonMatcher.find() ? reasonMatcher.group(1).trim() : null;
+            return new ScoreResponse(Integer.valueOf(scoreMatcher.group(1)), reason);
         }
     }
 
