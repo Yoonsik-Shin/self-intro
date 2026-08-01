@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { adminDetailMarkdownComponents } from '@/lib/markdown';
+import { parseJobplanetClipboard } from '@/lib/jobplanet';
 import {
     AlertTriangle,
     Bookmark,
@@ -28,7 +29,9 @@ import {
     ChevronLeft,
     ChevronRight,
     ExternalLink,
+    Eye,
     EyeOff,
+    FileText,
     Info,
     LayoutGrid,
     List as ListIcon,
@@ -45,12 +48,15 @@ import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { PostingMemoEditor } from './PostingMemoEditor';
 import type {
+    GapProjectDocument,
     JobPosting,
     JobPostingCoverLetterItemRequest,
+    JobPostingPrintDraftResponse,
     JobPostingRequest,
     JobPostingSettingRequest,
     JobPostingStatus,
     JobPostingStatusEvent,
+    JobplanetLookup,
 } from '@/lib/api/types';
 
 /** status가 이 중 하나면 아직 지원 전(수집 후보) 단계다 — 나머지는 전형 진행 단계. */
@@ -254,6 +260,47 @@ function MatchScoreBadge({
         <span className="font-medium text-slate-500" title={reason ?? undefined}>
             {score}점
         </span>
+    );
+}
+
+function JobplanetScoreBadge({
+    rating,
+    reviewCount,
+    companyUrl,
+}: {
+    rating: number | null | undefined;
+    reviewCount?: number | null;
+    companyUrl?: string | null;
+}) {
+    if (rating === null || rating === undefined) {
+        return <span className="text-slate-300">—</span>;
+    }
+
+    const badge = (
+        <span className="inline-flex items-center gap-1 font-extrabold text-amber-500">
+            <span aria-hidden>★</span>
+            {rating.toFixed(1)}
+            {reviewCount !== null && reviewCount !== undefined && (
+                <span className="text-[10px] font-semibold text-slate-400">
+                    ({reviewCount.toLocaleString()})
+                </span>
+            )}
+        </span>
+    );
+
+    return companyUrl ? (
+        <a
+            href={companyUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            title="잡플래닛 기업 페이지 열기"
+            className="hover:opacity-75"
+        >
+            {badge}
+        </a>
+    ) : (
+        badge
     );
 }
 
@@ -757,12 +804,21 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
  * 그중 실제로 제출한 것 하나를 "최종 제출본"으로 표시해둘 수 있다. */
 const MAX_FINAL_PDF_SIZE_BYTES = 20 * 1024 * 1024;
 
-function PrintTemplatesPanel({ jobPostingId }: { jobPostingId: number }) {
+function PrintTemplatesPanel({
+    jobPostingId,
+    hasAppealAnalysis,
+    appealAnalyzedAt,
+}: {
+    jobPostingId: number;
+    hasAppealAnalysis: boolean;
+    appealAnalyzedAt?: string | null;
+}) {
     const queryClient = useQueryClient();
     const queryKey = ['jobPostings', jobPostingId, 'printTemplates'] as const;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [pendingUploadId, setPendingUploadId] = useState<number | null>(null);
     const [uploadingId, setUploadingId] = useState<number | null>(null);
+    const [latestDraft, setLatestDraft] = useState<JobPostingPrintDraftResponse | null>(null);
 
     const {
         data: templates = [],
@@ -792,6 +848,20 @@ function PrintTemplatesPanel({ jobPostingId }: { jobPostingId: number }) {
         onSuccess: () => queryClient.invalidateQueries({ queryKey }),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : 'PDF 삭제에 실패했습니다.'),
+    });
+
+    const generatePrintDraftMutation = useMutation({
+        mutationFn: () => jobPostingApi.generatePrintDraft(jobPostingId),
+        onSuccess: (result) => {
+            setLatestDraft(result);
+            queryClient.invalidateQueries({ queryKey });
+        },
+        onError: (error) =>
+            alert(
+                error instanceof ApiError
+                    ? `PDF 초안을 만들지 못했습니다. ${error.message}`
+                    : 'PDF 초안을 만들지 못했습니다.'
+            ),
     });
 
     function requestUpload(templateId: number) {
@@ -858,6 +928,81 @@ function PrintTemplatesPanel({ jobPostingId }: { jobPostingId: number }) {
                 className="hidden"
                 onChange={handleFileSelected}
             />
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-sm font-extrabold text-indigo-900">AI 맞춤 초안</p>
+                        <p className="mt-1 text-xs leading-5 text-indigo-700">
+                            {hasAppealAnalysis
+                                ? '현재 어필 포인트 분석을 기준으로 PDF에 넣을 내용과 뺄 내용을 구성합니다.'
+                                : '먼저 경력 매칭 분석 탭에서 AI 어필 포인트 분석을 실행해 주세요.'}
+                        </p>
+                        {appealAnalyzedAt && (
+                            <p className="mt-1 text-[11px] font-semibold text-indigo-400">
+                                마지막 분석 · {appealAnalyzedAt.replace('T', ' ').slice(0, 16)}
+                            </p>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        disabled={!hasAppealAnalysis || generatePrintDraftMutation.isPending}
+                        onClick={() => generatePrintDraftMutation.mutate()}
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        {generatePrintDraftMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <FileText className="h-3.5 w-3.5" />
+                        )}
+                        {generatePrintDraftMutation.isPending
+                            ? '초안 구성 중...'
+                            : templates.length > 0
+                              ? '새 AI 초안 생성'
+                              : 'AI 초안 생성'}
+                    </button>
+                </div>
+            </div>
+
+            {latestDraft && (
+                <div className="rounded-xl border border-indigo-200 bg-white p-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-sm font-extrabold text-indigo-900">
+                                AI PDF 초안이 만들어졌습니다
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-slate-600">
+                                {latestDraft.strategySummary}
+                            </p>
+                            <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                                포함 후보 {latestDraft.includedCount}개 · 제외 설정{' '}
+                                {latestDraft.excludedCount}개 · 목표 직무 {latestDraft.targetRole}
+                            </p>
+                        </div>
+                        <a
+                            href={`/print?admin=1&templateId=${latestDraft.templateId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex shrink-0 items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700"
+                        >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            초안 열기
+                        </a>
+                    </div>
+                    {latestDraft.warnings.length > 0 && (
+                        <ul className="mt-2 space-y-1 border-t border-indigo-100 pt-2">
+                            {latestDraft.warnings.map((warning, index) => (
+                                <li
+                                    key={`${index}-${warning}`}
+                                    className="text-[11px] text-amber-700"
+                                >
+                                    확인 필요 · {warning}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+
             <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-slate-400">
                     실제로 제출한 PDF 파일을 올려두면 그 자체가 최종 제출본이 됩니다(이후 이력서
@@ -902,6 +1047,11 @@ function PrintTemplatesPanel({ jobPostingId }: { jobPostingId: number }) {
                                     {t.isFinalSubmission && (
                                         <span className="shrink-0 rounded bg-emerald-600 px-1.5 py-0.5 text-[9px] font-black text-white">
                                             최종 제출본
+                                        </span>
+                                    )}
+                                    {t.source === 'AI' && (
+                                        <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-black text-indigo-600">
+                                            AI 초안
                                         </span>
                                     )}
                                     {t.finalPdfUrl && (
@@ -980,8 +1130,393 @@ function PrintTemplatesPanel({ jobPostingId }: { jobPostingId: number }) {
     );
 }
 
-/** 어필 분석 결과는 항상 전체 내용으로 보여주되, 긴 분석이 드로어 전체를 밀어내지 않도록
- * 본문에만 최대 높이를 두고 내부 스크롤한다. */
+function JobplanetEditor({
+    lookup,
+    onCancel,
+    onSaved,
+}: {
+    lookup: JobplanetLookup;
+    onCancel: () => void;
+    onSaved: () => void;
+}) {
+    const [companyName, setCompanyName] = useState(
+        lookup.jobplanetCompanyName ?? lookup.companyName
+    );
+    const [rating, setRating] = useState(lookup.rating === null ? '' : String(lookup.rating));
+    const [reviewCount, setReviewCount] = useState(
+        lookup.reviewCount === null ? '' : String(lookup.reviewCount)
+    );
+    const [companyUrl, setCompanyUrl] = useState(lookup.companyUrl ?? '');
+    const [importText, setImportText] = useState('');
+    const [importNotice, setImportNotice] = useState<string | null>(null);
+    const saveMutation = useMutation({
+        mutationFn: () =>
+            jobPostingApi.saveJobplanet(lookup.jobPostingId, {
+                companyName: companyName.trim(),
+                rating: Number(rating),
+                reviewCount: reviewCount.trim() ? Number(reviewCount) : null,
+                companyUrl: companyUrl.trim(),
+            }),
+        onSuccess: onSaved,
+        onError: (error) =>
+            alert(
+                error instanceof ApiError ? error.message : '잡플래닛 정보를 저장하지 못했습니다.'
+            ),
+    });
+    const canSave =
+        companyName.trim().length > 0 &&
+        companyUrl.trim().length > 0 &&
+        rating.trim().length > 0 &&
+        Number(rating) >= 0 &&
+        Number(rating) <= 5;
+
+    function applyClipboardText(text: string) {
+        const parsed = parseJobplanetClipboard(text, companyName || lookup.companyName);
+        if (parsed.found.length === 0) {
+            setImportNotice(
+                '평점·리뷰 수·잡플래닛 URL을 찾지 못했습니다. 복사 범위를 확인해주세요.'
+            );
+            return;
+        }
+        if (parsed.found.includes('companyName')) setCompanyName(parsed.companyName);
+        if (parsed.rating !== null) setRating(String(parsed.rating));
+        if (parsed.reviewCount !== null) setReviewCount(String(parsed.reviewCount));
+        if (parsed.companyUrl) setCompanyUrl(parsed.companyUrl);
+
+        const labels = parsed.found.map((field) => {
+            if (field === 'rating') return '평점';
+            if (field === 'reviewCount') return '리뷰 수';
+            if (field === 'companyUrl') return 'URL';
+            return '기업명';
+        });
+        setImportNotice(`${labels.join(' · ')} 항목을 자동으로 채웠습니다.`);
+    }
+
+    async function importFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            setImportText(text);
+            applyClipboardText(text);
+        } catch {
+            setImportNotice('클립보드를 읽지 못했습니다. 아래 입력란에 직접 붙여넣어 주세요.');
+        }
+    }
+
+    return (
+        <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+            <div className="rounded-lg border border-dashed border-amber-300 bg-white/80 p-2.5">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-[11px] font-extrabold text-amber-700">
+                            클립보드에서 자동 채우기
+                        </p>
+                        <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                            잡플래닛 기업 페이지의 회사명·평점·리뷰 수 영역이나 주소창 URL을 복사해
+                            가져오세요. 여러 번 가져오면 찾은 항목만 덮어씁니다.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={importFromClipboard}
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-amber-600"
+                    >
+                        <Clipboard className="h-3.5 w-3.5" />
+                        클립보드 가져오기
+                    </button>
+                </div>
+                <textarea
+                    value={importText}
+                    onChange={(event) => setImportText(event.target.value)}
+                    onPaste={(event) => {
+                        const pasted = event.clipboardData.getData('text/plain');
+                        if (pasted) setTimeout(() => applyClipboardText(pasted), 0);
+                    }}
+                    placeholder="여기에 잡플래닛에서 복사한 내용이나 기업 페이지 URL을 붙여넣어도 됩니다."
+                    className="mt-2 h-16 w-full resize-y rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-700 outline-none focus:border-amber-400"
+                />
+                <div className="mt-1 flex items-center justify-between gap-2">
+                    <p
+                        className={`text-[10px] font-semibold ${importNotice?.includes('찾지 못') || importNotice?.includes('못했습니다') ? 'text-rose-500' : 'text-emerald-600'}`}
+                    >
+                        {importNotice}
+                    </p>
+                    <button
+                        type="button"
+                        disabled={!importText.trim()}
+                        onClick={() => applyClipboardText(importText)}
+                        className="shrink-0 rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-bold text-amber-700 disabled:opacity-40"
+                    >
+                        붙여넣은 내용 분석
+                    </button>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                <label className="col-span-2 text-[11px] font-bold text-slate-500">
+                    잡플래닛 기업명
+                    <input
+                        value={companyName}
+                        onChange={(event) => setCompanyName(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
+                    />
+                </label>
+                <label className="text-[11px] font-bold text-slate-500">
+                    평점 (0~5)
+                    <input
+                        type="number"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        value={rating}
+                        onChange={(event) => setRating(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
+                    />
+                </label>
+                <label className="text-[11px] font-bold text-slate-500">
+                    리뷰 수
+                    <input
+                        type="number"
+                        min="0"
+                        value={reviewCount}
+                        onChange={(event) => setReviewCount(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
+                    />
+                </label>
+                <label className="col-span-2 text-[11px] font-bold text-slate-500">
+                    기업 페이지 URL
+                    <input
+                        type="url"
+                        placeholder="https://www.jobplanet.co.kr/companies/..."
+                        value={companyUrl}
+                        onChange={(event) => setCompanyUrl(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-amber-400"
+                    />
+                </label>
+            </div>
+            <div className="flex justify-end gap-2">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-500"
+                >
+                    취소
+                </button>
+                <button
+                    type="button"
+                    disabled={!canSave || saveMutation.isPending}
+                    onClick={() => saveMutation.mutate()}
+                    className="flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white disabled:opacity-40"
+                >
+                    {saveMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                    저장
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function JobplanetReputationCard({ jobPostingId }: { jobPostingId: number }) {
+    const queryClient = useQueryClient();
+    const [editing, setEditing] = useState(false);
+    const queryKey = ['jobPostings', jobPostingId, 'jobplanet'] as const;
+    const { data: lookup, isLoading } = useQuery({
+        queryKey,
+        queryFn: () => jobPostingApi.getJobplanet(jobPostingId),
+    });
+    const clearMutation = useMutation({
+        mutationFn: () => jobPostingApi.clearJobplanet(jobPostingId),
+        onSuccess: () => {
+            setEditing(false);
+            queryClient.invalidateQueries({ queryKey });
+            queryClient.invalidateQueries({ queryKey: ['jobPostings'] });
+        },
+    });
+    const refresh = () => {
+        setEditing(false);
+        queryClient.invalidateQueries({ queryKey });
+        queryClient.invalidateQueries({ queryKey: ['jobPostings'] });
+    };
+
+    if (isLoading || !lookup) {
+        return <div className="h-16 animate-pulse rounded-xl bg-slate-100" />;
+    }
+    if (editing) {
+        return (
+            <JobplanetEditor
+                key={`${lookup.checkedAt ?? 'new'}-${lookup.companyUrl ?? ''}`}
+                lookup={lookup}
+                onCancel={() => setEditing(false)}
+                onSaved={refresh}
+            />
+        );
+    }
+
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                        Jobplanet
+                    </p>
+                    {lookup.companyUrl ? (
+                        <div className="mt-0.5 flex items-baseline gap-2">
+                            <a
+                                href={lookup.companyUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="truncate text-sm font-extrabold text-slate-800 hover:text-amber-600"
+                            >
+                                {lookup.jobplanetCompanyName}
+                            </a>
+                            {lookup.rating !== null && (
+                                <span className="shrink-0 text-lg font-black text-amber-500">
+                                    {lookup.rating.toFixed(1)}
+                                </span>
+                            )}
+                            {lookup.reviewCount !== null && (
+                                <span className="shrink-0 text-[10px] font-semibold text-slate-400">
+                                    리뷰 {lookup.reviewCount.toLocaleString()}개
+                                </span>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                            아직 확인된 기업 평점이 없습니다.
+                        </p>
+                    )}
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                    <a
+                        href={lookup.searchUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-bold text-amber-600"
+                    >
+                        <ExternalLink className="h-3 w-3" /> 검색
+                    </a>
+                    <button
+                        type="button"
+                        onClick={() => setEditing(true)}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600"
+                    >
+                        {lookup.companyUrl ? '수정' : '가져오기'}
+                    </button>
+                    {lookup.companyUrl && (
+                        <button
+                            type="button"
+                            disabled={clearMutation.isPending}
+                            onClick={() => {
+                                if (confirm('저장된 잡플래닛 정보를 삭제할까요?')) {
+                                    clearMutation.mutate();
+                                }
+                            }}
+                            className="rounded-lg border border-rose-200 bg-white px-2 py-1 text-[11px] font-bold text-rose-500 disabled:opacity-40"
+                        >
+                            삭제
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function GapProjectDocumentsPanel({
+    jobPostingId,
+    hasAppealAnalysis,
+}: {
+    jobPostingId: number;
+    hasAppealAnalysis: boolean;
+}) {
+    const queryClient = useQueryClient();
+    const queryKey = ['jobPostings', jobPostingId, 'gapProjectDocuments'] as const;
+    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const { data: documents = [], isLoading } = useQuery({
+        queryKey,
+        queryFn: () => jobPostingApi.gapProjectDocuments(jobPostingId),
+    });
+    const selected = documents.find((document) => document.id === selectedId) ?? documents[0];
+    const generateMutation = useMutation({
+        mutationFn: () => jobPostingApi.generateGapProjectDocument(jobPostingId),
+        onSuccess: (document: GapProjectDocument) => {
+            setSelectedId(document.id);
+            queryClient.invalidateQueries({ queryKey });
+        },
+        onError: (error) =>
+            alert(
+                error instanceof ApiError
+                    ? error.message
+                    : '보완 프로젝트 추천 문서를 만들지 못했습니다.'
+            ),
+    });
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+                <p className="text-xs leading-5 text-violet-700">
+                    부족한 경험을 실제로 증명할 수 있는 2~6주 프로젝트와 검증 산출물을 추천합니다.
+                </p>
+                <button
+                    type="button"
+                    disabled={!hasAppealAnalysis || generateMutation.isPending}
+                    onClick={() => generateMutation.mutate()}
+                    className="flex shrink-0 items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    {generateMutation.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {generateMutation.isPending
+                        ? '문서 생성 중...'
+                        : documents.length
+                          ? '새 버전 만들기'
+                          : '추천 문서 만들기'}
+                </button>
+            </div>
+            {!hasAppealAnalysis && (
+                <p className="text-xs font-semibold text-amber-600">
+                    먼저 AI 어필 포인트 분석을 실행해주세요.
+                </p>
+            )}
+            {isLoading ? (
+                <div className="h-20 animate-pulse rounded-xl bg-slate-100" />
+            ) : selected ? (
+                <div className="space-y-3">
+                    {documents.length > 1 && (
+                        <div className="flex gap-1.5 overflow-x-auto pb-1">
+                            {documents.map((document) => (
+                                <button
+                                    key={document.id}
+                                    type="button"
+                                    onClick={() => setSelectedId(document.id)}
+                                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${selected.id === document.id ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500'}`}
+                                >
+                                    v{document.version}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <div className="markdown-body rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={adminDetailMarkdownComponents}
+                        >
+                            {selected.renderedMarkdown}
+                        </ReactMarkdown>
+                    </div>
+                </div>
+            ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-7 text-center text-xs font-semibold text-slate-400">
+                    아직 생성된 보완 프로젝트 문서가 없습니다.
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** 어필 분석 결과는 항상 전체 내용으로 보여준다. 드로어 자체가 유일한 세로 스크롤 컨테이너가
+ * 되도록 중첩 스크롤을 만들지 않는다 — 중첩 스크롤은 하단 고정 액션 영역 근처에서 본문이 잘린
+ * 것처럼 보이게 하고 모바일 터치 스크롤도 불안정하게 만든다. */
 function AppealAnalysisView({
     markdown: rawMarkdown,
     headerExtra,
@@ -1006,7 +1541,7 @@ function AppealAnalysisView({
     return (
         <div>
             {headerExtra && <div className="mb-3">{headerExtra}</div>}
-            <div className="markdown-body max-h-[45vh] overflow-y-auto overscroll-contain pr-2 text-sm text-slate-700">
+            <div className="markdown-body pr-2 text-sm text-slate-700">
                 <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={adminDetailMarkdownComponents}
@@ -2085,7 +2620,7 @@ export function JobApplicationManagement() {
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
                                                 <th className="px-5 py-3 font-bold">AI 매칭</th>
-                                                <th className="px-5 py-3 font-bold">출처</th>
+                                                <th className="px-5 py-3 font-bold">잡플래닛</th>
                                                 <th className="px-5 py-3 font-bold">마감일</th>
                                                 <th className="px-5 py-3 font-bold text-right">
                                                     관리
@@ -2101,28 +2636,28 @@ export function JobApplicationManagement() {
                                                         onClick={() => openDrawer(candidate)}
                                                         className="cursor-pointer text-slate-500 transition hover:bg-slate-50"
                                                     >
-                                                        <td className="px-5 py-3">
-                                                            <span className="font-bold text-slate-700">
-                                                                {candidate.companyName}
-                                                            </span>
-                                                            <span className="ml-2 text-slate-400">
+                                                        <td className="min-w-48 px-5 py-3">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="font-bold text-slate-700">
+                                                                    {candidate.companyName}
+                                                                </span>
+                                                                {candidate.status ===
+                                                                    'DISMISSED' && (
+                                                                    <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                        숨김됨
+                                                                    </span>
+                                                                )}
+                                                                {isCandidateDetailMissing(
+                                                                    candidate
+                                                                ) && (
+                                                                    <span title="상세 정보를 자동으로 가져오지 못했어요">
+                                                                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <span className="mt-0.5 block text-xs text-slate-400">
                                                                 {candidate.positionTitle}
                                                             </span>
-                                                            {candidate.status === 'DISMISSED' && (
-                                                                <span className="ml-2 inline-flex align-middle rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
-                                                                    숨김됨
-                                                                </span>
-                                                            )}
-                                                            {isCandidateDetailMissing(
-                                                                candidate
-                                                            ) && (
-                                                                <span
-                                                                    className="ml-2 inline-flex align-middle"
-                                                                    title="상세 정보를 자동으로 가져오지 못했어요"
-                                                                >
-                                                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                                                                </span>
-                                                            )}
                                                         </td>
                                                         <td className="px-5 py-3 whitespace-nowrap">
                                                             <MatchScoreBadge
@@ -2130,8 +2665,16 @@ export function JobApplicationManagement() {
                                                                 reason={candidate.matchReason}
                                                             />
                                                         </td>
-                                                        <td className="px-5 py-3">
-                                                            {candidate.source}
+                                                        <td className="px-5 py-3 whitespace-nowrap">
+                                                            <JobplanetScoreBadge
+                                                                rating={candidate.jobplanetRating}
+                                                                reviewCount={
+                                                                    candidate.jobplanetReviewCount
+                                                                }
+                                                                companyUrl={
+                                                                    candidate.jobplanetCompanyUrl
+                                                                }
+                                                            />
                                                         </td>
                                                         <td className="px-5 py-3 whitespace-nowrap">
                                                             {candidate.alwaysOpen ? (
@@ -2156,7 +2699,7 @@ export function JobApplicationManagement() {
                                                             )}
                                                         </td>
                                                         <td className="px-5 py-3 text-right">
-                                                            <div className="flex items-center justify-end gap-3">
+                                                            <div className="flex items-center justify-end gap-1.5 xl:gap-3">
                                                                 <button
                                                                     type="button"
                                                                     disabled={
@@ -2168,9 +2711,14 @@ export function JobApplicationManagement() {
                                                                             candidate.id
                                                                         );
                                                                     }}
-                                                                    className="text-xs font-bold text-slate-700 hover:text-slate-900"
+                                                                    title="지원하기"
+                                                                    aria-label="지원하기"
+                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                 >
-                                                                    지원하기
+                                                                    <Check className="h-4 w-4 xl:hidden" />
+                                                                    <span className="hidden xl:inline">
+                                                                        지원하기
+                                                                    </span>
                                                                 </button>
                                                                 {candidate.status ===
                                                                 'DISMISSED' ? (
@@ -2185,9 +2733,14 @@ export function JobApplicationManagement() {
                                                                                 candidate.id
                                                                             );
                                                                         }}
-                                                                        className="text-xs font-bold text-slate-400 hover:text-emerald-600"
+                                                                        title="숨김 해제"
+                                                                        aria-label="숨김 해제"
+                                                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                     >
-                                                                        숨김 해제
+                                                                        <Eye className="h-4 w-4 xl:hidden" />
+                                                                        <span className="hidden xl:inline">
+                                                                            숨김 해제
+                                                                        </span>
                                                                     </button>
                                                                 ) : (
                                                                     <button
@@ -2207,9 +2760,14 @@ export function JobApplicationManagement() {
                                                                                 );
                                                                             }
                                                                         }}
-                                                                        className="text-xs font-bold text-slate-400 hover:text-rose-600"
+                                                                        title="숨김"
+                                                                        aria-label="숨김"
+                                                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                     >
-                                                                        숨김
+                                                                        <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                        <span className="hidden xl:inline">
+                                                                            숨김
+                                                                        </span>
                                                                     </button>
                                                                 )}
                                                                 <button
@@ -2229,9 +2787,14 @@ export function JobApplicationManagement() {
                                                                             );
                                                                         }
                                                                     }}
-                                                                    className="text-xs font-bold text-rose-500 hover:text-rose-700"
+                                                                    title="완전히 삭제"
+                                                                    aria-label="완전히 삭제"
+                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                 >
-                                                                    삭제
+                                                                    <Trash2 className="h-4 w-4 xl:hidden" />
+                                                                    <span className="hidden xl:inline">
+                                                                        삭제
+                                                                    </span>
                                                                 </button>
                                                             </div>
                                                         </td>
@@ -2264,12 +2827,12 @@ export function JobApplicationManagement() {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[800px] text-left text-sm">
+                                    <table className="w-full min-w-[820px] text-left text-sm">
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
                                                 <th className="px-5 py-3 font-bold">AI 매칭</th>
-                                                <th className="px-5 py-3 font-bold">출처</th>
+                                                <th className="px-5 py-3 font-bold">잡플래닛</th>
                                                 <th className="px-5 py-3 font-bold">지원일</th>
                                                 <th className="px-5 py-3 font-bold">마감일</th>
                                                 <th className="px-5 py-3 font-bold">현재 단계</th>
@@ -2285,18 +2848,20 @@ export function JobApplicationManagement() {
                                                     onClick={() => openDrawer(item)}
                                                     className="cursor-pointer text-slate-600 transition hover:bg-slate-50"
                                                 >
-                                                    <td className="px-5 py-3">
-                                                        <span className="font-bold text-slate-800">
-                                                            {item.companyName}
-                                                        </span>
-                                                        <span className="ml-2 text-slate-400">
+                                                    <td className="min-w-48 px-5 py-3">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="font-bold text-slate-800">
+                                                                {item.companyName}
+                                                            </span>
+                                                            {item.status === 'DISMISSED' && (
+                                                                <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                    숨김됨
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="mt-0.5 block text-xs text-slate-400">
                                                             {item.positionTitle}
                                                         </span>
-                                                        {item.status === 'DISMISSED' && (
-                                                            <span className="ml-2 inline-flex align-middle rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
-                                                                숨김됨
-                                                            </span>
-                                                        )}
                                                     </td>
                                                     <td className="px-5 py-3 whitespace-nowrap">
                                                         <MatchScoreBadge
@@ -2304,7 +2869,13 @@ export function JobApplicationManagement() {
                                                             reason={item.matchReason}
                                                         />
                                                     </td>
-                                                    <td className="px-5 py-3">{item.source}</td>
+                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                        <JobplanetScoreBadge
+                                                            rating={item.jobplanetRating}
+                                                            reviewCount={item.jobplanetReviewCount}
+                                                            companyUrl={item.jobplanetCompanyUrl}
+                                                        />
+                                                    </td>
                                                     <td className="px-5 py-3 whitespace-nowrap">
                                                         {item.appliedAt}
                                                     </td>
@@ -2331,7 +2902,7 @@ export function JobApplicationManagement() {
                                                         </span>
                                                     </td>
                                                     <td className="px-5 py-3 text-right">
-                                                        <div className="flex items-center justify-end gap-3">
+                                                        <div className="flex items-center justify-end gap-1.5 xl:gap-3">
                                                             {item.status === 'DISMISSED' ? (
                                                                 <button
                                                                     type="button"
@@ -2344,9 +2915,14 @@ export function JobApplicationManagement() {
                                                                             item.id
                                                                         );
                                                                     }}
-                                                                    className="text-xs font-bold text-slate-400 hover:text-emerald-600"
+                                                                    title="숨김 해제"
+                                                                    aria-label="숨김 해제"
+                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                 >
-                                                                    숨김 해제
+                                                                    <Eye className="h-4 w-4 xl:hidden" />
+                                                                    <span className="hidden xl:inline">
+                                                                        숨김 해제
+                                                                    </span>
                                                                 </button>
                                                             ) : (
                                                                 <button
@@ -2366,9 +2942,14 @@ export function JobApplicationManagement() {
                                                                             );
                                                                         }
                                                                     }}
-                                                                    className="text-xs font-bold text-slate-400 hover:text-rose-600"
+                                                                    title="숨김"
+                                                                    aria-label="숨김"
+                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                 >
-                                                                    숨김
+                                                                    <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                    <span className="hidden xl:inline">
+                                                                        숨김
+                                                                    </span>
                                                                 </button>
                                                             )}
                                                             <button
@@ -2386,9 +2967,14 @@ export function JobApplicationManagement() {
                                                                         );
                                                                     }
                                                                 }}
-                                                                className="text-xs font-bold text-rose-500 hover:text-rose-700"
+                                                                title="완전히 삭제"
+                                                                aria-label="완전히 삭제"
+                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                             >
-                                                                삭제
+                                                                <Trash2 className="h-4 w-4 xl:hidden" />
+                                                                <span className="hidden xl:inline">
+                                                                    삭제
+                                                                </span>
                                                             </button>
                                                         </div>
                                                     </td>
@@ -2755,9 +3341,9 @@ export function JobApplicationManagement() {
                             aria-hidden
                         />
                         <div
-                            className={`relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${detailDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                            className={`relative flex h-full w-full max-w-md flex-col overflow-hidden bg-white shadow-2xl transition-transform duration-300 ease-out ${detailDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
                         >
-                            <div className="flex-1 overflow-y-auto p-5">
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 pb-8">
                                 <div className="mb-4 flex items-center justify-between">
                                     <h3 className="text-lg font-black text-slate-950">
                                         {isCreating
@@ -2812,6 +3398,11 @@ export function JobApplicationManagement() {
                                                     </span>
                                                 )}
                                             </div>
+
+                                            <JobplanetReputationCard
+                                                key={`jobplanet-${drawerItem.id}`}
+                                                jobPostingId={drawerItem.id}
+                                            />
 
                                             <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
                                                 <div>
@@ -2923,7 +3514,7 @@ export function JobApplicationManagement() {
                                             </dl>
 
                                             <SectionTabs
-                                                key={drawerItem.id}
+                                                key={`sections-${drawerItem.id}`}
                                                 tabs={[
                                                     {
                                                         key: 'detail',
@@ -2998,6 +3589,12 @@ export function JobApplicationManagement() {
                                                         content: (
                                                             <PrintTemplatesPanel
                                                                 jobPostingId={drawerItem.id}
+                                                                hasAppealAnalysis={Boolean(
+                                                                    drawerItem.appealAnalysis
+                                                                )}
+                                                                appealAnalyzedAt={
+                                                                    drawerItem.appealAnalyzedAt
+                                                                }
                                                             />
                                                         ),
                                                     },
@@ -3223,17 +3820,19 @@ export function JobApplicationManagement() {
                                                         key: 'appeal',
                                                         label: '경력 매칭 분석',
                                                         content: (() => {
+                                                            const isAppealWorkflowPending =
+                                                                analyzeAppealMutation.isPending;
                                                             const statusRow = (
                                                                 <div
                                                                     className={`flex flex-1 items-center justify-between gap-3 rounded-lg transition-colors ${
-                                                                        analyzeAppealMutation.isPending
+                                                                        isAppealWorkflowPending
                                                                             ? 'bg-indigo-50/70 px-3 py-2'
                                                                             : ''
                                                                     }`}
                                                                 >
                                                                     <p
                                                                         className={`text-xs font-semibold ${
-                                                                            analyzeAppealMutation.isPending
+                                                                            isAppealWorkflowPending
                                                                                 ? 'animate-pulse text-indigo-600'
                                                                                 : 'text-slate-500'
                                                                         }`}
@@ -3247,7 +3846,7 @@ export function JobApplicationManagement() {
                                                                     <button
                                                                         type="button"
                                                                         disabled={
-                                                                            analyzeAppealMutation.isPending
+                                                                            isAppealWorkflowPending
                                                                         }
                                                                         onClick={() =>
                                                                             analyzeAppealMutation.mutate(
@@ -3256,7 +3855,7 @@ export function JobApplicationManagement() {
                                                                         }
                                                                         title="내 경력/핵심역량과 대조해 어필 포인트를 AI로 분석합니다"
                                                                         className={`flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1 text-sm font-bold transition disabled:cursor-not-allowed ${
-                                                                            analyzeAppealMutation.isPending
+                                                                            isAppealWorkflowPending
                                                                                 ? 'border-indigo-200 bg-white text-indigo-600'
                                                                                 : 'border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40'
                                                                         }`}
@@ -3290,7 +3889,6 @@ export function JobApplicationManagement() {
                                                                 ) : (
                                                                     statusRow
                                                                 );
-
                                                             return (
                                                                 <SectionTabs
                                                                     bordered={false}
@@ -3366,6 +3964,25 @@ export function JobApplicationManagement() {
                                                                                 </span>
                                                                             ),
                                                                             content: appealDetail,
+                                                                        },
+                                                                        {
+                                                                            key: 'gap-projects',
+                                                                            label: (
+                                                                                <span className="inline-flex items-center gap-1">
+                                                                                    보완 프로젝트
+                                                                                    <InfoTooltip text="AI 분석에서 부족하다고 판단한 경험을 실제 코드와 검증 산출물로 보완할 프로젝트 문서를 만듭니다." />
+                                                                                </span>
+                                                                            ),
+                                                                            content: (
+                                                                                <GapProjectDocumentsPanel
+                                                                                    jobPostingId={
+                                                                                        drawerItem.id
+                                                                                    }
+                                                                                    hasAppealAnalysis={Boolean(
+                                                                                        drawerItem.appealAnalysis
+                                                                                    )}
+                                                                                />
+                                                                            ),
                                                                         },
                                                                     ]}
                                                                 />

@@ -49,6 +49,7 @@ export function PrintTemplateManagement() {
         schemaVersion: template.schemaVersion || 2,
         visible: template.visible,
         displayOrder: template.displayOrder,
+        jobPostingId: template.jobPostingId,
     });
 
     const updateMutation = useMutation({

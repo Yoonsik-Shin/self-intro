@@ -496,6 +496,11 @@ export type JobPosting = {
     matchReason: string | null;
     appealAnalysis: string | null;
     appealAnalyzedAt: string | null;
+    jobplanetRating: number | null;
+    jobplanetReviewCount: number | null;
+    jobplanetCompanyName: string | null;
+    jobplanetCompanyUrl: string | null;
+    jobplanetCheckedAt: string | null;
     statusChangedAt: string;
     createdAt: string;
     updatedAt: string;
@@ -766,6 +771,9 @@ export type PrintTemplateRaw = {
     contentOverrides: string; // JSON object string
     baseContentFingerprint?: string | null;
     schemaVersion: number;
+    source: 'MANUAL' | 'AI';
+    generationMetadata: string | null;
+    generatedAt: string | null;
     visible: boolean;
     displayOrder: number;
     jobPostingId: number | null;
@@ -803,11 +811,64 @@ export type PrintTemplate = {
     contentOverrides: PrintTemplateContentOverrides;
     baseContentFingerprint?: string | null;
     schemaVersion: number;
+    source: 'MANUAL' | 'AI';
+    generationMetadata: Record<string, unknown> | null;
+    generatedAt: string | null;
     visible: boolean;
     displayOrder: number;
     jobPostingId: number | null;
     isFinalSubmission: boolean;
     finalPdfUrl: string | null;
+};
+
+export type JobPostingPrintDraftDecision = {
+    itemType: string;
+    itemId: string;
+    decision: 'INCLUDE' | 'EXCLUDE' | string;
+    reason: string;
+};
+
+export type JobPostingPrintDraftResponse = {
+    templateId: number;
+    templateName: string;
+    strategySummary: string;
+    targetRole: string;
+    includedCount: number;
+    excludedCount: number;
+    decisions: JobPostingPrintDraftDecision[];
+    warnings: string[];
+};
+
+export type JobplanetLookup = {
+    jobPostingId: number;
+    companyName: string;
+    searchUrl: string;
+    rating: number | null;
+    reviewCount: number | null;
+    jobplanetCompanyName: string | null;
+    companyUrl: string | null;
+    checkedAt: string | null;
+};
+
+export type JobplanetCompanyRequest = {
+    rating: number;
+    reviewCount: number | null;
+    companyName: string;
+    companyUrl: string;
+};
+
+export type GapProjectDocument = {
+    id: number;
+    jobPostingId: number;
+    version: number;
+    title: string;
+    gapSnapshot: string;
+    contentJson: string;
+    renderedMarkdown: string;
+    status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED' | string;
+    sourceAppealAnalyzedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
 };
 
 export type PrintTemplateRequest = {

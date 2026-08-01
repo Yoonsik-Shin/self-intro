@@ -167,6 +167,17 @@ export function AdminDashboardShell() {
     const [pendingExperienceIntent, setPendingExperienceIntent] =
         useState<PendingExperienceIntent>(null);
 
+    useEffect(() => {
+        const compactViewport = window.matchMedia('(max-width: 1279px)');
+        const collapseForCompactViewport = () => {
+            if (compactViewport.matches) setIsSidebarCollapsed(true);
+        };
+
+        collapseForCompactViewport();
+        compactViewport.addEventListener('change', collapseForCompactViewport);
+        return () => compactViewport.removeEventListener('change', collapseForCompactViewport);
+    }, []);
+
     const { data: introData } = useQuery({
         queryKey: ['introduction'],
         queryFn: bffApi.getIntroduction,

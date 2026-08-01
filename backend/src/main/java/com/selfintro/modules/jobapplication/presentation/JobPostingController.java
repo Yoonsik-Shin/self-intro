@@ -1,22 +1,29 @@
 package com.selfintro.modules.jobapplication.presentation;
 
+import com.selfintro.modules.jobapplication.application.GapProjectDocumentService;
 import com.selfintro.modules.jobapplication.application.JobApplicationUrlParseService;
 import com.selfintro.modules.jobapplication.application.JobPostingAppealService;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService.JobPostingCollectionResult;
 import com.selfintro.modules.jobapplication.application.JobPostingCoverLetterService;
+import com.selfintro.modules.jobapplication.application.JobPostingPrintDraftService;
 import com.selfintro.modules.jobapplication.application.JobPostingService;
+import com.selfintro.modules.jobapplication.application.JobplanetCompanyService;
+import com.selfintro.modules.jobapplication.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterItemResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterSaveRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingMemoRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingSettingResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingStatusChangeRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingStatusEventResponse;
+import com.selfintro.modules.jobapplication.presentation.dto.JobplanetCompanyRequest;
+import com.selfintro.modules.jobapplication.presentation.dto.JobplanetLookupResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -41,9 +48,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class JobPostingController {
 
     private final JobPostingService jobPostingService;
+    private final GapProjectDocumentService gapProjectDocumentService;
     private final JobPostingCoverLetterService coverLetterService;
     private final JobPostingCollectorService jobPostingCollectorService;
     private final JobPostingAppealService jobPostingAppealService;
+    private final JobPostingPrintDraftService jobPostingPrintDraftService;
+    private final JobplanetCompanyService jobplanetCompanyService;
     private final JobApplicationUrlParseService urlParseService;
 
     @GetMapping
@@ -198,6 +208,37 @@ public class JobPostingController {
     @PostMapping("/{id}/analyze-appeal")
     public JobPostingResponse analyzeAppeal(@PathVariable Long id) {
         return jobPostingAppealService.analyzeAppeal(id);
+    }
+
+    @PostMapping("/{id}/print-template-draft")
+    public JobPostingPrintDraftResponse generatePrintTemplateDraft(@PathVariable Long id) {
+        return jobPostingPrintDraftService.generate(id);
+    }
+
+    @GetMapping("/{id}/jobplanet")
+    public JobplanetLookupResponse getJobplanet(@PathVariable Long id) {
+        return jobplanetCompanyService.get(id);
+    }
+
+    @PutMapping("/{id}/jobplanet")
+    public JobplanetLookupResponse saveJobplanet(
+            @PathVariable Long id, @Valid @RequestBody JobplanetCompanyRequest request) {
+        return jobplanetCompanyService.save(id, request);
+    }
+
+    @DeleteMapping("/{id}/jobplanet")
+    public JobplanetLookupResponse clearJobplanet(@PathVariable Long id) {
+        return jobplanetCompanyService.clear(id);
+    }
+
+    @GetMapping("/{id}/gap-project-documents")
+    public List<GapProjectDocumentResponse> listGapProjectDocuments(@PathVariable Long id) {
+        return gapProjectDocumentService.list(id);
+    }
+
+    @PostMapping("/{id}/gap-project-documents")
+    public GapProjectDocumentResponse generateGapProjectDocument(@PathVariable Long id) {
+        return gapProjectDocumentService.generate(id);
     }
 
     /** 자동 매칭 점수를 현재 보유 기술 스택 기준으로 다시 계산한다. */

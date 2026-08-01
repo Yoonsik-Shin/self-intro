@@ -21,6 +21,12 @@ function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
         contentOverrides: safeParseJson(raw.contentOverrides, {}),
         baseContentFingerprint: raw.baseContentFingerprint,
         schemaVersion: raw.schemaVersion || 1,
+        source: raw.source || 'MANUAL',
+        generationMetadata: safeParseJson<Record<string, unknown> | null>(
+            raw.generationMetadata,
+            null
+        ),
+        generatedAt: raw.generatedAt,
         visible: raw.visible,
         displayOrder: raw.displayOrder,
         jobPostingId: raw.jobPostingId,

@@ -1,5 +1,6 @@
 import { request, requestEventStream } from './client';
 import type {
+    GapProjectDocument,
     JobApplicationUrlParseResponse,
     JobApplicationUrlParseStreamEvent,
     JobPosting,
@@ -8,11 +9,14 @@ import type {
     JobPostingCoverLetterItemRequest,
     JobPostingCollectionResult,
     JobPostingIngestStreamEvent,
+    JobPostingPrintDraftResponse,
     JobPostingRequest,
     JobPostingSetting,
     JobPostingSettingRequest,
     JobPostingStatus,
     JobPostingStatusEvent,
+    JobplanetCompanyRequest,
+    JobplanetLookup,
 } from './types';
 
 export const jobPostingApi = {
@@ -142,6 +146,28 @@ export const jobPostingApi = {
         }),
     analyzeAppeal: (id: number) =>
         request<JobPosting>(`/api/admin/job-postings/${id}/analyze-appeal`, {
+            method: 'POST',
+        }),
+    generatePrintDraft: (id: number) =>
+        request<JobPostingPrintDraftResponse>(
+            `/api/admin/job-postings/${id}/print-template-draft`,
+            { method: 'POST' }
+        ),
+    getJobplanet: (id: number) =>
+        request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`),
+    saveJobplanet: (id: number, payload: JobplanetCompanyRequest) =>
+        request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        }),
+    clearJobplanet: (id: number) =>
+        request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`, {
+            method: 'DELETE',
+        }),
+    gapProjectDocuments: (id: number) =>
+        request<GapProjectDocument[]>(`/api/admin/job-postings/${id}/gap-project-documents`),
+    generateGapProjectDocument: (id: number) =>
+        request<GapProjectDocument>(`/api/admin/job-postings/${id}/gap-project-documents`, {
             method: 'POST',
         }),
     rematch: (id: number) =>
