@@ -6,3 +6,4 @@ resources:
   - loki.yaml
   - alloy.yaml
   - grafana.yaml
+  - grafana-ingress.yaml

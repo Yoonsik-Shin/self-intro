@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: self-intro
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # 검색엔진 색인 완전 차단 (Google/Naver noindex)
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - grafana.unbrdn.me
+      secretName: cloudflare-origin-tls
+  rules:
+    - host: grafana.unbrdn.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
