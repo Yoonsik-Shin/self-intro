@@ -54,7 +54,8 @@ RUN --mount=type=bind,from=builder,source=/app/api/build/playwright-classpath,ta
     && java -cp "/tmp/playwright-classpath/*" com.microsoft.playwright.CLI install --with-deps \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r spring && useradd -r -g spring spring \
-    && chown -R spring:spring /ms-playwright
+    && mkdir -p /app/logs \
+    && chown -R spring:spring /app /ms-playwright
 
 # builder 스테이지에서 생성된 jar 복사
 COPY --from=builder /app/api/build/libs/*.jar app.jar
