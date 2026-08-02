@@ -29,3 +29,26 @@ app:
     vision-model: ${NVIDIA_VISION_MODEL:meta/llama-3.2-11b-vision-instruct}
     max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:8192}
     json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
+  storage:
+    endpoint: ${STORAGE_ENDPOINT:http://minio:9000}
+    presigned-endpoint: ${STORAGE_PRESIGNED_ENDPOINT:${STORAGE_ENDPOINT:http://localhost:9000}}
+    region: ${STORAGE_REGION:us-east-1}
+    bucket: ${STORAGE_BUCKET:self-intro-images}
+    access-key: ${STORAGE_ACCESS_KEY:minioadmin}
+    secret-key: ${STORAGE_SECRET_KEY:minioadmin}
+    path-style-access: ${STORAGE_PATH_STYLE_ACCESS:true}
+    presigned-upload-ttl-seconds: ${STORAGE_PRESIGNED_TTL_SECONDS:300}
+    public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:9000/self-intro-images}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+grpc:
+  server:
+    port: 9090
