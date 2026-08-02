@@ -1,13 +1,13 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: self-intro-monitoring-prod
+  name: self-intro-monitoring
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/Yoonsik-Shin/self-intro.git
-    targetRevision: main
+    targetRevision: HEAD
     path: deploy/k8s/overlays/prod/monitoring
   destination:
     server: https://kubernetes.default.svc
