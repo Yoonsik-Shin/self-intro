@@ -4,6 +4,9 @@ metadata:
   name: self-intro-backend-worker
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
+
   revisionHistoryLimit: 3
   selector:
     matchLabels:
