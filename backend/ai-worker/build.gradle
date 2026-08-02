@@ -1,6 +1,20 @@
 plugins {
     id 'java-library'
+    id 'org.springframework.boot'
 }
+
+
+bootJar {
+    enabled = true
+    archiveClassifier = 'boot'
+}
+
+jar {
+    enabled = true
+    archiveClassifier = ''
+}
+
+
 
 dependencies {
     api project(':core')

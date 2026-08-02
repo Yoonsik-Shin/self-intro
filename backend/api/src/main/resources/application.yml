@@ -1,6 +1,9 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: self-intro-backend
+
   http:
     client:
       # NVIDIA NIM 호출(특히 비전 모델, 그리고 항목별로 자가점검 질문까지 함께 생성하는 학습
