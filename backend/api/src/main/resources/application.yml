@@ -104,7 +104,8 @@ app:
     model: ${NVIDIA_MODEL:nvidia/nemotron-3-super-120b-a12b}
     # 채용공고가 텍스트 대신 배너 이미지로만 정보를 제공할 때 JobApplicationUrlParseService가
     # 보조로 호출하는 비전 모델. 재배포 없이 바꿀 수 있도록 코드에 기본값을 두지 않고 환경변수로만 관리한다.
-    vision-model: ${NVIDIA_VISION_MODEL}
+    vision-model: ${NVIDIA_VISION_MODEL:meta/llama-3.2-11b-vision-instruct}
+
     max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:8192}
     # Qwen3.5 NIM 엔드포인트는 response_format 지정 시 빈 응답을 반환했음.
     # Nemotron으로 교체 후 정상 동작 여부를 재검증하고 필요 시 true로 전환할 것.
