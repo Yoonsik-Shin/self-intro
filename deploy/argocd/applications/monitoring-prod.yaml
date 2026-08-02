@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: self-intro-monitoring-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Yoonsik-Shin/self-intro.git
+    targetRevision: main
+    path: deploy/k8s/overlays/prod/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: self-intro
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

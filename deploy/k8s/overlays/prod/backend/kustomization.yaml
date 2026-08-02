@@ -6,7 +6,6 @@ namespace: self-intro
 resources:
   - ../../../base/backend
   - ../../../base/redis
-  - ../../../base/monitoring
   - ingress.yaml
   - sealed-db-secret.yaml
   - sealed-ai-secret.yaml

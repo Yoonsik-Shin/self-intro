@@ -4,6 +4,7 @@ metadata:
   name: self-intro-backend
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: self-intro-backend
