@@ -7,3 +7,4 @@ resources:
   - alloy.yaml
   - grafana.yaml
   - grafana-ingress.yaml
+  - node-exporter.yaml
