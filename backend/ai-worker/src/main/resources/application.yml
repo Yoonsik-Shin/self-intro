@@ -70,6 +70,15 @@ app:
     presigned-upload-ttl-seconds: ${STORAGE_PRESIGNED_TTL_SECONDS:300}
     public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:9000/self-intro-images}
 
+oracle:
+  nosql:
+    enabled: ${ORACLE_NOSQL_ENABLED:false}
+    endpoint: ${ORACLE_NOSQL_ENDPOINT:https://nosql.ap-seoul-1.oci.oraclecloud.com}
+    compartment-id: ${ORACLE_NOSQL_COMPARTMENT_ID:}
+    oci-config-file: ${ORACLE_OCI_CONFIG_FILE:~/.oci/config}
+    profile-name: ${ORACLE_OCI_PROFILE:DEFAULT}
+    table-name: ${ORACLE_NOSQL_TABLE:JobPostingReadModel}
+
 management:
   endpoints:
     web:
