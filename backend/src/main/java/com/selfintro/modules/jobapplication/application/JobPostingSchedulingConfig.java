@@ -2,6 +2,7 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
@@ -12,6 +13,10 @@ import org.springframework.scheduling.support.CronTrigger;
  * 다음 실행부터 바로 반영된다.
  */
 @Configuration
+@ConditionalOnProperty(
+        name = "app.job-posting.scheduler-enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 @RequiredArgsConstructor
 public class JobPostingSchedulingConfig implements SchedulingConfigurer {
 

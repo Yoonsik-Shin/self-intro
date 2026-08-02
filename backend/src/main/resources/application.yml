@@ -108,6 +108,7 @@ app:
     # 백엔드 인스턴스 하나가 동시에 처리할 URL 수집 작업 수. 다중 수집 입력 상한은 5이지만
     # NVIDIA NIM 공유 워커가 순간 동시 요청 몰림에 503 ResourceExhausted를 반환하는 사례가
     # 확인되어 기본값을 3으로 낮춰 한 번에 3건씩만 실제 병렬 호출되게 한다.
+    scheduler-enabled: ${JOB_POSTING_SCHEDULER_ENABLED:true}
     ingest-concurrency: ${JOB_POSTING_INGEST_CONCURRENCY:3}
     saramin:
       access-key: ${SARAMIN_ACCESS_KEY:}
