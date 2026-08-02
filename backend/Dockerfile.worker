@@ -27,7 +27,8 @@ WORKDIR /app
 
 RUN groupadd -r spring && useradd -r -g spring spring
 
-COPY --from=builder /app/ai-worker/build/libs/*.jar app.jar
+COPY --from=builder /app/ai-worker/build/libs/ai-worker-0.1.0.jar app.jar
+
 
 USER spring:spring
 
