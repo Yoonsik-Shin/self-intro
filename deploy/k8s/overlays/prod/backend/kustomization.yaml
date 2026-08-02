@@ -15,10 +15,10 @@ resources:
 images:
   - name: self-intro-backend
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend
-    newTag: "73b4719"
+    newTag: "c7b0932"
   - name: self-intro-backend-worker
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend-worker
-    newTag: "73b4719"
+    newTag: "c7b0932"
 
 
 configMapGenerator:
