@@ -44,6 +44,7 @@ services:
       - STORAGE_PUBLIC_BASE_URL=http://localhost:9000/self-intro-images
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
       - SPRING_SESSION_STORE_TYPE=redis
       - LOG_FILE_PATH=/app/logs/application.log
     volumes:
@@ -54,6 +55,8 @@ services:
       minio:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   backend-worker:
@@ -75,9 +78,30 @@ services:
       - JPA_DDL_AUTO=update
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
     depends_on:
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: self-intro-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
 
 
   redis:
@@ -204,7 +228,9 @@ volumes:
   mysql_data:
   minio_data:
   redis_data:
+  rabbitmq_data:
   prometheus_data:
   loki_data:
   grafana_data:
   backend_logs:
+
