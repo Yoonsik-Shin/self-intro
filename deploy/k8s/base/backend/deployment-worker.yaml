@@ -17,16 +17,18 @@ spec:
         - name: ocir-pull-secret
       containers:
         - name: backend-worker
-          image: self-intro-backend
+          image: self-intro-backend-worker
           imagePullPolicy: IfNotPresent
           ports:
+            - name: grpc
+              containerPort: 9090
             - name: http
-              containerPort: 8080
+              containerPort: 8081
           envFrom:
             - configMapRef:
                 name: backend-config
             - secretRef:
-                name: backend-db-secret
+                name: backend-worker-db-secret
             - secretRef:
                 name: backend-ai-secret
             - secretRef:
@@ -37,18 +39,10 @@ spec:
           env:
             - name: JOB_POSTING_SCHEDULER_ENABLED
               value: "true"
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: http
-            initialDelaySeconds: 15
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: http
-            initialDelaySeconds: 45
-            periodSeconds: 20
+          volumeMounts:
+            - name: oracle-atp-wallet
+              mountPath: /etc/oracle/wallet
+              readOnly: true
           resources:
             requests:
               cpu: 250m
@@ -56,3 +50,9 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
+      volumes:
+        - name: oracle-atp-wallet
+          secret:
+            secretName: oracle-atp-worker-wallet
+            optional: true
+

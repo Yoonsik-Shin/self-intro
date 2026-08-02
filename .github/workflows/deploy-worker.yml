@@ -1,0 +1,66 @@
+name: Deploy Worker Microservice
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/ai-worker/**'
+      - 'backend/core/**'
+      - 'backend/build.gradle'
+      - 'backend/Dockerfile.worker'
+      - '.github/workflows/deploy-worker.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-push-worker:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to OCI Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.OCI_REGISTRY || 'yny.ocir.io' }}
+          username: ${{ secrets.OCI_USERNAME }}
+          password: ${{ secrets.OCI_AUTH_TOKEN }}
+
+      - name: Set short git commit SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Worker Docker Image (ARM64)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.worker
+          platforms: linux/arm64
+          push: true
+          tags: |
+            yny.ocir.io/axrywc89b6lf/self-intro/backend-worker:${{ steps.vars.outputs.sha_short }}
+            yny.ocir.io/axrywc89b6lf/self-intro/backend-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Kustomization Worker Image Tag
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            sed -i '/name: self-intro-backend-worker$/,/newTag:/s/newTag: .*/newTag: "${{ steps.vars.outputs.sha_short }}"/' deploy/k8s/overlays/prod/backend/kustomization.yaml
+            git add deploy/k8s/overlays/prod/backend/kustomization.yaml
+            git commit -m "[bot] Update backend worker image tag to ${{ steps.vars.outputs.sha_short }}" || exit 0
+            if git push origin main; then
+              exit 0
+            fi
+            sleep $((RANDOM % 10 + 5))
+          done
+          exit 1
