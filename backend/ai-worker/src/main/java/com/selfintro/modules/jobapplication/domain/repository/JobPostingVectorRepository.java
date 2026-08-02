@@ -10,6 +10,8 @@ public interface JobPostingVectorRepository extends JpaRepository<JobPostingVect
 
     List<JobPostingVector> findByJobPostingId(Long jobPostingId);
 
+    void deleteByJobPostingId(Long jobPostingId);
+
     /**
      * Oracle 26ai 내장 VECTOR_DISTANCE 코사인 유사도 검색 쿼리
      * VECTOR_DISTANCE(v.embedding_vector, to_vector(:queryVector), COSINE)
