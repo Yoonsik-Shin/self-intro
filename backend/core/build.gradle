@@ -34,6 +34,7 @@ dependencies {
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:url-connection-client'
     api 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
+    api 'com.oracle.nosql.sdk:nosqldriver:5.4.15'
     
     api 'io.grpc:grpc-netty-shaded:1.62.2'
     api 'io.grpc:grpc-protobuf:1.62.2'
