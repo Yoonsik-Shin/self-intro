@@ -1,0 +1,14 @@
+server:
+  port: 8081
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: self-intro-ai-worker
+  ai:
+    openai:
+      api-key: ${SPRING_AI_OPENAI_API_KEY:dummy-key-for-local-dev}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
