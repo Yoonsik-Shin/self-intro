@@ -11,17 +11,22 @@ WORKDIR /app
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
+COPY core/build.gradle core/
+COPY ai-worker/build.gradle ai-worker/
+COPY api/build.gradle api/
 
 # Gradle 래퍼 실행 권한 부여
 RUN chmod +x gradlew
 
 # Playwright 클래스패스만 먼저 뽑아둔다 — build.gradle이 바뀔 때만 무효화되는 레이어라,
 # 아래 런타임 스테이지의 Chromium 설치도 소스코드만 바뀌는 일반적인 배포에서는 캐시로 재사용된다.
-RUN ./gradlew copyPlaywrightClasspath --no-daemon
+RUN ./gradlew :api:copyPlaywrightClasspath --no-daemon
 
 # 소스코드 복사 및 Jar 빌드 (테스트 제외)
-COPY src src
-RUN ./gradlew bootJar --no-daemon -x test
+COPY core core
+COPY ai-worker ai-worker
+COPY api api
+RUN ./gradlew :api:bootJar --no-daemon -x test
 
 # Stage 2: Runtime stage
 # 채용공고 URL 자동수집이 SPA(클라이언트 JS 렌더링) 페이지를 만나면 헤드리스 Chromium으로
@@ -44,7 +49,7 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 # 다음 RUN에서 지워도 레이어 히스토리에 그 용량이 그대로 남는다. useradd/chown도 브라우저를
 # 내려받은 바로 그 레이어 안에서 실행해야 한다 — 별도 RUN으로 분리하면 overlay가 chown 대상
 # 파일 전체(수 GB)를 새 레이어로 복사-업 하면서 이미지 용량이 그대로 두 배가 된다.
-RUN --mount=type=bind,from=builder,source=/app/build/playwright-classpath,target=/tmp/playwright-classpath \
+RUN --mount=type=bind,from=builder,source=/app/api/build/playwright-classpath,target=/tmp/playwright-classpath \
     apt-get update \
     && java -cp "/tmp/playwright-classpath/*" com.microsoft.playwright.CLI install --with-deps \
     && rm -rf /var/lib/apt/lists/* \
@@ -52,7 +57,7 @@ RUN --mount=type=bind,from=builder,source=/app/build/playwright-classpath,target
     && chown -R spring:spring /ms-playwright
 
 # builder 스테이지에서 생성된 jar 복사
-COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=builder /app/api/build/libs/*.jar app.jar
 
 USER spring:spring
 

@@ -13,3 +13,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = 'self-intro-backend'
+
+include 'core'
+include 'ai-worker'
+include 'api'

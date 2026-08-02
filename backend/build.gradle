@@ -1,77 +1,51 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.15'
-    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '3.5.15' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
     id 'com.diffplug.spotless' version '6.25.0'
 }
 
-group = 'com.selfintro'
-version = '0.1.0'
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
+allprojects {
+    group = 'com.selfintro'
+    version = '0.1.0'
 }
 
-spotless {
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'com.diffplug.spotless'
+
     java {
-        target 'src/**/*.java'
-        googleJavaFormat('1.22.0').aosp()
-        removeUnusedImports()
-        trimTrailingWhitespace()
-        endWithNewline()
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    spotless {
+        java {
+            target 'src/**/*.java'
+            googleJavaFormat('1.22.0').aosp()
+            removeUnusedImports()
+            trimTrailingWhitespace()
+            endWithNewline()
+        }
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.5.15'
+            mavenBom 'org.springframework.ai:spring-ai-bom:1.0.9'
+            mavenBom 'software.amazon.awssdk:bom:2.29.52'
+        }
+    }
+
+    dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
     }
 }
-
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-    // Docker 런타임 이미지에서 Playwright CLI(브라우저+OS 의존성 설치)를 실행할 때만 쓰는
-    // 클래스패스. build.gradle이 바뀔 때만 무효화되도록 소스 컴파일과 분리해뒀다 — src/**만
-    // 바뀌는 일반적인 배포에서는 Docker 레이어 캐시가 재사용돼 Chromium을 매번 새로 받지 않는다.
-    playwrightRuntime
-}
-
-dependencies {
-    implementation platform('org.springframework.ai:spring-ai-bom:1.0.9')
-    implementation platform('software.amazon.awssdk:bom:2.29.52')
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'io.micrometer:micrometer-registry-prometheus'
-    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'org.springframework.session:spring-session-data-redis'
-    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
-    implementation 'software.amazon.awssdk:s3'
-    implementation 'software.amazon.awssdk:url-connection-client'
-    implementation 'org.flywaydb:flyway-core'
-    runtimeOnly 'org.flywaydb:flyway-mysql'
-    implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
-    implementation 'org.jsoup:jsoup:1.17.2'
-    implementation 'com.microsoft.playwright:playwright:1.52.0'
-    playwrightRuntime 'com.microsoft.playwright:playwright:1.52.0'
-    compileOnly 'org.projectlombok:lombok'
-    runtimeOnly 'com.h2database:h2'
-    runtimeOnly 'com.mysql:mysql-connector-j'
-    annotationProcessor 'org.projectlombok:lombok'
-    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
-    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
-    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.security:spring-security-test'
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
-}
-
-tasks.register('copyPlaywrightClasspath', Copy) {
-    from configurations.playwrightRuntime
-    into layout.buildDirectory.dir('playwright-classpath')
-}
-// Force deploy trigger to rebuild and redeploy backend with the new endpoints

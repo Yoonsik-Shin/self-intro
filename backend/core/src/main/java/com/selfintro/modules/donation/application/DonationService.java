@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ public class DonationService {
     private final DonationEventRepository donationEventRepository;
     private final DonationSettingRepository donationSettingRepository;
     private final DonationProperties properties;
+    @Qualifier("donationClock")
     private final Clock donationClock;
 
     /** Ko-fi Webhook 수신 처리. */

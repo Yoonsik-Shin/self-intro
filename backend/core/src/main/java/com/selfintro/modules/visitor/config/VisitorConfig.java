@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class VisitorConfig {
-    @Bean
+    @Bean("visitorClock")
     public Clock visitorClock(@Value("${app.visitor.time-zone:Asia/Seoul}") String timeZone) {
         return Clock.system(ZoneId.of(timeZone));
     }
