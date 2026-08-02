@@ -60,18 +60,16 @@ public class JobPostingCqrsEventHandler {
         String redisKey = CQRS_KEY_PREFIX + event.jobPostingId();
         
         JobPostingReadModel currentModel = (JobPostingReadModel) redisTemplate.opsForValue().get(redisKey);
-        if (currentModel != null) {
-            JobPostingReadModel updatedModel = new JobPostingReadModel(
-                    currentModel.id(),
-                    currentModel.companyName(),
-                    currentModel.title(),
-                    currentModel.status(),
-                    currentModel.applyUrl(),
-                    event.score(),
-                    event.summary(),
-                    LocalDateTime.now().toString()
-            );
-            redisTemplate.opsForValue().set(redisKey, updatedModel, 7, TimeUnit.DAYS);
-        }
+        JobPostingReadModel updatedModel = new JobPostingReadModel(
+                event.jobPostingId(),
+                currentModel != null ? currentModel.companyName() : "",
+                currentModel != null ? currentModel.title() : "",
+                currentModel != null ? currentModel.status() : "NEW",
+                currentModel != null ? currentModel.applyUrl() : "",
+                event.score(),
+                event.summary(),
+                LocalDateTime.now().toString()
+        );
+        redisTemplate.opsForValue().set(redisKey, updatedModel, 7, TimeUnit.DAYS);
     }
 }

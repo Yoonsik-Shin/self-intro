@@ -49,6 +49,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   session:
     store-type: ${SPRING_SESSION_STORE_TYPE:none}
 
@@ -133,6 +138,10 @@ app:
 grpc:
   server:
     port: ${GRPC_SERVER_PORT:0}
+  client:
+    jobPostingService:
+      address: ${GRPC_WORKER_HOST:static://localhost:9090}
+      negotiation-type: plaintext
 
 server:
   port: ${SERVER_PORT:8080}

@@ -39,14 +39,15 @@ public class JobPostingGrpcServiceImpl extends JobPostingGrpcServiceGrpc.JobPost
                     .setStatus(posting.getStatus() != null ? posting.getStatus().name() : "NEW")
                     .setApplyUrl(posting.getPostingUrl() != null ? posting.getPostingUrl() : "")
                     .setLocation(posting.getLocation() != null ? posting.getLocation() : "")
-                    .setExperienceLevel(posting.getSource() != null ? posting.getSource() : "")
+                    .setExperienceLevel(posting.getEmploymentType() != null ? posting.getEmploymentType() : (posting.getSource() != null ? posting.getSource() : ""))
                     .build();
         } else {
+            log.warn("[gRPC Server] 존재하지 않는 JobPosting ID 조회: id={}", request.getId());
             response = JobPostingSummaryResponse.newBuilder()
                     .setId(request.getId())
-                    .setCompanyName("채용공고 #" + request.getId())
-                    .setTitle("채용공고 정보를 찾을 수 없습니다")
-                    .setStatus("UNKNOWN")
+                    .setCompanyName("")
+                    .setTitle("")
+                    .setStatus("NOT_FOUND")
                     .setApplyUrl("")
                     .setLocation("")
                     .setExperienceLevel("")
@@ -74,10 +75,11 @@ public class JobPostingGrpcServiceImpl extends JobPostingGrpcServiceGrpc.JobPost
                     .setMatchedAt(posting.getUpdatedAt() != null ? posting.getUpdatedAt().toString() : LocalDateTime.now().toString())
                     .build();
         } else {
+            log.warn("[gRPC Server] 매칭 점수가 존재하지 않는 JobPosting ID 조회: id={}", request.getJobPostingId());
             response = JobMatchingScoreResponse.newBuilder()
                     .setJobPostingId(request.getJobPostingId())
                     .setScore(0)
-                    .setEvaluationSummary("매칭 평가 데이터가 아직 없습니다.")
+                    .setEvaluationSummary("")
                     .setMatchedAt(LocalDateTime.now().toString())
                     .build();
         }
