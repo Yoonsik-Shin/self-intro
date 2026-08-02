@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package com.selfintro.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.selfintro.grpc.jobposting";
+option java_outer_classname = "JobPostingProto";
+
+service JobPostingGrpcService {
+  rpc GetJobPostingSummary (JobPostingSummaryRequest) returns (JobPostingSummaryResponse);
+  rpc GetJobMatchingScore (JobMatchingScoreRequest) returns (JobMatchingScoreResponse);
+}
+
+message JobPostingSummaryRequest {
+  int64 id = 1;
+}
+
+message JobPostingSummaryResponse {
+  int64 id = 1;
+  string company_name = 2;
+  string title = 3;
+  string status = 4;
+  string apply_url = 5;
+  string location = 6;
+  string experience_level = 7;
+}
+
+message JobMatchingScoreRequest {
+  int64 job_posting_id = 1;
+}
+
+message JobMatchingScoreResponse {
+  int64 job_posting_id = 1;
+  int32 score = 2;
+  string evaluation_summary = 3;
+  string matched_at = 4;
+}
