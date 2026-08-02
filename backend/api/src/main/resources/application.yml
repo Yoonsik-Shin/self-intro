@@ -142,6 +142,7 @@ app:
 oracle:
   nosql:
     enabled: ${ORACLE_NOSQL_ENABLED:false}
+    mode: ${ORACLE_NOSQL_MODE:cloud}
     endpoint: ${ORACLE_NOSQL_ENDPOINT:https://nosql.ap-chuncheon-1.oci.oraclecloud.com}
     compartment-id: ${ORACLE_NOSQL_COMPARTMENT_ID:}
     oci-config-file: ${ORACLE_OCI_CONFIG_FILE:~/.oci/config}
