@@ -28,7 +28,7 @@ import java.io.File;
 @ConditionalOnProperty(name = "oracle.nosql.enabled", havingValue = "true")
 public class OracleNoSqlConfig {
 
-    @Value("${oracle.nosql.endpoint}")
+    @Value("${oracle.nosql.endpoint:https://nosql.ap-chuncheon-1.oci.oraclecloud.com}")
     private String endpoint;
 
     @Value("${oracle.nosql.compartment-id:}")
@@ -37,7 +37,7 @@ public class OracleNoSqlConfig {
     @Value("${oracle.nosql.oci-config-file:~/.oci/config}")
     private String ociConfigFile;
 
-    @Value("${oracle.nosql.profile-name:DEFAULT}")
+    @Value("${oracle.nosql.profile-name:self-intro-api-key}")
     private String profileName;
 
     @Value("${oracle.nosql.table-name:JobPostingReadModel}")

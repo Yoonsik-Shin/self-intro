@@ -142,10 +142,10 @@ app:
 oracle:
   nosql:
     enabled: ${ORACLE_NOSQL_ENABLED:false}
-    endpoint: ${ORACLE_NOSQL_ENDPOINT:https://nosql.ap-seoul-1.oci.oraclecloud.com}
+    endpoint: ${ORACLE_NOSQL_ENDPOINT:https://nosql.ap-chuncheon-1.oci.oraclecloud.com}
     compartment-id: ${ORACLE_NOSQL_COMPARTMENT_ID:}
     oci-config-file: ${ORACLE_OCI_CONFIG_FILE:~/.oci/config}
-    profile-name: ${ORACLE_OCI_PROFILE:DEFAULT}
+    profile-name: ${ORACLE_OCI_PROFILE:self-intro-api-key}
     table-name: ${ORACLE_NOSQL_TABLE:JobPostingReadModel}
 
 grpc:
