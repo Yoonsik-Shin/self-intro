@@ -121,6 +121,7 @@ SELECT @study_id, `id` FROM `skill` WHERE `name` IN ('Kubernetes', 'Docker')
 ON DUPLICATE KEY UPDATE `study_id` = `study_id`;
 
 -- 이전 모니터링 스터디(V144)와 연관 관계 설정
-INSERT INTO `study_related` (`study_id`, `related_study_id`, `relation_type`)
-SELECT @study_id, `id`, 'RELATED' FROM `study` WHERE `slug` = 'kubernetes-node-exporter-grafana-dashboard-deep-dive'
-ON DUPLICATE KEY UPDATE `study_id` = `study_id`;
+INSERT INTO `study_relation` (`source_study_id`, `target_study_id`, `relation_type`, `display_order`)
+SELECT @study_id, `id`, 'RELATED', 0 FROM `study` WHERE `slug` = 'kubernetes-node-exporter-grafana-dashboard-deep-dive'
+ON DUPLICATE KEY UPDATE `source_study_id` = `source_study_id`;
+
