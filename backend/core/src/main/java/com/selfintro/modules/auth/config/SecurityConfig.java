@@ -109,7 +109,7 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(HttpMethod.POST, "/api/auth/login")
                                         .permitAll()
-                                        .requestMatchers("/actuator/health/**")
+                                        .requestMatchers("/actuator/**")
                                         .permitAll()
                                         .anyRequest()
                                         .hasRole("ADMIN"))
