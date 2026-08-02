@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1
+# Worker Microservice Dockerfile
+
 # Stage 1: Build stage
 FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk-jammy AS builder
 
