@@ -47,6 +47,9 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - SPRING_SESSION_STORE_TYPE=redis
       - LOG_FILE_PATH=/app/logs/application.log
+      - ORACLE_NOSQL_ENABLED=true
+      - ORACLE_NOSQL_ENDPOINT=http://nosql:8080
+      - ORACLE_NOSQL_MODE=local
     volumes:
       - backend_logs:/app/logs
     depends_on:
@@ -57,6 +60,8 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      nosql:
         condition: service_healthy
 
   backend-worker:
@@ -80,11 +85,32 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_HOST=rabbitmq
+      - ORACLE_NOSQL_ENABLED=true
+      - ORACLE_NOSQL_ENDPOINT=http://nosql:8080
+      - ORACLE_NOSQL_MODE=local
     depends_on:
       redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      nosql:
+        condition: service_healthy
+
+  nosql:
+    image: ghcr.io/oracle/nosql:latest-ce
+    container_name: self-intro-nosql
+    ports:
+      - "8090:8080"
+    environment:
+      - KV_PROXY_PORT=8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - nosql_data:/kvroot
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -230,6 +256,7 @@ volumes:
   minio_data:
   redis_data:
   rabbitmq_data:
+  nosql_data:
   prometheus_data:
   loki_data:
   grafana_data:
