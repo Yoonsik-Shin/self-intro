@@ -154,4 +154,23 @@ class JobMatchingServiceTest {
 
         assertThat(result.score()).isNull();
     }
+
+    @Test
+    void returnsEmptyWhenAiResponseIsTruncatedReasoningText() {
+        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
+        when(nvidiaNimClient.generateJsonOnce(
+                        anyString(), anyString(), anyInt(), any(Duration.class)))
+                .thenReturn(
+                        "We need to compute a score based on match between candidate's skills and job requirements. Provide JSON with score integer 0-100 and reason in Korean, max 2 sentences.");
+        JobMatchingService service =
+                new JobMatchingService(
+                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+
+        JobMatchingService.MatchResult result =
+                service.evaluate("백엔드 개발자", "Java, Spring Boot 경험자");
+
+        assertThat(result.score()).isNull();
+        assertThat(result.reason()).isNull();
+    }
 }

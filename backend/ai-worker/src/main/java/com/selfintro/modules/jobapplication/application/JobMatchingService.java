@@ -27,12 +27,12 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class JobMatchingService {
 
-    private static final int MATCH_MAX_OUTPUT_TOKENS = 1024;
+    private static final int MATCH_MAX_OUTPUT_TOKENS = 2048;
     private static final Duration MATCH_AI_TIMEOUT = Duration.ofSeconds(60);
     private static final Pattern SCORE_PATTERN =
-            Pattern.compile("(?i)(?:\\\"?score\\\"?|점수)\\s*[:：]?\\s*(\\d{1,3})");
+            Pattern.compile("(?i)(?:\\\"?score\\\"?|점수)\\s*[:：=]\\s*[\\\"]?(\\d{1,3})[\\\"]?");
     private static final Pattern REASON_PATTERN =
-            Pattern.compile("(?is)(?:\\\"?reason\\\"?|이유)\\s*[:：]?\\s*[\\\"]?(.+?)[\\\"]?\\s*$");
+            Pattern.compile("(?is)(?:\\\"?reason\\\"?|이유)\\s*[:：=]\\s*[\\\"]?(.+?)[\\\"]?\\s*$");
 
     private static final String MATCH_PROMPT =
             """
@@ -40,7 +40,7 @@ public class JobMatchingService {
             입력으로 지원자의 보유 기술 목록과 채용 공고의 제목·요건 텍스트가 주어집니다.
             주어진 정보만 근거로 판단하고 새로운 사실을 추측하지 마세요.
             score는 0~100 사이 정수이고, reason은 그 점수를 준 이유를 한국어 2문장 이내로 작성하세요.
-            설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
+            생각 과정(thinking)이나 부연 설명 없이 오직 아래 JSON 구조만 반환하세요.
             {"score":0,"reason":""}
             """;
 
