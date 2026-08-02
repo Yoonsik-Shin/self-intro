@@ -15,6 +15,7 @@ public class FlywayConfig {
                     Flyway.configure()
                             .configuration(flyway.getConfiguration())
                             .ignoreMigrationPatterns("*:ignored")
+                            .placeholderReplacement(false)
                             .load();
             configuredFlyway.repair();
             configuredFlyway.migrate();
