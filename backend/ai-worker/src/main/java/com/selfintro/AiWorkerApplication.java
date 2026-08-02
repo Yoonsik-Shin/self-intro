@@ -6,18 +6,9 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication(scanBasePackages = {
-    "com.selfintro.modules.jobapplication",
-    "com.selfintro.modules.studyplan"
-})
-@EnableJpaRepositories(basePackages = {
-    "com.selfintro.modules.jobapplication",
-    "com.selfintro.modules.studyplan"
-})
-@EntityScan(basePackages = {
-    "com.selfintro.modules.jobapplication",
-    "com.selfintro.modules.studyplan"
-})
+@SpringBootApplication(scanBasePackages = "com.selfintro")
+@EnableJpaRepositories(basePackages = "com.selfintro")
+@EntityScan(basePackages = "com.selfintro")
 @EnableScheduling
 public class AiWorkerApplication {
 
