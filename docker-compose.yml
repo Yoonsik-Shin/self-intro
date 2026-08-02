@@ -20,7 +20,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     container_name: self-intro-backend
     ports:
       - "8080:8080"
@@ -55,6 +55,30 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  backend-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: self-intro-backend-worker
+    ports:
+      - "8081:8081"
+      - "9090:9090"
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - DB_URL=jdbc:h2:mem:workerdb;MODE=Oracle
+      - DB_USERNAME=sa
+      - DB_PASSWORD=
+      - DB_DRIVER=org.h2.Driver
+      - JPA_DDL_AUTO=update
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
 
   redis:
     image: redis:7-alpine
