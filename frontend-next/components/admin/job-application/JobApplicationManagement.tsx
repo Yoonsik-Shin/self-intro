@@ -19,6 +19,7 @@ import { adminDetailMarkdownComponents } from '@/lib/markdown';
 import { parseJobplanetClipboard } from '@/lib/jobplanet';
 import {
     AlertTriangle,
+    ArrowRight,
     Bookmark,
     BookmarkCheck,
     Briefcase,
@@ -401,15 +402,27 @@ function SectionTabs({
     tabs,
     bordered = true,
     size = 'lg',
+    activeKey: controlledActiveKey,
+    onTabChange,
 }: {
     tabs: SectionTab[];
     bordered?: boolean;
     size?: keyof typeof SECTION_TABS_SIZE;
+    activeKey?: string;
+    onTabChange?: (key: string) => void;
 }) {
-    const [activeKey, setActiveKey] = useState(tabs[0]?.key);
+    const [internalActiveKey, setInternalActiveKey] = useState(tabs[0]?.key);
+    const activeKey = controlledActiveKey !== undefined ? controlledActiveKey : internalActiveKey;
     if (tabs.length === 0) return null;
     const current = tabs.find((tab) => tab.key === activeKey) ?? tabs[0];
     const s = SECTION_TABS_SIZE[size];
+
+    const handleTabClick = (key: string) => {
+        if (controlledActiveKey === undefined) {
+            setInternalActiveKey(key);
+        }
+        onTabChange?.(key);
+    };
 
     return (
         <div className={`min-w-0 ${bordered ? 'border-t border-slate-200 pt-5' : ''}`}>
@@ -420,7 +433,7 @@ function SectionTabs({
                     <button
                         key={tab.key}
                         type="button"
-                        onClick={() => setActiveKey(tab.key)}
+                        onClick={() => handleTabClick(tab.key)}
                         className={`-mb-px shrink-0 ${s.border} px-0.5 ${s.pad} ${s.text} transition ${
                             current.key === tab.key
                                 ? 'border-slate-900 text-slate-900'
@@ -808,10 +821,12 @@ function PrintTemplatesPanel({
     jobPostingId,
     hasAppealAnalysis,
     appealAnalyzedAt,
+    onNavigateToAppealAnalysis,
 }: {
     jobPostingId: number;
     hasAppealAnalysis: boolean;
     appealAnalyzedAt?: string | null;
+    onNavigateToAppealAnalysis?: () => void;
 }) {
     const queryClient = useQueryClient();
     const queryKey = ['jobPostings', jobPostingId, 'printTemplates'] as const;
@@ -937,6 +952,19 @@ function PrintTemplatesPanel({
                                 ? '현재 어필 포인트 분석을 기준으로 PDF에 넣을 내용과 뺄 내용을 구성합니다.'
                                 : '먼저 경력 매칭 분석 탭에서 AI 어필 포인트 분석을 실행해 주세요.'}
                         </p>
+                        {!hasAppealAnalysis && onNavigateToAppealAnalysis && (
+                            <div className="mt-2.5">
+                                <button
+                                    type="button"
+                                    onClick={onNavigateToAppealAnalysis}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.98]"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5 text-indigo-200" />
+                                    AI 어필 포인트 분석으로 이동
+                                    <ArrowRight className="h-3.5 w-3.5 opacity-80" />
+                                </button>
+                            </div>
+                        )}
                         {appealAnalyzedAt && (
                             <p className="mt-1 text-[11px] font-semibold text-indigo-400">
                                 마지막 분석 · {appealAnalyzedAt.replace('T', ' ').slice(0, 16)}
@@ -1643,8 +1671,20 @@ export function JobApplicationManagement() {
     const [isBulkIngesting, setIsBulkIngesting] = useState(false);
     const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
     const [settingsForm, setSettingsForm] = useState<JobPostingSettingRequest | null>(null);
+    const [activeMainTab, setActiveMainTab] = useState<string>('detail');
+    const [activeAppealSubTab, setActiveAppealSubTab] = useState<string>('score');
     const detailDrawerAnim = useSlideDrawer(!!drawerState);
     const settingsDrawerAnim = useSlideDrawer(isSettingsDrawerOpen && !!settingsForm);
+
+    const drawerJobPostingId = drawerState?.type === 'existing' ? drawerState.id : null;
+    const { data: drawerTemplates = [] } = useQuery({
+        queryKey: ['jobPostings', drawerJobPostingId, 'printTemplates'],
+        queryFn: () =>
+            drawerJobPostingId
+                ? printTemplateApi.listByJobPosting(drawerJobPostingId)
+                : Promise.resolve([]),
+        enabled: Boolean(drawerJobPostingId),
+    });
 
     const boardRef = useRef<HTMLDivElement>(null);
     const [boardHeightPx, setBoardHeightPx] = useState<number | null>(null);
@@ -2260,6 +2300,8 @@ export function JobApplicationManagement() {
         setStageDraft(!isPreApplication(item.status) ? (item.status as ApplicationStatus) : null);
         setStageMemo('');
         setIsEditing(false);
+        setActiveMainTab('detail');
+        setActiveAppealSubTab('score');
         setDrawerState({ type: 'existing', id: item.id });
     }
 
@@ -3525,6 +3567,8 @@ export function JobApplicationManagement() {
 
                                             <SectionTabs
                                                 key={`sections-${drawerItem.id}`}
+                                                activeKey={activeMainTab}
+                                                onTabChange={setActiveMainTab}
                                                 tabs={[
                                                     {
                                                         key: 'detail',
@@ -3605,6 +3649,12 @@ export function JobApplicationManagement() {
                                                                 appealAnalyzedAt={
                                                                     drawerItem.appealAnalyzedAt
                                                                 }
+                                                                onNavigateToAppealAnalysis={() => {
+                                                                    setActiveMainTab('appeal');
+                                                                    setActiveAppealSubTab(
+                                                                        'appeal-detail'
+                                                                    );
+                                                                }}
                                                             />
                                                         ),
                                                     },
@@ -3783,42 +3833,6 @@ export function JobApplicationManagement() {
                                                                                         )}
                                                                                     </li>
                                                                                 );
-                                                                                return (
-                                                                                    <li
-                                                                                        key={
-                                                                                            event.id
-                                                                                        }
-                                                                                        className="flex items-baseline gap-2 text-sm"
-                                                                                    >
-                                                                                        <span className="whitespace-nowrap font-mono text-xs text-slate-400">
-                                                                                            {event.changedAt
-                                                                                                .replace(
-                                                                                                    'T',
-                                                                                                    ' '
-                                                                                                )
-                                                                                                .slice(
-                                                                                                    0,
-                                                                                                    19
-                                                                                                )}
-                                                                                        </span>
-                                                                                        <span
-                                                                                            className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${statusEventBadgeClass(event.status)}`}
-                                                                                        >
-                                                                                            {statusEventLabel(
-                                                                                                event,
-                                                                                                index,
-                                                                                                stageEvents
-                                                                                            )}
-                                                                                        </span>
-                                                                                        {memo && (
-                                                                                            <span className="truncate text-xs text-slate-500">
-                                                                                                {
-                                                                                                    memo
-                                                                                                }
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </li>
-                                                                                );
                                                                             }
                                                                         )}
                                                                     </ol>
@@ -3884,25 +3898,74 @@ export function JobApplicationManagement() {
                                                                 </div>
                                                             );
 
-                                                            const appealDetail =
-                                                                drawerItem.appealAnalysis ? (
-                                                                    <AppealAnalysisView
-                                                                        key={
-                                                                            drawerItem.appealAnalyzedAt ??
-                                                                            'none'
-                                                                        }
-                                                                        markdown={
-                                                                            drawerItem.appealAnalysis
-                                                                        }
-                                                                        headerExtra={statusRow}
-                                                                    />
-                                                                ) : (
-                                                                    statusRow
-                                                                );
+                                                            const hasPrintDraft =
+                                                                drawerTemplates.length > 0;
+                                                            const showPrintDraftNotice =
+                                                                Boolean(
+                                                                    drawerItem.appealAnalysis
+                                                                ) && !hasPrintDraft;
+
+                                                            const printDraftNotice =
+                                                                showPrintDraftNotice ? (
+                                                                    <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/80 p-3.5 text-xs text-indigo-900 shadow-sm">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Sparkles className="h-4 w-4 shrink-0 text-indigo-600" />
+                                                                            <span className="font-semibold leading-relaxed">
+                                                                                AI 어필 포인트
+                                                                                분석이
+                                                                                완료되었습니다! 이
+                                                                                분석을 바탕으로{' '}
+                                                                                <strong>
+                                                                                    PDF AI 맞춤 초안
+                                                                                </strong>
+                                                                                을 생성해보세요.
+                                                                            </span>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                setActiveMainTab(
+                                                                                    'print-templates'
+                                                                                )
+                                                                            }
+                                                                            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm active:scale-[0.98]"
+                                                                        >
+                                                                            <FileText className="h-3.5 w-3.5" />
+                                                                            PDF AI 초안 생성으로
+                                                                            이동
+                                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                ) : null;
+
+                                                            const appealDetail = (
+                                                                <div className="space-y-3">
+                                                                    {printDraftNotice}
+                                                                    {drawerItem.appealAnalysis ? (
+                                                                        <AppealAnalysisView
+                                                                            key={
+                                                                                drawerItem.appealAnalyzedAt ??
+                                                                                'none'
+                                                                            }
+                                                                            markdown={
+                                                                                drawerItem.appealAnalysis
+                                                                            }
+                                                                            headerExtra={statusRow}
+                                                                        />
+                                                                    ) : (
+                                                                        statusRow
+                                                                    )}
+                                                                </div>
+                                                            );
+
                                                             return (
                                                                 <SectionTabs
                                                                     bordered={false}
                                                                     size="sm"
+                                                                    activeKey={activeAppealSubTab}
+                                                                    onTabChange={
+                                                                        setActiveAppealSubTab
+                                                                    }
                                                                     tabs={[
                                                                         {
                                                                             key: 'score',
