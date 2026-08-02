@@ -6,6 +6,11 @@ spring:
     allow-bean-definition-overriding: true
   application:
     name: self-intro-ai-worker
+  rabbitmq:
+    host: ${RABBITMQ_HOST:self-intro-rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   datasource:
     url: ${DB_URL:jdbc:h2:mem:workerdb;MODE=Oracle}
     username: ${DB_USERNAME:sa}
