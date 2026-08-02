@@ -22,6 +22,17 @@ spring:
           model: ${OPENAI_MODEL:gpt-4o-mini}
 
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  cookie-domain: ${COOKIE_DOMAIN:}
+  visitor:
+    cookie-secure: ${VISITOR_COOKIE_SECURE:false}
+    time-zone: ${VISITOR_TIME_ZONE:Asia/Seoul}
+    excluded-ips: ${VISITOR_EXCLUDED_IPS:}
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:admin}
+    password-hash: ${ADMIN_PASSWORD_HASH:}
   ai:
     base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
     api-key: ${NVIDIA_API_KEY:dummy-key-for-local-dev}
@@ -29,6 +40,15 @@ app:
     vision-model: ${NVIDIA_VISION_MODEL:meta/llama-3.2-11b-vision-instruct}
     max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:8192}
     json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
+  job-posting:
+    scheduler-enabled: ${JOB_POSTING_SCHEDULER_ENABLED:true}
+    ingest-concurrency: ${JOB_POSTING_INGEST_CONCURRENCY:3}
+    saramin:
+      access-key: ${SARAMIN_ACCESS_KEY:}
+  donation:
+    kofi:
+      page-url: ${KOFI_PAGE_URL:https://ko-fi.com}
+      verification-token: ${KOFI_VERIFICATION_TOKEN:}
   storage:
     endpoint: ${STORAGE_ENDPOINT:http://minio:9000}
     presigned-endpoint: ${STORAGE_PRESIGNED_ENDPOINT:${STORAGE_ENDPOINT:http://localhost:9000}}
