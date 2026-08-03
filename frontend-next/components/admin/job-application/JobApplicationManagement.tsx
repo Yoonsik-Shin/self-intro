@@ -2003,12 +2003,20 @@ export function JobApplicationManagement() {
         if (!isCreating) return;
 
         const handlePaste = (e: ClipboardEvent) => {
+            // URL input에 포커스가 있으면 필드 자체 네이티브 paste에 맡기고 전역 처리는 건너뛴다
+            // (그렇지 않으면 네이티브 삽입 + 전역 상태 갱신이 겹쳐 값이 중복된다)
+            const activeEl = document.activeElement as HTMLInputElement | null;
+            if (activeEl && activeEl.tagName === 'INPUT' && activeEl.type === 'url') {
+                return;
+            }
+
             const pastedText = e.clipboardData?.getData('text/plain');
             if (!pastedText) return;
 
             const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
             const matches = pastedText.match(urlRegex);
             if (matches && matches.length > 0) {
+                e.preventDefault();
                 const cleanedUrls = Array.from(
                     new Set(matches.map((m) => m.replace(/[)"'>;\.]+$|&quot;/g, '').trim()))
                 );
