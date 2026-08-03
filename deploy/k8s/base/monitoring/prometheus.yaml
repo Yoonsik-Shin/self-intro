@@ -76,6 +76,9 @@ data:
       - job_name: 'mysql'
         static_configs:
           - targets: ['mysqld-exporter.self-intro.svc.cluster.local:9104']
+      - job_name: 'oracle-atp'
+        static_configs:
+          - targets: ['oracledb-exporter.self-intro.svc.cluster.local:9161']
       - job_name: 'node-exporter'
         kubernetes_sd_configs:
           - role: pod

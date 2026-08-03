@@ -19,3 +19,4 @@ configMapGenerator:
     files:
       - rabbitmq-overview.json
       - mysql-overview.json
+      - oracle-atp-overview.json

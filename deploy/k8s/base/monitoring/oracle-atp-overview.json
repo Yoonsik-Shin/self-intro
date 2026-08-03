@@ -1,0 +1,73 @@
+{
+  "title": "Oracle ATP Overview",
+  "uid": "oracle-atp-overview",
+  "tags": ["oracle", "atp"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Up",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } } }] }, "overrides": [] },
+      "targets": [{ "expr": "oracledb_up", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Active Sessions",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "oracledb_sessions_value{type=\"ACTIVE\"}", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Process Count",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "oracledb_process_count", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Exporter Scrape Errors",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "oracledb_exporter_last_scrape_error", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Sessions (active / inactive)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "oracledb_sessions_value{type=\"ACTIVE\"}", "legendFormat": "active", "refId": "A" },
+        { "expr": "oracledb_sessions_value{type=\"INACTIVE\"}", "legendFormat": "inactive", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Tablespace Used %",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100 }, "overrides": [] },
+      "targets": [{ "expr": "oracledb_tablespace_used_percent", "legendFormat": "{{tablespace}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Activity (execute / parse / commit / rollback)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "rate(oracledb_activity_value[1m])", "legendFormat": "{{name}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Wait Time by Class",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "rate(oracledb_wait_time_value[1m])", "legendFormat": "{{wait_class}}", "refId": "A" }]
+    }
+  ]
+}
