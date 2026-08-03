@@ -55,10 +55,20 @@ spec:
           volumeMounts:
             - name: datasources-volume
               mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provider-volume
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards-json-volume
+              mountPath: /var/lib/grafana/dashboards
       volumes:
         - name: datasources-volume
           configMap:
             name: grafana-datasources
+        - name: dashboards-provider-volume
+          configMap:
+            name: grafana-dashboards-provider
+        - name: dashboards-json-volume
+          configMap:
+            name: grafana-dashboards-json
 ---
 apiVersion: v1
 kind: Service

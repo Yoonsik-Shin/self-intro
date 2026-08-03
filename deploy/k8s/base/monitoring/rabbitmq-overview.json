@@ -1,0 +1,93 @@
+{
+  "title": "RabbitMQ Overview",
+  "uid": "rabbitmq-overview",
+  "tags": ["rabbitmq"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Connections",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "rabbitmq_connections", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Channels",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "rabbitmq_channels", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Consumers",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "rabbitmq_consumers", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Queues",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "rabbitmq_queues", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Open FDs",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "rabbitmq_process_open_fds", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Disk Space Available",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [{ "expr": "rabbitmq_disk_space_available_bytes", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Queued Messages",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rabbitmq_queue_messages_ready", "legendFormat": "ready", "refId": "A" },
+        { "expr": "rabbitmq_queue_messages_unacked", "legendFormat": "unacked", "refId": "B" },
+        { "expr": "rabbitmq_queue_messages", "legendFormat": "total", "refId": "C" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Connections / Channels / Consumers",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rabbitmq_connections", "legendFormat": "connections", "refId": "A" },
+        { "expr": "rabbitmq_channels", "legendFormat": "channels", "refId": "B" },
+        { "expr": "rabbitmq_consumers", "legendFormat": "consumers", "refId": "C" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "In-RAM Message Bytes",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [{ "expr": "rabbitmq_queue_messages_ram_bytes", "legendFormat": "ram bytes", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk Space Available",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [{ "expr": "rabbitmq_disk_space_available_bytes", "legendFormat": "disk available", "refId": "A" }]
+    }
+  ]
+}

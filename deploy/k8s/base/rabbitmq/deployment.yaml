@@ -21,11 +21,17 @@ spec:
               containerPort: 5672
             - name: http-mgmt
               containerPort: 15672
+            - name: metrics
+              containerPort: 15692
           env:
             - name: RABBITMQ_DEFAULT_USER
               value: "guest"
             - name: RABBITMQ_DEFAULT_PASS
               value: "guest"
+          volumeMounts:
+            - name: rabbitmq-plugins
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
           resources:
             requests:
               cpu: 50m
@@ -33,3 +39,7 @@ spec:
             limits:
               cpu: 200m
               memory: 256Mi
+      volumes:
+        - name: rabbitmq-plugins
+          configMap:
+            name: rabbitmq-plugins

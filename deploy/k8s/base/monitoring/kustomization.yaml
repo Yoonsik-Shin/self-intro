@@ -1,6 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+namespace: self-intro
+
 resources:
   - prometheus.yaml
   - loki.yaml
@@ -8,3 +10,12 @@ resources:
   - grafana.yaml
   - grafana-ingress.yaml
   - node-exporter.yaml
+
+configMapGenerator:
+  - name: grafana-dashboards-provider
+    files:
+      - dashboards-provider.yaml=grafana-dashboards-provider.yaml
+  - name: grafana-dashboards-json
+    files:
+      - rabbitmq-overview.json
+      - mysql-overview.json
