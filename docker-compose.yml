@@ -17,6 +17,19 @@ services:
       retries: 5
       interval: 5s
 
+  mysqld-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: self-intro-mysqld-exporter
+    command:
+      - '--config.my-cnf=/etc/mysqld_exporter/.my.cnf'
+    volumes:
+      - ./deploy/monitoring/mysql/.my.cnf:/etc/mysqld_exporter/.my.cnf:ro
+    ports:
+      - "9104:9104"
+    depends_on:
+      backend-db:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend
@@ -99,12 +112,17 @@ services:
   nosql:
     image: ghcr.io/oracle/nosql:latest-ce
     container_name: self-intro-nosql
+    # kvlite가 부팅 시 컨테이너 hostname을 config.xml에 박아둠. 고정 안 하면
+    # 재생성마다 랜덤 hostname 바뀌어서 기존 store와 영원히 어긋나 기동 멈춤.
+    hostname: self-intro-nosql
     ports:
       - "8090:8080"
     environment:
       - KV_PROXY_PORT=8080
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      # KVLite httpproxy는 NoSQL Data Driver 프로토콜 전용이라 일반 GET엔 항상 400을 준다.
+      # -f는 400도 실패로 처리하므로 빼고, TCP 연결+응답만 확인한다.
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8080"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -118,6 +136,7 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "15692:15692"
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
@@ -128,6 +147,7 @@ services:
       retries: 5
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./deploy/monitoring/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
 
 
 

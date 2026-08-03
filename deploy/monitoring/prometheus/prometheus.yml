@@ -10,3 +10,20 @@ scrape_configs:
       - targets: ['backend:8080']
         labels:
           application: 'self-intro-backend'
+
+  - job_name: 'self-intro-backend-worker'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['backend-worker:8081']
+        labels:
+          application: 'self-intro-backend-worker'
+
+  - job_name: 'rabbitmq'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysqld-exporter:9104']

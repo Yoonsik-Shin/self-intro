@@ -81,13 +81,21 @@ oracle:
     table-name: ${ORACLE_NOSQL_TABLE:JobPostingReadModel}
 
 management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    prometheus:
+      enabled: true
   endpoints:
     web:
       exposure:
         include: health,info,prometheus,metrics
-  endpoint:
-    health:
-      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 grpc:
   server:
