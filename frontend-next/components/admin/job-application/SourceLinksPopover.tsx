@@ -50,14 +50,14 @@ export function SourceLinksPopover({ sourceUrls, label, className }: SourceLinks
     const sorted = [...sourceUrls].sort((a, b) => Number(b.primary) - Number(a.primary));
 
     return (
-        <div ref={containerRef} className="relative">
+        <div ref={containerRef} className="relative min-w-0">
             <button
                 type="button"
                 onClick={() => setOpen((prev) => !prev)}
                 title="이 공고에 등록된 원본 링크 목록을 봅니다"
                 className={
                     className ??
-                    'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100'
+                    'flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100'
                 }
             >
                 <ExternalLink className="h-4 w-4" />
