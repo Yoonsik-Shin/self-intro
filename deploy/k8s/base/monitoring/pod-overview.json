@@ -1,0 +1,87 @@
+{
+  "title": "Pod Overview",
+  "uid": "pod-overview",
+  "tags": ["pod", "kubernetes"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(kube_pod_status_phase, namespace)",
+        "current": { "text": "self-intro", "value": "self-intro" },
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Pods Running",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(kube_pod_status_phase{namespace=\"$namespace\",phase=\"Running\"})", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Pods Pending/Failed",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(kube_pod_status_phase{namespace=\"$namespace\",phase=~\"Pending|Failed\"})", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Total Restarts (1h)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\"}[1h]))", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Total Memory Used",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [{ "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\",container!=\"\",container!=\"POD\"})", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU Usage by Pod",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",container!=\"\",container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory Usage by Pod",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [{ "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\",container!=\"\",container!=\"POD\"}) by (pod)", "legendFormat": "{{pod}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container Restarts",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": "Prometheus",
+      "targets": [{ "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"$namespace\"}) by (pod)", "legendFormat": "{{pod}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory: Usage vs Requests vs Limits",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\",container!=\"\",container!=\"POD\"})", "legendFormat": "usage", "refId": "A" },
+        { "expr": "sum(kube_pod_container_resource_requests{namespace=\"$namespace\",resource=\"memory\"})", "legendFormat": "requests", "refId": "B" },
+        { "expr": "sum(kube_pod_container_resource_limits{namespace=\"$namespace\",resource=\"memory\"})", "legendFormat": "limits", "refId": "C" }
+      ]
+    }
+  ]
+}

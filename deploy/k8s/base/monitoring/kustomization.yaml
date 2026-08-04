@@ -21,3 +21,5 @@ configMapGenerator:
       - rabbitmq-overview.json
       - mysql-overview.json
       - oracle-atp-overview.json
+      - node-overview.json
+      - pod-overview.json
