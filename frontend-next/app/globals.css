@@ -186,6 +186,16 @@ body {
         page-break-after: always !important;
     }
 
+    /* 가로(landscape) 방향 인쇄 페이지 — 포트폴리오 케이스스터디용. 실제 용지 크기(@page size)는
+       인쇄 트리거 시점에 JS가 동적으로 삽입하는 <style> 태그가 담당한다(브라우저별 @page 스코프
+       제약 때문에 클래스 셀렉터만으로는 용지 크기 자체를 바꿀 수 없다). 여기서는 화면/인쇄 레이아웃
+       치수만 맞춘다. */
+    .pdf-page-layer[data-orientation='landscape'] {
+        width: 297mm !important;
+        height: 210mm !important;
+        max-height: 210mm !important;
+    }
+
     /* 마지막 페이지는 다음 페이지로 강제 이동시키면 안 된다.
        break-after: page가 마지막 페이지에도 걸려 있으면 브라우저가
        콘텐츠 없는 페이지를 하나 더 만들어버려 "미리보기보다 인쇄 결과가

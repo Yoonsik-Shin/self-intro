@@ -20,6 +20,34 @@ export const CONTENT_HEIGHT_PX = Math.round(CONTENT_HEIGHT_MM * MM_TO_PX); // ~1
 export const PAD_TOP_PX = Math.round(PAD_TOP_MM * MM_TO_PX); // ~45px
 export const PAD_BOTTOM_PX = Math.round(PAD_BOTTOM_MM * MM_TO_PX); // ~45px
 
+export type PageOrientation = 'portrait' | 'landscape';
+
+export interface PageMetrics {
+    orientation: PageOrientation;
+    widthMm: number;
+    heightMm: number;
+    contentHeightMm: number;
+    widthPx: number;
+    heightPx: number;
+    contentHeightPx: number;
+}
+
+/** A4 세로/가로 페이지 치수를 계산한다. 상하좌우 여백(mm)은 방향과 무관하게 동일하게 유지한다. */
+export function getPageMetrics(orientation: PageOrientation = 'portrait'): PageMetrics {
+    const widthMm = orientation === 'portrait' ? A4_WIDTH_MM : A4_HEIGHT_MM;
+    const heightMm = orientation === 'portrait' ? A4_HEIGHT_MM : A4_WIDTH_MM;
+    const contentHeightMm = heightMm - PAD_TOP_MM - PAD_BOTTOM_MM;
+    return {
+        orientation,
+        widthMm,
+        heightMm,
+        contentHeightMm,
+        widthPx: Math.round(widthMm * MM_TO_PX),
+        heightPx: Math.round(heightMm * MM_TO_PX),
+        contentHeightPx: Math.round(contentHeightMm * MM_TO_PX),
+    };
+}
+
 export type AtomType =
     | 'intro-profile'
     | 'skills'
@@ -110,7 +138,8 @@ export function partitionAtomsIntoPages(
     atoms: PrintAtomItem[],
     itemHeights: Map<string, number>,
     sectionGaps: Record<string, number> = {},
-    forcedPageOverrides: Record<string, number> = {}
+    forcedPageOverrides: Record<string, number> = {},
+    contentHeightPx: number = CONTENT_HEIGHT_PX
 ): PageLayerData[] {
     if (atoms.length === 0) {
         return [{ pageIndex: 0, items: [], heightUsedPx: 0 }];
@@ -121,7 +150,7 @@ export function partitionAtomsIntoPages(
     let currentHeight = 0;
     // 자동 분할에는 20px 안전 여유를 둔다. forcedPageOverrides는 사용자가
     // 페이지를 명시적으로 지정한 값이므로 자동/물리 경계보다 우선한다.
-    const maxContentHeight = CONTENT_HEIGHT_PX - 20;
+    const maxContentHeight = contentHeightPx - 20;
 
     const startNewPage = () => {
         if (currentPageItems.length > 0) {

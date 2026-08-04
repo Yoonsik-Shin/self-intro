@@ -1,12 +1,24 @@
 'use client';
 
 import type React from 'react';
+import type { PageOrientation } from '@/lib/pdfLayoutEngine';
 
 type PdfPageLayerProps = {
     pageIndex: number;
     totalPages: number;
     children: React.ReactNode;
     hideGuides?: boolean;
+    orientation?: PageOrientation;
+};
+
+const DIMENSION_CLASSES: Record<PageOrientation, string> = {
+    portrait: 'w-[210mm] h-[297mm] print:w-[210mm] print:h-[297mm] print:max-h-[297mm]',
+    landscape: 'w-[297mm] h-[210mm] print:w-[297mm] print:h-[210mm] print:max-h-[210mm]',
+};
+
+const BOTTOM_GUIDE_CLASSES: Record<PageOrientation, string> = {
+    portrait: 'top-[285mm]',
+    landscape: 'top-[198mm]',
 };
 
 /**
@@ -14,12 +26,14 @@ type PdfPageLayerProps = {
  *
  * Provides a Figma-style frame in screen preview mode,
  * and exact 1:1 physical A4 page rendering when exported to PDF or printed.
+ * 세로(portrait, 이력서)와 가로(landscape, 포트폴리오) 두 방향을 모두 지원한다.
  */
 export function PdfPageLayer({
     pageIndex,
     totalPages,
     children,
     hideGuides = false,
+    orientation = 'portrait',
 }: PdfPageLayerProps) {
     const isLastPage = pageIndex === totalPages - 1;
 
@@ -28,7 +42,8 @@ export function PdfPageLayer({
             data-pdf-page-layer
             data-page-index={pageIndex}
             data-last-page={isLastPage || undefined}
-            className="pdf-page-layer relative w-[210mm] h-[297mm] shrink-0 rounded-md bg-white border border-slate-300/90 shadow-[0_12px_40px_rgba(0,0,0,0.15)] box-border p-[12mm_14mm] print:w-[210mm] print:h-[297mm] print:max-h-[297mm] print:m-0 print:p-[12mm_14mm] print:shadow-none print:rounded-none print:border-none print:bg-white print:overflow-hidden print:box-border"
+            data-orientation={orientation}
+            className={`pdf-page-layer relative ${DIMENSION_CLASSES[orientation]} shrink-0 rounded-md bg-white border border-slate-300/90 shadow-[0_12px_40px_rgba(0,0,0,0.15)] box-border p-[12mm_14mm] print:m-0 print:p-[12mm_14mm] print:shadow-none print:rounded-none print:border-none print:bg-white print:overflow-hidden print:box-border`}
             style={{
                 breakAfter: isLastPage ? 'auto' : 'page',
                 pageBreakAfter: isLastPage ? 'auto' : 'always',
@@ -42,7 +57,10 @@ export function PdfPageLayer({
                         className="pointer-events-none absolute -top-7 left-0 flex items-center gap-1.5 rounded-t-md bg-slate-900/90 px-3 py-1 text-[11px] font-extrabold text-white shadow-md backdrop-blur-md print:hidden"
                     >
                         <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
-                        <span>{pageIndex + 1}페이지 (A4)</span>
+                        <span>
+                            {pageIndex + 1}페이지 (A4{' '}
+                            {orientation === 'landscape' ? '가로' : '세로'})
+                        </span>
                     </div>
 
                     {/* 상단 12mm 가이드라인 (화면 프리뷰 전용) */}
@@ -55,12 +73,12 @@ export function PdfPageLayer({
                         </span>
                     </div>
 
-                    {/* 하단 285mm 가이드라인 (화면 프리뷰 전용). 라벨은 항상 비어있는 하단
-                        12mm 여백대(285mm~297mm) 안, 즉 선 "아래"에 둬서 본문 텍스트가 경계선에
+                    {/* 하단 가이드라인 (화면 프리뷰 전용). 라벨은 항상 비어있는 하단
+                        12mm 여백대 안, 즉 선 "아래"에 둬서 본문 텍스트가 경계선에
                         바싹 붙어도 라벨이 글자 위에 겹쳐 잘린 것처럼 보이지 않게 한다. */}
                     <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-x-0 top-[285mm] border-b border-dashed border-rose-400/40 print:hidden"
+                        className={`pointer-events-none absolute inset-x-0 ${BOTTOM_GUIDE_CLASSES[orientation]} border-b border-dashed border-rose-400/40 print:hidden`}
                     >
                         <span className="absolute top-1.5 right-4 bg-rose-500/90 text-white px-1.5 py-0.5 text-[8px] font-bold rounded shadow-sm opacity-75">
                             BOTTOM (12mm)

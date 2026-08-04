@@ -1072,3 +1072,35 @@ export type PortfolioCaseStudyPublic = {
     renderedMarkdown: string;
     updatedAt: string;
 };
+
+export type PortfolioLayoutOrientation = 'PORTRAIT' | 'LANDSCAPE';
+export type PortfolioLayoutSource = 'AI' | 'MANUAL';
+
+export type PortfolioLayout = {
+    id: number;
+    caseStudyId: number;
+    orientation: PortfolioLayoutOrientation;
+    name: string;
+    source: PortfolioLayoutSource;
+    excludedIdsJson: string | null;
+    sectionOrderJson: string | null;
+    sectionGapsJson: string | null;
+    itemOrderOverridesJson: string | null;
+    forcedPageOverridesJson: string | null;
+    contentOverridesJson: string | null;
+    isDefault: boolean;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type PortfolioLayoutRequest = {
+    orientation: PortfolioLayoutOrientation;
+    name: string;
+    excludedIdsJson: string | null;
+    sectionOrderJson: string | null;
+    sectionGapsJson: string | null;
+    itemOrderOverridesJson: string | null;
+    forcedPageOverridesJson: string | null;
+    contentOverridesJson: string | null;
+    isDefault: boolean;
+};

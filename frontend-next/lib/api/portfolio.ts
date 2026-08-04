@@ -9,6 +9,9 @@ import type {
     PortfolioCaseStudyPublic,
     PortfolioCaseStudyPublicSummary,
     PortfolioCaseStudyRevision,
+    PortfolioLayout,
+    PortfolioLayoutOrientation,
+    PortfolioLayoutRequest,
 } from './types';
 
 export const portfolioApi = {
@@ -57,5 +60,25 @@ export const portfolioApi = {
     publicDetail: (slug: string) =>
         request<PortfolioCaseStudyPublic>(
             `/api/portfolio/case-studies/${encodeURIComponent(slug)}`
+        ),
+    listLayouts: (caseStudyId: number) =>
+        request<PortfolioLayout[]>(`/api/admin/portfolio/case-studies/${caseStudyId}/layouts`),
+    createLayout: (caseStudyId: number, payload: PortfolioLayoutRequest) =>
+        request<PortfolioLayout>(`/api/admin/portfolio/case-studies/${caseStudyId}/layouts`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }),
+    updateLayout: (caseStudyId: number, id: number, payload: PortfolioLayoutRequest) =>
+        request<PortfolioLayout>(`/api/admin/portfolio/case-studies/${caseStudyId}/layouts/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        }),
+    removeLayout: (caseStudyId: number, id: number) =>
+        request<void>(`/api/admin/portfolio/case-studies/${caseStudyId}/layouts/${id}`, {
+            method: 'DELETE',
+        }),
+    publicDefaultLayout: (slug: string, orientation: PortfolioLayoutOrientation) =>
+        request<PortfolioLayout>(
+            `/api/portfolio/case-studies/${encodeURIComponent(slug)}/layout?orientation=${orientation}`
         ),
 };
