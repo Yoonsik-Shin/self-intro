@@ -10,6 +10,7 @@ export type LearningResourceGraphNodeData = {
     categorySlug: string;
     priorityTier?: LearningResourcePriorityTier;
     radius: number;
+    durationLabel?: string | null;
 };
 
 export type LearningResourceGraphFlowNode = Node<
@@ -43,6 +44,11 @@ export function LearningResourceGraphNode({ data }: NodeProps<LearningResourceGr
             >
                 {data.title}
             </span>
+            {data.durationLabel && (
+                <span className="pointer-events-none absolute left-1/2 top-full mt-4 -translate-x-1/2 whitespace-nowrap text-center text-[9px] font-semibold text-slate-400">
+                    {data.durationLabel}
+                </span>
+            )}
             <Handle type="source" position={Position.Top} style={HIDDEN_HANDLE_STYLE} />
         </div>
     );

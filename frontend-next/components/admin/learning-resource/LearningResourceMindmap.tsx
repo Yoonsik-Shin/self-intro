@@ -18,6 +18,7 @@ import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import { learningResourceApi } from '@/lib/api';
 import type { LearningResourcePriorityTier, LearningResourceRelationType } from '@/lib/api/types';
 import { colorForCategory } from '@/lib/constants/learningResourceColors';
+import { formatDuration } from '@/lib/format';
 import {
     CATEGORY_NODE_RADIUS,
     ROOT_NODE_RADIUS,
@@ -108,6 +109,7 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
         null
     );
     const [filtersOpen, setFiltersOpen] = useState(true);
+    const [showDuration, setShowDuration] = useState(false);
     const [panelPos, setPanelPos] = useState<{ left: number; top: number } | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -293,6 +295,7 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
                     categorySlug: n.category.slug,
                     priorityTier: n.priorityTier,
                     radius,
+                    durationLabel: showDuration ? formatDuration(n.durationMinutes) : null,
                 },
             };
         });
@@ -338,7 +341,7 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
             initialNodes: [rootNode, ...categoryNodes, ...courseNodes],
             edges: [...rootToCategoryEdges, ...categoryToCourseEdges, ...relationEdges],
         };
-    }, [graph, activeCategories, activePriorities, categories]);
+    }, [graph, activeCategories, activePriorities, categories, showDuration]);
 
     const [nodes, setNodes] = useState<FlowNode[]>(initialNodes);
     const [syncedInitialNodes, setSyncedInitialNodes] = useState(initialNodes);
@@ -418,6 +421,21 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
                             >
                                 <GripVertical size={14} className="text-slate-300" />
                                 필터
+                            </div>
+                            <div className="flex items-center justify-between border-b border-slate-100 p-3">
+                                <p className="text-[11px] font-bold text-slate-400">
+                                    러닝타임 표시
+                                </p>
+                                <button
+                                    onClick={() => setShowDuration((v) => !v)}
+                                    role="switch"
+                                    aria-checked={showDuration}
+                                    className={`relative h-5 w-9 shrink-0 rounded-full transition ${showDuration ? 'bg-slate-900' : 'bg-slate-200'}`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${showDuration ? 'translate-x-4' : 'translate-x-0.5'}`}
+                                    />
+                                </button>
                             </div>
                             <div className="border-b border-slate-100 p-3 pt-2">
                                 <p className="mb-1.5 text-[11px] font-bold text-slate-400">

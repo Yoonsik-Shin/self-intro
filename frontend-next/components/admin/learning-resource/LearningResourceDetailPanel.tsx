@@ -15,6 +15,7 @@ import {
     Wrench,
 } from 'lucide-react';
 import type { LearningResource } from '@/lib/api/types';
+import { formatDuration } from '@/lib/format';
 
 type LearningResourceDetailPanelProps = {
     resource: LearningResource;
@@ -58,15 +59,6 @@ const relationTypeLabels: Record<string, string> = {
     FOLLOW_UP: '후속 학습',
     OVERLAPS: '내용 중복',
 };
-
-function formatDuration(minutes?: number) {
-    if (!minutes) return null;
-    const hours = Math.floor(minutes / 60);
-    const rest = minutes % 60;
-    if (hours === 0) return `${rest}분`;
-    if (rest === 0) return `${hours}시간`;
-    return `${hours}시간 ${rest}분`;
-}
 
 export function LearningResourceDetailPanel({
     resource,

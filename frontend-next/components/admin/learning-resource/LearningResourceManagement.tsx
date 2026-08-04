@@ -13,6 +13,7 @@ import type {
     LearningResourceStatus,
     LearningResourceType,
 } from '@/lib/api/types';
+import { formatDuration } from '@/lib/format';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MarkdownEditor } from '../shared/MarkdownEditor';
@@ -70,6 +71,19 @@ const priorityOptions: Array<{ value: LearningResourcePriorityTier; label: strin
     { value: 'P1', label: 'P1 · 권장' },
     { value: 'P2', label: 'P2 · 참고' },
     { value: 'P3', label: 'P3 · 보류' },
+];
+
+type DurationFilterValue = 'ALL' | 'UNDER_1H' | 'H1_3' | 'H3_10' | 'OVER_10H';
+
+const durationOptions: Array<{
+    value: Exclude<DurationFilterValue, 'ALL'>;
+    label: string;
+    matches: (minutes?: number) => boolean;
+}> = [
+    { value: 'UNDER_1H', label: '1시간 미만', matches: (m) => !!m && m < 60 },
+    { value: 'H1_3', label: '1~3시간', matches: (m) => !!m && m >= 60 && m < 180 },
+    { value: 'H3_10', label: '3~10시간', matches: (m) => !!m && m >= 180 && m < 600 },
+    { value: 'OVER_10H', label: '10시간 이상', matches: (m) => !!m && m >= 600 },
 ];
 
 const relationTypeOptions: Array<{ value: LearningResourceRelationType; label: string }> = [
@@ -232,6 +246,7 @@ export function LearningResourceManagement() {
     const [priorityFilter, setPriorityFilter] = useState<'ALL' | LearningResourcePriorityTier>(
         'ALL'
     );
+    const [durationFilter, setDurationFilter] = useState<DurationFilterValue>('ALL');
     const [search, setSearch] = useState('');
 
     const counts = useMemo(() => {
@@ -250,15 +265,26 @@ export function LearningResourceManagement() {
             const matchesStatus = statusFilter === 'ALL' || resource.status === statusFilter;
             const matchesPriority =
                 priorityFilter === 'ALL' || resource.priorityTier === priorityFilter;
+            const matchesDuration =
+                durationFilter === 'ALL' ||
+                durationOptions
+                    .find((o) => o.value === durationFilter)
+                    ?.matches(resource.durationMinutes);
             const matchesSearch =
                 !search ||
                 resource.title.toLowerCase().includes(search.toLowerCase()) ||
                 (resource.provider ?? '').toLowerCase().includes(search.toLowerCase()) ||
                 (resource.instructorOrAuthor ?? '').toLowerCase().includes(search.toLowerCase()) ||
                 resource.tags.some((tag) => tag.name.toLowerCase().includes(search.toLowerCase()));
-            return matchesCategory && matchesStatus && matchesPriority && matchesSearch;
+            return (
+                matchesCategory &&
+                matchesStatus &&
+                matchesPriority &&
+                matchesDuration &&
+                matchesSearch
+            );
         });
-    }, [resources, categoryFilter, statusFilter, priorityFilter, search]);
+    }, [resources, categoryFilter, statusFilter, priorityFilter, durationFilter, search]);
 
     const selectableRelatedResources = (resources ?? []).filter(
         (resource) =>
@@ -821,6 +847,19 @@ export function LearningResourceManagement() {
                                     </button>
                                 ))}
                                 <span className="ml-auto flex items-center gap-1.5">
+                                    {durationOptions.map((option) => (
+                                        <button
+                                            key={option.value}
+                                            onClick={() =>
+                                                setDurationFilter((current) =>
+                                                    current === option.value ? 'ALL' : option.value
+                                                )
+                                            }
+                                            className={`rounded px-2 py-1 text-[11px] font-black transition ${durationFilter === option.value ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
                                     {priorityOptions.map((option) => (
                                         <button
                                             key={option.value}
@@ -880,6 +919,13 @@ export function LearningResourceManagement() {
                                                             className={`rounded px-1.5 py-0.5 ${priorityStyles[resource.priorityTier]}`}
                                                         >
                                                             {resource.priorityTier}
+                                                        </span>
+                                                    )}
+                                                    {formatDuration(resource.durationMinutes) && (
+                                                        <span className="rounded bg-slate-50 px-1.5 py-0.5 text-slate-500">
+                                                            {formatDuration(
+                                                                resource.durationMinutes
+                                                            )}
                                                         </span>
                                                     )}
                                                 </div>
