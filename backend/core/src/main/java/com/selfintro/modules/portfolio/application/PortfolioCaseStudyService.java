@@ -223,32 +223,43 @@ public class PortfolioCaseStudyService {
         return withResolvedImageUrls(content);
     }
 
-    /** content_json에는 objectKey만 저장되어 있으므로, 응답을 만들 때만 공개 URL로 해석해 채운다. */
+    /**
+     * content_json에는 objectKey만 저장되어 있으므로 응답을 만들 때만 공개 URL로 해석해 채우고, 스키마
+     * 확장 전에 저장된 리비전(구버전 content_json)에 없는 필드는 null 대신 빈 값으로 채워 프론트가
+     * null 체크 없이 바로 .map() 등을 쓸 수 있게 한다.
+     */
     private PortfolioCaseStudyContent withResolvedImageUrls(PortfolioCaseStudyContent content) {
-        if (content.architecture() == null
-                || content.architecture().imageObjectKeys() == null
-                || content.architecture().imageObjectKeys().isEmpty()) {
-            return content;
-        }
+        List<String> imageObjectKeys =
+                content.architecture() == null || content.architecture().imageObjectKeys() == null
+                        ? List.of()
+                        : content.architecture().imageObjectKeys();
         List<String> imageUrls =
-                content.architecture().imageObjectKeys().stream()
-                        .map(storageService::toPublicUrl)
-                        .toList();
+                imageObjectKeys.stream().map(storageService::toPublicUrl).toList();
         PortfolioCaseStudyContent.Architecture resolved =
                 new PortfolioCaseStudyContent.Architecture(
-                        content.architecture().mermaidSource(),
-                        content.architecture().imageObjectKeys(),
+                        content.architecture() == null ? null : content.architecture().mermaidSource(),
+                        imageObjectKeys,
                         imageUrls);
+        PortfolioCaseStudyContent.Outcome outcome =
+                content.outcome() == null
+                        ? new PortfolioCaseStudyContent.Outcome("", List.of())
+                        : new PortfolioCaseStudyContent.Outcome(
+                                content.outcome().summary(),
+                                content.outcome().metrics() == null
+                                        ? List.of()
+                                        : content.outcome().metrics());
         return new PortfolioCaseStudyContent(
                 content.summary(),
                 content.problem(),
                 content.thoughtProcess(),
-                content.tradeoffs(),
+                content.tradeoffs() == null ? List.of() : content.tradeoffs(),
                 content.solution(),
-                content.outcome(),
+                outcome,
                 resolved,
-                content.sourceStudyIds(),
-                content.sourceExperienceDetailIds());
+                content.sourceStudyIds() == null ? List.of() : content.sourceStudyIds(),
+                content.sourceExperienceDetailIds() == null
+                        ? List.of()
+                        : content.sourceExperienceDetailIds());
     }
 
     private String writeJson(PortfolioCaseStudyContent content) {
