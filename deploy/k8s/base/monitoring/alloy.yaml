@@ -19,8 +19,22 @@ data:
       ]
     }
 
+    // self-intro-backend-worker 로그 파일명도 "self-intro-backend"를 부분 문자열로
+    // 포함해서 위 glob에 같이 잡히는데, service 라벨이 하드코딩돼있어서 worker 로그가
+    // api 로그랑 같은 라벨로 섞여 들어갔음 - 경로에 "backend-worker" 있으면 라벨 분리.
+    discovery.relabel "self_intro_backend" {
+      targets = local.file_match.self_intro_backend.targets
+
+      rule {
+        source_labels = ["__path__"]
+        regex         = ".*backend-worker.*"
+        target_label  = "service"
+        replacement   = "self-intro-backend-worker"
+      }
+    }
+
     loki.source.file "self_intro_backend" {
-      targets    = local.file_match.self_intro_backend.targets
+      targets    = discovery.relabel.self_intro_backend.output
       forward_to = [loki.write.local.receiver]
     }
 
