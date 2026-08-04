@@ -64,7 +64,9 @@ export function SourceLinksPopover({ sourceUrls, label, className }: SourceLinks
                 <span className="whitespace-nowrap text-[10px] font-bold">{label}</span>
             </button>
             {open && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                // 이 컴포넌트는 화면 하단에 고정된(overflow-hidden) 드로어 푸터 액션바에서만 쓰인다.
+                // top-full로 아래로 펼치면 드로어 바깥으로 밀려나 overflow-hidden에 잘려 안 보인다(2026-08-04) — 위로 펼친다.
+                <div className="absolute bottom-full right-0 z-20 mb-2 w-64 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
                     {sorted.map((entry) => (
                         <a
                             key={entry.id}
