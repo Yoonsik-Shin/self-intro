@@ -6,3 +6,8 @@ namespace: self-intro
 resources:
   - deployment.yaml
   - service.yaml
+
+configMapGenerator:
+  - name: oracledb-exporter-config
+    files:
+      - config.yaml

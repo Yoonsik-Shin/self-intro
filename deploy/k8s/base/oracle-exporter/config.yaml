@@ -1,0 +1,22 @@
+databases:
+  default:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    url: ${DB_TNS_ALIAS}
+    tnsAdmin: /etc/oracle/wallet
+    queryTimeout: 5
+    connMaxLifetime: 30m
+    maxOpenConns: 10
+    maxIdleConns: 10
+
+metrics:
+  default: default-metrics.toml
+
+log:
+  level: info
+  format: logfmt
+  destination: /opt/alert.log
+  interval: 15s
+
+web:
+  listenAddresses: [':9161']

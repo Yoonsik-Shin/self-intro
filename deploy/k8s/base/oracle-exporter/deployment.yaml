@@ -18,18 +18,21 @@ spec:
           # iamseth/oracledb_exporter는 amd64 전용이라 arm64(OKE Ampere) 노드에서
           # exec format error로 죽음 - Oracle 공식 멀티아치 빌드로 대체.
           image: container-registry.oracle.com/database/observability-exporter:2.0.0
+          # 2.0.0부터 DATA_SOURCE_NAME env var 방식 폐지, --config.file 필수.
+          args:
+            - "--config.file=/etc/oracledb-exporter/config.yaml"
           envFrom:
             - secretRef:
                 name: oracledb-exporter-secret
-          env:
-            - name: TNS_ADMIN
-              value: /etc/oracle/wallet
           ports:
             - name: http
               containerPort: 9161
           volumeMounts:
             - name: oracle-atp-wallet
               mountPath: /etc/oracle/wallet
+              readOnly: true
+            - name: exporter-config
+              mountPath: /etc/oracledb-exporter
               readOnly: true
           resources:
             requests:
@@ -45,3 +48,6 @@ spec:
         - name: oracle-atp-wallet
           secret:
             secretName: oracledb-exporter-wallet
+        - name: exporter-config
+          configMap:
+            name: oracledb-exporter-config
