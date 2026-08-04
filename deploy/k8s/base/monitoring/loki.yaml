@@ -30,6 +30,17 @@ data:
             prefix: index_
             period: 24h
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loki-data
+  namespace: self-intro
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,6 +48,8 @@ metadata:
   namespace: self-intro
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: loki
@@ -63,10 +76,15 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /etc/loki
+            - name: loki-data
+              mountPath: /loki
       volumes:
         - name: config-volume
           configMap:
             name: loki-config
+        - name: loki-data
+          persistentVolumeClaim:
+            claimName: loki-data
 ---
 apiVersion: v1
 kind: Service
