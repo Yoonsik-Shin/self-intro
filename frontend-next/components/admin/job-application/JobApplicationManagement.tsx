@@ -48,6 +48,7 @@ import {
 import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { PostingMemoEditor } from './PostingMemoEditor';
+import { SourceLinksPopover } from './SourceLinksPopover';
 import type {
     GapProjectDocument,
     JobPosting,
@@ -4859,7 +4860,9 @@ export function JobApplicationManagement() {
                                     </button>
                                     <div
                                         className={`grid gap-2 ${
-                                            drawerItem.postingUrl ? 'grid-cols-6' : 'grid-cols-4'
+                                            drawerItem.sourceUrls.length > 0
+                                                ? 'grid-cols-6'
+                                                : 'grid-cols-4'
                                         }`}
                                     >
                                         {drawerItem.status === 'SAVED' ? (
@@ -4904,20 +4907,10 @@ export function JobApplicationManagement() {
                                                 정보 수정
                                             </span>
                                         </button>
-                                        {drawerItem.postingUrl && (
-                                            <a
-                                                href={drawerItem.postingUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                title="채용 사이트의 원본 공고를 새 창에서 엽니다"
-                                                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100"
-                                            >
-                                                <ExternalLink className="h-4 w-4" />
-                                                <span className="whitespace-nowrap text-[10px] font-bold">
-                                                    원본 보기
-                                                </span>
-                                            </a>
-                                        )}
+                                        <SourceLinksPopover
+                                            sourceUrls={drawerItem.sourceUrls}
+                                            label="원본 보기"
+                                        />
                                         {drawerItem.postingUrl && (
                                             <button
                                                 type="button"
@@ -5002,7 +4995,9 @@ export function JobApplicationManagement() {
                                     <div
                                         key="view-footer-post"
                                         className={`grid shrink-0 gap-2 border-t border-slate-200 p-4 ${
-                                            drawerItem.postingUrl ? 'grid-cols-4' : 'grid-cols-2'
+                                            drawerItem.sourceUrls.length > 0
+                                                ? 'grid-cols-4'
+                                                : 'grid-cols-2'
                                         }`}
                                     >
                                         <button
@@ -5016,20 +5011,10 @@ export function JobApplicationManagement() {
                                                 정보 수정
                                             </span>
                                         </button>
-                                        {drawerItem.postingUrl && (
-                                            <a
-                                                href={drawerItem.postingUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                title="채용 사이트의 원본 공고를 새 창에서 엽니다"
-                                                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-1 py-2 text-slate-500 transition hover:bg-slate-100"
-                                            >
-                                                <ExternalLink className="h-4 w-4" />
-                                                <span className="whitespace-nowrap text-[10px] font-bold">
-                                                    원본 공고 보기
-                                                </span>
-                                            </a>
-                                        )}
+                                        <SourceLinksPopover
+                                            sourceUrls={drawerItem.sourceUrls}
+                                            label="원본 공고 보기"
+                                        />
                                         {drawerItem.postingUrl && (
                                             <button
                                                 type="button"

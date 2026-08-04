@@ -4,11 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingSourceUrl;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingStatusEvent;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingStatusEventRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingRequest;
@@ -30,6 +33,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.support.CronExpression;
@@ -52,10 +56,12 @@ public class JobPostingService {
     private static final long HEARTBEAT_INTERVAL_MILLIS = 20_000L;
 
     private final JobPostingRepository jobPostingRepository;
+    private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingStatusEventRepository statusEventRepository;
     private final JobPostingSettingRepository settingRepository;
     private final JobApplicationUrlParseService urlParseService;
     private final JobMatchingService matchingService;
+    private final JobPostingDedupService dedupService;
     private final ObjectMapper objectMapper;
     // 이 세마포어는 외부 AI의 전역 쿼터가 아니라 현재 JVM(Pod)의 수집 작업량을 제한한다.
     // bulk 입력 상한과 같은 5를 기본값으로 둬 한 요청의 모든 URL이 즉시 시작되게 한다.
@@ -70,15 +76,31 @@ public class JobPostingService {
     }
 
     public List<JobPostingResponse> list() {
-        return jobPostingRepository
-                .findByStatusNotOrderByCreatedAtDesc(JobPostingStatus.EXPIRED)
-                .stream()
-                .map(JobPostingResponse::from)
+        List<JobPosting> postings =
+                jobPostingRepository.findByStatusNotOrderByCreatedAtDesc(JobPostingStatus.EXPIRED);
+        List<Long> ids = postings.stream().map(JobPosting::getId).toList();
+        java.util.Map<Long, List<JobPostingSourceUrl>> sourceUrlsByPostingId =
+                sourceUrlRepository.findByJobPostingIdInOrderByPrimaryDescCreatedAtAsc(ids).stream()
+                        .collect(Collectors.groupingBy(JobPostingSourceUrl::getJobPostingId));
+        return postings.stream()
+                .map(
+                        posting ->
+                                JobPostingResponse.from(
+                                        posting,
+                                        sourceUrlsByPostingId.getOrDefault(
+                                                posting.getId(), List.of())))
                 .toList();
     }
 
     public JobPostingResponse get(Long id) {
-        return JobPostingResponse.from(findOrThrow(id));
+        return toResponse(findOrThrow(id));
+    }
+
+    private JobPostingResponse toResponse(JobPosting posting) {
+        return JobPostingResponse.from(
+                posting,
+                sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
+                        posting.getId()));
     }
 
     public JobPostingSettingResponse getSettings() {
@@ -113,7 +135,7 @@ public class JobPostingService {
     @Transactional
     public JobPostingResponse create(JobPostingRequest request) {
         if (AiJsonSupport.hasText(request.postingUrl())
-                && jobPostingRepository.existsByPostingUrl(request.postingUrl())) {
+                && sourceUrlRepository.existsByUrl(request.postingUrl())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 URL의 공고입니다.");
         }
         LocalDateTime now = LocalDateTime.now();
@@ -138,19 +160,34 @@ public class JobPostingService {
                                 request.applicationMethod(),
                                 request.compensationDetail(),
                                 now));
+        if (AiJsonSupport.hasText(request.postingUrl())) {
+            sourceUrlRepository.save(
+                    JobPostingSourceUrl.primary(
+                            posting.getId(),
+                            request.postingUrl(),
+                            JobPostingPlatform.fromUrl(request.postingUrl()),
+                            now));
+        }
         statusEventRepository.save(
                 JobPostingStatusEvent.of(posting.getId(), JobPostingStatus.APPLIED, "지원 등록", now));
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     /** 지원 전/후 어느 단계든 동일하게 편집한다(상태·지원일은 별도 엔드포인트가 담당). */
     @Transactional
     public JobPostingResponse update(Long id, JobPostingRequest request) {
         JobPosting posting = findOrThrow(id);
+        LocalDateTime now = LocalDateTime.now();
+        String previousUrl = posting.getPostingUrl();
+        String newUrl = request.postingUrl();
+        boolean urlChanged = !java.util.Objects.equals(previousUrl, newUrl);
+        if (urlChanged && AiJsonSupport.hasText(newUrl) && sourceUrlRepository.existsByUrl(newUrl)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 URL의 공고입니다.");
+        }
         posting.update(
                 request.companyName(),
                 request.positionTitle(),
-                request.postingUrl(),
+                newUrl,
                 request.source(),
                 request.deadline(),
                 request.alwaysOpen(),
@@ -164,15 +201,32 @@ public class JobPostingService {
                 request.hiringProcess(),
                 request.applicationMethod(),
                 request.compensationDetail(),
-                LocalDateTime.now());
-        return JobPostingResponse.from(posting);
+                now);
+        try {
+            // 회사명/직무명을 수정한 결과가 다른 기존 공고와 정규화 매칭 키가 겹치면(플랫폼 간 중복
+            // 병합 제약, V153) 여기서 막는다 — dirty checking에만 맡기면 트랜잭션 커밋 시점에야
+            // 제약 위반이 드러나 500으로 새 버릇 없이 노출된다.
+            jobPostingRepository.saveAndFlush(posting);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "동일한 회사/직무의 다른 공고가 이미 있습니다.", exception);
+        }
+        if (urlChanged) {
+            sourceUrlRepository.deleteByJobPostingIdAndPrimaryTrue(posting.getId());
+            if (AiJsonSupport.hasText(newUrl)) {
+                sourceUrlRepository.save(
+                        JobPostingSourceUrl.primary(
+                                posting.getId(), newUrl, JobPostingPlatform.fromUrl(newUrl), now));
+            }
+        }
+        return toResponse(posting);
     }
 
     @Transactional
     public JobPostingResponse updateMemo(Long id, String memo) {
         JobPosting posting = findOrThrow(id);
         posting.updateMemo(memo, LocalDateTime.now());
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     @Transactional
@@ -182,7 +236,7 @@ public class JobPostingService {
 
     public SseEmitter ingestUrlStream(String url) {
         String trimmed = url.trim();
-        if (jobPostingRepository.existsByPostingUrl(trimmed)) {
+        if (sourceUrlRepository.existsByUrl(trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
         }
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
@@ -405,7 +459,7 @@ public class JobPostingService {
 
     public JobPostingResponse ingestUrl(String url) {
         String trimmed = url.trim();
-        if (jobPostingRepository.existsByPostingUrl(trimmed)) {
+        if (sourceUrlRepository.existsByUrl(trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
         }
 
@@ -417,6 +471,18 @@ public class JobPostingService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        JobPostingPlatform platform = JobPostingPlatform.fromUrl(trimmed);
+
+        // 다른 플랫폼(원티드/잡코리아/사람인 등)에 이미 같은 회사+직무 공고가 있으면 새 행을 만들지
+        // 않고 이번 URL을 그 공고의 출처로만 추가한다.
+        java.util.Optional<JobPosting> existingMatch =
+                dedupService.findExistingMatch(parsed.companyName(), parsed.positionTitle());
+        if (existingMatch.isPresent()) {
+            return toResponse(
+                    dedupService.attachAdditionalUrl(
+                            existingMatch.get().getId(), trimmed, platform, now));
+        }
+
         JobPosting.Draft draft =
                 new JobPosting.Draft(
                         parsed.positionTitle(),
@@ -443,7 +509,19 @@ public class JobPostingService {
                         posting.getPositionTitle(), posting.getRequiredSkillsRaw());
         posting.applyMatch(match.score(), match.reason(), now);
 
-        return JobPostingResponse.from(jobPostingRepository.save(posting));
+        try {
+            return toResponse(dedupService.createNew(posting, trimmed, platform, now));
+        } catch (DataIntegrityViolationException exception) {
+            // 동시에 들어온 다른 URL(최대 5건 동시 수집)이 같은 회사+직무로 먼저 저장을 끝낸 경우다.
+            // dedupService.createNew는 별도 빈의 트랜잭션이라 이 시점엔 이미 롤백이 끝나 있으므로,
+            // 방금 커밋된 승자를 다시 찾아 이번 URL을 그쪽에 추가한다.
+            JobPosting winner =
+                    dedupService
+                            .findExistingMatch(parsed.companyName(), parsed.positionTitle())
+                            .orElseThrow(() -> exception);
+            return toResponse(
+                    dedupService.attachAdditionalUrl(winner.getId(), trimmed, platform, now));
+        }
     }
 
     /**
@@ -485,7 +563,7 @@ public class JobPostingService {
                 pick(parsed.applicationMethod(), posting.getApplicationMethod()),
                 pick(parsed.compensationDetail(), posting.getCompensationDetail()),
                 LocalDateTime.now());
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     private static String pick(String fresh, String existing) {
@@ -500,7 +578,7 @@ public class JobPostingService {
                 matchingService.evaluate(
                         posting.getPositionTitle(), posting.getRequiredSkillsRaw());
         posting.applyMatch(match.score(), match.reason(), LocalDateTime.now());
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     @Transactional
@@ -555,7 +633,7 @@ public class JobPostingService {
         posting.apply(LocalDate.now(), now);
         statusEventRepository.save(
                 JobPostingStatusEvent.of(posting.getId(), JobPostingStatus.APPLIED, "지원 전환", now));
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     @Transactional
@@ -565,7 +643,7 @@ public class JobPostingService {
         posting.unapply(now);
         statusEventRepository.save(
                 JobPostingStatusEvent.of(posting.getId(), JobPostingStatus.NEW, "지원 취소", now));
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     @Transactional
@@ -574,7 +652,7 @@ public class JobPostingService {
         LocalDateTime now = LocalDateTime.now();
         posting.changeStatus(status, now);
         statusEventRepository.save(JobPostingStatusEvent.of(posting.getId(), status, memo, now));
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     public List<JobPostingStatusEventResponse> statusEvents(Long id) {
@@ -608,7 +686,7 @@ public class JobPostingService {
             posting.changeStatus(latestEvent.getStatus(), latestEvent.getChangedAt());
         }
 
-        return JobPostingResponse.from(posting);
+        return toResponse(posting);
     }
 
     /**

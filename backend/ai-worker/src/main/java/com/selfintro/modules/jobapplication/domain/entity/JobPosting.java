@@ -2,6 +2,7 @@ package com.selfintro.modules.jobapplication.domain.entity;
 
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobapplication.domain.util.JobPostingNormalizer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -35,8 +36,15 @@ public class JobPosting {
     @Column(name = "company_name", nullable = false, length = 100)
     private String companyName;
 
+    /** {@link #companyName}을 정규화한 매칭 키. 플랫폼 간 같은 공고 판별(회사+직무 완전일치)에 쓰인다. */
+    @Column(name = "company_name_normalized", length = 100)
+    private String companyNameNormalized;
+
     @Column(name = "position_title", nullable = false, length = 150)
     private String positionTitle;
+
+    @Column(name = "position_title_normalized", length = 150)
+    private String positionTitleNormalized;
 
     @Column(name = "posting_url", length = 500)
     private String postingUrl;
@@ -165,7 +173,9 @@ public class JobPosting {
             String compensationDetail,
             LocalDateTime now) {
         this.companyName = companyName;
+        this.companyNameNormalized = JobPostingNormalizer.normalizeCompanyName(companyName);
         this.positionTitle = positionTitle;
+        this.positionTitleNormalized = JobPostingNormalizer.normalizePositionTitle(positionTitle);
         this.postingUrl = postingUrl;
         this.externalId = externalId;
         this.collectionMethod = collectionMethod;
@@ -285,7 +295,9 @@ public class JobPosting {
             String compensationDetail,
             LocalDateTime now) {
         this.companyName = companyName;
+        this.companyNameNormalized = JobPostingNormalizer.normalizeCompanyName(companyName);
         this.positionTitle = positionTitle;
+        this.positionTitleNormalized = JobPostingNormalizer.normalizePositionTitle(positionTitle);
         this.postingUrl = postingUrl;
         this.source = source;
         this.deadline = deadline;
@@ -306,6 +318,22 @@ public class JobPosting {
     public void updateMemo(String memo, LocalDateTime now) {
         this.memo = memo;
         this.updatedAt = now;
+    }
+
+    /** 다른 플랫폼에서 같은 공고로 매칭된 URL을 추가로 등록할 때, 본문 필드는 건드리지 않고 갱신 시각만 남긴다. */
+    public void touch(LocalDateTime now) {
+        this.updatedAt = now;
+    }
+
+    /** 정규화 매칭 키가 생기기 전에 만들어진 행을 위한 백필 전용 메서드. 갱신 시각은 건드리지 않는다. */
+    public void backfillNormalizedKeys() {
+        if (this.companyNameNormalized == null) {
+            this.companyNameNormalized = JobPostingNormalizer.normalizeCompanyName(this.companyName);
+        }
+        if (this.positionTitleNormalized == null) {
+            this.positionTitleNormalized =
+                    JobPostingNormalizer.normalizePositionTitle(this.positionTitle);
+        }
     }
 
     public void applyMatch(Integer score, String reason, LocalDateTime now) {

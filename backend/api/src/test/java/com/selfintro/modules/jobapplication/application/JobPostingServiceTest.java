@@ -3,6 +3,7 @@ package com.selfintro.modules.jobapplication.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +16,7 @@ import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingStatusEventRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingRequest;
@@ -34,6 +36,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -41,10 +44,12 @@ import org.springframework.web.server.ResponseStatusException;
 class JobPostingServiceTest {
 
     @Mock private JobPostingRepository jobPostingRepository;
+    @Mock private JobPostingSourceUrlRepository sourceUrlRepository;
     @Mock private JobPostingStatusEventRepository statusEventRepository;
     @Mock private JobPostingSettingRepository settingRepository;
     @Mock private JobApplicationUrlParseService urlParseService;
     @Mock private JobMatchingService matchingService;
+    @Mock private JobPostingDedupService dedupService;
 
     private JobPostingService jobPostingService;
 
@@ -53,10 +58,12 @@ class JobPostingServiceTest {
         jobPostingService =
                 new JobPostingService(
                         jobPostingRepository,
+                        sourceUrlRepository,
                         statusEventRepository,
                         settingRepository,
                         urlParseService,
                         matchingService,
+                        dedupService,
                         new ObjectMapper());
     }
 
@@ -131,8 +138,7 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlRejectsAlreadyCollectedUrl() {
-        when(jobPostingRepository.existsByPostingUrl("https://example.com/posting"))
-                .thenReturn(true);
+        when(sourceUrlRepository.existsByUrl("https://example.com/posting")).thenReturn(true);
 
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
                 .isInstanceOf(ResponseStatusException.class);
@@ -142,7 +148,7 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlRejectsWhenAiCannotExtractCoreFields() {
-        when(jobPostingRepository.existsByPostingUrl(any())).thenReturn(false);
+        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -170,7 +176,7 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlSavesNewCandidateOnSuccess() {
-        when(jobPostingRepository.existsByPostingUrl(any())).thenReturn(false);
+        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -189,7 +195,9 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://example.com/posting"));
-        when(jobPostingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(dedupService.findExistingMatch(any(), any())).thenReturn(Optional.empty());
+        when(dedupService.createNew(any(), any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(matchingService.evaluate(any(), any()))
                 .thenReturn(new JobMatchingService.MatchResult(80, "보유 기술과 일치도가 높습니다."));
 
@@ -198,6 +206,81 @@ class JobPostingServiceTest {
         assertThat(response.companyName()).isEqualTo("테스트 회사");
         assertThat(response.status()).isEqualTo(JobPostingStatus.NEW);
         assertThat(response.matchScore()).isEqualTo(80);
+    }
+
+    @Test
+    void ingestUrlAttachesToExistingMatchInsteadOfCreatingNewRow() {
+        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
+        when(urlParseService.parse(any()))
+                .thenReturn(
+                        new JobApplicationUrlParseResponse(
+                                "테스트 회사",
+                                "백엔드 개발자",
+                                "잡코리아",
+                                null,
+                                false,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "https://www.jobkorea.co.kr/Recruit/GI_Read/1"));
+        JobPosting existing = newCandidate();
+        when(dedupService.findExistingMatch("테스트 회사", "백엔드 개발자"))
+                .thenReturn(Optional.of(existing));
+        when(dedupService.attachAdditionalUrl(eq(1L), any(), any(), any())).thenReturn(existing);
+
+        JobPostingResponse response =
+                jobPostingService.ingestUrl("https://www.jobkorea.co.kr/Recruit/GI_Read/1");
+
+        assertThat(response.id()).isEqualTo(1L);
+        verify(dedupService, never()).createNew(any(), any(), any(), any());
+        verify(jobPostingRepository, never()).save(any());
+    }
+
+    @Test
+    void ingestUrlRetriesAsAttachWhenConcurrentIngestWinsTheRace() {
+        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
+        when(urlParseService.parse(any()))
+                .thenReturn(
+                        new JobApplicationUrlParseResponse(
+                                "테스트 회사",
+                                "백엔드 개발자",
+                                "잡코리아",
+                                null,
+                                false,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "https://www.jobkorea.co.kr/Recruit/GI_Read/1"));
+        when(matchingService.evaluate(any(), any()))
+                .thenReturn(new JobMatchingService.MatchResult(80, "보유 기술과 일치도가 높습니다."));
+        JobPosting winner = newCandidate();
+
+        // 첫 조회 시점엔 아직 동시 요청이 커밋 전이라 매칭되는 게 없다가, createNew 시도가
+        // 유니크 제약 위반으로 실패한 뒤 재조회하면 그새 커밋된 승자가 보인다.
+        when(dedupService.findExistingMatch("테스트 회사", "백엔드 개발자"))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(winner));
+        when(dedupService.createNew(any(), any(), any(), any()))
+                .thenThrow(new DataIntegrityViolationException("동시 삽입 충돌"));
+        when(dedupService.attachAdditionalUrl(eq(1L), any(), any(), any())).thenReturn(winner);
+
+        JobPostingResponse response =
+                jobPostingService.ingestUrl("https://www.jobkorea.co.kr/Recruit/GI_Read/1");
+
+        assertThat(response.id()).isEqualTo(1L);
+        verify(dedupService).attachAdditionalUrl(eq(1L), any(), any(), any());
     }
 
     @Test

@@ -468,6 +468,16 @@ export type JobPostingStatus =
 
 export type JobPostingSource = 'URL_INGEST' | 'SARAMIN' | 'MANUAL';
 
+export type JobPostingPlatform = 'WANTED' | 'JOBKOREA' | 'SARAMIN' | 'GREETINGHR' | 'OTHER';
+
+/** 회사+직무가 같아 병합된 공고에 등록된 URL 하나. "원본 보기" 팝오버가 이 목록을 그대로 나열한다. */
+export type JobPostingSourceUrl = {
+    id: number;
+    url: string;
+    platform: JobPostingPlatform;
+    primary: boolean;
+};
+
 /** 채용 공고 하나를 발견(수집)부터 지원 결과까지 하나로 추적한다. status가 NEW~EXPIRED이면 아직
  * 지원 전(수집 후보), APPLIED 이상이면 지원 완료 단계다. */
 export type JobPosting = {
@@ -475,6 +485,7 @@ export type JobPosting = {
     companyName: string;
     positionTitle: string;
     postingUrl: string | null;
+    sourceUrls: JobPostingSourceUrl[];
     externalId: string | null;
     collectionMethod: JobPostingSource;
     source: string;
@@ -959,4 +970,105 @@ export type StudyPlanSummary = {
 export type StudyPlanCreateRequest = {
     weeklyAvailableMinutes: number;
     focusGoal?: string | null;
+};
+
+export type PortfolioCaseStudyStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type PortfolioCaseStudyRevisionSource = 'AI' | 'MANUAL';
+
+export type PortfolioCaseStudyTradeoff = {
+    option: string;
+    pros: string;
+    cons: string;
+    chosenBecause: string;
+};
+
+export type PortfolioCaseStudyOutcomeMetric = {
+    label: string;
+    before: string;
+    after: string;
+};
+
+export type PortfolioCaseStudyOutcome = {
+    summary: string;
+    metrics: PortfolioCaseStudyOutcomeMetric[];
+};
+
+export type PortfolioCaseStudyArchitecture = {
+    mermaidSource: string | null;
+    imageObjectKeys: string[];
+};
+
+export type PortfolioCaseStudyContent = {
+    summary: string;
+    problem: string;
+    thoughtProcess: string;
+    tradeoffs: PortfolioCaseStudyTradeoff[];
+    solution: string;
+    outcome: PortfolioCaseStudyOutcome;
+    architecture: PortfolioCaseStudyArchitecture;
+    sourceStudyIds: number[];
+    sourceExperienceDetailIds: number[];
+};
+
+export type PortfolioCaseStudy = {
+    id: number;
+    experienceId: number;
+    slug: string;
+    title: string;
+    status: PortfolioCaseStudyStatus;
+    publishedRevisionId: number | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type PortfolioCaseStudyRevision = {
+    id: number;
+    caseStudyId: number;
+    version: number;
+    source: PortfolioCaseStudyRevisionSource;
+    content: PortfolioCaseStudyContent;
+    renderedMarkdown: string;
+    createdAt: string;
+};
+
+export type PortfolioCaseStudyDetail = {
+    caseStudy: PortfolioCaseStudy;
+    revisions: PortfolioCaseStudyRevision[];
+};
+
+export type PortfolioCaseStudyCreateRequest = {
+    experienceId: number;
+    slug: string;
+    title: string;
+};
+
+export type PortfolioCaseStudyGenerateRequest = {
+    instruction: string;
+    studyIds: number[];
+    skillIds: number[];
+};
+
+export type PortfolioCaseStudyGenerateStreamEvent =
+    | { type: 'stage'; stage: number; message: string }
+    | { type: 'token'; stage: number; text: string }
+    | { type: 'facts'; factCount: number }
+    | { type: 'complete'; content: PortfolioCaseStudyContent }
+    | { type: 'error'; message: string };
+
+export type PortfolioCaseStudyPublicSummary = {
+    id: number;
+    slug: string;
+    title: string;
+    summary: string;
+    updatedAt: string;
+};
+
+export type PortfolioCaseStudyPublic = {
+    id: number;
+    slug: string;
+    title: string;
+    experienceId: number;
+    content: PortfolioCaseStudyContent;
+    renderedMarkdown: string;
+    updatedAt: string;
 };

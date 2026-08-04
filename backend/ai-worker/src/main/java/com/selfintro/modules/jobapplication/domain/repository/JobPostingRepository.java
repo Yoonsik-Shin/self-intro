@@ -6,6 +6,7 @@ import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
@@ -14,6 +15,10 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
 
     boolean existsByCollectionMethodAndExternalId(
             JobPostingSource collectionMethod, String externalId);
+
+    /** 플랫폼 간 중복 병합의 매칭 키. 정규화된 회사명+직무명이 완전일치하면 같은 공고로 본다. */
+    Optional<JobPosting> findByCompanyNameNormalizedAndPositionTitleNormalized(
+            String companyNameNormalized, String positionTitleNormalized);
 
     /**
      * 마감일이 지났다고 바로 숨기지 않는다 — 명시적으로 {@link JobPosting#markExpired}가 호출돼 EXPIRED 상태가 되기 전까지는(= "지금

@@ -3,6 +3,8 @@ package com.selfintro.modules.jobapplication.presentation;
 import com.selfintro.modules.jobapplication.application.GapProjectDocumentService;
 import com.selfintro.modules.jobapplication.application.JobApplicationUrlParseService;
 import com.selfintro.modules.jobapplication.application.JobPostingAppealService;
+import com.selfintro.modules.jobapplication.application.JobPostingBackfillService;
+import com.selfintro.modules.jobapplication.application.JobPostingBackfillService.JobPostingBackfillResult;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService;
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService.JobPostingCollectionResult;
 import com.selfintro.modules.jobapplication.application.JobPostingCoverLetterService;
@@ -55,6 +57,7 @@ public class JobPostingController {
     private final JobPostingPrintDraftService jobPostingPrintDraftService;
     private final JobplanetCompanyService jobplanetCompanyService;
     private final JobApplicationUrlParseService urlParseService;
+    private final JobPostingBackfillService backfillService;
 
     @GetMapping
     public List<JobPostingResponse> list() {
@@ -151,6 +154,15 @@ public class JobPostingController {
     @PostMapping("/collect")
     public JobPostingCollectionResult collect() {
         return jobPostingCollectorService.collectNow();
+    }
+
+    /**
+     * 플랫폼 간 중복 병합 기능을 붙이기 전에 이미 따로 수집돼 있던 공고들을 한 번 정리하는 일회성 백필이다. 재실행해도 안전하다(멱등). 결과 요약을 보고
+     * 이상이 없으면 정규화 매칭 키에 NOT NULL + UNIQUE 제약을 추가하는 후속 마이그레이션(V153)을 배포한다.
+     */
+    @PostMapping("/backfill-source-urls")
+    public JobPostingBackfillResult backfillSourceUrls() {
+        return backfillService.run();
     }
 
     @PatchMapping("/{id}/save")

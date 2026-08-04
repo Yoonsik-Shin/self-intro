@@ -2,6 +2,7 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobapplication.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class JobPostingAppealService {
 
     private final JobPostingRepository jobPostingRepository;
+    private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final CareerAppealAnalyzer careerAppealAnalyzer;
     private final JobMatchingService jobMatchingService;
 
@@ -46,6 +48,9 @@ public class JobPostingAppealService {
             posting.applyMatch(match.score(), match.reason(), now);
         }
 
-        return JobPostingResponse.from(posting);
+        return JobPostingResponse.from(
+                posting,
+                sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
+                        posting.getId()));
     }
 }

@@ -2,6 +2,7 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
 import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
@@ -10,9 +11,11 @@ import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,7 @@ public class JobPostingCollectorService {
     private final SkillRepository skillRepository;
     private final SaraminJobPostingClient saraminJobPostingClient;
     private final JobMatchingService matchingService;
+    private final JobPostingDedupService dedupService;
     private final AtomicBoolean collecting = new AtomicBoolean(false);
 
     public JobPostingCollectionResult collectNow() {
@@ -90,6 +94,18 @@ public class JobPostingCollectorService {
                     JobPostingSource.SARAMIN, draft.externalId())) {
                 continue;
             }
+
+            JobPostingPlatform platform = JobPostingPlatform.fromUrl(draft.postingUrl());
+            // 원티드/잡코리아 등 URL 수집으로 이미 등록된 공고와 같은 회사+직무면 새 행을 만들지 않고
+            // 이번에 수집한 사람인 URL만 그 공고에 추가한다.
+            Optional<JobPosting> existingMatch =
+                    dedupService.findExistingMatch(draft.companyName(), draft.positionTitle());
+            if (existingMatch.isPresent()) {
+                dedupService.attachAdditionalUrl(
+                        existingMatch.get().getId(), draft.postingUrl(), platform, now);
+                continue;
+            }
+
             JobPosting posting = JobPosting.collect(draft, now);
             JobMatchingService.MatchResult match =
                     matchingService.evaluate(
@@ -98,8 +114,18 @@ public class JobPostingCollectorService {
                             mySkillNames,
                             keywordThreshold);
             posting.applyMatch(match.score(), match.reason(), now);
-            jobPostingRepository.save(posting);
-            savedCount++;
+            try {
+                dedupService.createNew(posting, draft.postingUrl(), platform, now);
+                savedCount++;
+            } catch (DataIntegrityViolationException exception) {
+                // 같은 배치 안에서 앞선 사람인 결과가 방금 같은 회사+직무로 저장을 끝낸 경우다.
+                JobPosting winner =
+                        dedupService
+                                .findExistingMatch(draft.companyName(), draft.positionTitle())
+                                .orElseThrow(() -> exception);
+                dedupService.attachAdditionalUrl(
+                        winner.getId(), draft.postingUrl(), platform, now);
+            }
         }
         return savedCount;
     }

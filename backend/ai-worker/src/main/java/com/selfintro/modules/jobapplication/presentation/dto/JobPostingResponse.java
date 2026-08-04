@@ -1,17 +1,21 @@
 package com.selfintro.modules.jobapplication.presentation.dto;
 
 import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
+import com.selfintro.modules.jobapplication.domain.entity.JobPostingSourceUrl;
+import com.selfintro.modules.jobapplication.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record JobPostingResponse(
         Long id,
         String companyName,
         String positionTitle,
         String postingUrl,
+        List<SourceUrl> sourceUrls,
         String externalId,
         JobPostingSource collectionMethod,
         String source,
@@ -42,12 +46,21 @@ public record JobPostingResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
-    public static JobPostingResponse from(JobPosting entity) {
+    /** 회사+직무가 같아 병합된 공고에 등록된 URL 하나. 프론트 "원본 보기" 팝오버가 그대로 나열한다. */
+    public record SourceUrl(Long id, String url, JobPostingPlatform platform, boolean primary) {
+        public static SourceUrl from(JobPostingSourceUrl entity) {
+            return new SourceUrl(
+                    entity.getId(), entity.getUrl(), entity.getPlatform(), entity.isPrimary());
+        }
+    }
+
+    public static JobPostingResponse from(JobPosting entity, List<JobPostingSourceUrl> sourceUrls) {
         return new JobPostingResponse(
                 entity.getId(),
                 entity.getCompanyName(),
                 entity.getPositionTitle(),
                 entity.getPostingUrl(),
+                sourceUrls.stream().map(SourceUrl::from).toList(),
                 entity.getExternalId(),
                 entity.getCollectionMethod(),
                 entity.getSource(),
