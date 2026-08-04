@@ -204,7 +204,7 @@ public class JobPostingService {
                 now);
         try {
             // 회사명/직무명을 수정한 결과가 다른 기존 공고와 정규화 매칭 키가 겹치면(플랫폼 간 중복
-            // 병합 제약, V153) 여기서 막는다 — dirty checking에만 맡기면 트랜잭션 커밋 시점에야
+            // 병합 제약, V155) 여기서 막는다 — dirty checking에만 맡기면 트랜잭션 커밋 시점에야
             // 제약 위반이 드러나 500으로 새 버릇 없이 노출된다.
             jobPostingRepository.saveAndFlush(posting);
         } catch (DataIntegrityViolationException exception) {

@@ -6,7 +6,7 @@
 -- 모든 URL은 새 job_posting_source_url 테이블에 플랫폼과 함께 저장한다.
 --
 -- 정규화 컬럼은 기존 행이 전부 NULL인 상태로 시작하므로 이번 마이그레이션에서는 NULLABLE로 두고,
--- 백필(JobPostingBackfillService) 실행 후 별도 마이그레이션(V153)에서 NOT NULL + UNIQUE로 강화한다.
+-- 백필(JobPostingBackfillService) 실행 후 별도 마이그레이션(V155)에서 NOT NULL + UNIQUE로 강화한다.
 
 CREATE TABLE `job_posting_source_url` (
   `id` bigint NOT NULL AUTO_INCREMENT,
