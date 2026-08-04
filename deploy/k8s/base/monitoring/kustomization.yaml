@@ -10,6 +10,7 @@ resources:
   - grafana.yaml
   - grafana-ingress.yaml
   - node-exporter.yaml
+  - kube-state-metrics.yaml
 
 configMapGenerator:
   - name: grafana-dashboards-provider
