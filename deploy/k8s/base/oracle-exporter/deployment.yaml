@@ -17,7 +17,7 @@ spec:
         - name: oracledb-exporter
           # iamseth/oracledb_exporter는 amd64 전용이라 arm64(OKE Ampere) 노드에서
           # exec format error로 죽음 - Oracle 공식 멀티아치 빌드로 대체.
-          image: container-registry.oracle.com/database/observability-exporter:1.5.2
+          image: container-registry.oracle.com/database/observability-exporter:2.0.0
           envFrom:
             - secretRef:
                 name: oracledb-exporter-secret
