@@ -122,6 +122,7 @@ metadata:
   name: prometheus-data
   namespace: self-intro
 spec:
+  storageClassName: oci-bv-paravirtualized
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:

@@ -23,6 +23,7 @@ metadata:
   name: grafana-data
   namespace: self-intro
 spec:
+  storageClassName: oci-bv-paravirtualized
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:
