@@ -48,3 +48,17 @@ patches:
           limits:
             cpu: 300m
             memory: 512Mi
+  # SealedSecret은 컨트롤러가 풀어야 진짜 Secret이 되는 정적 암호화 값이라
+  # 자체 런타임 헬스 상태가 없음. ArgoCD가 헬스체크 방법을 몰라서 기본값으로
+  # Degraded 취급 - SealedSecret 쓰는 앱마다 표시만 Degraded로 잘못 뜨는 걸 방지.
+  - target:
+      kind: ConfigMap
+      name: argocd-cm
+    patch: |-
+      - op: add
+        path: /data/resource.customizations.health.bitnami.com_SealedSecret
+        value: |
+          hs = {}
+          hs.status = "Healthy"
+          hs.message = "SealedSecret has no runtime health status - it is a static encrypted value unsealed by the controller"
+          return hs
