@@ -39,9 +39,32 @@ spec:
             - secretRef:
                 name: backend-kofi-secret
                 optional: true
+          # job_posting/job_posting_setting 등 관계형 데이터는 실제로 MySQL(api와 동일 DB)에 산다.
+          # backend-worker-db-secret(envFrom, 위)은 이제 Oracle 26ai 2차 데이터소스 전용이고,
+          # 1차 데이터소스는 backend-db-secret에서 MYSQL_* 이름으로 다시 매핑해 받는다(2026-08-04 사고 대응).
           env:
             - name: JOB_POSTING_SCHEDULER_ENABLED
               value: "true"
+            - name: MYSQL_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-db-secret
+                  key: DB_URL
+            - name: MYSQL_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: backend-db-secret
+                  key: DB_USERNAME
+            - name: MYSQL_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-db-secret
+                  key: DB_PASSWORD
+            - name: MYSQL_DB_DRIVER
+              valueFrom:
+                secretKeyRef:
+                  name: backend-db-secret
+                  key: DB_DRIVER
           volumeMounts:
             - name: oracle-atp-wallet
               mountPath: /etc/oracle/wallet

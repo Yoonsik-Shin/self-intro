@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.domain.entity;
+package com.selfintro.vectorsearch.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;

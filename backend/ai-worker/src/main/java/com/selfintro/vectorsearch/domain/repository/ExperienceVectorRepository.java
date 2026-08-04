@@ -1,6 +1,6 @@
-package com.selfintro.modules.experience.domain.repository;
+package com.selfintro.vectorsearch.domain.repository;
 
-import com.selfintro.modules.experience.domain.entity.ExperienceVector;
+import com.selfintro.vectorsearch.domain.entity.ExperienceVector;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

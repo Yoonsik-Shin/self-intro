@@ -1,6 +1,6 @@
-package com.selfintro.modules.study.domain.repository;
+package com.selfintro.vectorsearch.domain.repository;
 
-import com.selfintro.modules.study.domain.entity.StudyVector;
+import com.selfintro.vectorsearch.domain.entity.StudyVector;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

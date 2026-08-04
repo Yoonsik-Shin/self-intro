@@ -2,12 +2,12 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.selfintro.global.ai.ContextualChunker;
 import com.selfintro.global.ai.VectorEmbeddingService;
-import com.selfintro.modules.experience.domain.entity.ExperienceVector;
-import com.selfintro.modules.experience.domain.repository.ExperienceVectorRepository;
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingVector;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingVectorRepository;
-import com.selfintro.modules.study.domain.entity.StudyVector;
-import com.selfintro.modules.study.domain.repository.StudyVectorRepository;
+import com.selfintro.vectorsearch.domain.entity.ExperienceVector;
+import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository;
+import com.selfintro.vectorsearch.domain.entity.JobPostingVector;
+import com.selfintro.vectorsearch.domain.repository.JobPostingVectorRepository;
+import com.selfintro.vectorsearch.domain.entity.StudyVector;
+import com.selfintro.vectorsearch.domain.repository.StudyVectorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

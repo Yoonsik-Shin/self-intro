@@ -17,13 +17,16 @@ spring:
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:workerdb;MODE=Oracle}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
-    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    # 기본(1차) 데이터소스: job_posting/job_posting_setting 등 관계형 데이터가 실제로 사는 MySQL.
+    # api 모듈과 동일한 DB를 바라본다 — 2026-08-04 이전에는 이 자리가 Oracle이라 job_posting_setting
+    # 같은 MySQL 전용 테이블 조회가 스케줄러에서 매번 ORA-00942로 실패했다.
+    url: ${MYSQL_DB_URL:jdbc:h2:mem:workerdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE}
+    username: ${MYSQL_DB_USERNAME:sa}
+    password: ${MYSQL_DB_PASSWORD:}
+    driver-class-name: ${MYSQL_DB_DRIVER:org.h2.Driver}
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:none}
   ai:
     openai:
       api-key: ${SPRING_AI_OPENAI_API_KEY:dummy-key-for-local-dev}
@@ -79,6 +82,14 @@ oracle:
     oci-config-file: ${ORACLE_OCI_CONFIG_FILE:~/.oci/config}
     profile-name: ${ORACLE_OCI_PROFILE:self-intro-api-key}
     table-name: ${ORACLE_NOSQL_TABLE:JobPostingReadModel}
+  # 2차 데이터소스: job_posting_vector/experience_vector/study_vector 전용 Oracle 26ai ATP.
+  # 이전에는 이 값들이 spring.datasource(1차)였다 — 값 자체는 그대로 재사용하고 자리만 옮겼다.
+  vector:
+    datasource:
+      url: ${DB_URL:jdbc:h2:mem:workervectordb;MODE=Oracle}
+      username: ${DB_USERNAME:sa}
+      password: ${DB_PASSWORD:}
+      driver-class-name: ${DB_DRIVER:org.h2.Driver}
 
 management:
   endpoint:

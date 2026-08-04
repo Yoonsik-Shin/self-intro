@@ -1,6 +1,6 @@
-package com.selfintro.modules.jobapplication.domain.repository;
+package com.selfintro.vectorsearch.domain.repository;
 
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingVector;
+import com.selfintro.vectorsearch.domain.entity.JobPostingVector;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

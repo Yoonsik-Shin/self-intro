@@ -1,4 +1,4 @@
-package com.selfintro.modules.experience.domain.entity;
+package com.selfintro.vectorsearch.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -8,17 +8,17 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "experience_vector")
+@Table(name = "study_vector")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ExperienceVector {
+public class StudyVector {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "experience_id", nullable = false)
-    private Long experienceId;
+    @Column(name = "study_id", nullable = false)
+    private Long studyId;
 
     @Column(name = "chunk_content", columnDefinition = "CLOB", nullable = false)
     private String chunkContent;
@@ -33,8 +33,8 @@ public class ExperienceVector {
     private LocalDateTime createdAt;
 
     @Builder
-    public ExperienceVector(Long experienceId, String chunkContent, String embeddingVector) {
-        this.experienceId = experienceId;
+    public StudyVector(Long studyId, String chunkContent, String embeddingVector) {
+        this.studyId = studyId;
         this.chunkContent = chunkContent;
         this.embeddingVector = embeddingVector;
         this.createdAt = LocalDateTime.now();
