@@ -53,7 +53,7 @@ public class LearningResourceService {
             LearningResourcePriorityTier priorityTier,
             int page,
             int size) {
-        int safeSize = Math.min(Math.max(size, 1), 200);
+        int safeSize = Math.min(Math.max(size, 1), 1000);
         Page<LearningResourceResponse> result =
                 learningResourceRepository
                         .search(
