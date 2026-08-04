@@ -3,5 +3,5 @@ kind: Kustomization
 
 resources:
   - ../../../base/oracle-exporter
-  # generate-sealed-secret.sh 실행해서 sealed-secret.yaml 만든 다음 아래 줄 추가할 것
-  # - sealed-secret.yaml
+  - sealed-secret.yaml
+  - sealed-wallet.yaml

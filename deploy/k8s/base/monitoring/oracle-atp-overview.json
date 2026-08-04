@@ -21,7 +21,7 @@
       "title": "Active Sessions",
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
       "datasource": "Prometheus",
-      "targets": [{ "expr": "oracledb_sessions_value{type=\"ACTIVE\"}", "refId": "A" }]
+      "targets": [{ "expr": "oracledb_sessions_value{status=\"ACTIVE\"}", "refId": "A" }]
     },
     {
       "type": "stat",
@@ -43,8 +43,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "datasource": "Prometheus",
       "targets": [
-        { "expr": "oracledb_sessions_value{type=\"ACTIVE\"}", "legendFormat": "active", "refId": "A" },
-        { "expr": "oracledb_sessions_value{type=\"INACTIVE\"}", "legendFormat": "inactive", "refId": "B" }
+        { "expr": "oracledb_sessions_value{status=\"ACTIVE\"}", "legendFormat": "active", "refId": "A" },
+        { "expr": "oracledb_sessions_value{status=\"INACTIVE\"}", "legendFormat": "inactive", "refId": "B" }
       ]
     },
     {
@@ -60,14 +60,34 @@
       "title": "Activity (execute / parse / commit / rollback)",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": "Prometheus",
-      "targets": [{ "expr": "rate(oracledb_activity_value[1m])", "legendFormat": "{{name}}", "refId": "A" }]
+      "targets": [
+        { "expr": "rate(oracledb_activity_execute_count[5m])", "legendFormat": "execute", "refId": "A" },
+        { "expr": "rate(oracledb_activity_parse_count_total[5m])", "legendFormat": "parse", "refId": "B" },
+        { "expr": "rate(oracledb_activity_user_commits[5m])", "legendFormat": "commit", "refId": "C" },
+        { "expr": "rate(oracledb_activity_user_rollbacks[5m])", "legendFormat": "rollback", "refId": "D" }
+      ]
     },
     {
       "type": "timeseries",
       "title": "Wait Time by Class",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "datasource": "Prometheus",
-      "targets": [{ "expr": "rate(oracledb_wait_time_value[1m])", "legendFormat": "{{wait_class}}", "refId": "A" }]
+      "targets": [
+        { "expr": "oracledb_wait_time_user_io", "legendFormat": "user_io", "refId": "A" },
+        { "expr": "oracledb_wait_time_system_io", "legendFormat": "system_io", "refId": "B" },
+        { "expr": "oracledb_wait_time_concurrency", "legendFormat": "concurrency", "refId": "C" },
+        { "expr": "oracledb_wait_time_application", "legendFormat": "application", "refId": "D" },
+        { "expr": "oracledb_wait_time_network", "legendFormat": "network", "refId": "E" },
+        { "expr": "oracledb_wait_time_other", "legendFormat": "other", "refId": "F" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "ASM Diskgroup Free Bytes",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [{ "expr": "oracledb_asm_diskgroup_free", "legendFormat": "{{name}}", "refId": "A" }]
     }
   ]
 }
