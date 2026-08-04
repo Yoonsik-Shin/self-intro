@@ -996,6 +996,8 @@ export type PortfolioCaseStudyOutcome = {
 export type PortfolioCaseStudyArchitecture = {
     mermaidSource: string | null;
     imageObjectKeys: string[];
+    /** 응답에만 채워지는 해석된 공개 URL(objectKey와 순서 대응). 저장/생성 요청 시에는 무시된다. */
+    imageUrls: string[];
 };
 
 export type PortfolioCaseStudyContent = {

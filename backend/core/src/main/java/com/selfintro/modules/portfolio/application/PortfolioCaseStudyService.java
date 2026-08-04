@@ -14,6 +14,7 @@ import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyPublic
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyPublicSummaryResponse;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyResponse;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyRevisionResponse;
+import com.selfintro.modules.storage.application.StorageService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,7 @@ public class PortfolioCaseStudyService {
     private final PortfolioCaseStudyRevisionRepository revisionRepository;
     private final ExperienceRepository experienceRepository;
     private final PortfolioCaseStudyMarkdownRenderer markdownRenderer;
+    private final StorageService storageService;
     private final ObjectMapper objectMapper;
 
     public List<PortfolioCaseStudyResponse> list() {
@@ -187,11 +189,41 @@ public class PortfolioCaseStudyService {
     }
 
     private PortfolioCaseStudyContent readContent(PortfolioCaseStudyRevision revision) {
+        PortfolioCaseStudyContent content;
         try {
-            return objectMapper.readValue(revision.getContentJson(), PortfolioCaseStudyContent.class);
+            content = objectMapper.readValue(revision.getContentJson(), PortfolioCaseStudyContent.class);
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "저장된 케이스스터디 본문을 읽지 못했습니다.", exception);
         }
+        return withResolvedImageUrls(content);
+    }
+
+    /** content_json에는 objectKey만 저장되어 있으므로, 응답을 만들 때만 공개 URL로 해석해 채운다. */
+    private PortfolioCaseStudyContent withResolvedImageUrls(PortfolioCaseStudyContent content) {
+        if (content.architecture() == null
+                || content.architecture().imageObjectKeys() == null
+                || content.architecture().imageObjectKeys().isEmpty()) {
+            return content;
+        }
+        List<String> imageUrls =
+                content.architecture().imageObjectKeys().stream()
+                        .map(storageService::toPublicUrl)
+                        .toList();
+        PortfolioCaseStudyContent.Architecture resolved =
+                new PortfolioCaseStudyContent.Architecture(
+                        content.architecture().mermaidSource(),
+                        content.architecture().imageObjectKeys(),
+                        imageUrls);
+        return new PortfolioCaseStudyContent(
+                content.summary(),
+                content.problem(),
+                content.thoughtProcess(),
+                content.tradeoffs(),
+                content.solution(),
+                content.outcome(),
+                resolved,
+                content.sourceStudyIds(),
+                content.sourceExperienceDetailIds());
     }
 
     private String writeJson(PortfolioCaseStudyContent content) {

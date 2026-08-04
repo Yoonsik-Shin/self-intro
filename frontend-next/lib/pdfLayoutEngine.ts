@@ -67,7 +67,19 @@ export type AtomType =
     | 'project-detail-item'
     | 'project-skills'
     | 'cover-letter-header'
-    | 'cover-letter-item';
+    | 'cover-letter-item'
+    | 'portfolio-header'
+    | 'portfolio-problem'
+    | 'portfolio-thought'
+    | 'portfolio-tradeoffs-header'
+    | 'portfolio-tradeoff-item'
+    | 'portfolio-solution'
+    | 'portfolio-outcome-header'
+    | 'portfolio-outcome-summary'
+    | 'portfolio-outcome-metric'
+    | 'portfolio-architecture-header'
+    | 'portfolio-architecture-diagram'
+    | 'portfolio-architecture-image';
 
 export interface PrintAtomItem {
     id: string; // e.g. 'intro-profile', 'skills', 'competency-header', 'competency:1', 'career-project:10'
@@ -124,6 +136,26 @@ function getAtomEstimatedHeight(atom: PrintAtomItem): number {
             return 45;
         case 'cover-letter-item':
             return 160;
+        case 'portfolio-header':
+            return 160;
+        case 'portfolio-problem':
+        case 'portfolio-thought':
+        case 'portfolio-solution':
+            return 180;
+        case 'portfolio-tradeoffs-header':
+        case 'portfolio-outcome-header':
+        case 'portfolio-architecture-header':
+            return 45;
+        case 'portfolio-tradeoff-item':
+            return 140;
+        case 'portfolio-outcome-summary':
+            return 90;
+        case 'portfolio-outcome-metric':
+            return 40;
+        case 'portfolio-architecture-diagram':
+            return 320;
+        case 'portfolio-architecture-image':
+            return 260;
         default:
             return 120;
     }

@@ -304,10 +304,11 @@ public class PortfolioCaseStudyAiService {
                                         .toList());
         PortfolioCaseStudyContent.Architecture architecture =
                 content.architecture() == null
-                        ? new PortfolioCaseStudyContent.Architecture(null, List.of())
+                        ? new PortfolioCaseStudyContent.Architecture(null, List.of(), List.of())
                         : new PortfolioCaseStudyContent.Architecture(
                                 blankToNull(content.architecture().mermaidSource()),
-                                safe(content.architecture().imageObjectKeys()));
+                                safe(content.architecture().imageObjectKeys()),
+                                List.of());
 
         List<Long> sourceStudyIds =
                 safe(content.sourceStudyIds()).stream()

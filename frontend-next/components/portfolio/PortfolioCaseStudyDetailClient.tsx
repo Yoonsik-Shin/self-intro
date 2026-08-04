@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -8,7 +9,7 @@ import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Printer } from 'lucide-react';
 import type { PortfolioCaseStudyPublic } from '@/lib/api/types';
 import {
     markdownComponents,
@@ -19,6 +20,7 @@ import {
     remarkUnindentListLines,
     preprocessMarkdown,
 } from '@/lib/markdown';
+import { PortfolioPrintCanvas } from './PortfolioPrintCanvas';
 
 type Props = {
     caseStudy: PortfolioCaseStudyPublic;
@@ -26,16 +28,34 @@ type Props = {
 
 export function PortfolioCaseStudyDetailClient({ caseStudy }: Props) {
     const router = useRouter();
+    const [printOpen, setPrintOpen] = useState(false);
 
     return (
         <div className="space-y-4">
-            <button
-                type="button"
-                onClick={() => router.back()}
-                className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950"
-            >
-                <ArrowLeft className="h-4 w-4" /> 이전 화면으로
-            </button>
+            {printOpen && (
+                <PortfolioPrintCanvas
+                    caseStudy={caseStudy}
+                    content={caseStudy.content}
+                    onExit={() => setPrintOpen(false)}
+                />
+            )}
+            <div className="flex items-center justify-between">
+                <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950"
+                >
+                    <ArrowLeft className="h-4 w-4" /> 이전 화면으로
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setPrintOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
+                >
+                    <Printer className="h-3.5 w-3.5" />
+                    인쇄용 보기
+                </button>
+            </div>
 
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
                 <header className="mb-6 space-y-2 border-b border-slate-100 pb-5">

@@ -2,6 +2,8 @@ package com.selfintro.modules.portfolio.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyContent;
+import com.selfintro.modules.storage.application.StorageService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,7 +12,10 @@ import org.springframework.stereotype.Component;
  * 이미 처리하는 문법만 사용해 별도 렌더링 코드를 추가하지 않는다.
  */
 @Component
+@RequiredArgsConstructor
 public class PortfolioCaseStudyMarkdownRenderer {
+
+    private final StorageService storageService;
 
     public String render(String title, PortfolioCaseStudyContent content) {
         StringBuilder markdown = new StringBuilder();
@@ -77,7 +82,10 @@ public class PortfolioCaseStudyMarkdownRenderer {
                 }
                 if (hasImages) {
                     for (String objectKey : content.architecture().imageObjectKeys()) {
-                        markdown.append("![아키텍처 이미지](").append(objectKey).append(")\n\n");
+                        markdown
+                                .append("![아키텍처 이미지](")
+                                .append(storageService.toPublicUrl(objectKey))
+                                .append(")\n\n");
                     }
                 }
             }
