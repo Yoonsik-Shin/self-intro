@@ -29,6 +29,7 @@ import {
     buildMilestones,
     buildOrderedCredentials,
     groupCoreSkills,
+    groupSkillsByUsage,
 } from '@/lib/introDerivations';
 import { credentialKindLabel, formatCredentialPeriod } from '@/lib/format';
 import { resumeMarkdownComponents } from '@/lib/markdown';
@@ -487,10 +488,13 @@ export function PrintCanvas({
 
     const profile = resolvedIntroData.profile;
     const careerSummary = resolvedIntroData.careerSummary;
-    const groupedCoreSkills = useMemo(
-        () => groupCoreSkills(resolvedIntroData.skills),
-        [resolvedIntroData]
-    );
+    const groupedCoreSkills = useMemo(() => {
+        const defaultCoreSkillIds = resolvedIntroData.skills
+            .filter((s) => s.isCore)
+            .map((s) => s.id);
+        const selectedIds = new Set(contentOverrides.selectedSkillIds ?? defaultCoreSkillIds);
+        return groupSkillsByUsage(resolvedIntroData.skills.filter((s) => selectedIds.has(s.id)));
+    }, [resolvedIntroData, contentOverrides.selectedSkillIds]);
     const orderedCareerCards = useMemo(() => {
         const companies = applyOrder(
             buildCareerCards(resolvedIntroData.experiences),

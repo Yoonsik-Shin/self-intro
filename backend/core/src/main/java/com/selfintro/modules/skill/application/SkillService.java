@@ -43,6 +43,7 @@ public class SkillService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public Skill update(Long id, SkillRequest request) {
         Skill skill =
                 skillRepository
@@ -63,6 +64,7 @@ public class SkillService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
     public void delete(Long id) {
         if (!skillRepository.existsById(id)) {
             throw new IllegalArgumentException("존재하지 않는 기술 스택입니다.");

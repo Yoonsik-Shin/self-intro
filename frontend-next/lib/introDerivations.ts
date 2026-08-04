@@ -7,26 +7,29 @@ export type SkillGroup = {
     skills: Skill[];
 };
 
-export function groupCoreSkills(skills: Skill[]): SkillGroup[] {
-    const coreSkills = skills.filter((skill) => skill.isCore);
+export function groupSkillsByUsage(skills: Skill[]): SkillGroup[] {
     return [
         {
             value: 'CORE',
             label: '핵심 기술 스택',
-            skills: coreSkills
+            skills: skills
                 .filter((skill) => skill.usageType === 'WORK_EXPERIENCE')
                 .sort((a, b) => a.displayOrder - b.displayOrder),
         },
         {
             value: 'PROJECT_LEARNING',
             label: '프로젝트/학습',
-            skills: coreSkills
+            skills: skills
                 .filter(
                     (skill) => skill.usageType === 'PROJECT_USE' || skill.usageType === 'LEARNING'
                 )
                 .sort((a, b) => a.displayOrder - b.displayOrder),
         },
     ];
+}
+
+export function groupCoreSkills(skills: Skill[]): SkillGroup[] {
+    return groupSkillsByUsage(skills.filter((skill) => skill.isCore));
 }
 
 export type CareerCard = {
