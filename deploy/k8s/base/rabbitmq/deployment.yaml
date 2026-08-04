@@ -32,6 +32,9 @@ spec:
             - name: rabbitmq-plugins
               mountPath: /etc/rabbitmq/enabled_plugins
               subPath: enabled_plugins
+            - name: rabbitmq-plugins
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
           resources:
             requests:
               cpu: 50m

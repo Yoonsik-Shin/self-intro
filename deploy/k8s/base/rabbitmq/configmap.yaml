@@ -5,3 +5,8 @@ metadata:
 data:
   enabled_plugins: |
     [rabbitmq_management,rabbitmq_prometheus].
+  # RabbitMQ 기본값은 guest 계정을 loopback(localhost) 접속만 허용한다. api/backend-worker pod가
+  # ClusterIP로 원격 접속해야 해서(2026-08-04, RABBITMQ_HOST 배선 전까지는 아예 시도조차 안 했음)
+  # guest도 원격에서 로그인 가능하게 푼다 — 이 큐는 클러스터 내부 전용(ingress 없음)이라 감수 가능.
+  rabbitmq.conf: |
+    loopback_users = none
