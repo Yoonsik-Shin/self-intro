@@ -41,6 +41,11 @@ spring:
     baseline-on-migrate: true
     ignore-migration-patterns: "*:ignored"
     placeholder-replacement: false
+    # 여러 세션/브랜치에서 동시에 마이그레이션 번호를 매기다 보면 이미 배포된 더 높은 버전보다
+    # 낮은 번호가 뒤늦게 합쳐지는 경우가 생긴다(2026-08-04 V150 사고). 기본값(false)이면 그런
+    # 마이그레이션은 조용히 스킵되어 스키마가 조용히 어긋난다 — out-of-order를 켜서 낮은 번호도
+    # 반드시 적용되게 한다.
+    out-of-order: true
     properties:
       hibernate:
         format_sql: true
