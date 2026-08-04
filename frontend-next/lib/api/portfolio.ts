@@ -61,6 +61,10 @@ export const portfolioApi = {
         request<PortfolioCaseStudyPublic>(
             `/api/portfolio/case-studies/${encodeURIComponent(slug)}`
         ),
+    publicListByStudy: (studyId: number) =>
+        request<PortfolioCaseStudyPublicSummary[]>(
+            `/api/portfolio/case-studies/by-study/${studyId}`
+        ),
     listLayouts: (caseStudyId: number) =>
         request<PortfolioLayout[]>(`/api/admin/portfolio/case-studies/${caseStudyId}/layouts`),
     createLayout: (caseStudyId: number, payload: PortfolioLayoutRequest) =>

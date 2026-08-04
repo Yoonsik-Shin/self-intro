@@ -116,6 +116,36 @@ public class PortfolioCaseStudyService {
     }
 
     public List<PortfolioCaseStudyPublicSummaryResponse> listPublished() {
+        return publishedWithContent().stream()
+                .map(
+                        entry ->
+                                new PortfolioCaseStudyPublicSummaryResponse(
+                                        entry.caseStudy().getId(),
+                                        entry.caseStudy().getSlug(),
+                                        entry.caseStudy().getTitle(),
+                                        entry.content().summary(),
+                                        entry.caseStudy().getUpdatedAt()))
+                .toList();
+    }
+
+    /** 특정 Study를 근거로 인용한 발행된 케이스스터디 목록 — Study 상세 페이지의 역참조 표시용. */
+    public List<PortfolioCaseStudyPublicSummaryResponse> listPublishedByStudyId(Long studyId) {
+        return publishedWithContent().stream()
+                .filter(entry -> entry.content().sourceStudyIds().contains(studyId))
+                .map(
+                        entry ->
+                                new PortfolioCaseStudyPublicSummaryResponse(
+                                        entry.caseStudy().getId(),
+                                        entry.caseStudy().getSlug(),
+                                        entry.caseStudy().getTitle(),
+                                        entry.content().summary(),
+                                        entry.caseStudy().getUpdatedAt()))
+                .toList();
+    }
+
+    private record PublishedEntry(PortfolioCaseStudy caseStudy, PortfolioCaseStudyContent content) {}
+
+    private List<PublishedEntry> publishedWithContent() {
         return caseStudyRepository
                 .findAllByStatusOrderByUpdatedAtDesc(PortfolioCaseStudy.STATUS_PUBLISHED)
                 .stream()
@@ -132,12 +162,7 @@ public class PortfolioCaseStudyService {
                                                                             HttpStatus
                                                                                     .INTERNAL_SERVER_ERROR,
                                                                             "발행된 리비전을 찾지 못했습니다.")));
-                            return new PortfolioCaseStudyPublicSummaryResponse(
-                                    caseStudy.getId(),
-                                    caseStudy.getSlug(),
-                                    caseStudy.getTitle(),
-                                    content.summary(),
-                                    caseStudy.getUpdatedAt());
+                            return new PublishedEntry(caseStudy, content);
                         })
                 .toList();
     }

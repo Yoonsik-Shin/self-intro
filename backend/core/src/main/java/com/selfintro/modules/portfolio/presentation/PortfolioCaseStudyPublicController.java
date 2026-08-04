@@ -33,6 +33,13 @@ public class PortfolioCaseStudyPublicController {
         return ResponseEntity.ok(portfolioCaseStudyService.getPublishedBySlug(slug));
     }
 
+    /** 특정 Study를 근거로 인용한 발행된 케이스스터디 목록 — Study 상세 페이지의 역참조 표시용. */
+    @GetMapping("/by-study/{studyId}")
+    public ResponseEntity<List<PortfolioCaseStudyPublicSummaryResponse>> listByStudy(
+            @PathVariable Long studyId) {
+        return ResponseEntity.ok(portfolioCaseStudyService.listPublishedByStudyId(studyId));
+    }
+
     /** 방향별 기본 레이아웃. 관리자가 아직 저장한 레이아웃이 없으면 404 — 프론트는 자동 배치로 대체한다. */
     @GetMapping("/{slug}/layout")
     public ResponseEntity<PortfolioLayoutResponse> getDefaultLayout(

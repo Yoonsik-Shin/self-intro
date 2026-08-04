@@ -15,9 +15,11 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
+    FolderGit2,
     ListOrdered,
 } from 'lucide-react';
-import type { Study } from '@/lib/api/types';
+import type { PortfolioCaseStudyPublicSummary, Study } from '@/lib/api/types';
+import { portfolioApi } from '@/lib/api/portfolio';
 import {
     markdownComponents,
     remarkKoreanEmphasis,
@@ -40,6 +42,24 @@ export function StudyDetailClient({ study }: Props) {
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [isTocOpen, setIsTocOpen] = useState(true);
     const [isRelatedOpen, setIsRelatedOpen] = useState(true);
+    const [citingCaseStudies, setCitingCaseStudies] = useState<PortfolioCaseStudyPublicSummary[]>(
+        []
+    );
+
+    useEffect(() => {
+        let cancelled = false;
+        portfolioApi
+            .publicListByStudy(study.id)
+            .then((list) => {
+                if (!cancelled) setCitingCaseStudies(list);
+            })
+            .catch(() => {
+                if (!cancelled) setCitingCaseStudies([]);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [study.id]);
 
     const toc = useMemo(() => extractToc(study.contentMarkdown), [study.contentMarkdown]);
 
@@ -187,6 +207,27 @@ export function StudyDetailClient({ study }: Props) {
                                                 )}
                                                 <span>{detail.content}</span>
                                                 <ChevronRight className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {citingCaseStudies.length > 0 && (
+                                <div className="mt-6 rounded-xl border border-violet-100 bg-violet-50/60 p-4 space-y-2">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-violet-800 flex items-center gap-1.5">
+                                        <FolderGit2 className="h-3.5 w-3.5" /> 이 Study를 인용한
+                                        포트폴리오
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {citingCaseStudies.map((cs) => (
+                                            <Link
+                                                key={cs.id}
+                                                href={`/portfolio/${cs.slug}`}
+                                                className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-950 transition hover:border-violet-400 hover:bg-violet-50 shadow-2xs"
+                                            >
+                                                <span>{cs.title}</span>
+                                                <ChevronRight className="h-3.5 w-3.5 text-violet-600 shrink-0" />
                                             </Link>
                                         ))}
                                     </div>
