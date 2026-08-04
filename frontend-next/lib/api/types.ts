@@ -2,7 +2,11 @@ export type StudyStatus = 'DRAFT' | 'PUBLISHED';
 export type StudyRelationType = 'RELATED' | 'PREREQUISITE' | 'FOLLOW_UP' | 'APPLIED_TO';
 
 export type ImageScope =
-    'STUDY_GALLERY' | 'EXPERIENCE_GALLERY' | 'STUDY_MARKDOWN' | 'PRINT_TEMPLATE_FINAL_PDF';
+    | 'STUDY_GALLERY'
+    | 'EXPERIENCE_GALLERY'
+    | 'STUDY_MARKDOWN'
+    | 'PRINT_TEMPLATE_FINAL_PDF'
+    | 'PORTFOLIO_ARCHITECTURE';
 
 export type GalleryImage = {
     id?: number;

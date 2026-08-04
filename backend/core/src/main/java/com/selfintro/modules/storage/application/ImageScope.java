@@ -4,7 +4,8 @@ public enum ImageScope {
     STUDY_GALLERY("study/gallery"),
     EXPERIENCE_GALLERY("experience/gallery"),
     STUDY_MARKDOWN("study/markdown"),
-    PRINT_TEMPLATE_FINAL_PDF("print-template/final-pdf");
+    PRINT_TEMPLATE_FINAL_PDF("print-template/final-pdf"),
+    PORTFOLIO_ARCHITECTURE("portfolio/architecture");
 
     private final String prefix;
 

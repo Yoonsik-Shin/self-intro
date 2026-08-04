@@ -26,6 +26,7 @@ import {
     Activity,
     GitBranch,
     ExternalLink,
+    FolderGit2,
 } from 'lucide-react';
 import { bffApi, skillApi } from '@/lib/api';
 import type { Experience, IntroductionResponse, Skill } from '@/lib/api/types';
@@ -40,6 +41,7 @@ import { CompetencyManagement } from './competency/CompetencyManagement';
 import { CoreProjectManagement } from './core-project/CoreProjectManagement';
 import { ArchitectureManagement } from './architecture/ArchitectureManagement';
 import { PrintTemplateManagement } from './print-template/PrintTemplateManagement';
+import { PortfolioManagement } from './portfolio/PortfolioManagement';
 import { AnalyticsPanel } from './analytics/AnalyticsPanel';
 import { DonationsPanel } from './donations/DonationsPanel';
 import { JobApplicationManagement } from './job-application/JobApplicationManagement';
@@ -64,6 +66,7 @@ type TabId =
     | 'CORE_PROJECTS'
     | 'ARCHITECTURE'
     | 'PRINT_TEMPLATES'
+    | 'PORTFOLIO'
     | 'JOB_APPLICATIONS'
     | 'LEARNING_RESOURCES'
     | 'STUDY_PLAN';
@@ -93,6 +96,7 @@ const ADMIN_MENU_GROUPS = [
             { id: 'CORE_PROJECTS', label: '핵심 프로젝트 관리', icon: Pin },
             { id: 'ARCHITECTURE', label: '시스템 아키텍처 관리', icon: Terminal },
             { id: 'PRINT_TEMPLATES', label: 'PDF 템플릿 관리', icon: Printer },
+            { id: 'PORTFOLIO', label: '포트폴리오 관리', icon: FolderGit2 },
         ],
     },
     {
@@ -133,6 +137,7 @@ export function AdminDashboardShell() {
                 'CORE_PROJECTS',
                 'ARCHITECTURE',
                 'PRINT_TEMPLATES',
+                'PORTFOLIO',
                 'JOB_APPLICATIONS',
                 'LEARNING_RESOURCES',
                 'STUDY_PLAN',
@@ -412,6 +417,7 @@ export function AdminDashboardShell() {
     useEffect(() => {
         if (
             (activeTab === 'PRINT_TEMPLATES' ||
+                activeTab === 'PORTFOLIO' ||
                 activeTab === 'JOB_APPLICATIONS' ||
                 activeTab === 'LEARNING_RESOURCES' ||
                 activeTab === 'STUDY_PLAN') &&
@@ -633,6 +639,7 @@ export function AdminDashboardShell() {
                             )}
                             {activeTab === 'ARCHITECTURE' && <ArchitectureManagement />}
                             {activeTab === 'PRINT_TEMPLATES' && <PrintTemplateManagement />}
+                            {activeTab === 'PORTFOLIO' && <PortfolioManagement />}
                             {activeTab === 'ANALYTICS' && <AnalyticsPanel />}
                             {activeTab === 'DONATIONS' && <DonationsPanel />}
                             {activeTab === 'JOB_APPLICATIONS' && <JobApplicationManagement />}
