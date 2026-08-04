@@ -7,6 +7,9 @@ on:
     paths:
       - 'backend/api/**'
       - 'backend/core/**'
+      # api 모듈이 ai-worker를 implementation 의존성으로 물고 있어(build.gradle) worker 전용 코드도
+      # api 이미지에 그대로 번들된다 — ai-worker만 바뀐 커밋이 api 재배포 트리거를 놓친 사고(2026-08-04) 대응.
+      - 'backend/ai-worker/**'
       - 'backend/build.gradle'
       - 'backend/Dockerfile.api'
       - '.github/workflows/deploy-api.yml'
