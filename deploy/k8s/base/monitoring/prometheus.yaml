@@ -146,6 +146,8 @@ spec:
         app: prometheus
     spec:
       serviceAccountName: prometheus-sa
+      securityContext:
+        fsGroup: 65534
       containers:
         - name: prometheus
           image: docker.io/prom/prometheus:v2.54.0
