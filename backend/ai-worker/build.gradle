@@ -29,6 +29,8 @@ dependencies {
     // Oracle ATP & Vector Search (ojdbc11 + PKI for Wallet)
     implementation 'com.oracle.database.jdbc:ojdbc11:23.4.0.24.05'
     implementation 'com.oracle.database.security:oraclepki:23.4.0.24.05'
+    // 1차(기본) 데이터소스가 MySQL로 바뀌면서(2026-08-04) ai-worker 자체 실행에도 필요해졌다.
+    runtimeOnly 'com.mysql:mysql-connector-j'
     runtimeOnly 'com.h2database:h2'
 
 
