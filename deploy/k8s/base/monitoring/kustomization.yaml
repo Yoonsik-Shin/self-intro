@@ -24,3 +24,5 @@ configMapGenerator:
       - oracle-atp-overview.json
       - node-overview.json
       - pod-overview.json
+      - spring-boot-statistics.json
+      - app-logs.json
