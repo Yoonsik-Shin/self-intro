@@ -4,11 +4,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ArrowDown, ArrowUp, LayoutTemplate, MoveVertical, RotateCcw, X } from 'lucide-react';
-import type {
-    PortfolioCaseStudy,
-    PortfolioCaseStudyContent,
-    PortfolioLayout,
-} from '@/lib/api/types';
+import type { PortfolioCaseStudy, PortfolioCaseStudyContent, PrintTemplate } from '@/lib/api/types';
 import { resumeMarkdownComponents } from '@/lib/markdown';
 import {
     getPageMetrics,
@@ -29,11 +25,21 @@ type ContentOverrides = {
     outcomeSummary?: string;
 };
 
+/** print_template.content_overrides에 실제로 들어가는 포트폴리오 전용 payload 모양.
+ * 타입 선언상 PrintTemplate.contentOverrides는 이력서용 PrintTemplateContentOverrides지만,
+ * document_type=PORTFOLIO 행에는 이 모양으로 저장한다(같은 컬럼을 문서 종류별로 다르게 씀). */
+type PortfolioContentOverridesPayload = {
+    narrative?: ContentOverrides;
+    forcedPageOverrides?: Record<string, number>;
+};
+
 type Props = {
     caseStudy: Pick<PortfolioCaseStudy, 'title'>;
     content: PortfolioCaseStudyContent;
     onExit: () => void;
-    initialLayout?: PortfolioLayout | null;
+    initialLayout?: PrintTemplate | null;
+    /** initialLayout이 없을 때(아직 저장된 배치가 없는 방향) 캔버스를 어느 방향으로 열지. */
+    initialOrientation?: PageOrientation;
     adminMode?: boolean;
     onSaveLayout?: (settings: {
         orientation: PageOrientation;
@@ -43,15 +49,6 @@ type Props = {
         contentOverrides: ContentOverrides;
     }) => void;
 };
-
-function parseJsonRecord<T>(raw: string | null | undefined, fallback: T): T {
-    if (!raw) return fallback;
-    try {
-        return JSON.parse(raw) as T;
-    } catch {
-        return fallback;
-    }
-}
 
 function InlineEditableText({
     value,
@@ -117,34 +114,40 @@ export function PortfolioPrintCanvas({
     content,
     onExit,
     initialLayout = null,
+    initialOrientation = 'portrait',
     adminMode = false,
     onSaveLayout,
 }: Props) {
     const store = usePortfolioPrintStore();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const [inlineEditMode, setInlineEditMode] = useState(false);
-    const [contentOverrides, setContentOverrides] = useState<ContentOverrides>(() =>
-        initialLayout
-            ? parseJsonRecord(initialLayout.contentOverridesJson, {} as ContentOverrides)
-            : {}
-    );
+    // 부모가 이 컴포넌트를 열 때마다(닫혀 있다가 다시 열릴 때) 매번 새로 마운트하는 것을 전제로,
+    // 초기 문구 override는 lazy state 초기값에서 한 번만 계산한다 — effect에서 다시 setState하지 않는다.
+    const [contentOverrides, setContentOverrides] = useState<ContentOverrides>(() => {
+        const payload = initialLayout?.contentOverrides as
+            PortfolioContentOverridesPayload | undefined;
+        return payload?.narrative ?? {};
+    });
 
+    // zustand 스토어는 모듈 싱글턴이라 컴포넌트 리마운트로는 초기화되지 않는다 — 이전 세션의
+    // 다른 케이스스터디/방향 상태가 새 세션으로 새는 것을 막기 위해 여기서 매번 명시적으로 맞춘다.
     useEffect(() => {
-        if (!initialLayout) return;
-        store.setOrientation(initialLayout.orientation === 'LANDSCAPE' ? 'landscape' : 'portrait');
-        store.applyLayout({
-            excludedIds: parseJsonRecord(initialLayout.excludedIdsJson, [] as string[]),
-            sectionGaps: parseJsonRecord(
-                initialLayout.sectionGapsJson,
-                {} as Record<string, number>
-            ),
-            forcedPageOverrides: parseJsonRecord(
-                initialLayout.forcedPageOverridesJson,
-                {} as Record<string, number>
-            ),
-        });
+        if (initialLayout) {
+            const payload = initialLayout.contentOverrides as PortfolioContentOverridesPayload;
+            store.setOrientation(
+                initialLayout.orientation === 'LANDSCAPE' ? 'landscape' : 'portrait'
+            );
+            store.applyLayout({
+                excludedIds: initialLayout.excludedIds,
+                sectionGaps: initialLayout.sectionGaps,
+                forcedPageOverrides: payload?.forcedPageOverrides ?? {},
+            });
+        } else {
+            store.reset();
+            store.setOrientation(initialOrientation);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialLayout?.id]);
+    }, [initialLayout?.id, initialOrientation]);
 
     useEffect(() => {
         const canvas = canvasRef.current;

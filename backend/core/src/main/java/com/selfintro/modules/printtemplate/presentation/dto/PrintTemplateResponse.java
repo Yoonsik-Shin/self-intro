@@ -20,6 +20,9 @@ public record PrintTemplateResponse(
         boolean visible,
         int displayOrder,
         Long jobPostingId,
+        String documentType,
+        Long portfolioCaseStudyId,
+        String orientation,
         boolean isFinalSubmission,
         String finalPdfUrl) {
     public static PrintTemplateResponse from(
@@ -40,6 +43,9 @@ public record PrintTemplateResponse(
                 entity.isVisible(),
                 entity.getDisplayOrder(),
                 entity.getJobPostingId(),
+                entity.getDocumentType(),
+                entity.getPortfolioCaseStudyId(),
+                entity.getOrientation(),
                 entity.isFinalSubmission(),
                 entity.getFinalPdfObjectKey() == null
                         ? null

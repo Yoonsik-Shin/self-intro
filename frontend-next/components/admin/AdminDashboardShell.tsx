@@ -95,8 +95,8 @@ const ADMIN_MENU_GROUPS = [
             { id: 'COMPETENCIES', label: '핵심 역량 관리', icon: Sparkles },
             { id: 'CORE_PROJECTS', label: '핵심 프로젝트 관리', icon: Pin },
             { id: 'ARCHITECTURE', label: '시스템 아키텍처 관리', icon: Terminal },
-            { id: 'PRINT_TEMPLATES', label: 'PDF 템플릿 관리', icon: Printer },
             { id: 'PORTFOLIO', label: '포트폴리오 관리', icon: FolderGit2 },
+            { id: 'PRINT_TEMPLATES', label: 'PDF 템플릿 관리', icon: Printer },
         ],
     },
     {

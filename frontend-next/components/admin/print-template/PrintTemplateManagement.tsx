@@ -17,9 +17,14 @@ import {
     Building2,
     HardDrive,
     Pencil,
+    FolderGit2,
 } from 'lucide-react';
-import { bffApi, printTemplateApi, jobPostingApi } from '@/lib/api';
-import type { PrintTemplate } from '@/lib/api/types';
+import { bffApi, printTemplateApi, jobPostingApi, portfolioApi } from '@/lib/api';
+import type {
+    PortfolioCaseStudyContent,
+    PortfolioPrintTemplateRequest,
+    PrintTemplate,
+} from '@/lib/api/types';
 import {
     countContentOverrides,
     getPrintContentFingerprint,
@@ -31,8 +36,20 @@ import {
     useLocalPrintSaves,
     type LocalPrintSave,
 } from '@/lib/printTemplateLocal';
+import { PortfolioPrintCanvas } from '@/components/portfolio/PortfolioPrintCanvas';
 
 const PUBLIC_TEMPLATE_LIMIT = 5;
+const PORTFOLIO_EMPTY_CONTENT: PortfolioCaseStudyContent = {
+    summary: '',
+    problem: '',
+    thoughtProcess: '',
+    tradeoffs: [],
+    solution: '',
+    outcome: { summary: '', metrics: [] },
+    architecture: { mermaidSource: null, imageObjectKeys: [], imageUrls: [] },
+    sourceStudyIds: [],
+    sourceExperienceDetailIds: [],
+};
 
 type PrivateTab = 'general' | 'company' | 'local';
 
@@ -50,10 +67,70 @@ export function PrintTemplateManagement() {
     const queryClient = useQueryClient();
     const [privateTab, setPrivateTab] = useState<PrivateTab>('general');
     const localSaves = useLocalPrintSaves();
+    const [selectedCaseStudyId, setSelectedCaseStudyId] = useState<number | null>(null);
+    const [openOrientation, setOpenOrientation] = useState<'PORTRAIT' | 'LANDSCAPE' | null>(null);
 
     const { data: templates = [], isLoading } = useQuery({
         queryKey: ['printTemplates', 'admin'],
         queryFn: printTemplateApi.adminList,
+    });
+    const { data: caseStudies = [] } = useQuery({
+        queryKey: ['portfolio-case-studies'],
+        queryFn: portfolioApi.list,
+    });
+    const { data: portfolioTemplates = [] } = useQuery({
+        queryKey: ['printTemplates', 'portfolio', selectedCaseStudyId],
+        queryFn: () => printTemplateApi.listByPortfolioCaseStudy(selectedCaseStudyId as number),
+        enabled: selectedCaseStudyId !== null,
+    });
+    const { data: caseStudyDetail } = useQuery({
+        queryKey: ['portfolio-case-study', selectedCaseStudyId],
+        queryFn: () => portfolioApi.detail(selectedCaseStudyId as number),
+        enabled: selectedCaseStudyId !== null,
+    });
+    const portfolioContent = caseStudyDetail?.revisions[0]?.content ?? PORTFOLIO_EMPTY_CONTENT;
+    const editingPortfolioTemplate =
+        openOrientation !== null
+            ? (portfolioTemplates.find((t) => t.orientation === openOrientation) ?? null)
+            : null;
+
+    const savePortfolioTemplateMutation = useMutation({
+        mutationFn: (settings: {
+            orientation: 'portrait' | 'landscape';
+            excludedIds: string[];
+            sectionGaps: Record<string, number>;
+            forcedPageOverrides: Record<string, number>;
+            contentOverrides: Record<string, string | undefined>;
+        }) => {
+            const orientation: 'PORTRAIT' | 'LANDSCAPE' =
+                settings.orientation === 'landscape' ? 'LANDSCAPE' : 'PORTRAIT';
+            const existing = portfolioTemplates.find((t) => t.orientation === orientation);
+            const payload: PortfolioPrintTemplateRequest = {
+                name: `${orientation === 'LANDSCAPE' ? '가로' : '세로'} 배치`,
+                orientation,
+                excludedIds: JSON.stringify(settings.excludedIds),
+                sectionOrder: '[]',
+                sectionGaps: JSON.stringify(settings.sectionGaps),
+                contentOverrides: JSON.stringify({
+                    narrative: settings.contentOverrides,
+                    forcedPageOverrides: settings.forcedPageOverrides,
+                }),
+                isDefault: true,
+            };
+            return existing
+                ? printTemplateApi.updatePortfolio(
+                      selectedCaseStudyId as number,
+                      existing.id,
+                      payload
+                  )
+                : printTemplateApi.createPortfolio(selectedCaseStudyId as number, payload);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['printTemplates', 'portfolio', selectedCaseStudyId],
+            });
+            setOpenOrientation(null);
+        },
     });
     const { data: introData } = useQuery({
         queryKey: ['introduction', 'print-template-editor'],
@@ -454,6 +531,76 @@ export function PrintTemplateManagement() {
                     renderTemplateTable(privateCompany, '회사와 연결된 비공개 템플릿이 없습니다.')}
                 {privateTab === 'local' && renderLocalTable()}
             </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+                    <div className="flex items-center gap-2">
+                        <FolderGit2 className="h-4 w-4 text-violet-600" />
+                        <h3 className="text-sm font-black text-slate-800">포트폴리오 배치</h3>
+                    </div>
+                    <select
+                        value={selectedCaseStudyId ?? ''}
+                        onChange={(e) =>
+                            setSelectedCaseStudyId(e.target.value ? Number(e.target.value) : null)
+                        }
+                        className="rounded-md border border-slate-300 px-2 py-1.5 text-xs font-bold text-slate-700"
+                    >
+                        <option value="">케이스스터디 선택</option>
+                        {caseStudies.map((cs) => (
+                            <option key={cs.id} value={cs.id}>
+                                {cs.title}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                {selectedCaseStudyId === null ? (
+                    <div className="p-6 text-center text-sm font-medium text-slate-400">
+                        배치를 편집할 케이스스터디를 선택하세요.
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100">
+                        {(['PORTRAIT', 'LANDSCAPE'] as const).map((orientation) => {
+                            const existing = portfolioTemplates.find(
+                                (t) => t.orientation === orientation
+                            );
+                            return (
+                                <div
+                                    key={orientation}
+                                    className="flex items-center justify-between px-5 py-3"
+                                >
+                                    <div className="text-sm">
+                                        <span className="font-bold text-slate-900">
+                                            {orientation === 'LANDSCAPE' ? '가로' : '세로'}
+                                        </span>
+                                        <span className="ml-2 text-xs text-slate-400">
+                                            {existing ? '설정됨' : '미설정'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => setOpenOrientation(orientation)}
+                                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition"
+                                    >
+                                        <Edit2 className="h-3.5 w-3.5 text-blue-400" />
+                                        배치 편집
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {openOrientation !== null && selectedCaseStudyId !== null && caseStudyDetail && (
+                <PortfolioPrintCanvas
+                    caseStudy={caseStudyDetail.caseStudy}
+                    content={portfolioContent}
+                    adminMode
+                    initialLayout={editingPortfolioTemplate}
+                    initialOrientation={openOrientation === 'LANDSCAPE' ? 'landscape' : 'portrait'}
+                    onExit={() => setOpenOrientation(null)}
+                    onSaveLayout={(settings) => savePortfolioTemplateMutation.mutate(settings)}
+                />
+            )}
         </div>
     );
 }

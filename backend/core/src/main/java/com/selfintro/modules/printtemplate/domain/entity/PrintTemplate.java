@@ -7,6 +7,11 @@ import java.time.LocalDateTime;
 @Table(name = "print_template")
 public class PrintTemplate {
 
+    public static final String DOCUMENT_TYPE_RESUME = "RESUME";
+    public static final String DOCUMENT_TYPE_PORTFOLIO = "PORTFOLIO";
+    public static final String ORIENTATION_PORTRAIT = "PORTRAIT";
+    public static final String ORIENTATION_LANDSCAPE = "LANDSCAPE";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -53,6 +58,18 @@ public class PrintTemplate {
     @Column(name = "job_posting_id")
     private Long jobPostingId;
 
+    /** RESUME(기본, 이력서) | PORTFOLIO(포트폴리오 케이스스터디). 문서 종류별로 같은 override 구조를 공유한다. */
+    @Column(name = "document_type", nullable = false, length = 20)
+    private String documentType;
+
+    /** PORTFOLIO 타입일 때만 값이 있다 — 어떤 케이스스터디의 배치인지. */
+    @Column(name = "portfolio_case_study_id")
+    private Long portfolioCaseStudyId;
+
+    /** PORTRAIT(기본) | LANDSCAPE. 이력서는 항상 PORTRAIT, 포트폴리오는 둘 다 가능. */
+    @Column(nullable = false, length = 10)
+    private String orientation;
+
     @Column(name = "is_final_submission", nullable = false)
     private boolean finalSubmission;
 
@@ -81,6 +98,9 @@ public class PrintTemplate {
             boolean visible,
             int displayOrder,
             Long jobPostingId,
+            String documentType,
+            Long portfolioCaseStudyId,
+            String orientation,
             String source,
             String generationMetadata,
             LocalDateTime generatedAt) {
@@ -95,6 +115,9 @@ public class PrintTemplate {
         this.visible = visible;
         this.displayOrder = displayOrder;
         this.jobPostingId = jobPostingId;
+        this.documentType = documentType;
+        this.portfolioCaseStudyId = portfolioCaseStudyId;
+        this.orientation = orientation;
         this.source = source;
         this.generationMetadata = generationMetadata;
         this.generatedAt = generatedAt;
@@ -127,6 +150,9 @@ public class PrintTemplate {
                 visible,
                 displayOrder,
                 jobPostingId,
+                DOCUMENT_TYPE_RESUME,
+                null,
+                ORIENTATION_PORTRAIT,
                 "MANUAL",
                 null,
                 null);
@@ -155,9 +181,43 @@ public class PrintTemplate {
                 false,
                 displayOrder,
                 jobPostingId,
+                DOCUMENT_TYPE_RESUME,
+                null,
+                ORIENTATION_PORTRAIT,
                 "AI",
                 generationMetadata,
                 now);
+    }
+
+    /** 포트폴리오 케이스스터디 배치 저장 — 방향(orientation)별로 독립된 행이다. */
+    public static PrintTemplate createPortfolio(
+            String name,
+            Long portfolioCaseStudyId,
+            String orientation,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            String contentOverrides,
+            String source,
+            boolean isDefault) {
+        return new PrintTemplate(
+                name,
+                excludedIds,
+                sectionOrder,
+                sectionGaps,
+                "GENERAL",
+                contentOverrides == null ? "{}" : contentOverrides,
+                null,
+                2,
+                isDefault,
+                0,
+                null,
+                DOCUMENT_TYPE_PORTFOLIO,
+                portfolioCaseStudyId,
+                orientation,
+                source,
+                null,
+                null);
     }
 
     public static PrintTemplate create(
@@ -208,6 +268,23 @@ public class PrintTemplate {
             this.finalSubmission = false;
         }
         this.jobPostingId = jobPostingId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /** 포트폴리오 배치 수정 — 어떤 케이스스터디/방향인지는 식별자라 바뀌지 않는다. */
+    public void updatePortfolio(
+            String name,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            String contentOverrides,
+            boolean isDefault) {
+        this.name = name;
+        this.excludedIds = excludedIds;
+        this.sectionOrder = sectionOrder;
+        this.sectionGaps = sectionGaps;
+        this.contentOverrides = contentOverrides == null ? "{}" : contentOverrides;
+        this.visible = isDefault;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -285,6 +362,18 @@ public class PrintTemplate {
 
     public Long getJobPostingId() {
         return jobPostingId;
+    }
+
+    public String getDocumentType() {
+        return documentType;
+    }
+
+    public Long getPortfolioCaseStudyId() {
+        return portfolioCaseStudyId;
+    }
+
+    public String getOrientation() {
+        return orientation;
     }
 
     public boolean isFinalSubmission() {

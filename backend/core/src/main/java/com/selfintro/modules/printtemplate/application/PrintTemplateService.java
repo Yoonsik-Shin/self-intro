@@ -2,9 +2,11 @@ package com.selfintro.modules.printtemplate.application;
 
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
+import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import com.selfintro.modules.storage.application.StorageService;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -21,15 +23,72 @@ public class PrintTemplateService {
 
     @Cacheable(value = "print_template:public")
     public List<PrintTemplate> listPublic() {
-        return printTemplateRepository.findAllByVisibleTrueOrderByDisplayOrderAsc();
+        return printTemplateRepository.findAllByDocumentTypeAndVisibleTrueOrderByDisplayOrderAsc(
+                PrintTemplate.DOCUMENT_TYPE_RESUME);
     }
 
     public List<PrintTemplate> listAll() {
-        return printTemplateRepository.findAllByOrderByDisplayOrderAsc();
+        return printTemplateRepository.findAllByDocumentTypeOrderByDisplayOrderAsc(
+                PrintTemplate.DOCUMENT_TYPE_RESUME);
     }
 
     public List<PrintTemplate> listByJobPosting(Long jobPostingId) {
         return printTemplateRepository.findAllByJobPostingIdOrderByDisplayOrderAsc(jobPostingId);
+    }
+
+    public List<PrintTemplate> listByPortfolioCaseStudy(Long caseStudyId) {
+        return printTemplateRepository
+                .findAllByPortfolioCaseStudyIdOrderByOrientationAscDisplayOrderAsc(caseStudyId);
+    }
+
+    public Optional<PrintTemplate> getDefaultForPortfolio(Long caseStudyId, String orientation) {
+        return printTemplateRepository.findByPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
+                caseStudyId, orientation);
+    }
+
+    @Transactional
+    public PrintTemplate createPortfolio(Long caseStudyId, PortfolioPrintTemplateRequest request) {
+        if (request.isDefault()) clearExistingPortfolioDefault(caseStudyId, request.orientation());
+        PrintTemplate template =
+                PrintTemplate.createPortfolio(
+                        request.name(),
+                        caseStudyId,
+                        request.orientation(),
+                        request.excludedIds(),
+                        request.sectionOrder(),
+                        request.sectionGaps(),
+                        request.contentOverrides(),
+                        "MANUAL",
+                        request.isDefault());
+        return printTemplateRepository.save(template);
+    }
+
+    @Transactional
+    public PrintTemplate updatePortfolio(Long id, PortfolioPrintTemplateRequest request) {
+        PrintTemplate template = getOrThrow(id);
+        if (request.isDefault() && !template.isVisible()) {
+            clearExistingPortfolioDefault(template.getPortfolioCaseStudyId(), template.getOrientation());
+        }
+        template.updatePortfolio(
+                request.name(),
+                request.excludedIds(),
+                request.sectionOrder(),
+                request.sectionGaps(),
+                request.contentOverrides(),
+                request.isDefault());
+        return printTemplateRepository.save(template);
+    }
+
+    private void clearExistingPortfolioDefault(Long caseStudyId, String orientation) {
+        printTemplateRepository
+                .findByPortfolioCaseStudyIdAndOrientationAndVisibleTrue(caseStudyId, orientation)
+                .ifPresent(existing -> existing.updatePortfolio(
+                        existing.getName(),
+                        existing.getExcludedIds(),
+                        existing.getSectionOrder(),
+                        existing.getSectionGaps(),
+                        existing.getContentOverrides(),
+                        false));
     }
 
     @Transactional

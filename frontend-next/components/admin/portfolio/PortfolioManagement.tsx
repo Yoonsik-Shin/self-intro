@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderGit2, Loader2, Plus, Printer, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import { FolderGit2, Loader2, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { portfolioApi } from '@/lib/api/portfolio';
 import { experienceApi } from '@/lib/api/experience';
 import { studyApi } from '@/lib/api/study';
@@ -11,7 +11,6 @@ import { imageApi } from '@/lib/api/image';
 import type { PortfolioCaseStudy, PortfolioCaseStudyContent } from '@/lib/api/types';
 import { experienceOrgName, experienceTypeLabel } from '@/lib/format';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
-import { PortfolioPrintCanvas } from '@/components/portfolio/PortfolioPrintCanvas';
 
 const EMPTY_CONTENT: PortfolioCaseStudyContent = {
     summary: '',
@@ -41,7 +40,6 @@ export function PortfolioManagement() {
     const [instruction, setInstruction] = useState('');
     const [studyIds, setStudyIds] = useState<number[]>([]);
     const [skillIds, setSkillIds] = useState<number[]>([]);
-    const [printCanvasOpen, setPrintCanvasOpen] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -78,11 +76,6 @@ export function PortfolioManagement() {
     const { data: detail } = useQuery({
         queryKey: ['portfolio-case-study', selectedId],
         queryFn: () => portfolioApi.detail(selectedId as number),
-        enabled: selectedId !== null,
-    });
-    const { data: layouts = [] } = useQuery({
-        queryKey: ['portfolio-layouts', selectedId],
-        queryFn: () => portfolioApi.listLayouts(selectedId as number),
         enabled: selectedId !== null,
     });
 
@@ -146,36 +139,6 @@ export function PortfolioManagement() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['portfolio-case-study', selectedId] });
             queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies'] });
-        },
-    });
-
-    const saveLayoutMutation = useMutation({
-        mutationFn: (settings: {
-            orientation: 'portrait' | 'landscape';
-            excludedIds: string[];
-            sectionGaps: Record<string, number>;
-            forcedPageOverrides: Record<string, number>;
-            contentOverrides: Record<string, string | undefined>;
-        }) => {
-            const orientation = settings.orientation === 'landscape' ? 'LANDSCAPE' : 'PORTRAIT';
-            const existing = layouts.find((l) => l.orientation === orientation && l.isDefault);
-            const payload = {
-                orientation,
-                name: `${orientation === 'LANDSCAPE' ? '가로' : '세로'} 기본 레이아웃`,
-                excludedIdsJson: JSON.stringify(settings.excludedIds),
-                sectionOrderJson: null,
-                sectionGapsJson: JSON.stringify(settings.sectionGaps),
-                itemOrderOverridesJson: null,
-                forcedPageOverridesJson: JSON.stringify(settings.forcedPageOverrides),
-                contentOverridesJson: JSON.stringify(settings.contentOverrides),
-                isDefault: true,
-            } as const;
-            return existing
-                ? portfolioApi.updateLayout(selectedId as number, existing.id, payload)
-                : portfolioApi.createLayout(selectedId as number, payload);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['portfolio-layouts', selectedId] });
         },
     });
 
@@ -265,17 +228,6 @@ export function PortfolioManagement() {
 
     return (
         <div className="flex h-full min-h-0 gap-4">
-            {printCanvasOpen && selectedCaseStudy && (
-                <PortfolioPrintCanvas
-                    caseStudy={selectedCaseStudy}
-                    content={content}
-                    adminMode
-                    initialLayout={null}
-                    onExit={() => setPrintCanvasOpen(false)}
-                    onSaveLayout={(settings) => saveLayoutMutation.mutate(settings)}
-                />
-            )}
-
             {/* 목록 */}
             <div className="flex w-72 shrink-0 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
                 <div className="flex items-center justify-between">
@@ -398,16 +350,12 @@ export function PortfolioManagement() {
                             <h2 className="text-sm font-black text-slate-900">
                                 {selectedCaseStudy.title}
                             </h2>
-                            <p className="text-[11px] text-slate-400">{selectedCaseStudy.slug}</p>
+                            <p className="text-[11px] text-slate-400">
+                                {selectedCaseStudy.slug} · 가로/세로 배치 편집은 &ldquo;PDF 템플릿
+                                관리&rdquo;에서
+                            </p>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <button
-                                type="button"
-                                onClick={() => setPrintCanvasOpen(true)}
-                                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-600 hover:border-blue-300 hover:text-blue-700"
-                            >
-                                <Printer className="h-3.5 w-3.5" /> 레이아웃 편집
-                            </button>
                             <button
                                 type="button"
                                 onClick={() => {

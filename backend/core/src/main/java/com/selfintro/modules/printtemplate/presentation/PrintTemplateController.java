@@ -1,6 +1,7 @@
 package com.selfintro.modules.printtemplate.presentation;
 
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
+import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateFinalPdfRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateResponse;
@@ -8,8 +9,10 @@ import com.selfintro.modules.storage.application.StorageService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
@@ -57,6 +60,47 @@ public class PrintTemplateController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         printTemplateService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 포트폴리오 케이스스터디 배치 목록(방향별로 여러 개) */
+    @GetMapping("/api/admin/print-templates/portfolio/{caseStudyId}")
+    public ResponseEntity<List<PrintTemplateResponse>> listPortfolio(
+            @PathVariable Long caseStudyId) {
+        List<PrintTemplateResponse> list =
+                printTemplateService.listByPortfolioCaseStudy(caseStudyId).stream()
+                        .map(this::toResponse)
+                        .toList();
+        return ResponseEntity.ok(list);
+    }
+
+    /** 방향별 기본 배치 — 없으면 404(프론트가 자동 배치로 대체) */
+    @GetMapping("/api/admin/print-templates/portfolio/{caseStudyId}/default")
+    public ResponseEntity<PrintTemplateResponse> getPortfolioDefault(
+            @PathVariable Long caseStudyId, @RequestParam String orientation) {
+        return printTemplateService
+                .getDefaultForPortfolio(caseStudyId, orientation)
+                .map(this::toResponse)
+                .map(ResponseEntity::ok)
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "저장된 배치가 없습니다."));
+    }
+
+    @PostMapping("/api/admin/print-templates/portfolio/{caseStudyId}")
+    public ResponseEntity<PrintTemplateResponse> createPortfolio(
+            @PathVariable Long caseStudyId,
+            @Valid @RequestBody PortfolioPrintTemplateRequest request) {
+        return ResponseEntity.ok(
+                toResponse(printTemplateService.createPortfolio(caseStudyId, request)));
+    }
+
+    @PutMapping("/api/admin/print-templates/portfolio/{caseStudyId}/{id}")
+    public ResponseEntity<PrintTemplateResponse> updatePortfolio(
+            @PathVariable Long caseStudyId,
+            @PathVariable Long id,
+            @Valid @RequestBody PortfolioPrintTemplateRequest request) {
+        return ResponseEntity.ok(toResponse(printTemplateService.updatePortfolio(id, request)));
     }
 
     /** 연동된 지원 공고 기준으로 이 템플릿을 "최종 제출본"으로 지정한다(같은 공고의 다른 표시는 해제). */

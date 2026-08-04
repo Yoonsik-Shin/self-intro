@@ -4,18 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-    BookOpen,
-    Briefcase,
-    Eye,
-    FolderGit2,
-    Heart,
-    Home,
-    Menu,
-    Printer,
-    Terminal,
-    X,
-} from 'lucide-react';
+import { BookOpen, Briefcase, Eye, Heart, Home, Menu, Printer, Terminal, X } from 'lucide-react';
 import { donationApi, visitorApi } from '@/lib/api';
 import { usePrintStore } from '@/store/usePrintStore';
 import { DonationModal } from '@/components/donation/DonationModal';
@@ -23,7 +12,6 @@ import { DonationModal } from '@/components/donation/DonationModal';
 const pages = [
     { href: '/', label: '메인페이지', shortLabel: '메인', icon: Home },
     { href: '/experience', label: '경험', shortLabel: '경험', icon: Briefcase },
-    { href: '/portfolio', label: '포트폴리오', shortLabel: '포트폴리오', icon: FolderGit2 },
     { href: '/study', label: '공부 정리', shortLabel: '공부 정리', icon: BookOpen },
     {
         href: '/architecture',
@@ -36,7 +24,6 @@ const pages = [
 function isActivePage(pathname: string, href: string): boolean {
     if (href === '/') return pathname === '/';
     if (href === '/experience') return pathname.startsWith('/experience');
-    if (href === '/portfolio') return pathname.startsWith('/portfolio');
     return pathname.startsWith(href);
 }
 

@@ -19,3 +19,4 @@ export * from './architecture';
 export * from './printTemplate';
 export * from './jobPosting';
 export * from './studyPlan';
+export * from './portfolio';

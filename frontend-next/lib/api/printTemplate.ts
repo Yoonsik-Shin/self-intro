@@ -1,5 +1,10 @@
 import { request } from './client';
-import type { PrintTemplate, PrintTemplateRaw, PrintTemplateRequest } from './types';
+import type {
+    PortfolioPrintTemplateRequest,
+    PrintTemplate,
+    PrintTemplateRaw,
+    PrintTemplateRequest,
+} from './types';
 
 function safeParseJson<T>(rawStr: string | null | undefined, fallback: T): T {
     if (!rawStr) return fallback;
@@ -30,6 +35,9 @@ function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
         visible: raw.visible,
         displayOrder: raw.displayOrder,
         jobPostingId: raw.jobPostingId,
+        documentType: raw.documentType,
+        portfolioCaseStudyId: raw.portfolioCaseStudyId,
+        orientation: raw.orientation,
         isFinalSubmission: raw.isFinalSubmission,
         finalPdfUrl: raw.finalPdfUrl,
     };
@@ -89,6 +97,36 @@ export const printTemplateApi = {
         const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/final-pdf`, {
             method: 'DELETE',
         });
+        return parsePrintTemplate(raw);
+    },
+    listByPortfolioCaseStudy: async (caseStudyId: number) => {
+        const raws = await request<PrintTemplateRaw[]>(
+            `/api/admin/print-templates/portfolio/${caseStudyId}`
+        );
+        return raws.map(parsePrintTemplate);
+    },
+    getPortfolioDefault: async (caseStudyId: number, orientation: 'PORTRAIT' | 'LANDSCAPE') => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/admin/print-templates/portfolio/${caseStudyId}/default?orientation=${orientation}`
+        );
+        return parsePrintTemplate(raw);
+    },
+    createPortfolio: async (caseStudyId: number, payload: PortfolioPrintTemplateRequest) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/admin/print-templates/portfolio/${caseStudyId}`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        );
+        return parsePrintTemplate(raw);
+    },
+    updatePortfolio: async (
+        caseStudyId: number,
+        id: number,
+        payload: PortfolioPrintTemplateRequest
+    ) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/admin/print-templates/portfolio/${caseStudyId}/${id}`,
+            { method: 'PUT', body: JSON.stringify(payload) }
+        );
         return parsePrintTemplate(raw);
     },
 };

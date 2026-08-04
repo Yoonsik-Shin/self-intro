@@ -32,6 +32,15 @@ export type StudyCategory = {
     name: string;
     slug: string;
     displayOrder: number;
+    parentId: number | null;
+    studyCount: number;
+};
+
+export type StudyCategoryRequest = {
+    name: string;
+    slug: string;
+    displayOrder: number;
+    parentId: number | null;
 };
 
 export type Tag = {
@@ -792,6 +801,9 @@ export type PrintTemplateRaw = {
     visible: boolean;
     displayOrder: number;
     jobPostingId: number | null;
+    documentType: 'RESUME' | 'PORTFOLIO';
+    portfolioCaseStudyId: number | null;
+    orientation: 'PORTRAIT' | 'LANDSCAPE';
     isFinalSubmission: boolean;
     finalPdfUrl: string | null;
 };
@@ -832,6 +844,9 @@ export type PrintTemplate = {
     visible: boolean;
     displayOrder: number;
     jobPostingId: number | null;
+    documentType: 'RESUME' | 'PORTFOLIO';
+    portfolioCaseStudyId: number | null;
+    orientation: 'PORTRAIT' | 'LANDSCAPE';
     isFinalSubmission: boolean;
     finalPdfUrl: string | null;
 };
@@ -898,6 +913,16 @@ export type PrintTemplateRequest = {
     visible: boolean;
     displayOrder: number;
     jobPostingId: number | null;
+};
+
+export type PortfolioPrintTemplateRequest = {
+    name: string;
+    orientation: 'PORTRAIT' | 'LANDSCAPE';
+    excludedIds: string;
+    sectionOrder: string;
+    sectionGaps: string;
+    contentOverrides: string;
+    isDefault: boolean;
 };
 
 export type StudyPlanStatus = 'COLLECTING' | 'DRAFT' | 'CONFIRMED';
@@ -1077,36 +1102,4 @@ export type PortfolioCaseStudyPublic = {
     content: PortfolioCaseStudyContent;
     renderedMarkdown: string;
     updatedAt: string;
-};
-
-export type PortfolioLayoutOrientation = 'PORTRAIT' | 'LANDSCAPE';
-export type PortfolioLayoutSource = 'AI' | 'MANUAL';
-
-export type PortfolioLayout = {
-    id: number;
-    caseStudyId: number;
-    orientation: PortfolioLayoutOrientation;
-    name: string;
-    source: PortfolioLayoutSource;
-    excludedIdsJson: string | null;
-    sectionOrderJson: string | null;
-    sectionGapsJson: string | null;
-    itemOrderOverridesJson: string | null;
-    forcedPageOverridesJson: string | null;
-    contentOverridesJson: string | null;
-    isDefault: boolean;
-    createdAt: string;
-    updatedAt: string;
-};
-
-export type PortfolioLayoutRequest = {
-    orientation: PortfolioLayoutOrientation;
-    name: string;
-    excludedIdsJson: string | null;
-    sectionOrderJson: string | null;
-    sectionGapsJson: string | null;
-    itemOrderOverridesJson: string | null;
-    forcedPageOverridesJson: string | null;
-    contentOverridesJson: string | null;
-    isDefault: boolean;
 };
