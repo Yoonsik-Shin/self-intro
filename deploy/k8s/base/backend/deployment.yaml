@@ -38,34 +38,6 @@ spec:
             - secretRef:
                 name: backend-kofi-secret
                 optional: true
-          # job_posting_vector 등 Oracle 26ai 전용 테이블용 2차 데이터소스(2026-08-04 사고 대응).
-          # backend-worker-db-secret은 ai-worker용으로 만들어진 시크릿이지만 값 자체(Oracle ATP 접속 정보)는
-          # 이 pod에서도 그대로 재사용한다 — 키 이름만 겹치지 않게 ORACLE_VECTOR_* 로 다시 매핑.
-          env:
-            - name: ORACLE_VECTOR_DB_URL
-              valueFrom:
-                secretKeyRef:
-                  name: backend-worker-db-secret
-                  key: DB_URL
-            - name: ORACLE_VECTOR_DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: backend-worker-db-secret
-                  key: DB_USERNAME
-            - name: ORACLE_VECTOR_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: backend-worker-db-secret
-                  key: DB_PASSWORD
-            - name: ORACLE_VECTOR_DB_DRIVER
-              valueFrom:
-                secretKeyRef:
-                  name: backend-worker-db-secret
-                  key: DB_DRIVER
-          volumeMounts:
-            - name: oracle-atp-wallet
-              mountPath: /etc/oracle/wallet
-              readOnly: true
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -85,8 +57,3 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
-      volumes:
-        - name: oracle-atp-wallet
-          secret:
-            secretName: oracle-atp-worker-wallet
-            optional: true

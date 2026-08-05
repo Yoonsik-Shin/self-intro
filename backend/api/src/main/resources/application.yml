@@ -145,15 +145,9 @@ app:
     public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:9000/self-intro-images}
 
 oracle:
-  # job_posting_vector/experience_vector/study_vector 전용 Oracle 26ai ATP 2차 데이터소스.
-  # api 모듈은 관리자 화면(지원 공고 백필 등)이 ai-worker의 서비스 빈을 in-process로도 함께 띄우기 때문에
-  # (com.selfintro 전체 스캔) 이 앱도 동일한 Oracle 연결이 필요하다 — 2026-08-04 사고 참고.
-  vector:
-    datasource:
-      url: ${ORACLE_VECTOR_DB_URL:jdbc:h2:mem:apivectordb;MODE=Oracle}
-      username: ${ORACLE_VECTOR_DB_USERNAME:sa}
-      password: ${ORACLE_VECTOR_DB_PASSWORD:}
-      driver-class-name: ${ORACLE_VECTOR_DB_DRIVER:org.h2.Driver}
+  # job_posting_vector 등 Oracle 26ai 2차 데이터소스(oracle.vector.datasource)는 여기 없다 — api는
+  # com.selfintro.vectorsearch를 스캔에서 제외해서 더 이상 Oracle 연결이 필요 없다(2026-08 job-posting
+  # CRUD/AI 분리 완료, worker만 벡터 검색을 씀). 예전엔 2026-08-04 사고 대응으로 여기도 배선했었다.
   nosql:
     enabled: ${ORACLE_NOSQL_ENABLED:false}
     mode: ${ORACLE_NOSQL_MODE:cloud}
