@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class JobPostingPrintDraftServiceTest {
 
     private final JobPostingPrintDraftService service =
-            new JobPostingPrintDraftService(null, null, null, null, new ObjectMapper());
+            new JobPostingPrintDraftService(null, null, null, null, null, new ObjectMapper());
 
     @Test
     void parsesJsonEvenWhenModelAddsTextAroundIt() {

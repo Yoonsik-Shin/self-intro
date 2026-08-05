@@ -11,7 +11,7 @@ import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterItem;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterItemRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemRequest;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterSaveRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

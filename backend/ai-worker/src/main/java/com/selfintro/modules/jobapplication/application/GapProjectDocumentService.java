@@ -9,7 +9,11 @@ import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobapplication.domain.entity.GapProjectDocument;
 import com.selfintro.modules.jobapplication.domain.repository.GapProjectDocumentRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.GapProjectDocumentResponse;
+import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
+import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -59,20 +63,21 @@ public class GapProjectDocumentService {
             """;
 
     private final GapProjectDocumentRepository repository;
-    private final JobPostingService jobPostingService;
+    private final JobPostingRepository jobPostingRepository;
+    private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
 
     public List<GapProjectDocumentResponse> list(Long jobPostingId) {
-        jobPostingService.get(jobPostingId);
+        findPostingOrThrow(jobPostingId);
         return repository.findAllByJobPostingIdOrderByVersionDesc(jobPostingId).stream()
                 .map(GapProjectDocumentResponse::from)
                 .toList();
     }
 
     public GapProjectDocumentResponse generate(Long jobPostingId) {
-        JobPostingResponse posting = jobPostingService.get(jobPostingId);
+        JobPostingResponse posting = toResponse(findPostingOrThrow(jobPostingId));
         if (posting.appealAnalysis() == null || posting.appealAnalysis().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "먼저 AI 어필 포인트 분석을 실행해주세요.");
         }
@@ -187,5 +192,18 @@ public class GapProjectDocumentService {
     private String text(JsonNode node, String field, String fallback) {
         String value = node.path(field).asText("").trim();
         return value.isBlank() ? fallback : value;
+    }
+
+    private JobPosting findPostingOrThrow(Long jobPostingId) {
+        return jobPostingRepository
+                .findById(jobPostingId)
+                .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + jobPostingId));
+    }
+
+    private JobPostingResponse toResponse(JobPosting posting) {
+        return JobPostingResponse.from(
+                posting,
+                sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
+                        posting.getId()));
     }
 }

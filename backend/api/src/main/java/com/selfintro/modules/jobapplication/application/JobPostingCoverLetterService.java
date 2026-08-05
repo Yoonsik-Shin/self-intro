@@ -4,7 +4,7 @@ import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterItem;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterItemRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterSaveRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;

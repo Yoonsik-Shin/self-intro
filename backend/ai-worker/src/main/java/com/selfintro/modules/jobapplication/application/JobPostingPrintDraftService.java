@@ -13,6 +13,9 @@ import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingPrintDraftResponse;
+import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
@@ -77,14 +80,26 @@ public class JobPostingPrintDraftService {
             }
             """;
 
-    private final JobPostingService jobPostingService;
+    private final JobPostingRepository jobPostingRepository;
+    private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final BffService bffService;
     private final NvidiaNimClient nvidiaNimClient;
     private final PrintTemplateService printTemplateService;
     private final ObjectMapper objectMapper;
 
     public JobPostingPrintDraftResponse generate(Long jobPostingId) {
-        JobPostingResponse posting = jobPostingService.get(jobPostingId);
+        JobPosting postingEntity =
+                jobPostingRepository
+                        .findById(jobPostingId)
+                        .orElseThrow(
+                                () ->
+                                        new jakarta.persistence.EntityNotFoundException(
+                                                "존재하지 않는 채용 공고입니다: " + jobPostingId));
+        JobPostingResponse posting =
+                JobPostingResponse.from(
+                        postingEntity,
+                        sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
+                                postingEntity.getId()));
         IntroductionResponse introduction = bffService.getIntroduction();
         String input = serializeInput(posting, introduction);
         String raw =
