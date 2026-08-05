@@ -432,7 +432,6 @@ export default function JobPostingMapView({
 
             // 🎯 빡빡하고 가독성 뛰어난 스마트 군집화 기준 (Strict Clustering Policy)
             // Zoom >= 18 또는 단일 공고 선택 모드에서만 100% 핀 분리
-            // Zoom < 18 에서는 충분한 픽셀 반경(65px ~ 120px)으로 뭉쳐서 지도 청정 가독성 확보!
             const isDetailedZoom = zoom >= 18 || selectedPostingId !== null;
 
             let pixelThreshold = 0;
@@ -872,14 +871,14 @@ export default function JobPostingMapView({
                                 className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
                             />
 
-                            {/* 📱 패널 접힘 시 우측 오버레이 열기 탭 버튼 */}
+                            {/* 📱 🎯 [슬림 미니멀 축소] 패널 접힘 시 우측 오버레이 열기 탭 버튼 */}
                             {!isDetailPanelOpen && (
                                 <button
                                     onClick={() => setIsDetailPanelOpen(true)}
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center rounded-l-xl border border-r-0 border-slate-200 bg-white/95 p-2.5 text-slate-700 shadow-md hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200 group"
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center rounded-l-lg border border-r-0 border-slate-200 bg-white/95 py-2 px-1 text-slate-700 shadow-sm hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200 group"
                                     title="패널 열기"
                                 >
-                                    <ChevronLeft className="h-5 w-5 text-indigo-600 group-hover:-translate-x-0.5 transition-transform" />
+                                    <ChevronLeft className="h-3.5 w-3.5 text-indigo-600 group-hover:-translate-x-0.5 transition-transform" />
                                 </button>
                             )}
                         </div>
@@ -930,7 +929,7 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* ↔️ [슬림 구분선 & 오버레이 접기 탭] */}
+                {/* ↔️ 🎯 [슬림 미니멀 축소] 패널 열림 시 구분선 오버레이 접기 탭 버튼 */}
                 {isDetailPanelOpen && (
                     <div
                         onMouseDown={handleMouseDown}
@@ -941,15 +940,15 @@ export default function JobPostingMapView({
                     >
                         <button
                             onClick={() => setIsDetailPanelOpen(false)}
-                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-30 flex h-7 w-6 items-center justify-center rounded-l-md border border-r-0 border-slate-200 bg-white/95 text-slate-500 shadow-sm hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all"
+                            className="absolute -left-2.5 top-1/2 -translate-y-1/2 z-30 flex h-5 w-5 items-center justify-center rounded-l-md border border-r-0 border-slate-200 bg-white/95 text-slate-500 shadow-2xs hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all"
                             title="패널 접기"
                         >
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="h-3 w-3" />
                         </button>
                     </div>
                 )}
 
-                {/* 3. 🎯 [실시간 지도 화면 연동] 현재 지도 화면 안 범위의 공고만 연동 리스팅! */}
+                {/* 3. 🎯 사이드바 패널 */}
                 {isDetailPanelOpen && (
                     <div
                         style={{ width: `${detailPanelWidth}px` }}
@@ -1105,7 +1104,7 @@ export default function JobPostingMapView({
                                 </div>
                             </div>
                         ) : (
-                            /* B. 🎯 [실시간 지도 화면 연동] 현재 화면 범위 안 공고만 100% 동적 표출 */
+                            /* B. 🎯 현재 화면 범위 안 공고 연동 표출 */
                             <div className="flex flex-col h-full space-y-3">
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
