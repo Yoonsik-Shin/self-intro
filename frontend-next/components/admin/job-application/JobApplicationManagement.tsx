@@ -1038,73 +1038,70 @@ function PrintTemplatesPanel({
                 onChange={handleDirectFileSelected}
             />
             <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-sm font-extrabold text-indigo-900">AI 맞춤 초안</p>
-                        <p className="mt-1 text-xs leading-5 text-indigo-700">
-                            {hasAppealAnalysis
-                                ? '현재 어필 포인트 분석을 기준으로 PDF에 넣을 내용과 뺄 내용을 구성합니다.'
-                                : '먼저 경력 매칭 분석 탭에서 AI 어필 포인트 분석을 실행해 주세요.'}
-                        </p>
-                        {!hasAppealAnalysis && onNavigateToAppealAnalysis && (
-                            <div className="mt-2.5">
-                                <button
-                                    type="button"
-                                    onClick={onNavigateToAppealAnalysis}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.98]"
-                                >
-                                    <Sparkles className="h-3.5 w-3.5 text-indigo-200" />
-                                    AI 어필 포인트 분석으로 이동
-                                    <ArrowRight className="h-3.5 w-3.5 opacity-80" />
-                                </button>
-                            </div>
-                        )}
-                        {appealAnalyzedAt && (
-                            <p className="mt-1 text-[11px] font-semibold text-indigo-400">
-                                마지막 분석 · {appealAnalyzedAt.replace('T', ' ').slice(0, 16)}
-                            </p>
-                        )}
-                    </div>
-                    <button
-                        type="button"
-                        disabled={!hasAppealAnalysis || generatePrintDraftMutation.isPending}
-                        onClick={() => generatePrintDraftMutation.mutate()}
-                        className="flex shrink-0 items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                        {generatePrintDraftMutation.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                            <FileText className="h-3.5 w-3.5" />
-                        )}
-                        {generatePrintDraftMutation.isPending
-                            ? '초안 구성 중...'
-                            : templates.length > 0
-                              ? '새 AI 초안 생성'
-                              : 'AI 초안 생성'}
-                    </button>
+                <p className="text-sm font-extrabold text-indigo-900">AI 맞춤 초안</p>
+                <p className="mt-1 text-xs leading-5 text-indigo-700">
+                    {hasAppealAnalysis
+                        ? '현재 어필 포인트 분석을 기준으로 PDF에 넣을 내용과 뺄 내용을 구성합니다.'
+                        : '먼저 경력 매칭 분석 탭에서 AI 어필 포인트 분석을 실행해 주세요.'}
+                </p>
+                {appealAnalyzedAt && (
+                    <p className="mt-1 text-[11px] font-semibold text-indigo-400">
+                        마지막 분석 · {appealAnalyzedAt.replace('T', ' ').slice(0, 16)}
+                    </p>
+                )}
+                <div className="mt-3">
+                    {hasAppealAnalysis ? (
+                        <button
+                            type="button"
+                            disabled={generatePrintDraftMutation.isPending}
+                            onClick={() => generatePrintDraftMutation.mutate()}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            {generatePrintDraftMutation.isPending ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <FileText className="h-3.5 w-3.5" />
+                            )}
+                            {generatePrintDraftMutation.isPending
+                                ? '초안 구성 중...'
+                                : templates.length > 0
+                                  ? '새 AI 초안 생성'
+                                  : 'AI 초안 생성'}
+                        </button>
+                    ) : (
+                        onNavigateToAppealAnalysis && (
+                            <button
+                                type="button"
+                                onClick={onNavigateToAppealAnalysis}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.98]"
+                            >
+                                <Sparkles className="h-3.5 w-3.5 text-indigo-200" />
+                                AI 어필 포인트 분석으로 이동
+                                <ArrowRight className="h-3.5 w-3.5 opacity-80" />
+                            </button>
+                        )
+                    )}
                 </div>
             </div>
 
             {latestDraft && (
                 <div className="rounded-xl border border-indigo-200 bg-white p-3.5">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <p className="text-sm font-extrabold text-indigo-900">
-                                AI PDF 초안이 만들어졌습니다
-                            </p>
-                            <p className="mt-1 text-xs leading-5 text-slate-600">
-                                {latestDraft.strategySummary}
-                            </p>
-                            <p className="mt-1 text-[11px] font-semibold text-slate-400">
-                                포함 후보 {latestDraft.includedCount}개 · 제외 설정{' '}
-                                {latestDraft.excludedCount}개 · 목표 직무 {latestDraft.targetRole}
-                            </p>
-                        </div>
+                    <p className="text-sm font-extrabold text-indigo-900">
+                        AI PDF 초안이 만들어졌습니다
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {latestDraft.strategySummary}
+                    </p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                        포함 후보 {latestDraft.includedCount}개 · 제외 설정{' '}
+                        {latestDraft.excludedCount}개 · 목표 직무 {latestDraft.targetRole}
+                    </p>
+                    <div className="mt-3">
                         <a
                             href={`/print?admin=1&templateId=${latestDraft.templateId}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex shrink-0 items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700"
                         >
                             <ExternalLink className="h-3.5 w-3.5" />
                             초안 열기
@@ -1125,16 +1122,16 @@ function PrintTemplatesPanel({
                 </div>
             )}
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="space-y-2">
                 <p className="text-xs font-semibold text-slate-400">
                     제출한 PDF를 드래그 & 드롭하거나 직접 올려두면 최종 제출본으로 저장됩니다.
                 </p>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         type="button"
                         disabled={isUploadingDirectPdf}
                         onClick={() => directFileInputRef.current?.click()}
-                        className="flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
                     >
                         {isUploadingDirectPdf ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1147,7 +1144,7 @@ function PrintTemplatesPanel({
                         href={`/print?admin=1&jobPostingId=${jobPostingId}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
                     >
                         <Plus className="h-3.5 w-3.5" />새 템플릿 만들기
                     </a>
@@ -1194,14 +1191,14 @@ function PrintTemplatesPanel({
                     {templates.map((t) => (
                         <li
                             key={t.id}
-                            className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 ${
+                            className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border px-3.5 py-2.5 ${
                                 t.isFinalSubmission
                                     ? 'border-emerald-300 bg-emerald-50'
                                     : 'border-slate-200 bg-white'
                             }`}
                         >
                             <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex flex-wrap items-center gap-1.5">
                                     <span className="truncate text-sm font-bold text-slate-900">
                                         {t.name}
                                     </span>
@@ -1227,15 +1224,16 @@ function PrintTemplatesPanel({
                                     )}
                                 </div>
                             </div>
-                            <div className="flex shrink-0 items-center gap-1.5">
+                            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                                 {t.source !== 'EXTERNAL' && (
                                     <a
                                         href={`/print?admin=1&templateId=${t.id}`}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                        title="설정 열기"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
                                     >
-                                        설정 열기
+                                        <SettingsIcon className="h-3.5 w-3.5" />
                                     </a>
                                 )}
                                 {t.finalPdfUrl && (
@@ -1243,30 +1241,36 @@ function PrintTemplatesPanel({
                                         href={t.finalPdfUrl}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                        title="PDF 보기"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
                                     >
-                                        PDF 보기
+                                        <Eye className="h-3.5 w-3.5" />
                                     </a>
                                 )}
                                 <button
                                     type="button"
                                     disabled={uploadingId === t.id}
                                     onClick={() => requestUpload(t.id)}
-                                    className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                    title={t.finalPdfUrl ? 'PDF 교체' : 'PDF 업로드'}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                                 >
-                                    {uploadingId === t.id && (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    {uploadingId === t.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : t.finalPdfUrl ? (
+                                        <RefreshCw className="h-3.5 w-3.5" />
+                                    ) : (
+                                        <Upload className="h-3.5 w-3.5" />
                                     )}
-                                    {t.finalPdfUrl ? 'PDF 교체' : 'PDF 업로드'}
                                 </button>
                                 {t.finalPdfUrl && (
                                     <button
                                         type="button"
                                         disabled={removeFinalPdfMutation.isPending}
                                         onClick={() => removeFinalPdfMutation.mutate(t.id)}
-                                        className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                                        title="PDF 삭제"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
                                     >
-                                        PDF 삭제
+                                        <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                                 {!t.finalPdfUrl &&
@@ -1275,18 +1279,20 @@ function PrintTemplatesPanel({
                                             type="button"
                                             disabled={unmarkFinalMutation.isPending}
                                             onClick={() => unmarkFinalMutation.mutate(t.id)}
-                                            className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                            title="지정 해제"
+                                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                                         >
-                                            지정 해제
+                                            <X className="h-3.5 w-3.5" />
                                         </button>
                                     ) : (
                                         <button
                                             type="button"
                                             disabled={markFinalMutation.isPending}
                                             onClick={() => markFinalMutation.mutate(t.id)}
-                                            className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                                            title="최종 제출본으로 지정"
+                                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
                                         >
-                                            최종 제출본으로 지정
+                                            <Check className="h-3.5 w-3.5" />
                                         </button>
                                     ))}
                             </div>
@@ -2581,32 +2587,47 @@ export function JobApplicationManagement() {
                         빠르게 옮길 수 있습니다.
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-1.5 xl:gap-2">
                     <button
                         type="button"
                         onClick={openSettingsDrawer}
-                        title="사람인 수집 사용여부/검색 조건/자동 스케줄 설정"
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                        title="수집 설정 · 사람인 수집 사용여부/검색 조건/자동 스케줄 설정"
+                        aria-label="수집 설정"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:gap-1.5 xl:rounded-lg xl:border xl:border-slate-200 xl:bg-white xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold xl:hover:bg-slate-50"
                     >
                         <SettingsIcon className="h-4 w-4" />
-                        수집 설정
+                        <span className="hidden xl:inline">수집 설정</span>
                     </button>
                     <button
                         type="button"
                         disabled={collectMutation.isPending}
                         onClick={() => collectMutation.mutate()}
-                        title="사람인 자동 수집(설정된 경우) 실행 및 마감 지난 공고 정리"
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={
+                            collectMutation.isPending
+                                ? '수집 중...'
+                                : '지금 수집 · 사람인 자동 수집(설정된 경우) 실행 및 마감 지난 공고 정리'
+                        }
+                        aria-label="지금 수집"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 xl:h-auto xl:w-auto xl:gap-1.5 xl:rounded-lg xl:border xl:border-slate-200 xl:bg-white xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold xl:hover:bg-slate-50"
                     >
-                        <RefreshCw className="h-4 w-4" />
-                        {collectMutation.isPending ? '수집 중...' : '지금 수집'}
+                        {collectMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="h-4 w-4" />
+                        )}
+                        <span className="hidden xl:inline">
+                            {collectMutation.isPending ? '수집 중...' : '지금 수집'}
+                        </span>
                     </button>
                     <button
                         type="button"
                         onClick={openCreateDrawer}
-                        className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
+                        title="새 공고 등록"
+                        aria-label="새 공고 등록"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white transition hover:bg-slate-800 xl:h-auto xl:w-auto xl:gap-1.5 xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold"
                     >
-                        <Plus className="h-4 w-4" />새 공고 등록
+                        <Plus className="h-4 w-4" />
+                        <span className="hidden xl:inline">새 공고 등록</span>
                     </button>
                 </div>
             </div>
