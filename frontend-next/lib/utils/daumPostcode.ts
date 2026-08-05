@@ -19,11 +19,13 @@ declare global {
         daum?: {
             Postcode: new (options: {
                 oncomplete: (data: DaumPostcodeData) => void;
+                q?: string; // 폼에 작성된 주소를 초기 검색어로 주입
                 width?: string | number;
                 height?: string | number;
+                autoClose?: boolean;
             }) => {
-                open: () => void;
-                embed: (element: HTMLElement) => void;
+                open: (options?: { q?: string }) => void;
+                embed: (element: HTMLElement, options?: { q?: string }) => void;
             };
         };
     }
@@ -64,14 +66,16 @@ export function loadDaumPostcodeScript(): Promise<void> {
 }
 
 /**
- * 도로명 주소 검색 팝업을 실행합니다.
+ * 작성된 주소를 초기 검색어(q)로 전달하여 주소 검색 팝업을 실행합니다.
  */
 export async function openDaumPostcodeSearch(
-    onSelectAddress: (data: DaumPostcodeData) => void
+    onSelectAddress: (data: DaumPostcodeData) => void,
+    initialQuery?: string
 ): Promise<void> {
     await loadDaumPostcodeScript();
     if (window.daum && window.daum.Postcode) {
         new window.daum.Postcode({
+            q: initialQuery && initialQuery.trim() ? initialQuery.trim() : undefined,
             oncomplete: (data: DaumPostcodeData) => {
                 onSelectAddress(data);
             },
@@ -82,8 +86,32 @@ export async function openDaumPostcodeSearch(
 }
 
 /**
+ * 작성된 주소를 초기 검색어(q)로 전달하여 지정된 HTML 컨테이너 내부에 카카오 주소 검색을 인라인 임베드합니다.
+ */
+export async function embedDaumPostcodeSearch(
+    targetElement: HTMLElement,
+    onSelectAddress: (data: DaumPostcodeData) => void,
+    initialQuery?: string
+): Promise<void> {
+    await loadDaumPostcodeScript();
+    if (window.daum && window.daum.Postcode) {
+        targetElement.innerHTML = '';
+        new window.daum.Postcode({
+            q: initialQuery && initialQuery.trim() ? initialQuery.trim() : undefined,
+            oncomplete: (data: DaumPostcodeData) => {
+                onSelectAddress(data);
+            },
+            width: '100%',
+            height: '100%',
+        }).embed(targetElement);
+    } else {
+        throw new Error('다음 우편번호 서비스를 불러오지 못했습니다.');
+    }
+}
+
+/**
  * 도로명 주소를 위도(latitude)와 경도(longitude) 좌표로 자동 산출합니다.
- * OpenStreetMap Nominatim 및 Kakao/Vworld 로컬 주소 파서 폴백 사용.
+ * OpenStreetMap Nominatim 및 로컬 주요 키워드 파서 폴백 사용.
  */
 export async function geocodeAddressClient(
     address: string
@@ -124,7 +152,9 @@ export async function geocodeAddressClient(
 
     // 주소 키워드 지역 대략 좌표 폴백
     const loc = sanitizedAddress.toLowerCase();
-    if (loc.includes('마포') || loc.includes('상암') || loc.includes('서교')) {
+    if (loc.includes('성북') || loc.includes('길음')) {
+        return { lat: 37.6033, lng: 127.025 };
+    } else if (loc.includes('마포') || loc.includes('상암') || loc.includes('서교')) {
         return { lat: 37.5508, lng: 126.9176 };
     } else if (loc.includes('강남') || loc.includes('역삼') || loc.includes('삼성')) {
         return { lat: 37.5006, lng: 127.0365 };
