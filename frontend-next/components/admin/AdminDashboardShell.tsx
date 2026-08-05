@@ -123,6 +123,7 @@ export type PendingExperienceIntent = { type: 'PROJECT' } | null;
 export function AdminDashboardShell() {
     const logout = useAuthStore((s) => s.logout);
     const [activeTab, setActiveTab] = useState<TabId>('STUDY');
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -149,6 +150,9 @@ export function AdminDashboardShell() {
             ];
             if (tabInUrl && validTabs.includes(tabInUrl)) {
                 setActiveTab(tabInUrl);
+                if (tabInUrl === 'JOB_APPLICATIONS') {
+                    setIsSidebarCollapsed(true);
+                }
             }
         };
 
@@ -164,6 +168,9 @@ export function AdminDashboardShell() {
 
     const handleTabChange = (newTab: TabId) => {
         setActiveTab(newTab);
+        if (newTab === 'JOB_APPLICATIONS') {
+            setIsSidebarCollapsed(true);
+        }
         if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             url.searchParams.set('tab', newTab);
@@ -176,7 +183,6 @@ export function AdminDashboardShell() {
         }
     };
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [pendingExperienceIntent, setPendingExperienceIntent] =
         useState<PendingExperienceIntent>(null);
 
