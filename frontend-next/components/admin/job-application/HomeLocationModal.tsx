@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Home, MapPin, X, Search, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import {
+    Home,
+    MapPin,
+    X,
+    Search,
+    Sparkles,
+    Loader2,
+    CheckCircle2,
+    ExternalLink,
+} from 'lucide-react';
 import { jobPostingApi } from '@/lib/api/jobPosting';
 import type { JobPostingSetting } from '@/lib/api/types';
 import {
@@ -31,6 +40,7 @@ export default function HomeLocationModal({
     const [isSaving, setIsSaving] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [isInlineSearchOpen, setIsInlineSearchOpen] = useState(false);
+    const [activeSearchQuery, setActiveSearchQuery] = useState('');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     const embedContainerRef = useRef<HTMLDivElement>(null);
@@ -42,11 +52,12 @@ export default function HomeLocationModal({
             setLatitude(settings?.homeLatitude ?? 37.5796);
             setLongitude(settings?.homeLongitude ?? 126.8899);
             setIsInlineSearchOpen(false);
+            setActiveSearchQuery('');
             setErrorMsg(null);
         }
     }, [isOpen, settings]);
 
-    // 인라인 카카오 주소 검색 창 임베드
+    // 인라인 카카오 주소 검색 창 임베드 (activeSearchQuery를 q 파라미터로 매개변수에 직주입)
     useEffect(() => {
         if (isInlineSearchOpen && embedContainerRef.current) {
             embedDaumPostcodeSearch(
@@ -54,13 +65,13 @@ export default function HomeLocationModal({
                 (data: DaumPostcodeData) => {
                     handleAddressSelected(data);
                 },
-                address
+                activeSearchQuery
             ).catch((err) => {
                 console.warn('Embed search failed, falling back to popup:', err);
                 openPopupSearch();
             });
         }
-    }, [isInlineSearchOpen]);
+    }, [isInlineSearchOpen, activeSearchQuery]);
 
     if (!isOpen) return null;
 
@@ -80,7 +91,6 @@ export default function HomeLocationModal({
             setLatitude(coords.lat);
             setLongitude(coords.lng);
         } else {
-            // 좌표를 산출하지 못한 경우 기본 키워드 재검색시도
             const fallbackCoords = await geocodeAddressClient(data.sido + ' ' + data.sigungu);
             if (fallbackCoords) {
                 setLatitude(fallbackCoords.lat);
@@ -89,13 +99,13 @@ export default function HomeLocationModal({
         }
     };
 
-    // 팝업 방식 주소 검색 (작성된 주소를 초기 검색어로 전달하여 팝업창 오픈)
+    // 팝업 방식 주소 검색 (작성된 주소를 q 파라미터로 넘겨 팝업창 오픈)
     const openPopupSearch = async () => {
         try {
             setErrorMsg(null);
             await openDaumPostcodeSearch((data) => {
                 handleAddressSelected(data);
-            }, address);
+            }, address.trim());
         } catch (err: unknown) {
             const message =
                 err instanceof Error ? err.message : '도로명 주소 검색 팝업을 열지 못했습니다.';
@@ -103,8 +113,10 @@ export default function HomeLocationModal({
         }
     };
 
-    // 작성한 내용이 이미 있으므로 [주소검색] 누르면 인라인 검색 영역 열기
+    // 작성한 내용이 이미 있으므로 [주소검색] 누르면 입력 주소를 q 키워드로 전달하여 인라인 검색 영역 오픈
     const handleSearchClick = () => {
+        const queryToSearch = address.trim();
+        setActiveSearchQuery(queryToSearch);
         setIsInlineSearchOpen(true);
     };
 
@@ -164,7 +176,8 @@ export default function HomeLocationModal({
                         <div>
                             <h3 className="font-bold text-base text-white">기준 집 위치 설정</h3>
                             <p className="text-xs text-zinc-400">
-                                주소를 검색/선택하면 위도·경도가 100% 자동 산출됩니다.
+                                작성한 주소를 기반으로 도로명 주소와 위도·경도가 100% 자동
+                                산출됩니다.
                             </p>
                         </div>
                     </div>
@@ -186,7 +199,7 @@ export default function HomeLocationModal({
                             {address.trim() && (
                                 <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
                                     <Sparkles className="h-3 w-3" />
-                                    위경도 자동 산출 완료
+                                    위경도 자동 산출
                                 </span>
                             )}
                         </div>
@@ -206,7 +219,7 @@ export default function HomeLocationModal({
                                             handleSearchClick();
                                         }
                                     }}
-                                    placeholder="예: 서울 성북구 길음로 141..."
+                                    placeholder="예: 경기도 성남시 분당구 판교로25번길..."
                                     className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 pl-9 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-inner"
                                     required
                                 />
@@ -235,14 +248,19 @@ export default function HomeLocationModal({
                     {isInlineSearchOpen && (
                         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-inner">
                             <div className="flex items-center justify-between bg-zinc-800/80 px-4 py-2 text-xs font-semibold text-zinc-300 border-b border-zinc-700/60">
-                                <span>🔍 &quot;{address}&quot; 검색 결과 목록</span>
-                                <div className="flex items-center gap-2">
+                                <span className="flex items-center gap-1.5">
+                                    <Search className="h-3.5 w-3.5 text-emerald-400" />
+                                    {activeSearchQuery
+                                        ? `"${activeSearchQuery}" 검색 결과`
+                                        : '카카오 도로명 주소 검색'}
+                                </span>
+                                <div className="flex items-center gap-3">
                                     <button
                                         type="button"
                                         onClick={openPopupSearch}
-                                        className="text-[11px] text-emerald-400 hover:underline"
+                                        className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline"
                                     >
-                                        새 창 팝업으로 열기
+                                        <ExternalLink className="h-3 w-3" />새 창 팝업으로 검색
                                     </button>
                                     <button
                                         type="button"
