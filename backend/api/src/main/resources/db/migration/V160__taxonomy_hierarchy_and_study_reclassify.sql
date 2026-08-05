@@ -75,7 +75,10 @@ FROM (
     SELECT 93, 'monitoring-ops' UNION ALL
     SELECT 94, 'monitoring-ops'
 ) m
-JOIN `taxonomy_node` tn ON tn.`slug` = m.slug;
+JOIN `taxonomy_node` tn ON tn.`slug` = m.slug
+-- 환경마다 실제 존재하는 study 콘텐츠가 다를 수 있어(로컬 dev DB와 운영 DB는 별개 데이터),
+-- 해당 study_id가 실제로 있는 경우에만 적용한다 (FK 위반으로 마이그레이션 전체가 실패하는 것을 방지).
+WHERE EXISTS (SELECT 1 FROM `study` s WHERE s.`id` = m.study_id);
 
 -- 부가 소속 (기존 primary는 유지한 채 추가)
 INSERT INTO `study_taxonomy_node` (`study_id`, `taxonomy_node_id`)
@@ -84,7 +87,8 @@ FROM (
     SELECT 85 AS study_id UNION ALL
     SELECT 89
 ) m
-JOIN `taxonomy_node` tn ON tn.`slug` = 'ai-llm';
+JOIN `taxonomy_node` tn ON tn.`slug` = 'ai-llm'
+WHERE EXISTS (SELECT 1 FROM `study` s WHERE s.`id` = m.study_id);
 
 -- 회고 부가 태그 (트러블슈팅/포스트모템 성격 강한 글)
 INSERT INTO `study_taxonomy_node` (`study_id`, `taxonomy_node_id`)
@@ -94,4 +98,5 @@ FROM (
     SELECT 78 UNION ALL SELECT 83 UNION ALL SELECT 84 UNION ALL SELECT 87 UNION ALL
     SELECT 91 UNION ALL SELECT 92 UNION ALL SELECT 93 UNION ALL SELECT 94
 ) m
-JOIN `taxonomy_node` tn ON tn.`slug` = 'retrospective';
+JOIN `taxonomy_node` tn ON tn.`slug` = 'retrospective'
+WHERE EXISTS (SELECT 1 FROM `study` s WHERE s.`id` = m.study_id);
