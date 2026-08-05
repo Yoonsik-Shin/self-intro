@@ -16,15 +16,11 @@ import {
     Compass,
     Radio,
     Sparkles,
-    Map as MapIcon,
     Loader2,
     Sun,
     Moon,
     ChevronRight,
     ChevronLeft,
-    PanelLeftClose,
-    PanelLeftOpen,
-    PanelRightClose,
     PanelRightOpen,
     GripVertical,
 } from 'lucide-react';
@@ -682,32 +678,13 @@ export default function JobPostingMapView({
     }, [isDetailPanelOpen, detailPanelWidth]);
 
     return (
-        /* ☀️ [BRIGHT THEME] 100% 화사하고 세련된 라이트 모드 메인 컨테이너 */
-        <div className="flex flex-col h-[calc(100vh-11rem)] min-h-[650px] rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xl text-slate-800">
-            {/* 1. 재구성된 상단 툴바 */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 p-4 backdrop-blur-md">
-                {/* [왼쪽 그룹] 패널 토글 + 출퇴근 소요시간 필터 탭 + 검색창 */}
+        /* ☀️ 컨테이너 상하 크기 확대 (h-[calc(100vh-7rem)] min-h-[750px]) */
+        <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[750px] rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xl text-slate-800">
+            {/* 1. 상단 툴바 (높이 100% 동일 정렬) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 p-3.5 backdrop-blur-md">
+                {/* [왼쪽 그룹] 출퇴근 소요시간 필터 탭 + 검색창 */}
                 <div className="flex flex-wrap items-center gap-2.5">
-                    {/* 📱 1. 패널 접기/펼치기 토글 버튼 */}
-                    <button
-                        onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)}
-                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-2xs"
-                        title={isDetailPanelOpen ? '상세 패널 접기' : '상세 패널 펼치기'}
-                    >
-                        {isDetailPanelOpen ? (
-                            <>
-                                <PanelRightClose className="h-4 w-4 text-indigo-600" />
-                                <span>패널 접기</span>
-                            </>
-                        ) : (
-                            <>
-                                <PanelRightOpen className="h-4 w-4 text-emerald-600" />
-                                <span>상세 패널 열기</span>
-                            </>
-                        )}
-                    </button>
-
-                    {/* 2. 출퇴근 소요시간 필터 탭 */}
+                    {/* 출퇴근 소요시간 필터 탭 */}
                     <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
                         <button
                             onClick={() => setTimeFilter('ALL')}
@@ -751,7 +728,7 @@ export default function JobPostingMapView({
                         </button>
                     </div>
 
-                    {/* 3. 공고 검색창 (필터 바로 옆 위치) */}
+                    {/* 공고 검색창 */}
                     <div className="relative min-w-[210px]">
                         <input
                             type="text"
@@ -764,31 +741,24 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* [오른쪽 그룹] 4. 기준 집 위치 버튼 (우측 끝 위치) */}
+                {/* [오른쪽 그룹] 기준 집 위치 버튼 (높이 100% 동일 1줄 정렬) */}
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsHomeModalOpen(true)}
-                        className="group flex items-center gap-2.5 rounded-xl border border-emerald-300/80 bg-emerald-50 px-3.5 py-2 text-xs font-medium text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100 transition-all shadow-xs"
+                        className="group flex items-center gap-2 rounded-xl border border-emerald-300/80 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100 transition-all shadow-xs"
                     >
-                        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-200/70 text-emerald-800">
-                            <Home className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="text-left">
-                            <div className="text-[10px] text-emerald-700/80 font-medium">
-                                기준 집 위치
-                            </div>
-                            <div className="max-w-[200px] truncate text-xs font-bold">
-                                {homeAddress}
-                            </div>
-                        </div>
-                        <span className="ml-1 rounded-md bg-emerald-200/60 px-1.5 py-0.5 text-[10px] text-emerald-900 font-semibold group-hover:bg-emerald-300/60">
+                        <Home className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span className="max-w-[220px] truncate text-emerald-900">
+                            {homeAddress}
+                        </span>
+                        <span className="rounded-md bg-emerald-200/70 px-1.5 py-0.5 text-[10px] text-emerald-950 font-semibold group-hover:bg-emerald-300">
                             도로명 검색/변경
                         </span>
                     </button>
                 </div>
             </div>
 
-            {/* 2. 메인 대시보드 뷰어 (지도 캔버스 + 드래그앤드롭 리사이저 + 사이드바) */}
+            {/* 2. 메인 대시보드 뷰어 */}
             <div
                 ref={splitContainerRef}
                 className="flex flex-1 overflow-hidden relative bg-slate-100"
@@ -984,9 +954,23 @@ export default function JobPostingMapView({
                                 ref={mapContainerRef}
                                 className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
                             />
+
+                            {/* 📱 패널이 접혔을 때 지도의 우측 가장자리에 노출되는 조그마한 패널 열기 플로팅 버튼 */}
+                            {!isDetailPanelOpen && (
+                                <button
+                                    onClick={() => setIsDetailPanelOpen(true)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 rounded-l-2xl border border-r-0 border-indigo-300 bg-white/95 px-3 py-3 text-xs font-bold text-indigo-600 shadow-xl hover:bg-indigo-50 hover:text-indigo-800 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200"
+                                    title="공고 상세 분석 패널 열기"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    <span className="[writing-mode:vertical-lr] tracking-widest text-[11px]">
+                                        공고 상세 패널 열기
+                                    </span>
+                                </button>
+                            )}
                         </div>
 
-                        {/* 지도 정보 가이드 하단 바 (텍스트 변경 완료) */}
+                        {/* 지도 정보 가이드 하단 바 */}
                         <div className="z-20 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 p-3 bg-white/95 backdrop-blur-md text-[11px] text-slate-700 font-bold">
                             <span className="flex items-center gap-1.5">
                                 <Clock className="h-3.5 w-3.5 text-indigo-600" />총{' '}
@@ -1025,33 +1009,33 @@ export default function JobPostingMapView({
                     </div>
                 )}
 
-                {/* 3. 선택된 공고 세부 정보 사이드바 (Left Collapsible Toggle Button + Resizable Panel) */}
+                {/* 3. 선택된 공고 세부 정보 사이드바 (Right Collapsible Resizable Panel) */}
                 {isDetailPanelOpen && (
                     <div
                         style={{ width: `${detailPanelWidth}px` }}
                         className="shrink-0 border-l border-slate-200 bg-white p-5 flex flex-col justify-between overflow-y-auto transition-all shadow-xs relative"
                     >
-                        {/* 📱 패널 좌측 상단 접기 토글 아이콘 버튼 */}
-                        <button
-                            onClick={() => setIsDetailPanelOpen(false)}
-                            className="absolute top-4 left-3 text-slate-400 hover:text-slate-800 p-1 rounded-lg hover:bg-slate-100 transition-colors z-10 flex items-center gap-1 text-xs font-semibold"
-                            title="사이드바 상세 패널 접기"
-                        >
-                            <ChevronRight className="h-4 w-4 text-indigo-600" />
-                        </button>
-
                         {activeItem ? (
-                            <div className="space-y-5 pl-5">
-                                {/* 패널 헤더 */}
+                            <div className="space-y-5">
+                                {/* 패널 헤더 (우측 상단 닫기 아이콘 버튼) */}
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-bold text-indigo-700">
                                         {activeItem.posting.status}
                                     </span>
-                                    {activeItem.posting.deadline && (
-                                        <span className="text-xs font-medium text-slate-500">
-                                            마감일: {activeItem.posting.deadline}
-                                        </span>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {activeItem.posting.deadline && (
+                                            <span className="text-xs font-medium text-slate-500">
+                                                마감일: {activeItem.posting.deadline}
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => setIsDetailPanelOpen(false)}
+                                            className="text-slate-400 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                                            title="패널 접기"
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -1152,14 +1136,14 @@ export default function JobPostingMapView({
                                 </div>
                             </div>
                         ) : (
-                            <div className="my-auto text-center text-slate-400 text-xs font-medium pl-5">
+                            <div className="my-auto text-center text-slate-400 text-xs font-medium">
                                 지도의 마커나 공고 목록을 선택해 주세요.
                             </div>
                         )}
 
                         {/* 하단 상세보기 모달 호출 버튼 */}
                         {activeItem && (
-                            <div className="pt-4 border-t border-slate-100 mt-4 pl-5">
+                            <div className="pt-4 border-t border-slate-100 mt-4">
                                 <button
                                     onClick={() => onSelectPosting(activeItem.posting)}
                                     className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-md flex items-center justify-center gap-2"
