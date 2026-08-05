@@ -246,20 +246,18 @@ export function StudyDetailClient({ study }: Props) {
                     )}
                 </div>
 
-                <aside className="block w-full sticky top-[89px] self-start max-h-[calc(100vh-113px)]">
-                    <div
-                        className={`relative flex flex-col max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
-                            isNavCollapsed
-                                ? 'min-[900px]:gap-3 min-[900px]:p-2'
-                                : 'min-[900px]:gap-3 min-[900px]:p-4'
-                        }`}
-                    >
+                <aside
+                    className={`block w-full sticky top-[89px] self-start transition-all duration-300 ${
+                        isNavCollapsed ? 'min-[900px]:w-[64px]' : 'min-[900px]:w-[260px]'
+                    }`}
+                >
+                    <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible">
                         <button
                             type="button"
                             onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
-                            className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
+                            className={`z-30 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                                 isNavCollapsed
-                                    ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
+                                    ? 'relative mx-auto mt-2 h-8 w-8 shrink-0 rounded-full shadow-xs'
                                     : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                             }`}
                             title={isNavCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
@@ -273,170 +271,178 @@ export function StudyDetailClient({ study }: Props) {
                             )}
                         </button>
 
-                        {/* Table of Contents (목차) */}
-                        {toc.length > 0 && (
+                        <div
+                            className={`max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar flex flex-col ${
+                                isNavCollapsed
+                                    ? 'min-[900px]:gap-3 min-[900px]:p-1.5'
+                                    : 'min-[900px]:gap-3 min-[900px]:p-4'
+                            }`}
+                        >
+                            {/* Table of Contents (목차) */}
+                            {toc.length > 0 && (
+                                <SidebarSection
+                                    title="목차"
+                                    icon={ListOrdered}
+                                    badge={toc.length}
+                                    isNavCollapsed={isNavCollapsed}
+                                    onExpandSidebar={() => setIsNavCollapsed(false)}
+                                >
+                                    <nav className="max-h-[360px] overflow-y-auto overflow-x-hidden space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
+                                        {toc.map((item) => {
+                                            const isActive = activeId === item.id;
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => scrollToHeading(item.id)}
+                                                    className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1 ${
+                                                        item.level === 1
+                                                            ? 'font-bold text-slate-800'
+                                                            : item.level === 2
+                                                              ? 'pl-5 font-medium text-slate-600'
+                                                              : 'pl-7 text-slate-500'
+                                                    } ${
+                                                        isActive
+                                                            ? 'bg-blue-50/90 text-blue-700 font-extrabold shadow-2xs'
+                                                            : 'hover:bg-slate-100/70 hover:text-slate-900'
+                                                    }`}
+                                                >
+                                                    {isActive && (
+                                                        <span className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-blue-600 shadow-2xs" />
+                                                    )}
+                                                    <span className="line-clamp-2 leading-snug">
+                                                        {item.text}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </nav>
+                                    <hr className="mt-3 border-slate-100 shrink-0" />
+                                </SidebarSection>
+                            )}
+
+                            {/* 연결 항목 (Related Items) */}
                             <SidebarSection
-                                title="목차"
-                                icon={ListOrdered}
-                                badge={toc.length}
+                                title="연결 항목"
+                                icon={LinkIcon}
+                                badge={study.experiences.length}
+                                description="이 학습과 연관된 이력 정보입니다."
                                 isNavCollapsed={isNavCollapsed}
                                 onExpandSidebar={() => setIsNavCollapsed(false)}
                             >
-                                <nav className="max-h-[360px] overflow-y-auto overflow-x-hidden space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
-                                    {toc.map((item) => {
-                                        const isActive = activeId === item.id;
-                                        return (
-                                            <button
-                                                key={item.id}
-                                                type="button"
-                                                onClick={() => scrollToHeading(item.id)}
-                                                className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1 ${
-                                                    item.level === 1
-                                                        ? 'font-bold text-slate-800'
-                                                        : item.level === 2
-                                                          ? 'pl-5 font-medium text-slate-600'
-                                                          : 'pl-7 text-slate-500'
-                                                } ${
-                                                    isActive
-                                                        ? 'bg-blue-50/90 text-blue-700 font-extrabold shadow-2xs'
-                                                        : 'hover:bg-slate-100/70 hover:text-slate-900'
-                                                }`}
-                                            >
-                                                {isActive && (
-                                                    <span className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-blue-600 shadow-2xs" />
-                                                )}
-                                                <span className="line-clamp-2 leading-snug">
-                                                    {item.text}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </nav>
-                                <hr className="mt-3 border-slate-100 shrink-0" />
+                                {study.experiences.length > 0 && (
+                                    <div>
+                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                            관련 프로젝트·경력
+                                        </h4>
+                                        <div className="space-y-1.5 pl-0.5">
+                                            {study.experiences.map((experience) => (
+                                                <Link
+                                                    key={experience.id}
+                                                    href={`/experience/${experience.id}`}
+                                                    className="flex w-full items-start gap-1.5 text-left text-xs leading-normal text-slate-600 hover:text-slate-950 group"
+                                                >
+                                                    <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-700">
+                                                        {experience.type}
+                                                    </span>
+                                                    <span className="font-semibold group-hover:text-slate-950">
+                                                        {experience.title}
+                                                    </span>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {study.experienceDetails.length > 0 && (
+                                    <div>
+                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                            관련 경력 항목
+                                        </h4>
+                                        <div className="space-y-1.5 pl-0.5">
+                                            {study.experienceDetails.map((detail) => (
+                                                <Link
+                                                    key={detail.id}
+                                                    href={
+                                                        detail.experienceId
+                                                            ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
+                                                            : `/experience-detail/${detail.id}`
+                                                    }
+                                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
+                                                >
+                                                    <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                        ›
+                                                    </span>
+                                                    <span>{detail.content}</span>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {study.relatedStudies.length > 0 && (
+                                    <div>
+                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                            관련 STUDY
+                                        </h4>
+                                        <div className="space-y-1.5 pl-0.5">
+                                            {study.relatedStudies.map((related) => (
+                                                <Link
+                                                    key={`${related.id}-${related.type}`}
+                                                    href={`/study/${encodeURIComponent(related.slug)}`}
+                                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
+                                                >
+                                                    <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                        ▪
+                                                    </span>
+                                                    <span>{related.title}</span>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!hasRelated && (
+                                    <p className="text-xs font-bold italic text-slate-400">
+                                        연결된 이력 항목이 없습니다.
+                                    </p>
+                                )}
                             </SidebarSection>
-                        )}
 
-                        {/* 연결 항목 (Related Items) */}
-                        <SidebarSection
-                            title="연결 항목"
-                            icon={LinkIcon}
-                            badge={study.experiences.length}
-                            description="이 학습과 연관된 이력 정보입니다."
-                            isNavCollapsed={isNavCollapsed}
-                            onExpandSidebar={() => setIsNavCollapsed(false)}
-                        >
-                            {study.experiences.length > 0 && (
-                                <div>
-                                    <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                        관련 프로젝트·경력
-                                    </h4>
-                                    <div className="space-y-1.5 pl-0.5">
-                                        {study.experiences.map((experience) => (
-                                            <Link
-                                                key={experience.id}
-                                                href={`/experience/${experience.id}`}
-                                                className="flex w-full items-start gap-1.5 text-left text-xs leading-normal text-slate-600 hover:text-slate-950 group"
-                                            >
-                                                <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-700">
-                                                    {experience.type}
-                                                </span>
-                                                <span className="font-semibold group-hover:text-slate-950">
-                                                    {experience.title}
-                                                </span>
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {study.experienceDetails.length > 0 && (
-                                <div>
-                                    <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                        관련 경력 항목
-                                    </h4>
-                                    <div className="space-y-1.5 pl-0.5">
-                                        {study.experienceDetails.map((detail) => (
-                                            <Link
-                                                key={detail.id}
-                                                href={
-                                                    detail.experienceId
-                                                        ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
-                                                        : `/experience-detail/${detail.id}`
-                                                }
-                                                className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
-                                            >
-                                                <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                                    ›
-                                                </span>
-                                                <span>{detail.content}</span>
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {study.relatedStudies.length > 0 && (
-                                <div>
-                                    <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                        관련 STUDY
-                                    </h4>
-                                    <div className="space-y-1.5 pl-0.5">
-                                        {study.relatedStudies.map((related) => (
-                                            <Link
-                                                key={`${related.id}-${related.type}`}
-                                                href={`/study/${encodeURIComponent(related.slug)}`}
-                                                className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
-                                            >
-                                                <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                                    ▪
-                                                </span>
-                                                <span>{related.title}</span>
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {!hasRelated && (
-                                <p className="text-xs font-bold italic text-slate-400">
-                                    연결된 이력 항목이 없습니다.
-                                </p>
-                            )}
-                        </SidebarSection>
-
-                        <div
-                            className={`flex flex-col items-center gap-2 py-1 shrink-0 ${
-                                isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'
-                            }`}
-                        >
-                            <button
-                                type="button"
-                                onClick={() => router.back()}
-                                title="이전 화면으로"
-                                aria-label="이전 화면으로"
-                                className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:border-slate-300 hover:text-slate-900"
+                            <div
+                                className={`flex flex-col items-center gap-2 py-1 shrink-0 ${
+                                    isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'
+                                }`}
                             >
-                                <ArrowLeft className="h-4 w-4" />
+                                <button
+                                    type="button"
+                                    onClick={() => router.back()}
+                                    title="이전 화면으로"
+                                    aria-label="이전 화면으로"
+                                    className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:border-slate-300 hover:text-slate-900"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            <hr
+                                className={`hidden -mb-4 border-slate-100 shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                            />
+
+                            <button
+                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                className="shrink-0 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                                title="위로 가기"
+                                aria-label="위로 가기"
+                            >
+                                <ArrowUp className="h-4 w-4 shrink-0" />
+                                <span
+                                    className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
+                                >
+                                    위로 가기
+                                </span>
                             </button>
                         </div>
-
-                        <hr
-                            className={`hidden -mb-4 border-slate-100 shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                        />
-
-                        <button
-                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="shrink-0 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
-                            title="위로 가기"
-                            aria-label="위로 가기"
-                        >
-                            <ArrowUp className="h-4 w-4 shrink-0" />
-                            <span
-                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
-                            >
-                                위로 가기
-                            </span>
-                        </button>
                     </div>
                 </aside>
             </div>
