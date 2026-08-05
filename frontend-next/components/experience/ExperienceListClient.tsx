@@ -341,26 +341,29 @@ export function ExperienceListClient({ experiences }: Props) {
                                 : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:pt-4 min-[900px]:pb-2'
                         }`}
                     >
-                        <SidebarSection
-                            title="최근 읽은 경험"
-                            icon={History}
-                            badge={recentlyViewed.length}
-                            description="최근에 방문한 이력 성과입니다."
-                            isNavCollapsed={isNavCollapsed}
-                            onExpandSidebar={() => setIsNavCollapsed(false)}
-                            extraAction={
-                                <button
-                                    type="button"
-                                    onClick={handleClearHistory}
-                                    className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition"
-                                    title="최근 본 기록 비우기"
-                                >
-                                    지우기
-                                </button>
-                            }
-                        >
-                            {(isRecentExpanded ? recentlyViewed : recentlyViewed.slice(0, 7)).map(
-                                (item) => (
+                        {recentlyViewed.length > 0 ? (
+                            <SidebarSection
+                                title="최근 읽은 경험"
+                                icon={History}
+                                badge={recentlyViewed.length}
+                                description="최근에 방문한 이력 성과입니다."
+                                isNavCollapsed={isNavCollapsed}
+                                onExpandSidebar={() => setIsNavCollapsed(false)}
+                                extraAction={
+                                    <button
+                                        type="button"
+                                        onClick={handleClearHistory}
+                                        className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition"
+                                        title="최근 본 기록 비우기"
+                                    >
+                                        지우기
+                                    </button>
+                                }
+                            >
+                                {(isRecentExpanded
+                                    ? recentlyViewed
+                                    : recentlyViewed.slice(0, 7)
+                                ).map((item) => (
                                     <div key={item.id} className="flex items-start gap-1.5">
                                         <Link
                                             href={`/experience/${item.experienceId}/experience-detail/${item.id}`}
@@ -384,53 +387,55 @@ export function ExperienceListClient({ experiences }: Props) {
                                             <X className="h-3 w-3" />
                                         </button>
                                     </div>
-                                )
-                            )}
+                                ))}
 
-                            {recentlyViewed.length > 7 && (
-                                <button
-                                    type="button"
-                                    onClick={() => setIsRecentExpanded(!isRecentExpanded)}
-                                    className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
-                                >
-                                    {isRecentExpanded ? (
-                                        <>
-                                            <span>접기</span>
-                                            <ChevronUp className="h-3.5 w-3.5" />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>더 보기 (+{recentlyViewed.length - 7})</span>
-                                            <ChevronDown className="h-3.5 w-3.5" />
-                                        </>
-                                    )}
-                                </button>
-                            )}
-                        </SidebarSection>
-                        ) : (
-                        <SidebarSection
-                            title="최근 이력"
-                            description="최근 기간의 프로젝트 및 경력입니다."
-                            isNavCollapsed={isNavCollapsed}
-                        >
-                            {recentExperiences.map((exp) => {
-                                const targetDetailId = exp.details?.[0]?.id;
-                                if (!targetDetailId) return null;
-                                return (
-                                    <Link
-                                        key={exp.id}
-                                        href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
-                                        className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
-                                        title={exp.title}
+                                {recentlyViewed.length > 7 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRecentExpanded(!isRecentExpanded)}
+                                        className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
                                     >
-                                        <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                            ›
-                                        </span>
-                                        <span className="line-clamp-2">{exp.title}</span>
-                                    </Link>
-                                );
-                            })}
-                        </SidebarSection>
+                                        {isRecentExpanded ? (
+                                            <>
+                                                <span>접기</span>
+                                                <ChevronUp className="h-3.5 w-3.5" />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>더 보기 (+{recentlyViewed.length - 7})</span>
+                                                <ChevronDown className="h-3.5 w-3.5" />
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </SidebarSection>
+                        ) : (
+                            <SidebarSection
+                                title="최근 이력"
+                                icon={Briefcase}
+                                description="최근 기간의 프로젝트 및 경력입니다."
+                                isNavCollapsed={isNavCollapsed}
+                                onExpandSidebar={() => setIsNavCollapsed(false)}
+                            >
+                                {recentExperiences.map((exp) => {
+                                    const targetDetailId = exp.details?.[0]?.id;
+                                    if (!targetDetailId) return null;
+                                    return (
+                                        <Link
+                                            key={exp.id}
+                                            href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
+                                            className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
+                                            title={exp.title}
+                                        >
+                                            <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                ›
+                                            </span>
+                                            <span className="line-clamp-2">{exp.title}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </SidebarSection>
+                        )}
                     </div>
 
                     {/* 무조건 하단 고정 영역 (Sticky Bottom) */}
