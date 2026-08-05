@@ -84,8 +84,12 @@ public class JobApplicationUrlParseService {
             날짜가 본문에 없는 단계는 이름만 적으세요. 날짜를 지어내지 마세요.
             각 항목은 본문에 있는 내용만 줄바꿈으로 구분된 목록 형태로 정리하고, 본문에 해당 내용이
             없으면 null로 두세요.
-            location은 근무지입니다. 본문에 있는 표현을 그대로 짧게 옮기세요(예: "서울특별시 종로구",
-            "서울/경기", "재택근무"). employmentType은 고용형태입니다(예: "정규직", "계약직", "인턴",
+            location은 근무지입니다. 본문 여러 곳에 근무지 관련 표현이 있으면(예: 상단 요약 테이블의
+            "근무지역: 서울 영등포구, 구로구, 양천구"처럼 구/지역만 나열한 짧은 값과, 본문 하단의
+            "서울 영등포구 양평로21길 26, 1604호"처럼 도로명·건물명·호수가 포함된 상세 주소가 함께
+            있는 경우), 반드시 더 상세한 쪽(도로명 주소·건물명이 포함된 쪽)을 우선해서 그대로
+            옮기세요. 상세 주소가 없을 때만 요약 표현을 쓰세요(예: "서울특별시 종로구", "서울/경기",
+            "재택근무"). employmentType은 고용형태입니다(예: "정규직", "계약직", "인턴",
             "프리랜서"). 둘 다 본문에 명시되어 있지 않으면 null로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
             {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
@@ -661,11 +665,20 @@ public class JobApplicationUrlParseService {
     // 섞여 있으면 AI에 넘기는 텍스트가 불필요하게 길어지고, 출력에도 엉뚱한 내용이 섞이거나
     // 토큰 한도를 더 빨리 소진하는 원인이 된다. 실제 공고 텍스트를 건드리지 않도록 원본
     // document는 그대로 두고 복제본에서만 이런 영역을 제거한다.
+    //
+    // class 부분일치([class*=...]) 규칙은 Tailwind 등 유틸리티 클래스와 충돌할 수 있다
+    // (예: NHN 채용 페이지의 <main class="... pt-header-desktop">가 [class*=header]에 걸려
+    // 본문 전체가 통째로 삭제됨, 2026-08-06). main 태그 자신과 그 하위는 실제 공고 본문일
+    // 가능성이 절대적으로 높으므로 class 부분일치 규칙에서 항상 제외한다. script/style/nav
+    // 등 태그명 기반 규칙은 오탐 여지가 없어 그대로 둔다.
     private static final String NOISE_SELECTOR =
             "script, style, noscript, iframe, nav, header, footer, aside, form, "
-                    + "[class*=gnb], [class*=lnb], [class*=snb], [class*=header], [class*=footer], "
-                    + "[class*=nav], [class*=banner], [class*=ad-], [class*=recommend], "
-                    + "[class*=similar], [id*=ad-]";
+                    + "[class*=gnb]:not(main):not(main *), [class*=lnb]:not(main):not(main *), "
+                    + "[class*=snb]:not(main):not(main *), [class*=header]:not(main):not(main *), "
+                    + "[class*=footer]:not(main):not(main *), [class*=nav]:not(main):not(main *), "
+                    + "[class*=banner]:not(main):not(main *), [class*=ad-]:not(main):not(main *), "
+                    + "[class*=recommend]:not(main):not(main *), [class*=similar]:not(main):not(main *), "
+                    + "[id*=ad-]:not(main):not(main *)";
 
     String extractPageText(URI uri, Document document) {
         if (!isGreetingHr(uri)) {

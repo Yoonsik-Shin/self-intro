@@ -114,6 +114,35 @@ class JobApplicationUrlParseServiceTest {
     }
 
     @Test
+    void extractPageTextKeepsMainContentWhenItsClassAccidentallyMatchesNoiseKeyword() {
+        // NHN 채용 페이지 재현: <main>의 Tailwind 유틸리티 클래스("pt-header-desktop")가
+        // [class*=header] 노이즈 규칙에 우연히 걸려 본문 전체가 삭제되던 사고(2026-08-06).
+        Document document =
+                Jsoup.parse(
+                        """
+                        <html><body>
+                          <nav class="fixed w-full">전체 메뉴</nav>
+                          <main class="relative min-w-desktop pt-header-desktop">
+                            <h1>[NHN]AI 전환 백엔드 개발</h1>
+                            <p>이런 업무를 해요 (주요 업무) AX 전환을 위한 시스템 인프라 구축</p>
+                          </main>
+                          <footer class="border-t">Copyright</footer>
+                        </body></html>
+                        """,
+                        "https://careers.nhn.com/recruits/4340751134819917037");
+
+        String text =
+                service.extractPageText(
+                        URI.create("https://careers.nhn.com/recruits/4340751134819917037"),
+                        document);
+
+        assertThat(text).contains("AI 전환 백엔드 개발");
+        assertThat(text).contains("시스템 인프라 구축");
+        assertThat(text).doesNotContain("전체 메뉴");
+        assertThat(text).doesNotContain("Copyright");
+    }
+
+    @Test
     void greetingHrUsesFocusedStructuredTextWithoutDuplicateDesktopBody() {
         Document document =
                 Jsoup.parse(
