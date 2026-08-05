@@ -3546,13 +3546,15 @@ export function JobApplicationManagement() {
                                             </button>
                                         ))}
                                         {events?.candidates.map((item) => (
-                                            <div
+                                            <button
                                                 key={`cand-${item.id}`}
+                                                type="button"
+                                                onClick={() => openDrawer(item)}
                                                 title={`${item.companyName} · ${item.source} (수집됨)`}
-                                                className="truncate rounded border border-dashed border-slate-300 px-1 py-0.5 text-[10px] font-bold text-slate-500"
+                                                className="block w-full truncate rounded border border-dashed border-slate-300 px-1 py-0.5 text-left text-[10px] font-bold text-slate-500 transition hover:bg-slate-100"
                                             >
                                                 {item.companyName}
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
