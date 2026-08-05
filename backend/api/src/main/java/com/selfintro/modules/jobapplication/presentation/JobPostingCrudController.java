@@ -2,6 +2,7 @@ package com.selfintro.modules.jobapplication.presentation;
 
 import com.selfintro.modules.jobapplication.application.JobPostingCoverLetterService;
 import com.selfintro.modules.jobapplication.application.JobPostingCrudService;
+import com.selfintro.modules.jobapplication.application.JobPostingGeocodingBackfillRunner;
 import com.selfintro.modules.jobapplication.application.JobplanetCompanyService;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
@@ -42,6 +43,7 @@ public class JobPostingCrudController {
     private final JobPostingCrudService crudService;
     private final JobplanetCompanyService jobplanetCompanyService;
     private final JobPostingCoverLetterService coverLetterService;
+    private final JobPostingGeocodingBackfillRunner geocodingBackfillRunner;
 
     @GetMapping
     public List<JobPostingResponse> list() {
@@ -75,6 +77,13 @@ public class JobPostingCrudController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         crudService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 위치(location) 텍스트는 있는데 좌표가 비어있는 공고만 골라 지오코딩한다. 즉시 반환하고 서버 쪽에서 비동기로 처리한다. */
+    @PostMapping("/backfill-coordinates")
+    public ResponseEntity<Void> backfillCoordinates() {
+        geocodingBackfillRunner.backfillCoordinates();
+        return ResponseEntity.accepted().build();
     }
 
     @GetMapping("/settings")

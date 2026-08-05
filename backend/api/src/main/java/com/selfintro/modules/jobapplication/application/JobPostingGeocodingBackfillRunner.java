@@ -6,12 +6,18 @@ import com.selfintro.modules.jobposting.domain.service.JobPostingGeocodingServic
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 좌표 백필은 기동 시점(ApplicationReadyEvent)에 자동으로 돌지 않는다 — {@code @EnableAsync}
+ * 없이 배포됐던 시절 이 리스너가 ApplicationReadyEvent를 동기로 붙잡고 있어서, 같은 이벤트로
+ * readiness를 ACCEPTING_TRAFFIC으로 올리는 Boot 내부 리스너가 대기하고, 백필이 끝나는 몇 분간
+ * 파드가 Service 엔드포인트에서 빠지는 사고가 있었다(2026-08-06). 지금은 관리자가
+ * {@code POST /api/admin/job-postings/backfill-coordinates}로 수동 트리거하고, 여기서 진짜
+ * 비동기(@EnableAsync)로 돈다 — 재배포마다 매번 재시도되는 낭비도 함께 없앤다.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -21,7 +27,6 @@ public class JobPostingGeocodingBackfillRunner {
     private final JobPostingGeocodingService geocodingService;
 
     @Async
-    @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void backfillCoordinates() {
         try {

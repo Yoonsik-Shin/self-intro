@@ -144,6 +144,11 @@ app:
     presigned-upload-ttl-seconds: ${STORAGE_PRESIGNED_TTL_SECONDS:300}
     public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:9000/self-intro-images}
 
+kakao:
+  # job_posting 좌표 지오코딩 1순위 provider. 비어있으면 OSM Nominatim만 쓰는데, 국내 상세 건물
+  # 단위 주소 커버리지가 부실해서 매칭 실패율이 매우 높다(2026-08-06, 106건 중 12건만 성공).
+  rest-api-key: ${KAKAO_REST_API_KEY:}
+
 oracle:
   # job_posting_vector 등 Oracle 26ai 2차 데이터소스(oracle.vector.datasource)는 여기 없다 — api는
   # com.selfintro.vectorsearch를 스캔에서 제외해서 더 이상 Oracle 연결이 필요 없다(2026-08 job-posting
