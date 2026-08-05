@@ -100,10 +100,11 @@ export default function JobPostingMapView({
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('ALL');
     const [viewMode, setViewMode] = useState<ViewModeOption>('REAL_MAP');
-    const [tileStyle, setTileStyle] = useState<TileStyleOption>('LIGHT'); // ☀️ 밝은 계열 지도 타일 기본값 설정
+    const [tileStyle, setTileStyle] = useState<TileStyleOption>('LIGHT');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
     const [isMapLoading, setIsMapLoading] = useState(true);
+    const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
 
     // 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 레이어 상태
     const [layerToggles, setLayerToggles] = useState({
@@ -132,7 +133,7 @@ export default function JobPostingMapView({
     const homeLng = settings?.homeLongitude ?? 126.8899;
     const homeAddress = settings?.homeAddress || '서울 마포구 월드컵북로 400 (기본)';
 
-    // 공고별 예상 출퇴근 시간 계산 및 위치 추정
+    // 공고별 예상 출퇴근 시간 계산 및 위치 매핑
     const postingsWithCommute = useMemo(() => {
         return postings.map((posting) => {
             let estimate: CommuteEstimate | null = null;
@@ -182,7 +183,7 @@ export default function JobPostingMapView({
         });
     }, [postings, homeLat, homeLng]);
 
-    // 검색 및 소요시간 필터링
+    // 검색 및 소요시간 필터링 적용
     const filteredItems = useMemo(() => {
         return postingsWithCommute.filter(({ posting, estimate }) => {
             const mins = estimate?.estimatedMinutes || 999;
@@ -210,45 +211,6 @@ export default function JobPostingMapView({
         });
     }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
 
-    // 💡 핀 겹침 방지 (Spiderfy Jittering): 동일/인접 좌표 마커 분산 계산
-    const spiderfiedItems = useMemo(() => {
-        // 동일/인접 좌표 키 그룹핑 (소수점 3자리 정밀도 기준)
-        const groups: Record<string, typeof filteredItems> = {};
-
-        filteredItems.forEach((item) => {
-            if (!item.lat || !item.lng) return;
-            const key = `${item.lat.toFixed(3)}_${item.lng.toFixed(3)}`;
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(item);
-        });
-
-        const result: ((typeof filteredItems)[0] & { renderLat: number; renderLng: number })[] = [];
-
-        Object.values(groups).forEach((group) => {
-            const count = group.length;
-            group.forEach((item, index) => {
-                let renderLat = item.lat!;
-                let renderLng = item.lng!;
-
-                // 동일/인접 지역에 2개 이상의 핀이 뭉쳐있는 경우 원형 방사형으로 오프셋 분산
-                if (count > 1) {
-                    const angle = (index / count) * 2 * Math.PI;
-                    const radius = 0.0035; // 약 300m 단위 오프셋 거리
-                    renderLat += Math.sin(angle) * radius;
-                    renderLng += Math.cos(angle) * radius;
-                }
-
-                result.push({
-                    ...item,
-                    renderLat,
-                    renderLng,
-                });
-            });
-        });
-
-        return result;
-    }, [filteredItems]);
-
     // 선택된 공고 아이템
     const activeItem = useMemo(() => {
         if (!selectedPostingId) return filteredItems[0] || null;
@@ -267,7 +229,7 @@ export default function JobPostingMapView({
         }));
     };
 
-    // 🗺️ Leaflet 지도 인스턴스 및 핀/반경 링 렌더링
+    // 🗺️ Leaflet 지도 인스턴스 초기화 및 동적 클러스터 렌더링
     useEffect(() => {
         if (viewMode !== 'REAL_MAP' || !mapContainerRef.current) return;
 
@@ -282,7 +244,6 @@ export default function JobPostingMapView({
 
                 setIsMapLoading(false);
 
-                // 지도 타일 URL 선택 (LIGHT: CartoDB Voyager 밝은 타일, DARK: CartoDB Dark)
                 const tileUrl =
                     tileStyle === 'LIGHT'
                         ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
@@ -308,6 +269,11 @@ export default function JobPostingMapView({
                     markersGroupRef.current = L.layerGroup().addTo(map);
                     ringsGroupRef.current = L.layerGroup().addTo(map);
 
+                    // 지도 Zoom 및 Move 변경 이벤트 리스너 (클러스터링 실시간 재계산)
+                    map.on('zoomend moveend', () => {
+                        setCurrentZoomLevel(map.getZoom());
+                    });
+
                     mapInstanceRef.current = map;
                 } else {
                     const map = mapInstanceRef.current;
@@ -319,94 +285,193 @@ export default function JobPostingMapView({
                     );
                 }
 
-                const map = mapInstanceRef.current;
-                const markersGroup = markersGroupRef.current;
-                const ringsGroup = ringsGroupRef.current;
+                renderMapLayers(L);
+            } catch (err) {
+                console.error('Leaflet initialization failed:', err);
+            }
+        };
 
-                if (!markersGroup || !ringsGroup) return;
+        // 🎯 동적 거리/화면 픽셀 기반 클러스터링(Distance-based Clustering) 렌더링
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const renderMapLayers = (L: any) => {
+            const map = mapInstanceRef.current;
+            const markersGroup = markersGroupRef.current;
+            const ringsGroup = ringsGroupRef.current;
 
-                markersGroup.clearLayers();
-                ringsGroup.clearLayers();
+            if (!map || !markersGroup || !ringsGroup) return;
 
-                const boundsPoints: [number, number][] = [[homeLat, homeLng]];
+            markersGroup.clearLayers();
+            ringsGroup.clearLayers();
 
-                // 🎯 1. 반경 동심원 (10km, 20km, 30km)
-                if (layerToggles.showDistanceRings) {
-                    L.circle([homeLat, homeLng], {
-                        radius: 10000,
-                        color: tileStyle === 'LIGHT' ? '#059669' : '#10b981',
-                        weight: 1.8,
-                        dashArray: '5, 5',
-                        fillOpacity: 0.04,
-                    }).addTo(ringsGroup);
+            // 🎯 1. 반경 동심원 (10km, 20km, 30km)
+            if (layerToggles.showDistanceRings) {
+                L.circle([homeLat, homeLng], {
+                    radius: 10000,
+                    color: tileStyle === 'LIGHT' ? '#059669' : '#10b981',
+                    weight: 1.8,
+                    dashArray: '5, 5',
+                    fillOpacity: 0.04,
+                }).addTo(ringsGroup);
 
-                    L.circle([homeLat, homeLng], {
-                        radius: 20000,
-                        color: tileStyle === 'LIGHT' ? '#4f46e5' : '#6366f1',
-                        weight: 1.8,
-                        dashArray: '5, 5',
-                        fillOpacity: 0.03,
-                    }).addTo(ringsGroup);
+                L.circle([homeLat, homeLng], {
+                    radius: 20000,
+                    color: tileStyle === 'LIGHT' ? '#4f46e5' : '#6366f1',
+                    weight: 1.8,
+                    dashArray: '5, 5',
+                    fillOpacity: 0.03,
+                }).addTo(ringsGroup);
 
-                    L.circle([homeLat, homeLng], {
-                        radius: 30000,
-                        color: tileStyle === 'LIGHT' ? '#d97706' : '#f59e0b',
-                        weight: 1.8,
-                        dashArray: '5, 5',
-                        fillOpacity: 0.02,
-                    }).addTo(ringsGroup);
+                L.circle([homeLat, homeLng], {
+                    radius: 30000,
+                    color: tileStyle === 'LIGHT' ? '#d97706' : '#f59e0b',
+                    weight: 1.8,
+                    dashArray: '5, 5',
+                    fillOpacity: 0.02,
+                }).addTo(ringsGroup);
+            }
+
+            // 🏠 2. 내 집 위치 마커 (Home Marker)
+            if (layerToggles.showHomePin) {
+                const homeIcon = L.divIcon({
+                    className: 'custom-home-icon',
+                    html: `
+                        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="position: absolute; width: 40px; height: 40px; border-radius: 50%; background: rgba(16, 185, 129, 0.35); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                            <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: #10b981; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.6); border: 2px solid #ffffff;">
+                                🏠
+                            </div>
+                            <div style="margin-top: 4px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid #10b981; color: ${tileStyle === 'LIGHT' ? '#047857' : '#6ee7b7'}; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                🏠 내 집 출발점
+                            </div>
+                        </div>
+                    `,
+                    iconSize: [140, 65],
+                    iconAnchor: [70, 32],
+                });
+
+                const homeMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(
+                    markersGroup
+                );
+                homeMarker.on('click', () => setIsHomeModalOpen(true));
+            }
+
+            // 🔢 3. 거리/줌 픽셀 기준 지능형 마커 클러스터링 (Marker Clustering)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const clusters: {
+                centerLat: number;
+                centerLng: number;
+                items: typeof filteredItems;
+            }[] = [];
+            const pixelThreshold = 70; // 70px 이내에 위치한 마커들을 하나의 클러스터 원으로 통합
+
+            filteredItems.forEach((item) => {
+                if (!item.lat || !item.lng) return;
+
+                const itemPoint = map.latLngToLayerPoint([item.lat, item.lng]);
+
+                let addedToCluster = false;
+                for (const cluster of clusters) {
+                    const clusterPoint = map.latLngToLayerPoint([
+                        cluster.centerLat,
+                        cluster.centerLng,
+                    ]);
+                    const distance = Math.hypot(
+                        itemPoint.x - clusterPoint.x,
+                        itemPoint.y - clusterPoint.y
+                    );
+
+                    if (distance <= pixelThreshold) {
+                        cluster.items.push(item);
+                        // 클러스터 대표 중심점 재계산 (평균 위치)
+                        cluster.centerLat =
+                            cluster.items.reduce((sum, i) => sum + i.lat!, 0) /
+                            cluster.items.length;
+                        cluster.centerLng =
+                            cluster.items.reduce((sum, i) => sum + i.lng!, 0) /
+                            cluster.items.length;
+                        addedToCluster = true;
+                        break;
+                    }
                 }
 
-                // 🏠 2. 내 집 위치 마커 (Home Marker)
-                if (layerToggles.showHomePin) {
-                    const homeIcon = L.divIcon({
-                        className: 'custom-home-icon',
+                if (!addedToCluster) {
+                    clusters.push({
+                        centerLat: item.lat,
+                        centerLng: item.lng,
+                        items: [item],
+                    });
+                }
+            });
+
+            // 클러스터 및 개별 마커 렌더링
+            clusters.forEach((cluster) => {
+                const count = cluster.items.length;
+
+                // Case A: 2개 이상 뭉쳐있을 때 -> 🔵 원형 클러스터 마커 (`10`, `23` 개수 표기)
+                if (count > 1) {
+                    let clusterBg = '#10b981'; // Emerald (< 10)
+                    let clusterBorder = '#047857';
+
+                    if (count >= 20) {
+                        clusterBg = '#8b5cf6'; // Purple (>= 20)
+                        clusterBorder = '#6d28d9';
+                    } else if (count >= 10) {
+                        clusterBg = '#6366f1'; // Indigo (>= 10)
+                        clusterBorder = '#4338ca';
+                    }
+
+                    const clusterIcon = L.divIcon({
+                        className: 'custom-cluster-icon',
                         html: `
-                            <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                                <div style="position: absolute; width: 40px; height: 40px; border-radius: 50%; background: rgba(16, 185, 129, 0.35); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                                <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: #10b981; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.6); border: 2px solid #ffffff;">
-                                    🏠
+                            <div style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;">
+                                <div style="position: absolute; width: 48px; height: 48px; border-radius: 50%; background: ${clusterBg}44; animation: pulse 2s infinite;"></div>
+                                <div style="position: relative; width: 40px; height: 40px; border-radius: 50%; background: ${clusterBg}; border: 3px solid #ffffff; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; box-shadow: 0 6px 16px ${clusterBg}88;">
+                                    ${count}
                                 </div>
-                                <div style="margin-top: 4px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid #10b981; color: ${tileStyle === 'LIGHT' ? '#047857' : '#6ee7b7'}; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                                    🏠 내 집 출발점
+                                <div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${clusterBorder}; color: ${tileStyle === 'LIGHT' ? clusterBorder : '#ffffff'}; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.15);">
+                                    🏢 ${count}개 공고 뭉침 (클릭 시 확대)
                                 </div>
                             </div>
                         `,
-                        iconSize: [140, 65],
-                        iconAnchor: [70, 32],
+                        iconSize: [120, 65],
+                        iconAnchor: [60, 32],
                     });
 
-                    const homeMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(
-                        markersGroup
-                    );
-                    homeMarker.on('click', () => setIsHomeModalOpen(true));
-                }
+                    const clusterMarker = L.marker([cluster.centerLat, cluster.centerLng], {
+                        icon: clusterIcon,
+                    }).addTo(markersGroup);
 
-                // 📍 3. 분산된 공고 마커 핀들 (Spiderfied Posting Markers)
-                spiderfiedItems.forEach(({ posting, estimate, renderLat, renderLng }) => {
-                    boundsPoints.push([renderLat, renderLng]);
+                    // 원형 클러스터 클릭 시 -> 해당 뭉쳐있는 마커들 영역으로 확대(zoom in)하여 분리되게 함
+                    clusterMarker.on('click', () => {
+                        const boundsPoints: [number, number][] = cluster.items.map((i) => [
+                            i.lat!,
+                            i.lng!,
+                        ]);
+                        const bounds = L.latLngBounds(boundsPoints);
+                        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+                    });
+                } else {
+                    // Case B: 1개만 단독 위치할 때 -> 📍 완벽한 실제 좌표 위치에 개별 핀 렌더링
+                    const item = cluster.items[0];
+                    const isSelected = activeItem?.posting.id === item.posting.id;
+                    const mins = item.estimate?.estimatedMinutes || 0;
 
-                    const isSelected = activeItem?.posting.id === posting.id;
-                    const mins = estimate?.estimatedMinutes || 0;
-
-                    // 소요시간별 핀 컬러 테마
-                    let colorHex = '#10b981'; // Emerald (30분 이내)
+                    let colorHex = '#10b981';
                     let textHex = '#047857';
                     if (mins > 60) {
-                        colorHex = '#f43f5e'; // Rose
+                        colorHex = '#f43f5e';
                         textHex = '#be123c';
                     } else if (mins > 45) {
-                        colorHex = '#f59e0b'; // Amber
+                        colorHex = '#f59e0b';
                         textHex = '#b45309';
                     } else if (mins > 30) {
-                        colorHex = '#6366f1'; // Indigo
+                        colorHex = '#6366f1';
                         textHex = '#4338ca';
                     }
 
-                    // 핀 라벨 뱃지 HTML (밝은 지도에 시원하게 어울리는 백그라운드 디자인)
                     const labelHtml = layerToggles.showPinLabels
                         ? `<div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${colorHex}; color: ${tileStyle === 'LIGHT' ? textHex : colorHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12);">
-                            ${posting.companyName} ${estimate?.formattedTimeText ? `(${estimate.formattedTimeText})` : ''}
+                            ${item.posting.companyName} ${item.estimate?.formattedTimeText ? `(${item.estimate.formattedTimeText})` : ''}
                            </div>`
                         : '';
 
@@ -429,24 +494,16 @@ export default function JobPostingMapView({
                         iconAnchor: [70, 27],
                     });
 
-                    const postingMarker = L.marker([renderLat, renderLng], {
+                    const postingMarker = L.marker([item.lat!, item.lng!], {
                         icon: customPinIcon,
                     }).addTo(markersGroup);
 
                     postingMarker.on('click', () => {
-                        setSelectedPostingId(posting.id);
-                        map.panTo([renderLat, renderLng]);
+                        setSelectedPostingId(item.posting.id);
+                        map.panTo([item.lat!, item.lng!]);
                     });
-                });
-
-                // 마커들이 화면에 한눈에 예쁘게 들어오도록 자동 fitBounds 설정 (최초 1회)
-                if (boundsPoints.length > 1) {
-                    const bounds = L.latLngBounds(boundsPoints);
-                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
                 }
-            } catch (err) {
-                console.error('Leaflet initialization failed:', err);
-            }
+            });
         };
 
         initLeafletMap();
@@ -454,7 +511,16 @@ export default function JobPostingMapView({
         return () => {
             isMounted = false;
         };
-    }, [viewMode, homeLat, homeLng, spiderfiedItems, activeItem, layerToggles, tileStyle]);
+    }, [
+        viewMode,
+        homeLat,
+        homeLng,
+        filteredItems,
+        activeItem,
+        layerToggles,
+        tileStyle,
+        currentZoomLevel,
+    ]);
 
     return (
         <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[650px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
@@ -854,8 +920,8 @@ export default function JobPostingMapView({
                         {/* 지도 정보 가이드 하단 바 */}
                         <div className="z-20 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 p-3 bg-zinc-900/90 backdrop-blur-md text-[11px] text-zinc-500">
                             <span>
-                                💡 실제 지도 타일 위 마커를 클릭하면 이동 경로와 지원 공고 정보가
-                                표기됩니다.
+                                💡 원형 뱃지 클러스터를 클릭하거나 지도를 확대하면 개별 핀이 정확한
+                                좌표 위치에 표출됩니다.
                             </span>
                             <div className="flex items-center gap-3">
                                 <span className="flex items-center gap-1 text-emerald-400 font-medium">
