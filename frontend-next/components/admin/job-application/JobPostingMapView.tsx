@@ -247,6 +247,9 @@ export default function JobPostingMapView({
     const [isMapLoading, setIsMapLoading] = useState(true);
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
 
+    // 🎯 현재 지도 화면 범위(Viewport Bounds) 내에 있는 공고 ID 목록 (동적 실시간 필터링)
+    const [visibleInMapPostingIds, setVisibleInMapPostingIds] = useState<Set<number> | null>(null);
+
     // 📱 패널 폭 (컴팩트 300px 로 설정하여 패딩을 살리면서 슬림하게 조절) 및 접기 상태 관리
     const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(true);
     const [detailPanelWidth, setDetailPanelWidth] = useState(300);
@@ -260,7 +263,7 @@ export default function JobPostingMapView({
         showPinLabels: true,
     });
 
-    // 🎯 마인드맵 레이어 토글 팝업: 기본으로 꺼져있음(false)
+    // 마인드맵 레이어 토글 팝업 (기본 닫힘)
     const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -321,6 +324,12 @@ export default function JobPostingMapView({
             return true;
         });
     }, [postingsWithCommute, searchQuery, timeFilter]);
+
+    // 🎯 [실시간 지도 화면 연동] 현재 화면 범위 안에 조망되고 있는 공고만 필터링!
+    const visibleInViewportItems = useMemo(() => {
+        if (!visibleInMapPostingIds) return filteredItems;
+        return filteredItems.filter((item) => visibleInMapPostingIds.has(item.posting.id));
+    }, [filteredItems, visibleInMapPostingIds]);
 
     // 🎯 지도 마커 표출 아이템: 선택된 공고가 있을 때(`selectedPostingId !== null`)는 해당 선택 공고 1개만 지도에 표출!
     const mapItemsToRender = useMemo(() => {
@@ -386,7 +395,7 @@ export default function JobPostingMapView({
         };
     }, [isResizing]);
 
-    // 🗺️ Leaflet 지도 인스턴스 초기화 및 선택된 공고 핀 렌더링
+    // 🗺️ Leaflet 지도 인스턴스 초기화 및 바운즈 기반 실시간 노출 목록 동기화
     useEffect(() => {
         if (!mapContainerRef.current) return;
 
@@ -426,11 +435,27 @@ export default function JobPostingMapView({
                     markersGroupRef.current = L.layerGroup().addTo(map);
                     ringsGroupRef.current = L.layerGroup().addTo(map);
 
-                    map.on('zoomend moveend', () => {
+                    // 🎯 지도 화면 이동/확대축소 시 실시간 화면 범위 내 공고 추출 갱신 함수
+                    const updateVisiblePostingIds = () => {
+                        const bounds = map.getBounds();
+                        const visibleSet = new Set<number>();
+
+                        filteredItems.forEach((item) => {
+                            if (item.lat && item.lng && bounds.contains([item.lat, item.lng])) {
+                                visibleSet.add(item.posting.id);
+                            }
+                        });
+
+                        setVisibleInMapPostingIds(visibleSet);
                         setCurrentZoomLevel(map.getZoom());
-                    });
+                    };
+
+                    map.on('zoomend moveend dragend', updateVisiblePostingIds);
 
                     mapInstanceRef.current = map;
+
+                    // 최초 렌더링 시 바운즈 계산
+                    setTimeout(updateVisiblePostingIds, 200);
                 } else {
                     const map = mapInstanceRef.current;
                     if (tileLayerRef.current) {
@@ -715,6 +740,7 @@ export default function JobPostingMapView({
         tileStyle,
         currentZoomLevel,
         selectedPostingId,
+        filteredItems,
     ]);
 
     useEffect(() => {
@@ -788,7 +814,7 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* [오른쪽 그룹] 기준 집 위치 버튼 (모던 블랙 톤) */}
+                {/* [오른쪽 그룹] 기준 집 위치 버튼 */}
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsHomeModalOpen(true)}
@@ -840,7 +866,7 @@ export default function JobPostingMapView({
                                 </button>
                             </div>
 
-                            {/* 🧠 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 컨트롤 패널 (기본 닫힘) */}
+                            {/* 🧠 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 컨트롤 패널 */}
                             <div className="relative ml-auto pointer-events-auto">
                                 <button
                                     onClick={() => setIsLayerControlOpen(!isLayerControlOpen)}
@@ -973,11 +999,11 @@ export default function JobPostingMapView({
                                     </>
                                 ) : (
                                     <>
-                                        총{' '}
+                                        현재 지도 범위 내{' '}
                                         <strong className="text-indigo-600 font-extrabold">
-                                            {filteredItems.length}개
+                                            {visibleInViewportItems.length}개
                                         </strong>{' '}
-                                        공고 도로명 정밀 위치 표기 중
+                                        (전체 {filteredItems.length}개) 표기 중
                                     </>
                                 )}
                             </span>
@@ -1017,7 +1043,7 @@ export default function JobPostingMapView({
                     </div>
                 )}
 
-                {/* 3. 🎯 [컴팩트 300px 레이아웃 & 풍성한 패딩 보정] 사이드바 패널 */}
+                {/* 3. 🎯 [실시간 지도 화면 연동] 현재 지도 화면 안 범위의 공고만 연동 리스팅! */}
                 {isDetailPanelOpen && (
                     <div
                         style={{ width: `${detailPanelWidth}px` }}
@@ -1173,25 +1199,27 @@ export default function JobPostingMapView({
                                 </div>
                             </div>
                         ) : (
-                            /* B. 🎯 [컴팩트 패딩 보정] 300px 크기의 쾌적한 공고 리스트 */
+                            /* B. 🎯 [실시간 지도 화면 연동] 현재 화면 범위 안 공고만 100% 동적 표출 */
                             <div className="flex flex-col h-full space-y-3">
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                                         <ListFilter className="h-4 w-4 text-indigo-600" />
-                                        <span>지도 표출 공고 목록</span>
+                                        <span>현재 지도 범위 공고</span>
                                         <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-black text-indigo-700">
-                                            {filteredItems.length}
+                                            {visibleInViewportItems.length}
                                         </span>
                                     </div>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-                                    {filteredItems.length === 0 ? (
-                                        <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                                            선택된 조건에 부합하는 공고가 없습니다.
+                                    {visibleInViewportItems.length === 0 ? (
+                                        <div className="py-12 text-center text-slate-400 text-xs font-medium leading-relaxed">
+                                            현재 화면에 노출된 공고가 없습니다.
+                                            <br />
+                                            지도를 다른 지역으로 이동해보세요!
                                         </div>
                                     ) : (
-                                        filteredItems.map((item) => {
+                                        visibleInViewportItems.map((item) => {
                                             const mins = item.estimate?.estimatedMinutes || 0;
                                             let badgeStyle =
                                                 'bg-emerald-500/10 text-emerald-800 font-bold';
