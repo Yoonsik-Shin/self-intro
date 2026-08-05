@@ -177,13 +177,13 @@ export function AdminDashboardShell() {
 
     useEffect(() => {
         const compactViewport = window.matchMedia('(max-width: 1279px)');
-        const collapseForCompactViewport = () => {
-            if (compactViewport.matches) setIsSidebarCollapsed(true);
-        };
+        const syncSidebarToViewport = (matches: boolean) => setIsSidebarCollapsed(matches);
 
-        collapseForCompactViewport();
-        compactViewport.addEventListener('change', collapseForCompactViewport);
-        return () => compactViewport.removeEventListener('change', collapseForCompactViewport);
+        syncSidebarToViewport(compactViewport.matches);
+        const handleViewportChange = (event: MediaQueryListEvent) =>
+            syncSidebarToViewport(event.matches);
+        compactViewport.addEventListener('change', handleViewportChange);
+        return () => compactViewport.removeEventListener('change', handleViewportChange);
     }, []);
 
     const { data: introData } = useQuery({
@@ -488,7 +488,7 @@ export function AdminDashboardShell() {
                         }`}
                     >
                         <Eye className="h-3.5 w-3.5" />
-                        미리보기
+                        <span className="hidden md:inline">미리보기</span>
                     </button>
                     <a
                         href={grafanaUrl}
@@ -498,8 +498,8 @@ export function AdminDashboardShell() {
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
                     >
                         <Activity className="h-3.5 w-3.5 text-orange-500" />
-                        Grafana
-                        <ExternalLink className="h-3 w-3 opacity-40" />
+                        <span className="hidden md:inline">Grafana</span>
+                        <ExternalLink className="hidden h-3 w-3 opacity-40 md:inline" />
                     </a>
                     <a
                         href={argocdUrl}
@@ -509,22 +509,24 @@ export function AdminDashboardShell() {
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-600"
                     >
                         <GitBranch className="h-3.5 w-3.5 text-sky-500" />
-                        ArgoCD
-                        <ExternalLink className="h-3 w-3 opacity-40" />
+                        <span className="hidden md:inline">ArgoCD</span>
+                        <ExternalLink className="hidden h-3 w-3 opacity-40 md:inline" />
                     </a>
                     <a
                         href="/"
+                        title="메인페이지로 이동합니다"
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                     >
                         <Home className="h-3.5 w-3.5" />
-                        메인페이지
+                        <span className="hidden md:inline">메인페이지</span>
                     </a>
                     <button
                         onClick={() => logout()}
+                        title="로그아웃"
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                     >
                         <LogOut className="h-3.5 w-3.5" />
-                        로그아웃
+                        <span className="hidden md:inline">로그아웃</span>
                     </button>
                 </div>
             </header>
@@ -532,7 +534,7 @@ export function AdminDashboardShell() {
             <div className="flex items-start">
                 <div className="min-w-0 flex-1">
                     <div
-                        className="grid w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:px-8"
+                        className="grid w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 ease-in-out sm:px-6 lg:px-8"
                         style={{
                             gridTemplateColumns: isSidebarCollapsed
                                 ? '64px minmax(0, 1fr)'
@@ -540,7 +542,7 @@ export function AdminDashboardShell() {
                         }}
                     >
                         <aside
-                            className={`relative min-w-0 lg:sticky lg:top-20 lg:self-start ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white px-2 py-3 shadow-sm' : ''}`}
+                            className={`relative min-w-0 transition-all duration-300 ease-in-out lg:sticky lg:top-20 lg:self-start ${isSidebarCollapsed ? 'rounded-2xl border border-slate-200 bg-white px-2 py-3 shadow-sm' : ''}`}
                         >
                             <button
                                 type="button"
@@ -560,9 +562,9 @@ export function AdminDashboardShell() {
                                 )}
                             </button>
                             <div
-                                className={`mb-3 flex h-8 items-center px-2 ${isSidebarCollapsed ? 'hidden' : ''}`}
+                                className={`mb-3 flex items-center overflow-hidden px-2 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'h-0 opacity-0' : 'h-8 opacity-100'}`}
                             >
-                                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                <p className="whitespace-nowrap text-xs font-bold uppercase tracking-widest text-slate-400">
                                     메뉴 목록
                                 </p>
                             </div>
@@ -571,14 +573,14 @@ export function AdminDashboardShell() {
                                 {ADMIN_MENU_GROUPS.map((group, groupIndex) => (
                                     <section
                                         key={group.label}
-                                        className={
+                                        className={`transition-all duration-300 ease-in-out ${
                                             groupIndex > 0 && isSidebarCollapsed
                                                 ? 'border-t border-slate-200 pt-3'
                                                 : ''
-                                        }
+                                        }`}
                                     >
                                         <h2
-                                            className={`mb-1.5 px-3 text-[11px] font-black tracking-[0.12em] text-slate-400 ${isSidebarCollapsed ? 'sr-only' : ''}`}
+                                            className={`mb-1.5 overflow-hidden whitespace-nowrap px-3 text-[11px] font-black tracking-[0.12em] text-slate-400 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'max-h-0 opacity-0' : 'max-h-5 opacity-100'}`}
                                         >
                                             {group.label}
                                         </h2>
@@ -593,7 +595,11 @@ export function AdminDashboardShell() {
                                                         onClick={() => handleTabChange(item.id)}
                                                         title={item.label}
                                                         aria-current={isActive ? 'page' : undefined}
-                                                        className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${isSidebarCollapsed ? 'mx-auto h-11 w-11 justify-center gap-0 p-0' : ''} ${
+                                                        className={`flex items-center rounded-xl text-sm font-bold transition-all duration-300 ease-in-out ${
+                                                            isSidebarCollapsed
+                                                                ? 'mx-auto h-11 w-11 justify-center'
+                                                                : 'w-full gap-2.5 px-3 py-2.5 text-left'
+                                                        } ${
                                                             isActive
                                                                 ? 'bg-slate-900 text-white shadow-sm shadow-slate-800/10'
                                                                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -601,11 +607,11 @@ export function AdminDashboardShell() {
                                                     >
                                                         <Icon className="h-4 w-4 shrink-0" />
                                                         <span
-                                                            className={
+                                                            className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${
                                                                 isSidebarCollapsed
-                                                                    ? 'hidden'
-                                                                    : 'truncate'
-                                                            }
+                                                                    ? 'max-w-0 opacity-0'
+                                                                    : 'max-w-[160px] opacity-100'
+                                                            }`}
                                                         >
                                                             {item.label}
                                                         </span>
