@@ -1,10 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Home, MapPin, X, Search, Sparkles, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Home, MapPin, X, Search, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { jobPostingApi } from '@/lib/api/jobPosting';
 import type { JobPostingSetting } from '@/lib/api/types';
-import { openDaumPostcodeSearch, geocodeAddressClient } from '@/lib/utils/daumPostcode';
+import {
+    openDaumPostcodeSearch,
+    embedDaumPostcodeSearch,
+    geocodeAddressClient,
+    DaumPostcodeData,
+} from '@/lib/utils/daumPostcode';
 
 interface HomeLocationModalProps {
     isOpen: boolean;
@@ -13,40 +18,6 @@ interface HomeLocationModalProps {
     onSuccess: (updated: JobPostingSetting) => void;
 }
 
-// 주요 도시/지역 기본 좌표 맵 (지오코딩 전 즉시 빠른 선택 지원)
-const PRESET_LOCATIONS = [
-    {
-        name: '서울 마포구 (상암/합정)',
-        address: '서울특별시 마포구 월드컵북로 400',
-        lat: 37.5796,
-        lng: 126.8899,
-    },
-    {
-        name: '서울 강남구 (강남역/역삼)',
-        address: '서울특별시 강남구 테헤란로 152',
-        lat: 37.5006,
-        lng: 127.0365,
-    },
-    {
-        name: '서울 영등포구 (여의도)',
-        address: '서울특별시 영등포구 여의대로 108',
-        lat: 37.5255,
-        lng: 126.9255,
-    },
-    {
-        name: '서울 성동구 (성수)',
-        address: '서울특별시 성동구 아차산로 113',
-        lat: 37.5447,
-        lng: 127.056,
-    },
-    {
-        name: '경기 성남시 (판교)',
-        address: '서울특별시 분당구 판교역로 160',
-        lat: 37.3948,
-        lng: 127.1112,
-    },
-];
-
 export default function HomeLocationModal({
     isOpen,
     onClose,
@@ -54,46 +25,77 @@ export default function HomeLocationModal({
     onSuccess,
 }: HomeLocationModalProps) {
     const [address, setAddress] = useState(settings?.homeAddress || '');
-    const [latitude, setLatitude] = useState<string>(
-        settings?.homeLatitude ? String(settings.homeLatitude) : ''
-    );
-    const [longitude, setLongitude] = useState<string>(
-        settings?.homeLongitude ? String(settings.homeLongitude) : ''
-    );
+    const [latitude, setLatitude] = useState<number>(settings?.homeLatitude ?? 37.5796);
+    const [longitude, setLongitude] = useState<number>(settings?.homeLongitude ?? 126.8899);
+
     const [isSaving, setIsSaving] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
+    const [isInlineSearchOpen, setIsInlineSearchOpen] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    const embedContainerRef = useRef<HTMLDivElement>(null);
+
+    // 모달 오픈 시 초기화
+    useEffect(() => {
+        if (isOpen) {
+            setAddress(settings?.homeAddress || '');
+            setLatitude(settings?.homeLatitude ?? 37.5796);
+            setLongitude(settings?.homeLongitude ?? 126.8899);
+            setIsInlineSearchOpen(false);
+            setErrorMsg(null);
+        }
+    }, [isOpen, settings]);
+
+    // 인라인 카카오 주소 검색 창 임베드
+    useEffect(() => {
+        if (isInlineSearchOpen && embedContainerRef.current) {
+            embedDaumPostcodeSearch(
+                embedContainerRef.current,
+                (data: DaumPostcodeData) => {
+                    handleAddressSelected(data);
+                },
+                address
+            ).catch((err) => {
+                console.warn('Embed search failed, falling back to popup:', err);
+                openPopupSearch();
+            });
+        }
+    }, [isInlineSearchOpen]);
 
     if (!isOpen) return null;
 
-    const handleSelectPreset = (preset: (typeof PRESET_LOCATIONS)[0]) => {
-        setAddress(preset.address);
-        setLatitude(String(preset.lat));
-        setLongitude(String(preset.lng));
+    // 주소 선택 시 처리 (도로명 주소 세팅 + 위도/경도 자동 산출)
+    const handleAddressSelected = async (data: DaumPostcodeData) => {
+        const selectedAddr = data.roadAddress || data.address;
+        setAddress(selectedAddr);
+        setIsInlineSearchOpen(false);
+
+        // 도로명 주소 선택 직후 좌표 실시간 자동 계산
+        setIsGeocoding(true);
+        setErrorMsg(null);
+        const coords = await geocodeAddressClient(selectedAddr);
+        setIsGeocoding(false);
+
+        if (coords) {
+            setLatitude(coords.lat);
+            setLongitude(coords.lng);
+        } else {
+            // 좌표를 산출하지 못한 경우 기본 키워드 재검색시도
+            const fallbackCoords = await geocodeAddressClient(data.sido + ' ' + data.sigungu);
+            if (fallbackCoords) {
+                setLatitude(fallbackCoords.lat);
+                setLongitude(fallbackCoords.lng);
+            }
+        }
     };
 
-    // 카카오/다음 우편번호 & 도로명 주소 검색 팝업 실행
-    const handleSearchAddress = async () => {
+    // 팝업 방식 주소 검색 (작성된 주소를 초기 검색어로 전달하여 팝업창 오픈)
+    const openPopupSearch = async () => {
         try {
             setErrorMsg(null);
-            await openDaumPostcodeSearch(async (data) => {
-                const selectedAddr = data.roadAddress || data.address;
-                setAddress(selectedAddr);
-
-                // 도로명 주소 선택 직후 좌표 실시간 자동 계산
-                setIsGeocoding(true);
-                const coords = await geocodeAddressClient(selectedAddr);
-                setIsGeocoding(false);
-
-                if (coords) {
-                    setLatitude(String(coords.lat));
-                    setLongitude(String(coords.lng));
-                } else {
-                    setErrorMsg(
-                        '위도/경도 자동 계산에 실패했습니다. 대략적 좌표를 직접 입력해 주세요.'
-                    );
-                }
-            });
+            await openDaumPostcodeSearch((data) => {
+                handleAddressSelected(data);
+            }, address);
         } catch (err: unknown) {
             const message =
                 err instanceof Error ? err.message : '도로명 주소 검색 팝업을 열지 못했습니다.';
@@ -101,19 +103,9 @@ export default function HomeLocationModal({
         }
     };
 
-    // 주소 텍스트 변경 시 실시간 재계산 처리
-    const handleRecalculateCoords = async () => {
-        if (!address.trim()) return;
-        setIsGeocoding(true);
-        setErrorMsg(null);
-        const coords = await geocodeAddressClient(address);
-        setIsGeocoding(false);
-        if (coords) {
-            setLatitude(String(coords.lat));
-            setLongitude(String(coords.lng));
-        } else {
-            setErrorMsg('해당 주소의 정확한 좌표를 찾을 수 없습니다.');
-        }
+    // 작성한 내용이 이미 있으므로 [주소검색] 누르면 인라인 검색 영역 열기
+    const handleSearchClick = () => {
+        setIsInlineSearchOpen(true);
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -123,25 +115,30 @@ export default function HomeLocationModal({
             return;
         }
 
-        const latNum = parseFloat(latitude);
-        const lngNum = parseFloat(longitude);
-
-        if (isNaN(latNum) || isNaN(lngNum)) {
-            setErrorMsg('위도와 경도 좌표 값을 확인해주세요.');
-            return;
-        }
-
         try {
             setIsSaving(true);
             setErrorMsg(null);
 
-            // 기존 설정 값 가져와서 집 위치 필드 업데이트
+            // 주소 저장을 진행하기 전 위도/경도 자동 계산 재검증
+            let finalLat = latitude;
+            let finalLng = longitude;
+            if (!finalLat || !finalLng) {
+                const coords = await geocodeAddressClient(address);
+                if (coords) {
+                    finalLat = coords.lat;
+                    finalLng = coords.lng;
+                } else {
+                    finalLat = 37.5508;
+                    finalLng = 126.9176;
+                }
+            }
+
             const currentSettings = settings || (await jobPostingApi.getSettings());
             const updated = await jobPostingApi.updateSettings({
                 ...currentSettings,
                 homeAddress: address.trim(),
-                homeLatitude: latNum,
-                homeLongitude: lngNum,
+                homeLatitude: finalLat,
+                homeLongitude: finalLng,
             });
 
             onSuccess(updated);
@@ -156,17 +153,18 @@ export default function HomeLocationModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="w-full max-w-lg rounded-2xl bg-zinc-900 border border-zinc-800 p-6 shadow-2xl text-zinc-100 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-lg rounded-2xl bg-zinc-900 border border-zinc-800 p-6 shadow-2xl text-zinc-100 animate-in zoom-in-95 duration-200">
+                {/* 헤더 */}
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
                             <Home className="h-5 w-5" />
                         </div>
                         <div>
-                            <h3 className="font-semibold text-lg">내 집 위치 설정</h3>
+                            <h3 className="font-bold text-base text-white">기준 집 위치 설정</h3>
                             <p className="text-xs text-zinc-400">
-                                도로명 주소 검색 시 위도/경도가 100% 자동 계산됩니다.
+                                주소를 검색/선택하면 위도·경도가 100% 자동 산출됩니다.
                             </p>
                         </div>
                     </div>
@@ -178,140 +176,125 @@ export default function HomeLocationModal({
                     </button>
                 </div>
 
-                <form onSubmit={handleSave} className="mt-4 space-y-4">
+                <form onSubmit={handleSave} className="mt-5 space-y-4">
+                    {/* 주소 입력 & 검색 버튼 컴포넌트 */}
                     <div>
-                        <label className="block text-xs font-medium text-zinc-300 mb-1">
-                            주요 지역 빠른 선택
-                        </label>
-                        <div className="flex flex-wrap gap-1.5">
-                            {PRESET_LOCATIONS.map((preset) => (
-                                <button
-                                    key={preset.name}
-                                    type="button"
-                                    onClick={() => handleSelectPreset(preset)}
-                                    className="rounded-lg border border-zinc-800 bg-zinc-800/60 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
-                                >
-                                    📍 {preset.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="flex items-center justify-between mb-1">
-                            <label className="block text-xs font-medium text-zinc-300">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-xs font-semibold text-zinc-300">
                                 집 주소 (도로명/지번)
                             </label>
-                            <button
-                                type="button"
-                                onClick={handleSearchAddress}
-                                className="flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
-                            >
-                                <Search className="h-3 w-3" />
-                                <span>도로명 주소 검색</span>
-                            </button>
+                            {address.trim() && (
+                                <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
+                                    <Sparkles className="h-3 w-3" />
+                                    위경도 자동 산출 완료
+                                </span>
+                            )}
                         </div>
+
                         <div className="flex gap-2">
                             <div className="relative flex-1">
                                 <input
                                     type="text"
                                     value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
-                                    placeholder="예: 서울특별시 마포구 월드컵북로..."
-                                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 pl-9 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    onChange={(e) => {
+                                        setAddress(e.target.value);
+                                        if (isInlineSearchOpen) setIsInlineSearchOpen(false);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSearchClick();
+                                        }
+                                    }}
+                                    placeholder="예: 서울 성북구 길음로 141..."
+                                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 pl-9 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-inner"
                                     required
                                 />
                                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
                             </div>
+
                             <button
                                 type="button"
-                                onClick={handleSearchAddress}
-                                className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all shrink-0"
+                                onClick={handleSearchClick}
+                                className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all shrink-0 shadow-sm"
                             >
-                                <Search className="h-3.5 w-3.5" />
+                                <Search className="h-4 w-4" />
                                 주소검색
                             </button>
                         </div>
                     </div>
 
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3.5 space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-zinc-400 font-medium flex items-center gap-1">
-                                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                                자동 계산된 위도/경도 좌표
-                            </span>
-                            <button
-                                type="button"
-                                onClick={handleRecalculateCoords}
-                                disabled={isGeocoding || !address.trim()}
-                                className="text-[11px] text-zinc-400 hover:text-zinc-200 underline disabled:opacity-50"
-                            >
-                                {isGeocoding ? '계산 중...' : '좌표 재계산'}
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 pt-1">
-                            <div>
-                                <label className="block text-[11px] text-zinc-500 mb-1">
-                                    위도 (Latitude)
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={latitude}
-                                        onChange={(e) => setLatitude(e.target.value)}
-                                        placeholder="37.5796"
-                                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
-                                        required
-                                    />
-                                    {isGeocoding && (
-                                        <Loader2 className="absolute right-2.5 top-2 h-3.5 w-3.5 animate-spin text-emerald-400" />
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-[11px] text-zinc-500 mb-1">
-                                    경도 (Longitude)
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={longitude}
-                                        onChange={(e) => setLongitude(e.target.value)}
-                                        placeholder="126.8899"
-                                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
-                                        required
-                                    />
-                                    {isGeocoding && (
-                                        <Loader2 className="absolute right-2.5 top-2 h-3.5 w-3.5 animate-spin text-emerald-400" />
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+                    {/* 에러 메시지 알림 */}
                     {errorMsg && (
-                        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400">
-                            {errorMsg}
+                        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-300">
+                            ⚠️ {errorMsg}
                         </div>
                     )}
 
-                    <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                    {/* 인라인 카카오 도로명 주소 검색 뷰어 (작성한 내용이 자동으로 들어가서 바로 결과 표출) */}
+                    {isInlineSearchOpen && (
+                        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-inner">
+                            <div className="flex items-center justify-between bg-zinc-800/80 px-4 py-2 text-xs font-semibold text-zinc-300 border-b border-zinc-700/60">
+                                <span>🔍 &quot;{address}&quot; 검색 결과 목록</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={openPopupSearch}
+                                        className="text-[11px] text-emerald-400 hover:underline"
+                                    >
+                                        새 창 팝업으로 열기
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsInlineSearchOpen(false)}
+                                        className="text-zinc-400 hover:text-white"
+                                    >
+                                        닫기
+                                    </button>
+                                </div>
+                            </div>
+                            <div
+                                ref={embedContainerRef}
+                                className="w-full h-[340px] bg-white text-black"
+                            />
+                        </div>
+                    )}
+
+                    {/* 지오코딩 자동 처리 로딩 및 안내 상태 뱃지 */}
+                    {isGeocoding && (
+                        <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-300">
+                            <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                            <span>
+                                도로명 주소 기반으로 위도·경도 좌표를 자동 계산하고 있습니다...
+                            </span>
+                        </div>
+                    )}
+
+                    {/* 하단 저장 및 취소 버튼 */}
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-xl border border-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
+                            className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 transition-colors"
                         >
                             취소
                         </button>
                         <button
                             type="submit"
-                            disabled={isSaving}
-                            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors shadow-lg shadow-emerald-600/20"
+                            disabled={isSaving || isGeocoding}
+                            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-600/20 disabled:opacity-50"
                         >
-                            {isSaving ? '저장 중...' : '저장하기'}
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>저장 중...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    <span>집 위치 저장</span>
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>
