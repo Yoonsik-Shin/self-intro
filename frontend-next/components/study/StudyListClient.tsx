@@ -22,6 +22,8 @@ import type { Study, StudyTaxonomyNode, StudyPage } from '@/lib/api/types';
 import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
 import { TaxonomyList } from './TaxonomyList';
 
+import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
+
 type Props = {
     initialStudies: Study[];
     initialTotalElements?: number;
@@ -76,7 +78,7 @@ export function StudyListClient({
 
     const [search, setSearch] = useState('');
     const [activeTaxonomyNodeId, setActiveTaxonomyNodeId] = useState<number | null>(null);
-    const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+    const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
     const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
     const [isRecentExpanded, setIsRecentExpanded] = useState(false);
 
@@ -360,7 +362,7 @@ export function StudyListClient({
 
             <aside className="block w-full sticky top-[89px] self-start">
                 <div
-                    className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
+                    className={`relative max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                         isNavCollapsed
                             ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
                             : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
