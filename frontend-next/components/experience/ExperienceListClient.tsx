@@ -309,20 +309,18 @@ export function ExperienceListClient({ experiences }: Props) {
                 </div>
             </div>
 
-            <aside className="block w-full sticky top-[89px] self-start">
-                <div
-                    className={`relative max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
-                        isNavCollapsed
-                            ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
-                            : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
-                    }`}
-                >
+            <aside
+                className={`block w-full sticky top-[89px] self-start transition-all duration-300 ${
+                    isNavCollapsed ? 'min-[900px]:w-[64px]' : 'min-[900px]:w-[260px]'
+                }`}
+            >
+                <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible">
                     <button
                         type="button"
                         onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
-                        className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
+                        className={`z-30 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                             isNavCollapsed
-                                ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
+                                ? 'relative mx-auto mt-2 h-8 w-8 shrink-0 rounded-full shadow-xs'
                                 : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                         }`}
                         title={isNavCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
@@ -336,7 +334,13 @@ export function ExperienceListClient({ experiences }: Props) {
                         )}
                     </button>
 
-                    {recentlyViewed.length > 0 ? (
+                    <div
+                        className={`max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar min-[900px]:flex min-[900px]:flex-col ${
+                            isNavCollapsed
+                                ? 'min-[900px]:gap-3 min-[900px]:p-1.5'
+                                : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
+                        }`}
+                    >
                         <SidebarSection
                             title="최근 읽은 경험"
                             icon={History}
@@ -403,7 +407,7 @@ export function ExperienceListClient({ experiences }: Props) {
                                 </button>
                             )}
                         </SidebarSection>
-                    ) : (
+                        ) : (
                         <SidebarSection
                             title="최근 이력"
                             description="최근 기간의 프로젝트 및 경력입니다."
@@ -427,36 +431,35 @@ export function ExperienceListClient({ experiences }: Props) {
                                 );
                             })}
                         </SidebarSection>
-                    )}
-
-                    <div
-                        className={`flex flex-col items-center gap-2 py-1 ${isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}
-                    >
+                        <div
+                            className={`flex flex-col items-center gap-2 py-1 ${isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}
+                        >
+                            <button
+                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                title="경험 목록 상단"
+                                aria-label="경험 목록 상단"
+                                className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-slate-900 text-white shadow-sm shadow-slate-800/20 ring-4 ring-slate-200"
+                            >
+                                <Briefcase className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <hr
+                            className={`hidden -mb-4 border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                        />
                         <button
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            title="경험 목록 상단"
-                            aria-label="경험 목록 상단"
-                            className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-slate-900 text-white shadow-sm shadow-slate-800/20 ring-4 ring-slate-200"
+                            className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                            title="위로 가기"
+                            aria-label="위로 가기"
                         >
-                            <Briefcase className="h-4 w-4" />
+                            <ArrowUp className="h-4 w-4 shrink-0" />
+                            <span
+                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
+                            >
+                                위로 가기
+                            </span>
                         </button>
                     </div>
-
-                    <hr
-                        className={`hidden -mb-4 border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                    />
-
-                    <button
-                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
-                        title="위로 가기"
-                        aria-label="위로 가기"
-                    >
-                        <ArrowUp className="h-4 w-4 shrink-0" />
-                        <span className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}>
-                            위로 가기
-                        </span>
-                    </button>
                 </div>
             </aside>
         </div>
