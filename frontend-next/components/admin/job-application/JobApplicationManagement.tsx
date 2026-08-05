@@ -869,23 +869,36 @@ function PrintTemplatesPanel({
             alert(error instanceof ApiError ? error.message : 'PDF 삭제에 실패했습니다.'),
     });
 
-    const generatePrintDraftMutation = useMutation({
-        mutationFn: () => jobPostingApi.generatePrintDraft(jobPostingId),
-        onSuccess: (result) => {
-            setLatestDraft(result);
-            queryClient.invalidateQueries({ queryKey });
-        },
-        onError: (error) =>
-            alert(
-                error instanceof ApiError
-                    ? `PDF 초안을 만들지 못했습니다. ${error.message}`
-                    : 'PDF 초안을 만들지 못했습니다.'
-            ),
-    });
+    async function uploadDirectPdfFile(file: File) {
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            alert('PDF 파일만 업로드할 수 있습니다.');
+            return;
+        }
+        if (file.size > MAX_FINAL_PDF_SIZE_BYTES) {
+            alert('파일이 너무 큽니다(최대 20MB).');
+            return;
+        }
 
-    function requestUpload(templateId: number) {
-        setPendingUploadId(templateId);
-        fileInputRef.current?.click();
+        setIsUploadingDirectPdf(true);
+        try {
+            const presigned = await imageApi.requestPresignedUpload(
+                'PRINT_TEMPLATE_FINAL_PDF',
+                file.name,
+                file.type || 'application/pdf'
+            );
+            await imageApi.uploadToPresignedUrl(presigned.uploadUrl, file);
+            await printTemplateApi.createDirectPdf(jobPostingId, {
+                name: file.name,
+                objectKey: presigned.objectKey,
+            });
+            queryClient.invalidateQueries({ queryKey });
+        } catch (error) {
+            alert(
+                error instanceof ApiError ? error.message : 'PDF 파일 직접 업로드에 실패했습니다.'
+            );
+        } finally {
+            setIsUploadingDirectPdf(false);
+        }
     }
 
     async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -924,37 +937,52 @@ function PrintTemplatesPanel({
     async function handleDirectFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         e.target.value = '';
-        if (!file) return;
-
-        if (file.type !== 'application/pdf') {
-            alert('PDF 파일만 업로드할 수 있습니다.');
-            return;
+        if (file) {
+            await uploadDirectPdfFile(file);
         }
-        if (file.size > MAX_FINAL_PDF_SIZE_BYTES) {
-            alert('파일이 너무 큽니다(최대 20MB).');
-            return;
-        }
+    }
 
-        setIsUploadingDirectPdf(true);
-        try {
-            const presigned = await imageApi.requestPresignedUpload(
-                'PRINT_TEMPLATE_FINAL_PDF',
-                file.name,
-                file.type
-            );
-            await imageApi.uploadToPresignedUrl(presigned.uploadUrl, file);
-            await printTemplateApi.createDirectPdf(jobPostingId, {
-                name: file.name,
-                objectKey: presigned.objectKey,
-            });
+    const [isDragging, setIsDragging] = useState(false);
+
+    function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isDragging) setIsDragging(true);
+    }
+
+    function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    }
+
+    function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+            uploadDirectPdfFile(file);
+        }
+    }
+
+    const generatePrintDraftMutation = useMutation({
+        mutationFn: () => jobPostingApi.generatePrintDraft(jobPostingId),
+        onSuccess: (result) => {
+            setLatestDraft(result);
             queryClient.invalidateQueries({ queryKey });
-        } catch (error) {
+        },
+        onError: (error) =>
             alert(
-                error instanceof ApiError ? error.message : 'PDF 파일 직접 업로드에 실패했습니다.'
-            );
-        } finally {
-            setIsUploadingDirectPdf(false);
-        }
+                error instanceof ApiError
+                    ? `PDF 초안을 만들지 못했습니다. ${error.message}`
+                    : 'PDF 초안을 만들지 못했습니다.'
+            ),
+    });
+
+    function requestUpload(templateId: number) {
+        setPendingUploadId(templateId);
+        fileInputRef.current?.click();
     }
 
     if (isLoading) {
@@ -975,7 +1003,25 @@ function PrintTemplatesPanel({
     }
 
     return (
-        <div className="space-y-4">
+        <div
+            className="relative min-h-[220px] space-y-4"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            {isDragging && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-indigo-500 bg-indigo-50/95 backdrop-blur-sm transition-all duration-150">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg">
+                        <Upload className="h-6 w-6 animate-bounce" />
+                    </div>
+                    <p className="mt-3 text-base font-extrabold text-indigo-900">
+                        PDF 파일을 여기에 놓으세요!
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-indigo-600">
+                        자동으로 업로드하여 최종 제출본으로 저장합니다
+                    </p>
+                </div>
+            )}
             <input
                 ref={fileInputRef}
                 type="file"
@@ -1080,8 +1126,7 @@ function PrintTemplatesPanel({
 
             <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-slate-400">
-                    실제로 제출한 PDF 파일을 올려두면 그 자체가 최종 제출본이 됩니다(이후 이력서
-                    내용이 바뀌어도 이 파일은 그대로 남습니다).
+                    제출한 PDF를 드래그 & 드롭하거나 직접 올려두면 최종 제출본으로 저장됩니다.
                 </p>
                 <div className="flex shrink-0 items-center gap-2">
                     <button
@@ -1109,11 +1154,23 @@ function PrintTemplatesPanel({
             </div>
 
             {templates.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
-                    <p className="text-sm font-bold text-slate-500">아직 연동된 PDF가 없습니다.</p>
+                <div
+                    onClick={() => directFileInputRef.current?.click()}
+                    className={`group cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition ${
+                        isDragging
+                            ? 'border-indigo-500 bg-indigo-50/70'
+                            : 'border-slate-200 bg-slate-50/50 hover:border-indigo-300 hover:bg-indigo-50/30'
+                    }`}
+                >
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 transition group-hover:scale-110">
+                        <Upload className="h-6 w-6" />
+                    </div>
+                    <p className="mt-3 text-sm font-extrabold text-slate-800">
+                        PDF 파일 드래그 & 드롭 또는 클릭하여 업로드
+                    </p>
                     <p className="mt-1 text-xs text-slate-400">
-                        채용 사이트에서 받은 PDF를 직접 업로드하거나, 인쇄 화면에서 템플릿을 생성할
-                        수 있습니다.
+                        채용 사이트에서 다운로드받은 PDF 파일을 여기에 끌어다 놓거나 선택하세요
+                        (최대 20MB)
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-2">
                         <button
