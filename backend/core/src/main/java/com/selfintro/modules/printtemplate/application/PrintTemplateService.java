@@ -140,6 +140,22 @@ public class PrintTemplateService {
 
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate createDirectPdf(Long jobPostingId, String name, String objectKey) {
+        long version = printTemplateRepository.countByJobPostingId(jobPostingId) + 1;
+        String templateName = (name != null && !name.isBlank()) ? name : "외부 제출 PDF v" + version;
+        PrintTemplate template =
+                PrintTemplate.createExternalPdf(
+                        templateName,
+                        jobPostingId,
+                        objectKey,
+                        Math.toIntExact(version - 1));
+        PrintTemplate saved = printTemplateRepository.save(template);
+        promoteToFinal(saved);
+        return saved;
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate update(Long id, PrintTemplateRequest request) {
         PrintTemplate template =
                 printTemplateRepository

@@ -11,6 +11,9 @@ public class PrintTemplate {
     public static final String DOCUMENT_TYPE_PORTFOLIO = "PORTFOLIO";
     public static final String ORIENTATION_PORTRAIT = "PORTRAIT";
     public static final String ORIENTATION_LANDSCAPE = "LANDSCAPE";
+    public static final String SOURCE_MANUAL = "MANUAL";
+    public static final String SOURCE_AI = "AI";
+    public static final String SOURCE_EXTERNAL = "EXTERNAL";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -184,9 +187,37 @@ public class PrintTemplate {
                 DOCUMENT_TYPE_RESUME,
                 null,
                 ORIENTATION_PORTRAIT,
-                "AI",
+                SOURCE_AI,
                 generationMetadata,
                 now);
+    }
+
+    public static PrintTemplate createExternalPdf(
+            String name,
+            Long jobPostingId,
+            String finalPdfObjectKey,
+            int displayOrder) {
+        PrintTemplate template =
+                new PrintTemplate(
+                        name,
+                        "[]",
+                        "[]",
+                        "{}",
+                        "EXTERNAL",
+                        "{}",
+                        null,
+                        2,
+                        false,
+                        displayOrder,
+                        jobPostingId,
+                        DOCUMENT_TYPE_RESUME,
+                        null,
+                        ORIENTATION_PORTRAIT,
+                        SOURCE_EXTERNAL,
+                        null,
+                        null);
+        template.finalPdfObjectKey = finalPdfObjectKey;
+        return template;
     }
 
     /** 포트폴리오 케이스스터디 배치 저장 — 방향(orientation)별로 독립된 행이다. */

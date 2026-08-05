@@ -1,6 +1,7 @@
 package com.selfintro.modules.printtemplate.presentation;
 
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
+import com.selfintro.modules.printtemplate.presentation.dto.DirectPdfUploadRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateFinalPdfRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
@@ -123,6 +124,16 @@ public class PrintTemplateController {
             @PathVariable Long id, @Valid @RequestBody PrintTemplateFinalPdfRequest request) {
         return ResponseEntity.ok(
                 toResponse(printTemplateService.attachFinalPdf(id, request.objectKey())));
+    }
+
+    @PostMapping("/api/admin/job-postings/{jobPostingId}/direct-pdf")
+    public ResponseEntity<PrintTemplateResponse> createDirectPdf(
+            @PathVariable Long jobPostingId,
+            @Valid @RequestBody DirectPdfUploadRequest request) {
+        return ResponseEntity.ok(
+                toResponse(
+                        printTemplateService.createDirectPdf(
+                                jobPostingId, request.name(), request.objectKey())));
     }
 
     @DeleteMapping("/api/admin/print-templates/{id}/final-pdf")

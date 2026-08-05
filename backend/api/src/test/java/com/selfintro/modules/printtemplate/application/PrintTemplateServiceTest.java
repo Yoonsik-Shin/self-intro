@@ -78,4 +78,17 @@ class PrintTemplateServiceTest {
         assertThat(saved.getContentOverrides()).contains("백엔드");
         assertThat(saved.getBaseContentFingerprint()).isEqualTo("v2-12345678");
     }
+
+    @Test
+    void createDirectPdfCreatesExternalTemplateAndPromotesToFinal() {
+        when(repository.countByJobPostingId(10L)).thenReturn(0L);
+
+        PrintTemplate saved = service.createDirectPdf(10L, "사람인 이력서.pdf", "print-template/final-pdf/test.pdf");
+
+        assertThat(saved.getName()).isEqualTo("사람인 이력서.pdf");
+        assertThat(saved.getSource()).isEqualTo("EXTERNAL");
+        assertThat(saved.getJobPostingId()).isEqualTo(10L);
+        assertThat(saved.getFinalPdfObjectKey()).isEqualTo("print-template/final-pdf/test.pdf");
+        assertThat(saved.isFinalSubmission()).isTrue();
+    }
 }
