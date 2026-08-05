@@ -114,123 +114,14 @@ function formatPostingStatus(status: string): { label: string; style: string } {
 }
 
 /**
- * 🎯 도로명 주소 & 번지수 파싱 기반 지능형 정밀 지오코딩 엔진 (Road Hash Geocoder)
+ * 🎯 100% 신뢰 DB 위도/경도 매퍼 (DB 정밀 좌표 우선 적용)
  */
-function parseRoadAddressCoordinates(location: string): { lat: number; lng: number } | null {
-    if (!location || !location.trim()) return null;
-
-    const sanitized = location.replace(/\([^)]*\)/g, '').trim();
-    const match = sanitized.match(/([가-힣]+(?:로|길))\s*(\d+)?(?:길\s*(\d+))?/);
-
-    let baseLat = 37.5006;
-    let baseLng = 127.0365;
-    let found = false;
-
-    if (sanitized.includes('강남대로114길') || sanitized.includes('강남대로 114길')) {
-        baseLat = 37.5065;
-        baseLng = 127.0255;
-        found = true;
-    } else if (sanitized.includes('테헤란')) {
-        baseLat = 37.504;
-        baseLng = 127.049;
-        found = true;
-    } else if (sanitized.includes('논현')) {
-        baseLat = 37.5113;
-        baseLng = 127.0314;
-        found = true;
-    } else if (sanitized.includes('언주')) {
-        baseLat = 37.508;
-        baseLng = 127.039;
-        found = true;
-    } else if (sanitized.includes('강남대')) {
-        baseLat = 37.4981;
-        baseLng = 127.0275;
-        found = true;
-    } else if (sanitized.includes('서초대')) {
-        baseLat = 37.4919;
-        baseLng = 127.0125;
-        found = true;
-    } else if (sanitized.includes('봉은사')) {
-        baseLat = 37.5115;
-        baseLng = 127.044;
-        found = true;
-    } else if (sanitized.includes('삼성')) {
-        baseLat = 37.5088;
-        baseLng = 127.0631;
-        found = true;
-    } else if (sanitized.includes('역삼')) {
-        baseLat = 37.5002;
-        baseLng = 127.0368;
-        found = true;
-    } else if (sanitized.includes('도곡')) {
-        baseLat = 37.49;
-        baseLng = 127.04;
-        found = true;
-    } else if (sanitized.includes('판교')) {
-        baseLat = 37.4022;
-        baseLng = 127.1085;
-        found = true;
-    } else if (sanitized.includes('송파') || sanitized.includes('문정')) {
-        baseLat = 37.4861;
-        baseLng = 127.1226;
-        found = true;
-    } else if (sanitized.includes('성북') || sanitized.includes('길음')) {
-        baseLat = 37.6033;
-        baseLng = 127.025;
-        found = true;
-    } else if (sanitized.includes('여의도')) {
-        baseLat = 37.5255;
-        baseLng = 126.9255;
-        found = true;
-    } else if (sanitized.includes('성수')) {
-        baseLat = 37.5447;
-        baseLng = 127.056;
-        found = true;
-    } else if (sanitized.includes('상암') || sanitized.includes('마포')) {
-        baseLat = 37.5796;
-        baseLng = 126.8899;
-        found = true;
-    } else if (sanitized.includes('가산') || sanitized.includes('구로')) {
-        baseLat = 37.4812;
-        baseLng = 126.8827;
-        found = true;
-    }
-
-    if (!found) return null;
-
-    const num1 = match ? parseInt(match[2] || '1', 10) : 1;
-    const num2 = match ? parseInt(match[3] || '0', 10) : 0;
-
-    const latOffset = (((num1 * 17 + num2 * 31) % 80) - 40) * 0.00015;
-    const lngOffset = (((num1 * 23 + num2 * 13) % 80) - 40) * 0.00018;
-
-    return {
-        lat: baseLat + latOffset,
-        lng: baseLng + lngOffset,
-    };
-}
-
 function resolvePrecisionCoordinates(posting: JobPosting): { lat: number; lng: number } {
-    if (
-        posting.latitude &&
-        posting.longitude &&
-        !(posting.latitude === 37.5006 && posting.longitude === 127.0365)
-    ) {
+    if (posting.latitude && posting.longitude) {
         return { lat: posting.latitude, lng: posting.longitude };
     }
-
-    const parsed = parseRoadAddressCoordinates(posting.location || '');
-    if (parsed) return parsed;
-
-    const company = (posting.companyName || '').toLowerCase();
-    if (company.includes('포스타입')) return { lat: 37.4965, lng: 127.0302 };
-    if (company.includes('드림어스')) return { lat: 37.4988, lng: 127.0345 };
-    if (company.includes('나눔기술')) return { lat: 37.5186, lng: 127.0352 };
-    if (company.includes('엔키화이트햇')) return { lat: 37.4861, lng: 127.1226 };
-
-    return posting.latitude && posting.longitude
-        ? { lat: posting.latitude, lng: posting.longitude }
-        : { lat: 37.5006, lng: 127.0365 };
+    // 기본 테헤란로 fallback
+    return { lat: 37.5006, lng: 127.0365 };
 }
 
 export default function JobPostingMapView({
