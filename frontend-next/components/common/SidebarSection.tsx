@@ -70,13 +70,15 @@ export function SidebarSection({
                 {extraAction && <div className="shrink-0 pl-2">{extraAction}</div>}
             </div>
 
-            {isOpen && (
-                <div
-                    className={`hidden mt-2 space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                >
-                    {children}
-                </div>
-            )}
+            <div
+                className={`hidden grid transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out ${
+                    isOpen
+                        ? 'grid-rows-[1fr] opacity-100 mt-2'
+                        : 'grid-rows-[0fr] opacity-0 mt-0 pointer-events-none'
+                } ${isNavCollapsed ? '' : 'min-[900px]:grid'}`}
+            >
+                <div className="overflow-hidden space-y-1.5 min-h-0">{children}</div>
+            </div>
         </div>
     );
 }
