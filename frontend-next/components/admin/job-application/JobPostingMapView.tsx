@@ -243,13 +243,14 @@ export default function JobPostingMapView({
         }));
     };
 
-    // 📍 특정 공고 선택 및 지도 위치로 이동
+    // 📍 특정 공고 선택 및 지도 위치로 이동 (현재 보고 있는 줌 배율 100% 보존 유지)
     const handleSelectPostingAndPan = (item: (typeof filteredItems)[0]) => {
         setSelectedPostingId(item.posting.id);
         setIsDetailPanelOpen(true);
 
         if (mapInstanceRef.current && item.lat && item.lng) {
-            mapInstanceRef.current.setView([item.lat, item.lng], 15, {
+            const currentZoom = mapInstanceRef.current.getZoom();
+            mapInstanceRef.current.setView([item.lat, item.lng], currentZoom, {
                 animate: true,
             });
         }
