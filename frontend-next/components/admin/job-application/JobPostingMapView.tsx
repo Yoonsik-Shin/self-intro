@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-    MapPin,
     Home,
     Clock,
     Navigation,
@@ -17,12 +16,14 @@ import {
     Compass,
     Radio,
     Sparkles,
-    LayoutGrid,
     Map as MapIcon,
     Loader2,
     Sun,
     Moon,
     ChevronRight,
+    ChevronLeft,
+    PanelLeftClose,
+    PanelLeftOpen,
     PanelRightClose,
     PanelRightOpen,
     GripVertical,
@@ -44,7 +45,6 @@ interface JobPostingMapViewProps {
 }
 
 type TimeFilterOption = 'ALL' | '30' | '45' | '60' | 'OVER_60';
-type ViewModeOption = 'REAL_MAP' | 'CARD_GRID';
 type TileStyleOption = 'LIGHT' | 'DARK';
 
 const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
@@ -96,7 +96,6 @@ function parseRoadAddressCoordinates(location: string): { lat: number; lng: numb
     if (!location || !location.trim()) return null;
 
     const sanitized = location.replace(/\([^)]*\)/g, '').trim();
-
     const match = sanitized.match(/([가-힣]+(?:로|길))\s*(\d+)?(?:길\s*(\d+))?/);
 
     let baseLat = 37.5006;
@@ -218,7 +217,6 @@ export default function JobPostingMapView({
 }: JobPostingMapViewProps) {
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('ALL');
-    const [viewMode, setViewMode] = useState<ViewModeOption>('REAL_MAP');
     const [tileStyle, setTileStyle] = useState<TileStyleOption>('LIGHT');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
@@ -355,7 +353,7 @@ export default function JobPostingMapView({
 
     // 🗺️ Leaflet 지도 인스턴스 초기화 및 동적 클러스터 렌더링
     useEffect(() => {
-        if (viewMode !== 'REAL_MAP' || !mapContainerRef.current) return;
+        if (!mapContainerRef.current) return;
 
         let isMounted = true;
 
@@ -415,7 +413,6 @@ export default function JobPostingMapView({
             }
         };
 
-        // 🎯 동적 거리/화면 픽셀 기반 클러스터링 및 지능형 정밀 마커 렌더링
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const renderMapLayers = (L: any) => {
             const map = mapInstanceRef.current;
@@ -674,16 +671,7 @@ export default function JobPostingMapView({
         return () => {
             isMounted = false;
         };
-    }, [
-        viewMode,
-        homeLat,
-        homeLng,
-        filteredItems,
-        activeItem,
-        layerToggles,
-        tileStyle,
-        currentZoomLevel,
-    ]);
+    }, [homeLat, homeLng, filteredItems, activeItem, layerToggles, tileStyle, currentZoomLevel]);
 
     useEffect(() => {
         if (mapInstanceRef.current) {
@@ -696,68 +684,31 @@ export default function JobPostingMapView({
     return (
         /* ☀️ [BRIGHT THEME] 100% 화사하고 세련된 라이트 모드 메인 컨테이너 */
         <div className="flex flex-col h-[calc(100vh-11rem)] min-h-[650px] rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xl text-slate-800">
-            {/* 1. 상단 툴바 (밝은 톤 + 입체감 있는 버튼) */}
+            {/* 1. 재구성된 상단 툴바 */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 p-4 backdrop-blur-md">
-                {/* 내 집 설정 상태 버튼 */}
-                <div className="flex items-center gap-3">
+                {/* [왼쪽 그룹] 패널 토글 + 출퇴근 소요시간 필터 탭 + 검색창 */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                    {/* 📱 1. 패널 접기/펼치기 토글 버튼 */}
                     <button
-                        onClick={() => setIsHomeModalOpen(true)}
-                        className="group flex items-center gap-2.5 rounded-xl border border-emerald-300/80 bg-emerald-50 px-3.5 py-2 text-xs font-medium text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100 transition-all shadow-xs"
+                        onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-2xs"
+                        title={isDetailPanelOpen ? '상세 패널 접기' : '상세 패널 펼치기'}
                     >
-                        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-200/70 text-emerald-800">
-                            <Home className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="text-left">
-                            <div className="text-[10px] text-emerald-700/80 font-medium">
-                                기준 집 위치
-                            </div>
-                            <div className="max-w-[200px] truncate text-xs font-bold">
-                                {homeAddress}
-                            </div>
-                        </div>
-                        <span className="ml-1 rounded-md bg-emerald-200/60 px-1.5 py-0.5 text-[10px] text-emerald-900 font-semibold group-hover:bg-emerald-300/60">
-                            도로명 검색/변경
-                        </span>
+                        {isDetailPanelOpen ? (
+                            <>
+                                <PanelRightClose className="h-4 w-4 text-indigo-600" />
+                                <span>패널 접기</span>
+                            </>
+                        ) : (
+                            <>
+                                <PanelRightOpen className="h-4 w-4 text-emerald-600" />
+                                <span>상세 패널 열기</span>
+                            </>
+                        )}
                     </button>
 
-                    {/* 🗺️ 실제 지도 뷰 vs 📇 매트릭스 뷰 전환 버튼 */}
+                    {/* 2. 출퇴근 소요시간 필터 탭 */}
                     <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-                        <button
-                            onClick={() => setViewMode('REAL_MAP')}
-                            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                                viewMode === 'REAL_MAP'
-                                    ? 'bg-indigo-600 text-white shadow-xs'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                            }`}
-                        >
-                            <MapIcon className="h-3.5 w-3.5" />
-                            <span>🗺️ 실제 지도 뷰</span>
-                        </button>
-                        <button
-                            onClick={() => setViewMode('CARD_GRID')}
-                            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                                viewMode === 'CARD_GRID'
-                                    ? 'bg-indigo-600 text-white shadow-xs'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                            }`}
-                        >
-                            <LayoutGrid className="h-3.5 w-3.5" />
-                            <span>📇 카드 매트릭스</span>
-                        </button>
-                    </div>
-
-                    <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-600 border-l border-slate-200 pl-3">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
-                        <span>
-                            총 <strong className="text-slate-900">{filteredItems.length}개</strong>{' '}
-                            공고 도로명 정밀 위치 표기 중
-                        </span>
-                    </div>
-                </div>
-
-                {/* 출퇴근 소요시간 필터 탭 */}
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
                         <button
                             onClick={() => setTimeFilter('ALL')}
                             className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
@@ -800,36 +751,40 @@ export default function JobPostingMapView({
                         </button>
                     </div>
 
-                    {/* 📱 오른쪽 공고 상세 정보 패널 접기/펼치기 버튼 */}
-                    <button
-                        onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)}
-                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-2xs"
-                        title={isDetailPanelOpen ? '상세 패널 접기' : '상세 패널 펼치기'}
-                    >
-                        {isDetailPanelOpen ? (
-                            <>
-                                <PanelRightClose className="h-4 w-4 text-indigo-600" />
-                                <span>패널 접기</span>
-                            </>
-                        ) : (
-                            <>
-                                <PanelRightOpen className="h-4 w-4 text-emerald-600" />
-                                <span>상세 패널 열기</span>
-                            </>
-                        )}
-                    </button>
+                    {/* 3. 공고 검색창 (필터 바로 옆 위치) */}
+                    <div className="relative min-w-[210px]">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="회사명 또는 지역 검색..."
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 pl-9 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none shadow-2xs transition-all"
+                        />
+                        <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-slate-400" />
+                    </div>
                 </div>
 
-                {/* 공고 검색창 */}
-                <div className="relative min-w-[200px]">
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="회사명 또는 지역 검색..."
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 pl-9 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none shadow-2xs transition-all"
-                    />
-                    <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-slate-400" />
+                {/* [오른쪽 그룹] 4. 기준 집 위치 버튼 (우측 끝 위치) */}
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsHomeModalOpen(true)}
+                        className="group flex items-center gap-2.5 rounded-xl border border-emerald-300/80 bg-emerald-50 px-3.5 py-2 text-xs font-medium text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100 transition-all shadow-xs"
+                    >
+                        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-200/70 text-emerald-800">
+                            <Home className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="text-left">
+                            <div className="text-[10px] text-emerald-700/80 font-medium">
+                                기준 집 위치
+                            </div>
+                            <div className="max-w-[200px] truncate text-xs font-bold">
+                                {homeAddress}
+                            </div>
+                        </div>
+                        <span className="ml-1 rounded-md bg-emerald-200/60 px-1.5 py-0.5 text-[10px] text-emerald-900 font-semibold group-hover:bg-emerald-300/60">
+                            도로명 검색/변경
+                        </span>
+                    </button>
                 </div>
             </div>
 
@@ -845,32 +800,30 @@ export default function JobPostingMapView({
                         {/* 지도 상단 마인드맵 토글 패널 및 지도 타일 스타일 변경 바 */}
                         <div className="absolute top-4 left-4 right-4 z-20 flex items-start justify-between pointer-events-none">
                             {/* 지도 타일 스위처 */}
-                            {viewMode === 'REAL_MAP' && (
-                                <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl bg-white/95 border border-slate-200 p-1 backdrop-blur-md shadow-md text-xs">
-                                    <button
-                                        onClick={() => setTileStyle('LIGHT')}
-                                        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
-                                            tileStyle === 'LIGHT'
-                                                ? 'bg-emerald-600 text-white shadow-xs'
-                                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                                        }`}
-                                    >
-                                        <Sun className="h-3 w-3 text-amber-300" />
-                                        <span>☀️ 밝은 지도 (추천)</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setTileStyle('DARK')}
-                                        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
-                                            tileStyle === 'DARK'
-                                                ? 'bg-slate-900 text-white shadow-xs'
-                                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                                        }`}
-                                    >
-                                        <Moon className="h-3 w-3 text-indigo-400" />
-                                        <span>🌙 다크 지도</span>
-                                    </button>
-                                </div>
-                            )}
+                            <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl bg-white/95 border border-slate-200 p-1 backdrop-blur-md shadow-md text-xs">
+                                <button
+                                    onClick={() => setTileStyle('LIGHT')}
+                                    className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                                        tileStyle === 'LIGHT'
+                                            ? 'bg-emerald-600 text-white shadow-xs'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <Sun className="h-3 w-3 text-amber-300" />
+                                    <span>☀️ 밝은 지도 (추천)</span>
+                                </button>
+                                <button
+                                    onClick={() => setTileStyle('DARK')}
+                                    className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
+                                        tileStyle === 'DARK'
+                                            ? 'bg-slate-900 text-white shadow-xs'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <Moon className="h-3 w-3 text-indigo-400" />
+                                    <span>🌙 다크 지도</span>
+                                </button>
+                            </div>
 
                             {/* 🧠 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 컨트롤 패널 */}
                             <div className="relative ml-auto pointer-events-auto">
@@ -1019,102 +972,28 @@ export default function JobPostingMapView({
                             </div>
                         </div>
 
-                        {/* 3. 🗺️ 실제 타일 지도 Canvas vs 📇 매트릭스 그리드 뷰어 */}
-                        {viewMode === 'REAL_MAP' ? (
-                            <div className="relative w-full h-full min-h-[450px] bg-slate-100">
-                                {isMapLoading && (
-                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white text-xs font-semibold text-indigo-600">
-                                        <Loader2 className="h-6 w-6 animate-spin" />
-                                        <span>실제 타일 지도를 로드하고 있습니다...</span>
-                                    </div>
-                                )}
-                                <div
-                                    ref={mapContainerRef}
-                                    className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
-                                />
-                            </div>
-                        ) : (
-                            <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-4 bg-slate-50">
-                                {filteredItems.length === 0 ? (
-                                    <div className="col-span-full py-12 text-center text-slate-400 text-xs font-medium">
-                                        선택된 레이어 및 조건에 부합하는 공고 마커가 없습니다.
-                                    </div>
-                                ) : (
-                                    filteredItems.map(({ posting, estimate }) => {
-                                        const isSelected = activeItem?.posting.id === posting.id;
-                                        const mins = estimate?.estimatedMinutes || 0;
+                        {/* 🗺️ Leaflet Map Canvas */}
+                        <div className="relative w-full h-full min-h-[450px] bg-slate-100">
+                            {isMapLoading && (
+                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white text-xs font-semibold text-indigo-600">
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                                    <span>실제 타일 지도를 로드하고 있습니다...</span>
+                                </div>
+                            )}
+                            <div
+                                ref={mapContainerRef}
+                                className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
+                            />
+                        </div>
 
-                                        let badgeBg =
-                                            'bg-emerald-50 border-emerald-200 text-emerald-800';
-                                        let dotColor = 'bg-emerald-500';
-                                        if (mins > 60) {
-                                            badgeBg = 'bg-rose-50 border-rose-200 text-rose-800';
-                                            dotColor = 'bg-rose-500';
-                                        } else if (mins > 45) {
-                                            badgeBg = 'bg-amber-50 border-amber-200 text-amber-800';
-                                            dotColor = 'bg-amber-500';
-                                        } else if (mins > 30) {
-                                            badgeBg =
-                                                'bg-indigo-50 border-indigo-200 text-indigo-800';
-                                            dotColor = 'bg-indigo-500';
-                                        }
-
-                                        return (
-                                            <div
-                                                key={posting.id}
-                                                onClick={() => setSelectedPostingId(posting.id)}
-                                                className={`group cursor-pointer rounded-xl border p-3.5 transition-all duration-200 bg-white ${
-                                                    isSelected
-                                                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md scale-[1.01]'
-                                                        : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
-                                                }`}
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div className="font-bold text-sm text-slate-900 truncate group-hover:text-indigo-600 flex items-center gap-1.5">
-                                                        <span
-                                                            className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
-                                                        />
-                                                        <span className="truncate">
-                                                            {posting.companyName}
-                                                        </span>
-                                                    </div>
-                                                    {layerToggles.showPinLabels && (
-                                                        <span
-                                                            className={`inline-flex items-center shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-bold ${badgeBg}`}
-                                                        >
-                                                            ⏱️{' '}
-                                                            {estimate?.formattedTimeText || '미상'}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <div className="mt-1 text-xs font-medium text-slate-600 truncate">
-                                                    {posting.positionTitle}
-                                                </div>
-
-                                                <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin className="h-3 w-3 text-slate-400" />
-                                                        {posting.location || '위치 정보 없음'}
-                                                    </span>
-                                                    {estimate && (
-                                                        <span className="text-slate-700 font-bold">
-                                                            약 {estimate.estimatedDistanceKm} km
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        )}
-
-                        {/* 지도 정보 가이드 하단 바 */}
-                        <div className="z-20 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 p-3 bg-white/95 backdrop-blur-md text-[11px] text-slate-600 font-medium">
-                            <span>
-                                💡 각 공고의 도로명 주소와 번지수가 파싱되어 실제 건물 보행 위치로
-                                정밀 렌더링됩니다.
+                        {/* 지도 정보 가이드 하단 바 (텍스트 변경 완료) */}
+                        <div className="z-20 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 p-3 bg-white/95 backdrop-blur-md text-[11px] text-slate-700 font-bold">
+                            <span className="flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5 text-indigo-600" />총{' '}
+                                <strong className="text-indigo-600 font-extrabold">
+                                    {filteredItems.length}개
+                                </strong>{' '}
+                                공고 도로명 정밀 위치 표기 중
                             </span>
                             <div className="flex items-center gap-3">
                                 <span className="flex items-center gap-1 text-emerald-700 font-bold">
@@ -1146,33 +1025,33 @@ export default function JobPostingMapView({
                     </div>
                 )}
 
-                {/* 3. 선택된 공고 세부 정보 사이드바 (Bright Theme Light Panel) */}
+                {/* 3. 선택된 공고 세부 정보 사이드바 (Left Collapsible Toggle Button + Resizable Panel) */}
                 {isDetailPanelOpen && (
                     <div
                         style={{ width: `${detailPanelWidth}px` }}
-                        className="shrink-0 border-l border-slate-200 bg-white p-5 flex flex-col justify-between overflow-y-auto transition-all shadow-xs"
+                        className="shrink-0 border-l border-slate-200 bg-white p-5 flex flex-col justify-between overflow-y-auto transition-all shadow-xs relative"
                     >
+                        {/* 📱 패널 좌측 상단 접기 토글 아이콘 버튼 */}
+                        <button
+                            onClick={() => setIsDetailPanelOpen(false)}
+                            className="absolute top-4 left-3 text-slate-400 hover:text-slate-800 p-1 rounded-lg hover:bg-slate-100 transition-colors z-10 flex items-center gap-1 text-xs font-semibold"
+                            title="사이드바 상세 패널 접기"
+                        >
+                            <ChevronRight className="h-4 w-4 text-indigo-600" />
+                        </button>
+
                         {activeItem ? (
-                            <div className="space-y-5">
+                            <div className="space-y-5 pl-5">
                                 {/* 패널 헤더 */}
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-bold text-indigo-700">
                                         {activeItem.posting.status}
                                     </span>
-                                    <div className="flex items-center gap-2">
-                                        {activeItem.posting.deadline && (
-                                            <span className="text-xs font-medium text-slate-500">
-                                                마감일: {activeItem.posting.deadline}
-                                            </span>
-                                        )}
-                                        <button
-                                            onClick={() => setIsDetailPanelOpen(false)}
-                                            className="text-slate-400 hover:text-slate-800 p-1 rounded-md hover:bg-slate-100 transition-colors"
-                                            title="패널 접기"
-                                        >
-                                            <ChevronRight className="h-4 w-4" />
-                                        </button>
-                                    </div>
+                                    {activeItem.posting.deadline && (
+                                        <span className="text-xs font-medium text-slate-500">
+                                            마감일: {activeItem.posting.deadline}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div>
@@ -1273,14 +1152,14 @@ export default function JobPostingMapView({
                                 </div>
                             </div>
                         ) : (
-                            <div className="my-auto text-center text-slate-400 text-xs font-medium">
+                            <div className="my-auto text-center text-slate-400 text-xs font-medium pl-5">
                                 지도의 마커나 공고 목록을 선택해 주세요.
                             </div>
                         )}
 
                         {/* 하단 상세보기 모달 호출 버튼 */}
                         {activeItem && (
-                            <div className="pt-4 border-t border-slate-100 mt-4">
+                            <div className="pt-4 border-t border-slate-100 mt-4 pl-5">
                                 <button
                                     onClick={() => onSelectPosting(activeItem.posting)}
                                     className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-md flex items-center justify-center gap-2"
