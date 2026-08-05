@@ -141,6 +141,8 @@ public class JobApplicationUrlParseService {
     private static final List<DateTimeFormatter> DEADLINE_FORMATTERS =
             List.of(
                     DateTimeFormatter.ISO_LOCAL_DATE,
+                    DateTimeFormatter.ISO_OFFSET_DATE_TIME,
+                    DateTimeFormatter.ISO_LOCAL_DATE_TIME,
                     DateTimeFormatter.ofPattern("yyyy.MM.dd"),
                     DateTimeFormatter.ofPattern("yyyy/MM/dd"),
                     DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
@@ -256,6 +258,16 @@ public class JobApplicationUrlParseService {
                 parseGreetingHrDocument(uri, document, url);
         if (greetingHrResponse.isPresent()) {
             return logGreetingHrResult(uri, fetchMillis, startedAt, greetingHrResponse.get());
+        }
+        Optional<JobApplicationUrlParseResponse> jobkoreaResponse =
+                parseJobkoreaDocument(uri, document, url);
+        if (jobkoreaResponse.isPresent()) {
+            log.info(
+                    "잡코리아 공고 직접 구조 파싱 완료: host={}, fetch={}ms, total={}ms",
+                    uri.getHost(),
+                    fetchMillis,
+                    elapsedMillis(startedAt));
+            return jobkoreaResponse.get();
         }
         if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH
                 || looksLikeMissingDetailSection(document.text())) {
@@ -499,6 +511,142 @@ public class JobApplicationUrlParseService {
         return AiJsonSupport.hasText(section)
                 ? section
                 : AiJsonSupport.limit(fallback, MAX_PAGE_TEXT_LENGTH);
+    }
+
+    private static boolean isJobkorea(URI uri) {
+        String host = uri.getHost();
+        return host != null && host.toLowerCase(Locale.ROOT).endsWith("jobkorea.co.kr");
+    }
+
+    Optional<JobApplicationUrlParseResponse> parseJobkoreaDocument(
+            URI uri, Document document, String postingUrl) {
+        if (!isJobkorea(uri)) {
+            return Optional.empty();
+        }
+
+        String html = document.html();
+        String positionTitleRaw = null;
+        Element metaOgTitle = document.selectFirst("meta[property=og:title]");
+        if (metaOgTitle != null && AiJsonSupport.hasText(metaOgTitle.attr("content"))) {
+            positionTitleRaw = metaOgTitle.attr("content");
+        } else {
+            Element titleEl = document.selectFirst("title");
+            if (titleEl != null) {
+                positionTitleRaw = titleEl.text();
+            }
+        }
+
+        String companyName = extractRegexGroup(html, "(?:\\\\?&quot;|\\\\?\")companyName(?:\\\\?&quot;|\\\\?\")\\s*:\\s*(?:\\\\?&quot;|\\\\?\")([^\"&\\\\]+?)(?:\\\\?&quot;|\\\\?\")");
+        if (!AiJsonSupport.hasText(companyName) && positionTitleRaw != null) {
+            companyName = extractRegexGroup(positionTitleRaw, "^\\[([^\\]]+)\\]");
+        }
+        if (!AiJsonSupport.hasText(companyName)) {
+            companyName = extractRegexGroup(html, "pinTitle=([^&\"\\s]+)");
+            if (AiJsonSupport.hasText(companyName)) {
+                try {
+                    companyName = java.net.URLDecoder.decode(companyName, StandardCharsets.UTF_8);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        if (!AiJsonSupport.hasText(companyName)) {
+            Element metaOgSite = document.selectFirst("meta[property=og:site_name]");
+            if (metaOgSite != null) {
+                companyName = metaOgSite.attr("content");
+            }
+        }
+        if (!AiJsonSupport.hasText(companyName)) {
+            Element coNameEl = document.selectFirst(".coName, .header .name, #company-section span");
+            if (coNameEl != null) {
+                companyName = coNameEl.text();
+            }
+        }
+
+        String positionTitle = positionTitleRaw;
+        if (positionTitle != null) {
+            positionTitle =
+                    positionTitle
+                            .replace("| 잡코리아", "")
+                            .replace("- 잡코리아", "")
+                            .replace("잡코리아 - ", "")
+                            .trim();
+            if (companyName != null
+                    && !companyName.isBlank()
+                    && positionTitle.startsWith("[" + companyName + "]")) {
+                positionTitle =
+                        positionTitle.substring(("[" + companyName + "]").length()).trim();
+            }
+        }
+
+        String deadlineText =
+                extractRegexGroup(
+                        html,
+                        "(?:\\\\?&quot;|\\\\?\")endDate(?:\\\\?&quot;|\\\\?\")\\s*:\\s*(?:\\\\?&quot;|\\\\?\")([^\"&\\\\]+?)(?:\\\\?&quot;|\\\\?\")");
+        if (!AiJsonSupport.hasText(deadlineText)) {
+            deadlineText = extractRegexGroup(html, "마감일</span>.*?<span[^>]*>([^<]+)</span>");
+        }
+        LocalDate deadline = parseDate(deadlineText);
+
+        String location =
+                extractRegexGroup(
+                        html,
+                        "(?:\\\\?&quot;|\\\\?\")description(?:\\\\?&quot;|\\\\?\")\\s*:\\s*(?:\\\\?&quot;|\\\\?\")(서울[^\"&\\\\]+|경기[^\"&\\\\]+|인천[^\"&\\\\]+|부산[^\"&\\\\]+|대구[^\"&\\\\]+|광주[^\"&\\\\]+|대전[^\"&\\\\]+|울산[^\"&\\\\]+|세종[^\"&\\\\]+|강원[^\"&\\\\]+|충북[^\"&\\\\]+|충남[^\"&\\\\]+|전북[^\"&\\\\]+|전남[^\"&\\\\]+|경북[^\"&\\\\]+|경남[^\"&\\\\]+|제주[^\"&\\\\]+)(?:\\\\?&quot;|\\\\?\")");
+        if (!AiJsonSupport.hasText(location)) {
+            Element locEl = document.selectFirst(".emoji--basicemoji-place ~ span, .place");
+            if (locEl != null) {
+                location = locEl.text();
+            }
+        }
+
+        // 잡코리아 상 상세 iframe (GI_Read_Frame) 정적 fetch를 통한 상세 본문 보강
+        String giNo = extractRegexGroup(postingUrl, "(?:GI_Read/|GI_No=)(\\d+)");
+        String frameContent = null;
+        if (AiJsonSupport.hasText(giNo)) {
+            try {
+                Document frameDoc =
+                        fetchDocument(
+                                URI.create(
+                                        "https://www.jobkorea.co.kr/Recruit/GI_Read/GI_Read_Frame?GI_No="
+                                                + giNo));
+                frameContent = frameDoc.text();
+            } catch (Exception e) {
+                log.debug("잡코리아 frame fetch 실패 giNo={}", giNo);
+            }
+        }
+
+        if (!AiJsonSupport.hasText(companyName) || !AiJsonSupport.hasText(positionTitle)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+                new JobApplicationUrlParseResponse(
+                        AiJsonSupport.blankToNull(
+                                AiJsonSupport.limit(companyName, MAX_COMPANY_NAME_LENGTH)),
+                        AiJsonSupport.blankToNull(
+                                AiJsonSupport.limit(positionTitle, MAX_POSITION_TITLE_LENGTH)),
+                        "잡코리아",
+                        deadline,
+                        deadline == null && (html.contains("상시채용") || html.contains("채용시 마감")),
+                        null,
+                        AiJsonSupport.blankToNull(location),
+                        null,
+                        AiJsonSupport.blankToNull(frameContent),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        postingUrl));
+    }
+
+    private static String extractRegexGroup(String text, String regex) {
+        if (text == null) return null;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return null;
     }
 
     private record GreetingHrSections(
@@ -911,9 +1059,19 @@ public class JobApplicationUrlParseService {
         String trimmed = value.trim();
         for (DateTimeFormatter formatter : DEADLINE_FORMATTERS) {
             try {
-                return LocalDate.parse(trimmed, formatter);
-            } catch (DateTimeParseException ignored) {
-                // try the next known format
+                return LocalDate.from(formatter.parse(trimmed));
+            } catch (Exception ignored) {
+            }
+        }
+        if (trimmed.contains("T")) {
+            trimmed = trimmed.substring(0, trimmed.indexOf("T")).trim();
+        } else if (trimmed.contains(" ")) {
+            trimmed = trimmed.split("\\s+")[0].trim();
+        }
+        for (DateTimeFormatter formatter : DEADLINE_FORMATTERS) {
+            try {
+                return LocalDate.from(formatter.parse(trimmed));
+            } catch (Exception ignored) {
             }
         }
         return null;
