@@ -11,6 +11,13 @@ import {
     Building2,
     Briefcase,
     DollarSign,
+    Layers,
+    Eye,
+    EyeOff,
+    CheckCircle2,
+    Compass,
+    Radio,
+    Sparkles,
 } from 'lucide-react';
 import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
 import {
@@ -41,6 +48,18 @@ export default function JobPostingMapView({
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
 
+    // 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 레이어 상태
+    const [layerToggles, setLayerToggles] = useState({
+        showHomePin: true, // 🏠 내 집 위치 마커 켜기/끄기
+        show30Min: true, // ⚡ 30분 이내 초고속 직주근접 핀 켜기/끄기
+        show60Min: true, // ⚡ 30~60분 적정 출퇴근 핀 켜기/끄기
+        showOver60Min: true, // 🐢 60분 초과/장거리 핀 켜기/끄기
+        showDistanceRings: true, // 🎯 직주근접 동심원 반경 링 (10km / 20km / 30km) 켜기/끄기
+        showPinLabels: true, // 🏷️ 마커 뱃지 라벨 항상 켜기/끄기
+    });
+
+    const [isLayerControlOpen, setIsLayerControlOpen] = useState(true);
+
     // 기본 집 위치 (설정 값이 없을 시 서울 마포구 상암동 좌표를 기본값으로 제공)
     const homeLat = settings?.homeLatitude ?? 37.5796;
     const homeLng = settings?.homeLongitude ?? 126.8899;
@@ -51,13 +70,12 @@ export default function JobPostingMapView({
         return postings.map((posting) => {
             let estimate: CommuteEstimate | null = null;
 
-            // 공고의 lat/lng 좌표가 없지만 location 문구에 서울/경기 등 키워드가 있는 경우 대략적 대표좌표 폴백
             let lat = posting.latitude;
             let lng = posting.longitude;
 
             if (!lat || !lng) {
                 const loc = posting.location || '';
-                if (loc.includes('강남')) {
+                if (loc.includes('강남') || loc.includes('역삼')) {
                     lat = 37.5006;
                     lng = 127.0365;
                 } else if (loc.includes('판교') || loc.includes('분당')) {
@@ -69,7 +87,7 @@ export default function JobPostingMapView({
                 } else if (loc.includes('성수')) {
                     lat = 37.5447;
                     lng = 127.056;
-                } else if (loc.includes('마포') || loc.includes('상암')) {
+                } else if (loc.includes('마포') || loc.includes('상암') || loc.includes('서교')) {
                     lat = 37.5796;
                     lng = 126.8899;
                 } else if (loc.includes('가산') || loc.includes('구로')) {
@@ -91,10 +109,16 @@ export default function JobPostingMapView({
         });
     }, [postings, homeLat, homeLng]);
 
-    // 검색 및 소요시간 필터링 적용
+    // 검색 및 소요시간 필터링 + 마인드맵 레이어 토글 적용
     const filteredItems = useMemo(() => {
         return postingsWithCommute.filter(({ posting, estimate }) => {
-            // 1. 검색어 필터
+            // 1. 레이어 토글 필터 (30분 이내 / 30~60분 / 60분 초과)
+            const mins = estimate?.estimatedMinutes || 999;
+            if (mins <= 30 && !layerToggles.show30Min) return false;
+            if (mins > 30 && mins <= 60 && !layerToggles.show60Min) return false;
+            if (mins > 60 && !layerToggles.showOver60Min) return false;
+
+            // 2. 상단 검색어 필터
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const matchCompany = posting.companyName.toLowerCase().includes(q);
@@ -103,11 +127,10 @@ export default function JobPostingMapView({
                 if (!matchCompany && !matchTitle && !matchLoc) return false;
             }
 
-            // 2. 시간 필터
+            // 3. 상단 시간 필터 탭
             if (timeFilter === 'ALL') return true;
             if (!estimate) return false;
 
-            const mins = estimate.estimatedMinutes;
             if (timeFilter === '30') return mins <= 30;
             if (timeFilter === '45') return mins <= 45;
             if (timeFilter === '60') return mins <= 60;
@@ -115,7 +138,7 @@ export default function JobPostingMapView({
 
             return true;
         });
-    }, [postingsWithCommute, searchQuery, timeFilter]);
+    }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
 
     // 선택된 공고 아이템
     const activeItem = useMemo(() => {
@@ -127,8 +150,16 @@ export default function JobPostingMapView({
         );
     }, [filteredItems, selectedPostingId]);
 
+    // 마인드맵 토글 핸들러
+    const toggleLayer = (key: keyof typeof layerToggles) => {
+        setLayerToggles((prev) => ({
+            ...prev,
+            [key]: !prev[key],
+        }));
+    };
+
     return (
-        <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[600px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
+        <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[650px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
             {/* 1. 상단 툴바 (내 집 정보 + 필터 + 검색) */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/90 p-4 backdrop-blur-md">
                 {/* 내 집 설정 상태 버튼 */}
@@ -149,7 +180,7 @@ export default function JobPostingMapView({
                             </div>
                         </div>
                         <span className="ml-1 rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] text-emerald-300 group-hover:bg-emerald-500/30">
-                            변경
+                            도로명 검색/변경
                         </span>
                     </button>
 
@@ -222,49 +253,221 @@ export default function JobPostingMapView({
             <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
                 {/* 지도 시각화 캔버스 (Left 8 cols) */}
                 <div className="relative lg:col-span-8 bg-zinc-950 overflow-hidden flex flex-col items-center justify-center p-4">
-                    {/* 브라우저 상의 Interactive Map Grid Canvas (Leaflet/OSM 타일 캔버스 시각화) */}
+                    {/* 브라우저 상의 Interactive Map Grid Canvas */}
                     <div className="relative w-full h-full rounded-xl border border-zinc-800/80 bg-zinc-900/50 p-6 flex flex-col justify-between overflow-hidden">
                         {/* 지도 그리드 격자 패턴 배경 */}
                         <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
 
-                        {/* 내 집 핀 카운터 레이어 */}
-                        <div className="z-10 flex items-center justify-between">
-                            <div className="flex items-center gap-2 rounded-xl bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 backdrop-blur-md">
-                                <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                                <span className="font-semibold text-emerald-400">
-                                    🏠 내 집 출발점
-                                </span>
-                                <span className="text-zinc-500">|</span>
-                                <span className="text-zinc-400">{homeAddress}</span>
+                        {/* 🎯 직주근접 동심원 거리 반경 링 (10km / 20km / 30km) */}
+                        {layerToggles.showDistanceRings && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30 z-0">
+                                <div className="absolute w-[240px] h-[240px] rounded-full border border-dashed border-emerald-400 flex items-start justify-center pt-2">
+                                    <span className="text-[10px] text-emerald-400 bg-zinc-950/80 px-1 rounded">
+                                        10 km (약 25분)
+                                    </span>
+                                </div>
+                                <div className="absolute w-[440px] h-[440px] rounded-full border border-dashed border-indigo-400 flex items-start justify-center pt-2">
+                                    <span className="text-[10px] text-indigo-400 bg-zinc-950/80 px-1 rounded">
+                                        20 km (약 45분)
+                                    </span>
+                                </div>
+                                <div className="absolute w-[640px] h-[640px] rounded-full border border-dashed border-amber-400 flex items-start justify-center pt-2">
+                                    <span className="text-[10px] text-amber-400 bg-zinc-950/80 px-1 rounded">
+                                        30 km (약 60분)
+                                    </span>
+                                </div>
                             </div>
+                        )}
 
-                            <div className="text-xs text-zinc-500 bg-zinc-900/80 border border-zinc-800/60 px-2.5 py-1 rounded-lg">
-                                🗺️ 위치 기반 출퇴근 맵
+                        {/* 상단 레이어 바 */}
+                        <div className="z-20 flex items-start justify-between">
+                            {/* 내 집 핀 라벨 */}
+                            {layerToggles.showHomePin && (
+                                <div className="flex items-center gap-2 rounded-xl bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 backdrop-blur-md shadow-lg">
+                                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
+                                    <span className="font-semibold text-emerald-400">
+                                        🏠 내 집 출발점
+                                    </span>
+                                    <span className="text-zinc-500">|</span>
+                                    <span className="text-zinc-300 max-w-[240px] truncate">
+                                        {homeAddress}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* 🧠 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 컨트롤 패널 */}
+                            <div className="relative ml-auto">
+                                <button
+                                    onClick={() => setIsLayerControlOpen(!isLayerControlOpen)}
+                                    className="flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 backdrop-blur-md transition-all shadow-md"
+                                >
+                                    <Layers className="h-3.5 w-3.5 text-indigo-400" />
+                                    <span>마인드맵 레이어 토글</span>
+                                    <span className="rounded bg-indigo-500/20 px-1 text-[10px]">
+                                        {Object.values(layerToggles).filter(Boolean).length}/6
+                                    </span>
+                                </button>
+
+                                {isLayerControlOpen && (
+                                    <div className="absolute right-0 top-9 w-64 rounded-2xl border border-zinc-800 bg-zinc-900/95 p-3.5 backdrop-blur-xl shadow-2xl space-y-2 z-30 animate-in fade-in slide-in-from-top-2 duration-150 text-xs">
+                                        <div className="flex items-center justify-between border-b border-zinc-800 pb-2 text-[11px] font-semibold text-zinc-400">
+                                            <span className="flex items-center gap-1">
+                                                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                                                지도 요소 켜기/끄기
+                                            </span>
+                                            <span>토글 컨트롤</span>
+                                        </div>
+
+                                        {/* 1. 내 집 마커 토글 */}
+                                        <button
+                                            onClick={() => toggleLayer('showHomePin')}
+                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
+                                                layerToggles.showHomePin
+                                                    ? 'bg-emerald-500/15 text-emerald-300 font-semibold'
+                                                    : 'bg-zinc-800/40 text-zinc-500'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                <Home className="h-3.5 w-3.5" />
+                                                기준 내 집 마커
+                                            </span>
+                                            {layerToggles.showHomePin ? (
+                                                <Eye className="h-3.5 w-3.5 text-emerald-400" />
+                                            ) : (
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+
+                                        {/* 2. 30분 이내 공고 토글 */}
+                                        <button
+                                            onClick={() => toggleLayer('show30Min')}
+                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
+                                                layerToggles.show30Min
+                                                    ? 'bg-emerald-500/15 text-emerald-300 font-semibold'
+                                                    : 'bg-zinc-800/40 text-zinc-500'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                                                ⚡ 30분 이내 공고
+                                            </span>
+                                            {layerToggles.show30Min ? (
+                                                <Eye className="h-3.5 w-3.5 text-emerald-400" />
+                                            ) : (
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+
+                                        {/* 3. 30~60분 공고 토글 */}
+                                        <button
+                                            onClick={() => toggleLayer('show60Min')}
+                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
+                                                layerToggles.show60Min
+                                                    ? 'bg-indigo-500/15 text-indigo-300 font-semibold'
+                                                    : 'bg-zinc-800/40 text-zinc-500'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                <span className="h-2 w-2 rounded-full bg-indigo-400" />
+                                                ⚡ 30~60분 공고
+                                            </span>
+                                            {layerToggles.show60Min ? (
+                                                <Eye className="h-3.5 w-3.5 text-indigo-400" />
+                                            ) : (
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+
+                                        {/* 4. 60분 초과 공고 토글 */}
+                                        <button
+                                            onClick={() => toggleLayer('showOver60Min')}
+                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
+                                                layerToggles.showOver60Min
+                                                    ? 'bg-rose-500/15 text-rose-300 font-semibold'
+                                                    : 'bg-zinc-800/40 text-zinc-500'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                <span className="h-2 w-2 rounded-full bg-rose-400" />
+                                                🐢 60분 초과 공고
+                                            </span>
+                                            {layerToggles.showOver60Min ? (
+                                                <Eye className="h-3.5 w-3.5 text-rose-400" />
+                                            ) : (
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+
+                                        {/* 5. 직주근접 반경 링 토글 */}
+                                        <button
+                                            onClick={() => toggleLayer('showDistanceRings')}
+                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
+                                                layerToggles.showDistanceRings
+                                                    ? 'bg-amber-500/15 text-amber-300 font-semibold'
+                                                    : 'bg-zinc-800/40 text-zinc-500'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                <Compass className="h-3.5 w-3.5" />
+                                                🎯 반경 동심원 (10/20/30km)
+                                            </span>
+                                            {layerToggles.showDistanceRings ? (
+                                                <Eye className="h-3.5 w-3.5 text-amber-400" />
+                                            ) : (
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+
+                                        {/* 6. 마커 뱃지 라벨 토글 */}
+                                        <button
+                                            onClick={() => toggleLayer('showPinLabels')}
+                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
+                                                layerToggles.showPinLabels
+                                                    ? 'bg-purple-500/15 text-purple-300 font-semibold'
+                                                    : 'bg-zinc-800/40 text-zinc-500'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                <Radio className="h-3.5 w-3.5" />
+                                                🏷️ 마커 뱃지 라벨 보기
+                                            </span>
+                                            {layerToggles.showPinLabels ? (
+                                                <Eye className="h-3.5 w-3.5 text-purple-400" />
+                                            ) : (
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         {/* 지도 마커 시각화 매트릭스 */}
                         <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-2">
                             {filteredItems.length === 0 ? (
-                                <div className="col-span-full py-12 text-center text-zinc-500">
-                                    조건에 부합하는 공고 마커가 없습니다.
+                                <div className="col-span-full py-12 text-center text-zinc-500 text-xs">
+                                    선택된 레이어 및 조건에 부합하는 공고 마커가 없습니다.
                                 </div>
                             ) : (
                                 filteredItems.map(({ posting, estimate }) => {
                                     const isSelected = activeItem?.posting.id === posting.id;
                                     const mins = estimate?.estimatedMinutes || 0;
 
-                                    // 소요시간별 컬러 테마
+                                    // 소요시간별 마커 스타일 & 컬러 테마
                                     let badgeBg =
-                                        'bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
+                                        'bg-emerald-500/15 border-emerald-500/30 text-emerald-300';
+                                    let dotColor = 'bg-emerald-400';
                                     if (mins > 60) {
-                                        badgeBg = 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+                                        badgeBg = 'bg-rose-500/15 border-rose-500/30 text-rose-300';
+                                        dotColor = 'bg-rose-400';
                                     } else if (mins > 45) {
                                         badgeBg =
-                                            'bg-amber-500/10 border-amber-500/30 text-amber-400';
+                                            'bg-amber-500/15 border-amber-500/30 text-amber-300';
+                                        dotColor = 'bg-amber-400';
                                     } else if (mins > 30) {
                                         badgeBg =
-                                            'bg-indigo-500/10 border-indigo-500/30 text-indigo-400';
+                                            'bg-indigo-500/15 border-indigo-500/30 text-indigo-300';
+                                        dotColor = 'bg-indigo-400';
                                     }
 
                                     return (
@@ -273,19 +476,26 @@ export default function JobPostingMapView({
                                             onClick={() => setSelectedPostingId(posting.id)}
                                             className={`group cursor-pointer rounded-xl border p-3.5 transition-all duration-200 ${
                                                 isSelected
-                                                    ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/40 shadow-lg shadow-indigo-500/10'
+                                                    ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/40 shadow-lg shadow-indigo-500/10 scale-[1.02]'
                                                     : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 hover:bg-zinc-800/60'
                                             }`}
                                         >
                                             <div className="flex items-start justify-between gap-2">
-                                                <div className="font-semibold text-sm text-zinc-100 truncate group-hover:text-white">
-                                                    {posting.companyName}
+                                                <div className="font-semibold text-sm text-zinc-100 truncate group-hover:text-white flex items-center gap-1.5">
+                                                    <span
+                                                        className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
+                                                    />
+                                                    <span className="truncate">
+                                                        {posting.companyName}
+                                                    </span>
                                                 </div>
-                                                <span
-                                                    className={`inline-flex items-center shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-bold ${badgeBg}`}
-                                                >
-                                                    ⏱️ {estimate?.formattedTimeText || '시간 미상'}
-                                                </span>
+                                                {layerToggles.showPinLabels && (
+                                                    <span
+                                                        className={`inline-flex items-center shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-bold ${badgeBg}`}
+                                                    >
+                                                        ⏱️ {estimate?.formattedTimeText || '미상'}
+                                                    </span>
+                                                )}
                                             </div>
 
                                             <div className="mt-1 text-xs text-zinc-400 truncate">
@@ -298,7 +508,7 @@ export default function JobPostingMapView({
                                                     {posting.location || '위치 정보 없음'}
                                                 </span>
                                                 {estimate && (
-                                                    <span className="text-zinc-400">
+                                                    <span className="text-zinc-400 font-medium">
                                                         약 {estimate.estimatedDistanceKm} km
                                                     </span>
                                                 )}
