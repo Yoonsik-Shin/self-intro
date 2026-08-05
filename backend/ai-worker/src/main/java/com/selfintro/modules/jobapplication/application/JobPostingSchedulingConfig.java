@@ -1,6 +1,6 @@
 package com.selfintro.modules.jobapplication.application;
 
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;

@@ -2,10 +2,10 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
-import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.io.IOException;

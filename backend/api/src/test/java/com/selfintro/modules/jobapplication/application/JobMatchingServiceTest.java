@@ -10,8 +10,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.Duration;

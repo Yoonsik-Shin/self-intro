@@ -7,10 +7,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingCoverLetterItem;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingCoverLetterItemRepository;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterItemRequest;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterItem;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterItemRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemRequest;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterSaveRequest;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;

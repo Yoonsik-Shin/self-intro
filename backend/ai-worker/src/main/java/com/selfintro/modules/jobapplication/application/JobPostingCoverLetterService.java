@@ -1,9 +1,9 @@
 package com.selfintro.modules.jobapplication.application;
 
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingCoverLetterItem;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingCoverLetterItemRepository;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterItemResponse;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterItem;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterItemRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingCoverLetterSaveRequest;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;

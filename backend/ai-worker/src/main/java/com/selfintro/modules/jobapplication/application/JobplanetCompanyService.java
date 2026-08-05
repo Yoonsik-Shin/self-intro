@@ -1,9 +1,9 @@
 package com.selfintro.modules.jobapplication.application;
 
-import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
-import com.selfintro.modules.jobapplication.presentation.dto.JobplanetCompanyRequest;
-import com.selfintro.modules.jobapplication.presentation.dto.JobplanetLookupResponse;
+import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobplanetCompanyRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobplanetLookupResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.net.URI;
 import java.net.URLEncoder;

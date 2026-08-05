@@ -9,7 +9,7 @@ import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobapplication.domain.entity.GapProjectDocument;
 import com.selfintro.modules.jobapplication.domain.repository.GapProjectDocumentRepository;
 import com.selfintro.modules.jobapplication.presentation.dto.GapProjectDocumentResponse;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import java.time.Duration;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

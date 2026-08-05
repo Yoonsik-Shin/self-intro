@@ -5,11 +5,11 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
-import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingSourceUrlRepository;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
+import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;

@@ -13,7 +13,7 @@ import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import com.selfintro.modules.jobapplication.presentation.dto.JobPostingPrintDraftResponse;
-import com.selfintro.modules.jobapplication.presentation.dto.JobPostingResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.profile.presentation.dto.ProfileResponse;

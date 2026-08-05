@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.Duration;
 import java.util.List;

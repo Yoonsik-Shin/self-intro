@@ -10,12 +10,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.jobapplication.application.JobPostingCollectorService.JobPostingCollectionResult;
-import com.selfintro.modules.jobapplication.domain.entity.JobPosting;
-import com.selfintro.modules.jobapplication.domain.entity.JobPostingSetting;
-import com.selfintro.modules.jobapplication.domain.enums.JobPostingSource;
-import com.selfintro.modules.jobapplication.domain.enums.JobPostingStatus;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingRepository;
-import com.selfintro.modules.jobapplication.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
