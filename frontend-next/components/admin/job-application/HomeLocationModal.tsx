@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Home, MapPin, X } from 'lucide-react';
+import { Home, MapPin, X, Search, Sparkles, Loader2 } from 'lucide-react';
 import { jobPostingApi } from '@/lib/api/jobPosting';
 import type { JobPostingSetting } from '@/lib/api/types';
+import { openDaumPostcodeSearch, geocodeAddressClient } from '@/lib/utils/daumPostcode';
 
 interface HomeLocationModalProps {
     isOpen: boolean;
@@ -60,6 +61,7 @@ export default function HomeLocationModal({
         settings?.homeLongitude ? String(settings.homeLongitude) : ''
     );
     const [isSaving, setIsSaving] = useState(false);
+    const [isGeocoding, setIsGeocoding] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     if (!isOpen) return null;
@@ -68,6 +70,50 @@ export default function HomeLocationModal({
         setAddress(preset.address);
         setLatitude(String(preset.lat));
         setLongitude(String(preset.lng));
+    };
+
+    // 카카오/다음 우편번호 & 도로명 주소 검색 팝업 실행
+    const handleSearchAddress = async () => {
+        try {
+            setErrorMsg(null);
+            await openDaumPostcodeSearch(async (data) => {
+                const selectedAddr = data.roadAddress || data.address;
+                setAddress(selectedAddr);
+
+                // 도로명 주소 선택 직후 좌표 실시간 자동 계산
+                setIsGeocoding(true);
+                const coords = await geocodeAddressClient(selectedAddr);
+                setIsGeocoding(false);
+
+                if (coords) {
+                    setLatitude(String(coords.lat));
+                    setLongitude(String(coords.lng));
+                } else {
+                    setErrorMsg(
+                        '위도/경도 자동 계산에 실패했습니다. 대략적 좌표를 직접 입력해 주세요.'
+                    );
+                }
+            });
+        } catch (err: unknown) {
+            const message =
+                err instanceof Error ? err.message : '도로명 주소 검색 팝업을 열지 못했습니다.';
+            setErrorMsg(message);
+        }
+    };
+
+    // 주소 텍스트 변경 시 실시간 재계산 처리
+    const handleRecalculateCoords = async () => {
+        if (!address.trim()) return;
+        setIsGeocoding(true);
+        setErrorMsg(null);
+        const coords = await geocodeAddressClient(address);
+        setIsGeocoding(false);
+        if (coords) {
+            setLatitude(String(coords.lat));
+            setLongitude(String(coords.lng));
+        } else {
+            setErrorMsg('해당 주소의 정확한 좌표를 찾을 수 없습니다.');
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -120,7 +166,7 @@ export default function HomeLocationModal({
                         <div>
                             <h3 className="font-semibold text-lg">내 집 위치 설정</h3>
                             <p className="text-xs text-zinc-400">
-                                출퇴근 시간을 계산할 기준 주소를 지정합니다.
+                                도로명 주소 검색 시 위도/경도가 100% 자동 계산됩니다.
                             </p>
                         </div>
                     </div>
@@ -152,50 +198,97 @@ export default function HomeLocationModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-zinc-300 mb-1">
-                            집 주소 (도로명/지번)
-                        </label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
-                                placeholder="예: 서울특별시 마포구 월드컵북로..."
-                                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 pl-9 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                required
-                            />
-                            <MapPin className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-medium text-zinc-300">
+                                집 주소 (도로명/지번)
+                            </label>
+                            <button
+                                type="button"
+                                onClick={handleSearchAddress}
+                                className="flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                            >
+                                <Search className="h-3 w-3" />
+                                <span>도로명 주소 검색</span>
+                            </button>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <input
+                                    type="text"
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
+                                    placeholder="예: 서울특별시 마포구 월드컵북로..."
+                                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 pl-9 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    required
+                                />
+                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleSearchAddress}
+                                className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all shrink-0"
+                            >
+                                <Search className="h-3.5 w-3.5" />
+                                주소검색
+                            </button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-medium text-zinc-300 mb-1">
-                                위도 (Latitude)
-                            </label>
-                            <input
-                                type="number"
-                                step="any"
-                                value={latitude}
-                                onChange={(e) => setLatitude(e.target.value)}
-                                placeholder="예: 37.5796"
-                                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
-                                required
-                            />
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3.5 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-400 font-medium flex items-center gap-1">
+                                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                                자동 계산된 위도/경도 좌표
+                            </span>
+                            <button
+                                type="button"
+                                onClick={handleRecalculateCoords}
+                                disabled={isGeocoding || !address.trim()}
+                                className="text-[11px] text-zinc-400 hover:text-zinc-200 underline disabled:opacity-50"
+                            >
+                                {isGeocoding ? '계산 중...' : '좌표 재계산'}
+                            </button>
                         </div>
-                        <div>
-                            <label className="block text-xs font-medium text-zinc-300 mb-1">
-                                경도 (Longitude)
-                            </label>
-                            <input
-                                type="number"
-                                step="any"
-                                value={longitude}
-                                onChange={(e) => setLongitude(e.target.value)}
-                                placeholder="예: 126.8899"
-                                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
-                                required
-                            />
+
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                            <div>
+                                <label className="block text-[11px] text-zinc-500 mb-1">
+                                    위도 (Latitude)
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={latitude}
+                                        onChange={(e) => setLatitude(e.target.value)}
+                                        placeholder="37.5796"
+                                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                                        required
+                                    />
+                                    {isGeocoding && (
+                                        <Loader2 className="absolute right-2.5 top-2 h-3.5 w-3.5 animate-spin text-emerald-400" />
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] text-zinc-500 mb-1">
+                                    경도 (Longitude)
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={longitude}
+                                        onChange={(e) => setLongitude(e.target.value)}
+                                        placeholder="126.8899"
+                                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                                        required
+                                    />
+                                    {isGeocoding && (
+                                        <Loader2 className="absolute right-2.5 top-2 h-3.5 w-3.5 animate-spin text-emerald-400" />
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
