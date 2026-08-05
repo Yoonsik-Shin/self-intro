@@ -19,6 +19,7 @@ import {
     Sparkles,
     LayoutGrid,
     Map as MapIcon,
+    Loader2,
 } from 'lucide-react';
 import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
 import {
@@ -28,9 +29,6 @@ import {
     CommuteEstimate,
 } from '@/lib/utils/commuteCalculator';
 import HomeLocationModal from './HomeLocationModal';
-
-// Leaflet CSS CDN 로드
-import 'leaflet/dist/leaflet.css';
 
 interface JobPostingMapViewProps {
     postings: JobPosting[];
@@ -43,6 +41,54 @@ type TimeFilterOption = 'ALL' | '30' | '45' | '60' | 'OVER_60';
 type ViewModeOption = 'REAL_MAP' | 'CARD_GRID';
 type TileStyleOption = 'DARK' | 'STREET';
 
+const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+const LEAFLET_JS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+
+/**
+ * Next.js Turbopack/SSR 빌드 안전한 Leaflet CDN 동적 로더
+ */
+
+function loadLeafletAssets(): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+        if (typeof window === 'undefined') {
+            reject(new Error('Window is undefined'));
+            return;
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((window as any).L) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            resolve((window as any).L);
+            return;
+        }
+
+        // 1. Leaflet CSS 동적 로드
+        if (!document.querySelector(`link[href="${LEAFLET_CSS_URL}"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = LEAFLET_CSS_URL;
+            document.head.appendChild(link);
+        }
+
+        // 2. Leaflet JS 동적 로드
+        const existingScript = document.querySelector(`script[src="${LEAFLET_JS_URL}"]`);
+        if (existingScript) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            existingScript.addEventListener('load', () => resolve((window as any).L));
+            existingScript.addEventListener('error', (e) => reject(e));
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = LEAFLET_JS_URL;
+        script.async = true;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        script.onload = () => resolve((window as any).L);
+        script.onerror = (err) => reject(err);
+        document.head.appendChild(script);
+    });
+}
+
 export default function JobPostingMapView({
     postings,
     settings,
@@ -51,10 +97,11 @@ export default function JobPostingMapView({
 }: JobPostingMapViewProps) {
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('ALL');
-    const [viewMode, setViewMode] = useState<ViewModeOption>('REAL_MAP'); // 🗺️ 진짜 타일 지도 기본값
+    const [viewMode, setViewMode] = useState<ViewModeOption>('REAL_MAP'); // 🗺️ 실제 타일 지도 기본값
     const [tileStyle, setTileStyle] = useState<TileStyleOption>('DARK');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
+    const [isMapLoading, setIsMapLoading] = useState(true);
 
     // 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 레이어 상태
     const [layerToggles, setLayerToggles] = useState({
@@ -187,153 +234,160 @@ export default function JobPostingMapView({
         let isMounted = true;
 
         const initLeafletMap = async () => {
-            const L = (await import('leaflet')).default;
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const L: any = await loadLeafletAssets();
 
-            if (!isMounted || !mapContainerRef.current) return;
+                if (!isMounted || !mapContainerRef.current) return;
 
-            // 기존 지도가 생성되어 있다면 재사용 또는 갱신
-            if (!mapInstanceRef.current) {
-                const map = L.map(mapContainerRef.current, {
-                    center: [homeLat, homeLng],
-                    zoom: 11,
-                    zoomControl: false,
-                });
+                setIsMapLoading(false);
 
-                L.control.zoom({ position: 'bottomright' }).addTo(map);
+                // 기존 지도가 생성되어 있다면 재사용 또는 갱신
+                if (!mapInstanceRef.current) {
+                    const map = L.map(mapContainerRef.current, {
+                        center: [homeLat, homeLng],
+                        zoom: 11,
+                        zoomControl: false,
+                    });
 
-                const tileUrl =
-                    tileStyle === 'DARK'
-                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+                    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-                const attribution =
-                    tileStyle === 'DARK'
-                        ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
-                        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+                    const tileUrl =
+                        tileStyle === 'DARK'
+                            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-                L.tileLayer(tileUrl, {
-                    attribution,
-                    maxZoom: 19,
-                }).addTo(map);
+                    const attribution =
+                        tileStyle === 'DARK'
+                            ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
+                            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-                markersGroupRef.current = L.layerGroup().addTo(map);
-                ringsGroupRef.current = L.layerGroup().addTo(map);
+                    L.tileLayer(tileUrl, {
+                        attribution,
+                        maxZoom: 19,
+                    }).addTo(map);
 
-                mapInstanceRef.current = map;
-            } else {
+                    markersGroupRef.current = L.layerGroup().addTo(map);
+                    ringsGroupRef.current = L.layerGroup().addTo(map);
+
+                    mapInstanceRef.current = map;
+                } else {
+                    const map = mapInstanceRef.current;
+                    map.setView([homeLat, homeLng]);
+                }
+
                 const map = mapInstanceRef.current;
-                map.setView([homeLat, homeLng]);
-            }
+                const markersGroup = markersGroupRef.current;
+                const ringsGroup = ringsGroupRef.current;
 
-            const map = mapInstanceRef.current;
-            const markersGroup = markersGroupRef.current;
-            const ringsGroup = ringsGroupRef.current;
+                if (!markersGroup || !ringsGroup) return;
 
-            if (!markersGroup || !ringsGroup) return;
+                markersGroup.clearLayers();
+                ringsGroup.clearLayers();
 
-            markersGroup.clearLayers();
-            ringsGroup.clearLayers();
+                // 🎯 1. 반경 동심원 (10km, 20km, 30km)
+                if (layerToggles.showDistanceRings) {
+                    L.circle([homeLat, homeLng], {
+                        radius: 10000,
+                        color: '#10b981',
+                        weight: 1.5,
+                        dashArray: '4, 4',
+                        fillOpacity: 0.03,
+                    }).addTo(ringsGroup);
 
-            // 🎯 1. 반경 동심원 (10km, 20km, 30km)
-            if (layerToggles.showDistanceRings) {
-                L.circle([homeLat, homeLng], {
-                    radius: 10000,
-                    color: '#10b981',
-                    weight: 1.5,
-                    dashArray: '4, 4',
-                    fillOpacity: 0.03,
-                }).addTo(ringsGroup);
+                    L.circle([homeLat, homeLng], {
+                        radius: 20000,
+                        color: '#6366f1',
+                        weight: 1.5,
+                        dashArray: '4, 4',
+                        fillOpacity: 0.02,
+                    }).addTo(ringsGroup);
 
-                L.circle([homeLat, homeLng], {
-                    radius: 20000,
-                    color: '#6366f1',
-                    weight: 1.5,
-                    dashArray: '4, 4',
-                    fillOpacity: 0.02,
-                }).addTo(ringsGroup);
+                    L.circle([homeLat, homeLng], {
+                        radius: 30000,
+                        color: '#f59e0b',
+                        weight: 1.5,
+                        dashArray: '4, 4',
+                        fillOpacity: 0.01,
+                    }).addTo(ringsGroup);
+                }
 
-                L.circle([homeLat, homeLng], {
-                    radius: 30000,
-                    color: '#f59e0b',
-                    weight: 1.5,
-                    dashArray: '4, 4',
-                    fillOpacity: 0.01,
-                }).addTo(ringsGroup);
-            }
-
-            // 🏠 2. 내 집 위치 마커 (Home Marker)
-            if (layerToggles.showHomePin) {
-                const homeIcon = L.divIcon({
-                    className: 'custom-home-icon',
-                    html: `
-                        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: rgba(16, 185, 129, 0.4); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                            <div style="position: relative; width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #09090b; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5); border: 2px solid #ffffff;">
-                                🏠
+                // 🏠 2. 내 집 위치 마커 (Home Marker)
+                if (layerToggles.showHomePin) {
+                    const homeIcon = L.divIcon({
+                        className: 'custom-home-icon',
+                        html: `
+                            <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                                <div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: rgba(16, 185, 129, 0.4); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                                <div style="position: relative; width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #09090b; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5); border: 2px solid #ffffff;">
+                                    🏠
+                                </div>
+                                <div style="margin-top: 4px; background: rgba(24, 24, 27, 0.95); border: 1px solid rgba(16, 185, 129, 0.5); color: #6ee7b7; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
+                                    🏠 내 집 출발점
+                                </div>
                             </div>
-                            <div style="margin-top: 4px; background: rgba(24, 24, 27, 0.95); border: 1px solid rgba(16, 185, 129, 0.5); color: #6ee7b7; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
-                                🏠 내 집 출발점
-                            </div>
-                        </div>
-                    `,
-                    iconSize: [120, 60],
-                    iconAnchor: [60, 30],
-                });
+                        `,
+                        iconSize: [120, 60],
+                        iconAnchor: [60, 30],
+                    });
 
-                const homeMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(
-                    markersGroup
-                );
-                homeMarker.on('click', () => setIsHomeModalOpen(true));
+                    const homeMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(
+                        markersGroup
+                    );
+                    homeMarker.on('click', () => setIsHomeModalOpen(true));
+                }
+
+                // 📍 3. 공고 마커 핀들 (Posting Map Markers)
+                filteredItems.forEach(({ posting, estimate, lat, lng }) => {
+                    if (!lat || !lng) return;
+
+                    const isSelected = activeItem?.posting.id === posting.id;
+                    const mins = estimate?.estimatedMinutes || 0;
+
+                    let colorHex = '#10b981'; // Emerald
+                    if (mins > 60)
+                        colorHex = '#f43f5e'; // Rose
+                    else if (mins > 45)
+                        colorHex = '#f59e0b'; // Amber
+                    else if (mins > 30) colorHex = '#6366f1'; // Indigo
+
+                    const labelHtml = layerToggles.showPinLabels
+                        ? `<div style="margin-top: 3px; background: rgba(24, 24, 27, 0.9); border: 1px solid ${colorHex}; color: ${colorHex}; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
+                            ${posting.companyName} ${estimate?.formattedTimeText ? `(${estimate.formattedTimeText})` : ''}
+                           </div>`
+                        : '';
+
+                    const selectedRingHtml = isSelected
+                        ? `<div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background: ${colorHex}66; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
+                        : '';
+
+                    const customPinIcon = L.divIcon({
+                        className: 'custom-posting-pin',
+                        html: `
+                            <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s; ${isSelected ? 'transform: scale(1.25); z-index: 9999;' : ''}">
+                                ${selectedRingHtml}
+                                <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}88; border: 2px solid #ffffff;">
+                                    📍
+                                </div>
+                                ${labelHtml}
+                            </div>
+                        `,
+                        iconSize: [120, 50],
+                        iconAnchor: [60, 25],
+                    });
+
+                    const postingMarker = L.marker([lat, lng], { icon: customPinIcon }).addTo(
+                        markersGroup
+                    );
+
+                    postingMarker.on('click', () => {
+                        setSelectedPostingId(posting.id);
+                        map.panTo([lat, lng]);
+                    });
+                });
+            } catch (err) {
+                console.error('Leaflet initialization failed:', err);
             }
-
-            // 📍 3. 공고 마커 핀들 (Posting Map Markers)
-            filteredItems.forEach(({ posting, estimate, lat, lng }) => {
-                if (!lat || !lng) return;
-
-                const isSelected = activeItem?.posting.id === posting.id;
-                const mins = estimate?.estimatedMinutes || 0;
-
-                let colorHex = '#10b981'; // Emerald
-                if (mins > 60)
-                    colorHex = '#f43f5e'; // Rose
-                else if (mins > 45)
-                    colorHex = '#f59e0b'; // Amber
-                else if (mins > 30) colorHex = '#6366f1'; // Indigo
-
-                const labelHtml = layerToggles.showPinLabels
-                    ? `<div style="margin-top: 3px; background: rgba(24, 24, 27, 0.9); border: 1px solid ${colorHex}; color: ${colorHex}; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
-                        ${posting.companyName} ${estimate?.formattedTimeText ? `(${estimate.formattedTimeText})` : ''}
-                       </div>`
-                    : '';
-
-                const selectedRingHtml = isSelected
-                    ? `<div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background: ${colorHex}66; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
-                    : '';
-
-                const customPinIcon = L.divIcon({
-                    className: 'custom-posting-pin',
-                    html: `
-                        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s; ${isSelected ? 'transform: scale(1.25); z-index: 9999;' : ''}">
-                            ${selectedRingHtml}
-                            <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}88; border: 2px solid #ffffff;">
-                                📍
-                            </div>
-                            ${labelHtml}
-                        </div>
-                    `,
-                    iconSize: [120, 50],
-                    iconAnchor: [60, 25],
-                });
-
-                const postingMarker = L.marker([lat, lng], { icon: customPinIcon }).addTo(
-                    markersGroup
-                );
-
-                postingMarker.on('click', () => {
-                    setSelectedPostingId(posting.id);
-                    map.panTo([lat, lng]);
-                });
-            });
         };
 
         initLeafletMap();
@@ -644,10 +698,18 @@ export default function JobPostingMapView({
                         {/* 3. 🗺️ 실제 타일 지도 Canvas vs 📇 매트릭스 그리드 뷰어 */}
                         {viewMode === 'REAL_MAP' ? (
                             /* [MODE 1] 🗺️ 실제 도로/지명 타일 지도 (Leaflet Map Tile Engine) */
-                            <div
-                                ref={mapContainerRef}
-                                className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden bg-zinc-950"
-                            />
+                            <div className="relative w-full h-full min-h-[450px] bg-zinc-950">
+                                {isMapLoading && (
+                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-zinc-950 text-xs text-indigo-400">
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                        <span>실제 타일 지도를 로드하고 있습니다...</span>
+                                    </div>
+                                )}
+                                <div
+                                    ref={mapContainerRef}
+                                    className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
+                                />
+                            </div>
                         ) : (
                             /* [MODE 2] 📇 카드 매트릭스 그리드 뷰어 */
                             <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-4">
