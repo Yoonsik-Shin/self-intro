@@ -49,6 +49,34 @@ class JobApplicationUrlParseServiceTest {
     }
 
     @Test
+    void parsesJobkoreaRscDocumentWithoutAiCall() {
+        Document document =
+                Jsoup.parse(
+                        """
+                        <html><head>
+                          <meta property="og:title" content="[랜드소프트㈜] 백엔드 개발자 채용">
+                        </head><body>
+                          <script>self.__next_f.push([1,"\\"companyName\\":\\"랜드소프트㈜\\",\\"endDate\\":\\"2026-08-16T23:59:59+09:00\\",\\"description\\":\\"서울 마포구 양화로10길 19\\"])
+                          </script>
+                        </body></html>
+                        """,
+                        "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372");
+
+        JobApplicationUrlParseResponse response =
+                service.parseJobkoreaDocument(
+                                URI.create("https://www.jobkorea.co.kr/Recruit/GI_Read/49686372"),
+                                document,
+                                "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372")
+                        .orElseThrow();
+
+        assertThat(response.companyName()).isEqualTo("랜드소프트㈜");
+        assertThat(response.positionTitle()).isEqualTo("백엔드 개발자 채용");
+        assertThat(response.deadline()).isEqualTo(LocalDate.of(2026, 8, 16));
+        assertThat(response.location()).isEqualTo("서울 마포구 양화로10길 19");
+        assertThat(response.source()).isEqualTo("잡코리아");
+    }
+
+    @Test
     void parsesIsoDeadline() {
         assertThat(service.parseDate("2026-08-02")).isEqualTo(LocalDate.of(2026, 8, 2));
     }
