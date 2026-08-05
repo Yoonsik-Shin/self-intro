@@ -19,7 +19,6 @@ declare global {
         daum?: {
             Postcode: new (options: {
                 oncomplete: (data: DaumPostcodeData) => void;
-                q?: string; // 폼에 작성된 주소를 초기 검색어로 주입
                 width?: string | number;
                 height?: string | number;
                 autoClose?: boolean;
@@ -66,7 +65,7 @@ export function loadDaumPostcodeScript(): Promise<void> {
 }
 
 /**
- * 작성된 주소를 초기 검색어(q)로 전달하여 주소 검색 팝업을 실행합니다.
+ * 작성된 주소를 초기 검색어(q)로 메서드 인자에 주입하여 팝업을 실행합니다.
  */
 export async function openDaumPostcodeSearch(
     onSelectAddress: (data: DaumPostcodeData) => void,
@@ -74,19 +73,25 @@ export async function openDaumPostcodeSearch(
 ): Promise<void> {
     await loadDaumPostcodeScript();
     if (window.daum && window.daum.Postcode) {
-        new window.daum.Postcode({
-            q: initialQuery && initialQuery.trim() ? initialQuery.trim() : undefined,
+        const postcode = new window.daum.Postcode({
             oncomplete: (data: DaumPostcodeData) => {
                 onSelectAddress(data);
             },
-        }).open();
+        });
+
+        const query = initialQuery ? initialQuery.trim() : '';
+        if (query) {
+            postcode.open({ q: query });
+        } else {
+            postcode.open();
+        }
     } else {
         throw new Error('다음 우편번호 서비스를 불러오지 못했습니다.');
     }
 }
 
 /**
- * 작성된 주소를 초기 검색어(q)로 전달하여 지정된 HTML 컨테이너 내부에 카카오 주소 검색을 인라인 임베드합니다.
+ * 작성된 주소를 초기 검색어(q)로 embed 메서드 인자에 주입하여 카카오 검색창을 임베드합니다.
  */
 export async function embedDaumPostcodeSearch(
     targetElement: HTMLElement,
@@ -96,14 +101,20 @@ export async function embedDaumPostcodeSearch(
     await loadDaumPostcodeScript();
     if (window.daum && window.daum.Postcode) {
         targetElement.innerHTML = '';
-        new window.daum.Postcode({
-            q: initialQuery && initialQuery.trim() ? initialQuery.trim() : undefined,
+        const postcode = new window.daum.Postcode({
             oncomplete: (data: DaumPostcodeData) => {
                 onSelectAddress(data);
             },
             width: '100%',
             height: '100%',
-        }).embed(targetElement);
+        });
+
+        const query = initialQuery ? initialQuery.trim() : '';
+        if (query) {
+            postcode.embed(targetElement, { q: query });
+        } else {
+            postcode.embed(targetElement);
+        }
     } else {
         throw new Error('다음 우편번호 서비스를 불러오지 못했습니다.');
     }
@@ -154,12 +165,12 @@ export async function geocodeAddressClient(
     const loc = sanitizedAddress.toLowerCase();
     if (loc.includes('성북') || loc.includes('길음')) {
         return { lat: 37.6033, lng: 127.025 };
+    } else if (loc.includes('판교') || loc.includes('분당') || loc.includes('성남')) {
+        return { lat: 37.3948, lng: 127.1112 };
     } else if (loc.includes('마포') || loc.includes('상암') || loc.includes('서교')) {
         return { lat: 37.5508, lng: 126.9176 };
     } else if (loc.includes('강남') || loc.includes('역삼') || loc.includes('삼성')) {
         return { lat: 37.5006, lng: 127.0365 };
-    } else if (loc.includes('판교') || loc.includes('분당') || loc.includes('성남')) {
-        return { lat: 37.3948, lng: 127.1112 };
     } else if (loc.includes('여의도') || loc.includes('영등포')) {
         return { lat: 37.5255, lng: 126.9255 };
     } else if (loc.includes('성수') || loc.includes('성동')) {
