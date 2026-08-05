@@ -27,6 +27,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:none}
+  # api 모듈과 동일한 세션을 공유해야 어드민 로그인이 양쪽 pod에서 다 통한다(2026-08-04, worker가
+  # 어드민 트래픽을 직접 받기 시작하면서 필요해짐) — api와 동일 패턴으로 명시.
+  session:
+    store-type: ${SPRING_SESSION_STORE_TYPE:none}
   ai:
     openai:
       api-key: ${SPRING_AI_OPENAI_API_KEY:dummy-key-for-local-dev}

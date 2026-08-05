@@ -65,10 +65,34 @@ spec:
                 secretKeyRef:
                   name: backend-db-secret
                   key: DB_DRIVER
+            # 어드민 로그인 계정 — worker가 /api/worker/job-postings, /api/admin/study-plans를
+            # 직접 서빙하게 되면서(2026-08 ingress prefix 라우팅) 필요해졌다.
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: backend-db-secret
+                  key: ADMIN_USERNAME
+            - name: ADMIN_PASSWORD_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: backend-db-secret
+                  key: ADMIN_PASSWORD_HASH
           volumeMounts:
             - name: oracle-atp-wallet
               mountPath: /etc/oracle/wallet
               readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 20
           resources:
             requests:
               cpu: 250m

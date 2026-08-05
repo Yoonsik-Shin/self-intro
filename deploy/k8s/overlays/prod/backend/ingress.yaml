@@ -18,6 +18,30 @@ spec:
     - host: api.unbrdn.me
       http:
         paths:
+          # job-posting AI/크롤링(URL 파싱·수집·백필 등), study-plan, 벡터 배치 동기화는 worker가
+          # 직접 서빙한다 — 2026-08 CRUD/AI 분리 작업. nginx는 더 구체적인 path를 우선 매치하므로
+          # 순서와 무관하게 아래 3개가 "/" 보다 먼저 걸린다.
+          - path: /api/worker/job-postings
+            pathType: Prefix
+            backend:
+              service:
+                name: self-intro-backend-worker
+                port:
+                  number: 8081
+          - path: /api/admin/study-plans
+            pathType: Prefix
+            backend:
+              service:
+                name: self-intro-backend-worker
+                port:
+                  number: 8081
+          - path: /api/v1/vector-sync
+            pathType: Prefix
+            backend:
+              service:
+                name: self-intro-backend-worker
+                port:
+                  number: 8081
           - path: /
             pathType: Prefix
             backend:

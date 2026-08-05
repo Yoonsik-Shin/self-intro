@@ -50,7 +50,7 @@ export const jobPostingApi = {
             method: 'DELETE',
         }),
     parseUrl: (url: string) =>
-        request<JobApplicationUrlParseResponse>('/api/admin/job-postings/parse-url', {
+        request<JobApplicationUrlParseResponse>('/api/worker/job-postings/parse-url', {
             method: 'POST',
             body: JSON.stringify({ url }),
         }),
@@ -60,7 +60,7 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobApplicationUrlParseStreamEvent>(
-            '/api/admin/job-postings/parse-url/stream',
+            '/api/worker/job-postings/parse-url/stream',
             { url },
             onEvent,
             signal
@@ -72,7 +72,7 @@ export const jobPostingApi = {
             body: JSON.stringify(payload),
         }),
     ingestUrl: (url: string) =>
-        request<JobPosting>('/api/admin/job-postings/ingest-url', {
+        request<JobPosting>('/api/worker/job-postings/ingest-url', {
             method: 'POST',
             body: JSON.stringify({ url }),
         }),
@@ -82,7 +82,7 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingIngestStreamEvent>(
-            '/api/admin/job-postings/ingest-url/stream',
+            '/api/worker/job-postings/ingest-url/stream',
             { url },
             onEvent,
             signal
@@ -93,18 +93,18 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingBulkIngestStreamEvent>(
-            '/api/admin/job-postings/ingest-urls/stream',
+            '/api/worker/job-postings/ingest-urls/stream',
             { urls },
             onEvent,
             signal
         ),
     collect: () =>
-        request<JobPostingCollectionResult>('/api/admin/job-postings/collect', {
+        request<JobPostingCollectionResult>('/api/worker/job-postings/collect', {
             method: 'POST',
         }),
     /** 이미 수집/등록된 공고를 원본 URL에서 다시 읽어 최신 정보(마감일 등)로 갱신한다. */
     refresh: (id: number) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/refresh`, {
+        request<JobPosting>(`/api/worker/job-postings/${id}/refresh`, {
             method: 'POST',
         }),
     save: (id: number) =>
@@ -145,12 +145,12 @@ export const jobPostingApi = {
             method: 'DELETE',
         }),
     analyzeAppeal: (id: number) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/analyze-appeal`, {
+        request<JobPosting>(`/api/worker/job-postings/${id}/analyze-appeal`, {
             method: 'POST',
         }),
     generatePrintDraft: (id: number) =>
         request<JobPostingPrintDraftResponse>(
-            `/api/admin/job-postings/${id}/print-template-draft`,
+            `/api/worker/job-postings/${id}/print-template-draft`,
             { method: 'POST' }
         ),
     getJobplanet: (id: number) =>
@@ -165,13 +165,13 @@ export const jobPostingApi = {
             method: 'DELETE',
         }),
     gapProjectDocuments: (id: number) =>
-        request<GapProjectDocument[]>(`/api/admin/job-postings/${id}/gap-project-documents`),
+        request<GapProjectDocument[]>(`/api/worker/job-postings/${id}/gap-project-documents`),
     generateGapProjectDocument: (id: number) =>
-        request<GapProjectDocument>(`/api/admin/job-postings/${id}/gap-project-documents`, {
+        request<GapProjectDocument>(`/api/worker/job-postings/${id}/gap-project-documents`, {
             method: 'POST',
         }),
     rematch: (id: number) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/rematch`, {
+        request<JobPosting>(`/api/worker/job-postings/${id}/rematch`, {
             method: 'POST',
         }),
 };

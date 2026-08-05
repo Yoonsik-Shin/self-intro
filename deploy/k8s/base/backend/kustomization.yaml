@@ -5,3 +5,4 @@ resources:
   - deployment.yaml
   - deployment-worker.yaml
   - service.yaml
+  - service-worker.yaml

@@ -31,10 +31,16 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * job_posting의 URL 파싱·크롤링·AI 매칭·백필 전용 엔드포인트. 순수 CRUD/상태 관리는 api 모듈의
- * {@code JobPostingCrudController}가 맡는다 — 2026-08 job-posting CRUD/AI 분리 작업으로 쪼갠 절반이다.
+ * {@code JobPostingCrudController}(/api/admin/job-postings)가 맡는다 — 2026-08 job-posting CRUD/AI
+ * 분리 작업으로 쪼갠 절반이다.
+ *
+ * <p>경로를 /api/admin/job-postings와 공유하지 않고 /api/worker로 따로 뺀 이유: ingress가 prefix
+ * 하나로 이 컨트롤러 전체를 worker Service로 라우팅할 수 있게 하기 위해서다 — 엔드포인트를 하나씩
+ * 나열해 라우팅하면 새 엔드포인트를 추가할 때마다 ingress 규칙도 같이 고쳐야 하고, 깜빡하면 다시
+ * api pod에서 우연히 처리되는 사고(2026-08-04)가 재발한다.
  */
 @RestController
-@RequestMapping("/api/admin/job-postings")
+@RequestMapping("/api/worker/job-postings")
 @RequiredArgsConstructor
 public class JobPostingController {
 
