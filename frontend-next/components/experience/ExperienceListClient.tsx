@@ -340,8 +340,10 @@ export function ExperienceListClient({ experiences }: Props) {
                         <SidebarSection
                             title="최근 읽은 경험"
                             icon={History}
+                            badge={recentlyViewed.length}
                             description="최근에 방문한 이력 성과입니다."
                             isNavCollapsed={isNavCollapsed}
+                            onExpandSidebar={() => setIsNavCollapsed(false)}
                             extraAction={
                                 <button
                                     type="button"
