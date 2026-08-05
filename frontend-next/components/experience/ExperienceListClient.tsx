@@ -12,6 +12,7 @@ import {
     History,
     X,
 } from 'lucide-react';
+import { SidebarSection } from '@/components/common/SidebarSection';
 import type { Experience } from '@/lib/api/types';
 import { experienceOrgName, experienceTypeLabel, formatCredentialPeriod } from '@/lib/format';
 import {
@@ -335,19 +336,12 @@ export function ExperienceListClient({ experiences }: Props) {
                     </button>
 
                     {recentlyViewed.length > 0 ? (
-                        <>
-                            <div
-                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:flex min-[900px]:items-center min-[900px]:justify-between'}`}
-                            >
-                                <div>
-                                    <h3 className="text-sm font-black tracking-wider text-slate-700 flex items-center gap-1.5">
-                                        <History className="h-3.5 w-3.5 text-blue-600" />
-                                        <span>최근 읽은 경험</span>
-                                    </h3>
-                                    <p className="mt-0.5 text-xs leading-normal text-slate-400">
-                                        최근에 방문한 이력 성과입니다.
-                                    </p>
-                                </div>
+                        <SidebarSection
+                            title="최근 읽은 경험"
+                            icon={History}
+                            description="최근에 방문한 이력 성과입니다."
+                            isNavCollapsed={isNavCollapsed}
+                            extraAction={
                                 <button
                                     type="button"
                                     onClick={handleClearHistory}
@@ -356,15 +350,10 @@ export function ExperienceListClient({ experiences }: Props) {
                                 >
                                     지우기
                                 </button>
-                            </div>
-
-                            <div
-                                className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                            >
-                                {(isRecentExpanded
-                                    ? recentlyViewed
-                                    : recentlyViewed.slice(0, 7)
-                                ).map((item) => (
+                            }
+                        >
+                            {(isRecentExpanded ? recentlyViewed : recentlyViewed.slice(0, 7)).map(
+                                (item) => (
                                     <div key={item.id} className="flex items-start gap-1.5">
                                         <Link
                                             href={`/experience/${item.experienceId}/experience-detail/${item.id}`}
@@ -388,62 +377,53 @@ export function ExperienceListClient({ experiences }: Props) {
                                             <X className="h-3 w-3" />
                                         </button>
                                     </div>
-                                ))}
+                                )
+                            )}
 
-                                {recentlyViewed.length > 7 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsRecentExpanded(!isRecentExpanded)}
-                                        className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
-                                    >
-                                        {isRecentExpanded ? (
-                                            <>
-                                                <span>접기</span>
-                                                <ChevronUp className="h-3.5 w-3.5" />
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>더 보기 (+{recentlyViewed.length - 7})</span>
-                                                <ChevronDown className="h-3.5 w-3.5" />
-                                            </>
-                                        )}
-                                    </button>
-                                )}
-                            </div>
-                        </>
+                            {recentlyViewed.length > 7 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRecentExpanded(!isRecentExpanded)}
+                                    className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
+                                >
+                                    {isRecentExpanded ? (
+                                        <>
+                                            <span>접기</span>
+                                            <ChevronUp className="h-3.5 w-3.5" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>더 보기 (+{recentlyViewed.length - 7})</span>
+                                            <ChevronDown className="h-3.5 w-3.5" />
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </SidebarSection>
                     ) : (
-                        <>
-                            <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
-                                <h3 className="text-sm font-black tracking-wider text-slate-700">
-                                    최근 이력
-                                </h3>
-                                <p className="mt-0.5 text-xs leading-normal text-slate-400">
-                                    최근 기간의 프로젝트 및 경력입니다.
-                                </p>
-                            </div>
-
-                            <div
-                                className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                            >
-                                {recentExperiences.map((exp) => {
-                                    const targetDetailId = exp.details?.[0]?.id;
-                                    if (!targetDetailId) return null;
-                                    return (
-                                        <Link
-                                            key={exp.id}
-                                            href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
-                                            className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
-                                            title={exp.title}
-                                        >
-                                            <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                                ›
-                                            </span>
-                                            <span className="line-clamp-2">{exp.title}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </>
+                        <SidebarSection
+                            title="최근 이력"
+                            description="최근 기간의 프로젝트 및 경력입니다."
+                            isNavCollapsed={isNavCollapsed}
+                        >
+                            {recentExperiences.map((exp) => {
+                                const targetDetailId = exp.details?.[0]?.id;
+                                if (!targetDetailId) return null;
+                                return (
+                                    <Link
+                                        key={exp.id}
+                                        href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
+                                        className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
+                                        title={exp.title}
+                                    >
+                                        <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                            ›
+                                        </span>
+                                        <span className="line-clamp-2">{exp.title}</span>
+                                    </Link>
+                                );
+                            })}
+                        </SidebarSection>
                     )}
 
                     <div
