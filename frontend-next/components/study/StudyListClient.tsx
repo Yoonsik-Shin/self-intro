@@ -1,18 +1,30 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { ArrowUp, BookOpen, ChevronLeft, ChevronRight, History, Loader2, X } from 'lucide-react';
-import { studyApi } from '@/lib/api';
-import type { Study, StudyCategory, StudyPage } from '@/lib/api/types';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import {
+    ArrowUp,
+    BookOpen,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    History,
+    Loader2,
+    X,
+} from 'lucide-react';
+import { studyApi, taxonomyApi } from '@/lib/api';
+import type { Study, StudyTaxonomyNode, StudyPage } from '@/lib/api/types';
+import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
+import { TaxonomyList } from './TaxonomyList';
 
 type Props = {
     initialStudies: Study[];
     initialTotalElements?: number;
     initialTotalPages?: number;
-    categories: StudyCategory[];
+    taxonomyNodes: StudyTaxonomyNode[];
 };
 
 type RecentlyViewedItem = {
@@ -26,7 +38,7 @@ export function StudyListClient({
     initialStudies,
     initialTotalElements,
     initialTotalPages,
-    categories,
+    taxonomyNodes,
 }: Props) {
     const router = useRouter();
     const pathname = usePathname();
@@ -61,9 +73,10 @@ export function StudyListClient({
     };
 
     const [search, setSearch] = useState('');
-    const [activeCategory, setActiveCategory] = useState('ALL');
+    const [activeTaxonomyNodeId, setActiveTaxonomyNodeId] = useState<number | null>(null);
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
     const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
+    const [isRecentExpanded, setIsRecentExpanded] = useState(false);
 
     useEffect(() => {
         try {
@@ -77,7 +90,7 @@ export function StudyListClient({
         }
     }, []);
 
-    const isDefaultQuery = search === '' && activeCategory === 'ALL' && !hasIdFilter;
+    const isDefaultQuery = search === '' && activeTaxonomyNodeId === null && !hasIdFilter;
 
     const handleClearHistory = () => {
         try {
@@ -112,7 +125,7 @@ export function StudyListClient({
             'studies',
             'public-infinite',
             search,
-            activeCategory,
+            activeTaxonomyNodeId,
             skillIdNum,
             experienceIdNum,
             experienceDetailIdNum,
@@ -120,7 +133,7 @@ export function StudyListClient({
         queryFn: ({ pageParam = 0 }) =>
             studyApi.list({
                 q: search || undefined,
-                category: activeCategory === 'ALL' ? undefined : activeCategory,
+                taxonomyNodeId: activeTaxonomyNodeId ?? undefined,
                 skillIds: skillIdNum ? [skillIdNum] : undefined,
                 experienceIds: experienceIdNum ? [experienceIdNum] : undefined,
                 experienceDetailIds: experienceDetailIdNum ? [experienceDetailIdNum] : undefined,
@@ -155,6 +168,18 @@ export function StudyListClient({
         ? studyInfiniteData.pages.flatMap((page) => page.content)
         : initialStudies;
     const recentStudies = studies.slice(0, 5);
+
+    // breadcrumb 렌더링용 — study 응답엔 직접 attach된 노드만 들어있어 조상 이름을 알 수 없어서
+    // 전체 taxonomy 트리를 따로 받아 id→node 맵을 만든다.
+    const { data: allTaxonomyNodes } = useQuery({
+        queryKey: ['taxonomyNodesPublic'],
+        queryFn: taxonomyApi.publicList,
+        staleTime: 5 * 60 * 1000,
+    });
+    const taxonomyNodesById = useMemo(
+        () => toTaxonomyNodeMap(allTaxonomyNodes ?? []),
+        [allTaxonomyNodes]
+    );
 
     const observerRef = useRef<HTMLDivElement | null>(null);
 
@@ -226,13 +251,19 @@ export function StudyListClient({
 
                 <div className="sticky top-16 z-20 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center">
                     <div className="flex flex-wrap items-center gap-1.5">
-                        {[{ slug: 'ALL', name: '전체' }, ...categories].map((category) => (
+                        <button
+                            onClick={() => setActiveTaxonomyNodeId(null)}
+                            className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === null ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                        >
+                            전체 ({taxonomyNodes.reduce((sum, node) => sum + node.studyCount, 0)})
+                        </button>
+                        {taxonomyNodes.map((node) => (
                             <button
-                                key={category.slug}
-                                onClick={() => setActiveCategory(category.slug)}
-                                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeCategory === category.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                                key={node.id}
+                                onClick={() => setActiveTaxonomyNodeId(node.id)}
+                                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === node.id ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                             >
-                                {category.name}
+                                {node.name} ({node.studyCount})
                             </button>
                         ))}
                     </div>
@@ -258,10 +289,17 @@ export function StudyListClient({
                                 className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8"
                             >
                                 <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                                    <span className="rounded bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800">
-                                        {study.category.name}
-                                    </span>
-                                    <span className="font-mono text-xs font-bold text-slate-400">
+                                    <div className="flex flex-wrap gap-1">
+                                        {study.taxonomyNodes.map((node) => (
+                                            <span
+                                                key={node.id}
+                                                className="rounded bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800"
+                                            >
+                                                {taxonomyBreadcrumbLabel(node, taxonomyNodesById)}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <span className="font-mono text-xs font-bold text-slate-400 shrink-0">
                                         {study.learnedAt}
                                     </span>
                                 </div>
@@ -345,6 +383,20 @@ export function StudyListClient({
                         )}
                     </button>
 
+                    {taxonomyNodes.length > 0 && (
+                        <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                            <TaxonomyList
+                                nodes={taxonomyNodes}
+                                activeNodeId={activeTaxonomyNodeId}
+                                onSelect={setActiveTaxonomyNodeId}
+                            />
+                        </div>
+                    )}
+
+                    <hr
+                        className={`hidden -mb-1 border-slate-100 ${taxonomyNodes.length > 0 && !isNavCollapsed ? 'min-[900px]:block' : ''}`}
+                    />
+
                     {recentlyViewed.length > 0 ? (
                         <>
                             <div
@@ -372,7 +424,10 @@ export function StudyListClient({
                             <div
                                 className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
                             >
-                                {recentlyViewed.map((item) => (
+                                {(isRecentExpanded
+                                    ? recentlyViewed
+                                    : recentlyViewed.slice(0, 7)
+                                ).map((item) => (
                                     <div key={item.slug} className="flex items-start gap-1.5">
                                         <Link
                                             href={`/study/${encodeURIComponent(item.slug)}`}
@@ -395,6 +450,26 @@ export function StudyListClient({
                                         </button>
                                     </div>
                                 ))}
+
+                                {recentlyViewed.length > 7 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRecentExpanded(!isRecentExpanded)}
+                                        className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
+                                    >
+                                        {isRecentExpanded ? (
+                                            <>
+                                                <span>접기</span>
+                                                <ChevronUp className="h-3.5 w-3.5" />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>더 보기 (+{recentlyViewed.length - 7})</span>
+                                                <ChevronDown className="h-3.5 w-3.5" />
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </>
                     ) : (
