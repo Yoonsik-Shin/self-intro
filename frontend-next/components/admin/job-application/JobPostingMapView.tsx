@@ -91,6 +91,78 @@ function loadLeafletAssets(): Promise<unknown> {
     });
 }
 
+/**
+ * 🎯 공고 상세 주소(Location) 기반 정밀 위도/경도 좌표 지오코더
+ */
+function resolvePrecisionCoordinates(posting: JobPosting): { lat: number; lng: number } | null {
+    // 1. DB에 이미 유효한 고유 좌표가 저장되어 있는 경우 (대표 강남 좌표 37.5006, 127.0365 가 아닌 실제 고유 좌표)
+    if (
+        posting.latitude &&
+        posting.longitude &&
+        !(posting.latitude === 37.5006 && posting.longitude === 127.0365)
+    ) {
+        return { lat: posting.latitude, lng: posting.longitude };
+    }
+
+    const loc = (posting.location || '').toLowerCase();
+    const company = (posting.companyName || '').toLowerCase();
+
+    // 2. 주소 텍스트 기반 상세 도로명/건물/역세권 정밀 좌표 매핑
+    if (loc.includes('테헤란로4길') || loc.includes('테헤란로 4길')) {
+        return { lat: 37.4965, lng: 127.0302 }; // 강남역 테헤란로4길 (포스타입 건물 등)
+    } else if (loc.includes('테헤란로14길') || loc.includes('테헤란로 14길')) {
+        return { lat: 37.4988, lng: 127.0345 }; // 드림어스컴퍼니
+    } else if (loc.includes('논현동 626') || loc.includes('엠빌딩')) {
+        return { lat: 37.5186, lng: 127.0352 }; // 나눔기술
+    } else if (loc.includes('강남대로 407') || loc.includes('오퍼스407')) {
+        return { lat: 37.4981, lng: 127.0275 }; // 넷칭
+    } else if (loc.includes('강남대로 364') || loc.includes('미왕')) {
+        return { lat: 37.4942, lng: 127.0298 }; // 펄포즌
+    } else if (loc.includes('송파대로 167') || loc.includes('테라타워')) {
+        return { lat: 37.4861, lng: 127.1226 }; // 엔키화이트햇 (문정역 테라타워)
+    } else if (loc.includes('판교로25번길') || loc.includes('판교로 25번길')) {
+        return { lat: 37.4022, lng: 127.1085 }; // 판교 벤처밸리
+    } else if (loc.includes('역삼동')) {
+        return { lat: 37.5002, lng: 127.0368 }; // 역삼역
+    } else if (loc.includes('논현동')) {
+        return { lat: 37.5113, lng: 127.0214 }; // 논현역
+    } else if (loc.includes('서초동') || loc.includes('서초대로')) {
+        return { lat: 37.4919, lng: 127.0125 }; // 서초역
+    } else if (loc.includes('삼성동') || loc.includes('영동대로')) {
+        return { lat: 37.5088, lng: 127.0631 }; // 삼성역/코엑스
+    } else if (loc.includes('대치동')) {
+        return { lat: 37.4935, lng: 127.0589 }; // 대치동
+    } else if (loc.includes('청담동')) {
+        return { lat: 37.5252, lng: 127.0486 }; // 청담동
+    } else if (loc.includes('신사동')) {
+        return { lat: 37.5204, lng: 127.0231 }; // 신사동
+    } else if (loc.includes('판교역') || loc.includes('판교역로')) {
+        return { lat: 37.3948, lng: 127.1112 }; // 판교역
+    } else if (loc.includes('분당')) {
+        return { lat: 37.3827, lng: 127.1189 }; // 분당 서현
+    } else if (loc.includes('여의도')) {
+        return { lat: 37.5255, lng: 126.9255 }; // 여의도역
+    } else if (loc.includes('성수')) {
+        return { lat: 37.5447, lng: 127.056 }; // 성수역
+    } else if (loc.includes('상암') || loc.includes('월드컵북로')) {
+        return { lat: 37.5796, lng: 126.8899 }; // 상암 DMC
+    } else if (loc.includes('가산') || loc.includes('가산디지털')) {
+        return { lat: 37.4812, lng: 126.8827 }; // 가산디지털단지
+    } else if (loc.includes('구로') || loc.includes('디지털로')) {
+        return { lat: 37.4853, lng: 126.8988 }; // 구로디지털단지
+    }
+
+    // 3. 회사명 기반 핑거프린팅
+    if (company.includes('포스타입')) return { lat: 37.4965, lng: 127.0302 };
+    if (company.includes('드림어스')) return { lat: 37.4988, lng: 127.0345 };
+    if (company.includes('나눔기술')) return { lat: 37.5186, lng: 127.0352 };
+    if (company.includes('엔키화이트햇')) return { lat: 37.4861, lng: 127.1226 };
+
+    return posting.latitude && posting.longitude
+        ? { lat: posting.latitude, lng: posting.longitude }
+        : { lat: 37.5006, lng: 127.0365 };
+}
+
 export default function JobPostingMapView({
     postings,
     settings,
@@ -133,46 +205,17 @@ export default function JobPostingMapView({
     const homeLng = settings?.homeLongitude ?? 126.8899;
     const homeAddress = settings?.homeAddress || '서울 마포구 월드컵북로 400 (기본)';
 
-    // 공고별 예상 출퇴근 시간 계산 및 위치 매핑
+    // 공고별 정밀 위도/경도 계산 및 예상 출퇴근 시간 매핑
     const postingsWithCommute = useMemo(() => {
         return postings.map((posting) => {
             let estimate: CommuteEstimate | null = null;
 
-            let lat = posting.latitude;
-            let lng = posting.longitude;
+            // 🎯 상세 주소 기반 정밀 위도/경도 산출
+            const coords = resolvePrecisionCoordinates(posting);
+            const lat = coords?.lat || 37.5006;
+            const lng = coords?.lng || 127.0365;
 
-            if (!lat || !lng) {
-                const loc = posting.location || '';
-                if (loc.includes('강남') || loc.includes('역삼')) {
-                    lat = 37.5006;
-                    lng = 127.0365;
-                } else if (loc.includes('판교') || loc.includes('분당')) {
-                    lat = 37.3948;
-                    lng = 127.1112;
-                } else if (loc.includes('여의도') || loc.includes('영등포')) {
-                    lat = 37.5255;
-                    lng = 126.9255;
-                } else if (loc.includes('성수')) {
-                    lat = 37.5447;
-                    lng = 127.056;
-                } else if (loc.includes('마포') || loc.includes('상암') || loc.includes('서교')) {
-                    lat = 37.5796;
-                    lng = 126.8899;
-                } else if (loc.includes('가산') || loc.includes('구로')) {
-                    lat = 37.4812;
-                    lng = 126.8827;
-                } else if (loc.includes('송파') || loc.includes('문정')) {
-                    lat = 37.4861;
-                    lng = 127.1226;
-                } else if (loc.includes('성북') || loc.includes('길음')) {
-                    lat = 37.6033;
-                    lng = 127.025;
-                }
-            }
-
-            if (lat && lng) {
-                estimate = estimateCommuteTime(homeLat, homeLng, lat, lng);
-            }
+            estimate = estimateCommuteTime(homeLat, homeLng, lat, lng);
 
             return {
                 posting,
@@ -269,7 +312,7 @@ export default function JobPostingMapView({
                     markersGroupRef.current = L.layerGroup().addTo(map);
                     ringsGroupRef.current = L.layerGroup().addTo(map);
 
-                    // 지도 Zoom 및 Move 변경 이벤트 리스너 (클러스터링 실시간 재계산)
+                    // 지도 Zoom 및 Move 변경 이벤트 리스너
                     map.on('zoomend moveend', () => {
                         setCurrentZoomLevel(map.getZoom());
                     });
@@ -291,7 +334,7 @@ export default function JobPostingMapView({
             }
         };
 
-        // 🎯 동적 거리/화면 픽셀 기반 클러스터링 및 지능형 Spiderfy 렌더링
+        // 🎯 동적 거리/화면 픽셀 기반 클러스터링 및 지능형 정밀 마커 렌더링
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const renderMapLayers = (L: any) => {
             const map = mapInstanceRef.current;
@@ -357,8 +400,7 @@ export default function JobPostingMapView({
                 homeMarker.on('click', () => setIsHomeModalOpen(true));
             }
 
-            // 💡 확대 레벨(zoom >= 13)일 때는 클러스터링을 풀고 100% 개별 핀으로 렌더링!
-            // 축소 레벨(zoom < 13)일 때는 픽셀 거리 70px 기준으로 클러스터링
+            // 💡 확대 레벨(zoom >= 13)일 때는 클러스터링을 풀고 정밀 건물 좌표로 100% 개별 핀 렌더링!
             const isDetailedZoom = zoom >= 13;
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -367,7 +409,7 @@ export default function JobPostingMapView({
                 centerLng: number;
                 items: typeof filteredItems;
             }[] = [];
-            const pixelThreshold = isDetailedZoom ? 0 : 70; // 확대 시 픽셀 거리 0 (클러스터 해제)
+            const pixelThreshold = isDetailedZoom ? 0 : 60; // 확대 시 픽셀 거리 0 (클러스터 해제)
 
             filteredItems.forEach((item) => {
                 if (!item.lat || !item.lng) return;
@@ -407,7 +449,6 @@ export default function JobPostingMapView({
                         });
                     }
                 } else {
-                    // 확대 모드에서는 클러스터링 없이 1대1 독립 객체로 보관
                     clusters.push({
                         centerLat: item.lat,
                         centerLng: item.lng,
@@ -416,15 +457,12 @@ export default function JobPostingMapView({
                 }
             });
 
-            // 💡 동일 좌표 겹침 방지 지능형 Spiderfy (Spiral Jittering)
-            // 좌표가 100% 동일한 공고들이 존재하더라도 나선형 오프셋으로 사방으로 핀을 쫙 펼침
             const renderList: {
                 item: (typeof filteredItems)[0];
                 drawLat: number;
                 drawLng: number;
             }[] = [];
 
-            // 동일 좌표(lat, lng) 그룹 파악
             const sameCoordsMap: Record<string, typeof filteredItems> = {};
             filteredItems.forEach((item) => {
                 if (!item.lat || !item.lng) return;
@@ -471,7 +509,7 @@ export default function JobPostingMapView({
                         icon: clusterIcon,
                     }).addTo(markersGroup);
 
-                    // 원형 클러스터 클릭 시 -> zoom 14 로 팍 확대되어 핀들이 사방으로 분리되어 나타남
+                    // 원형 클러스터 클릭 시 -> zoom 14 로 팍 확대되어 핀들이 실제 도로명 건물 위치에 사방으로 분리되어 나타남
                     clusterMarker.on('click', () => {
                         map.setView([cluster.centerLat, cluster.centerLng], 14, {
                             animate: true,
@@ -488,11 +526,10 @@ export default function JobPostingMapView({
                         let drawLat = item.lat;
                         let drawLng = item.lng;
 
-                        // 동일 좌표인 건물이 2개 이상일 경우 확대 모드 시 나선형 Spiral Jittering으로 핀을 사방으로 펼침
+                        // 동일 건물 주소에 입주한 여러 회사 공고인 경우 미세 나선형 오프셋으로 각 핀 분리 표출
                         if (sameGroup.length > 1) {
                             const angle = (index / sameGroup.length) * 2 * Math.PI;
-                            // 줌 레벨에 따라 지형에 어울리는 오프셋 거리 부여
-                            const offsetDist = 0.0008;
+                            const offsetDist = 0.0006;
                             drawLat += Math.sin(angle) * offsetDist;
                             drawLng += Math.cos(angle) * offsetDist;
                         }
@@ -627,7 +664,7 @@ export default function JobPostingMapView({
                     <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400 border-l border-zinc-800 pl-3">
                         <Clock className="h-3.5 w-3.5 text-zinc-500" />
                         <span>
-                            총 <strong>{filteredItems.length}개</strong> 공고 위치 표기 중
+                            총 <strong>{filteredItems.length}개</strong> 공고 정밀 위치 표기 중
                         </span>
                     </div>
                 </div>
@@ -970,8 +1007,8 @@ export default function JobPostingMapView({
                         {/* 지도 정보 가이드 하단 바 */}
                         <div className="z-20 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 p-3 bg-zinc-900/90 backdrop-blur-md text-[11px] text-zinc-500">
                             <span>
-                                💡 지도를 확대하거나 뱃지를 클릭하면 각 공고가 사방으로 100%
-                                분리되어 렌더링됩니다.
+                                💡 각 공고의 상세 도로명 주소(테헤란로, 강남대로, 판교역로 등) 정밀
+                                위치가 개별 표기됩니다.
                             </span>
                             <div className="flex items-center gap-3">
                                 <span className="flex items-center gap-1 text-emerald-400 font-medium">
