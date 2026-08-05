@@ -25,6 +25,7 @@ import {
     X,
     Activity,
     GitBranch,
+    Github,
     ExternalLink,
     FolderGit2,
     ListTree,
@@ -237,6 +238,7 @@ export function AdminDashboardShell() {
             ? 'http://localhost:3001'
             : 'https://grafana.unbrdn.me');
     const argocdUrl = process.env.NEXT_PUBLIC_ARGOCD_URL || 'https://argocd.unbrdn.me';
+    const githubActionsUrl = 'https://github.com/Yoonsik-Shin/self-intro/actions';
 
     // 미리보기를 도킹했을 때 사이드바/admin 콘텐츠를 침범하지 않는 최대 폭.
     const previewMaxAllowedWidth = Math.min(
@@ -522,6 +524,17 @@ export function AdminDashboardShell() {
                     >
                         <GitBranch className="h-3.5 w-3.5 text-sky-500" />
                         <span className="hidden md:inline">ArgoCD</span>
+                        <ExternalLink className="hidden h-3 w-3 opacity-40 md:inline" />
+                    </a>
+                    <a
+                        href={githubActionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="GitHub Actions 워크플로우로 이동합니다"
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                    >
+                        <Github className="h-3.5 w-3.5 text-slate-700" />
+                        <span className="hidden md:inline">Actions</span>
                         <ExternalLink className="hidden h-3 w-3 opacity-40 md:inline" />
                     </a>
                     <a
