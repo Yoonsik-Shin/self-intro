@@ -21,7 +21,6 @@ import {
     Moon,
     ChevronRight,
     ChevronLeft,
-    GripVertical,
     ArrowLeft,
     ListFilter,
     MapPin,
@@ -86,6 +85,32 @@ function loadLeafletAssets(): Promise<unknown> {
         script.onerror = (err) => reject(err);
         document.head.appendChild(script);
     });
+}
+
+/**
+ * 🎯 Status 한글 뱃지 변환기
+ */
+function formatPostingStatus(status: string): { label: string; style: string } {
+    switch (status) {
+        case 'APPLIED':
+        case 'SUPPORTED':
+            return {
+                label: '지원 완료',
+                style: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            };
+        case 'DISMISSED':
+        case 'CLOSED':
+            return { label: '공고 마감', style: 'bg-slate-100 text-slate-600 border-slate-200' };
+        case 'IN_PROGRESS':
+            return {
+                label: '전형 진행 중',
+                style: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+            };
+        case 'BOOKMARKED':
+            return { label: '관심 공고', style: 'bg-amber-50 text-amber-700 border-amber-200' };
+        default:
+            return { label: '채용 중', style: 'bg-blue-50 text-blue-700 border-blue-200' };
+    }
 }
 
 /**
@@ -222,9 +247,9 @@ export default function JobPostingMapView({
     const [isMapLoading, setIsMapLoading] = useState(true);
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
 
-    // 📱 패널 폭 및 접기 상태 관리
+    // 📱 패널 폭 (기본 320px 로 줄여 지도 영역 넓게 확보) 및 접기 상태 관리
     const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(true);
-    const [detailPanelWidth, setDetailPanelWidth] = useState(380);
+    const [detailPanelWidth, setDetailPanelWidth] = useState(320);
     const [isResizing, setIsResizing] = useState(false);
     const splitContainerRef = useRef<HTMLDivElement>(null);
 
@@ -347,7 +372,7 @@ export default function JobPostingMapView({
             if (!isResizing || !splitContainerRef.current) return;
             const containerRect = splitContainerRef.current.getBoundingClientRect();
             const newWidth = containerRect.right - e.clientX;
-            if (newWidth >= 260 && newWidth <= 650) {
+            if (newWidth >= 240 && newWidth <= 600) {
                 setDetailPanelWidth(newWidth);
             }
         };
@@ -983,17 +1008,14 @@ export default function JobPostingMapView({
                                 className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
                             />
 
-                            {/* 📱 패널 접힘 시 우측 도킹 반투명 열기 버튼 */}
+                            {/* 📱 ✨ [공개 페이지 사이드바 스타일 오버레이 탭] 글귀 전면 삭제, 깔끔한 둥근 Chevron 탭 아이콘 배치 */}
                             {!isDetailPanelOpen && (
                                 <button
                                     onClick={() => setIsDetailPanelOpen(true)}
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 rounded-l-2xl border border-r-0 border-indigo-200/90 bg-white/85 p-3 text-xs font-bold text-indigo-700 shadow-xl hover:bg-indigo-50/95 hover:text-indigo-900 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200 group"
-                                    title="공고 상세 분석 패널 열기"
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center rounded-l-xl border border-r-0 border-slate-200 bg-white/95 p-2.5 text-slate-700 shadow-md hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200 group"
+                                    title="패널 열기"
                                 >
-                                    <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform text-indigo-600" />
-                                    <span className="[writing-mode:vertical-lr] tracking-wider text-[11px] font-black">
-                                        공고 상세 패널 열기
-                                    </span>
+                                    <ChevronLeft className="h-5 w-5 text-indigo-600 group-hover:-translate-x-0.5 transition-transform" />
                                 </button>
                             )}
                         </div>
@@ -1044,29 +1066,36 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* ↔️ 드래그 앤 드롭 좌우 크기 조정 Split Resizer Divider */}
+                {/* ↔️ [슬림 피트 라인 & 공개 페이지 탭 컨트롤] 좌우 크기 조절 분리 구분선 */}
                 {isDetailPanelOpen && (
                     <div
                         onMouseDown={handleMouseDown}
-                        className={`w-2 hover:w-2.5 bg-slate-200 hover:bg-indigo-500 cursor-col-resize flex items-center justify-center transition-all z-20 group ${
-                            isResizing ? 'bg-indigo-600 w-2.5' : ''
+                        className={`w-1 hover:w-1.5 bg-slate-200 hover:bg-indigo-500 cursor-col-resize flex items-center justify-center transition-all z-20 relative group ${
+                            isResizing ? 'bg-indigo-600 w-1.5' : ''
                         }`}
                         title="좌우 드래그하여 패널 너비 조절"
                     >
-                        <GripVertical className="h-4 w-4 text-slate-400 group-hover:text-white transition-colors" />
+                        {/* 공개 페이지 스타일: 구분선 위에 살짝 돌출된 오버레이 패널 접기 둥근 탭 버튼 */}
+                        <button
+                            onClick={() => setIsDetailPanelOpen(false)}
+                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-30 flex h-7 w-6 items-center justify-center rounded-l-md border border-r-0 border-slate-200 bg-white/95 text-slate-500 shadow-sm hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all"
+                            title="패널 접기"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
                     </div>
                 )}
 
-                {/* 3. 미니멀 플랫(Border-less Flat) 디자인 패널 */}
+                {/* 3. 미니멀 플랫(Border-less Flat) 디자인 패널 (기본 폭 320px 로 컴팩트화) */}
                 {isDetailPanelOpen && (
                     <div
                         style={{ width: `${detailPanelWidth}px` }}
-                        className="shrink-0 border-l border-slate-200 bg-white p-5 flex flex-col justify-between overflow-y-auto transition-all shadow-xs relative"
+                        className="shrink-0 border-l border-slate-200 bg-white p-4.5 flex flex-col justify-between overflow-y-auto transition-all shadow-xs relative"
                     >
                         {/* A. 선택된 공고가 있을 때 -> 모던 플랫 상세 분석 정보 */}
                         {activeItem ? (
-                            <div className="space-y-5">
-                                {/* 헤더 (뒤로가기 버튼 + 접기 버튼) */}
+                            <div className="space-y-4.5">
+                                {/* 헤더 (이중 화살표 제거 -> 단일 깔끔 화살표 버튼) */}
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <button
                                         onClick={() => setSelectedPostingId(null)}
@@ -1074,36 +1103,38 @@ export default function JobPostingMapView({
                                         title="전체 공고 목록으로 돌아가기"
                                     >
                                         <ArrowLeft className="h-4 w-4" />
-                                        <span>← 전체 공고 목록으로</span>
+                                        <span>목록으로</span>
                                     </button>
-                                    <div className="flex items-center gap-2">
-                                        <span className="rounded-md bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 text-xs font-bold text-indigo-700">
-                                            {activeItem.posting.status}
-                                        </span>
-                                        <button
-                                            onClick={() => setIsDetailPanelOpen(false)}
-                                            className="text-slate-400 hover:text-slate-800 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-                                            title="패널 접기"
-                                        >
-                                            <ChevronRight className="h-4 w-4" />
-                                        </button>
-                                    </div>
+
+                                    {/* 한글로 변환된 자연스러운 상태 뱃지 (DISMISSED -> 공고 마감 등) */}
+                                    {(() => {
+                                        const statusInfo = formatPostingStatus(
+                                            activeItem.posting.status
+                                        );
+                                        return (
+                                            <span
+                                                className={`rounded-md border px-2 py-0.5 text-xs font-bold ${statusInfo.style}`}
+                                            >
+                                                {statusInfo.label}
+                                            </span>
+                                        );
+                                    })()}
                                 </div>
 
-                                {/* 회사명 & 직무 타이틀 */}
+                                {/* 🎯 [글자 크기 상향] 회사명 & 직무 타이틀 */}
                                 <div>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                                    <h2 className="text-xl font-black text-slate-900 tracking-tight leading-snug">
                                         {activeItem.posting.companyName}
                                     </h2>
-                                    <p className="text-sm font-semibold text-slate-700 mt-1">
+                                    <p className="text-sm font-bold text-slate-700 mt-1">
                                         {activeItem.posting.positionTitle}
                                     </p>
                                 </div>
 
-                                {/* 🎯 [디자인 개선] 박스 안 박스 조잡함 제거 -> 미니멀 플랫 출퇴근 분석 섹션 */}
-                                <div className="space-y-3 border-t border-b border-slate-100 py-4">
+                                {/* 출퇴근 분석 세부 섹션 */}
+                                <div className="space-y-3 border-t border-b border-slate-100 py-3.5">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
                                             <Navigation className="h-4 w-4 text-emerald-600" />
                                             <span>예상 출퇴근 시간</span>
                                         </div>
@@ -1113,8 +1144,8 @@ export default function JobPostingMapView({
                                         </span>
                                     </div>
 
-                                    {/* 깔끔한 2열 플랫 메트릭 라인 */}
-                                    <div className="grid grid-cols-2 gap-3 pt-1 text-xs">
+                                    {/* 2열 플랫 메트릭 라인 */}
+                                    <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
                                         <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
                                             <span className="text-[11px] text-slate-400 font-medium block">
                                                 예상 경로 거리
@@ -1136,7 +1167,7 @@ export default function JobPostingMapView({
                                     {/* 목적지 단일 텍스트 라인 */}
                                     <div className="text-xs text-slate-700 font-medium flex items-start gap-1.5 pt-1">
                                         <MapPin className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                                        <span>
+                                        <span className="leading-relaxed">
                                             <strong className="text-slate-900">목적지:</strong>{' '}
                                             {activeItem.posting.location || '주소 미기재'}
                                         </span>
@@ -1144,7 +1175,7 @@ export default function JobPostingMapView({
                                 </div>
 
                                 {/* 세부 스펙 라인 */}
-                                <div className="space-y-3 text-xs text-slate-700">
+                                <div className="space-y-2.5 text-xs text-slate-700">
                                     {activeItem.posting.deadline && (
                                         <div className="flex items-center gap-2 font-medium">
                                             <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
@@ -1157,19 +1188,23 @@ export default function JobPostingMapView({
                                     {activeItem.posting.salaryNote && (
                                         <div className="flex items-center gap-2 font-medium">
                                             <DollarSign className="h-4 w-4 text-emerald-600 shrink-0" />
-                                            <span>{activeItem.posting.salaryNote}</span>
+                                            <span className="font-semibold">
+                                                {activeItem.posting.salaryNote}
+                                            </span>
                                         </div>
                                     )}
                                     {activeItem.posting.employmentType && (
                                         <div className="flex items-center gap-2 font-medium">
                                             <Briefcase className="h-4 w-4 text-indigo-600 shrink-0" />
-                                            <span>{activeItem.posting.employmentType}</span>
+                                            <span className="font-semibold">
+                                                {activeItem.posting.employmentType}
+                                            </span>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* 외부 길찾기 웹 링크 버튼 */}
-                                <div className="space-y-2 pt-2">
+                                <div className="space-y-2 pt-1">
                                     <div className="text-xs font-bold text-slate-500">
                                         외부 길찾기 및 지도 연동
                                     </div>
@@ -1208,7 +1243,7 @@ export default function JobPostingMapView({
                                 </div>
                             </div>
                         ) : (
-                            /* B. 🎯 [디자인 개선] 박스 안 박스 답답함 제거 -> 심플 미니멀 플랫 리스트 */
+                            /* B. 🎯 [디자인 개선] 시원한 가독성의 심플 미니멀 플랫 리스트 */
                             <div className="flex flex-col h-full space-y-3">
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
@@ -1218,13 +1253,6 @@ export default function JobPostingMapView({
                                             {filteredItems.length}
                                         </span>
                                     </div>
-                                    <button
-                                        onClick={() => setIsDetailPanelOpen(false)}
-                                        className="text-slate-400 hover:text-slate-800 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-                                        title="패널 접기"
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto divide-y divide-slate-100 pr-1">
@@ -1235,20 +1263,21 @@ export default function JobPostingMapView({
                                     ) : (
                                         filteredItems.map((item) => {
                                             const mins = item.estimate?.estimatedMinutes || 0;
-                                            let badgeBg =
-                                                'bg-emerald-50 text-emerald-800 border-emerald-200';
+                                            // 🎯 소프트하고 자연스러운 소프트 뱃지 스타일 적용
+                                            let badgeStyle =
+                                                'bg-emerald-500/10 text-emerald-800 font-bold';
                                             let dotColor = 'bg-emerald-500';
                                             if (mins > 60) {
-                                                badgeBg =
-                                                    'bg-rose-50 text-rose-800 border-rose-200';
+                                                badgeStyle =
+                                                    'bg-rose-500/10 text-rose-800 font-bold';
                                                 dotColor = 'bg-rose-500';
                                             } else if (mins > 45) {
-                                                badgeBg =
-                                                    'bg-amber-50 text-amber-800 border-amber-200';
+                                                badgeStyle =
+                                                    'bg-amber-500/10 text-amber-800 font-bold';
                                                 dotColor = 'bg-amber-500';
                                             } else if (mins > 30) {
-                                                badgeBg =
-                                                    'bg-indigo-50 text-indigo-800 border-indigo-200';
+                                                badgeStyle =
+                                                    'bg-indigo-500/10 text-indigo-800 font-bold';
                                                 dotColor = 'bg-indigo-500';
                                             }
 
@@ -1256,10 +1285,11 @@ export default function JobPostingMapView({
                                                 <div
                                                     key={item.posting.id}
                                                     onClick={() => handleSelectPostingAndPan(item)}
-                                                    className="group cursor-pointer py-3.5 px-2 hover:bg-slate-50 rounded-xl transition-all duration-150"
+                                                    className="group cursor-pointer py-3.5 px-2.5 hover:bg-slate-50 rounded-xl transition-all duration-150"
                                                 >
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <div className="font-bold text-xs text-slate-900 group-hover:text-indigo-600 flex items-center gap-1.5 truncate">
+                                                        {/* 🎯 회사명 폰트 크기 키움 (text-sm font-bold) */}
+                                                        <div className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 flex items-center gap-2 truncate">
                                                             <span
                                                                 className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
                                                             />
@@ -1267,8 +1297,9 @@ export default function JobPostingMapView({
                                                                 {item.posting.companyName}
                                                             </span>
                                                         </div>
+                                                        {/* 🎯 자연스럽고 고급스러운 소요시간 뱃지 */}
                                                         <span
-                                                            className={`inline-flex items-center shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${badgeBg}`}
+                                                            className={`inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-[11px] ${badgeStyle}`}
                                                         >
                                                             ⏱️{' '}
                                                             {item.estimate?.formattedTimeText ||
@@ -1276,16 +1307,17 @@ export default function JobPostingMapView({
                                                         </span>
                                                     </div>
 
-                                                    <div className="mt-1 text-[11px] font-medium text-slate-600 truncate pl-3.5">
+                                                    {/* 🎯 직무 타이틀 폰트 크기 키움 (text-xs font-semibold) */}
+                                                    <div className="mt-1 text-xs font-semibold text-slate-600 truncate pl-4">
                                                         {item.posting.positionTitle}
                                                     </div>
 
-                                                    <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pl-3.5">
-                                                        <span className="truncate max-w-[170px]">
+                                                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 pl-4">
+                                                        <span className="truncate max-w-[150px]">
                                                             📍{' '}
                                                             {item.posting.location || '위치 미상'}
                                                         </span>
-                                                        <span className="text-indigo-600 font-bold shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <span className="text-indigo-600 font-bold text-[11px] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             지도 이동 →
                                                         </span>
                                                     </div>
