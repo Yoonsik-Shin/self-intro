@@ -12,6 +12,7 @@ type SidebarSectionProps = {
     extraAction?: ReactNode;
     defaultOpen?: boolean;
     isNavCollapsed?: boolean;
+    onExpandSidebar?: () => void;
     children: ReactNode;
     className?: string;
 };
@@ -25,6 +26,7 @@ export function SidebarSection({
     extraAction,
     defaultOpen = true,
     isNavCollapsed = false,
+    onExpandSidebar,
     children,
     className = '',
 }: SidebarSectionProps) {
@@ -32,6 +34,7 @@ export function SidebarSection({
 
     return (
         <div className={`shrink-0 ${className}`}>
+            {/* 펼침 모드 (isNavCollapsed === false) 헤더 */}
             <div
                 className={`hidden ${
                     isNavCollapsed
@@ -70,6 +73,29 @@ export function SidebarSection({
                 {extraAction && <div className="shrink-0 pl-2">{extraAction}</div>}
             </div>
 
+            {/* 접힘 모드 (isNavCollapsed === true) 미니 아이콘 버튼 */}
+            {isNavCollapsed && Icon && (
+                <div className="hidden min-[900px]:flex flex-col items-center justify-center my-1">
+                    <button
+                        type="button"
+                        onClick={onExpandSidebar}
+                        className="group relative grid h-9 w-9 place-items-center rounded-xl border border-slate-200/80 bg-slate-50 text-slate-600 transition-all hover:scale-105 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 shadow-2xs"
+                        title={`${title}${badge !== undefined ? ` (${badge})` : ''} - 클릭하여 펼치기`}
+                        aria-label={`${title} 펼치기`}
+                    >
+                        <Icon
+                            className={`h-4 w-4 ${iconColor} group-hover:scale-110 transition-transform`}
+                        />
+                        {badge !== undefined && (
+                            <span className="absolute -right-1 -top-1 grid min-w-4 h-4 place-items-center rounded-full bg-blue-600 px-1 font-mono text-[9px] font-extrabold text-white shadow-2xs">
+                                {badge}
+                            </span>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {/* 접힘 모드가 아닐 때의 컨텐츠 영역 */}
             <div
                 className={`hidden grid transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out ${
                     isOpen
