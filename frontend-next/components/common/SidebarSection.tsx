@@ -39,38 +39,40 @@ export function SidebarSection({
                 className={`hidden ${
                     isNavCollapsed
                         ? ''
-                        : 'min-[900px]:flex min-[900px]:items-center min-[900px]:justify-between'
+                        : 'min-[900px]:flex min-[900px]:items-center min-[900px]:justify-between gap-2 overflow-hidden'
                 }`}
             >
                 <div
                     onClick={() => setIsOpen((prev) => !prev)}
-                    className="flex-1 flex items-center justify-between cursor-pointer select-none group py-0.5"
+                    className="flex-1 min-w-0 flex items-center justify-between cursor-pointer select-none group py-0.5"
                     title={isOpen ? `${title} 접기` : `${title} 펼치기`}
                 >
-                    <div>
-                        <h3 className="text-sm font-black tracking-wider text-slate-700 flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
+                    <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-black tracking-wider text-slate-700 flex items-center gap-1.5 whitespace-nowrap group-hover:text-blue-600 transition-colors">
                             <ChevronDown
-                                className={`h-3.5 w-3.5 ${iconColor} transition-transform duration-200 ${
+                                className={`h-3.5 w-3.5 shrink-0 ${iconColor} transition-transform duration-200 ${
                                     isOpen ? '' : '-rotate-90'
                                 }`}
                             />
-                            {Icon && <Icon className={`h-3.5 w-3.5 ${iconColor}`} />}
-                            <span>{title}</span>
+                            {Icon && <Icon className={`h-3.5 w-3.5 shrink-0 ${iconColor}`} />}
+                            <span className="truncate">{title}</span>
                             {badge !== undefined && (
-                                <span className="ml-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-600">
+                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-600">
                                     {badge}
                                 </span>
                             )}
                         </h3>
                         {description && (
-                            <p className="mt-0.5 text-xs leading-normal text-slate-400 pl-5">
+                            <p className="mt-0.5 text-xs leading-normal text-slate-400 pl-5 truncate">
                                 {description}
                             </p>
                         )}
                     </div>
                 </div>
 
-                {extraAction && <div className="shrink-0 pl-2">{extraAction}</div>}
+                {extraAction && (
+                    <div className="shrink-0 whitespace-nowrap pl-1">{extraAction}</div>
+                )}
             </div>
 
             {/* 접힘 모드 (isNavCollapsed === true) 미니 아이콘 버튼 */}
