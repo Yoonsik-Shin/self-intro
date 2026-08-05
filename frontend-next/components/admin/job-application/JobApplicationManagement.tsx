@@ -37,6 +37,7 @@ import {
     LayoutGrid,
     List as ListIcon,
     Loader2,
+    MapPin,
     Pencil,
     Plus,
     RefreshCw,
@@ -1764,8 +1765,10 @@ const emptyForm: JobPostingRequest = {
     compensationDetail: '',
 };
 
+import JobPostingMapView from './JobPostingMapView';
+
 type DrawerState = { type: 'create' } | { type: 'existing'; id: number };
-type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR';
+type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP';
 
 export function JobApplicationManagement() {
     const queryClient = useQueryClient();
@@ -1816,6 +1819,10 @@ export function JobApplicationManagement() {
     const settingsDrawerAnim = useSlideDrawer(isSettingsDrawerOpen && !!settingsForm);
 
     const drawerJobPostingId = drawerState?.type === 'existing' ? drawerState.id : null;
+    const { data: settingsData = null } = useQuery({
+        queryKey: ['jobPostingSettings'],
+        queryFn: () => jobPostingApi.getSettings(),
+    });
     const { data: drawerTemplates = [] } = useQuery({
         queryKey: ['jobPostings', drawerJobPostingId, 'printTemplates'],
         queryFn: () =>
@@ -2642,6 +2649,18 @@ export function JobApplicationManagement() {
                         <CalendarIcon className="h-3.5 w-3.5" />
                         캘린더
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('MAP')}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                            viewMode === 'MAP'
+                                ? 'bg-emerald-600 text-white'
+                                : 'text-slate-500 hover:bg-slate-50'
+                        }`}
+                    >
+                        <MapPin className="h-3.5 w-3.5" />
+                        지도
+                    </button>
                 </div>
                 <input
                     value={search}
@@ -3438,7 +3457,7 @@ export function JobApplicationManagement() {
                         })}
                     </div>
                 </div>
-            ) : (
+            ) : viewMode === 'CALENDAR' ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex items-center justify-between">
                         <button
@@ -3529,6 +3548,15 @@ export function JobApplicationManagement() {
                         </span>
                     </div>
                 </div>
+            ) : (
+                <JobPostingMapView
+                    postings={postings}
+                    settings={settingsData}
+                    onUpdateSettings={() => {
+                        queryClient.invalidateQueries({ queryKey: ['jobPostingSettings'] });
+                    }}
+                    onSelectPosting={(posting) => openDrawer(posting)}
+                />
             )}
 
             {detailDrawerAnim.shouldRender &&
