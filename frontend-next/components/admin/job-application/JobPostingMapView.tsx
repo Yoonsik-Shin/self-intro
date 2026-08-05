@@ -32,9 +32,6 @@ import {
 } from '@/lib/utils/commuteCalculator';
 import HomeLocationModal from './HomeLocationModal';
 
-// Leaflet CSS CDN 로드
-import 'leaflet/dist/leaflet.css';
-
 interface JobPostingMapViewProps {
     postings: JobPosting[];
     settings: JobPostingSetting | null;
