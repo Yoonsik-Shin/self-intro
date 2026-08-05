@@ -314,7 +314,7 @@ export function ExperienceListClient({ experiences }: Props) {
                     isNavCollapsed ? 'min-[900px]:w-[64px]' : 'min-[900px]:w-[260px]'
                 }`}
             >
-                <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible">
+                <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
                     <button
                         type="button"
                         onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
@@ -335,10 +335,10 @@ export function ExperienceListClient({ experiences }: Props) {
                     </button>
 
                     <div
-                        className={`max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar min-[900px]:flex min-[900px]:flex-col ${
+                        className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar min-[900px]:flex min-[900px]:flex-col ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:p-1.5'
-                                : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
+                                : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:pt-4 min-[900px]:pb-2'
                         }`}
                     >
                         <SidebarSection
@@ -431,28 +431,18 @@ export function ExperienceListClient({ experiences }: Props) {
                                 );
                             })}
                         </SidebarSection>
-                        <div
-                            className={`flex flex-col items-center gap-2 py-1 ${isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}
-                        >
-                            <button
-                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                title="경험 목록 상단"
-                                aria-label="경험 목록 상단"
-                                className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-slate-900 text-white shadow-sm shadow-slate-800/20 ring-4 ring-slate-200"
-                            >
-                                <Briefcase className="h-4 w-4" />
-                            </button>
-                        </div>
-                        <hr
-                            className={`hidden -mb-4 border-slate-100 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                        />
+                    </div>
+
+                    {/* 무조건 하단 고정 영역 (Sticky Bottom) */}
+                    <div className="shrink-0 p-3 min-[900px]:px-4 border-t border-slate-100 bg-white/90 backdrop-blur-md rounded-b-2xl">
                         <button
+                            type="button"
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="mt-2 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-sm font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:mt-0 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
+                            className="grid h-9 w-full place-items-center rounded-xl border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5"
                             title="위로 가기"
                             aria-label="위로 가기"
                         >
-                            <ArrowUp className="h-4 w-4 shrink-0" />
+                            <ArrowUp className="h-4 w-4 shrink-0 group-hover:-translate-y-0.5 transition-transform" />
                             <span
                                 className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
                             >
