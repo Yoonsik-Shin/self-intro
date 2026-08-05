@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     MapPin,
     Home,
@@ -29,6 +29,9 @@ import {
 } from '@/lib/utils/commuteCalculator';
 import HomeLocationModal from './HomeLocationModal';
 
+// Leaflet CSS CDN 로드
+import 'leaflet/dist/leaflet.css';
+
 interface JobPostingMapViewProps {
     postings: JobPosting[];
     settings: JobPostingSetting | null;
@@ -37,7 +40,8 @@ interface JobPostingMapViewProps {
 }
 
 type TimeFilterOption = 'ALL' | '30' | '45' | '60' | 'OVER_60';
-type ViewModeOption = 'MAP_PIN' | 'CARD_GRID';
+type ViewModeOption = 'REAL_MAP' | 'CARD_GRID';
+type TileStyleOption = 'DARK' | 'STREET';
 
 export default function JobPostingMapView({
     postings,
@@ -47,7 +51,8 @@ export default function JobPostingMapView({
 }: JobPostingMapViewProps) {
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('ALL');
-    const [viewMode, setViewMode] = useState<ViewModeOption>('MAP_PIN'); // 📍 지도 핀 뷰어 기본값
+    const [viewMode, setViewMode] = useState<ViewModeOption>('REAL_MAP'); // 🗺️ 진짜 타일 지도 기본값
+    const [tileStyle, setTileStyle] = useState<TileStyleOption>('DARK');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
 
@@ -62,6 +67,14 @@ export default function JobPostingMapView({
     });
 
     const [isLayerControlOpen, setIsLayerControlOpen] = useState(true);
+
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapInstanceRef = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const markersGroupRef = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ringsGroupRef = useRef<any>(null);
 
     // 기본 집 위치 (설정 값이 없을 시 서울 마포구 상암동 좌표를 기본값으로 제공)
     const homeLat = settings?.homeLatitude ?? 37.5796;
@@ -96,6 +109,12 @@ export default function JobPostingMapView({
                 } else if (loc.includes('가산') || loc.includes('구로')) {
                     lat = 37.4812;
                     lng = 126.8827;
+                } else if (loc.includes('송파') || loc.includes('문정')) {
+                    lat = 37.4861;
+                    lng = 127.1226;
+                } else if (loc.includes('성북') || loc.includes('길음')) {
+                    lat = 37.6033;
+                    lng = 127.025;
                 }
             }
 
@@ -143,41 +162,6 @@ export default function JobPostingMapView({
         });
     }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
 
-    // 지도 X,Y 상대 2D 공간 좌표 변환 연산 (내 집 기준 동서남북 핀 포지셔닝)
-    const mapPinNodes = useMemo(() => {
-        return filteredItems.map((item, idx) => {
-            const lat = item.lat || homeLat;
-            const lng = item.lng || homeLng;
-
-            // 좌표 델타 (경도: X축, 위도: Y축 역방향)
-            const dLng = lng - homeLng;
-            const dLat = lat - homeLat;
-
-            // 스케일링 팩터 (지도 캔버스 크기 대비 핀 배치)
-            const scaleX = 400; // 경도 변화율 감도
-            const scaleY = 450; // 위도 변화율 감도
-
-            // 기본 50% 중심점에서 델타 좌표만큼 핀 위치 사상 (범위 12%~88% 내 클램핑)
-            let posX = 50 + dLng * scaleX;
-            let posY = 50 - dLat * scaleY;
-
-            // 좌표 정보가 거의 동일하거나 중복 겹침 시 약간의 분산(Spiral Offset)
-            const angle = (idx * 137.5 * Math.PI) / 180;
-            const radius = (idx % 4) * 3.5;
-            posX += Math.cos(angle) * radius;
-            posY += Math.sin(angle) * radius;
-
-            posX = Math.max(12, Math.min(88, posX));
-            posY = Math.max(12, Math.min(88, posY));
-
-            return {
-                ...item,
-                posX,
-                posY,
-            };
-        });
-    }, [filteredItems, homeLat, homeLng]);
-
     // 선택된 공고 아이템
     const activeItem = useMemo(() => {
         if (!selectedPostingId) return filteredItems[0] || null;
@@ -195,6 +179,169 @@ export default function JobPostingMapView({
             [key]: !prev[key],
         }));
     };
+
+    // 🗺️ Leaflet 실제 지도 엔진 인스턴스 초기화 및 마커/반경 링 렌더링
+    useEffect(() => {
+        if (viewMode !== 'REAL_MAP' || !mapContainerRef.current) return;
+
+        let isMounted = true;
+
+        const initLeafletMap = async () => {
+            const L = (await import('leaflet')).default;
+
+            if (!isMounted || !mapContainerRef.current) return;
+
+            // 기존 지도가 생성되어 있다면 재사용 또는 갱신
+            if (!mapInstanceRef.current) {
+                const map = L.map(mapContainerRef.current, {
+                    center: [homeLat, homeLng],
+                    zoom: 11,
+                    zoomControl: false,
+                });
+
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+                const tileUrl =
+                    tileStyle === 'DARK'
+                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+                const attribution =
+                    tileStyle === 'DARK'
+                        ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
+                        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+                L.tileLayer(tileUrl, {
+                    attribution,
+                    maxZoom: 19,
+                }).addTo(map);
+
+                markersGroupRef.current = L.layerGroup().addTo(map);
+                ringsGroupRef.current = L.layerGroup().addTo(map);
+
+                mapInstanceRef.current = map;
+            } else {
+                const map = mapInstanceRef.current;
+                map.setView([homeLat, homeLng]);
+            }
+
+            const map = mapInstanceRef.current;
+            const markersGroup = markersGroupRef.current;
+            const ringsGroup = ringsGroupRef.current;
+
+            if (!markersGroup || !ringsGroup) return;
+
+            markersGroup.clearLayers();
+            ringsGroup.clearLayers();
+
+            // 🎯 1. 반경 동심원 (10km, 20km, 30km)
+            if (layerToggles.showDistanceRings) {
+                L.circle([homeLat, homeLng], {
+                    radius: 10000,
+                    color: '#10b981',
+                    weight: 1.5,
+                    dashArray: '4, 4',
+                    fillOpacity: 0.03,
+                }).addTo(ringsGroup);
+
+                L.circle([homeLat, homeLng], {
+                    radius: 20000,
+                    color: '#6366f1',
+                    weight: 1.5,
+                    dashArray: '4, 4',
+                    fillOpacity: 0.02,
+                }).addTo(ringsGroup);
+
+                L.circle([homeLat, homeLng], {
+                    radius: 30000,
+                    color: '#f59e0b',
+                    weight: 1.5,
+                    dashArray: '4, 4',
+                    fillOpacity: 0.01,
+                }).addTo(ringsGroup);
+            }
+
+            // 🏠 2. 내 집 위치 마커 (Home Marker)
+            if (layerToggles.showHomePin) {
+                const homeIcon = L.divIcon({
+                    className: 'custom-home-icon',
+                    html: `
+                        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: rgba(16, 185, 129, 0.4); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                            <div style="position: relative; width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #09090b; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5); border: 2px solid #ffffff;">
+                                🏠
+                            </div>
+                            <div style="margin-top: 4px; background: rgba(24, 24, 27, 0.95); border: 1px solid rgba(16, 185, 129, 0.5); color: #6ee7b7; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
+                                🏠 내 집 출발점
+                            </div>
+                        </div>
+                    `,
+                    iconSize: [120, 60],
+                    iconAnchor: [60, 30],
+                });
+
+                const homeMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(
+                    markersGroup
+                );
+                homeMarker.on('click', () => setIsHomeModalOpen(true));
+            }
+
+            // 📍 3. 공고 마커 핀들 (Posting Map Markers)
+            filteredItems.forEach(({ posting, estimate, lat, lng }) => {
+                if (!lat || !lng) return;
+
+                const isSelected = activeItem?.posting.id === posting.id;
+                const mins = estimate?.estimatedMinutes || 0;
+
+                let colorHex = '#10b981'; // Emerald
+                if (mins > 60)
+                    colorHex = '#f43f5e'; // Rose
+                else if (mins > 45)
+                    colorHex = '#f59e0b'; // Amber
+                else if (mins > 30) colorHex = '#6366f1'; // Indigo
+
+                const labelHtml = layerToggles.showPinLabels
+                    ? `<div style="margin-top: 3px; background: rgba(24, 24, 27, 0.9); border: 1px solid ${colorHex}; color: ${colorHex}; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
+                        ${posting.companyName} ${estimate?.formattedTimeText ? `(${estimate.formattedTimeText})` : ''}
+                       </div>`
+                    : '';
+
+                const selectedRingHtml = isSelected
+                    ? `<div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background: ${colorHex}66; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
+                    : '';
+
+                const customPinIcon = L.divIcon({
+                    className: 'custom-posting-pin',
+                    html: `
+                        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s; ${isSelected ? 'transform: scale(1.25); z-index: 9999;' : ''}">
+                            ${selectedRingHtml}
+                            <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}88; border: 2px solid #ffffff;">
+                                📍
+                            </div>
+                            ${labelHtml}
+                        </div>
+                    `,
+                    iconSize: [120, 50],
+                    iconAnchor: [60, 25],
+                });
+
+                const postingMarker = L.marker([lat, lng], { icon: customPinIcon }).addTo(
+                    markersGroup
+                );
+
+                postingMarker.on('click', () => {
+                    setSelectedPostingId(posting.id);
+                    map.panTo([lat, lng]);
+                });
+            });
+        };
+
+        initLeafletMap();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [viewMode, homeLat, homeLng, filteredItems, activeItem, layerToggles, tileStyle]);
 
     return (
         <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[650px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
@@ -222,18 +369,18 @@ export default function JobPostingMapView({
                         </span>
                     </button>
 
-                    {/* 📍 지도 핀 뷰 / 📇 매트릭스 뷰 전환 버튼 */}
+                    {/* 🗺️ 진짜 지도 뷰 vs 📇 매트릭스 뷰 전환 버튼 */}
                     <div className="flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-950 p-1">
                         <button
-                            onClick={() => setViewMode('MAP_PIN')}
+                            onClick={() => setViewMode('REAL_MAP')}
                             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
-                                viewMode === 'MAP_PIN'
+                                viewMode === 'REAL_MAP'
                                     ? 'bg-indigo-600 text-white shadow-md'
                                     : 'text-zinc-400 hover:text-zinc-200'
                             }`}
                         >
                             <MapIcon className="h-3.5 w-3.5" />
-                            <span>📍 지도 핀 뷰</span>
+                            <span>🗺️ 실제 지도 뷰</span>
                         </button>
                         <button
                             onClick={() => setViewMode('CARD_GRID')}
@@ -313,61 +460,49 @@ export default function JobPostingMapView({
                 </div>
             </div>
 
-            {/* 2. 메인 대시보드 뷰어 (지도 핀 캔버스 + 공고 상세 리스트 사이드바) */}
+            {/* 2. 메인 대시보드 뷰어 (실제 지도 타일 캔버스 + 공고 상세 리스트 사이드바) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
                 {/* 지도 시각화 캔버스 (Left 8 cols) */}
                 <div className="relative lg:col-span-8 bg-zinc-950 overflow-hidden flex flex-col items-center justify-center p-4">
-                    {/* Interactive Map Grid Canvas */}
-                    <div className="relative w-full h-full rounded-xl border border-zinc-800/80 bg-zinc-900/50 p-6 flex flex-col justify-between overflow-hidden">
-                        {/* 지도 그리드 격자 패턴 배경 */}
-                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
-
-                        {/* 🎯 직주근접 동심원 거리 반경 링 (10km / 20km / 30km) */}
-                        {layerToggles.showDistanceRings && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30 z-0">
-                                <div className="absolute w-[240px] h-[240px] rounded-full border border-dashed border-emerald-400 flex items-start justify-center pt-2">
-                                    <span className="text-[10px] text-emerald-400 bg-zinc-950/80 px-1 rounded font-semibold">
-                                        10 km (약 25분)
-                                    </span>
-                                </div>
-                                <div className="absolute w-[440px] h-[440px] rounded-full border border-dashed border-indigo-400 flex items-start justify-center pt-2">
-                                    <span className="text-[10px] text-indigo-400 bg-zinc-950/80 px-1 rounded font-semibold">
-                                        20 km (약 45분)
-                                    </span>
-                                </div>
-                                <div className="absolute w-[640px] h-[640px] rounded-full border border-dashed border-amber-400 flex items-start justify-center pt-2">
-                                    <span className="text-[10px] text-amber-400 bg-zinc-950/80 px-1 rounded font-semibold">
-                                        30 km (약 60분)
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 상단 레이어 바 */}
-                        <div className="z-20 flex items-start justify-between">
-                            {/* 내 집 핀 라벨 */}
-                            {layerToggles.showHomePin && (
-                                <div className="flex items-center gap-2 rounded-xl bg-zinc-900/90 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 backdrop-blur-md shadow-lg">
-                                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
-                                    <span className="font-semibold text-emerald-400">
-                                        🏠 내 집 출발점
-                                    </span>
-                                    <span className="text-zinc-500">|</span>
-                                    <span className="text-zinc-300 max-w-[240px] truncate">
-                                        {homeAddress}
-                                    </span>
+                    {/* Interactive Leaflet Real Map Tile Canvas */}
+                    <div className="relative w-full h-full rounded-xl border border-zinc-800/80 bg-zinc-900/50 flex flex-col justify-between overflow-hidden">
+                        {/* 지도 상단 마인드맵 토글 패널 및 지도 타일 스타일 변경 바 */}
+                        <div className="absolute top-4 left-4 right-4 z-20 flex items-start justify-between pointer-events-none">
+                            {/* 지도 타일 스위처 (다크 모드 타일 vs 일반 지도 타일) */}
+                            {viewMode === 'REAL_MAP' && (
+                                <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 p-1 backdrop-blur-md shadow-lg text-xs">
+                                    <button
+                                        onClick={() => setTileStyle('DARK')}
+                                        className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                                            tileStyle === 'DARK'
+                                                ? 'bg-zinc-800 text-white shadow-sm'
+                                                : 'text-zinc-400 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        🌙 다크 지도
+                                    </button>
+                                    <button
+                                        onClick={() => setTileStyle('STREET')}
+                                        className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                                            tileStyle === 'STREET'
+                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                : 'text-zinc-400 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        🗺️ 일반 타일 지도
+                                    </button>
                                 </div>
                             )}
 
                             {/* 🧠 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 컨트롤 패널 */}
-                            <div className="relative ml-auto">
+                            <div className="relative ml-auto pointer-events-auto">
                                 <button
                                     onClick={() => setIsLayerControlOpen(!isLayerControlOpen)}
-                                    className="flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 backdrop-blur-md transition-all shadow-md"
+                                    className="flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 backdrop-blur-md transition-all shadow-md"
                                 >
-                                    <Layers className="h-3.5 w-3.5 text-indigo-400" />
+                                    <Layers className="h-3.5 w-3.5 text-indigo-300" />
                                     <span>마인드맵 레이어 토글</span>
-                                    <span className="rounded bg-indigo-500/20 px-1 text-[10px]">
+                                    <span className="rounded bg-indigo-400/20 px-1 text-[10px]">
                                         {Object.values(layerToggles).filter(Boolean).length}/6
                                     </span>
                                 </button>
@@ -506,135 +641,16 @@ export default function JobPostingMapView({
                             </div>
                         </div>
 
-                        {/* 3. 📍 지도 마커 핀 시각화 영역 vs 📇 매트릭스 그리드 영역 */}
-                        {viewMode === 'MAP_PIN' ? (
-                            /* [MODE 1] 📍 진짜 지도 공간 기반 마커 핀 뷰어 Canvas */
-                            <div className="relative z-10 w-full h-[400px] my-auto overflow-hidden">
-                                {/* 🏠 중앙 내 집 마커 (Center Home Pin) */}
-                                {layerToggles.showHomePin && (
-                                    <div
-                                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer"
-                                        onClick={() => setIsHomeModalOpen(true)}
-                                    >
-                                        <div className="relative flex items-center justify-center">
-                                            <div className="absolute h-10 w-10 rounded-full bg-emerald-500/30 animate-ping" />
-                                            <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 text-zinc-950 font-bold shadow-lg shadow-emerald-500/40 ring-4 ring-emerald-500/20">
-                                                <Home className="h-5 w-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-1.5 rounded-lg border border-emerald-500/40 bg-zinc-900/90 px-2.5 py-1 text-[11px] font-bold text-emerald-300 shadow-md backdrop-blur-md">
-                                            🏠 내 집 출발점
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* 📍 채용 공고 마커 핀 노드들 (Interactive Map Pins) */}
-                                {mapPinNodes.length === 0 ? (
-                                    <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">
-                                        선택된 조건에 부합하는 공고 핀이 없습니다.
-                                    </div>
-                                ) : (
-                                    mapPinNodes.map(({ posting, estimate, posX, posY }) => {
-                                        const isSelected = activeItem?.posting.id === posting.id;
-                                        const mins = estimate?.estimatedMinutes || 0;
-
-                                        // 소요시간별 핀 컬러 테마
-                                        let pinBg = 'bg-emerald-500 text-zinc-950';
-                                        let pinRing = 'ring-emerald-500/30';
-                                        let badgeStyle =
-                                            'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-
-                                        if (mins > 60) {
-                                            pinBg = 'bg-rose-500 text-white';
-                                            pinRing = 'ring-rose-500/30';
-                                            badgeStyle =
-                                                'bg-rose-500/20 text-rose-300 border-rose-500/40';
-                                        } else if (mins > 45) {
-                                            pinBg = 'bg-amber-500 text-zinc-950';
-                                            pinRing = 'ring-amber-500/30';
-                                            badgeStyle =
-                                                'bg-amber-500/20 text-amber-300 border-amber-500/40';
-                                        } else if (mins > 30) {
-                                            pinBg = 'bg-indigo-500 text-white';
-                                            pinRing = 'ring-indigo-500/30';
-                                            badgeStyle =
-                                                'bg-indigo-500/20 text-indigo-300 border-indigo-500/40';
-                                        }
-
-                                        return (
-                                            <div
-                                                key={posting.id}
-                                                style={{ left: `${posX}%`, top: `${posY}%` }}
-                                                onClick={() => setSelectedPostingId(posting.id)}
-                                                className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 z-10 hover:z-30 cursor-pointer ${
-                                                    isSelected
-                                                        ? 'z-30 scale-125'
-                                                        : 'hover:scale-110'
-                                                }`}
-                                            >
-                                                {/* 핀 호버/클릭 시 표출되는 커스텀 팝업 인포윈도우 Card */}
-                                                {isSelected && (
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-xl border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 z-40 text-left">
-                                                        <div className="text-[11px] font-bold text-white truncate">
-                                                            {posting.companyName}
-                                                        </div>
-                                                        <div className="text-[10px] text-zinc-400 truncate mt-0.5">
-                                                            {posting.positionTitle}
-                                                        </div>
-                                                        <div className="mt-1.5 flex items-center justify-between border-t border-zinc-800 pt-1 text-[10px]">
-                                                            <span className="font-semibold text-emerald-400">
-                                                                ⏱️{' '}
-                                                                {estimate?.formattedTimeText ||
-                                                                    '시간 미상'}
-                                                            </span>
-                                                            <span className="text-zinc-500">
-                                                                {estimate?.estimatedDistanceKm ??
-                                                                    '-'}{' '}
-                                                                km
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* 📍 마커 핀 아이콘 & Glowing Ring */}
-                                                <div className="flex flex-col items-center group">
-                                                    <div className="relative flex items-center justify-center">
-                                                        {isSelected && (
-                                                            <div className="absolute h-8 w-8 rounded-full bg-indigo-500/40 animate-ping" />
-                                                        )}
-                                                        <div
-                                                            className={`relative flex h-7 w-7 items-center justify-center rounded-full font-bold shadow-lg ring-4 ${pinBg} ${pinRing}`}
-                                                        >
-                                                            <MapPin className="h-4 w-4 fill-current stroke-[2]" />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* 마커 뱃지 라벨 (회사명 + 소요시간) */}
-                                                    {layerToggles.showPinLabels && (
-                                                        <div
-                                                            className={`mt-1 flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-bold shadow-md backdrop-blur-md whitespace-nowrap transition-all ${badgeStyle} ${
-                                                                isSelected
-                                                                    ? 'ring-1 ring-white/40 scale-105'
-                                                                    : ''
-                                                            }`}
-                                                        >
-                                                            <span className="truncate max-w-[80px]">
-                                                                {posting.companyName}
-                                                            </span>
-                                                            <span>
-                                                                {estimate?.formattedTimeText || ''}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
+                        {/* 3. 🗺️ 실제 타일 지도 Canvas vs 📇 매트릭스 그리드 뷰어 */}
+                        {viewMode === 'REAL_MAP' ? (
+                            /* [MODE 1] 🗺️ 실제 도로/지명 타일 지도 (Leaflet Map Tile Engine) */
+                            <div
+                                ref={mapContainerRef}
+                                className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden bg-zinc-950"
+                            />
                         ) : (
                             /* [MODE 2] 📇 카드 매트릭스 그리드 뷰어 */
-                            <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-2">
+                            <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-4">
                                 {filteredItems.length === 0 ? (
                                     <div className="col-span-full py-12 text-center text-zinc-500 text-xs">
                                         선택된 레이어 및 조건에 부합하는 공고 마커가 없습니다.
@@ -713,9 +729,10 @@ export default function JobPostingMapView({
                         )}
 
                         {/* 지도 정보 가이드 하단 바 */}
-                        <div className="z-10 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 pt-3 text-[11px] text-zinc-500">
+                        <div className="z-20 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 p-3 bg-zinc-900/90 backdrop-blur-md text-[11px] text-zinc-500">
                             <span>
-                                💡 마커 핀을 클릭하면 상세 길찾기 URL과 지원 공고 정보가 표기됩니다.
+                                💡 실제 지도 타일 위 마커를 클릭하면 이동 경로와 지원 공고 정보가
+                                표기됩니다.
                             </span>
                             <div className="flex items-center gap-3">
                                 <span className="flex items-center gap-1 text-emerald-400 font-medium">
