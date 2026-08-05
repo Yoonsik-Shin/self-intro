@@ -2,7 +2,8 @@ import { request } from './client';
 import type {
     Study,
     StudyPage,
-    StudyCategory,
+    StudyTaxonomyNode,
+    TaxonomyNode,
     Tag,
     StudyStatus,
     StudyRequest,
@@ -16,7 +17,7 @@ export const studyApi = {
     list: (
         params: {
             q?: string;
-            category?: string;
+            taxonomyNodeId?: number;
             skillIds?: number[];
             experienceIds?: number[];
             experienceDetailIds?: number[];
@@ -26,7 +27,7 @@ export const studyApi = {
     ) => {
         const search = new URLSearchParams();
         if (params.q) search.set('q', params.q);
-        if (params.category && params.category !== 'ALL') search.set('category', params.category);
+        if (params.taxonomyNodeId) search.set('taxonomyNodeId', String(params.taxonomyNodeId));
         params.skillIds?.forEach((id) => search.append('skillIds', String(id)));
         params.experienceIds?.forEach((id) => search.append('experienceIds', String(id)));
         params.experienceDetailIds?.forEach((id) =>
@@ -43,7 +44,7 @@ export const studyApi = {
     adminList: (
         params: {
             q?: string;
-            category?: string;
+            taxonomyNodeId?: number;
             status?: StudyStatus;
             skillIds?: number[];
             experienceIds?: number[];
@@ -52,7 +53,7 @@ export const studyApi = {
     ) => {
         const search = new URLSearchParams({ size: '100' });
         if (params.q) search.set('q', params.q);
-        if (params.category && params.category !== 'ALL') search.set('category', params.category);
+        if (params.taxonomyNodeId) search.set('taxonomyNodeId', String(params.taxonomyNodeId));
         if (params.status) search.set('status', params.status);
         params.skillIds?.forEach((id) => search.append('skillIds', String(id)));
         params.experienceIds?.forEach((id) => search.append('experienceIds', String(id)));
@@ -61,7 +62,13 @@ export const studyApi = {
         );
         return request<StudyPage>(`/api/admin/studies?${search}`);
     },
-    categories: () => request<StudyCategory[]>('/api/study-categories'),
+    publicTaxonomy: () => request<StudyTaxonomyNode[]>('/api/study-taxonomy'),
+    curation: () => request<TaxonomyNode[]>('/api/admin/study-taxonomy-curation'),
+    updateCuration: (taxonomyNodeIds: number[]) =>
+        request<TaxonomyNode[]>('/api/admin/study-taxonomy-curation', {
+            method: 'PUT',
+            body: JSON.stringify(taxonomyNodeIds),
+        }),
     tags: () => request<Tag[]>('/api/tags'),
     create: (payload: StudyRequest) =>
         request<Study>('/api/admin/studies', {

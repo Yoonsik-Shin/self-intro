@@ -5,6 +5,8 @@ import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.presentation.dto.StudyPageResponse;
 import com.selfintro.modules.study.presentation.dto.StudyRequest;
 import com.selfintro.modules.study.presentation.dto.StudyResponse;
+import com.selfintro.modules.study.presentation.dto.StudyTaxonomyResponse;
+import com.selfintro.modules.taxonomy.presentation.dto.TaxonomyNodeResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -31,7 +33,7 @@ public class StudyController {
     @GetMapping("/api/studies")
     public StudyPageResponse searchPublished(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Long taxonomyNodeId,
             @RequestParam(required = false) List<String> tags,
             @RequestParam(required = false) List<Long> skillIds,
             @RequestParam(required = false) List<Long> experienceIds,
@@ -39,7 +41,7 @@ public class StudyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return studyService.searchPublished(
-                q, category, tags, skillIds, experienceIds, experienceDetailIds, page, size);
+                q, taxonomyNodeId, tags, skillIds, experienceIds, experienceDetailIds, page, size);
     }
 
     @GetMapping("/api/studies/{slug}")
@@ -47,9 +49,9 @@ public class StudyController {
         return studyService.findPublishedBySlug(slug);
     }
 
-    @GetMapping("/api/study-categories")
-    public List<StudyResponse.CategoryResponse> categories() {
-        return studyService.findCategories();
+    @GetMapping("/api/study-taxonomy")
+    public List<StudyTaxonomyResponse> publicTaxonomy() {
+        return studyService.findPublicTaxonomy();
     }
 
     @GetMapping("/api/tags")
@@ -60,7 +62,7 @@ public class StudyController {
     @GetMapping("/api/admin/studies")
     public StudyPageResponse searchAdmin(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Long taxonomyNodeId,
             @RequestParam(required = false) List<String> tags,
             @RequestParam(required = false) List<Long> skillIds,
             @RequestParam(required = false) List<Long> experienceIds,
@@ -70,7 +72,7 @@ public class StudyController {
             @RequestParam(defaultValue = "100") int size) {
         return studyService.searchAdmin(
                 q,
-                category,
+                taxonomyNodeId,
                 tags,
                 skillIds,
                 experienceIds,
@@ -78,6 +80,16 @@ public class StudyController {
                 status,
                 page,
                 size);
+    }
+
+    @GetMapping("/api/admin/study-taxonomy-curation")
+    public List<TaxonomyNodeResponse> findCuration() {
+        return studyService.findCuration();
+    }
+
+    @PutMapping("/api/admin/study-taxonomy-curation")
+    public List<TaxonomyNodeResponse> replaceCuration(@RequestBody List<Long> taxonomyNodeIds) {
+        return studyService.replaceCuration(taxonomyNodeIds);
     }
 
     @PostMapping("/api/admin/studies")

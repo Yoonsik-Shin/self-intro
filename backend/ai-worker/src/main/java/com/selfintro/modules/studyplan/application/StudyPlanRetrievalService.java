@@ -113,7 +113,7 @@ public class StudyPlanRetrievalService {
                 .map(
                         resource -> {
                             String haystack =
-                                    (resource.getTitle() + " " + resource.getCategory().getName())
+                                    (resource.getTitle() + " " + categoryLabel(resource))
                                             .toLowerCase();
                             boolean familiar = myKeywords.stream().anyMatch(haystack::contains);
                             return new CollectedCandidate(resource, familiar);
@@ -178,7 +178,7 @@ public class StudyPlanRetrievalService {
                                 .append(" 제목=")
                                 .append(r.getTitle())
                                 .append(" 카테고리=")
-                                .append(r.getCategory().getName())
+                                .append(categoryLabel(r))
                                 .append("\n"));
         sb.append("\n## 사용자 피드백\n").append(feedback).append("\n");
         return sb.toString();
@@ -187,4 +187,13 @@ public class StudyPlanRetrievalService {
     private record KeywordResponse(List<String> keywords) {}
 
     private record AdjustResponse(List<Long> removeResourceIds, List<String> additionalKeywords) {}
+
+    private static String categoryLabel(LearningResource resource) {
+        if (resource.getTaxonomyNodes().isEmpty()) {
+            return "미분류";
+        }
+        return resource.getTaxonomyNodes().stream()
+                .map(node -> node.getName())
+                .collect(Collectors.joining(", "));
+    }
 }

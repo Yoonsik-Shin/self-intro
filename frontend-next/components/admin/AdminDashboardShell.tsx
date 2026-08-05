@@ -27,6 +27,7 @@ import {
     GitBranch,
     ExternalLink,
     FolderGit2,
+    ListTree,
 } from 'lucide-react';
 import { bffApi, skillApi } from '@/lib/api';
 import type { Experience, IntroductionResponse, Skill } from '@/lib/api/types';
@@ -34,6 +35,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
 import { StudyManagement } from './study/StudyManagement';
 import { LearningResourceManagement } from './learning-resource/LearningResourceManagement';
+import { TaxonomyManagement } from './taxonomy/TaxonomyManagement';
 import { SkillsManagement } from './skills/SkillsManagement';
 import { ExperienceManagement } from './experience/ExperienceManagement';
 import { ProfileManagement } from './profile/ProfileManagement';
@@ -69,7 +71,8 @@ type TabId =
     | 'PORTFOLIO'
     | 'JOB_APPLICATIONS'
     | 'LEARNING_RESOURCES'
-    | 'STUDY_PLAN';
+    | 'STUDY_PLAN'
+    | 'TAXONOMY';
 
 const ADMIN_MENU_GROUPS = [
     {
@@ -92,6 +95,7 @@ const ADMIN_MENU_GROUPS = [
         label: '페이지 구성',
         items: [
             { id: 'PROFILE', label: '프로필 정보 관리', icon: User },
+            { id: 'TAXONOMY', label: '카테고리 체계 관리', icon: ListTree },
             { id: 'COMPETENCIES', label: '핵심 역량 관리', icon: Sparkles },
             { id: 'CORE_PROJECTS', label: '핵심 프로젝트 관리', icon: Pin },
             { id: 'ARCHITECTURE', label: '시스템 아키텍처 관리', icon: Terminal },
@@ -141,6 +145,7 @@ export function AdminDashboardShell() {
                 'JOB_APPLICATIONS',
                 'LEARNING_RESOURCES',
                 'STUDY_PLAN',
+                'TAXONOMY',
             ];
             if (tabInUrl && validTabs.includes(tabInUrl)) {
                 setActiveTab(tabInUrl);
@@ -420,7 +425,8 @@ export function AdminDashboardShell() {
                 activeTab === 'PORTFOLIO' ||
                 activeTab === 'JOB_APPLICATIONS' ||
                 activeTab === 'LEARNING_RESOURCES' ||
-                activeTab === 'STUDY_PLAN') &&
+                activeTab === 'STUDY_PLAN' ||
+                activeTab === 'TAXONOMY') &&
             isPreviewOpen
         )
             closePreviewPanel();
@@ -651,6 +657,7 @@ export function AdminDashboardShell() {
                             {activeTab === 'JOB_APPLICATIONS' && <JobApplicationManagement />}
                             {activeTab === 'LEARNING_RESOURCES' && <LearningResourceManagement />}
                             {activeTab === 'STUDY_PLAN' && <StudyPlanManagement />}
+                            {activeTab === 'TAXONOMY' && <TaxonomyManagement />}
                         </section>
                     </div>
                 </div>

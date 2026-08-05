@@ -3,6 +3,7 @@ package com.selfintro.modules.studyplan.presentation.dto;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.studyplan.domain.entity.StudyPlanCandidate;
+import java.util.stream.Collectors;
 
 public record StudyPlanCandidateResponse(
         Long id,
@@ -19,7 +20,11 @@ public record StudyPlanCandidateResponse(
         return new StudyPlanCandidateResponse(
                 resource.getId(),
                 resource.getTitle(),
-                resource.getCategory().getName(),
+                resource.getTaxonomyNodes().isEmpty()
+                        ? "미분류"
+                        : resource.getTaxonomyNodes().stream()
+                                .map(node -> node.getName())
+                                .collect(Collectors.joining(", ")),
                 resource.getResourceType(),
                 resource.getPriorityTier(),
                 resource.getDurationMinutes(),

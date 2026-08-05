@@ -22,8 +22,8 @@ public class StudyRepositoryImpl implements StudyRepositoryCustom {
     public Page<Study> search(StudySearchCondition condition, Pageable pageable) {
         BooleanBuilder where = new BooleanBuilder();
         where.and(keywordContains(condition.keyword()));
-        if (StringUtils.hasText(condition.category())) {
-            where.and(study.category.slug.eq(condition.category()));
+        if (condition.taxonomyNodeIds() != null && !condition.taxonomyNodeIds().isEmpty()) {
+            where.and(study.taxonomyNodes.any().id.in(condition.taxonomyNodeIds()));
         }
         if (condition.tags() != null && !condition.tags().isEmpty()) {
             where.and(study.tags.any().slug.in(condition.tags()));

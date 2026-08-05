@@ -7,7 +7,7 @@ import java.util.List;
 
 public record LearningResourceSearchCondition(
         String keyword,
-        String category,
+        List<Long> taxonomyNodeIds,
         List<String> tags,
         List<Long> skillIds,
         LearningResourceType resourceType,

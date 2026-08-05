@@ -23,8 +23,8 @@ public class LearningResourceRepositoryImpl implements LearningResourceRepositor
             LearningResourceSearchCondition condition, Pageable pageable) {
         BooleanBuilder where = new BooleanBuilder();
         where.and(keywordContains(condition.keyword()));
-        if (StringUtils.hasText(condition.category())) {
-            where.and(learningResource.category.slug.eq(condition.category()));
+        if (condition.taxonomyNodeIds() != null && !condition.taxonomyNodeIds().isEmpty()) {
+            where.and(learningResource.taxonomyNodes.any().id.in(condition.taxonomyNodeIds()));
         }
         if (condition.tags() != null && !condition.tags().isEmpty()) {
             where.and(learningResource.tags.any().slug.in(condition.tags()));

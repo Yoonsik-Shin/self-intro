@@ -189,7 +189,10 @@ public class StudyPlanService {
     public StudyPlanResponse setCategorySelected(Long planId, String category, boolean selected) {
         StudyPlan plan = findOrThrow(planId);
         plan.getCandidates().stream()
-                .filter(c -> c.getLearningResource().getCategory().getName().equals(category))
+                .filter(
+                        c ->
+                                c.getLearningResource().getTaxonomyNodes().stream()
+                                        .anyMatch(node -> node.getName().equals(category)))
                 .forEach(c -> c.setSelected(selected));
         return StudyPlanResponse.from(plan);
     }
@@ -242,11 +245,10 @@ public class StudyPlanService {
         }
         Map<String, Long> countByCategory =
                 candidates.stream()
+                        .flatMap(c -> categoryLabels(c.resource()).stream())
                         .collect(
                                 Collectors.groupingBy(
-                                        c -> c.resource().getCategory().getName(),
-                                        LinkedHashMap::new,
-                                        Collectors.counting()));
+                                        name -> name, LinkedHashMap::new, Collectors.counting()));
         String breakdown =
                 countByCategory.entrySet().stream()
                         .map(e -> e.getKey() + " " + e.getValue() + "개")
@@ -346,4 +348,11 @@ public class StudyPlanService {
             LocalDateTime completedAt,
             boolean understandingChecked,
             LocalDateTime understandingCheckedAt) {}
+
+    private static List<String> categoryLabels(LearningResource resource) {
+        if (resource.getTaxonomyNodes().isEmpty()) {
+            return List.of("미분류");
+        }
+        return resource.getTaxonomyNodes().stream().map(node -> node.getName()).toList();
+    }
 }

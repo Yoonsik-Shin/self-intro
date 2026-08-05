@@ -15,7 +15,7 @@ public record StudyRequest(
         @NotBlank @Size(max = 500) String summary,
         @NotBlank String contentMarkdown,
         @NotNull StudyStatus status,
-        @NotNull Long categoryId,
+        List<Long> taxonomyNodeIds,
         List<@NotBlank @Size(max = 80) String> tagNames,
         List<Long> skillIds,
         List<Long> experienceIds,

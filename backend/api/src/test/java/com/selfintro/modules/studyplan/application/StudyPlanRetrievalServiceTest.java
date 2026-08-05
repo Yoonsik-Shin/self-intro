@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.learningresource.application.LearningResourceService;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.entity.LearningResourceCategory;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
@@ -22,6 +21,7 @@ import com.selfintro.modules.learningresource.presentation.dto.LearningResourceP
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceResponse;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.studyplan.application.StudyPlanRetrievalService.CollectedCandidate;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class StudyPlanRetrievalServiceTest {
     @Mock private NvidiaNimClient nvidiaNimClient;
 
     private StudyPlanRetrievalService service;
-    private LearningResourceCategory category;
+    private TaxonomyNode taxonomyNode;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -50,12 +50,12 @@ class StudyPlanRetrievalServiceTest {
                         skillRepository,
                         nvidiaNimClient,
                         new ObjectMapper());
-        var constructor = LearningResourceCategory.class.getDeclaredConstructor();
+        var constructor = TaxonomyNode.class.getDeclaredConstructor();
         constructor.setAccessible(true);
-        category = constructor.newInstance();
-        ReflectionTestUtils.setField(category, "id", 1L);
-        ReflectionTestUtils.setField(category, "name", "백엔드");
-        ReflectionTestUtils.setField(category, "slug", "backend");
+        taxonomyNode = constructor.newInstance();
+        ReflectionTestUtils.setField(taxonomyNode, "id", 1L);
+        ReflectionTestUtils.setField(taxonomyNode, "name", "백엔드");
+        ReflectionTestUtils.setField(taxonomyNode, "slug", "backend");
         when(skillRepository.findAllSkillNames()).thenReturn(List.of("스프링"));
     }
 
@@ -72,9 +72,9 @@ class StudyPlanRetrievalServiceTest {
                         LearningResourceStatus.WISHLIST,
                         LearningResourcePriorityTier.P1,
                         0,
-                        category,
                         null,
                         null);
+        resource.replaceTaxonomyNodes(List.of(taxonomyNode));
         ReflectionTestUtils.setField(resource, "id", id);
         return resource;
     }

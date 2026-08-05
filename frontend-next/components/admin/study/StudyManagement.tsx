@@ -13,13 +13,15 @@ import {
     Trash2,
     WandSparkles,
 } from 'lucide-react';
-import { ApiError, studyApi, skillApi, experienceApi } from '@/lib/api';
+import { ApiError, studyApi, skillApi, experienceApi, taxonomyApi } from '@/lib/api';
 import type { GalleryImage, Study, StudyRequest, StudySuggestion } from '@/lib/api/types';
+import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
 import { useAuthStore } from '@/store/useAuthStore';
 import { ImageGalleryEditor } from '../shared/ImageGalleryEditor';
 import { MarkdownEditor } from '../shared/MarkdownEditor';
 import { SkillPicker } from '../shared/SkillPicker';
 import { TagInput } from '../shared/TagInput';
+import { TaxonomyPicker } from '../shared/TaxonomyPicker';
 import { StudyDetailPanel } from './StudyDetailPanel';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
 
@@ -42,7 +44,7 @@ const emptyStudyForm: StudyForm = {
     summary: '',
     contentMarkdown: '',
     status: 'DRAFT',
-    categoryId: 1,
+    taxonomyNodeIds: [],
     tagNames: '',
     skillIds: [],
     experienceIds: [],
@@ -80,10 +82,14 @@ export function StudyManagement() {
     });
     const studies = studyPage?.content;
 
-    const { data: studyCategories } = useQuery({
-        queryKey: ['studyCategories'],
-        queryFn: studyApi.categories,
+    const { data: taxonomyNodes } = useQuery({
+        queryKey: ['taxonomyNodes'],
+        queryFn: taxonomyApi.list,
     });
+    const taxonomyNodesById = useMemo(
+        () => toTaxonomyNodeMap(taxonomyNodes ?? []),
+        [taxonomyNodes]
+    );
     const { data: skillsList } = useQuery({ queryKey: ['skills'], queryFn: () => skillApi.list() });
     const { data: experiencesList } = useQuery({
         queryKey: ['experiences'],
@@ -240,7 +246,9 @@ export function StudyManagement() {
 
     const filteredStudies = useMemo(() => {
         return studies?.filter((study) => {
-            const matchesCategory = studyFilter === 'ALL' || study.category.slug === studyFilter;
+            const matchesCategory =
+                studyFilter === 'ALL' ||
+                study.taxonomyNodes.some((node) => node.slug === studyFilter);
             const matchesStatus = statusFilter === 'ALL' || study.status === statusFilter;
             const matchesSearch =
                 !studySearch ||
@@ -493,7 +501,7 @@ export function StudyManagement() {
                 summary: study.summary,
                 contentMarkdown: study.contentMarkdown,
                 status: study.status,
-                categoryId: study.category.id,
+                taxonomyNodeIds: study.taxonomyNodes.map((node) => node.id),
                 tagNames: study.tags.map((tag) => tag.name).join(', '),
                 skillIds: study.skills.map((skill) => skill.id),
                 experienceIds: study.experiences.map((experience) => experience.id),
@@ -526,7 +534,7 @@ export function StudyManagement() {
                         summary: target.summary,
                         contentMarkdown: target.contentMarkdown,
                         status: target.status,
-                        categoryId: target.category.id,
+                        taxonomyNodeIds: target.taxonomyNodes.map((node) => node.id),
                         tagNames: target.tags.map((tag) => tag.name).join(', '),
                         skillIds: target.skills.map((skill) => skill.id),
                         experienceIds: target.experiences.map((experience) => experience.id),
@@ -631,7 +639,7 @@ export function StudyManagement() {
                         <span className="text-xs font-bold text-slate-400 mr-1 shrink-0">
                             카테고리:
                         </span>
-                        {[{ slug: 'ALL', name: '전체' }, ...(studyCategories ?? [])].map(
+                        {[{ slug: 'ALL', name: '전체' }, ...(taxonomyNodes ?? [])].map(
                             (category) => (
                                 <button
                                     key={category.slug}
@@ -910,22 +918,13 @@ export function StudyManagement() {
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
                                 카테고리
                             </label>
-                            <select
-                                value={studyForm.categoryId}
-                                onChange={(e) =>
-                                    setStudyForm({
-                                        ...studyForm,
-                                        categoryId: Number(e.target.value),
-                                    })
+                            <TaxonomyPicker
+                                nodes={taxonomyNodes ?? []}
+                                selectedIds={studyForm.taxonomyNodeIds}
+                                onChange={(ids) =>
+                                    setStudyForm({ ...studyForm, taxonomyNodeIds: ids })
                                 }
-                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            >
-                                {(studyCategories ?? []).map((category) => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.name}
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </div>
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -1341,7 +1340,15 @@ export function StudyManagement() {
                                         >
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="font-mono text-xs font-bold text-slate-400">
-                                                    {study.learnedAt} · {study.category.name}
+                                                    {study.learnedAt} ·{' '}
+                                                    {study.taxonomyNodes
+                                                        .map((node) =>
+                                                            taxonomyBreadcrumbLabel(
+                                                                node,
+                                                                taxonomyNodesById
+                                                            )
+                                                        )
+                                                        .join(' / ') || '미분류'}
                                                 </span>
                                                 <span
                                                     className={`rounded-md px-2 py-0.5 text-[10px] font-black ${

@@ -20,7 +20,7 @@ public record LearningResourceRequest(
         @NotNull LearningResourceStatus status,
         LearningResourcePriorityTier priorityTier,
         int displayOrder,
-        @NotNull Long categoryId,
+        List<Long> taxonomyNodeIds,
         @Size(max = 500) String summary,
         String detailMarkdown,
         List<@NotBlank @Size(max = 80) String> tagNames,

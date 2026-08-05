@@ -1,7 +1,6 @@
 package com.selfintro.modules.learningresource.presentation.dto;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.entity.LearningResourceCategory;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
@@ -9,6 +8,7 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatu
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.modules.study.domain.entity.Tag;
+import com.selfintro.modules.taxonomy.presentation.dto.TaxonomyNodeResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,7 +24,7 @@ public record LearningResourceResponse(
         LearningResourceStatus status,
         LearningResourcePriorityTier priorityTier,
         int displayOrder,
-        CategoryResponse category,
+        List<TaxonomyNodeResponse> taxonomyNodes,
         String summary,
         String detailMarkdown,
         List<TagResponse> tags,
@@ -45,7 +45,7 @@ public record LearningResourceResponse(
                 resource.getStatus(),
                 resource.getPriorityTier(),
                 resource.getDisplayOrder(),
-                CategoryResponse.from(resource.getCategory()),
+                resource.getTaxonomyNodes().stream().map(TaxonomyNodeResponse::from).toList(),
                 resource.getSummary(),
                 resource.getDetailMarkdown(),
                 resource.getTags().stream().map(TagResponse::from).toList(),
@@ -53,16 +53,6 @@ public record LearningResourceResponse(
                 resource.getRelations().stream().map(RelatedResourceResponse::from).toList(),
                 resource.getCreatedAt(),
                 resource.getUpdatedAt());
-    }
-
-    public record CategoryResponse(Long id, String name, String slug, int displayOrder) {
-        public static CategoryResponse from(LearningResourceCategory category) {
-            return new CategoryResponse(
-                    category.getId(),
-                    category.getName(),
-                    category.getSlug(),
-                    category.getDisplayOrder());
-        }
     }
 
     public record TagResponse(Long id, String name, String slug) {

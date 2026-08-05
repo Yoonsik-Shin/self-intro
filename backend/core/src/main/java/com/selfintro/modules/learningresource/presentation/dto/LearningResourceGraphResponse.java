@@ -1,26 +1,20 @@
 package com.selfintro.modules.learningresource.presentation.dto;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.entity.LearningResourceCategory;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
+import com.selfintro.modules.taxonomy.presentation.dto.TaxonomyNodeResponse;
 import java.util.List;
 
 public record LearningResourceGraphResponse(List<NodeResponse> nodes, List<EdgeResponse> edges) {
 
-    public record CategoryResponse(Long id, String name, String slug) {
-        public static CategoryResponse from(LearningResourceCategory category) {
-            return new CategoryResponse(category.getId(), category.getName(), category.getSlug());
-        }
-    }
-
     public record NodeResponse(
             Long id,
             String title,
-            CategoryResponse category,
+            List<TaxonomyNodeResponse> taxonomyNodes,
             LearningResourceType resourceType,
             LearningResourceStatus status,
             LearningResourcePriorityTier priorityTier,
@@ -29,7 +23,7 @@ public record LearningResourceGraphResponse(List<NodeResponse> nodes, List<EdgeR
             return new NodeResponse(
                     resource.getId(),
                     resource.getTitle(),
-                    CategoryResponse.from(resource.getCategory()),
+                    resource.getTaxonomyNodes().stream().map(TaxonomyNodeResponse::from).toList(),
                     resource.getResourceType(),
                     resource.getStatus(),
                     resource.getPriorityTier(),

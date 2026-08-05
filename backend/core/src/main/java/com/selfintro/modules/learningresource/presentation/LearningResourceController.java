@@ -36,7 +36,7 @@ public class LearningResourceController {
     @GetMapping("/api/admin/learning-resources")
     public LearningResourcePageResponse searchAdmin(
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Long taxonomyNodeId,
             @RequestParam(required = false) List<String> tags,
             @RequestParam(required = false) List<Long> skillIds,
             @RequestParam(required = false) LearningResourceType resourceType,
@@ -45,7 +45,7 @@ public class LearningResourceController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         return learningResourceService.searchAdmin(
-                q, category, tags, skillIds, resourceType, status, priorityTier, page, size);
+                q, taxonomyNodeId, tags, skillIds, resourceType, status, priorityTier, page, size);
     }
 
     @GetMapping("/api/admin/learning-resources/{id}")
@@ -56,11 +56,6 @@ public class LearningResourceController {
     @GetMapping("/api/admin/learning-resources/graph")
     public LearningResourceGraphResponse graph() {
         return learningResourceService.findGraph();
-    }
-
-    @GetMapping("/api/admin/learning-resource-categories")
-    public List<LearningResourceResponse.CategoryResponse> categories() {
-        return learningResourceService.findCategories();
     }
 
     @PostMapping("/api/admin/learning-resources")

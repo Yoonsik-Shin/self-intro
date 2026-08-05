@@ -6,7 +6,7 @@ import java.util.List;
 
 public record StudySearchCondition(
         String keyword,
-        String category,
+        List<Long> taxonomyNodeIds,
         List<String> tags,
         List<Long> skillIds,
         List<Long> experienceIds,

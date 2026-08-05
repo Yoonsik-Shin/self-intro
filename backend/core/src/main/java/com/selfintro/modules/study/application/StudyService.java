@@ -8,28 +8,36 @@ import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.modules.study.domain.entity.Study;
-import com.selfintro.modules.study.domain.entity.StudyCategory;
 import com.selfintro.modules.study.domain.entity.StudyImage;
 import com.selfintro.modules.study.domain.entity.StudyRelation;
+import com.selfintro.modules.study.domain.entity.StudyTaxonomyCuration;
 import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
-import com.selfintro.modules.study.domain.repository.StudyCategoryRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.domain.repository.StudySearchCondition;
+import com.selfintro.modules.study.domain.repository.StudyTaxonomyCurationRepository;
 import com.selfintro.modules.study.domain.repository.TagRepository;
 import com.selfintro.modules.study.presentation.dto.StudyImageRequest;
 import com.selfintro.modules.study.presentation.dto.StudyPageResponse;
 import com.selfintro.modules.study.presentation.dto.StudyRelationRequest;
 import com.selfintro.modules.study.presentation.dto.StudyRequest;
 import com.selfintro.modules.study.presentation.dto.StudyResponse;
+import com.selfintro.modules.study.presentation.dto.StudyTaxonomyResponse;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
+import com.selfintro.modules.taxonomy.domain.repository.TaxonomyNodeRepository;
+import com.selfintro.modules.taxonomy.presentation.dto.TaxonomyNodeResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -45,7 +53,8 @@ import org.springframework.util.StringUtils;
 public class StudyService {
 
     private final StudyRepository studyRepository;
-    private final StudyCategoryRepository categoryRepository;
+    private final TaxonomyNodeRepository taxonomyNodeRepository;
+    private final StudyTaxonomyCurationRepository curationRepository;
     private final TagRepository tagRepository;
     private final SkillRepository skillRepository;
     private final ExperienceRepository experienceRepository;
@@ -54,7 +63,7 @@ public class StudyService {
 
     public StudyPageResponse searchPublished(
             String keyword,
-            String category,
+            Long taxonomyNodeId,
             List<String> tags,
             List<Long> skillIds,
             List<Long> experienceIds,
@@ -63,7 +72,7 @@ public class StudyService {
             int size) {
         return search(
                 keyword,
-                category,
+                taxonomyNodeId,
                 tags,
                 skillIds,
                 experienceIds,
@@ -75,7 +84,7 @@ public class StudyService {
 
     public StudyPageResponse searchAdmin(
             String keyword,
-            String category,
+            Long taxonomyNodeId,
             List<String> tags,
             List<Long> skillIds,
             List<Long> experienceIds,
@@ -85,7 +94,7 @@ public class StudyService {
             int size) {
         return search(
                 keyword,
-                category,
+                taxonomyNodeId,
                 tags,
                 skillIds,
                 experienceIds,
@@ -97,7 +106,7 @@ public class StudyService {
 
     private StudyPageResponse search(
             String keyword,
-            String category,
+            Long taxonomyNodeId,
             List<String> tags,
             List<Long> skillIds,
             List<Long> experienceIds,
@@ -106,12 +115,16 @@ public class StudyService {
             int page,
             int size) {
         int safeSize = Math.min(Math.max(size, 1), 100);
+        List<Long> taxonomyNodeIds =
+                taxonomyNodeId == null
+                        ? null
+                        : new ArrayList<>(resolveWithDescendants(taxonomyNodeId));
         Page<StudyResponse> result =
                 studyRepository
                         .search(
                                 new StudySearchCondition(
                                         keyword,
-                                        category,
+                                        taxonomyNodeIds,
                                         tags,
                                         skillIds,
                                         experienceIds,
@@ -135,15 +148,46 @@ public class StudyService {
         return StudyResponse.from(study, storageService::toPublicUrl);
     }
 
-    public List<StudyResponse.CategoryResponse> findCategories() {
-        return categoryRepository.findAllByOrderByDisplayOrderAsc().stream()
-                .map(StudyResponse.CategoryResponse::from)
-                .toList();
-    }
-
     public List<StudyResponse.TagResponse> findTags() {
         return tagRepository.findAllByOrderByNameAsc().stream()
                 .map(StudyResponse.TagResponse::from)
+                .toList();
+    }
+
+    public List<StudyTaxonomyResponse> findPublicTaxonomy() {
+        Map<Long, Long> totals = rolledUpPublishedCounts();
+        return curationRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .map(
+                        curation ->
+                                StudyTaxonomyResponse.from(
+                                        curation.getTaxonomyNode(),
+                                        totals.getOrDefault(curation.getTaxonomyNode().getId(), 0L)))
+                .toList();
+    }
+
+    @Transactional
+    public List<TaxonomyNodeResponse> findCuration() {
+        return curationRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .map(curation -> TaxonomyNodeResponse.from(curation.getTaxonomyNode()))
+                .toList();
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {"bff:learning", "bff:introduction"},
+            allEntries = true)
+    public List<TaxonomyNodeResponse> replaceCuration(List<Long> taxonomyNodeIds) {
+        curationRepository.deleteAll();
+        if (taxonomyNodeIds == null || taxonomyNodeIds.isEmpty()) {
+            return List.of();
+        }
+        List<StudyTaxonomyCuration> curations = new ArrayList<>();
+        for (int i = 0; i < taxonomyNodeIds.size(); i++) {
+            TaxonomyNode node = findTaxonomyNode(taxonomyNodeIds.get(i));
+            curations.add(StudyTaxonomyCuration.create(node, i));
+        }
+        return curationRepository.saveAll(curations).stream()
+                .map(curation -> TaxonomyNodeResponse.from(curation.getTaxonomyNode()))
                 .toList();
     }
 
@@ -152,7 +196,6 @@ public class StudyService {
             value = {"bff:learning", "bff:introduction"},
             allEntries = true)
     public StudyResponse create(StudyRequest request) {
-        StudyCategory category = findCategory(request.categoryId());
         String slug = uniqueSlug(request.slug(), request.title(), null);
         LocalDateTime publishedAt =
                 resolvePublishedAt(request.status(), request.publishedAt(), null);
@@ -163,7 +206,6 @@ public class StudyService {
                         request.summary().trim(),
                         request.contentMarkdown(),
                         request.status(),
-                        category,
                         request.learnedAt(),
                         publishedAt);
 
@@ -183,7 +225,6 @@ public class StudyService {
                 studyRepository
                         .findById(id)
                         .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
-        StudyCategory category = findCategory(request.categoryId());
         String slug = uniqueSlug(request.slug(), request.title(), id);
         LocalDateTime publishedAt =
                 resolvePublishedAt(request.status(), request.publishedAt(), study.getPublishedAt());
@@ -194,7 +235,6 @@ public class StudyService {
                 request.summary().trim(),
                 request.contentMarkdown(),
                 request.status(),
-                category,
                 request.learnedAt(),
                 publishedAt);
         List<String> removedImageKeys = applyAssociations(study, request);
@@ -234,7 +274,6 @@ public class StudyService {
                         study.getSummary(),
                         study.getContentMarkdown(),
                         StudyStatus.PUBLISHED,
-                        study.getCategory(),
                         study.getLearnedAt(),
                         publishedAt);
             }
@@ -256,7 +295,6 @@ public class StudyService {
                         study.getSummary(),
                         study.getContentMarkdown(),
                         StudyStatus.DRAFT,
-                        study.getCategory(),
                         study.getLearnedAt(),
                         study.getPublishedAt());
             }
@@ -287,19 +325,85 @@ public class StudyService {
                 study.getSummary(),
                 study.getContentMarkdown(),
                 newStatus,
-                study.getCategory(),
                 study.getLearnedAt(),
                 publishedAt);
         return toResponse(study);
     }
 
-    private StudyCategory findCategory(Long id) {
-        return categoryRepository
+    private TaxonomyNode findTaxonomyNode(Long id) {
+        return taxonomyNodeRepository
                 .findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Study category not found: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Taxonomy node not found: " + id));
+    }
+
+    /** 선택한 노드 + 그 하위 전부의 id 집합. 트리 규모가 작아 in-memory로 계산한다. */
+    private Set<Long> resolveWithDescendants(Long nodeId) {
+        List<TaxonomyNode> all = taxonomyNodeRepository.findAll();
+        Map<Long, List<Long>> childrenByParentId = new HashMap<>();
+        for (TaxonomyNode node : all) {
+            if (node.getParent() != null) {
+                childrenByParentId
+                        .computeIfAbsent(node.getParent().getId(), key -> new ArrayList<>())
+                        .add(node.getId());
+            }
+        }
+        Set<Long> result = new HashSet<>();
+        List<Long> queue = new ArrayList<>(List.of(nodeId));
+        while (!queue.isEmpty()) {
+            Long current = queue.remove(queue.size() - 1);
+            if (!result.add(current)) {
+                continue;
+            }
+            queue.addAll(childrenByParentId.getOrDefault(current, List.of()));
+        }
+        return result;
+    }
+
+    /** 노드별 직접 attach + 하위 노드 attach 전부를 합산한 PUBLISHED count. */
+    private Map<Long, Long> rolledUpPublishedCounts() {
+        List<TaxonomyNode> all = taxonomyNodeRepository.findAll();
+        Map<Long, Long> direct =
+                studyRepository.countByTaxonomyNodeAndStatus(StudyStatus.PUBLISHED).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        StudyRepository.TaxonomyNodeCountProjection::getTaxonomyNodeId,
+                                        StudyRepository.TaxonomyNodeCountProjection::getCount));
+        Map<Long, List<Long>> childrenByParentId = new HashMap<>();
+        for (TaxonomyNode node : all) {
+            if (node.getParent() != null) {
+                childrenByParentId
+                        .computeIfAbsent(node.getParent().getId(), key -> new ArrayList<>())
+                        .add(node.getId());
+            }
+        }
+        Map<Long, Long> totals = new HashMap<>();
+        for (TaxonomyNode node : all) {
+            totals.put(node.getId(), rollUp(node.getId(), direct, childrenByParentId, totals));
+        }
+        return totals;
+    }
+
+    private long rollUp(
+            Long nodeId,
+            Map<Long, Long> direct,
+            Map<Long, List<Long>> childrenByParentId,
+            Map<Long, Long> memo) {
+        if (memo.containsKey(nodeId)) {
+            return memo.get(nodeId);
+        }
+        long total = direct.getOrDefault(nodeId, 0L);
+        for (Long childId : childrenByParentId.getOrDefault(nodeId, List.of())) {
+            total += rollUp(childId, direct, childrenByParentId, memo);
+        }
+        memo.put(nodeId, total);
+        return total;
     }
 
     private List<String> applyAssociations(Study study, StudyRequest request) {
+        study.replaceTaxonomyNodes(
+                request.taxonomyNodeIds() == null
+                        ? List.of()
+                        : taxonomyNodeRepository.findAllById(request.taxonomyNodeIds()));
         study.replaceTags(resolveTags(request.tagNames()));
         List<Skill> skills =
                 request.skillIds() == null

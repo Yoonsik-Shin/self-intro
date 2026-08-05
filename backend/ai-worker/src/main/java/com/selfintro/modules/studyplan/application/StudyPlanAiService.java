@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -267,7 +268,7 @@ detailed thinking off
                                         .append(" 제목=")
                                         .append(r.getTitle())
                                         .append(" 카테고리=")
-                                        .append(r.getCategory().getName())
+                                        .append(categoryLabel(r))
                                         .append(" 유형=")
                                         .append(r.getResourceType())
                                         .append(" 우선순위=")
@@ -502,4 +503,13 @@ detailed thinking off
             List<GeneratedCheckQuestion> checkQuestions) {}
 
     public record GeneratedCheckQuestion(String question, String modelAnswerHint) {}
+
+    private static String categoryLabel(LearningResource resource) {
+        if (resource.getTaxonomyNodes().isEmpty()) {
+            return "미분류";
+        }
+        return resource.getTaxonomyNodes().stream()
+                .map(node -> node.getName())
+                .collect(Collectors.joining(", "));
+    }
 }

@@ -1,12 +1,10 @@
 package com.selfintro.modules.learningresource.application;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.entity.LearningResourceCategory;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
-import com.selfintro.modules.learningresource.domain.repository.LearningResourceCategoryRepository;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceSearchCondition;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceGraphResponse;
@@ -18,12 +16,17 @@ import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.repository.TagRepository;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
+import com.selfintro.modules.taxonomy.domain.repository.TaxonomyNodeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -39,13 +42,13 @@ import org.springframework.util.StringUtils;
 public class LearningResourceService {
 
     private final LearningResourceRepository learningResourceRepository;
-    private final LearningResourceCategoryRepository categoryRepository;
+    private final TaxonomyNodeRepository taxonomyNodeRepository;
     private final TagRepository tagRepository;
     private final SkillRepository skillRepository;
 
     public LearningResourcePageResponse searchAdmin(
             String keyword,
-            String category,
+            Long taxonomyNodeId,
             List<String> tags,
             List<Long> skillIds,
             LearningResourceType resourceType,
@@ -54,12 +57,16 @@ public class LearningResourceService {
             int page,
             int size) {
         int safeSize = Math.min(Math.max(size, 1), 1000);
+        List<Long> taxonomyNodeIds =
+                taxonomyNodeId == null
+                        ? null
+                        : new ArrayList<>(resolveWithDescendants(taxonomyNodeId));
         Page<LearningResourceResponse> result =
                 learningResourceRepository
                         .search(
                                 new LearningResourceSearchCondition(
                                         keyword,
-                                        category,
+                                        taxonomyNodeIds,
                                         tags,
                                         skillIds,
                                         resourceType,
@@ -90,16 +97,9 @@ public class LearningResourceService {
         return new LearningResourceGraphResponse(nodes, edges);
     }
 
-    public List<LearningResourceResponse.CategoryResponse> findCategories() {
-        return categoryRepository.findAllByOrderByDisplayOrderAsc().stream()
-                .map(LearningResourceResponse.CategoryResponse::from)
-                .toList();
-    }
-
     @Transactional
     @CacheEvict(value = "bff:learning", allEntries = true)
     public LearningResourceResponse create(LearningResourceRequest request) {
-        LearningResourceCategory category = findCategory(request.categoryId());
         String slug = uniqueSlug(request.slug(), request.title(), null);
         LearningResource resource =
                 LearningResource.create(
@@ -113,7 +113,6 @@ public class LearningResourceService {
                         request.status(),
                         request.priorityTier(),
                         request.displayOrder(),
-                        category,
                         blankToNull(request.summary()),
                         request.detailMarkdown());
 
@@ -133,7 +132,6 @@ public class LearningResourceService {
                                 () ->
                                         new EntityNotFoundException(
                                                 "Learning resource not found: " + id));
-        LearningResourceCategory category = findCategory(request.categoryId());
         String slug = uniqueSlug(request.slug(), request.title(), id);
 
         resource.update(
@@ -147,7 +145,6 @@ public class LearningResourceService {
                 request.status(),
                 request.priorityTier(),
                 request.displayOrder(),
-                category,
                 blankToNull(request.summary()),
                 request.detailMarkdown());
         applyAssociations(resource, request);
@@ -182,16 +179,34 @@ public class LearningResourceService {
         return LearningResourceResponse.from(resource);
     }
 
-    private LearningResourceCategory findCategory(Long id) {
-        return categoryRepository
-                .findById(id)
-                .orElseThrow(
-                        () ->
-                                new EntityNotFoundException(
-                                        "Learning resource category not found: " + id));
+    /** 선택한 노드 + 그 하위 전부의 id 집합. 트리 규모가 작아 in-memory로 계산한다. */
+    private Set<Long> resolveWithDescendants(Long nodeId) {
+        List<TaxonomyNode> all = taxonomyNodeRepository.findAll();
+        Map<Long, List<Long>> childrenByParentId = new HashMap<>();
+        for (TaxonomyNode node : all) {
+            if (node.getParent() != null) {
+                childrenByParentId
+                        .computeIfAbsent(node.getParent().getId(), key -> new ArrayList<>())
+                        .add(node.getId());
+            }
+        }
+        Set<Long> result = new HashSet<>();
+        List<Long> queue = new ArrayList<>(List.of(nodeId));
+        while (!queue.isEmpty()) {
+            Long current = queue.remove(queue.size() - 1);
+            if (!result.add(current)) {
+                continue;
+            }
+            queue.addAll(childrenByParentId.getOrDefault(current, List.of()));
+        }
+        return result;
     }
 
     private void applyAssociations(LearningResource resource, LearningResourceRequest request) {
+        resource.replaceTaxonomyNodes(
+                request.taxonomyNodeIds() == null
+                        ? List.of()
+                        : taxonomyNodeRepository.findAllById(request.taxonomyNodeIds()));
         resource.replaceTags(resolveTags(request.tagNames()));
         List<Skill> skills =
                 request.skillIds() == null

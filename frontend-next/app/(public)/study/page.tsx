@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { serverGet } from '@/lib/api/server';
-import type { Study, StudyCategory, StudyPage } from '@/lib/api/types';
+import type { Study, StudyTaxonomyNode, StudyPage } from '@/lib/api/types';
 import { StudyListClient } from '@/components/study/StudyListClient';
 
 export const dynamic = 'force-dynamic';
@@ -19,16 +19,16 @@ async function getStudies(): Promise<StudyPage> {
     }
 }
 
-async function getCategories(): Promise<StudyCategory[]> {
+async function getTaxonomy(): Promise<StudyTaxonomyNode[]> {
     try {
-        return await serverGet<StudyCategory[]>('/api/study-categories');
+        return await serverGet<StudyTaxonomyNode[]>('/api/study-taxonomy');
     } catch {
         return [];
     }
 }
 
 export default async function StudyListPage() {
-    const [studyPage, categories] = await Promise.all([getStudies(), getCategories()]);
+    const [studyPage, taxonomyNodes] = await Promise.all([getStudies(), getTaxonomy()]);
     const rawStudies = studyPage?.content ?? [];
     // 목록 페이지에서는 본문 마크다운(contentMarkdown)이 불필요하므로 제거하여 SSR HTML 용량을 최적화
     const studies: Study[] = rawStudies.map((study) => ({
@@ -42,7 +42,7 @@ export default async function StudyListPage() {
                 initialStudies={studies}
                 initialTotalElements={studyPage?.totalElements ?? studies.length}
                 initialTotalPages={studyPage?.totalPages ?? 1}
-                categories={categories}
+                taxonomyNodes={taxonomyNodes}
             />
         </div>
     );

@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.entity.LearningResourceCategory;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
@@ -26,6 +25,7 @@ import com.selfintro.modules.studyplan.domain.entity.StudyPlanStage;
 import com.selfintro.modules.studyplan.domain.repository.StudyPlanRepository;
 import com.selfintro.modules.studyplan.presentation.dto.StudyPlanItemResponse;
 import com.selfintro.modules.studyplan.presentation.dto.StudyPlanResponse;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +47,7 @@ class StudyPlanServiceTest {
     @Mock private StudyPlanRetrievalService studyPlanRetrievalService;
 
     private StudyPlanService service;
-    private LearningResourceCategory category;
+    private TaxonomyNode taxonomyNode;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -57,12 +57,12 @@ class StudyPlanServiceTest {
                         learningResourceRepository,
                         studyPlanAiService,
                         studyPlanRetrievalService);
-        var constructor = LearningResourceCategory.class.getDeclaredConstructor();
+        var constructor = TaxonomyNode.class.getDeclaredConstructor();
         constructor.setAccessible(true);
-        category = constructor.newInstance();
-        ReflectionTestUtils.setField(category, "id", 1L);
-        ReflectionTestUtils.setField(category, "name", "백엔드");
-        ReflectionTestUtils.setField(category, "slug", "backend");
+        taxonomyNode = constructor.newInstance();
+        ReflectionTestUtils.setField(taxonomyNode, "id", 1L);
+        ReflectionTestUtils.setField(taxonomyNode, "name", "백엔드");
+        ReflectionTestUtils.setField(taxonomyNode, "slug", "backend");
     }
 
     private List<CollectedCandidate> toCollected(List<LearningResource> resources) {
@@ -82,9 +82,9 @@ class StudyPlanServiceTest {
                         LearningResourceStatus.WISHLIST,
                         LearningResourcePriorityTier.P1,
                         0,
-                        category,
                         null,
                         null);
+        resource.replaceTaxonomyNodes(List.of(taxonomyNode));
         ReflectionTestUtils.setField(resource, "id", id);
         return resource;
     }

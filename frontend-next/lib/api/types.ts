@@ -27,20 +27,23 @@ export type PresignedUploadResponse = {
     publicUrl: string;
 };
 
-export type StudyCategory = {
+export type TaxonomyNode = {
     id: number;
     name: string;
     slug: string;
     displayOrder: number;
     parentId: number | null;
-    studyCount: number;
 };
 
-export type StudyCategoryRequest = {
+export type TaxonomyNodeRequest = {
     name: string;
     slug: string;
     displayOrder: number;
     parentId: number | null;
+};
+
+export type StudyTaxonomyNode = TaxonomyNode & {
+    studyCount: number;
 };
 
 export type Tag = {
@@ -56,7 +59,7 @@ export type Study = {
     summary: string;
     contentMarkdown: string;
     status: StudyStatus;
-    category: StudyCategory;
+    taxonomyNodes: TaxonomyNode[];
     tags: Tag[];
     skills: Skill[];
     experiences: Array<Pick<Experience, 'id' | 'type' | 'title'>>;
@@ -80,7 +83,7 @@ export type StudyRequest = {
     summary: string;
     contentMarkdown: string;
     status: StudyStatus;
-    categoryId: number;
+    taxonomyNodeIds: number[];
     tagNames: string[];
     skillIds: number[];
     experienceIds: number[];
@@ -133,13 +136,6 @@ export type LearningResourceStatus = 'WISHLIST' | 'OWNED' | 'IN_PROGRESS' | 'COM
 export type LearningResourcePriorityTier = 'P0' | 'P1' | 'P2' | 'P3';
 export type LearningResourceRelationType = 'PREREQUISITE' | 'RELATED' | 'FOLLOW_UP' | 'OVERLAPS';
 
-export type LearningResourceCategory = {
-    id: number;
-    name: string;
-    slug: string;
-    displayOrder: number;
-};
-
 export type LearningResource = {
     id: number;
     slug: string;
@@ -152,7 +148,7 @@ export type LearningResource = {
     status: LearningResourceStatus;
     priorityTier?: LearningResourcePriorityTier;
     displayOrder: number;
-    category: LearningResourceCategory;
+    taxonomyNodes: TaxonomyNode[];
     summary?: string;
     detailMarkdown?: string;
     tags: Tag[];
@@ -175,7 +171,7 @@ export type LearningResourceRequest = {
     status: LearningResourceStatus;
     priorityTier?: LearningResourcePriorityTier | null;
     displayOrder: number;
-    categoryId: number;
+    taxonomyNodeIds: number[];
     summary?: string;
     detailMarkdown?: string;
     tagNames: string[];
@@ -194,7 +190,7 @@ export type LearningResourcePage = {
 export type LearningResourceGraphNode = {
     id: number;
     title: string;
-    category: { id: number; name: string; slug: string };
+    taxonomyNodes: TaxonomyNode[];
     resourceType: LearningResourceType;
     status: LearningResourceStatus;
     priorityTier?: LearningResourcePriorityTier;

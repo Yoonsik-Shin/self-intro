@@ -4,6 +4,7 @@ export * from './types';
 export * from './client';
 export * from './study';
 export * from './learningResource';
+export * from './taxonomy';
 export * from './image';
 export * from './auth';
 export * from './bff';

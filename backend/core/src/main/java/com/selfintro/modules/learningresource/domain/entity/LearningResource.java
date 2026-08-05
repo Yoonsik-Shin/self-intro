@@ -5,19 +5,18 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatu
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.study.domain.entity.Tag;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
@@ -73,9 +72,14 @@ public class LearningResource {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "category_id", nullable = false)
-    private LearningResourceCategory category;
+    @BatchSize(size = 100)
+    @ManyToMany
+    @JoinTable(
+            name = "learning_resource_taxonomy_node",
+            joinColumns = @JoinColumn(name = "learning_resource_id"),
+            inverseJoinColumns = @JoinColumn(name = "taxonomy_node_id"))
+    @OrderBy("displayOrder ASC")
+    private List<TaxonomyNode> taxonomyNodes = new ArrayList<>();
 
     @Column(length = 500)
     private String summary;
@@ -123,7 +127,6 @@ public class LearningResource {
             LearningResourceStatus status,
             LearningResourcePriorityTier priorityTier,
             int displayOrder,
-            LearningResourceCategory category,
             String summary,
             String detailMarkdown) {
         this.slug = slug;
@@ -136,7 +139,6 @@ public class LearningResource {
         this.status = status;
         this.priorityTier = priorityTier;
         this.displayOrder = displayOrder;
-        this.category = category;
         this.summary = summary;
         this.detailMarkdown = detailMarkdown;
         this.createdAt = LocalDateTime.now();
@@ -154,7 +156,6 @@ public class LearningResource {
             LearningResourceStatus status,
             LearningResourcePriorityTier priorityTier,
             int displayOrder,
-            LearningResourceCategory category,
             String summary,
             String detailMarkdown) {
         return new LearningResource(
@@ -168,7 +169,6 @@ public class LearningResource {
                 status,
                 priorityTier,
                 displayOrder,
-                category,
                 summary,
                 detailMarkdown);
     }
@@ -184,7 +184,6 @@ public class LearningResource {
             LearningResourceStatus status,
             LearningResourcePriorityTier priorityTier,
             int displayOrder,
-            LearningResourceCategory category,
             String summary,
             String detailMarkdown) {
         this.slug = slug;
@@ -197,7 +196,6 @@ public class LearningResource {
         this.status = status;
         this.priorityTier = priorityTier;
         this.displayOrder = displayOrder;
-        this.category = category;
         this.summary = summary;
         this.detailMarkdown = detailMarkdown;
         this.updatedAt = LocalDateTime.now();
@@ -206,6 +204,11 @@ public class LearningResource {
     public void updateStatus(LearningResourceStatus status) {
         this.status = status;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void replaceTaxonomyNodes(Collection<TaxonomyNode> values) {
+        taxonomyNodes.clear();
+        taxonomyNodes.addAll(values);
     }
 
     public void replaceTags(Collection<Tag> values) {

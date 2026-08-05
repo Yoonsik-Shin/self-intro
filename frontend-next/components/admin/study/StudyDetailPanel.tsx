@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -18,7 +20,9 @@ import {
     Trash2,
     Wrench,
 } from 'lucide-react';
+import { taxonomyApi } from '@/lib/api';
 import type { Study } from '@/lib/api/types';
+import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
 import {
     markdownComponents,
     remarkKoreanEmphasis,
@@ -53,6 +57,15 @@ export function StudyDetailPanel({
     onDelete,
     onSelectStudy,
 }: StudyDetailPanelProps) {
+    const { data: taxonomyNodes } = useQuery({
+        queryKey: ['taxonomyNodes'],
+        queryFn: taxonomyApi.list,
+    });
+    const taxonomyNodesById = useMemo(
+        () => toTaxonomyNodeMap(taxonomyNodes ?? []),
+        [taxonomyNodes]
+    );
+
     return (
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-fadeIn">
             <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-4 sm:px-7">
@@ -87,9 +100,14 @@ export function StudyDetailPanel({
 
                 <div className="mt-6 max-w-5xl">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
-                            {study.category.name}
-                        </span>
+                        {study.taxonomyNodes.map((node) => (
+                            <span
+                                key={node.id}
+                                className="rounded-full bg-slate-900 px-2.5 py-1 text-white"
+                            >
+                                {taxonomyBreadcrumbLabel(node, taxonomyNodesById)}
+                            </span>
+                        ))}
                         <span
                             className={`rounded-full px-2.5 py-1 ${study.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}
                         >

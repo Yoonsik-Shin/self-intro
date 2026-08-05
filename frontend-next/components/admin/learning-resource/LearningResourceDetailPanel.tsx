@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -14,8 +16,10 @@ import {
     User,
     Wrench,
 } from 'lucide-react';
+import { taxonomyApi } from '@/lib/api';
 import type { LearningResource } from '@/lib/api/types';
 import { formatDuration } from '@/lib/format';
+import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
 
 type LearningResourceDetailPanelProps = {
     resource: LearningResource;
@@ -69,6 +73,14 @@ export function LearningResourceDetailPanel({
     onSelectResource,
 }: LearningResourceDetailPanelProps) {
     const duration = formatDuration(resource.durationMinutes);
+    const { data: taxonomyNodes } = useQuery({
+        queryKey: ['taxonomyNodes'],
+        queryFn: taxonomyApi.list,
+    });
+    const taxonomyNodesById = useMemo(
+        () => toTaxonomyNodeMap(taxonomyNodes ?? []),
+        [taxonomyNodes]
+    );
 
     return (
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-fadeIn">
@@ -104,9 +116,14 @@ export function LearningResourceDetailPanel({
 
                 <div className="mt-6 max-w-5xl">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
-                            {resource.category.name}
-                        </span>
+                        {resource.taxonomyNodes.map((node) => (
+                            <span
+                                key={node.id}
+                                className="rounded-full bg-slate-900 px-2.5 py-1 text-white"
+                            >
+                                {taxonomyBreadcrumbLabel(node, taxonomyNodesById)}
+                            </span>
+                        ))}
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
                             {resourceTypeLabels[resource.resourceType] ?? resource.resourceType}
                         </span>

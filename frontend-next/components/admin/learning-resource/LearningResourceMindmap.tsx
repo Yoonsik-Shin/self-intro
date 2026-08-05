@@ -98,11 +98,43 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
         queryFn: learningResourceApi.graph,
     });
 
+    // 다중 소속 태그: 노드 하나가 여러 taxonomy에 attach될 수 있어, 필터/허브 목록은
+    // "attach된 모든 노드"를 평탄화해서 만든다 (특정 하나에만 속한다는 가정을 버림).
     const categories = useMemo(() => {
         const map = new Map<string, string>();
-        graph?.nodes.forEach((node) => map.set(node.category.slug, node.category.name));
+        graph?.nodes.forEach((node) => node.taxonomyNodes.forEach((t) => map.set(t.slug, t.name)));
         return Array.from(map.entries()).map(([slug, name]) => ({ slug, name }));
     }, [graph]);
+
+    // 방사형 레이아웃은 리소스 하나당 각도 위치를 하나만 가질 수 있어, attach된 노드들 중
+    // "가장 깊은(구체적인) 노드"를 대표 허브로 삼아 위치를 잡는다. 실제 다중 소속은 대표
+    // 허브가 아닌 나머지 허브에서 그리는 교차 엣지로 표현한다 (relationEdges와 같은 방식).
+    const taxonomyNodeById = useMemo(() => {
+        const map = new Map<number, { id: number; slug: string; parentId: number | null }>();
+        graph?.nodes.forEach((node) =>
+            node.taxonomyNodes.forEach((t) =>
+                map.set(t.id, { id: t.id, slug: t.slug, parentId: t.parentId })
+            )
+        );
+        return map;
+    }, [graph]);
+
+    const depthById = useMemo(() => {
+        const memo = new Map<number, number>();
+        const resolve = (id: number): number => {
+            if (memo.has(id)) return memo.get(id) as number;
+            const node = taxonomyNodeById.get(id);
+            if (!node || node.parentId === null || !taxonomyNodeById.has(node.parentId)) {
+                memo.set(id, 0);
+                return 0;
+            }
+            const depth = 1 + resolve(node.parentId);
+            memo.set(id, depth);
+            return depth;
+        };
+        taxonomyNodeById.forEach((_, id) => resolve(id));
+        return memo;
+    }, [taxonomyNodeById]);
 
     const [selectedCategories, setSelectedCategories] = useState<Set<string> | null>(null);
     const [selectedPriorities, setSelectedPriorities] = useState<Set<PriorityFilterValue> | null>(
@@ -204,7 +236,7 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
             graph.nodes
                 .filter(
                     (n) =>
-                        activeCategories.has(n.category.slug) &&
+                        n.taxonomyNodes.some((t) => activeCategories.has(t.slug)) &&
                         activePriorities.has(n.priorityTier ?? 'NONE')
                 )
                 .map((n) => n.id)
@@ -221,12 +253,30 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
         });
 
         const visibleCourses = graph.nodes.filter((n) => visibleNodeIds.has(n.id));
-        const visibleCategorySlugs = new Set(visibleCourses.map((n) => n.category.slug));
+
+        // 방사형 위치 결정용 "대표 허브": attach된 노드 중 활성 필터에 속한 것들 중에서
+        // 가장 깊은(구체적인) 노드. 동률이면 attach 순서상 먼저 오는 쪽.
+        const primaryTaxonomyOf = (n: (typeof visibleCourses)[number]) => {
+            const activeAttached = n.taxonomyNodes.filter((t) => activeCategories.has(t.slug));
+            return activeAttached.reduce(
+                (best, current) =>
+                    (depthById.get(current.id) ?? 0) > (depthById.get(best.id) ?? 0)
+                        ? current
+                        : best,
+                activeAttached[0]
+            );
+        };
+
+        const visibleCategorySlugs = new Set(
+            visibleCourses.flatMap((n) =>
+                n.taxonomyNodes.filter((t) => activeCategories.has(t.slug)).map((t) => t.slug)
+            )
+        );
         const activeCategoryDefs = categories.filter((c) => visibleCategorySlugs.has(c.slug));
 
         const leafInputs = visibleCourses.map((n) => ({
             id: courseNodeId(n.id),
-            categorySlug: n.category.slug,
+            categorySlug: primaryTaxonomyOf(n).slug,
         }));
 
         const { rootPosition, categoryPositions, leafPositions } = layoutRadialTree(
@@ -254,9 +304,14 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
             data: { label: rootLabel, radius: ROOT_NODE_RADIUS },
         };
 
+        // 다중 소속이므로 한 리소스가 여러 허브의 count에 동시에 잡히는 게 맞는 동작이다.
         const categoryCounts = new Map<string, number>();
         visibleCourses.forEach((n) => {
-            categoryCounts.set(n.category.slug, (categoryCounts.get(n.category.slug) ?? 0) + 1);
+            n.taxonomyNodes
+                .filter((t) => activeCategories.has(t.slug))
+                .forEach((t) => {
+                    categoryCounts.set(t.slug, (categoryCounts.get(t.slug) ?? 0) + 1);
+                });
         });
 
         const categoryNodes: CategoryHubFlowNode[] = activeCategoryDefs
@@ -285,14 +340,15 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
                 Math.max(MIN_RADIUS, MIN_RADIUS + (degree.get(n.id) ?? 0) * RADIUS_PER_LINK)
             );
             const pos = leafPositions[courseNodeId(n.id)] ?? { x: 0, y: 0 };
+            const primary = primaryTaxonomyOf(n);
             return {
                 id: courseNodeId(n.id),
                 type: 'learningResourceCourse',
                 position: { x: pos.x - radius, y: pos.y - radius },
                 data: {
                     title: n.title,
-                    categoryName: n.category.name,
-                    categorySlug: n.category.slug,
+                    categoryName: primary.name,
+                    categorySlug: primary.slug,
                     priorityTier: n.priorityTier,
                     radius,
                     durationLabel: showDuration ? formatDuration(n.durationMinutes) : null,
@@ -310,13 +366,24 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
                 style: { stroke: '#CBD5E1', strokeWidth: 2 },
             }));
 
-        const categoryToCourseEdges: Edge[] = visibleCourses.map((n) => ({
-            id: `struct-${n.category.slug}-${n.id}`,
-            type: 'floating',
-            source: categoryNodeId(n.category.slug),
-            target: courseNodeId(n.id),
-            style: { stroke: '#E2E8F0', strokeWidth: 1.5 },
-        }));
+        const categoryToCourseEdges: Edge[] = visibleCourses.flatMap((n) => {
+            const primary = primaryTaxonomyOf(n);
+            const activeAttached = n.taxonomyNodes.filter((t) => activeCategories.has(t.slug));
+            return activeAttached
+                .filter((t) => categoryPositions[t.slug])
+                .map((t) => {
+                    const isPrimary = t.slug === primary.slug;
+                    return {
+                        id: `struct-${t.slug}-${n.id}`,
+                        type: 'floating',
+                        source: categoryNodeId(t.slug),
+                        target: courseNodeId(n.id),
+                        style: isPrimary
+                            ? { stroke: '#E2E8F0', strokeWidth: 1.5 }
+                            : { stroke: '#2DD4BF', strokeWidth: 1.5, strokeDasharray: '4 3' },
+                    } satisfies Edge;
+                });
+        });
 
         const relationEdges: Edge[] = visibleEdges.map((e) => {
             const style = relationEdgeStyle[e.type];
@@ -341,7 +408,7 @@ export function LearningResourceMindmap({ onOpenResource }: LearningResourceMind
             initialNodes: [rootNode, ...categoryNodes, ...courseNodes],
             edges: [...rootToCategoryEdges, ...categoryToCourseEdges, ...relationEdges],
         };
-    }, [graph, activeCategories, activePriorities, categories, showDuration]);
+    }, [graph, activeCategories, activePriorities, categories, showDuration, depthById]);
 
     const [nodes, setNodes] = useState<FlowNode[]>(initialNodes);
     const [syncedInitialNodes, setSyncedInitialNodes] = useState(initialNodes);

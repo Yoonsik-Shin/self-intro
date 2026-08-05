@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.CareerProfileDigestBuilder;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.entity.LearningResourceCategory;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
@@ -19,6 +18,7 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedItem;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedPlan;
 import com.selfintro.modules.studyplan.application.StudyPlanAiService.GeneratedStage;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,19 +36,19 @@ class StudyPlanAiServiceTest {
     @Mock private NvidiaNimClient nvidiaNimClient;
 
     private StudyPlanAiService service;
-    private LearningResourceCategory category;
+    private TaxonomyNode taxonomyNode;
 
     @BeforeEach
     void setUp() throws Exception {
         service =
                 new StudyPlanAiService(
                         careerProfileDigestBuilder, nvidiaNimClient, new ObjectMapper());
-        var constructor = LearningResourceCategory.class.getDeclaredConstructor();
+        var constructor = TaxonomyNode.class.getDeclaredConstructor();
         constructor.setAccessible(true);
-        category = constructor.newInstance();
-        ReflectionTestUtils.setField(category, "id", 1L);
-        ReflectionTestUtils.setField(category, "name", "백엔드");
-        ReflectionTestUtils.setField(category, "slug", "backend");
+        taxonomyNode = constructor.newInstance();
+        ReflectionTestUtils.setField(taxonomyNode, "id", 1L);
+        ReflectionTestUtils.setField(taxonomyNode, "name", "백엔드");
+        ReflectionTestUtils.setField(taxonomyNode, "slug", "backend");
     }
 
     private LearningResource newResource(long id, String title) {
@@ -64,9 +64,9 @@ class StudyPlanAiServiceTest {
                         LearningResourceStatus.WISHLIST,
                         LearningResourcePriorityTier.P1,
                         0,
-                        category,
                         null,
                         null);
+        resource.replaceTaxonomyNodes(List.of(taxonomyNode));
         ReflectionTestUtils.setField(resource, "id", id);
         return resource;
     }

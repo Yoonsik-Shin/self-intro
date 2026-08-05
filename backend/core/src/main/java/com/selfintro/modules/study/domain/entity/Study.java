@@ -4,19 +4,18 @@ import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.study.domain.enums.*;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
@@ -56,9 +55,14 @@ public class Study {
     @Column(nullable = false, length = 20)
     private StudyStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "category_id", nullable = false)
-    private StudyCategory category;
+    @BatchSize(size = 100)
+    @ManyToMany
+    @JoinTable(
+            name = "study_taxonomy_node",
+            joinColumns = @JoinColumn(name = "study_id"),
+            inverseJoinColumns = @JoinColumn(name = "taxonomy_node_id"))
+    @OrderBy("displayOrder ASC")
+    private List<TaxonomyNode> taxonomyNodes = new ArrayList<>();
 
     @BatchSize(size = 100)
     @ManyToMany
@@ -125,7 +129,6 @@ public class Study {
             String summary,
             String contentMarkdown,
             StudyStatus status,
-            StudyCategory category,
             LocalDate learnedAt,
             LocalDateTime publishedAt) {
         this.slug = slug;
@@ -133,7 +136,6 @@ public class Study {
         this.summary = summary;
         this.contentMarkdown = contentMarkdown;
         this.status = status;
-        this.category = category;
         this.learnedAt = learnedAt;
         this.publishedAt = publishedAt;
         this.createdAt = LocalDateTime.now();
@@ -146,11 +148,9 @@ public class Study {
             String summary,
             String contentMarkdown,
             StudyStatus status,
-            StudyCategory category,
             LocalDate learnedAt,
             LocalDateTime publishedAt) {
-        return new Study(
-                slug, title, summary, contentMarkdown, status, category, learnedAt, publishedAt);
+        return new Study(slug, title, summary, contentMarkdown, status, learnedAt, publishedAt);
     }
 
     public void update(
@@ -159,7 +159,6 @@ public class Study {
             String summary,
             String contentMarkdown,
             StudyStatus status,
-            StudyCategory category,
             LocalDate learnedAt,
             LocalDateTime publishedAt) {
         this.slug = slug;
@@ -167,10 +166,14 @@ public class Study {
         this.summary = summary;
         this.contentMarkdown = contentMarkdown;
         this.status = status;
-        this.category = category;
         this.learnedAt = learnedAt;
         this.publishedAt = publishedAt;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void replaceTaxonomyNodes(Collection<TaxonomyNode> values) {
+        taxonomyNodes.clear();
+        taxonomyNodes.addAll(values);
     }
 
     public void replaceTags(Collection<Tag> values) {

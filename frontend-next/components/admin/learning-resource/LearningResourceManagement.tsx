@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GraduationCap, List as ListIcon, Network, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { ApiError, learningResourceApi, skillApi } from '@/lib/api';
+import { ApiError, learningResourceApi, skillApi, taxonomyApi } from '@/lib/api';
 import type {
     LearningResource,
     LearningResourcePriorityTier,
@@ -15,10 +15,12 @@ import type {
 } from '@/lib/api/types';
 import { formatDuration } from '@/lib/format';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
+import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MarkdownEditor } from '../shared/MarkdownEditor';
 import { SkillPicker } from '../shared/SkillPicker';
 import { TagInput } from '../shared/TagInput';
+import { TaxonomyPicker } from '../shared/TaxonomyPicker';
 import { LearningResourceDetailPanel } from './LearningResourceDetailPanel';
 import { LearningResourceMindmap } from './LearningResourceMindmap';
 
@@ -37,7 +39,7 @@ const emptyLearningResourceForm: LearningResourceForm = {
     status: 'WISHLIST',
     priorityTier: undefined,
     displayOrder: 0,
-    categoryId: 1,
+    taxonomyNodeIds: [],
     summary: '',
     detailMarkdown: '',
     tagNames: '',
@@ -125,10 +127,14 @@ export function LearningResourceManagement() {
     });
     const resources = resourcePage?.content;
 
-    const { data: categories } = useQuery({
-        queryKey: ['learningResourceCategories'],
-        queryFn: learningResourceApi.categories,
+    const { data: taxonomyNodes } = useQuery({
+        queryKey: ['taxonomyNodes'],
+        queryFn: taxonomyApi.list,
     });
+    const taxonomyNodesById = useMemo(
+        () => toTaxonomyNodeMap(taxonomyNodes ?? []),
+        [taxonomyNodes]
+    );
     const { data: skillsList } = useQuery({ queryKey: ['skills'], queryFn: () => skillApi.list() });
 
     const [viewMode, setViewMode] = useState<LearningResourceViewMode>('LIST');
@@ -261,7 +267,8 @@ export function LearningResourceManagement() {
     const filteredResources = useMemo(() => {
         return resources?.filter((resource) => {
             const matchesCategory =
-                categoryFilter === 'ALL' || resource.category.slug === categoryFilter;
+                categoryFilter === 'ALL' ||
+                resource.taxonomyNodes.some((node) => node.slug === categoryFilter);
             const matchesStatus = statusFilter === 'ALL' || resource.status === statusFilter;
             const matchesPriority =
                 priorityFilter === 'ALL' || resource.priorityTier === priorityFilter;
@@ -334,10 +341,7 @@ export function LearningResourceManagement() {
     };
 
     const openNewForm = () => {
-        setForm({
-            ...emptyLearningResourceForm,
-            categoryId: categories?.[0]?.id ?? 1,
-        });
+        setForm({ ...emptyLearningResourceForm });
         syncUrlState(null, 'new', { history: 'push' });
     };
 
@@ -353,7 +357,7 @@ export function LearningResourceManagement() {
             status: resource.status,
             priorityTier: resource.priorityTier,
             displayOrder: resource.displayOrder,
-            categoryId: resource.category.id,
+            taxonomyNodeIds: resource.taxonomyNodes.map((node) => node.id),
             summary: resource.summary ?? '',
             detailMarkdown: resource.detailMarkdown ?? '',
             tagNames: resource.tags.map((tag) => tag.name).join(', '),
@@ -466,19 +470,11 @@ export function LearningResourceManagement() {
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
                                 카테고리
                             </label>
-                            <select
-                                value={form.categoryId}
-                                onChange={(e) =>
-                                    setForm({ ...form, categoryId: Number(e.target.value) })
-                                }
-                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            >
-                                {(categories ?? []).map((category) => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <TaxonomyPicker
+                                nodes={taxonomyNodes ?? []}
+                                selectedIds={form.taxonomyNodeIds}
+                                onChange={(ids) => setForm({ ...form, taxonomyNodeIds: ids })}
+                            />
                         </div>
                     </div>
 
@@ -804,13 +800,13 @@ export function LearningResourceManagement() {
                                     >
                                         전체 카테고리
                                     </button>
-                                    {(categories ?? []).map((category) => (
+                                    {(taxonomyNodes ?? []).map((node) => (
                                         <button
-                                            key={category.id}
-                                            onClick={() => setCategoryFilter(category.slug)}
-                                            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${categoryFilter === category.slug ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+                                            key={node.id}
+                                            onClick={() => setCategoryFilter(node.slug)}
+                                            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${categoryFilter === node.slug ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
                                         >
-                                            {category.name}
+                                            {node.name}
                                         </button>
                                     ))}
                                 </div>
@@ -906,7 +902,16 @@ export function LearningResourceManagement() {
                                         >
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                                    <span>{resource.category.name}</span>
+                                                    <span>
+                                                        {resource.taxonomyNodes
+                                                            .map((node) =>
+                                                                taxonomyBreadcrumbLabel(
+                                                                    node,
+                                                                    taxonomyNodesById
+                                                                )
+                                                            )
+                                                            .join(' / ') || '미분류'}
+                                                    </span>
                                                     <span
                                                         className={`rounded px-1.5 py-0.5 ${statusStyles[resource.status] ?? 'bg-slate-100 text-slate-600'}`}
                                                     >

@@ -8,6 +8,7 @@ import com.selfintro.modules.study.domain.entity.StudyImage;
 import com.selfintro.modules.study.domain.entity.StudyRelation;
 import com.selfintro.modules.study.domain.enums.StudyRelationType;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
+import com.selfintro.modules.taxonomy.presentation.dto.TaxonomyNodeResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,7 +21,7 @@ public record StudyResponse(
         String summary,
         String contentMarkdown,
         StudyStatus status,
-        CategoryResponse category,
+        List<TaxonomyNodeResponse> taxonomyNodes,
         List<TagResponse> tags,
         List<SkillResponse> skills,
         List<ExperienceReferenceResponse> experiences,
@@ -39,7 +40,7 @@ public record StudyResponse(
                 study.getSummary(),
                 study.getContentMarkdown(),
                 study.getStatus(),
-                CategoryResponse.from(study.getCategory()),
+                study.getTaxonomyNodes().stream().map(TaxonomyNodeResponse::from).toList(),
                 study.getTags().stream().map(TagResponse::from).toList(),
                 study.getSkills().stream().map(SkillResponse::from).toList(),
                 study.getExperiences().stream().map(ExperienceReferenceResponse::from).toList(),
@@ -64,17 +65,6 @@ public record StudyResponse(
                     image.getObjectKey(),
                     imageUrlResolver.apply(image.getObjectKey()),
                     image.getDisplayOrder());
-        }
-    }
-
-    public record CategoryResponse(Long id, String name, String slug, int displayOrder) {
-        public static CategoryResponse from(
-                com.selfintro.modules.study.domain.entity.StudyCategory category) {
-            return new CategoryResponse(
-                    category.getId(),
-                    category.getName(),
-                    category.getSlug(),
-                    category.getDisplayOrder());
         }
     }
 
