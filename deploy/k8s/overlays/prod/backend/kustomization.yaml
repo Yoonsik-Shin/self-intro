@@ -15,7 +15,7 @@ resources:
 images:
   - name: self-intro-backend
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend
-    newTag: "7e30b87"
+    newTag: "0ab48fc"
   - name: self-intro-backend-worker
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend-worker
     newTag: "98624d1"
