@@ -430,20 +430,19 @@ export default function JobPostingMapView({
                 homeMarker.on('click', () => setIsHomeModalOpen(true));
             }
 
-            // 🎯 스마트 줌 수준에 따른 동적 군집화 (Clustering Thresholds)
-            // Zoom < 14: 넓은 픽셀 거리(75px)로 뭉침
-            // Zoom 14 ~ 15: 중간 픽셀 거리(45px)로 뭉침
-            // Zoom >= 16 또는 단일 공고 선택 모드: 100% 핀 분리
-            const isDetailedZoom = zoom >= 16 || selectedPostingId !== null;
+            // 🎯 빡빡하고 가독성 뛰어난 스마트 군집화 기준 (Strict Clustering Policy)
+            // Zoom >= 18 또는 단일 공고 선택 모드에서만 100% 핀 분리
+            // Zoom < 18 에서는 충분한 픽셀 반경(65px ~ 120px)으로 뭉쳐서 지도 청정 가독성 확보!
+            const isDetailedZoom = zoom >= 18 || selectedPostingId !== null;
 
             let pixelThreshold = 0;
             if (!isDetailedZoom) {
-                if (zoom < 13) {
-                    pixelThreshold = 80;
-                } else if (zoom < 15) {
-                    pixelThreshold = 55;
+                if (zoom < 14) {
+                    pixelThreshold = 120;
+                } else if (zoom < 16) {
+                    pixelThreshold = 90;
                 } else {
-                    pixelThreshold = 35;
+                    pixelThreshold = 65;
                 }
             }
 
