@@ -1,6 +1,7 @@
 package com.selfintro.modules.jobposting.presentation.dto;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
+import java.math.BigDecimal;
 
 public record JobPostingSettingResponse(
         boolean saraminEnabled,
@@ -12,7 +13,10 @@ public record JobPostingSettingResponse(
         String industryCode,
         boolean collectorScheduledEnabled,
         int matchingKeywordThreshold,
-        String collectorCron) {
+        String collectorCron,
+        String homeAddress,
+        BigDecimal homeLatitude,
+        BigDecimal homeLongitude) {
 
     public static JobPostingSettingResponse from(JobPostingSetting entity) {
         return new JobPostingSettingResponse(
@@ -25,6 +29,9 @@ public record JobPostingSettingResponse(
                 entity.getIndustryCode(),
                 entity.isCollectorScheduledEnabled(),
                 entity.getMatchingKeywordThreshold(),
-                entity.getCollectorCron());
+                entity.getCollectorCron(),
+                entity.getHomeAddress(),
+                entity.getHomeLatitude(),
+                entity.getHomeLongitude());
     }
 }

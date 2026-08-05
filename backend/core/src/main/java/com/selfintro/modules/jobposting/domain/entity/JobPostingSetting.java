@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -48,6 +49,15 @@ public class JobPostingSetting {
 
     @Column(name = "collector_cron", nullable = false, length = 100)
     private String collectorCron;
+
+    @Column(name = "home_address", length = 255)
+    private String homeAddress;
+
+    @Column(name = "home_latitude", precision = 10, scale = 7)
+    private BigDecimal homeLatitude;
+
+    @Column(name = "home_longitude", precision = 10, scale = 7)
+    private BigDecimal homeLongitude;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
@@ -117,6 +127,17 @@ public class JobPostingSetting {
         this.collectorScheduledEnabled = collectorScheduledEnabled;
         this.matchingKeywordThreshold = matchingKeywordThreshold;
         this.collectorCron = collectorCron;
+        this.updatedAt = now;
+    }
+
+    public void updateHomeLocation(
+            String homeAddress,
+            BigDecimal homeLatitude,
+            BigDecimal homeLongitude,
+            LocalDateTime now) {
+        this.homeAddress = homeAddress;
+        this.homeLatitude = homeLatitude;
+        this.homeLongitude = homeLongitude;
         this.updatedAt = now;
     }
 }

@@ -83,6 +83,12 @@ public class JobPosting {
     @Column(name = "location", length = 100)
     private String location;
 
+    @Column(name = "latitude", precision = 10, scale = 7)
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 10, scale = 7)
+    private BigDecimal longitude;
+
     @Column(name = "employment_type", length = 50)
     private String employmentType;
 
@@ -423,6 +429,11 @@ public class JobPosting {
     }
 
     /** 실수로 지원 전환했거나 보드에서 잘못 옮긴 경우 되돌린다 — 지원 전 상태로 돌아가므로 {@link #apply}가 채웠던 지원일도 함께 지운다. */
+    public void updateCoordinates(BigDecimal latitude, BigDecimal longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
     public void unapply(LocalDateTime now) {
         this.status = JobPostingStatus.NEW;
         this.appliedAt = null;

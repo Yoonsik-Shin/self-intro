@@ -356,7 +356,10 @@ class JobPostingCrudServiceTest {
                         "10",
                         true,
                         3,
-                        "0 0 9 * * *");
+                        "0 0 9 * * *",
+                        null,
+                        null,
+                        null);
 
         JobPostingSettingResponse response = jobPostingService.updateSettings(request);
 
@@ -373,7 +376,7 @@ class JobPostingCrudServiceTest {
     void updateSettingsRejectsInvalidCronExpression() {
         JobPostingSettingRequest request =
                 new JobPostingSettingRequest(
-                        true, "Java Spring", 30, "rc", "101000", "84", "10", true, 3, "not a cron");
+                        true, "Java Spring", 30, "rc", "101000", "84", "10", true, 3, "not a cron", null, null, null);
 
         assertThatThrownBy(() -> jobPostingService.updateSettings(request))
                 .isInstanceOf(ResponseStatusException.class);

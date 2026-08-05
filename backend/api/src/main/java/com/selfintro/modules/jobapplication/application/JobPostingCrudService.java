@@ -96,6 +96,11 @@ public class JobPostingCrudService {
                 request.matchingKeywordThreshold(),
                 cron,
                 LocalDateTime.now());
+        setting.updateHomeLocation(
+                AiJsonSupport.blankToNull(request.homeAddress()),
+                request.homeLatitude(),
+                request.homeLongitude(),
+                LocalDateTime.now());
         return JobPostingSettingResponse.from(setting);
     }
 
