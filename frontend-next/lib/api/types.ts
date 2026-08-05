@@ -504,6 +504,8 @@ export type JobPosting = {
     alwaysOpen: boolean;
     salaryNote: string | null;
     location: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
     employmentType: string | null;
     memo: string | null;
     jobDescription: string | null;
@@ -616,6 +618,9 @@ export type JobPostingSetting = {
     collectorScheduledEnabled: boolean;
     matchingKeywordThreshold: number;
     collectorCron: string;
+    homeAddress?: string | null;
+    homeLatitude?: number | null;
+    homeLongitude?: number | null;
 };
 
 export type JobPostingSettingRequest = {
@@ -629,6 +634,9 @@ export type JobPostingSettingRequest = {
     collectorScheduledEnabled: boolean;
     matchingKeywordThreshold: number;
     collectorCron: string;
+    homeAddress?: string | null;
+    homeLatitude?: number | null;
+    homeLongitude?: number | null;
 };
 
 export type ExperienceDetailRequest = {
