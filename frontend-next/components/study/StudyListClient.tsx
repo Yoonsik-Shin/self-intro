@@ -392,6 +392,7 @@ export function StudyListClient({
                             title="카테고리"
                             icon={ListTree}
                             isNavCollapsed={isNavCollapsed}
+                            onExpandSidebar={() => setIsNavCollapsed(false)}
                         >
                             <TaxonomyList
                                 nodes={taxonomyNodes}
@@ -410,8 +411,10 @@ export function StudyListClient({
                         <SidebarSection
                             title="최근 읽은 글"
                             icon={History}
+                            badge={recentlyViewed.length}
                             description="최근에 방문한 학습 기록입니다."
                             isNavCollapsed={isNavCollapsed}
+                            onExpandSidebar={() => setIsNavCollapsed(false)}
                             extraAction={
                                 <button
                                     type="button"
