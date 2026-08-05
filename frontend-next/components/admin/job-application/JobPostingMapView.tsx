@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
     MapPin,
     Home,
@@ -22,6 +22,10 @@ import {
     Loader2,
     Sun,
     Moon,
+    ChevronRight,
+    PanelRightClose,
+    PanelRightOpen,
+    GripVertical,
 } from 'lucide-react';
 import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
 import {
@@ -46,10 +50,6 @@ type TileStyleOption = 'LIGHT' | 'DARK';
 const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 const LEAFLET_JS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 
-/**
- * Next.js Turbopack/SSR 빌드 안전한 Leaflet CDN 동적 로더
- */
-
 function loadLeafletAssets(): Promise<unknown> {
     return new Promise((resolve, reject) => {
         if (typeof window === 'undefined') {
@@ -64,7 +64,6 @@ function loadLeafletAssets(): Promise<unknown> {
             return;
         }
 
-        // 1. Leaflet CSS 동적 로드
         if (!document.querySelector(`link[href="${LEAFLET_CSS_URL}"]`)) {
             const link = document.createElement('link');
             link.rel = 'stylesheet';
@@ -72,7 +71,6 @@ function loadLeafletAssets(): Promise<unknown> {
             document.head.appendChild(link);
         }
 
-        // 2. Leaflet JS 동적 로드
         const existingScript = document.querySelector(`script[src="${LEAFLET_JS_URL}"]`);
         if (existingScript) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,10 +97,8 @@ function parseRoadAddressCoordinates(location: string): { lat: number; lng: numb
 
     const sanitized = location.replace(/\([^)]*\)/g, '').trim();
 
-    // 1. 도로명과 번지수 숫자 파싱 (예: "테헤란로35길 123", "언주로 503", "서초대로25길 25")
     const match = sanitized.match(/([가-힣]+(?:로|길))\s*(\d+)?(?:길\s*(\d+))?/);
 
-    // 도로명 기본 중심점 가이드 좌표
     let baseLat = 37.5006;
     let baseLng = 127.0365;
     let found = false;
@@ -175,7 +171,6 @@ function parseRoadAddressCoordinates(location: string): { lat: number; lng: numb
 
     if (!found) return null;
 
-    // 건물 번지수(num1, num2) 기반 보행 도로 정밀 오프셋 산출 (번지수 차이에 따른 실제 위치 분산)
     const num1 = match ? parseInt(match[2] || '1', 10) : 1;
     const num2 = match ? parseInt(match[3] || '0', 10) : 0;
 
@@ -188,11 +183,7 @@ function parseRoadAddressCoordinates(location: string): { lat: number; lng: numb
     };
 }
 
-/**
- * 공고 객체 정밀 위도/경도 파서
- */
 function resolvePrecisionCoordinates(posting: JobPosting): { lat: number; lng: number } {
-    // DB에 고유 좌표가 저장되어 있고 강남 대표 디폴트가 아닌 경우
     if (
         posting.latitude &&
         posting.longitude &&
@@ -201,11 +192,9 @@ function resolvePrecisionCoordinates(posting: JobPosting): { lat: number; lng: n
         return { lat: posting.latitude, lng: posting.longitude };
     }
 
-    // 도로명 주소 파싱 기반 정밀 좌표 계산
     const parsed = parseRoadAddressCoordinates(posting.location || '');
     if (parsed) return parsed;
 
-    // 회사명 파싱 기반 fallback
     const company = (posting.companyName || '').toLowerCase();
     if (company.includes('포스타입')) return { lat: 37.4965, lng: 127.0302 };
     if (company.includes('드림어스')) return { lat: 37.4988, lng: 127.0345 };
@@ -231,6 +220,12 @@ export default function JobPostingMapView({
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
     const [isMapLoading, setIsMapLoading] = useState(true);
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
+
+    // 📱 좌우 크기 조절 & 접기/펼치기 상태 관리
+    const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(true);
+    const [detailPanelWidth, setDetailPanelWidth] = useState(380);
+    const [isResizing, setIsResizing] = useState(false);
+    const splitContainerRef = useRef<HTMLDivElement>(null);
 
     // 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 레이어 상태
     const [layerToggles, setLayerToggles] = useState({
@@ -264,7 +259,6 @@ export default function JobPostingMapView({
         return postings.map((posting) => {
             let estimate: CommuteEstimate | null = null;
 
-            // 🎯 도로명 주소 & 번지수 파싱 기반 정밀 좌표 산출
             const coords = resolvePrecisionCoordinates(posting);
             const lat = coords.lat;
             const lng = coords.lng;
@@ -308,7 +302,6 @@ export default function JobPostingMapView({
         });
     }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
 
-    // 선택된 공고 아이템
     const activeItem = useMemo(() => {
         if (!selectedPostingId) return filteredItems[0] || null;
         return (
@@ -318,13 +311,44 @@ export default function JobPostingMapView({
         );
     }, [filteredItems, selectedPostingId]);
 
-    // 마인드맵 토글 핸들러
     const toggleLayer = (key: keyof typeof layerToggles) => {
         setLayerToggles((prev) => ({
             ...prev,
             [key]: !prev[key],
         }));
     };
+
+    // ↔️ 패널 드래그앤드롭 리사이저 이벤트 핸들러
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    }, []);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing || !splitContainerRef.current) return;
+            const containerRect = splitContainerRef.current.getBoundingClientRect();
+            const newWidth = containerRect.right - e.clientX;
+            // 패널 최소/최대 폭 제약 (260px ~ 650px)
+            if (newWidth >= 260 && newWidth <= 650) {
+                setDetailPanelWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(false);
+        };
+
+        if (isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]);
 
     // 🗺️ Leaflet 지도 인스턴스 초기화 및 동적 클러스터 렌더링
     useEffect(() => {
@@ -366,7 +390,6 @@ export default function JobPostingMapView({
                     markersGroupRef.current = L.layerGroup().addTo(map);
                     ringsGroupRef.current = L.layerGroup().addTo(map);
 
-                    // 지도 Zoom 및 Move 변경 이벤트 리스너
                     map.on('zoomend moveend', () => {
                         setCurrentZoomLevel(map.getZoom());
                     });
@@ -380,6 +403,8 @@ export default function JobPostingMapView({
                     tileLayerRef.current = L.tileLayer(tileUrl, { attribution, maxZoom: 19 }).addTo(
                         map
                     );
+                    // 패널 접힘/크기 변경 시 지도 타일 크기 재조정
+                    setTimeout(() => map.invalidateSize(), 150);
                 }
 
                 renderMapLayers(L);
@@ -454,7 +479,7 @@ export default function JobPostingMapView({
                 homeMarker.on('click', () => setIsHomeModalOpen(true));
             }
 
-            // 💡 확대 레벨(zoom >= 13)일 때는 클러스터링을 풀고 정밀 건물 좌표로 100% 개별 핀 렌더링!
+            // 💡 확대 레벨(zoom >= 13)일 때는 클러스터링을 풀고 100% 개별 핀 렌더링!
             const isDetailedZoom = zoom >= 13;
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -529,7 +554,6 @@ export default function JobPostingMapView({
             clusters.forEach((cluster) => {
                 const count = cluster.items.length;
 
-                // Case A: 축소 레벨(zoom < 13)에서 2개 이상 뭉쳐있을 때 -> 🔵 원형 클러스터 뱃지
                 if (count > 1 && !isDetailedZoom) {
                     let clusterBg = '#10b981';
                     let clusterBorder = '#047857';
@@ -569,7 +593,7 @@ export default function JobPostingMapView({
                         });
                     });
                 } else {
-                    // Case B: 1개만 단독 위치하거나 확대 모드일 때 -> 📍 완벽한 실제 좌표 위치에 개별 핀 렌더링
+                    // Case B: 개별 핀 렌더링 (Spiral Spacing 반경 확장)
                     cluster.items.forEach((item) => {
                         if (!item.lat || !item.lng) return;
                         const key = `${item.lat.toFixed(5)}_${item.lng.toFixed(5)}`;
@@ -579,10 +603,12 @@ export default function JobPostingMapView({
                         let drawLat = item.lat;
                         let drawLng = item.lng;
 
-                        // 동일 건물 입주 공고인 경우 미세 오프셋 분산
+                        // 🎯 동일 위치 입주 공고인 경우 나선형 방사 오프셋 거리를 넉넉하게 넓힘
                         if (sameGroup.length > 1) {
                             const angle = (index / sameGroup.length) * 2 * Math.PI;
-                            const offsetDist = 0.0004;
+                            // 핀 수에 따라 나선 반지름 확대
+                            const radiusMult = Math.min(1.8, 1 + Math.floor(index / 12) * 0.5);
+                            const offsetDist = 0.0012 * radiusMult;
                             drawLat += Math.sin(angle) * offsetDist;
                             drawLng += Math.cos(angle) * offsetDist;
                         }
@@ -611,7 +637,7 @@ export default function JobPostingMapView({
                 }
 
                 const labelHtml = layerToggles.showPinLabels
-                    ? `<div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${colorHex}; color: ${tileStyle === 'LIGHT' ? textHex : colorHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12);">
+                    ? `<div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${colorHex}; color: ${tileStyle === 'LIGHT' ? textHex : colorHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12); pointer-events: none;">
                         ${item.posting.companyName} ${item.estimate?.formattedTimeText ? `(${item.estimate.formattedTimeText})` : ''}
                        </div>`
                     : '';
@@ -623,7 +649,7 @@ export default function JobPostingMapView({
                 const customPinIcon = L.divIcon({
                     className: 'custom-posting-pin',
                     html: `
-                        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s; ${isSelected ? 'transform: scale(1.25); z-index: 9999;' : ''}">
+                        <div className="pin-wrapper" style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: all 0.2s; ${isSelected ? 'transform: scale(1.3); z-index: 99999;' : ''}">
                             ${selectedRingHtml}
                             <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}66; border: 2px solid #ffffff;">
                                 📍
@@ -637,6 +663,7 @@ export default function JobPostingMapView({
 
                 const postingMarker = L.marker([drawLat, drawLng], {
                     icon: customPinIcon,
+                    zIndexOffset: isSelected ? 1000 : 0,
                 }).addTo(markersGroup);
 
                 postingMarker.on('click', () => {
@@ -662,9 +689,18 @@ export default function JobPostingMapView({
         currentZoomLevel,
     ]);
 
+    // 패널 접기/펼치기 또는 리사이즈 시 지도 크기 자동 보정
+    useEffect(() => {
+        if (mapInstanceRef.current) {
+            setTimeout(() => {
+                mapInstanceRef.current.invalidateSize();
+            }, 100);
+        }
+    }, [isDetailPanelOpen, detailPanelWidth]);
+
     return (
         <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[650px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
-            {/* 1. 상단 툴바 (내 집 정보 + 뷰모드 Switcher + 필터 + 검색) */}
+            {/* 1. 상단 툴바 (내 집 정보 + 뷰모드 Switcher + 필터 + 검색 + 패널 토글) */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/90 p-4 backdrop-blur-md">
                 {/* 내 집 설정 상태 버튼 */}
                 <div className="flex items-center gap-3">
@@ -724,46 +760,67 @@ export default function JobPostingMapView({
                 </div>
 
                 {/* 출퇴근 소요시간 필터 탭 */}
-                <div className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-950 p-1">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-950 p-1">
+                        <button
+                            onClick={() => setTimeFilter('ALL')}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                                timeFilter === 'ALL'
+                                    ? 'bg-zinc-800 text-white shadow-sm'
+                                    : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                        >
+                            전체
+                        </button>
+                        <button
+                            onClick={() => setTimeFilter('30')}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                                timeFilter === '30'
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                        >
+                            ⚡ 30분 이내
+                        </button>
+                        <button
+                            onClick={() => setTimeFilter('45')}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                                timeFilter === '45'
+                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                    : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                        >
+                            ⚡ 45분 이내
+                        </button>
+                        <button
+                            onClick={() => setTimeFilter('60')}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                                timeFilter === '60'
+                                    ? 'bg-amber-600 text-white shadow-sm'
+                                    : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                        >
+                            ⚡ 60분 이내
+                        </button>
+                    </div>
+
+                    {/* 📱 오른쪽 공고 상세 정보 패널 접기/펼치기 버튼 */}
                     <button
-                        onClick={() => setTimeFilter('ALL')}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
-                            timeFilter === 'ALL'
-                                ? 'bg-zinc-800 text-white shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
+                        onClick={() => setIsDetailPanelOpen(!isDetailPanelOpen)}
+                        className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all shadow-sm"
+                        title={isDetailPanelOpen ? '상세 패널 접기' : '상세 패널 펼치기'}
                     >
-                        전체
-                    </button>
-                    <button
-                        onClick={() => setTimeFilter('30')}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
-                            timeFilter === '30'
-                                ? 'bg-emerald-600 text-white shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
-                    >
-                        ⚡ 30분 이내
-                    </button>
-                    <button
-                        onClick={() => setTimeFilter('45')}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
-                            timeFilter === '45'
-                                ? 'bg-indigo-600 text-white shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
-                    >
-                        ⚡ 45분 이내
-                    </button>
-                    <button
-                        onClick={() => setTimeFilter('60')}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
-                            timeFilter === '60'
-                                ? 'bg-amber-600 text-white shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
-                    >
-                        ⚡ 60분 이내
+                        {isDetailPanelOpen ? (
+                            <>
+                                <PanelRightClose className="h-4 w-4 text-indigo-400" />
+                                <span>패널 접기</span>
+                            </>
+                        ) : (
+                            <>
+                                <PanelRightOpen className="h-4 w-4 text-emerald-400" />
+                                <span>상세 패널 열기</span>
+                            </>
+                        )}
                     </button>
                 </div>
 
@@ -780,15 +837,15 @@ export default function JobPostingMapView({
                 </div>
             </div>
 
-            {/* 2. 메인 대시보드 뷰어 (실제 지도 타일 캔버스 + 공고 상세 리스트 사이드바) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
-                {/* 지도 시각화 캔버스 (Left 8 cols) */}
-                <div className="relative lg:col-span-8 bg-zinc-950 overflow-hidden flex flex-col items-center justify-center p-4">
+            {/* 2. 메인 대시보드 뷰어 (지도 캔버스 + 드래그앤드롭 리사이저 + 사이드바) */}
+            <div ref={splitContainerRef} className="flex flex-1 overflow-hidden relative">
+                {/* 지도 시각화 캔버스 (Left area) */}
+                <div className="relative flex-1 bg-zinc-950 overflow-hidden flex flex-col items-center justify-center p-4">
                     {/* Interactive Leaflet Real Map Tile Canvas */}
                     <div className="relative w-full h-full rounded-xl border border-zinc-800/80 bg-zinc-900/50 flex flex-col justify-between overflow-hidden">
                         {/* 지도 상단 마인드맵 토글 패널 및 지도 타일 스타일 변경 바 */}
                         <div className="absolute top-4 left-4 right-4 z-20 flex items-start justify-between pointer-events-none">
-                            {/* 지도 타일 스위처 (☀️ 밝은 계열 테마 기본값 vs 🌙 다크 테마) */}
+                            {/* 지도 타일 스위처 */}
                             {viewMode === 'REAL_MAP' && (
                                 <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 p-1 backdrop-blur-md shadow-lg text-xs">
                                     <button
@@ -965,7 +1022,6 @@ export default function JobPostingMapView({
 
                         {/* 3. 🗺️ 실제 타일 지도 Canvas vs 📇 매트릭스 그리드 뷰어 */}
                         {viewMode === 'REAL_MAP' ? (
-                            /* [MODE 1] 🗺️ 실제 도로/지명 타일 지도 (Leaflet Map Tile Engine) */
                             <div className="relative w-full h-full min-h-[450px] bg-zinc-950">
                                 {isMapLoading && (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-zinc-950 text-xs text-indigo-400">
@@ -979,7 +1035,6 @@ export default function JobPostingMapView({
                                 />
                             </div>
                         ) : (
-                            /* [MODE 2] 📇 카드 매트릭스 그리드 뷰어 */
                             <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-4">
                                 {filteredItems.length === 0 ? (
                                     <div className="col-span-full py-12 text-center text-zinc-500 text-xs">
@@ -1081,137 +1136,165 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* 3. 선택된 공고 세부 정보 사이드바 (Right 4 cols) */}
-                <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-zinc-800 bg-zinc-900/60 p-5 flex flex-col justify-between overflow-y-auto">
-                    {activeItem ? (
-                        <div className="space-y-5">
-                            {/* 회사 및 직무 헤더 */}
-                            <div>
-                                <div className="flex items-center justify-between">
+                {/* ↔️ 드래그 앤 드롭 좌우 크기 조정 Split Resizer Divider */}
+                {isDetailPanelOpen && (
+                    <div
+                        onMouseDown={handleMouseDown}
+                        className={`w-2 hover:w-2.5 bg-zinc-800 hover:bg-indigo-500 cursor-col-resize flex items-center justify-center transition-all z-20 group ${
+                            isResizing ? 'bg-indigo-600 w-2.5' : ''
+                        }`}
+                        title="좌우 드래그하여 패널 너비 조절"
+                    >
+                        <GripVertical className="h-4 w-4 text-zinc-500 group-hover:text-white transition-colors" />
+                    </div>
+                )}
+
+                {/* 3. 선택된 공고 세부 정보 사이드바 (Right collapsible & resizable panel) */}
+                {isDetailPanelOpen && (
+                    <div
+                        style={{ width: `${detailPanelWidth}px` }}
+                        className="shrink-0 border-l border-zinc-800 bg-zinc-900/90 p-5 flex flex-col justify-between overflow-y-auto transition-all"
+                    >
+                        {activeItem ? (
+                            <div className="space-y-5">
+                                {/* 패널 헤더 */}
+                                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                                     <span className="rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
                                         {activeItem.posting.status}
                                     </span>
-                                    {activeItem.posting.deadline && (
-                                        <span className="text-xs text-zinc-400">
-                                            마감일: {activeItem.posting.deadline}
+                                    <div className="flex items-center gap-2">
+                                        {activeItem.posting.deadline && (
+                                            <span className="text-xs text-zinc-400">
+                                                마감일: {activeItem.posting.deadline}
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => setIsDetailPanelOpen(false)}
+                                            className="text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800"
+                                            title="패널 접기"
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h2 className="text-xl font-bold text-white tracking-tight">
+                                        {activeItem.posting.companyName}
+                                    </h2>
+                                    <p className="text-sm font-medium text-zinc-300 mt-1">
+                                        {activeItem.posting.positionTitle}
+                                    </p>
+                                </div>
+
+                                {/* 출퇴근 계산 요약 박스 */}
+                                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                                            <Navigation className="h-4 w-4" />
+                                            <span>예상 출퇴근 분석</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-emerald-300">
+                                            {activeItem.estimate?.formattedTimeText || '계산 대기'}
                                         </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                                        <div>
+                                            <span className="text-zinc-500">예상 경로 거리:</span>{' '}
+                                            <strong>
+                                                {activeItem.estimate?.estimatedDistanceKm ?? '-'} km
+                                            </strong>
+                                        </div>
+                                        <div>
+                                            <span className="text-zinc-500">직선 거리:</span>{' '}
+                                            <strong>
+                                                {activeItem.estimate?.straightDistanceKm ?? '-'} km
+                                            </strong>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-[11px] text-zinc-400 bg-zinc-950/60 p-2 rounded-lg border border-zinc-800">
+                                        📍 <strong>목적지:</strong>{' '}
+                                        {activeItem.posting.location || '주소 미기재'}
+                                    </div>
+                                </div>
+
+                                {/* 세부 정보 요약 (연봉 / 근무 형태) */}
+                                <div className="space-y-2.5 text-xs text-zinc-300 border-t border-b border-zinc-800 py-3">
+                                    {activeItem.posting.salaryNote && (
+                                        <div className="flex items-center gap-2">
+                                            <DollarSign className="h-4 w-4 text-emerald-400 shrink-0" />
+                                            <span>{activeItem.posting.salaryNote}</span>
+                                        </div>
+                                    )}
+                                    {activeItem.posting.employmentType && (
+                                        <div className="flex items-center gap-2">
+                                            <Briefcase className="h-4 w-4 text-indigo-400 shrink-0" />
+                                            <span>{activeItem.posting.employmentType}</span>
+                                        </div>
                                     )}
                                 </div>
-                                <h2 className="mt-2 text-xl font-bold text-white tracking-tight">
-                                    {activeItem.posting.companyName}
-                                </h2>
-                                <p className="text-sm font-medium text-zinc-300 mt-1">
-                                    {activeItem.posting.positionTitle}
-                                </p>
-                            </div>
 
-                            {/* 출퇴근 계산 요약 박스 */}
-                            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
-                                <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
-                                        <Navigation className="h-4 w-4" />
-                                        <span>예상 출퇴근 분석</span>
+                                {/* 외부 길찾기 웹 링크 연동 버튼 */}
+                                <div className="space-y-2 pt-1">
+                                    <div className="text-xs font-medium text-zinc-400 mb-1">
+                                        외부 길찾기 및 지도 연결
                                     </div>
-                                    <span className="text-sm font-bold text-emerald-300">
-                                        {activeItem.estimate?.formattedTimeText || '계산 대기'}
-                                    </span>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 text-xs text-zinc-300">
-                                    <div>
-                                        <span className="text-zinc-500">예상 경로 거리:</span>{' '}
-                                        <strong>
-                                            {activeItem.estimate?.estimatedDistanceKm ?? '-'} km
-                                        </strong>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <a
+                                            href={getKakaoDirectionsUrl(
+                                                activeItem.posting.companyName,
+                                                activeItem.lat || 37.5,
+                                                activeItem.lng || 127.0,
+                                                homeLat,
+                                                homeLng
+                                            )}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center gap-1.5 rounded-xl border border-yellow-500/30 bg-yellow-500/10 py-2.5 text-xs font-semibold text-yellow-300 hover:bg-yellow-500/20 transition-colors"
+                                        >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                            카카오맵 길찾기
+                                        </a>
+                                        <a
+                                            href={getNaverDirectionsUrl(
+                                                activeItem.posting.companyName,
+                                                activeItem.lat || 37.5,
+                                                activeItem.lng || 127.0,
+                                                homeLat,
+                                                homeLng
+                                            )}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                                        >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                            네이버 지도 길찾기
+                                        </a>
                                     </div>
-                                    <div>
-                                        <span className="text-zinc-500">직선 거리:</span>{' '}
-                                        <strong>
-                                            {activeItem.estimate?.straightDistanceKm ?? '-'} km
-                                        </strong>
-                                    </div>
-                                </div>
-
-                                <div className="text-[11px] text-zinc-400 bg-zinc-950/60 p-2 rounded-lg border border-zinc-800">
-                                    📍 <strong>목적지:</strong>{' '}
-                                    {activeItem.posting.location || '주소 미기재'}
-                                </div>
-                            </div>
-
-                            {/* 세부 정보 요약 (연봉 / 근무 형태) */}
-                            <div className="space-y-2.5 text-xs text-zinc-300 border-t border-b border-zinc-800 py-3">
-                                {activeItem.posting.salaryNote && (
-                                    <div className="flex items-center gap-2">
-                                        <DollarSign className="h-4 w-4 text-emerald-400 shrink-0" />
-                                        <span>{activeItem.posting.salaryNote}</span>
-                                    </div>
-                                )}
-                                {activeItem.posting.employmentType && (
-                                    <div className="flex items-center gap-2">
-                                        <Briefcase className="h-4 w-4 text-indigo-400 shrink-0" />
-                                        <span>{activeItem.posting.employmentType}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* 외부 길찾기 웹 링크 연동 버튼 */}
-                            <div className="space-y-2 pt-1">
-                                <div className="text-xs font-medium text-zinc-400 mb-1">
-                                    외부 길찾기 및 지도 연결
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <a
-                                        href={getKakaoDirectionsUrl(
-                                            activeItem.posting.companyName,
-                                            activeItem.lat || 37.5,
-                                            activeItem.lng || 127.0,
-                                            homeLat,
-                                            homeLng
-                                        )}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-1.5 rounded-xl border border-yellow-500/30 bg-yellow-500/10 py-2.5 text-xs font-semibold text-yellow-300 hover:bg-yellow-500/20 transition-colors"
-                                    >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                        카카오맵 길찾기
-                                    </a>
-                                    <a
-                                        href={getNaverDirectionsUrl(
-                                            activeItem.posting.companyName,
-                                            activeItem.lat || 37.5,
-                                            activeItem.lng || 127.0,
-                                            homeLat,
-                                            homeLng
-                                        )}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition-colors"
-                                    >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                        네이버 지도 길찾기
-                                    </a>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="my-auto text-center text-zinc-500 text-xs">
-                            지도의 마커나 공고 목록을 선택해 주세요.
-                        </div>
-                    )}
+                        ) : (
+                            <div className="my-auto text-center text-zinc-500 text-xs">
+                                지도의 마커나 공고 목록을 선택해 주세요.
+                            </div>
+                        )}
 
-                    {/* 하단 상세보기 모달 호출 버튼 */}
-                    {activeItem && (
-                        <div className="pt-4 border-t border-zinc-800 mt-4">
-                            <button
-                                onClick={() => onSelectPosting(activeItem.posting)}
-                                className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"
-                            >
-                                <Building2 className="h-4 w-4" />
-                                공고 상세 모달 열기
-                            </button>
-                        </div>
-                    )}
-                </div>
+                        {/* 하단 상세보기 모달 호출 버튼 */}
+                        {activeItem && (
+                            <div className="pt-4 border-t border-zinc-800 mt-4">
+                                <button
+                                    onClick={() => onSelectPosting(activeItem.posting)}
+                                    className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"
+                                >
+                                    <Building2 className="h-4 w-4" />
+                                    공고 상세 모달 열기
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* 내 집 위치 설정 다이얼로그 모달 */}
