@@ -218,10 +218,10 @@ export function StudyListClient({
 
     return (
         <div
-            className={`grid grid-cols-[minmax(0,1fr)_52px] gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-4 sm:gap-6 ${
+            className={`grid grid-cols-1 gap-4 items-start relative transition-[grid-template-columns] duration-300 pb-4 sm:gap-6 ${
                 isNavCollapsed
-                    ? 'min-[900px]:grid-cols-[minmax(0,1fr)_52px]'
-                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_220px] min-[1200px]:grid-cols-[minmax(0,1fr)_240px]'
+                    ? 'min-[900px]:grid-cols-[minmax(0,1fr)_64px]'
+                    : 'min-[900px]:grid-cols-[minmax(0,1fr)_260px]'
             }`}
         >
             <div className="min-w-0 space-y-8">
@@ -361,7 +361,7 @@ export function StudyListClient({
             </div>
 
             <aside
-                className={`block w-full sticky top-[89px] self-start transition-all duration-300 min-[900px]:pr-3 ${
+                className={`hidden min-[900px]:block sticky top-[89px] self-start transition-all duration-300 min-[900px]:pr-3 ${
                     isNavCollapsed ? 'min-[900px]:w-[76px]' : 'min-[900px]:w-[272px]'
                 }`}
             >
@@ -512,7 +512,11 @@ export function StudyListClient({
                         <button
                             type="button"
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="grid h-9 w-full place-items-center rounded-xl border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5"
+                            className={`grid place-items-center border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group ${
+                                isNavCollapsed
+                                    ? 'h-9 w-9 mx-auto rounded-full'
+                                    : 'h-9 w-full rounded-xl min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5'
+                            }`}
                             title="위로 가기"
                             aria-label="위로 가기"
                         >
@@ -526,6 +530,17 @@ export function StudyListClient({
                     </div>
                 </div>
             </aside>
+
+            {/* 모바일/태블릿 전용 우하단 플로팅 탑 버튼 */}
+            <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="fixed bottom-6 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-lg backdrop-blur-md transition hover:bg-slate-100 hover:scale-105 active:scale-95 min-[900px]:hidden"
+                title="맨 위로 스크롤"
+                aria-label="맨 위로 스크롤"
+            >
+                <ArrowUp className="h-5 w-5" />
+            </button>
         </div>
     );
 }
