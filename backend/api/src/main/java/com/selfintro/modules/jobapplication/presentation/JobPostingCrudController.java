@@ -1,6 +1,10 @@
 package com.selfintro.modules.jobapplication.presentation;
 
+import com.selfintro.modules.jobapplication.application.JobPostingCoverLetterService;
 import com.selfintro.modules.jobapplication.application.JobPostingCrudService;
+import com.selfintro.modules.jobapplication.application.JobplanetCompanyService;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingMemoRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -8,6 +12,8 @@ import com.selfintro.modules.jobposting.presentation.dto.JobPostingSettingReques
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingSettingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingStatusChangeRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingStatusEventResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobplanetCompanyRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobplanetLookupResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -34,6 +40,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class JobPostingCrudController {
 
     private final JobPostingCrudService crudService;
+    private final JobplanetCompanyService jobplanetCompanyService;
+    private final JobPostingCoverLetterService coverLetterService;
 
     @GetMapping
     public List<JobPostingResponse> list() {
@@ -130,6 +138,33 @@ public class JobPostingCrudController {
     @DeleteMapping("/{id}/status-events/{eventId}")
     public JobPostingResponse deleteStatusEvent(@PathVariable Long id, @PathVariable Long eventId) {
         return crudService.deleteStatusEvent(id, eventId);
+    }
+
+    @GetMapping("/{id}/cover-letter-items")
+    public List<JobPostingCoverLetterItemResponse> coverLetterItems(@PathVariable Long id) {
+        return coverLetterService.list(id);
+    }
+
+    @PutMapping("/{id}/cover-letter-items")
+    public List<JobPostingCoverLetterItemResponse> replaceCoverLetterItems(
+            @PathVariable Long id, @Valid @RequestBody JobPostingCoverLetterSaveRequest request) {
+        return coverLetterService.replace(id, request);
+    }
+
+    @GetMapping("/{id}/jobplanet")
+    public JobplanetLookupResponse getJobplanet(@PathVariable Long id) {
+        return jobplanetCompanyService.get(id);
+    }
+
+    @PutMapping("/{id}/jobplanet")
+    public JobplanetLookupResponse saveJobplanet(
+            @PathVariable Long id, @Valid @RequestBody JobplanetCompanyRequest request) {
+        return jobplanetCompanyService.save(id, request);
+    }
+
+    @DeleteMapping("/{id}/jobplanet")
+    public JobplanetLookupResponse clearJobplanet(@PathVariable Long id) {
+        return jobplanetCompanyService.clear(id);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
