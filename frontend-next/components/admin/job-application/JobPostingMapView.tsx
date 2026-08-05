@@ -23,6 +23,8 @@ import {
     ChevronLeft,
     PanelRightOpen,
     GripVertical,
+    ArrowLeft,
+    ListFilter,
 } from 'lucide-react';
 import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
 import {
@@ -300,13 +302,10 @@ export default function JobPostingMapView({
         });
     }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
 
+    // 현재 선택된 공고 객체 (없으면 null)
     const activeItem = useMemo(() => {
-        if (!selectedPostingId) return filteredItems[0] || null;
-        return (
-            filteredItems.find((i) => i.posting.id === selectedPostingId) ||
-            filteredItems[0] ||
-            null
-        );
+        if (!selectedPostingId) return null;
+        return filteredItems.find((i) => i.posting.id === selectedPostingId) || null;
     }, [filteredItems, selectedPostingId]);
 
     const toggleLayer = (key: keyof typeof layerToggles) => {
@@ -314,6 +313,18 @@ export default function JobPostingMapView({
             ...prev,
             [key]: !prev[key],
         }));
+    };
+
+    // 📍 특정 공고 선택 및 지도 위치로 이동
+    const handleSelectPostingAndPan = (item: (typeof filteredItems)[0]) => {
+        setSelectedPostingId(item.posting.id);
+        setIsDetailPanelOpen(true); // 🎯 클릭 시 패널 자동 펼침
+
+        if (mapInstanceRef.current && item.lat && item.lng) {
+            mapInstanceRef.current.setView([item.lat, item.lng], 15, {
+                animate: true,
+            });
+        }
     };
 
     // ↔️ 패널 드래그앤드롭 리사이저 이벤트 핸들러
@@ -584,6 +595,7 @@ export default function JobPostingMapView({
                         map.setView([cluster.centerLat, cluster.centerLng], 14, {
                             animate: true,
                         });
+                        setIsDetailPanelOpen(true); // 🎯 클러스터 클릭 시 패널 자동 오픈
                     });
                 } else {
                     cluster.items.forEach((item) => {
@@ -655,9 +667,9 @@ export default function JobPostingMapView({
                     zIndexOffset: isSelected ? 1000 : 0,
                 }).addTo(markersGroup);
 
+                // 🎯 📍 마커 핀 클릭 시 패널 자동 오픈 및 선택 처리
                 postingMarker.on('click', () => {
-                    setSelectedPostingId(item.posting.id);
-                    map.panTo([drawLat, drawLng]);
+                    handleSelectPostingAndPan(item);
                 });
             });
         };
@@ -678,9 +690,9 @@ export default function JobPostingMapView({
     }, [isDetailPanelOpen, detailPanelWidth]);
 
     return (
-        /* ☀️ 컨테이너 상하 크기 확대 (h-[calc(100vh-7rem)] min-h-[750px]) */
+        /* ☀️ 컨테이너 대화면 크기 유지 */
         <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[750px] rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xl text-slate-800">
-            {/* 1. 상단 툴바 (높이 100% 동일 정렬) */}
+            {/* 1. 상단 툴바 */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 p-3.5 backdrop-blur-md">
                 {/* [왼쪽 그룹] 출퇴근 소요시간 필터 탭 + 검색창 */}
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -741,7 +753,7 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* [오른쪽 그룹] 기준 집 위치 버튼 (높이 100% 동일 1줄 정렬) */}
+                {/* [오른쪽 그룹] 기준 집 위치 버튼 */}
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsHomeModalOpen(true)}
@@ -955,15 +967,15 @@ export default function JobPostingMapView({
                                 className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
                             />
 
-                            {/* 📱 패널이 접혔을 때 지도의 우측 가장자리에 노출되는 조그마한 패널 열기 플로팅 버튼 */}
+                            {/* 📱 ✨ [디자인 보완] 패널이 접혔을 때 오른쪽 외곽 경계에 착 도킹되는 은은한 반투명 유리(Glassmorphism) 열기 버튼 */}
                             {!isDetailPanelOpen && (
                                 <button
                                     onClick={() => setIsDetailPanelOpen(true)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 rounded-l-2xl border border-r-0 border-indigo-300 bg-white/95 px-3 py-3 text-xs font-bold text-indigo-600 shadow-xl hover:bg-indigo-50 hover:text-indigo-800 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200"
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 rounded-l-2xl border border-r-0 border-indigo-200/90 bg-white/85 p-3 text-xs font-bold text-indigo-700 shadow-xl hover:bg-indigo-50/95 hover:text-indigo-900 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200 group"
                                     title="공고 상세 분석 패널 열기"
                                 >
-                                    <ChevronLeft className="h-4 w-4" />
-                                    <span className="[writing-mode:vertical-lr] tracking-widest text-[11px]">
+                                    <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform text-indigo-600" />
+                                    <span className="[writing-mode:vertical-lr] tracking-wider text-[11px] font-black">
                                         공고 상세 패널 열기
                                     </span>
                                 </button>
@@ -1009,28 +1021,32 @@ export default function JobPostingMapView({
                     </div>
                 )}
 
-                {/* 3. 선택된 공고 세부 정보 사이드바 (Right Collapsible Resizable Panel) */}
+                {/* 3. 선택된 공고 세부 정보 사이드바 (Right Collapsible & Resizable Panel) */}
                 {isDetailPanelOpen && (
                     <div
                         style={{ width: `${detailPanelWidth}px` }}
                         className="shrink-0 border-l border-slate-200 bg-white p-5 flex flex-col justify-between overflow-y-auto transition-all shadow-xs relative"
                     >
+                        {/* A. 선택된 공고가 있을 때 -> 상세 분석 정보 노출 */}
                         {activeItem ? (
                             <div className="space-y-5">
-                                {/* 패널 헤더 (우측 상단 닫기 아이콘 버튼) */}
+                                {/* 패널 헤더 (전체 목록으로 뒤로가기 + 접기 버튼) */}
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                                    <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-bold text-indigo-700">
-                                        {activeItem.posting.status}
-                                    </span>
+                                    <button
+                                        onClick={() => setSelectedPostingId(null)}
+                                        className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors"
+                                        title="전체 목록으로 돌아가기"
+                                    >
+                                        <ArrowLeft className="h-3.5 w-3.5" />
+                                        <span>목록으로</span>
+                                    </button>
                                     <div className="flex items-center gap-2">
-                                        {activeItem.posting.deadline && (
-                                            <span className="text-xs font-medium text-slate-500">
-                                                마감일: {activeItem.posting.deadline}
-                                            </span>
-                                        )}
+                                        <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-bold text-indigo-700">
+                                            {activeItem.posting.status}
+                                        </span>
                                         <button
                                             onClick={() => setIsDetailPanelOpen(false)}
-                                            className="text-slate-400 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                                            className="text-slate-400 hover:text-slate-800 p-1 rounded-lg hover:bg-slate-100 transition-colors"
                                             title="패널 접기"
                                         >
                                             <ChevronRight className="h-4 w-4" />
@@ -1136,8 +1152,92 @@ export default function JobPostingMapView({
                                 </div>
                             </div>
                         ) : (
-                            <div className="my-auto text-center text-slate-400 text-xs font-medium">
-                                지도의 마커나 공고 목록을 선택해 주세요.
+                            /* B. 🎯 선택된 공고가 없을 때 -> 현재 지도에 필터링되어 있는 공고 목록 리스트 표출! */
+                            <div className="flex flex-col h-full space-y-3">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                                        <ListFilter className="h-4 w-4 text-indigo-600" />
+                                        <span>지도 표출 공고 목록</span>
+                                        <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-black text-indigo-700">
+                                            {filteredItems.length}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsDetailPanelOpen(false)}
+                                        className="text-slate-400 hover:text-slate-800 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                        title="패널 접기"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                                    {filteredItems.length === 0 ? (
+                                        <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                                            선택된 조건에 부합하는 공고가 없습니다.
+                                        </div>
+                                    ) : (
+                                        filteredItems.map((item) => {
+                                            const mins = item.estimate?.estimatedMinutes || 0;
+                                            let badgeBg =
+                                                'bg-emerald-50 border-emerald-200 text-emerald-800';
+                                            let dotColor = 'bg-emerald-500';
+                                            if (mins > 60) {
+                                                badgeBg =
+                                                    'bg-rose-50 border-rose-200 text-rose-800';
+                                                dotColor = 'bg-rose-500';
+                                            } else if (mins > 45) {
+                                                badgeBg =
+                                                    'bg-amber-50 border-amber-200 text-amber-800';
+                                                dotColor = 'bg-amber-500';
+                                            } else if (mins > 30) {
+                                                badgeBg =
+                                                    'bg-indigo-50 border-indigo-200 text-indigo-800';
+                                                dotColor = 'bg-indigo-500';
+                                            }
+
+                                            return (
+                                                <div
+                                                    key={item.posting.id}
+                                                    onClick={() => handleSelectPostingAndPan(item)}
+                                                    className="group cursor-pointer rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-indigo-50/40 hover:border-indigo-300 p-3 transition-all duration-200 shadow-2xs hover:shadow-xs"
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="font-bold text-xs text-slate-900 truncate group-hover:text-indigo-600 flex items-center gap-1.5">
+                                                            <span
+                                                                className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
+                                                            />
+                                                            <span className="truncate">
+                                                                {item.posting.companyName}
+                                                            </span>
+                                                        </div>
+                                                        <span
+                                                            className={`inline-flex items-center shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${badgeBg}`}
+                                                        >
+                                                            ⏱️{' '}
+                                                            {item.estimate?.formattedTimeText ||
+                                                                '미상'}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="mt-1 text-[11px] font-medium text-slate-600 truncate">
+                                                        {item.posting.positionTitle}
+                                                    </div>
+
+                                                    <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-200/60 pt-1.5">
+                                                        <span className="truncate max-w-[170px]">
+                                                            📍{' '}
+                                                            {item.posting.location || '위치 미상'}
+                                                        </span>
+                                                        <span className="text-indigo-600 font-bold shrink-0">
+                                                            지도 위치로 이동 →
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
                             </div>
                         )}
 
