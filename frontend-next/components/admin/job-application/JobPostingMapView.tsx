@@ -291,7 +291,7 @@ export default function JobPostingMapView({
             }
         };
 
-        // 🎯 동적 거리/화면 픽셀 기반 클러스터링(Distance-based Clustering) 렌더링
+        // 🎯 동적 거리/화면 픽셀 기반 클러스터링 및 지능형 Spiderfy 렌더링
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const renderMapLayers = (L: any) => {
             const map = mapInstanceRef.current;
@@ -302,6 +302,8 @@ export default function JobPostingMapView({
 
             markersGroup.clearLayers();
             ringsGroup.clearLayers();
+
+            const zoom = map.getZoom();
 
             // 🎯 1. 반경 동심원 (10km, 20km, 30km)
             if (layerToggles.showDistanceRings) {
@@ -355,46 +357,57 @@ export default function JobPostingMapView({
                 homeMarker.on('click', () => setIsHomeModalOpen(true));
             }
 
-            // 🔢 3. 거리/줌 픽셀 기준 지능형 마커 클러스터링 (Marker Clustering)
+            // 💡 확대 레벨(zoom >= 13)일 때는 클러스터링을 풀고 100% 개별 핀으로 렌더링!
+            // 축소 레벨(zoom < 13)일 때는 픽셀 거리 70px 기준으로 클러스터링
+            const isDetailedZoom = zoom >= 13;
+
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const clusters: {
                 centerLat: number;
                 centerLng: number;
                 items: typeof filteredItems;
             }[] = [];
-            const pixelThreshold = 70; // 70px 이내에 위치한 마커들을 하나의 클러스터 원으로 통합
+            const pixelThreshold = isDetailedZoom ? 0 : 70; // 확대 시 픽셀 거리 0 (클러스터 해제)
 
             filteredItems.forEach((item) => {
                 if (!item.lat || !item.lng) return;
 
-                const itemPoint = map.latLngToLayerPoint([item.lat, item.lng]);
+                if (!isDetailedZoom && pixelThreshold > 0) {
+                    const itemPoint = map.latLngToLayerPoint([item.lat, item.lng]);
 
-                let addedToCluster = false;
-                for (const cluster of clusters) {
-                    const clusterPoint = map.latLngToLayerPoint([
-                        cluster.centerLat,
-                        cluster.centerLng,
-                    ]);
-                    const distance = Math.hypot(
-                        itemPoint.x - clusterPoint.x,
-                        itemPoint.y - clusterPoint.y
-                    );
+                    let addedToCluster = false;
+                    for (const cluster of clusters) {
+                        const clusterPoint = map.latLngToLayerPoint([
+                            cluster.centerLat,
+                            cluster.centerLng,
+                        ]);
+                        const distance = Math.hypot(
+                            itemPoint.x - clusterPoint.x,
+                            itemPoint.y - clusterPoint.y
+                        );
 
-                    if (distance <= pixelThreshold) {
-                        cluster.items.push(item);
-                        // 클러스터 대표 중심점 재계산 (평균 위치)
-                        cluster.centerLat =
-                            cluster.items.reduce((sum, i) => sum + i.lat!, 0) /
-                            cluster.items.length;
-                        cluster.centerLng =
-                            cluster.items.reduce((sum, i) => sum + i.lng!, 0) /
-                            cluster.items.length;
-                        addedToCluster = true;
-                        break;
+                        if (distance <= pixelThreshold) {
+                            cluster.items.push(item);
+                            cluster.centerLat =
+                                cluster.items.reduce((sum, i) => sum + i.lat!, 0) /
+                                cluster.items.length;
+                            cluster.centerLng =
+                                cluster.items.reduce((sum, i) => sum + i.lng!, 0) /
+                                cluster.items.length;
+                            addedToCluster = true;
+                            break;
+                        }
                     }
-                }
 
-                if (!addedToCluster) {
+                    if (!addedToCluster) {
+                        clusters.push({
+                            centerLat: item.lat,
+                            centerLng: item.lng,
+                            items: [item],
+                        });
+                    }
+                } else {
+                    // 확대 모드에서는 클러스터링 없이 1대1 독립 객체로 보관
                     clusters.push({
                         centerLat: item.lat,
                         centerLng: item.lng,
@@ -403,12 +416,29 @@ export default function JobPostingMapView({
                 }
             });
 
+            // 💡 동일 좌표 겹침 방지 지능형 Spiderfy (Spiral Jittering)
+            // 좌표가 100% 동일한 공고들이 존재하더라도 나선형 오프셋으로 사방으로 핀을 쫙 펼침
+            const renderList: {
+                item: (typeof filteredItems)[0];
+                drawLat: number;
+                drawLng: number;
+            }[] = [];
+
+            // 동일 좌표(lat, lng) 그룹 파악
+            const sameCoordsMap: Record<string, typeof filteredItems> = {};
+            filteredItems.forEach((item) => {
+                if (!item.lat || !item.lng) return;
+                const key = `${item.lat.toFixed(5)}_${item.lng.toFixed(5)}`;
+                if (!sameCoordsMap[key]) sameCoordsMap[key] = [];
+                sameCoordsMap[key].push(item);
+            });
+
             // 클러스터 및 개별 마커 렌더링
             clusters.forEach((cluster) => {
                 const count = cluster.items.length;
 
-                // Case A: 2개 이상 뭉쳐있을 때 -> 🔵 원형 클러스터 마커 (`10`, `23` 개수 표기)
-                if (count > 1) {
+                // Case A: 축소 레벨(zoom < 13)에서 2개 이상 뭉쳐있을 때 -> 🔵 원형 클러스터 뱃지
+                if (count > 1 && !isDetailedZoom) {
                     let clusterBg = '#10b981'; // Emerald (< 10)
                     let clusterBorder = '#047857';
 
@@ -429,80 +459,100 @@ export default function JobPostingMapView({
                                     ${count}
                                 </div>
                                 <div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${clusterBorder}; color: ${tileStyle === 'LIGHT' ? clusterBorder : '#ffffff'}; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.15);">
-                                    🏢 ${count}개 공고 뭉침 (클릭 시 확대)
+                                    🏢 ${count}개 공고 뭉침 (클릭 시 확대 분리)
                                 </div>
                             </div>
                         `,
-                        iconSize: [120, 65],
-                        iconAnchor: [60, 32],
+                        iconSize: [140, 65],
+                        iconAnchor: [70, 32],
                     });
 
                     const clusterMarker = L.marker([cluster.centerLat, cluster.centerLng], {
                         icon: clusterIcon,
                     }).addTo(markersGroup);
 
-                    // 원형 클러스터 클릭 시 -> 해당 뭉쳐있는 마커들 영역으로 확대(zoom in)하여 분리되게 함
+                    // 원형 클러스터 클릭 시 -> zoom 14 로 팍 확대되어 핀들이 사방으로 분리되어 나타남
                     clusterMarker.on('click', () => {
-                        const boundsPoints: [number, number][] = cluster.items.map((i) => [
-                            i.lat!,
-                            i.lng!,
-                        ]);
-                        const bounds = L.latLngBounds(boundsPoints);
-                        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+                        map.setView([cluster.centerLat, cluster.centerLng], 14, {
+                            animate: true,
+                        });
                     });
                 } else {
-                    // Case B: 1개만 단독 위치할 때 -> 📍 완벽한 실제 좌표 위치에 개별 핀 렌더링
-                    const item = cluster.items[0];
-                    const isSelected = activeItem?.posting.id === item.posting.id;
-                    const mins = item.estimate?.estimatedMinutes || 0;
+                    // Case B: 1개만 단독 위치하거나 확대 모드일 때 -> 📍 완벽한 실제 좌표 위치에 개별 핀 렌더링
+                    cluster.items.forEach((item) => {
+                        if (!item.lat || !item.lng) return;
+                        const key = `${item.lat.toFixed(5)}_${item.lng.toFixed(5)}`;
+                        const sameGroup = sameCoordsMap[key] || [item];
+                        const index = sameGroup.indexOf(item);
 
-                    let colorHex = '#10b981';
-                    let textHex = '#047857';
-                    if (mins > 60) {
-                        colorHex = '#f43f5e';
-                        textHex = '#be123c';
-                    } else if (mins > 45) {
-                        colorHex = '#f59e0b';
-                        textHex = '#b45309';
-                    } else if (mins > 30) {
-                        colorHex = '#6366f1';
-                        textHex = '#4338ca';
-                    }
+                        let drawLat = item.lat;
+                        let drawLng = item.lng;
 
-                    const labelHtml = layerToggles.showPinLabels
-                        ? `<div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${colorHex}; color: ${tileStyle === 'LIGHT' ? textHex : colorHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12);">
-                            ${item.posting.companyName} ${item.estimate?.formattedTimeText ? `(${item.estimate.formattedTimeText})` : ''}
-                           </div>`
-                        : '';
+                        // 동일 좌표인 건물이 2개 이상일 경우 확대 모드 시 나선형 Spiral Jittering으로 핀을 사방으로 펼침
+                        if (sameGroup.length > 1) {
+                            const angle = (index / sameGroup.length) * 2 * Math.PI;
+                            // 줌 레벨에 따라 지형에 어울리는 오프셋 거리 부여
+                            const offsetDist = 0.0008;
+                            drawLat += Math.sin(angle) * offsetDist;
+                            drawLng += Math.cos(angle) * offsetDist;
+                        }
 
-                    const selectedRingHtml = isSelected
-                        ? `<div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: ${colorHex}55; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
-                        : '';
-
-                    const customPinIcon = L.divIcon({
-                        className: 'custom-posting-pin',
-                        html: `
-                            <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s; ${isSelected ? 'transform: scale(1.25); z-index: 9999;' : ''}">
-                                ${selectedRingHtml}
-                                <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}66; border: 2px solid #ffffff;">
-                                    📍
-                                </div>
-                                ${labelHtml}
-                            </div>
-                        `,
-                        iconSize: [140, 55],
-                        iconAnchor: [70, 27],
-                    });
-
-                    const postingMarker = L.marker([item.lat!, item.lng!], {
-                        icon: customPinIcon,
-                    }).addTo(markersGroup);
-
-                    postingMarker.on('click', () => {
-                        setSelectedPostingId(item.posting.id);
-                        map.panTo([item.lat!, item.lng!]);
+                        renderList.push({ item, drawLat, drawLng });
                     });
                 }
+            });
+
+            // 개별 핀들 렌더링
+            renderList.forEach(({ item, drawLat, drawLng }) => {
+                const isSelected = activeItem?.posting.id === item.posting.id;
+                const mins = item.estimate?.estimatedMinutes || 0;
+
+                let colorHex = '#10b981';
+                let textHex = '#047857';
+                if (mins > 60) {
+                    colorHex = '#f43f5e';
+                    textHex = '#be123c';
+                } else if (mins > 45) {
+                    colorHex = '#f59e0b';
+                    textHex = '#b45309';
+                } else if (mins > 30) {
+                    colorHex = '#6366f1';
+                    textHex = '#4338ca';
+                }
+
+                const labelHtml = layerToggles.showPinLabels
+                    ? `<div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${colorHex}; color: ${tileStyle === 'LIGHT' ? textHex : colorHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12);">
+                        ${item.posting.companyName} ${item.estimate?.formattedTimeText ? `(${item.estimate.formattedTimeText})` : ''}
+                       </div>`
+                    : '';
+
+                const selectedRingHtml = isSelected
+                    ? `<div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: ${colorHex}55; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
+                    : '';
+
+                const customPinIcon = L.divIcon({
+                    className: 'custom-posting-pin',
+                    html: `
+                        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s; ${isSelected ? 'transform: scale(1.25); z-index: 9999;' : ''}">
+                            ${selectedRingHtml}
+                            <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}66; border: 2px solid #ffffff;">
+                                📍
+                            </div>
+                            ${labelHtml}
+                        </div>
+                    `,
+                    iconSize: [140, 55],
+                    iconAnchor: [70, 27],
+                });
+
+                const postingMarker = L.marker([drawLat, drawLng], {
+                    icon: customPinIcon,
+                }).addTo(markersGroup);
+
+                postingMarker.on('click', () => {
+                    setSelectedPostingId(item.posting.id);
+                    map.panTo([drawLat, drawLng]);
+                });
             });
         };
 
@@ -920,8 +970,8 @@ export default function JobPostingMapView({
                         {/* 지도 정보 가이드 하단 바 */}
                         <div className="z-20 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 p-3 bg-zinc-900/90 backdrop-blur-md text-[11px] text-zinc-500">
                             <span>
-                                💡 원형 뱃지 클러스터를 클릭하거나 지도를 확대하면 개별 핀이 정확한
-                                좌표 위치에 표출됩니다.
+                                💡 지도를 확대하거나 뱃지를 클릭하면 각 공고가 사방으로 100%
+                                분리되어 렌더링됩니다.
                             </span>
                             <div className="flex items-center gap-3">
                                 <span className="flex items-center gap-1 text-emerald-400 font-medium">
