@@ -3,21 +3,18 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
-import {
-    ArrowLeft,
-    ArrowUp,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ListOrdered,
-} from 'lucide-react';
+import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, ListOrdered } from 'lucide-react';
+import { SidebarSection } from '@/components/common/SidebarSection';
+import { taxonomyApi } from '@/lib/api';
 import type { Study } from '@/lib/api/types';
+import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
 import {
     markdownComponents,
     remarkKoreanEmphasis,
@@ -35,11 +32,18 @@ type Props = {
 
 export function StudyDetailClient({ study }: Props) {
     const router = useRouter();
+    const { data: allTaxonomyNodes } = useQuery({
+        queryKey: ['taxonomyNodesPublic'],
+        queryFn: taxonomyApi.publicList,
+        staleTime: 5 * 60 * 1000,
+    });
+    const taxonomyNodesById = useMemo(
+        () => toTaxonomyNodeMap(allTaxonomyNodes ?? []),
+        [allTaxonomyNodes]
+    );
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
     const [activeId, setActiveId] = useState<string>('');
     const [showScrollTop, setShowScrollTop] = useState(false);
-    const [isTocOpen, setIsTocOpen] = useState(true);
-    const [isRelatedOpen, setIsRelatedOpen] = useState(true);
 
     const toc = useMemo(() => extractToc(study.contentMarkdown), [study.contentMarkdown]);
 
@@ -61,7 +65,7 @@ export function StudyDetailClient({ study }: Props) {
             items.unshift({
                 slug: study.slug,
                 title: study.title,
-                categoryName: study.category.name,
+                categoryName: study.taxonomyNodes.map((node) => node.name).join(', '),
                 viewedAt: Date.now(),
             });
 
@@ -74,7 +78,7 @@ export function StudyDetailClient({ study }: Props) {
         } catch {
             // Ignore localStorage errors (e.g. incognito)
         }
-    }, [study.slug, study.title, study.category.name]);
+    }, [study.slug, study.title, study.taxonomyNodes]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -132,9 +136,14 @@ export function StudyDetailClient({ study }: Props) {
                     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                         <div className="mb-8 border-b border-slate-100 pb-6">
                             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-800">
-                                    {study.category.name}
-                                </span>
+                                {study.taxonomyNodes.map((node) => (
+                                    <span
+                                        key={node.id}
+                                        className="rounded-full bg-slate-100 px-3 py-1 text-slate-800"
+                                    >
+                                        {taxonomyBreadcrumbLabel(node, taxonomyNodesById)}
+                                    </span>
+                                ))}
                                 <span className="font-mono">{study.learnedAt}</span>
                             </div>
                             <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
@@ -258,178 +267,130 @@ export function StudyDetailClient({ study }: Props) {
 
                         {/* Table of Contents (목차) */}
                         {toc.length > 0 && (
-                            <div
-                                className={`hidden shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:flex min-[900px]:flex-col'} ${
-                                    isRelatedOpen ? 'flex-[3] min-h-0' : 'flex-1 min-h-0'
-                                }`}
+                            <SidebarSection
+                                title="목차"
+                                icon={ListOrdered}
+                                badge={toc.length}
+                                isNavCollapsed={isNavCollapsed}
                             >
-                                <div
-                                    onClick={() => setIsTocOpen((prev) => !prev)}
-                                    className="mb-2 flex items-center justify-between shrink-0 cursor-pointer select-none group"
-                                    title={isTocOpen ? '목차 접기' : '목차 펼치기'}
-                                >
-                                    <h3 className="flex items-center gap-1.5 text-sm font-black tracking-wider text-slate-800 group-hover:text-blue-600 transition-colors">
-                                        <ChevronDown
-                                            className={`h-3.5 w-3.5 text-blue-600 transition-transform duration-200 ${
-                                                isTocOpen ? '' : '-rotate-90'
-                                            }`}
-                                        />
-                                        <ListOrdered className="h-3.5 w-3.5 text-blue-600" />
-                                        <span>목차</span>
-                                    </h3>
-                                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-extrabold text-blue-600">
-                                        {toc.length}
-                                    </span>
-                                </div>
-                                {isTocOpen && (
-                                    <nav
-                                        className={`overflow-y-auto overflow-x-hidden space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar ${
-                                            isRelatedOpen
-                                                ? 'max-h-[280px] min-[1200px]:max-h-[420px]'
-                                                : 'flex-1 min-h-0 max-h-none'
-                                        }`}
-                                    >
-                                        {toc.map((item) => {
-                                            const isActive = activeId === item.id;
-                                            return (
-                                                <button
-                                                    key={item.id}
-                                                    type="button"
-                                                    onClick={() => scrollToHeading(item.id)}
-                                                    className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1 ${
-                                                        item.level === 1
-                                                            ? 'font-bold text-slate-800'
-                                                            : item.level === 2
-                                                              ? 'pl-5 font-medium text-slate-600'
-                                                              : 'pl-7 text-slate-500'
-                                                    } ${
-                                                        isActive
-                                                            ? 'bg-blue-50/90 text-blue-700 font-extrabold shadow-2xs'
-                                                            : 'hover:bg-slate-100/70 hover:text-slate-900'
-                                                    }`}
-                                                >
-                                                    {isActive && (
-                                                        <span className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-blue-600 shadow-2xs" />
-                                                    )}
-                                                    <span className="line-clamp-2 leading-snug">
-                                                        {item.text}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </nav>
-                                )}
+                                <nav className="max-h-[360px] overflow-y-auto overflow-x-hidden space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
+                                    {toc.map((item) => {
+                                        const isActive = activeId === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                onClick={() => scrollToHeading(item.id)}
+                                                className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1 ${
+                                                    item.level === 1
+                                                        ? 'font-bold text-slate-800'
+                                                        : item.level === 2
+                                                          ? 'pl-5 font-medium text-slate-600'
+                                                          : 'pl-7 text-slate-500'
+                                                } ${
+                                                    isActive
+                                                        ? 'bg-blue-50/90 text-blue-700 font-extrabold shadow-2xs'
+                                                        : 'hover:bg-slate-100/70 hover:text-slate-900'
+                                                }`}
+                                            >
+                                                {isActive && (
+                                                    <span className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-blue-600 shadow-2xs" />
+                                                )}
+                                                <span className="line-clamp-2 leading-snug">
+                                                    {item.text}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </nav>
                                 <hr className="mt-3 border-slate-100 shrink-0" />
-                            </div>
+                            </SidebarSection>
                         )}
 
-                        {/* 연결 항목 (Related Items) Header */}
-                        <div
-                            onClick={() => setIsRelatedOpen((prev) => !prev)}
-                            className={`hidden shrink-0 cursor-pointer select-none group ${
-                                isNavCollapsed ? '' : 'min-[900px]:block'
-                            }`}
-                            title={isRelatedOpen ? '연결 항목 접기' : '연결 항목 펼치기'}
+                        {/* 연결 항목 (Related Items) */}
+                        <SidebarSection
+                            title="연결 항목"
+                            description="이 학습과 연관된 이력 정보입니다."
+                            isNavCollapsed={isNavCollapsed}
                         >
-                            <h3 className="flex items-center gap-1.5 text-sm font-black tracking-wider text-slate-700 group-hover:text-slate-950 transition-colors">
-                                <ChevronDown
-                                    className={`h-3.5 w-3.5 text-slate-500 transition-transform duration-200 ${
-                                        isRelatedOpen ? '' : '-rotate-90'
-                                    }`}
-                                />
-                                <span>연결 항목</span>
-                            </h3>
-                            <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
-                                이 학습과 연관된 이력 정보입니다.
-                            </p>
-                        </div>
-
-                        {/* 연결 항목 List (접기 및 개별 스크롤 적용) */}
-                        {isRelatedOpen && (
-                            <div
-                                className={`hidden flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-3.5 pr-1 pt-2 custom-scrollbar ${
-                                    isNavCollapsed ? '' : 'min-[900px]:block'
-                                }`}
-                            >
-                                {study.experiences.length > 0 && (
-                                    <div>
-                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                            관련 프로젝트·경력
-                                        </h4>
-                                        <div className="space-y-1.5 pl-0.5">
-                                            {study.experiences.map((experience) => (
-                                                <Link
-                                                    key={experience.id}
-                                                    href={`/experience/${experience.id}`}
-                                                    className="flex w-full items-start gap-1.5 text-left text-xs leading-normal text-slate-600 hover:text-slate-950 group"
-                                                >
-                                                    <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-700">
-                                                        {experience.type}
-                                                    </span>
-                                                    <span className="font-semibold group-hover:text-slate-950">
-                                                        {experience.title}
-                                                    </span>
-                                                </Link>
-                                            ))}
-                                        </div>
+                            {study.experiences.length > 0 && (
+                                <div>
+                                    <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                        관련 프로젝트·경력
+                                    </h4>
+                                    <div className="space-y-1.5 pl-0.5">
+                                        {study.experiences.map((experience) => (
+                                            <Link
+                                                key={experience.id}
+                                                href={`/experience/${experience.id}`}
+                                                className="flex w-full items-start gap-1.5 text-left text-xs leading-normal text-slate-600 hover:text-slate-950 group"
+                                            >
+                                                <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-700">
+                                                    {experience.type}
+                                                </span>
+                                                <span className="font-semibold group-hover:text-slate-950">
+                                                    {experience.title}
+                                                </span>
+                                            </Link>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {study.experienceDetails.length > 0 && (
-                                    <div>
-                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                            관련 경력 항목
-                                        </h4>
-                                        <div className="space-y-1.5 pl-0.5">
-                                            {study.experienceDetails.map((detail) => (
-                                                <Link
-                                                    key={detail.id}
-                                                    href={
-                                                        detail.experienceId
-                                                            ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
-                                                            : `/experience-detail/${detail.id}`
-                                                    }
-                                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
-                                                >
-                                                    <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                                        ›
-                                                    </span>
-                                                    <span>{detail.content}</span>
-                                                </Link>
-                                            ))}
-                                        </div>
+                            {study.experienceDetails.length > 0 && (
+                                <div>
+                                    <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                        관련 경력 항목
+                                    </h4>
+                                    <div className="space-y-1.5 pl-0.5">
+                                        {study.experienceDetails.map((detail) => (
+                                            <Link
+                                                key={detail.id}
+                                                href={
+                                                    detail.experienceId
+                                                        ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
+                                                        : `/experience-detail/${detail.id}`
+                                                }
+                                                className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
+                                            >
+                                                <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                    ›
+                                                </span>
+                                                <span>{detail.content}</span>
+                                            </Link>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {study.relatedStudies.length > 0 && (
-                                    <div>
-                                        <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                            관련 STUDY
-                                        </h4>
-                                        <div className="space-y-1.5 pl-0.5">
-                                            {study.relatedStudies.map((related) => (
-                                                <Link
-                                                    key={`${related.id}-${related.type}`}
-                                                    href={`/study/${encodeURIComponent(related.slug)}`}
-                                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
-                                                >
-                                                    <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                                        ▪
-                                                    </span>
-                                                    <span>{related.title}</span>
-                                                </Link>
-                                            ))}
-                                        </div>
+                            {study.relatedStudies.length > 0 && (
+                                <div>
+                                    <h4 className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                        관련 STUDY
+                                    </h4>
+                                    <div className="space-y-1.5 pl-0.5">
+                                        {study.relatedStudies.map((related) => (
+                                            <Link
+                                                key={`${related.id}-${related.type}`}
+                                                href={`/study/${encodeURIComponent(related.slug)}`}
+                                                className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
+                                            >
+                                                <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                                    ▪
+                                                </span>
+                                                <span>{related.title}</span>
+                                            </Link>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {!hasRelated && (
-                                    <p className="text-xs font-bold italic text-slate-400">
-                                        연결된 이력 항목이 없습니다.
-                                    </p>
-                                )}
-                            </div>
-                        )}
+                            {!hasRelated && (
+                                <p className="text-xs font-bold italic text-slate-400">
+                                    연결된 이력 항목이 없습니다.
+                                </p>
+                            )}
+                        </SidebarSection>
 
                         <div
                             className={`flex flex-col items-center gap-2 py-1 shrink-0 ${
