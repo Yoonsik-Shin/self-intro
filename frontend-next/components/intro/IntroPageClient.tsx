@@ -111,8 +111,7 @@ export function IntroPageClient({ introData: initialIntroData }: Props) {
                                 <div className="mt-2 flex flex-wrap items-center gap-3.5 md:mt-0">
                                     <span className="resume-meta inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700 shadow-sm animate-pulse print:hidden">
                                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                        {profile.statusBadgeText} (v
-                                        {process.env.NEXT_PUBLIC_APP_VERSION} -{' '}
+                                        {profile.statusBadgeText} (
                                         {process.env.NEXT_PUBLIC_BUILD_DATE} 배포)
                                     </span>
                                     <div className="flex items-center gap-2 print:hidden">
