@@ -429,7 +429,22 @@ export default function JobPostingMapView({
                 homeMarker.on('click', () => setIsHomeModalOpen(true));
             }
 
-            const isDetailedZoom = zoom >= 13 || selectedPostingId !== null;
+            // 🎯 스마트 줌 수준에 따른 동적 군집화 (Clustering Thresholds)
+            // Zoom < 14: 넓은 픽셀 거리(75px)로 뭉침
+            // Zoom 14 ~ 15: 중간 픽셀 거리(45px)로 뭉침
+            // Zoom >= 16 또는 단일 공고 선택 모드: 100% 핀 분리
+            const isDetailedZoom = zoom >= 16 || selectedPostingId !== null;
+
+            let pixelThreshold = 0;
+            if (!isDetailedZoom) {
+                if (zoom < 13) {
+                    pixelThreshold = 80;
+                } else if (zoom < 15) {
+                    pixelThreshold = 55;
+                } else {
+                    pixelThreshold = 35;
+                }
+            }
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const clusters: {
@@ -437,7 +452,6 @@ export default function JobPostingMapView({
                 centerLng: number;
                 items: typeof mapItemsToRender;
             }[] = [];
-            const pixelThreshold = isDetailedZoom ? 0 : 50;
 
             mapItemsToRender.forEach((item) => {
                 if (!item.lat || !item.lng) return;
@@ -536,7 +550,8 @@ export default function JobPostingMapView({
                     }).addTo(markersGroup);
 
                     clusterMarker.on('click', () => {
-                        map.setView([cluster.centerLat, cluster.centerLng], 14, {
+                        const targetZoom = Math.min(17, map.getZoom() + 2);
+                        map.setView([cluster.centerLat, cluster.centerLng], targetZoom, {
                             animate: true,
                         });
                         setIsDetailPanelOpen(true);
