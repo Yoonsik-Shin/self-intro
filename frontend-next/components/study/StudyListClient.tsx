@@ -12,9 +12,11 @@ import {
     ChevronRight,
     ChevronUp,
     History,
+    ListTree,
     Loader2,
     X,
 } from 'lucide-react';
+import { SidebarSection } from '@/components/common/SidebarSection';
 import { studyApi, taxonomyApi } from '@/lib/api';
 import type { Study, StudyTaxonomyNode, StudyPage } from '@/lib/api/types';
 import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
@@ -384,13 +386,18 @@ export function StudyListClient({
                     </button>
 
                     {taxonomyNodes.length > 0 && (
-                        <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
+                        <SidebarSection
+                            title="카테고리"
+                            icon={ListTree}
+                            isNavCollapsed={isNavCollapsed}
+                        >
                             <TaxonomyList
                                 nodes={taxonomyNodes}
                                 activeNodeId={activeTaxonomyNodeId}
                                 onSelect={setActiveTaxonomyNodeId}
+                                hideHeader
                             />
-                        </div>
+                        </SidebarSection>
                     )}
 
                     <hr
@@ -398,19 +405,12 @@ export function StudyListClient({
                     />
 
                     {recentlyViewed.length > 0 ? (
-                        <>
-                            <div
-                                className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:flex min-[900px]:items-center min-[900px]:justify-between'}`}
-                            >
-                                <div>
-                                    <h3 className="text-sm font-black tracking-wider text-slate-700 flex items-center gap-1.5">
-                                        <History className="h-3.5 w-3.5 text-blue-600" />
-                                        <span>최근 읽은 글</span>
-                                    </h3>
-                                    <p className="mt-0.5 text-xs leading-normal text-slate-400">
-                                        최근에 방문한 학습 기록입니다.
-                                    </p>
-                                </div>
+                        <SidebarSection
+                            title="최근 읽은 글"
+                            icon={History}
+                            description="최근에 방문한 학습 기록입니다."
+                            isNavCollapsed={isNavCollapsed}
+                            extraAction={
                                 <button
                                     type="button"
                                     onClick={handleClearHistory}
@@ -419,15 +419,10 @@ export function StudyListClient({
                                 >
                                     지우기
                                 </button>
-                            </div>
-
-                            <div
-                                className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                            >
-                                {(isRecentExpanded
-                                    ? recentlyViewed
-                                    : recentlyViewed.slice(0, 7)
-                                ).map((item) => (
+                            }
+                        >
+                            {(isRecentExpanded ? recentlyViewed : recentlyViewed.slice(0, 7)).map(
+                                (item) => (
                                     <div key={item.slug} className="flex items-start gap-1.5">
                                         <Link
                                             href={`/study/${encodeURIComponent(item.slug)}`}
@@ -449,63 +444,54 @@ export function StudyListClient({
                                             <X className="h-3 w-3" />
                                         </button>
                                     </div>
-                                ))}
+                                )
+                            )}
 
-                                {recentlyViewed.length > 7 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsRecentExpanded(!isRecentExpanded)}
-                                        className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
-                                    >
-                                        {isRecentExpanded ? (
-                                            <>
-                                                <span>접기</span>
-                                                <ChevronUp className="h-3.5 w-3.5" />
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>더 보기 (+{recentlyViewed.length - 7})</span>
-                                                <ChevronDown className="h-3.5 w-3.5" />
-                                            </>
-                                        )}
-                                    </button>
-                                )}
-                            </div>
-                        </>
+                            {recentlyViewed.length > 7 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRecentExpanded(!isRecentExpanded)}
+                                    className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
+                                >
+                                    {isRecentExpanded ? (
+                                        <>
+                                            <span>접기</span>
+                                            <ChevronUp className="h-3.5 w-3.5" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>더 보기 (+{recentlyViewed.length - 7})</span>
+                                            <ChevronDown className="h-3.5 w-3.5" />
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </SidebarSection>
                     ) : (
-                        <>
-                            <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
-                                <h3 className="text-sm font-black tracking-wider text-slate-700">
-                                    최근 작성글
-                                </h3>
-                                <p className="mt-0.5 text-xs leading-normal text-slate-400">
-                                    최근 등록된 학습 기록입니다.
+                        <SidebarSection
+                            title="최근 작성글"
+                            description="최근 등록된 학습 기록입니다."
+                            isNavCollapsed={isNavCollapsed}
+                        >
+                            {recentStudies.map((study) => (
+                                <Link
+                                    key={study.id}
+                                    href={`/study/${encodeURIComponent(study.slug)}`}
+                                    className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
+                                    title={study.title}
+                                >
+                                    <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
+                                        ›
+                                    </span>
+                                    <span className="line-clamp-2">{study.title}</span>
+                                </Link>
+                            ))}
+                            {studies.length === 0 && (
+                                <p className="text-xs font-bold italic text-slate-400">
+                                    등록된 글이 없습니다.
                                 </p>
-                            </div>
-
-                            <div
-                                className={`hidden space-y-1.5 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                            >
-                                {recentStudies.map((study) => (
-                                    <Link
-                                        key={study.id}
-                                        href={`/study/${encodeURIComponent(study.slug)}`}
-                                        className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
-                                        title={study.title}
-                                    >
-                                        <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
-                                            ›
-                                        </span>
-                                        <span className="line-clamp-2">{study.title}</span>
-                                    </Link>
-                                ))}
-                                {studies.length === 0 && (
-                                    <p className="text-xs font-bold italic text-slate-400">
-                                        등록된 글이 없습니다.
-                                    </p>
-                                )}
-                            </div>
-                        </>
+                            )}
+                        </SidebarSection>
                     )}
 
                     <div
