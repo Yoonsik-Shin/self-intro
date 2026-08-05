@@ -43,6 +43,7 @@ import {
     Settings as SettingsIcon,
     Sparkles,
     Trash2,
+    Upload,
     X,
 } from 'lucide-react';
 import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
@@ -832,8 +833,10 @@ function PrintTemplatesPanel({
     const queryClient = useQueryClient();
     const queryKey = ['jobPostings', jobPostingId, 'printTemplates'] as const;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const directFileInputRef = useRef<HTMLInputElement | null>(null);
     const [pendingUploadId, setPendingUploadId] = useState<number | null>(null);
     const [uploadingId, setUploadingId] = useState<number | null>(null);
+    const [isUploadingDirectPdf, setIsUploadingDirectPdf] = useState(false);
     const [latestDraft, setLatestDraft] = useState<JobPostingPrintDraftResponse | null>(null);
 
     const {
@@ -918,6 +921,42 @@ function PrintTemplatesPanel({
         }
     }
 
+    async function handleDirectFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+
+        if (file.type !== 'application/pdf') {
+            alert('PDF 파일만 업로드할 수 있습니다.');
+            return;
+        }
+        if (file.size > MAX_FINAL_PDF_SIZE_BYTES) {
+            alert('파일이 너무 큽니다(최대 20MB).');
+            return;
+        }
+
+        setIsUploadingDirectPdf(true);
+        try {
+            const presigned = await imageApi.requestPresignedUpload(
+                'PRINT_TEMPLATE_FINAL_PDF',
+                file.name,
+                file.type
+            );
+            await imageApi.uploadToPresignedUrl(presigned.uploadUrl, file);
+            await printTemplateApi.createDirectPdf(jobPostingId, {
+                name: file.name,
+                objectKey: presigned.objectKey,
+            });
+            queryClient.invalidateQueries({ queryKey });
+        } catch (error) {
+            alert(
+                error instanceof ApiError ? error.message : 'PDF 파일 직접 업로드에 실패했습니다.'
+            );
+        } finally {
+            setIsUploadingDirectPdf(false);
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center gap-2 py-6 text-sm font-semibold text-slate-400">
@@ -943,6 +982,13 @@ function PrintTemplatesPanel({
                 accept="application/pdf"
                 className="hidden"
                 onChange={handleFileSelected}
+            />
+            <input
+                ref={directFileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleDirectFileSelected}
             />
             <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
                 <div className="flex items-start justify-between gap-3">
@@ -1037,25 +1083,53 @@ function PrintTemplatesPanel({
                     실제로 제출한 PDF 파일을 올려두면 그 자체가 최종 제출본이 됩니다(이후 이력서
                     내용이 바뀌어도 이 파일은 그대로 남습니다).
                 </p>
-                <a
-                    href={`/print?admin=1&jobPostingId=${jobPostingId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
-                >
-                    <Plus className="h-3.5 w-3.5" />새 템플릿 만들기
-                </a>
+                <div className="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        disabled={isUploadingDirectPdf}
+                        onClick={() => directFileInputRef.current?.click()}
+                        className="flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                        {isUploadingDirectPdf ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <Upload className="h-3.5 w-3.5" />
+                        )}
+                        PDF 파일 직접 업로드
+                    </button>
+                    <a
+                        href={`/print?admin=1&jobPostingId=${jobPostingId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                    >
+                        <Plus className="h-3.5 w-3.5" />새 템플릿 만들기
+                    </a>
+                </div>
             </div>
 
             {templates.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
-                    <p className="text-sm font-bold text-slate-500">
-                        아직 연동된 PDF 템플릿이 없습니다.
-                    </p>
+                    <p className="text-sm font-bold text-slate-500">아직 연동된 PDF가 없습니다.</p>
                     <p className="mt-1 text-xs text-slate-400">
-                        위 버튼으로 인쇄 화면을 열고 &ldquo;템플릿으로 저장&rdquo;할 때 이 공고를
-                        선택하면 여기 나타납니다.
+                        채용 사이트에서 받은 PDF를 직접 업로드하거나, 인쇄 화면에서 템플릿을 생성할
+                        수 있습니다.
                     </p>
+                    <div className="mt-4 flex items-center justify-center gap-2">
+                        <button
+                            type="button"
+                            disabled={isUploadingDirectPdf}
+                            onClick={() => directFileInputRef.current?.click()}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                            {isUploadingDirectPdf ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Upload className="h-4 w-4" />
+                            )}
+                            PDF 파일 바로 업로드
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <ul className="space-y-2">
@@ -1078,6 +1152,11 @@ function PrintTemplatesPanel({
                                             최종 제출본
                                         </span>
                                     )}
+                                    {t.source === 'EXTERNAL' && (
+                                        <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-black text-amber-700">
+                                            외부 PDF
+                                        </span>
+                                    )}
                                     {t.source === 'AI' && (
                                         <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-black text-indigo-600">
                                             AI 초안
@@ -1091,14 +1170,16 @@ function PrintTemplatesPanel({
                                 </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
-                                <a
-                                    href={`/print?admin=1&templateId=${t.id}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
-                                >
-                                    설정 열기
-                                </a>
+                                {t.source !== 'EXTERNAL' && (
+                                    <a
+                                        href={`/print?admin=1&templateId=${t.id}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                    >
+                                        설정 열기
+                                    </a>
+                                )}
                                 {t.finalPdfUrl && (
                                     <a
                                         href={t.finalPdfUrl}

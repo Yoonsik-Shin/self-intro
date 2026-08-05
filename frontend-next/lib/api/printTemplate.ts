@@ -1,5 +1,6 @@
 import { request } from './client';
 import type {
+    DirectPdfUploadRequest,
     PortfolioPrintTemplateRequest,
     PrintTemplate,
     PrintTemplateRaw,
@@ -97,6 +98,16 @@ export const printTemplateApi = {
         const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/final-pdf`, {
             method: 'DELETE',
         });
+        return parsePrintTemplate(raw);
+    },
+    createDirectPdf: async (jobPostingId: number, payload: DirectPdfUploadRequest) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/admin/job-postings/${jobPostingId}/direct-pdf`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            }
+        );
         return parsePrintTemplate(raw);
     },
     listByPortfolioCaseStudy: async (caseStudyId: number) => {

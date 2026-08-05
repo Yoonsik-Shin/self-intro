@@ -791,7 +791,7 @@ export type PrintTemplateRaw = {
     contentOverrides: string; // JSON object string
     baseContentFingerprint?: string | null;
     schemaVersion: number;
-    source: 'MANUAL' | 'AI';
+    source: 'MANUAL' | 'AI' | 'EXTERNAL' | string;
     generationMetadata: string | null;
     generatedAt: string | null;
     visible: boolean;
@@ -834,7 +834,7 @@ export type PrintTemplate = {
     contentOverrides: PrintTemplateContentOverrides;
     baseContentFingerprint?: string | null;
     schemaVersion: number;
-    source: 'MANUAL' | 'AI';
+    source: 'MANUAL' | 'AI' | 'EXTERNAL' | string;
     generationMetadata: Record<string, unknown> | null;
     generatedAt: string | null;
     visible: boolean;
@@ -919,6 +919,11 @@ export type PortfolioPrintTemplateRequest = {
     sectionGaps: string;
     contentOverrides: string;
     isDefault: boolean;
+};
+
+export type DirectPdfUploadRequest = {
+    name?: string;
+    objectKey: string;
 };
 
 export type StudyPlanStatus = 'COLLECTING' | 'DRAFT' | 'CONFIRMED';
