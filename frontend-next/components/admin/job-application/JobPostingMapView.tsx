@@ -25,6 +25,7 @@ import {
     ListFilter,
     MapPin,
     Calendar,
+    Star,
 } from 'lucide-react';
 import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
 import {
@@ -152,10 +153,14 @@ export default function JobPostingMapView({
         showHomePin: true,
         showDistanceRings: true,
         showPinLabels: true,
+        showJobplanetBadge: true,
     });
 
     // 마인드맵 레이어 토글 팝업 (기본 닫힘)
     const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
+
+    // 🕸️ 현재 배율 그대로 풀어본(펼친) 뭉침 클러스터 키 목록
+    const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -514,17 +519,19 @@ export default function JobPostingMapView({
 
             clusters.forEach((cluster) => {
                 const count = cluster.items.length;
+                const clusterKey = cluster.items
+                    .map((i) => i.posting.id)
+                    .sort((a, b) => a - b)
+                    .join('_');
+                const isExpanded = expandedClusters.has(clusterKey);
 
-                if (count > 1 && !isDetailedZoom) {
+                if (count > 1 && !isDetailedZoom && !isExpanded) {
                     let clusterBg = '#10b981';
-                    let clusterBorder = '#047857';
 
                     if (count >= 20) {
                         clusterBg = '#8b5cf6';
-                        clusterBorder = '#6d28d9';
                     } else if (count >= 10) {
                         clusterBg = '#6366f1';
-                        clusterBorder = '#4338ca';
                     }
 
                     const clusterIcon = L.divIcon({
@@ -535,25 +542,70 @@ export default function JobPostingMapView({
                                 <div style="position: relative; width: 40px; height: 40px; border-radius: 50%; background: ${clusterBg}; border: 3px solid #ffffff; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; box-shadow: 0 6px 16px ${clusterBg}88;">
                                     ${count}
                                 </div>
-                                <div style="margin-top: 3px; background: #ffffff; border: 1.5px solid ${clusterBorder}; color: ${clusterBorder}; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.15);">
-                                    🏢 ${count}개 공고 뭉침 (클릭 시 확대 분리)
-                                </div>
                             </div>
                         `,
-                        iconSize: [140, 65],
-                        iconAnchor: [70, 32],
+                        iconSize: [46, 46],
+                        iconAnchor: [23, 23],
                     });
 
                     const clusterMarker = L.marker([cluster.centerLat, cluster.centerLng], {
                         icon: clusterIcon,
                     }).addTo(markersGroup);
 
+                    // 클릭 시 줌 변경 없이 "지금 배율에서" 그대로 펼쳐 보여주기(스파이더파이)
                     clusterMarker.on('click', () => {
-                        const targetZoom = Math.min(17, map.getZoom() + 2);
-                        map.setView([cluster.centerLat, cluster.centerLng], targetZoom, {
-                            animate: true,
+                        setExpandedClusters((prev) => {
+                            const next = new Set(prev);
+                            next.add(clusterKey);
+                            return next;
                         });
-                        setIsDetailPanelOpen(true);
+                    });
+                } else if (count > 1 && !isDetailedZoom && isExpanded) {
+                    // 🕸️ 펼침 상태: 줌 변경 없이 클러스터 중심 주변으로 부채꼴 배치
+                    // 확대했을 때와 동일하게 실제 좌표 그대로 찍기 (완전히 같은 좌표만 살짝 겹침 방지 지터)
+                    cluster.items.forEach((item) => {
+                        if (!item.lat || !item.lng) return;
+                        const key = `${item.lat.toFixed(5)}_${item.lng.toFixed(5)}`;
+                        const sameGroup = sameCoordsMap[key] || [item];
+                        const index = sameGroup.indexOf(item);
+
+                        let drawLat = item.lat;
+                        let drawLng = item.lng;
+
+                        if (sameGroup.length > 1) {
+                            const angle = (index / sameGroup.length) * 2 * Math.PI;
+                            const radiusMult = Math.min(1.8, 1 + Math.floor(index / 12) * 0.5);
+                            const offsetDist = 0.0012 * radiusMult;
+                            drawLat += Math.sin(angle) * offsetDist;
+                            drawLng += Math.cos(angle) * offsetDist;
+                        }
+
+                        renderList.push({ item, drawLat, drawLng });
+                    });
+
+                    // 펼침 접기 트리거 (원래 중심 위치)
+                    const collapseIcon = L.divIcon({
+                        className: 'custom-collapse-icon',
+                        html: `
+                            <div style="width: 26px; height: 26px; border-radius: 50%; background: #475569; border: 2px solid #ffffff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; box-shadow: 0 3px 10px rgba(0,0,0,0.35); cursor: pointer;">
+                                ✕
+                            </div>
+                        `,
+                        iconSize: [26, 26],
+                        iconAnchor: [13, 13],
+                    });
+
+                    const collapseMarker = L.marker([cluster.centerLat, cluster.centerLng], {
+                        icon: collapseIcon,
+                        zIndexOffset: 2000,
+                    }).addTo(markersGroup);
+
+                    collapseMarker.on('click', () => {
+                        setExpandedClusters((prev) => {
+                            const next = new Set(prev);
+                            next.delete(clusterKey);
+                            return next;
+                        });
                     });
                 } else {
                     cluster.items.forEach((item) => {
@@ -596,27 +648,37 @@ export default function JobPostingMapView({
                 }
 
                 const labelHtml = layerToggles.showPinLabels
-                    ? `<div style="margin-top: 3px; background: #ffffff; border: 1.5px solid ${colorHex}; color: ${textHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12); pointer-events: none;">
+                    ? `<div class="jp-hit" style="margin-top: 3px; background: #ffffff; border: 1.5px solid ${colorHex}; color: ${textHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12);">
                         ${item.posting.companyName} ${item.estimate?.formattedTimeText ? `(${item.estimate.formattedTimeText})` : ''}
                        </div>`
                     : '';
+
+                const jobplanetBadgeHtml =
+                    layerToggles.showJobplanetBadge && item.posting.jobplanetRating != null
+                        ? `<div class="jp-hit" style="margin-top: 3px; background: #fef3c7; border: 1.5px solid #d97706; color: #92400e; padding: 1.5px 7px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12);">
+                        ⭐ ${item.posting.jobplanetRating.toFixed(1)}
+                       </div>`
+                        : '';
 
                 const selectedRingHtml = isSelected
                     ? `<div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: ${colorHex}55; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
                     : '';
 
+                // 핀끼리 가까이 붙어도 빈 여백은 클릭이 통과되도록(jp-hit-icon 컨테이너는 pointer-events:none,
+                // 실제로 눈에 보이는 원/라벨(.jp-hit)만 클릭 가능) 처리
                 const customPinIcon = L.divIcon({
-                    className: 'custom-posting-pin',
+                    className: 'custom-posting-pin jp-hit-icon',
                     html: `
                         <div className="pin-wrapper" style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: all 0.2s; ${isSelected ? 'transform: scale(1.3); z-index: 99999;' : ''}">
                             ${selectedRingHtml}
-                            <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}66; border: 2px solid #ffffff;">
+                            <div class="jp-hit" style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}66; border: 2px solid #ffffff;">
                                 📍
                             </div>
                             ${labelHtml}
+                            ${jobplanetBadgeHtml}
                         </div>
                     `,
-                    iconSize: [140, 55],
+                    iconSize: [140, 78],
                     iconAnchor: [70, 27],
                 });
 
@@ -646,6 +708,7 @@ export default function JobPostingMapView({
         currentZoomLevel,
         selectedPostingId,
         filteredItems,
+        expandedClusters,
     ]);
 
     useEffect(() => {
@@ -658,6 +721,12 @@ export default function JobPostingMapView({
 
     return (
         <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[750px] rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xl text-slate-800">
+            {/* 가까이 겹친 마커의 빈 여백 클릭이 아래 마커로 통과되도록: 아이콘 컨테이너는 pointer-events 없음,
+                실제 보이는 원/라벨(.jp-hit)만 클릭 가능 */}
+            <style>{`
+                .jp-hit-icon { pointer-events: none; }
+                .jp-hit-icon .jp-hit { pointer-events: auto; }
+            `}</style>
             {/* 1. 상단 툴바 */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 p-3.5 backdrop-blur-md">
                 {/* [왼쪽 그룹] 출퇴근 소요시간 필터 탭 + 검색창 */}
@@ -780,7 +849,7 @@ export default function JobPostingMapView({
                                     <Layers className="h-3.5 w-3.5 text-indigo-100" />
                                     <span>마인드맵 레이어 토글</span>
                                     <span className="rounded bg-white/20 px-1 text-[10px]">
-                                        {Object.values(layerToggles).filter(Boolean).length}/3
+                                        {Object.values(layerToggles).filter(Boolean).length}/4
                                     </span>
                                 </button>
 
@@ -849,6 +918,26 @@ export default function JobPostingMapView({
                                             </span>
                                             {layerToggles.showPinLabels ? (
                                                 <Eye className="h-3.5 w-3.5 text-purple-600" />
+                                            ) : (
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+
+                                        {/* 4. 잡플래닛 점수 뱃지 토글 */}
+                                        <button
+                                            onClick={() => toggleLayer('showJobplanetBadge')}
+                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
+                                                layerToggles.showJobplanetBadge
+                                                    ? 'bg-amber-50 text-amber-900 font-bold border border-amber-200'
+                                                    : 'bg-slate-100 text-slate-400'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                <Star className="h-3.5 w-3.5" />⭐ 잡플래닛 점수
+                                                뱃지
+                                            </span>
+                                            {layerToggles.showJobplanetBadge ? (
+                                                <Eye className="h-3.5 w-3.5 text-amber-600" />
                                             ) : (
                                                 <EyeOff className="h-3.5 w-3.5" />
                                             )}
@@ -991,6 +1080,38 @@ export default function JobPostingMapView({
                                         {activeItem.posting.positionTitle}
                                     </p>
                                 </div>
+
+                                {/* 잡플래닛 평점 */}
+                                {activeItem.posting.jobplanetRating != null && (
+                                    <a
+                                        href={activeItem.posting.jobplanetCompanyUrl || undefined}
+                                        target={
+                                            activeItem.posting.jobplanetCompanyUrl
+                                                ? '_blank'
+                                                : undefined
+                                        }
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs ${
+                                            activeItem.posting.jobplanetCompanyUrl
+                                                ? 'hover:bg-amber-100 transition-colors'
+                                                : 'cursor-default'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-1.5 font-bold text-amber-900">
+                                            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                                            잡플래닛 {activeItem.posting.jobplanetRating.toFixed(1)}
+                                            점
+                                        </span>
+                                        <span className="text-[11px] font-semibold text-amber-700">
+                                            {activeItem.posting.jobplanetReviewCount != null
+                                                ? `리뷰 ${activeItem.posting.jobplanetReviewCount}개`
+                                                : ''}
+                                            {activeItem.posting.jobplanetCompanyUrl && (
+                                                <ExternalLink className="inline h-3 w-3 ml-1 -mt-0.5" />
+                                            )}
+                                        </span>
+                                    </a>
+                                )}
 
                                 {/* 출퇴근 분석 세부 섹션 */}
                                 <div className="space-y-3 border-t border-b border-slate-100 py-3.5">
@@ -1172,9 +1293,21 @@ export default function JobPostingMapView({
                                                     </div>
 
                                                     <div className="flex items-center justify-between text-[11px] text-slate-400 pl-3.5 pt-0.5">
-                                                        <span className="truncate max-w-[140px]">
-                                                            📍{' '}
-                                                            {item.posting.location || '위치 미상'}
+                                                        <span className="truncate max-w-[140px] flex items-center gap-1.5">
+                                                            <span className="truncate">
+                                                                📍{' '}
+                                                                {item.posting.location ||
+                                                                    '위치 미상'}
+                                                            </span>
+                                                            {item.posting.jobplanetRating !=
+                                                                null && (
+                                                                <span className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                                                                    <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                                                                    {item.posting.jobplanetRating.toFixed(
+                                                                        1
+                                                                    )}
+                                                                </span>
+                                                            )}
                                                         </span>
                                                         <span className="text-indigo-600 font-bold text-[10px] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             이동 →
