@@ -14,10 +14,11 @@ import {
     Layers,
     Eye,
     EyeOff,
-    CheckCircle2,
     Compass,
     Radio,
     Sparkles,
+    LayoutGrid,
+    Map as MapIcon,
 } from 'lucide-react';
 import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
 import {
@@ -36,6 +37,7 @@ interface JobPostingMapViewProps {
 }
 
 type TimeFilterOption = 'ALL' | '30' | '45' | '60' | 'OVER_60';
+type ViewModeOption = 'MAP_PIN' | 'CARD_GRID';
 
 export default function JobPostingMapView({
     postings,
@@ -45,6 +47,7 @@ export default function JobPostingMapView({
 }: JobPostingMapViewProps) {
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('ALL');
+    const [viewMode, setViewMode] = useState<ViewModeOption>('MAP_PIN'); // 📍 지도 핀 뷰어 기본값
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
 
@@ -140,6 +143,41 @@ export default function JobPostingMapView({
         });
     }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
 
+    // 지도 X,Y 상대 2D 공간 좌표 변환 연산 (내 집 기준 동서남북 핀 포지셔닝)
+    const mapPinNodes = useMemo(() => {
+        return filteredItems.map((item, idx) => {
+            const lat = item.lat || homeLat;
+            const lng = item.lng || homeLng;
+
+            // 좌표 델타 (경도: X축, 위도: Y축 역방향)
+            const dLng = lng - homeLng;
+            const dLat = lat - homeLat;
+
+            // 스케일링 팩터 (지도 캔버스 크기 대비 핀 배치)
+            const scaleX = 400; // 경도 변화율 감도
+            const scaleY = 450; // 위도 변화율 감도
+
+            // 기본 50% 중심점에서 델타 좌표만큼 핀 위치 사상 (범위 12%~88% 내 클램핑)
+            let posX = 50 + dLng * scaleX;
+            let posY = 50 - dLat * scaleY;
+
+            // 좌표 정보가 거의 동일하거나 중복 겹침 시 약간의 분산(Spiral Offset)
+            const angle = (idx * 137.5 * Math.PI) / 180;
+            const radius = (idx % 4) * 3.5;
+            posX += Math.cos(angle) * radius;
+            posY += Math.sin(angle) * radius;
+
+            posX = Math.max(12, Math.min(88, posX));
+            posY = Math.max(12, Math.min(88, posY));
+
+            return {
+                ...item,
+                posX,
+                posY,
+            };
+        });
+    }, [filteredItems, homeLat, homeLng]);
+
     // 선택된 공고 아이템
     const activeItem = useMemo(() => {
         if (!selectedPostingId) return filteredItems[0] || null;
@@ -160,7 +198,7 @@ export default function JobPostingMapView({
 
     return (
         <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[650px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
-            {/* 1. 상단 툴바 (내 집 정보 + 필터 + 검색) */}
+            {/* 1. 상단 툴바 (내 집 정보 + 뷰모드 Switcher + 필터 + 검색) */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/90 p-4 backdrop-blur-md">
                 {/* 내 집 설정 상태 버튼 */}
                 <div className="flex items-center gap-3">
@@ -183,6 +221,32 @@ export default function JobPostingMapView({
                             도로명 검색/변경
                         </span>
                     </button>
+
+                    {/* 📍 지도 핀 뷰 / 📇 매트릭스 뷰 전환 버튼 */}
+                    <div className="flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-950 p-1">
+                        <button
+                            onClick={() => setViewMode('MAP_PIN')}
+                            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                                viewMode === 'MAP_PIN'
+                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                        >
+                            <MapIcon className="h-3.5 w-3.5" />
+                            <span>📍 지도 핀 뷰</span>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('CARD_GRID')}
+                            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                                viewMode === 'CARD_GRID'
+                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                        >
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            <span>📇 카드 매트릭스</span>
+                        </button>
+                    </div>
 
                     <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400 border-l border-zinc-800 pl-3">
                         <Clock className="h-3.5 w-3.5 text-zinc-500" />
@@ -249,11 +313,11 @@ export default function JobPostingMapView({
                 </div>
             </div>
 
-            {/* 2. 메인 대시보드 뷰어 (지도 영역 + 공고 상세 리스트 사이드바) */}
+            {/* 2. 메인 대시보드 뷰어 (지도 핀 캔버스 + 공고 상세 리스트 사이드바) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
                 {/* 지도 시각화 캔버스 (Left 8 cols) */}
                 <div className="relative lg:col-span-8 bg-zinc-950 overflow-hidden flex flex-col items-center justify-center p-4">
-                    {/* 브라우저 상의 Interactive Map Grid Canvas */}
+                    {/* Interactive Map Grid Canvas */}
                     <div className="relative w-full h-full rounded-xl border border-zinc-800/80 bg-zinc-900/50 p-6 flex flex-col justify-between overflow-hidden">
                         {/* 지도 그리드 격자 패턴 배경 */}
                         <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
@@ -262,17 +326,17 @@ export default function JobPostingMapView({
                         {layerToggles.showDistanceRings && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30 z-0">
                                 <div className="absolute w-[240px] h-[240px] rounded-full border border-dashed border-emerald-400 flex items-start justify-center pt-2">
-                                    <span className="text-[10px] text-emerald-400 bg-zinc-950/80 px-1 rounded">
+                                    <span className="text-[10px] text-emerald-400 bg-zinc-950/80 px-1 rounded font-semibold">
                                         10 km (약 25분)
                                     </span>
                                 </div>
                                 <div className="absolute w-[440px] h-[440px] rounded-full border border-dashed border-indigo-400 flex items-start justify-center pt-2">
-                                    <span className="text-[10px] text-indigo-400 bg-zinc-950/80 px-1 rounded">
+                                    <span className="text-[10px] text-indigo-400 bg-zinc-950/80 px-1 rounded font-semibold">
                                         20 km (약 45분)
                                     </span>
                                 </div>
                                 <div className="absolute w-[640px] h-[640px] rounded-full border border-dashed border-amber-400 flex items-start justify-center pt-2">
-                                    <span className="text-[10px] text-amber-400 bg-zinc-950/80 px-1 rounded">
+                                    <span className="text-[10px] text-amber-400 bg-zinc-950/80 px-1 rounded font-semibold">
                                         30 km (약 60분)
                                     </span>
                                 </div>
@@ -442,98 +506,227 @@ export default function JobPostingMapView({
                             </div>
                         </div>
 
-                        {/* 지도 마커 시각화 매트릭스 */}
-                        <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-2">
-                            {filteredItems.length === 0 ? (
-                                <div className="col-span-full py-12 text-center text-zinc-500 text-xs">
-                                    선택된 레이어 및 조건에 부합하는 공고 마커가 없습니다.
-                                </div>
-                            ) : (
-                                filteredItems.map(({ posting, estimate }) => {
-                                    const isSelected = activeItem?.posting.id === posting.id;
-                                    const mins = estimate?.estimatedMinutes || 0;
-
-                                    // 소요시간별 마커 스타일 & 컬러 테마
-                                    let badgeBg =
-                                        'bg-emerald-500/15 border-emerald-500/30 text-emerald-300';
-                                    let dotColor = 'bg-emerald-400';
-                                    if (mins > 60) {
-                                        badgeBg = 'bg-rose-500/15 border-rose-500/30 text-rose-300';
-                                        dotColor = 'bg-rose-400';
-                                    } else if (mins > 45) {
-                                        badgeBg =
-                                            'bg-amber-500/15 border-amber-500/30 text-amber-300';
-                                        dotColor = 'bg-amber-400';
-                                    } else if (mins > 30) {
-                                        badgeBg =
-                                            'bg-indigo-500/15 border-indigo-500/30 text-indigo-300';
-                                        dotColor = 'bg-indigo-400';
-                                    }
-
-                                    return (
-                                        <div
-                                            key={posting.id}
-                                            onClick={() => setSelectedPostingId(posting.id)}
-                                            className={`group cursor-pointer rounded-xl border p-3.5 transition-all duration-200 ${
-                                                isSelected
-                                                    ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/40 shadow-lg shadow-indigo-500/10 scale-[1.02]'
-                                                    : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 hover:bg-zinc-800/60'
-                                            }`}
-                                        >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="font-semibold text-sm text-zinc-100 truncate group-hover:text-white flex items-center gap-1.5">
-                                                    <span
-                                                        className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
-                                                    />
-                                                    <span className="truncate">
-                                                        {posting.companyName}
-                                                    </span>
-                                                </div>
-                                                {layerToggles.showPinLabels && (
-                                                    <span
-                                                        className={`inline-flex items-center shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-bold ${badgeBg}`}
-                                                    >
-                                                        ⏱️ {estimate?.formattedTimeText || '미상'}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="mt-1 text-xs text-zinc-400 truncate">
-                                                {posting.positionTitle}
-                                            </div>
-
-                                            <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-500 border-t border-zinc-800/60 pt-2">
-                                                <span className="flex items-center gap-1">
-                                                    <MapPin className="h-3 w-3 text-zinc-400" />
-                                                    {posting.location || '위치 정보 없음'}
-                                                </span>
-                                                {estimate && (
-                                                    <span className="text-zinc-400 font-medium">
-                                                        약 {estimate.estimatedDistanceKm} km
-                                                    </span>
-                                                )}
+                        {/* 3. 📍 지도 마커 핀 시각화 영역 vs 📇 매트릭스 그리드 영역 */}
+                        {viewMode === 'MAP_PIN' ? (
+                            /* [MODE 1] 📍 진짜 지도 공간 기반 마커 핀 뷰어 Canvas */
+                            <div className="relative z-10 w-full h-[400px] my-auto overflow-hidden">
+                                {/* 🏠 중앙 내 집 마커 (Center Home Pin) */}
+                                {layerToggles.showHomePin && (
+                                    <div
+                                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group cursor-pointer"
+                                        onClick={() => setIsHomeModalOpen(true)}
+                                    >
+                                        <div className="relative flex items-center justify-center">
+                                            <div className="absolute h-10 w-10 rounded-full bg-emerald-500/30 animate-ping" />
+                                            <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 text-zinc-950 font-bold shadow-lg shadow-emerald-500/40 ring-4 ring-emerald-500/20">
+                                                <Home className="h-5 w-5" />
                                             </div>
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
+                                        <div className="mt-1.5 rounded-lg border border-emerald-500/40 bg-zinc-900/90 px-2.5 py-1 text-[11px] font-bold text-emerald-300 shadow-md backdrop-blur-md">
+                                            🏠 내 집 출발점
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 📍 채용 공고 마커 핀 노드들 (Interactive Map Pins) */}
+                                {mapPinNodes.length === 0 ? (
+                                    <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">
+                                        선택된 조건에 부합하는 공고 핀이 없습니다.
+                                    </div>
+                                ) : (
+                                    mapPinNodes.map(({ posting, estimate, posX, posY }) => {
+                                        const isSelected = activeItem?.posting.id === posting.id;
+                                        const mins = estimate?.estimatedMinutes || 0;
+
+                                        // 소요시간별 핀 컬러 테마
+                                        let pinBg = 'bg-emerald-500 text-zinc-950';
+                                        let pinRing = 'ring-emerald-500/30';
+                                        let badgeStyle =
+                                            'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+
+                                        if (mins > 60) {
+                                            pinBg = 'bg-rose-500 text-white';
+                                            pinRing = 'ring-rose-500/30';
+                                            badgeStyle =
+                                                'bg-rose-500/20 text-rose-300 border-rose-500/40';
+                                        } else if (mins > 45) {
+                                            pinBg = 'bg-amber-500 text-zinc-950';
+                                            pinRing = 'ring-amber-500/30';
+                                            badgeStyle =
+                                                'bg-amber-500/20 text-amber-300 border-amber-500/40';
+                                        } else if (mins > 30) {
+                                            pinBg = 'bg-indigo-500 text-white';
+                                            pinRing = 'ring-indigo-500/30';
+                                            badgeStyle =
+                                                'bg-indigo-500/20 text-indigo-300 border-indigo-500/40';
+                                        }
+
+                                        return (
+                                            <div
+                                                key={posting.id}
+                                                style={{ left: `${posX}%`, top: `${posY}%` }}
+                                                onClick={() => setSelectedPostingId(posting.id)}
+                                                className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 z-10 hover:z-30 cursor-pointer ${
+                                                    isSelected
+                                                        ? 'z-30 scale-125'
+                                                        : 'hover:scale-110'
+                                                }`}
+                                            >
+                                                {/* 핀 호버/클릭 시 표출되는 커스텀 팝업 인포윈도우 Card */}
+                                                {isSelected && (
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-xl border border-zinc-700 bg-zinc-900/95 p-2.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 z-40 text-left">
+                                                        <div className="text-[11px] font-bold text-white truncate">
+                                                            {posting.companyName}
+                                                        </div>
+                                                        <div className="text-[10px] text-zinc-400 truncate mt-0.5">
+                                                            {posting.positionTitle}
+                                                        </div>
+                                                        <div className="mt-1.5 flex items-center justify-between border-t border-zinc-800 pt-1 text-[10px]">
+                                                            <span className="font-semibold text-emerald-400">
+                                                                ⏱️{' '}
+                                                                {estimate?.formattedTimeText ||
+                                                                    '시간 미상'}
+                                                            </span>
+                                                            <span className="text-zinc-500">
+                                                                {estimate?.estimatedDistanceKm ??
+                                                                    '-'}{' '}
+                                                                km
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* 📍 마커 핀 아이콘 & Glowing Ring */}
+                                                <div className="flex flex-col items-center group">
+                                                    <div className="relative flex items-center justify-center">
+                                                        {isSelected && (
+                                                            <div className="absolute h-8 w-8 rounded-full bg-indigo-500/40 animate-ping" />
+                                                        )}
+                                                        <div
+                                                            className={`relative flex h-7 w-7 items-center justify-center rounded-full font-bold shadow-lg ring-4 ${pinBg} ${pinRing}`}
+                                                        >
+                                                            <MapPin className="h-4 w-4 fill-current stroke-[2]" />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 마커 뱃지 라벨 (회사명 + 소요시간) */}
+                                                    {layerToggles.showPinLabels && (
+                                                        <div
+                                                            className={`mt-1 flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-bold shadow-md backdrop-blur-md whitespace-nowrap transition-all ${badgeStyle} ${
+                                                                isSelected
+                                                                    ? 'ring-1 ring-white/40 scale-105'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            <span className="truncate max-w-[80px]">
+                                                                {posting.companyName}
+                                                            </span>
+                                                            <span>
+                                                                {estimate?.formattedTimeText || ''}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        ) : (
+                            /* [MODE 2] 📇 카드 매트릭스 그리드 뷰어 */
+                            <div className="z-10 my-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto max-h-[360px] p-2">
+                                {filteredItems.length === 0 ? (
+                                    <div className="col-span-full py-12 text-center text-zinc-500 text-xs">
+                                        선택된 레이어 및 조건에 부합하는 공고 마커가 없습니다.
+                                    </div>
+                                ) : (
+                                    filteredItems.map(({ posting, estimate }) => {
+                                        const isSelected = activeItem?.posting.id === posting.id;
+                                        const mins = estimate?.estimatedMinutes || 0;
+
+                                        let badgeBg =
+                                            'bg-emerald-500/15 border-emerald-500/30 text-emerald-300';
+                                        let dotColor = 'bg-emerald-400';
+                                        if (mins > 60) {
+                                            badgeBg =
+                                                'bg-rose-500/15 border-rose-500/30 text-rose-300';
+                                            dotColor = 'bg-rose-400';
+                                        } else if (mins > 45) {
+                                            badgeBg =
+                                                'bg-amber-500/15 border-amber-500/30 text-amber-300';
+                                            dotColor = 'bg-amber-400';
+                                        } else if (mins > 30) {
+                                            badgeBg =
+                                                'bg-indigo-500/15 border-indigo-500/30 text-indigo-300';
+                                            dotColor = 'bg-indigo-400';
+                                        }
+
+                                        return (
+                                            <div
+                                                key={posting.id}
+                                                onClick={() => setSelectedPostingId(posting.id)}
+                                                className={`group cursor-pointer rounded-xl border p-3.5 transition-all duration-200 ${
+                                                    isSelected
+                                                        ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/40 shadow-lg shadow-indigo-500/10 scale-[1.02]'
+                                                        : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 hover:bg-zinc-800/60'
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="font-semibold text-sm text-zinc-100 truncate group-hover:text-white flex items-center gap-1.5">
+                                                        <span
+                                                            className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
+                                                        />
+                                                        <span className="truncate">
+                                                            {posting.companyName}
+                                                        </span>
+                                                    </div>
+                                                    {layerToggles.showPinLabels && (
+                                                        <span
+                                                            className={`inline-flex items-center shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-bold ${badgeBg}`}
+                                                        >
+                                                            ⏱️{' '}
+                                                            {estimate?.formattedTimeText || '미상'}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="mt-1 text-xs text-zinc-400 truncate">
+                                                    {posting.positionTitle}
+                                                </div>
+
+                                                <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-500 border-t border-zinc-800/60 pt-2">
+                                                    <span className="flex items-center gap-1">
+                                                        <MapPin className="h-3 w-3 text-zinc-400" />
+                                                        {posting.location || '위치 정보 없음'}
+                                                    </span>
+                                                    {estimate && (
+                                                        <span className="text-zinc-400 font-medium">
+                                                            약 {estimate.estimatedDistanceKm} km
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
 
                         {/* 지도 정보 가이드 하단 바 */}
                         <div className="z-10 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 pt-3 text-[11px] text-zinc-500">
                             <span>
-                                💡 마커를 클릭하면 상세 길찾기 URL과 지원 공고 정보가 표기됩니다.
+                                💡 마커 핀을 클릭하면 상세 길찾기 URL과 지원 공고 정보가 표기됩니다.
                             </span>
                             <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1 text-emerald-400">
+                                <span className="flex items-center gap-1 text-emerald-400 font-medium">
                                     <span className="h-2 w-2 rounded-full bg-emerald-400" /> 30분
                                     이내
                                 </span>
-                                <span className="flex items-center gap-1 text-indigo-400">
+                                <span className="flex items-center gap-1 text-indigo-400 font-medium">
                                     <span className="h-2 w-2 rounded-full bg-indigo-400" /> 45분
                                     이내
                                 </span>
-                                <span className="flex items-center gap-1 text-amber-400">
+                                <span className="flex items-center gap-1 text-amber-400 font-medium">
                                     <span className="h-2 w-2 rounded-full bg-amber-400" /> 60분 이내
                                 </span>
                             </div>
