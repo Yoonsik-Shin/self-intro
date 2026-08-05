@@ -247,9 +247,9 @@ export default function JobPostingMapView({
     const [isMapLoading, setIsMapLoading] = useState(true);
     const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
 
-    // 📱 패널 폭 (여유로운 360px 로 조절하여 내부 패딩 풍성하게 확보) 및 접기 상태 관리
+    // 📱 패널 폭 (컴팩트 300px 로 설정하여 패딩을 살리면서 슬림하게 조절) 및 접기 상태 관리
     const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(true);
-    const [detailPanelWidth, setDetailPanelWidth] = useState(360);
+    const [detailPanelWidth, setDetailPanelWidth] = useState(300);
     const [isResizing, setIsResizing] = useState(false);
     const splitContainerRef = useRef<HTMLDivElement>(null);
 
@@ -260,7 +260,8 @@ export default function JobPostingMapView({
         showPinLabels: true,
     });
 
-    const [isLayerControlOpen, setIsLayerControlOpen] = useState(true);
+    // 🎯 마인드맵 레이어 토글 팝업: 기본으로 꺼져있음(false)
+    const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -365,7 +366,7 @@ export default function JobPostingMapView({
             if (!isResizing || !splitContainerRef.current) return;
             const containerRect = splitContainerRef.current.getBoundingClientRect();
             const newWidth = containerRect.right - e.clientX;
-            if (newWidth >= 280 && newWidth <= 650) {
+            if (newWidth >= 240 && newWidth <= 600) {
                 setDetailPanelWidth(newWidth);
             }
         };
@@ -787,7 +788,7 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* 🎯 [디자인 변경] 초록색 대신 세련된 모던 다크/블랙 톤 기준 집 위치 버튼 */}
+                {/* [오른쪽 그룹] 기준 집 위치 버튼 (모던 블랙 톤) */}
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsHomeModalOpen(true)}
@@ -839,7 +840,7 @@ export default function JobPostingMapView({
                                 </button>
                             </div>
 
-                            {/* 🧠 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 컨트롤 패널 */}
+                            {/* 🧠 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 컨트롤 패널 (기본 닫힘) */}
                             <div className="relative ml-auto pointer-events-auto">
                                 <button
                                     onClick={() => setIsLayerControlOpen(!isLayerControlOpen)}
@@ -1016,17 +1017,17 @@ export default function JobPostingMapView({
                     </div>
                 )}
 
-                {/* 3. 🎯 [패딩 및 여백 완벽 보정] 사이드바 패널 (기본 폭 360px 지정, 패딩 p-5 적용으로 답답함 완전히 해소) */}
+                {/* 3. 🎯 [컴팩트 300px 레이아웃 & 풍성한 패딩 보정] 사이드바 패널 */}
                 {isDetailPanelOpen && (
                     <div
                         style={{ width: `${detailPanelWidth}px` }}
-                        className="shrink-0 border-l border-slate-200 bg-white p-5 flex flex-col justify-between overflow-y-auto transition-all shadow-xs relative"
+                        className="shrink-0 border-l border-slate-200 bg-white p-4 flex flex-col justify-between overflow-y-auto transition-all shadow-xs relative"
                     >
-                        {/* A. 선택된 공고가 있을 때 -> 풍성한 여백의 상세 분석 정보 */}
+                        {/* A. 선택된 공고가 있을 때 -> 상세 분석 정보 */}
                         {activeItem ? (
-                            <div className="space-y-5">
-                                {/* 헤더 (단일 화살표 + 상태 뱃지) */}
-                                <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+                            <div className="space-y-4">
+                                {/* 헤더 */}
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <button
                                         onClick={() => setSelectedPostingId(null)}
                                         className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-600 hover:text-indigo-800 transition-colors"
@@ -1055,13 +1056,13 @@ export default function JobPostingMapView({
                                     <h2 className="text-xl font-black text-slate-900 tracking-tight leading-snug">
                                         {activeItem.posting.companyName}
                                     </h2>
-                                    <p className="text-sm font-bold text-slate-700 mt-1.5">
+                                    <p className="text-sm font-bold text-slate-700 mt-1">
                                         {activeItem.posting.positionTitle}
                                     </p>
                                 </div>
 
                                 {/* 출퇴근 분석 세부 섹션 */}
-                                <div className="space-y-3.5 border-t border-b border-slate-100 py-4">
+                                <div className="space-y-3 border-t border-b border-slate-100 py-3.5">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
                                             <Navigation className="h-4 w-4 text-emerald-600" />
@@ -1074,8 +1075,8 @@ export default function JobPostingMapView({
                                     </div>
 
                                     {/* 2열 플랫 메트릭 라인 */}
-                                    <div className="grid grid-cols-2 gap-3 pt-1 text-xs">
-                                        <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+                                    <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
+                                        <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
                                             <span className="text-[11px] text-slate-400 font-medium block">
                                                 예상 경로 거리
                                             </span>
@@ -1083,7 +1084,7 @@ export default function JobPostingMapView({
                                                 {activeItem.estimate?.estimatedDistanceKm ?? '-'} km
                                             </strong>
                                         </div>
-                                        <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+                                        <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
                                             <span className="text-[11px] text-slate-400 font-medium block">
                                                 직선 거리
                                             </span>
@@ -1104,7 +1105,7 @@ export default function JobPostingMapView({
                                 </div>
 
                                 {/* 세부 스펙 라인 */}
-                                <div className="space-y-3 text-xs text-slate-700">
+                                <div className="space-y-2.5 text-xs text-slate-700">
                                     {activeItem.posting.deadline && (
                                         <div className="flex items-center gap-2 font-medium">
                                             <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
@@ -1117,7 +1118,7 @@ export default function JobPostingMapView({
                                     {activeItem.posting.salaryNote && (
                                         <div className="flex items-center gap-2 font-medium">
                                             <DollarSign className="h-4 w-4 text-emerald-600 shrink-0" />
-                                            <span className="font-semibold">
+                                            <span className="font-semibold truncate">
                                                 {activeItem.posting.salaryNote}
                                             </span>
                                         </div>
@@ -1133,7 +1134,7 @@ export default function JobPostingMapView({
                                 </div>
 
                                 {/* 외부 길찾기 웹 링크 버튼 */}
-                                <div className="space-y-2 pt-2">
+                                <div className="space-y-2 pt-1">
                                     <div className="text-xs font-bold text-slate-500">
                                         외부 길찾기 및 지도 연동
                                     </div>
@@ -1148,10 +1149,10 @@ export default function JobPostingMapView({
                                             )}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/60 py-2.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs"
+                                            className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/60 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs"
                                         >
                                             <ExternalLink className="h-3.5 w-3.5 text-amber-700" />
-                                            카카오맵 길찾기
+                                            카카오맵
                                         </a>
                                         <a
                                             href={getNaverDirectionsUrl(
@@ -1163,18 +1164,18 @@ export default function JobPostingMapView({
                                             )}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 py-2.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors shadow-2xs"
+                                            className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors shadow-2xs"
                                         >
                                             <ExternalLink className="h-3.5 w-3.5 text-emerald-700" />
-                                            네이버 지도 길찾기
+                                            네이버지도
                                         </a>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            /* B. 🎯 [여백 및 패딩 완벽 보정] 시원하고 쾌적한 공고 리스트 */
-                            <div className="flex flex-col h-full space-y-3.5">
-                                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            /* B. 🎯 [컴팩트 패딩 보정] 300px 크기의 쾌적한 공고 리스트 */
+                            <div className="flex flex-col h-full space-y-3">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                                         <ListFilter className="h-4 w-4 text-indigo-600" />
                                         <span>지도 표출 공고 목록</span>
@@ -1184,7 +1185,7 @@ export default function JobPostingMapView({
                                     </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto divide-y divide-slate-100 pr-1">
+                                <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
                                     {filteredItems.length === 0 ? (
                                         <div className="py-12 text-center text-slate-400 text-xs font-medium">
                                             선택된 조건에 부합하는 공고가 없습니다.
@@ -1213,10 +1214,10 @@ export default function JobPostingMapView({
                                                 <div
                                                     key={item.posting.id}
                                                     onClick={() => handleSelectPostingAndPan(item)}
-                                                    className="group cursor-pointer py-3.5 px-3 hover:bg-slate-50 rounded-xl transition-all duration-150 space-y-1.5"
+                                                    className="group cursor-pointer py-3 px-1.5 hover:bg-slate-50 rounded-xl transition-all duration-150 space-y-1"
                                                 >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 flex items-center gap-2 truncate">
+                                                    <div className="flex items-center justify-between gap-1.5">
+                                                        <div className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 flex items-center gap-1.5 truncate flex-1 min-w-0">
                                                             <span
                                                                 className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
                                                             />
@@ -1225,7 +1226,7 @@ export default function JobPostingMapView({
                                                             </span>
                                                         </div>
                                                         <span
-                                                            className={`inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-[11px] ${badgeStyle}`}
+                                                            className={`inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-[10px] ${badgeStyle}`}
                                                         >
                                                             ⏱️{' '}
                                                             {item.estimate?.formattedTimeText ||
@@ -1233,17 +1234,17 @@ export default function JobPostingMapView({
                                                         </span>
                                                     </div>
 
-                                                    <div className="text-xs font-semibold text-slate-600 truncate pl-4">
+                                                    <div className="text-xs font-semibold text-slate-600 truncate pl-3.5">
                                                         {item.posting.positionTitle}
                                                     </div>
 
-                                                    <div className="flex items-center justify-between text-[11px] text-slate-400 pl-4 pt-1">
-                                                        <span className="truncate max-w-[170px]">
+                                                    <div className="flex items-center justify-between text-[11px] text-slate-400 pl-3.5 pt-0.5">
+                                                        <span className="truncate max-w-[140px]">
                                                             📍{' '}
                                                             {item.posting.location || '위치 미상'}
                                                         </span>
-                                                        <span className="text-indigo-600 font-bold text-[11px] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            지도 이동 →
+                                                        <span className="text-indigo-600 font-bold text-[10px] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            이동 →
                                                         </span>
                                                     </div>
                                                 </div>
@@ -1256,7 +1257,7 @@ export default function JobPostingMapView({
 
                         {/* 하단 상세보기 모달 호출 버튼 */}
                         {activeItem && (
-                            <div className="pt-4 border-t border-slate-100 mt-4">
+                            <div className="pt-3 border-t border-slate-100 mt-3">
                                 <button
                                     onClick={() => onSelectPosting(activeItem.posting)}
                                     className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-md flex items-center justify-center gap-2"
