@@ -103,7 +103,11 @@ function parseRoadAddressCoordinates(location: string): { lat: number; lng: numb
     let baseLng = 127.0365;
     let found = false;
 
-    if (sanitized.includes('테헤란')) {
+    if (sanitized.includes('강남대로114길') || sanitized.includes('강남대로 114길')) {
+        baseLat = 37.5065;
+        baseLng = 127.0255;
+        found = true;
+    } else if (sanitized.includes('테헤란')) {
         baseLat = 37.504;
         baseLng = 127.049;
         found = true;
