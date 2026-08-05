@@ -871,14 +871,14 @@ export default function JobPostingMapView({
                                 className="w-full h-full min-h-[450px] z-0 rounded-xl overflow-hidden"
                             />
 
-                            {/* 📱 🎯 [슬림 미니멀 축소] 패널 접힘 시 우측 오버레이 열기 탭 버튼 */}
+                            {/* 📱 패널 접힘 시 우측 오버레이 열기 탭 버튼 */}
                             {!isDetailPanelOpen && (
                                 <button
                                     onClick={() => setIsDetailPanelOpen(true)}
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center rounded-l-lg border border-r-0 border-slate-200 bg-white/95 py-2 px-1 text-slate-700 shadow-sm hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200 group"
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center rounded-l-xl border border-r-0 border-slate-200 bg-white/95 py-2.5 px-1.5 text-slate-700 shadow-md hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all animate-in fade-in slide-in-from-right duration-200 group"
                                     title="패널 열기"
                                 >
-                                    <ChevronLeft className="h-3.5 w-3.5 text-indigo-600 group-hover:-translate-x-0.5 transition-transform" />
+                                    <ChevronLeft className="h-4 w-4 text-indigo-600 group-hover:-translate-x-0.5 transition-transform" />
                                 </button>
                             )}
                         </div>
@@ -929,7 +929,7 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* ↔️ 🎯 [슬림 미니멀 축소] 패널 열림 시 구분선 오버레이 접기 탭 버튼 */}
+                {/* ↔️ 🎯 [황금 비율 조정] 패널 열림 시 구분선 오버레이 접기 탭 버튼 (손가락/마우스 클릭 최적화) */}
                 {isDetailPanelOpen && (
                     <div
                         onMouseDown={handleMouseDown}
@@ -940,10 +940,10 @@ export default function JobPostingMapView({
                     >
                         <button
                             onClick={() => setIsDetailPanelOpen(false)}
-                            className="absolute -left-2.5 top-1/2 -translate-y-1/2 z-30 flex h-5 w-5 items-center justify-center rounded-l-md border border-r-0 border-slate-200 bg-white/95 text-slate-500 shadow-2xs hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all"
+                            className="absolute -left-3.5 top-1/2 -translate-y-1/2 z-30 flex h-7 w-5.5 items-center justify-center rounded-l-lg border border-r-0 border-slate-200 bg-white/95 text-slate-600 shadow-xs hover:bg-slate-100 hover:text-indigo-600 backdrop-blur-md transition-all"
                             title="패널 접기"
                         >
-                            <ChevronRight className="h-3 w-3" />
+                            <ChevronRight className="h-4 w-4 text-indigo-600" />
                         </button>
                     </div>
                 )}
