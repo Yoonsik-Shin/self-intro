@@ -20,6 +20,7 @@ import {
     Sparkles,
     Image as ImageIcon,
 } from 'lucide-react';
+import { SidebarSection } from '@/components/common/SidebarSection';
 import type { Experience, ExperienceDetail, Skill, Study } from '@/lib/api/types';
 import {
     markdownComponents,
@@ -609,17 +610,10 @@ export function ExperienceDetailClient({
                         </button>
 
                         {/* Related Studies */}
-                        <div className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:block'}`}>
-                            <h3 className="text-sm font-black tracking-wider text-slate-700">
-                                연결 항목
-                            </h3>
-                            <p className="mt-0.5 text-xs leading-normal text-slate-400">
-                                이 경험과 연관된 학습 기록입니다.
-                            </p>
-                        </div>
-
-                        <div
-                            className={`hidden space-y-4 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
+                        <SidebarSection
+                            title="연결 항목"
+                            description="이 경험과 연관된 학습 기록입니다."
+                            isNavCollapsed={isNavCollapsed}
                         >
                             {relatedStudies.length > 0 ? (
                                 <div>
@@ -669,7 +663,7 @@ export function ExperienceDetailClient({
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </SidebarSection>
 
                         <div
                             className={`flex flex-col items-center gap-2 py-1 ${isNavCollapsed ? 'min-[900px]:flex' : 'min-[900px]:hidden'}`}
