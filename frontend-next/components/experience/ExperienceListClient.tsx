@@ -310,8 +310,8 @@ export function ExperienceListClient({ experiences }: Props) {
             </div>
 
             <aside
-                className={`block w-full sticky top-[89px] self-start transition-all duration-300 ${
-                    isNavCollapsed ? 'min-[900px]:w-[64px]' : 'min-[900px]:w-[260px]'
+                className={`block w-full sticky top-[89px] self-start transition-all duration-300 min-[900px]:pr-3 ${
+                    isNavCollapsed ? 'min-[900px]:w-[76px]' : 'min-[900px]:w-[272px]'
                 }`}
             >
                 <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
