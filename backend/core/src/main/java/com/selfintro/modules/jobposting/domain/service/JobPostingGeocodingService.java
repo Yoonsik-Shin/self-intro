@@ -108,8 +108,12 @@ public class JobPostingGeocodingService {
 
     private Optional<Coordinates> tryOsmGeocode(String address) {
         try {
-            String encoded = URLEncoder.encode(address, StandardCharsets.UTF_8);
-            URI uri = URI.create("https://nominatim.openstreetmap.org/search?q=" + encoded + "&format=json&limit=1");
+            String searchAddress = address;
+            if (!searchAddress.contains("서울") && !searchAddress.contains("경기") && !searchAddress.contains("인천")) {
+                searchAddress = "서울특별시 " + searchAddress;
+            }
+            String encoded = URLEncoder.encode(searchAddress, StandardCharsets.UTF_8);
+            URI uri = URI.create("https://nominatim.openstreetmap.org/search?q=" + encoded + "&format=json&countrycodes=kr&limit=1");
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(uri)
                     .header("User-Agent", "SelfIntroJobPostingMap/1.0 (contact@selfintro.com)")
@@ -124,10 +128,14 @@ public class JobPostingGeocodingService {
                     JsonNode item = array.get(0);
                     double lat = item.path("lat").asDouble();
                     double lng = item.path("lon").asDouble();
-                    return Optional.of(new Coordinates(
-                            BigDecimal.valueOf(lat).setScale(7, RoundingMode.HALF_UP),
-                            BigDecimal.valueOf(lng).setScale(7, RoundingMode.HALF_UP)
-                    ));
+
+                    // 서울/경기 수도권 범주(Lat 37.0~38.0, Lng 126.5~127.6) 이외는 무효화
+                    if (lat >= 37.0 && lat <= 38.0 && lng >= 126.5 && lng <= 127.6) {
+                        return Optional.of(new Coordinates(
+                                BigDecimal.valueOf(lat).setScale(7, RoundingMode.HALF_UP),
+                                BigDecimal.valueOf(lng).setScale(7, RoundingMode.HALF_UP)
+                        ));
+                    }
                 }
             }
         } catch (Exception e) {
