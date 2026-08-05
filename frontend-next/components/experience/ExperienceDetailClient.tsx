@@ -21,6 +21,7 @@ import {
     Image as ImageIcon,
 } from 'lucide-react';
 import { SidebarSection } from '@/components/common/SidebarSection';
+import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import type { Experience, ExperienceDetail, Skill, Study } from '@/lib/api/types';
 import {
     markdownComponents,
@@ -47,7 +48,7 @@ export function ExperienceDetailClient({
     parentCareer,
 }: Props) {
     const router = useRouter();
-    const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+    const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -584,7 +585,7 @@ export function ExperienceDetailClient({
                 {/* Right Navigation Sidebar */}
                 <aside className="block w-full sticky top-[89px] self-start">
                     <div
-                        className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
+                        className={`relative max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
                                 : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'

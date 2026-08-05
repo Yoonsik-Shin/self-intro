@@ -12,6 +12,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, ListOrdered } from 'lucide-react';
 import { SidebarSection } from '@/components/common/SidebarSection';
+import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import { taxonomyApi } from '@/lib/api';
 import type { Study } from '@/lib/api/types';
 import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
@@ -41,7 +42,7 @@ export function StudyDetailClient({ study }: Props) {
         () => toTaxonomyNodeMap(allTaxonomyNodes ?? []),
         [allTaxonomyNodes]
     );
-    const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+    const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
     const [activeId, setActiveId] = useState<string>('');
     const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -240,7 +241,7 @@ export function StudyDetailClient({ study }: Props) {
 
                 <aside className="block w-full sticky top-[89px] self-start max-h-[calc(100vh-113px)]">
                     <div
-                        className={`relative flex flex-col max-h-[calc(100vh-113px)] rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
+                        className={`relative flex flex-col max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md ${
                             isNavCollapsed
                                 ? 'min-[900px]:gap-3 min-[900px]:p-2'
                                 : 'min-[900px]:gap-3 min-[900px]:p-4'
