@@ -20,6 +20,8 @@ import {
     LayoutGrid,
     Map as MapIcon,
     Loader2,
+    Sun,
+    Moon,
 } from 'lucide-react';
 import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
 import {
@@ -30,6 +32,9 @@ import {
 } from '@/lib/utils/commuteCalculator';
 import HomeLocationModal from './HomeLocationModal';
 
+// Leaflet CSS CDN 로드
+import 'leaflet/dist/leaflet.css';
+
 interface JobPostingMapViewProps {
     postings: JobPosting[];
     settings: JobPostingSetting | null;
@@ -39,7 +44,7 @@ interface JobPostingMapViewProps {
 
 type TimeFilterOption = 'ALL' | '30' | '45' | '60' | 'OVER_60';
 type ViewModeOption = 'REAL_MAP' | 'CARD_GRID';
-type TileStyleOption = 'DARK' | 'STREET';
+type TileStyleOption = 'LIGHT' | 'DARK';
 
 const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 const LEAFLET_JS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -97,20 +102,20 @@ export default function JobPostingMapView({
 }: JobPostingMapViewProps) {
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('ALL');
-    const [viewMode, setViewMode] = useState<ViewModeOption>('REAL_MAP'); // 🗺️ 실제 타일 지도 기본값
-    const [tileStyle, setTileStyle] = useState<TileStyleOption>('DARK');
+    const [viewMode, setViewMode] = useState<ViewModeOption>('REAL_MAP');
+    const [tileStyle, setTileStyle] = useState<TileStyleOption>('LIGHT'); // ☀️ 밝은 계열 지도 타일 기본값 설정
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
     const [isMapLoading, setIsMapLoading] = useState(true);
 
     // 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 레이어 상태
     const [layerToggles, setLayerToggles] = useState({
-        showHomePin: true, // 🏠 내 집 위치 마커 켜기/끄기
-        show30Min: true, // ⚡ 30분 이내 초고속 직주근접 핀 켜기/끄기
-        show60Min: true, // ⚡ 30~60분 적정 출퇴근 핀 켜기/끄기
-        showOver60Min: true, // 🐢 60분 초과/장거리 핀 켜기/끄기
-        showDistanceRings: true, // 🎯 직주근접 동심원 반경 링 (10km / 20km / 30km) 켜기/끄기
-        showPinLabels: true, // 🏷️ 마커 뱃지 라벨 항상 켜기/끄기
+        showHomePin: true,
+        show30Min: true,
+        show60Min: true,
+        showOver60Min: true,
+        showDistanceRings: true,
+        showPinLabels: true,
     });
 
     const [isLayerControlOpen, setIsLayerControlOpen] = useState(true);
@@ -119,16 +124,18 @@ export default function JobPostingMapView({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapInstanceRef = useRef<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tileLayerRef = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const markersGroupRef = useRef<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ringsGroupRef = useRef<any>(null);
 
-    // 기본 집 위치 (설정 값이 없을 시 서울 마포구 상암동 좌표를 기본값으로 제공)
+    // 기본 집 위치
     const homeLat = settings?.homeLatitude ?? 37.5796;
     const homeLng = settings?.homeLongitude ?? 126.8899;
     const homeAddress = settings?.homeAddress || '서울 마포구 월드컵북로 400 (기본)';
 
-    // 공고별 예상 출퇴근 시간 계산 및 매핑
+    // 공고별 예상 출퇴근 시간 계산 및 위치 추정
     const postingsWithCommute = useMemo(() => {
         return postings.map((posting) => {
             let estimate: CommuteEstimate | null = null;
@@ -178,16 +185,14 @@ export default function JobPostingMapView({
         });
     }, [postings, homeLat, homeLng]);
 
-    // 검색 및 소요시간 필터링 + 마인드맵 레이어 토글 적용
+    // 검색 및 소요시간 필터링
     const filteredItems = useMemo(() => {
         return postingsWithCommute.filter(({ posting, estimate }) => {
-            // 1. 레이어 토글 필터 (30분 이내 / 30~60분 / 60분 초과)
             const mins = estimate?.estimatedMinutes || 999;
             if (mins <= 30 && !layerToggles.show30Min) return false;
             if (mins > 30 && mins <= 60 && !layerToggles.show60Min) return false;
             if (mins > 60 && !layerToggles.showOver60Min) return false;
 
-            // 2. 상단 검색어 필터
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const matchCompany = posting.companyName.toLowerCase().includes(q);
@@ -196,7 +201,6 @@ export default function JobPostingMapView({
                 if (!matchCompany && !matchTitle && !matchLoc) return false;
             }
 
-            // 3. 상단 시간 필터 탭
             if (timeFilter === 'ALL') return true;
             if (!estimate) return false;
 
@@ -208,6 +212,45 @@ export default function JobPostingMapView({
             return true;
         });
     }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
+
+    // 💡 핀 겹침 방지 (Spiderfy Jittering): 동일/인접 좌표 마커 분산 계산
+    const spiderfiedItems = useMemo(() => {
+        // 동일/인접 좌표 키 그룹핑 (소수점 3자리 정밀도 기준)
+        const groups: Record<string, typeof filteredItems> = {};
+
+        filteredItems.forEach((item) => {
+            if (!item.lat || !item.lng) return;
+            const key = `${item.lat.toFixed(3)}_${item.lng.toFixed(3)}`;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(item);
+        });
+
+        const result: ((typeof filteredItems)[0] & { renderLat: number; renderLng: number })[] = [];
+
+        Object.values(groups).forEach((group) => {
+            const count = group.length;
+            group.forEach((item, index) => {
+                let renderLat = item.lat!;
+                let renderLng = item.lng!;
+
+                // 동일/인접 지역에 2개 이상의 핀이 뭉쳐있는 경우 원형 방사형으로 오프셋 분산
+                if (count > 1) {
+                    const angle = (index / count) * 2 * Math.PI;
+                    const radius = 0.0035; // 약 300m 단위 오프셋 거리
+                    renderLat += Math.sin(angle) * radius;
+                    renderLng += Math.cos(angle) * radius;
+                }
+
+                result.push({
+                    ...item,
+                    renderLat,
+                    renderLng,
+                });
+            });
+        });
+
+        return result;
+    }, [filteredItems]);
 
     // 선택된 공고 아이템
     const activeItem = useMemo(() => {
@@ -227,7 +270,7 @@ export default function JobPostingMapView({
         }));
     };
 
-    // 🗺️ Leaflet 실제 지도 엔진 인스턴스 초기화 및 마커/반경 링 렌더링
+    // 🗺️ Leaflet 지도 인스턴스 및 핀/반경 링 렌더링
     useEffect(() => {
         if (viewMode !== 'REAL_MAP' || !mapContainerRef.current) return;
 
@@ -242,27 +285,25 @@ export default function JobPostingMapView({
 
                 setIsMapLoading(false);
 
-                // 기존 지도가 생성되어 있다면 재사용 또는 갱신
+                // 지도 타일 URL 선택 (LIGHT: CartoDB Voyager 밝은 타일, DARK: CartoDB Dark)
+                const tileUrl =
+                    tileStyle === 'LIGHT'
+                        ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+                        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+                const attribution =
+                    '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap';
+
                 if (!mapInstanceRef.current) {
                     const map = L.map(mapContainerRef.current, {
                         center: [homeLat, homeLng],
-                        zoom: 11,
+                        zoom: 12,
                         zoomControl: false,
                     });
 
                     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-                    const tileUrl =
-                        tileStyle === 'DARK'
-                            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-                    const attribution =
-                        tileStyle === 'DARK'
-                            ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
-                            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-
-                    L.tileLayer(tileUrl, {
+                    tileLayerRef.current = L.tileLayer(tileUrl, {
                         attribution,
                         maxZoom: 19,
                     }).addTo(map);
@@ -273,7 +314,12 @@ export default function JobPostingMapView({
                     mapInstanceRef.current = map;
                 } else {
                     const map = mapInstanceRef.current;
-                    map.setView([homeLat, homeLng]);
+                    if (tileLayerRef.current) {
+                        map.removeLayer(tileLayerRef.current);
+                    }
+                    tileLayerRef.current = L.tileLayer(tileUrl, { attribution, maxZoom: 19 }).addTo(
+                        map
+                    );
                 }
 
                 const map = mapInstanceRef.current;
@@ -285,30 +331,32 @@ export default function JobPostingMapView({
                 markersGroup.clearLayers();
                 ringsGroup.clearLayers();
 
+                const boundsPoints: [number, number][] = [[homeLat, homeLng]];
+
                 // 🎯 1. 반경 동심원 (10km, 20km, 30km)
                 if (layerToggles.showDistanceRings) {
                     L.circle([homeLat, homeLng], {
                         radius: 10000,
-                        color: '#10b981',
-                        weight: 1.5,
-                        dashArray: '4, 4',
-                        fillOpacity: 0.03,
+                        color: tileStyle === 'LIGHT' ? '#059669' : '#10b981',
+                        weight: 1.8,
+                        dashArray: '5, 5',
+                        fillOpacity: 0.04,
                     }).addTo(ringsGroup);
 
                     L.circle([homeLat, homeLng], {
                         radius: 20000,
-                        color: '#6366f1',
-                        weight: 1.5,
-                        dashArray: '4, 4',
-                        fillOpacity: 0.02,
+                        color: tileStyle === 'LIGHT' ? '#4f46e5' : '#6366f1',
+                        weight: 1.8,
+                        dashArray: '5, 5',
+                        fillOpacity: 0.03,
                     }).addTo(ringsGroup);
 
                     L.circle([homeLat, homeLng], {
                         radius: 30000,
-                        color: '#f59e0b',
-                        weight: 1.5,
-                        dashArray: '4, 4',
-                        fillOpacity: 0.01,
+                        color: tileStyle === 'LIGHT' ? '#d97706' : '#f59e0b',
+                        weight: 1.8,
+                        dashArray: '5, 5',
+                        fillOpacity: 0.02,
                     }).addTo(ringsGroup);
                 }
 
@@ -318,17 +366,17 @@ export default function JobPostingMapView({
                         className: 'custom-home-icon',
                         html: `
                             <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                                <div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: rgba(16, 185, 129, 0.4); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                                <div style="position: relative; width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #09090b; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5); border: 2px solid #ffffff;">
+                                <div style="position: absolute; width: 40px; height: 40px; border-radius: 50%; background: rgba(16, 185, 129, 0.35); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                                <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: #10b981; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.6); border: 2px solid #ffffff;">
                                     🏠
                                 </div>
-                                <div style="margin-top: 4px; background: rgba(24, 24, 27, 0.95); border: 1px solid rgba(16, 185, 129, 0.5); color: #6ee7b7; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
+                                <div style="margin-top: 4px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid #10b981; color: ${tileStyle === 'LIGHT' ? '#047857' : '#6ee7b7'}; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                                     🏠 내 집 출발점
                                 </div>
                             </div>
                         `,
-                        iconSize: [120, 60],
-                        iconAnchor: [60, 30],
+                        iconSize: [140, 65],
+                        iconAnchor: [70, 32],
                     });
 
                     const homeMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(
@@ -337,28 +385,36 @@ export default function JobPostingMapView({
                     homeMarker.on('click', () => setIsHomeModalOpen(true));
                 }
 
-                // 📍 3. 공고 마커 핀들 (Posting Map Markers)
-                filteredItems.forEach(({ posting, estimate, lat, lng }) => {
-                    if (!lat || !lng) return;
+                // 📍 3. 분산된 공고 마커 핀들 (Spiderfied Posting Markers)
+                spiderfiedItems.forEach(({ posting, estimate, renderLat, renderLng }) => {
+                    boundsPoints.push([renderLat, renderLng]);
 
                     const isSelected = activeItem?.posting.id === posting.id;
                     const mins = estimate?.estimatedMinutes || 0;
 
-                    let colorHex = '#10b981'; // Emerald
-                    if (mins > 60)
+                    // 소요시간별 핀 컬러 테마
+                    let colorHex = '#10b981'; // Emerald (30분 이내)
+                    let textHex = '#047857';
+                    if (mins > 60) {
                         colorHex = '#f43f5e'; // Rose
-                    else if (mins > 45)
+                        textHex = '#be123c';
+                    } else if (mins > 45) {
                         colorHex = '#f59e0b'; // Amber
-                    else if (mins > 30) colorHex = '#6366f1'; // Indigo
+                        textHex = '#b45309';
+                    } else if (mins > 30) {
+                        colorHex = '#6366f1'; // Indigo
+                        textHex = '#4338ca';
+                    }
 
+                    // 핀 라벨 뱃지 HTML (밝은 지도에 시원하게 어울리는 백그라운드 디자인)
                     const labelHtml = layerToggles.showPinLabels
-                        ? `<div style="margin-top: 3px; background: rgba(24, 24, 27, 0.9); border: 1px solid ${colorHex}; color: ${colorHex}; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
+                        ? `<div style="margin-top: 3px; background: ${tileStyle === 'LIGHT' ? '#ffffff' : 'rgba(24, 24, 27, 0.95)'}; border: 1.5px solid ${colorHex}; color: ${tileStyle === 'LIGHT' ? textHex : colorHex}; padding: 2.5px 8px; border-radius: 8px; font-size: 10px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.12);">
                             ${posting.companyName} ${estimate?.formattedTimeText ? `(${estimate.formattedTimeText})` : ''}
                            </div>`
                         : '';
 
                     const selectedRingHtml = isSelected
-                        ? `<div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background: ${colorHex}66; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
+                        ? `<div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: ${colorHex}55; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
                         : '';
 
                     const customPinIcon = L.divIcon({
@@ -366,25 +422,31 @@ export default function JobPostingMapView({
                         html: `
                             <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s; ${isSelected ? 'transform: scale(1.25); z-index: 9999;' : ''}">
                                 ${selectedRingHtml}
-                                <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}88; border: 2px solid #ffffff;">
+                                <div style="position: relative; width: 28px; height: 28px; border-radius: 50%; background: ${colorHex}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px ${colorHex}66; border: 2px solid #ffffff;">
                                     📍
                                 </div>
                                 ${labelHtml}
                             </div>
                         `,
-                        iconSize: [120, 50],
-                        iconAnchor: [60, 25],
+                        iconSize: [140, 55],
+                        iconAnchor: [70, 27],
                     });
 
-                    const postingMarker = L.marker([lat, lng], { icon: customPinIcon }).addTo(
-                        markersGroup
-                    );
+                    const postingMarker = L.marker([renderLat, renderLng], {
+                        icon: customPinIcon,
+                    }).addTo(markersGroup);
 
                     postingMarker.on('click', () => {
                         setSelectedPostingId(posting.id);
-                        map.panTo([lat, lng]);
+                        map.panTo([renderLat, renderLng]);
                     });
                 });
+
+                // 마커들이 화면에 한눈에 예쁘게 들어오도록 자동 fitBounds 설정 (최초 1회)
+                if (boundsPoints.length > 1) {
+                    const bounds = L.latLngBounds(boundsPoints);
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+                }
             } catch (err) {
                 console.error('Leaflet initialization failed:', err);
             }
@@ -395,7 +457,7 @@ export default function JobPostingMapView({
         return () => {
             isMounted = false;
         };
-    }, [viewMode, homeLat, homeLng, filteredItems, activeItem, layerToggles, tileStyle]);
+    }, [viewMode, homeLat, homeLng, spiderfiedItems, activeItem, layerToggles, tileStyle]);
 
     return (
         <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[650px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
@@ -522,28 +584,30 @@ export default function JobPostingMapView({
                     <div className="relative w-full h-full rounded-xl border border-zinc-800/80 bg-zinc-900/50 flex flex-col justify-between overflow-hidden">
                         {/* 지도 상단 마인드맵 토글 패널 및 지도 타일 스타일 변경 바 */}
                         <div className="absolute top-4 left-4 right-4 z-20 flex items-start justify-between pointer-events-none">
-                            {/* 지도 타일 스위처 (다크 모드 타일 vs 일반 지도 타일) */}
+                            {/* 지도 타일 스위처 (☀️ 밝은 계열 테마 기본값 vs 🌙 다크 테마) */}
                             {viewMode === 'REAL_MAP' && (
                                 <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 p-1 backdrop-blur-md shadow-lg text-xs">
                                     <button
+                                        onClick={() => setTileStyle('LIGHT')}
+                                        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                                            tileStyle === 'LIGHT'
+                                                ? 'bg-emerald-600 text-white shadow-sm'
+                                                : 'text-zinc-400 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        <Sun className="h-3 w-3 text-amber-300" />
+                                        <span>☀️ 밝은 지도 (추천)</span>
+                                    </button>
+                                    <button
                                         onClick={() => setTileStyle('DARK')}
-                                        className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                                        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
                                             tileStyle === 'DARK'
                                                 ? 'bg-zinc-800 text-white shadow-sm'
                                                 : 'text-zinc-400 hover:text-zinc-200'
                                         }`}
                                     >
-                                        🌙 다크 지도
-                                    </button>
-                                    <button
-                                        onClick={() => setTileStyle('STREET')}
-                                        className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
-                                            tileStyle === 'STREET'
-                                                ? 'bg-indigo-600 text-white shadow-sm'
-                                                : 'text-zinc-400 hover:text-zinc-200'
-                                        }`}
-                                    >
-                                        🗺️ 일반 타일 지도
+                                        <Moon className="h-3 w-3 text-indigo-400" />
+                                        <span>🌙 다크 지도</span>
                                     </button>
                                 </div>
                             )}
@@ -552,11 +616,11 @@ export default function JobPostingMapView({
                             <div className="relative ml-auto pointer-events-auto">
                                 <button
                                     onClick={() => setIsLayerControlOpen(!isLayerControlOpen)}
-                                    className="flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 backdrop-blur-md transition-all shadow-md"
+                                    className="flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 backdrop-blur-md transition-all shadow-md"
                                 >
-                                    <Layers className="h-3.5 w-3.5 text-indigo-300" />
+                                    <Layers className="h-3.5 w-3.5 text-indigo-200" />
                                     <span>마인드맵 레이어 토글</span>
-                                    <span className="rounded bg-indigo-400/20 px-1 text-[10px]">
+                                    <span className="rounded bg-white/20 px-1 text-[10px]">
                                         {Object.values(layerToggles).filter(Boolean).length}/6
                                     </span>
                                 </button>
