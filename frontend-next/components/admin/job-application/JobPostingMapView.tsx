@@ -256,9 +256,6 @@ export default function JobPostingMapView({
     // 마인드맵 스타일 특정 요소 껐다 켰다(Toggle) 레이어 상태
     const [layerToggles, setLayerToggles] = useState({
         showHomePin: true,
-        show30Min: true,
-        show60Min: true,
-        showOver60Min: true,
         showDistanceRings: true,
         showPinLabels: true,
     });
@@ -303,11 +300,6 @@ export default function JobPostingMapView({
     // 검색 및 소요시간 필터링 적용
     const filteredItems = useMemo(() => {
         return postingsWithCommute.filter(({ posting, estimate }) => {
-            const mins = estimate?.estimatedMinutes || 999;
-            if (mins <= 30 && !layerToggles.show30Min) return false;
-            if (mins > 30 && mins <= 60 && !layerToggles.show60Min) return false;
-            if (mins > 60 && !layerToggles.showOver60Min) return false;
-
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const matchCompany = posting.companyName.toLowerCase().includes(q);
@@ -319,6 +311,7 @@ export default function JobPostingMapView({
             if (timeFilter === 'ALL') return true;
             if (!estimate) return false;
 
+            const mins = estimate.estimatedMinutes;
             if (timeFilter === '30') return mins <= 30;
             if (timeFilter === '45') return mins <= 45;
             if (timeFilter === '60') return mins <= 60;
@@ -326,7 +319,7 @@ export default function JobPostingMapView({
 
             return true;
         });
-    }, [postingsWithCommute, searchQuery, timeFilter, layerToggles]);
+    }, [postingsWithCommute, searchQuery, timeFilter]);
 
     // 🎯 지도 마커 표출 아이템: 선택된 공고가 있을 때(`selectedPostingId !== null`)는 해당 선택 공고 1개만 지도에 표출!
     const mapItemsToRender = useMemo(() => {
@@ -857,7 +850,7 @@ export default function JobPostingMapView({
                                     <Layers className="h-3.5 w-3.5 text-indigo-100" />
                                     <span>마인드맵 레이어 토글</span>
                                     <span className="rounded bg-white/20 px-1 text-[10px]">
-                                        {Object.values(layerToggles).filter(Boolean).length}/6
+                                        {Object.values(layerToggles).filter(Boolean).length}/3
                                     </span>
                                 </button>
 
@@ -891,67 +884,7 @@ export default function JobPostingMapView({
                                             )}
                                         </button>
 
-                                        {/* 2. 30분 이내 공고 토글 */}
-                                        <button
-                                            onClick={() => toggleLayer('show30Min')}
-                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
-                                                layerToggles.show30Min
-                                                    ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200'
-                                                    : 'bg-slate-100 text-slate-400'
-                                            }`}
-                                        >
-                                            <span className="flex items-center gap-1.5">
-                                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                                ⚡ 30분 이내 공고
-                                            </span>
-                                            {layerToggles.show30Min ? (
-                                                <Eye className="h-3.5 w-3.5 text-emerald-600" />
-                                            ) : (
-                                                <EyeOff className="h-3.5 w-3.5" />
-                                            )}
-                                        </button>
-
-                                        {/* 3. 30~60분 공고 토글 */}
-                                        <button
-                                            onClick={() => toggleLayer('show60Min')}
-                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
-                                                layerToggles.show60Min
-                                                    ? 'bg-indigo-50 text-indigo-800 font-bold border border-indigo-200'
-                                                    : 'bg-slate-100 text-slate-400'
-                                            }`}
-                                        >
-                                            <span className="flex items-center gap-1.5">
-                                                <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                                                ⚡ 30~60분 공고
-                                            </span>
-                                            {layerToggles.show60Min ? (
-                                                <Eye className="h-3.5 w-3.5 text-indigo-600" />
-                                            ) : (
-                                                <EyeOff className="h-3.5 w-3.5" />
-                                            )}
-                                        </button>
-
-                                        {/* 4. 60분 초과 공고 토글 */}
-                                        <button
-                                            onClick={() => toggleLayer('showOver60Min')}
-                                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
-                                                layerToggles.showOver60Min
-                                                    ? 'bg-rose-50 text-rose-800 font-bold border border-rose-200'
-                                                    : 'bg-slate-100 text-slate-400'
-                                            }`}
-                                        >
-                                            <span className="flex items-center gap-1.5">
-                                                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                                🐢 60분 초과 공고
-                                            </span>
-                                            {layerToggles.showOver60Min ? (
-                                                <Eye className="h-3.5 w-3.5 text-rose-600" />
-                                            ) : (
-                                                <EyeOff className="h-3.5 w-3.5" />
-                                            )}
-                                        </button>
-
-                                        {/* 5. 직주근접 반경 링 토글 */}
+                                        {/* 2. 직주근접 반경 링 토글 */}
                                         <button
                                             onClick={() => toggleLayer('showDistanceRings')}
                                             className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
@@ -971,7 +904,7 @@ export default function JobPostingMapView({
                                             )}
                                         </button>
 
-                                        {/* 6. 마커 뱃지 라벨 토글 */}
+                                        {/* 3. 마커 뱃지 라벨 토글 */}
                                         <button
                                             onClick={() => toggleLayer('showPinLabels')}
                                             className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 transition-colors ${
