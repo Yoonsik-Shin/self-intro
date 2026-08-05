@@ -125,6 +125,11 @@ public class JobApplicationUrlParseService {
             """;
 
     private static final int MAX_PAGE_TEXT_LENGTH = 12000;
+    // job_posting.company_name/position_title 컬럼 길이(각각 varchar(100)/varchar(150))와 맞춘다.
+    // AI가 부제목이나 회사 소개 문구까지 붙여 넘길 때가 있어, DB에 넣기 전에 여기서 한 번 잘라야
+    // 저장 시점의 DataIntegrityViolationException(Data truncation)을 막을 수 있다.
+    private static final int MAX_COMPANY_NAME_LENGTH = 100;
+    private static final int MAX_POSITION_TITLE_LENGTH = 150;
     // 한글은 토크나이저 특성상 음절당 소모 토큰이 커서, 상세 항목(업무/자격/전형절차 등)이
     // 많은 공고는 4096 토큰으로도 LENGTH(토큰 한도)에 걸려 JSON을 못 닫는 사례가 있었다.
     private static final int PARSE_MAX_OUTPUT_TOKENS = 8192;
@@ -284,8 +289,12 @@ public class JobApplicationUrlParseService {
             boolean alwaysOpen = deadline == null && Boolean.TRUE.equals(extracted.alwaysOpen());
             JobApplicationUrlParseResponse response =
                     new JobApplicationUrlParseResponse(
-                            AiJsonSupport.blankToNull(extracted.companyName()),
-                            AiJsonSupport.blankToNull(extracted.positionTitle()),
+                            AiJsonSupport.blankToNull(
+                                    AiJsonSupport.limit(
+                                            extracted.companyName(), MAX_COMPANY_NAME_LENGTH)),
+                            AiJsonSupport.blankToNull(
+                                    AiJsonSupport.limit(
+                                            extracted.positionTitle(), MAX_POSITION_TITLE_LENGTH)),
                             AiJsonSupport.blankToNull(extracted.source()),
                             deadline,
                             alwaysOpen,
@@ -348,15 +357,20 @@ public class JobApplicationUrlParseService {
 
         String companyName =
                 AiJsonSupport.blankToNull(
-                        document.selectFirst("meta[property=og:site_name]") == null
-                                ? null
-                                : document.selectFirst("meta[property=og:site_name]")
-                                        .attr("content"));
+                        AiJsonSupport.limit(
+                                document.selectFirst("meta[property=og:site_name]") == null
+                                        ? null
+                                        : document.selectFirst("meta[property=og:site_name]")
+                                                .attr("content"),
+                                MAX_COMPANY_NAME_LENGTH));
         String positionTitle =
                 AiJsonSupport.blankToNull(
-                        document.selectFirst("meta[property=og:title]") == null
-                                ? null
-                                : document.selectFirst("meta[property=og:title]").attr("content"));
+                        AiJsonSupport.limit(
+                                document.selectFirst("meta[property=og:title]") == null
+                                        ? null
+                                        : document.selectFirst("meta[property=og:title]")
+                                                .attr("content"),
+                                MAX_POSITION_TITLE_LENGTH));
         Element editor = document.selectFirst(".ql-editor");
         if (!AiJsonSupport.hasText(companyName)
                 || !AiJsonSupport.hasText(positionTitle)
