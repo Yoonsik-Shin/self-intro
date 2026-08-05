@@ -10,7 +10,14 @@ import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
-import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, ListOrdered } from 'lucide-react';
+import {
+    ArrowLeft,
+    ArrowUp,
+    ChevronLeft,
+    ChevronRight,
+    Link as LinkIcon,
+    ListOrdered,
+} from 'lucide-react';
 import { SidebarSection } from '@/components/common/SidebarSection';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import { taxonomyApi } from '@/lib/api';
@@ -273,6 +280,7 @@ export function StudyDetailClient({ study }: Props) {
                                 icon={ListOrdered}
                                 badge={toc.length}
                                 isNavCollapsed={isNavCollapsed}
+                                onExpandSidebar={() => setIsNavCollapsed(false)}
                             >
                                 <nav className="max-h-[360px] overflow-y-auto overflow-x-hidden space-y-0.5 pr-1 text-xs scroll-smooth custom-scrollbar">
                                     {toc.map((item) => {
@@ -311,8 +319,11 @@ export function StudyDetailClient({ study }: Props) {
                         {/* 연결 항목 (Related Items) */}
                         <SidebarSection
                             title="연결 항목"
+                            icon={LinkIcon}
+                            badge={study.experiences.length}
                             description="이 학습과 연관된 이력 정보입니다."
                             isNavCollapsed={isNavCollapsed}
+                            onExpandSidebar={() => setIsNavCollapsed(false)}
                         >
                             {study.experiences.length > 0 && (
                                 <div>

@@ -613,8 +613,11 @@ export function ExperienceDetailClient({
                         {/* Related Studies */}
                         <SidebarSection
                             title="연결 항목"
+                            icon={Briefcase}
+                            badge={relatedStudies.length + siblingDetails.length}
                             description="이 경험과 연관된 학습 기록입니다."
                             isNavCollapsed={isNavCollapsed}
+                            onExpandSidebar={() => setIsNavCollapsed(false)}
                         >
                             {relatedStudies.length > 0 ? (
                                 <div>
