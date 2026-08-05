@@ -251,7 +251,7 @@ export function StudyDetailClient({ study }: Props) {
                         isNavCollapsed ? 'min-[900px]:w-[64px]' : 'min-[900px]:w-[260px]'
                     }`}
                 >
-                    <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible">
+                    <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
                         <button
                             type="button"
                             onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
@@ -272,10 +272,10 @@ export function StudyDetailClient({ study }: Props) {
                         </button>
 
                         <div
-                            className={`max-h-[calc(100vh-113px)] overflow-y-auto custom-scrollbar flex flex-col ${
+                            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col ${
                                 isNavCollapsed
                                     ? 'min-[900px]:gap-3 min-[900px]:p-1.5'
-                                    : 'min-[900px]:gap-3 min-[900px]:p-4'
+                                    : 'min-[900px]:gap-3 min-[900px]:px-4 min-[900px]:pt-4 min-[900px]:pb-2'
                             }`}
                         >
                             {/* Table of Contents (목차) */}
