@@ -100,6 +100,12 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers("/api/admin/**")
                                         .hasRole("ADMIN")
+                                        // job-posting AI/크롤링 전용 엔드포인트(worker가 직접 서빙,
+                                        // 2026-08). /api/admin/**과 분리된 prefix라 이 규칙이 없으면
+                                        // GET 엔드포인트가 아래 GET permitAll에 먼저 걸려 인증 없이
+                                        // 열려버린다.
+                                        .requestMatchers("/api/worker/**")
+                                        .hasRole("ADMIN")
                                         .requestMatchers(HttpMethod.GET, "/api/**")
                                         .permitAll()
                                         .requestMatchers(HttpMethod.POST, "/api/visits")
