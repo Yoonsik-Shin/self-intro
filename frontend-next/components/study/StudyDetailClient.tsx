@@ -425,23 +425,27 @@ export function StudyDetailClient({ study }: Props) {
                                 </button>
                             </div>
 
-                            <hr
-                                className={`hidden -mb-4 border-slate-100 shrink-0 ${isNavCollapsed ? '' : 'min-[900px]:block'}`}
-                            />
-
-                            <button
-                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="shrink-0 grid h-8 w-full place-items-center rounded-lg border border-slate-200 bg-white text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:text-slate-900 min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1 min-[900px]:py-2"
-                                title="위로 가기"
-                                aria-label="위로 가기"
-                            >
-                                <ArrowUp className="h-4 w-4 shrink-0" />
-                                <span
-                                    className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
+                            {/* 무조건 하단 고정 영역 (Sticky Bottom) */}
+                            <div className="shrink-0 p-3 min-[900px]:px-4 border-t border-slate-100 bg-white/90 backdrop-blur-md rounded-b-2xl">
+                                <button
+                                    type="button"
+                                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                    className={`grid place-items-center border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group ${
+                                        isNavCollapsed
+                                            ? 'h-9 w-9 mx-auto rounded-full'
+                                            : 'h-9 w-full rounded-xl min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5'
+                                    }`}
+                                    title="위로 가기"
+                                    aria-label="위로 가기"
                                 >
-                                    위로 가기
-                                </span>
-                            </button>
+                                    <ArrowUp className="h-4 w-4 shrink-0 group-hover:-translate-y-0.5 transition-transform" />
+                                    <span
+                                        className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
+                                    >
+                                        위로 가기
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </aside>
