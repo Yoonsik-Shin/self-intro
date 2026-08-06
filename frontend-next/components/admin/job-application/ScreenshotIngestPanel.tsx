@@ -29,6 +29,7 @@ export function ScreenshotIngestPanel({ onSuccess }: ScreenshotIngestPanelProps)
     const [uploading, setUploading] = useState(false);
     const [ingesting, setIngesting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isDropZoneOver, setIsDropZoneOver] = useState(false);
 
     const handleFiles = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
@@ -115,7 +116,26 @@ export function ScreenshotIngestPanel({ onSuccess }: ScreenshotIngestPanelProps)
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploading || ingesting}
-                        className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 transition hover:border-slate-400 hover:text-slate-600 disabled:opacity-50"
+                        onDragOver={(event) => {
+                            event.preventDefault();
+                            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+                            setIsDropZoneOver(true);
+                        }}
+                        onDragLeave={(event) => {
+                            event.preventDefault();
+                            setIsDropZoneOver(false);
+                        }}
+                        onDrop={(event) => {
+                            event.preventDefault();
+                            setIsDropZoneOver(false);
+                            if (uploading || ingesting) return;
+                            handleFiles(event.dataTransfer?.files ?? null);
+                        }}
+                        className={`flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-slate-400 transition hover:border-slate-400 hover:text-slate-600 disabled:opacity-50 ${
+                            isDropZoneOver
+                                ? 'border-blue-500 bg-blue-50 scale-[1.03]'
+                                : 'border-slate-200'
+                        }`}
                     >
                         {uploading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
@@ -125,6 +145,7 @@ export function ScreenshotIngestPanel({ onSuccess }: ScreenshotIngestPanelProps)
                         <span className="text-[10px] font-bold">
                             {uploading ? '업로드 중' : '스크린샷 추가'}
                         </span>
+                        <span className="text-[9px] text-slate-300">또는 드래그해서 놓기</span>
                     </button>
                 )}
             </div>
