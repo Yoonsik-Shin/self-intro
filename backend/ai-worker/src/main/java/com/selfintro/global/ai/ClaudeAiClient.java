@@ -42,9 +42,11 @@ public class ClaudeAiClient {
         try {
             ClaudeRequest body = new ClaudeRequest(
                     targetModel,
-                    4096,
+                    8192,
                     systemPrompt,
-                    List.of(new ClaudeMessage("user", userPrompt))
+                    List.of(new ClaudeMessage("user", userPrompt)),
+                    new ClaudeThinking("adaptive"),
+                    new ClaudeOutputConfig("low")
             );
 
             String requestJson = objectMapper.writeValueAsString(body);
@@ -85,8 +87,14 @@ public class ClaudeAiClient {
             String model,
             @JsonProperty("max_tokens") int maxTokens,
             String system,
-            List<ClaudeMessage> messages
+            List<ClaudeMessage> messages,
+            ClaudeThinking thinking,
+            @JsonProperty("output_config") ClaudeOutputConfig outputConfig
     ) {}
+
+    private record ClaudeThinking(String type) {}
+
+    private record ClaudeOutputConfig(String effort) {}
 
     private static class ClaudeResponse {
         public List<ClaudeContentBlock> content;
