@@ -499,6 +499,8 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
     const [drafts, setDrafts] = useState<CoverLetterDraft[]>([]);
     const [answerDrafts, setAnswerDrafts] = useState<Record<number, string>>({});
     const [expandedIndexes, setExpandedIndexes] = useState<Set<number>>(() => new Set());
+    const [generatingItemIds, setGeneratingItemIds] = useState<Set<number>>(() => new Set());
+    const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
     const {
         data: items = [],
@@ -520,6 +522,65 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '자소서 저장에 실패했습니다.'),
     });
+
+    const generateSingleDraft = useCallback(
+        async (itemId: number, question: string, characterLimit: number | null) => {
+            setGeneratingItemIds((prev) => new Set(prev).add(itemId));
+            try {
+                const res = await jobPostingApi.generateCoverLetterDraft(jobPostingId, {
+                    question,
+                    characterLimit,
+                });
+                setAnswerDrafts((current) => ({
+                    ...current,
+                    [itemId]: res.draftAnswer,
+                }));
+                // 생성된 답변을 바로 볼 수 있도록 해당 문항 아코디언 오픈
+                const itemIndex = items.findIndex((i) => i.id === itemId);
+                if (itemIndex !== -1) {
+                    setExpandedIndexes((prev) => new Set(prev).add(itemIndex));
+                }
+            } catch (error) {
+                alert(
+                    error instanceof ApiError
+                        ? error.message
+                        : 'AI 초안 생성을 실패했습니다. 잠시 후 다시 시도해 주세요.'
+                );
+            } finally {
+                setGeneratingItemIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(itemId);
+                    return next;
+                });
+            }
+        },
+        [jobPostingId, items]
+    );
+
+    const generateAllDrafts = useCallback(async () => {
+        if (items.length === 0 || isGeneratingAll) return;
+        setIsGeneratingAll(true);
+
+        // 모든 문항 펼치기
+        setExpandedIndexes(new Set(items.map((_, idx) => idx)));
+
+        // 동시 요청 3개 제한 헬퍼
+        const concurrency = 3;
+        let index = 0;
+
+        const worker = async () => {
+            while (index < items.length) {
+                const currentIndex = index++;
+                const item = items[currentIndex];
+                await generateSingleDraft(item.id, item.question, item.characterLimit);
+            }
+        };
+
+        const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+        await Promise.all(workers);
+
+        setIsGeneratingAll(false);
+    }, [items, isGeneratingAll, generateSingleDraft]);
 
     function startManaging() {
         setDrafts(
@@ -583,18 +644,35 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                     <p className="text-xs font-semibold text-slate-400">
                         문항을 먼저 등록하고 답변은 필요할 때마다 바로 수정하세요.
                     </p>
-                    <button
-                        type="button"
-                        onClick={startManaging}
-                        className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
-                    >
-                        {items.length > 0 ? (
-                            <SettingsIcon className="h-3.5 w-3.5" />
-                        ) : (
-                            <Plus className="h-3.5 w-3.5" />
+                    <div className="flex items-center gap-2">
+                        {items.length > 0 && (
+                            <button
+                                type="button"
+                                disabled={isGeneratingAll || generatingItemIds.size > 0}
+                                onClick={generateAllDrafts}
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-extrabold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isGeneratingAll ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                                )}
+                                전체 초안 생성
+                            </button>
                         )}
-                        {items.length > 0 ? '문항 관리' : '문항 추가'}
-                    </button>
+                        <button
+                            type="button"
+                            onClick={startManaging}
+                            className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                        >
+                            {items.length > 0 ? (
+                                <SettingsIcon className="h-3.5 w-3.5" />
+                            ) : (
+                                <Plus className="h-3.5 w-3.5" />
+                            )}
+                            {items.length > 0 ? '문항 관리' : '문항 추가'}
+                        </button>
+                    </div>
                 </div>
 
                 {items.length === 0 ? (
@@ -608,55 +686,79 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                     </div>
                 ) : (
                     <ol className="space-y-4">
-                        {items.map((item, index) => (
-                            <li
-                                key={item.id}
-                                className="overflow-hidden rounded-xl border border-slate-200"
-                            >
-                                <button
-                                    type="button"
-                                    aria-expanded={expandedIndexes.has(index)}
-                                    aria-controls={`cover-letter-answer-${item.id}`}
-                                    onClick={() =>
-                                        setExpandedIndexes((current) => {
-                                            const next = new Set(current);
-                                            if (next.has(index)) next.delete(index);
-                                            else next.add(index);
-                                            return next;
-                                        })
-                                    }
-                                    className="flex w-full items-start justify-between gap-3 p-4 text-left transition hover:bg-slate-50"
+                        {items.map((item, index) => {
+                            const isGeneratingThis = generatingItemIds.has(item.id);
+                            return (
+                                <li
+                                    key={item.id}
+                                    className="overflow-hidden rounded-xl border border-slate-200"
                                 >
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-extrabold text-slate-400">
-                                            문항 {index + 1}
-                                        </p>
-                                        <p className="mt-1 whitespace-pre-wrap text-sm font-extrabold text-slate-800">
-                                            {item.question}
-                                        </p>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-2">
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
-                                            {item.characterLimit
-                                                ? `${item.characterLimit.toLocaleString()}자`
-                                                : '제한 없음'}
-                                        </span>
-                                        <ChevronDown
-                                            className={`mt-0.5 h-4 w-4 text-slate-400 transition-transform ${
-                                                expandedIndexes.has(index) ? 'rotate-180' : ''
-                                            }`}
-                                        />
-                                    </div>
-                                </button>
-                                {expandedIndexes.has(index) && (
-                                    <div
-                                        id={`cover-letter-answer-${item.id}`}
-                                        className="border-t border-slate-100 p-4"
+                                    <button
+                                        type="button"
+                                        aria-expanded={expandedIndexes.has(index)}
+                                        aria-controls={`cover-letter-answer-${item.id}`}
+                                        onClick={() =>
+                                            setExpandedIndexes((current) => {
+                                                const next = new Set(current);
+                                                if (next.has(index)) next.delete(index);
+                                                else next.add(index);
+                                                return next;
+                                            })
+                                        }
+                                        className="flex w-full items-start justify-between gap-3 p-4 text-left transition hover:bg-slate-50"
                                     >
-                                        <label className="block">
-                                            <span className="mb-1 block text-xs font-bold text-slate-500">
-                                                답변
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-extrabold text-slate-400">
+                                                문항 {index + 1}
+                                            </p>
+                                            <p className="mt-1 whitespace-pre-wrap text-sm font-extrabold text-slate-800">
+                                                {item.question}
+                                            </p>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                                                {item.characterLimit
+                                                    ? `${item.characterLimit.toLocaleString()}자`
+                                                    : '제한 없음'}
                                             </span>
+                                            <ChevronDown
+                                                className={`mt-0.5 h-4 w-4 text-slate-400 transition-transform ${
+                                                    expandedIndexes.has(index) ? 'rotate-180' : ''
+                                                }`}
+                                            />
+                                        </div>
+                                    </button>
+                                    {expandedIndexes.has(index) && (
+                                        <div
+                                            id={`cover-letter-answer-${item.id}`}
+                                            className="border-t border-slate-100 p-4"
+                                        >
+                                            <div className="mb-2 flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-500">
+                                                    답변
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    disabled={isGeneratingThis || isGeneratingAll}
+                                                    onClick={() =>
+                                                        generateSingleDraft(
+                                                            item.id,
+                                                            item.question,
+                                                            item.characterLimit
+                                                        )
+                                                    }
+                                                    className="flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-600 transition hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isGeneratingThis ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <Sparkles className="h-3 w-3 text-indigo-600" />
+                                                    )}
+                                                    {isGeneratingThis
+                                                        ? '초안 생성 중...'
+                                                        : 'AI 초안 생성'}
+                                                </button>
+                                            </div>
                                             <textarea
                                                 rows={9}
                                                 value={answerDrafts[item.id] ?? item.answer}
@@ -666,56 +768,56 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                                                         [item.id]: event.target.value,
                                                     }))
                                                 }
-                                                placeholder="답변을 작성하세요. 비워둔 상태로도 문항은 유지됩니다."
+                                                placeholder="답변을 작성하거나 AI 초안 생성 버튼을 누르세요."
                                                 className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm leading-6 focus:border-slate-400 focus:outline-none"
                                             />
-                                        </label>
-                                        <div className="mt-1 flex items-center justify-between gap-3">
-                                            {(() => {
-                                                const length = (
-                                                    answerDrafts[item.id] ?? item.answer
-                                                ).length;
-                                                const overLimit =
-                                                    item.characterLimit !== null &&
-                                                    length > item.characterLimit;
-                                                return (
-                                                    <span
-                                                        className={`text-[11px] font-semibold ${
-                                                            overLimit
-                                                                ? 'text-rose-500'
-                                                                : 'text-slate-400'
-                                                        }`}
-                                                    >
-                                                        {length.toLocaleString()}자
-                                                        {item.characterLimit !== null &&
-                                                            ` / ${item.characterLimit.toLocaleString()}자`}
-                                                        {overLimit &&
-                                                            ` · ${(length - item.characterLimit!).toLocaleString()}자 초과`}
-                                                    </span>
-                                                );
-                                            })()}
-                                            <button
-                                                type="button"
-                                                disabled={
-                                                    saveMutation.isPending ||
-                                                    (answerDrafts[item.id] ?? item.answer) ===
-                                                        item.answer
-                                                }
-                                                onClick={saveAnswers}
-                                                className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
-                                            >
-                                                {saveMutation.isPending ? (
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                    <Check className="h-3.5 w-3.5" />
-                                                )}
-                                                답변 저장
-                                            </button>
+                                            <div className="mt-1 flex items-center justify-between gap-3">
+                                                {(() => {
+                                                    const length = (
+                                                        answerDrafts[item.id] ?? item.answer
+                                                    ).length;
+                                                    const overLimit =
+                                                        item.characterLimit !== null &&
+                                                        length > item.characterLimit;
+                                                    return (
+                                                        <span
+                                                            className={`text-[11px] font-semibold ${
+                                                                overLimit
+                                                                    ? 'text-rose-500'
+                                                                    : 'text-slate-400'
+                                                            }`}
+                                                        >
+                                                            {length.toLocaleString()}자
+                                                            {item.characterLimit !== null &&
+                                                                ` / ${item.characterLimit.toLocaleString()}자`}
+                                                            {overLimit &&
+                                                                ` · ${(length - item.characterLimit!).toLocaleString()}자 초과`}
+                                                        </span>
+                                                    );
+                                                })()}
+                                                <button
+                                                    type="button"
+                                                    disabled={
+                                                        saveMutation.isPending ||
+                                                        (answerDrafts[item.id] ?? item.answer) ===
+                                                            item.answer
+                                                    }
+                                                    onClick={saveAnswers}
+                                                    className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+                                                >
+                                                    {saveMutation.isPending ? (
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Check className="h-3.5 w-3.5" />
+                                                    )}
+                                                    답변 저장
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </li>
-                        ))}
+                                    )}
+                                </li>
+                            );
+                        })}
                     </ol>
                 )}
             </div>

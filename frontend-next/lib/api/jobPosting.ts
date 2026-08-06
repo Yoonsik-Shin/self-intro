@@ -6,6 +6,8 @@ import type {
     JobPosting,
     JobPostingBulkIngestRow,
     JobPostingBulkIngestStreamEvent,
+    JobPostingCoverLetterDraftRequest,
+    JobPostingCoverLetterDraftResponse,
     JobPostingCoverLetterItem,
     JobPostingCoverLetterItemRequest,
     JobPostingCollectionResult,
@@ -163,6 +165,14 @@ export const jobPostingApi = {
         request<JobPosting>(`/api/worker/job-postings/${id}/analyze-appeal`, {
             method: 'POST',
         }),
+    generateCoverLetterDraft: (id: number, payload: JobPostingCoverLetterDraftRequest) =>
+        request<JobPostingCoverLetterDraftResponse>(
+            `/api/worker/job-postings/${id}/generate-cover-letter-draft`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            }
+        ),
     generatePrintDraft: (id: number) =>
         request<JobPostingPrintDraftResponse>(
             `/api/worker/job-postings/${id}/print-template-draft`,

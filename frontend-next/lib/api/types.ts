@@ -588,6 +588,17 @@ export type JobPostingCoverLetterItemRequest = {
     characterLimit: number | null;
 };
 
+export type JobPostingCoverLetterDraftRequest = {
+    question: string;
+    characterLimit?: number | null;
+};
+
+export type JobPostingCoverLetterDraftResponse = {
+    question: string;
+    draftAnswer: string;
+    characterLimit?: number | null;
+};
+
 export type JobApplicationUrlParseResponse = {
     companyName: string | null;
     positionTitle: string | null;
