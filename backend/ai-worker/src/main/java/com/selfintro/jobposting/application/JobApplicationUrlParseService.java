@@ -28,6 +28,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -74,6 +75,7 @@ public class JobApplicationUrlParseService {
             deadline은 지원 마감일을 YYYY-MM-DD 형식으로 반환하세요. "접수기간 2026.7.20~8.2"처럼
             기간으로 표기되어 있으면 마지막 날짜(종료일)를 마감일로 사용하세요. 날짜를 알 수 없으면
             null로 반환하세요.
+            deadlineTime은 지원 마감 시각을 HH:mm:ss 형식으로 반환하세요 (예: 17시 마감이면 "17:00:00", 18시 마감이면 "18:00:00", 23:59/자정 마감이면 "23:59:59"). 본문에 시각이 명시되어 있을 때만 반환하고, 알 수 없거나 텍스트에 표기되지 않은 경우 null로 반환하세요.
             alwaysOpen은 본문에 "상시채용", "채용시 마감", "수시채용"처럼 정해진 마감일 없이 계속
             모집한다는 내용이 명시된 경우에만 true로 반환하세요. 그 경우 deadline은 항상 null이어야
             합니다. 그런 표현이 없고 단순히 마감일을 못 찾은 경우에는 false로 반환하세요.
@@ -100,7 +102,7 @@ public class JobApplicationUrlParseService {
             되고, 모집부문이 하나뿐이면 그 하나만(positionTitle과 동일한 값) 담으세요. 모집부문을
             하나도 특정할 수 없으면 빈 배열로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"positionTitles":[],"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"positionTitles":[],"source":null,"deadline":null,"deadlineTime":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     private static final String VISION_PARSE_PROMPT =
@@ -113,6 +115,7 @@ public class JobApplicationUrlParseService {
             deadline은 지원 마감일을 YYYY-MM-DD 형식으로 반환하세요. "2026.7.20(월)~8.2(일)"처럼
             기간으로 표기되어 있으면 마지막 날짜(종료일)를 마감일로 사용하세요. 날짜를 알 수 없으면
             null로 반환하세요.
+            deadlineTime은 지원 마감 시각을 HH:mm:ss 형식으로 반환하세요 (예: 17시 마감이면 "17:00:00", 18시 마감이면 "18:00:00", 23:59/자정 마감이면 "23:59:59"). 이미지에 시각 정보가 표기되어 있을 때만 반환하고, 없으면 null로 반환하세요.
             alwaysOpen은 이미지에 "상시채용", "채용시 마감", "수시채용"처럼 정해진 마감일 없이 계속
             모집한다는 내용이 명시된 경우에만 true로 반환하세요. 그 경우 deadline은 항상 null이어야
             합니다. 그런 표현이 없고 단순히 마감일이 안 보이는 경우에는 false로 반환하세요.
@@ -137,7 +140,7 @@ public class JobApplicationUrlParseService {
             모집부문이 하나뿐이면 그 하나만(positionTitle과 동일한 값) 담으세요. 모집부문을
             하나도 특정할 수 없으면 빈 배열로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"positionTitles":[],"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"positionTitles":[],"source":null,"deadline":null,"deadlineTime":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     /**
@@ -203,7 +206,7 @@ public class JobApplicationUrlParseService {
     private static final ExtractedFields EMPTY_EXTRACTED_FIELDS =
             new ExtractedFields(
                     null, null, List.of(), null, null, null, null, null, null, null, null, null,
-                    null, null, null);
+                    null, null, null, null);
 
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
@@ -368,6 +371,10 @@ public class JobApplicationUrlParseService {
                 extracted = enrichFromBannerImage(extracted, document, uri);
             }
             LocalDate deadline = parseDate(extracted.deadline());
+            LocalTime deadlineTime = parseTime(extracted.deadlineTime());
+            if (deadlineTime == null) {
+                deadlineTime = parseTime(extracted.deadline());
+            }
             boolean alwaysOpen = deadline == null && Boolean.TRUE.equals(extracted.alwaysOpen());
             JobApplicationUrlParseResponse response =
                     new JobApplicationUrlParseResponse(
@@ -379,6 +386,7 @@ public class JobApplicationUrlParseService {
                                             extracted.positionTitle(), MAX_POSITION_TITLE_LENGTH)),
                             AiJsonSupport.blankToNull(extracted.source()),
                             deadline,
+                            deadlineTime,
                             alwaysOpen,
                             AiJsonSupport.blankToNull(extracted.salaryNote()),
                             AiJsonSupport.blankToNull(extracted.location()),
@@ -685,6 +693,7 @@ public class JobApplicationUrlParseService {
             deadlineText = extractRegexGroup(html, "마감일</span>.*?<span[^>]*>([^<]+)</span>");
         }
         LocalDate deadline = parseDate(deadlineText);
+        LocalTime deadlineTime = parseTime(deadlineText);
 
         String location =
                 extractRegexGroup(
@@ -725,6 +734,7 @@ public class JobApplicationUrlParseService {
                                 AiJsonSupport.limit(positionTitle, MAX_POSITION_TITLE_LENGTH)),
                         "잡코리아",
                         deadline,
+                        deadlineTime,
                         deadline == null && (html.contains("상시채용") || html.contains("채용시 마감")),
                         null,
                         AiJsonSupport.blankToNull(location),
@@ -869,6 +879,10 @@ public class JobApplicationUrlParseService {
         }
 
         LocalDate deadline = parseDate(extracted.deadline());
+        LocalTime deadlineTime = parseTime(extracted.deadlineTime());
+        if (deadlineTime == null) {
+            deadlineTime = parseTime(extracted.deadline());
+        }
         boolean alwaysOpen = deadline == null && Boolean.TRUE.equals(extracted.alwaysOpen());
         return new JobApplicationUrlParseResponse(
                 AiJsonSupport.blankToNull(
@@ -877,6 +891,7 @@ public class JobApplicationUrlParseService {
                         AiJsonSupport.limit(extracted.positionTitle(), MAX_POSITION_TITLE_LENGTH)),
                 AiJsonSupport.blankToNull(extracted.source()),
                 deadline,
+                deadlineTime,
                 alwaysOpen,
                 AiJsonSupport.blankToNull(extracted.salaryNote()),
                 AiJsonSupport.blankToNull(extracted.location()),
@@ -971,6 +986,7 @@ public class JobApplicationUrlParseService {
                         : fromImage.positionTitles(),
                 pick(base.source(), fromImage.source()),
                 pick(base.deadline(), fromImage.deadline()),
+                pick(base.deadlineTime(), fromImage.deadlineTime()),
                 base.alwaysOpen() != null ? base.alwaysOpen() : fromImage.alwaysOpen(),
                 pick(base.salaryNote(), fromImage.salaryNote()),
                 pick(base.location(), fromImage.location()),
@@ -999,6 +1015,7 @@ public class JobApplicationUrlParseService {
                 pick(jobkorea.positionTitle(), aiFallback.positionTitle()),
                 pick(jobkorea.source(), aiFallback.source()),
                 jobkorea.deadline() != null ? jobkorea.deadline() : aiFallback.deadline(),
+                jobkorea.deadlineTime() != null ? jobkorea.deadlineTime() : aiFallback.deadlineTime(),
                 jobkorea.alwaysOpen() || aiFallback.alwaysOpen(),
                 pick(jobkorea.salaryNote(), aiFallback.salaryNote()),
                 pick(jobkorea.location(), aiFallback.location()),
@@ -1315,12 +1332,38 @@ public class JobApplicationUrlParseService {
         return null;
     }
 
+    LocalTime parseTime(String value) {
+        if (!AiJsonSupport.hasText(value)) return null;
+        String trimmed = value.trim();
+        java.util.regex.Matcher m1 = java.util.regex.Pattern.compile("(\\d{1,2}):(\\d{2})(?::(\\d{2}))?").matcher(trimmed);
+        if (m1.find()) {
+            int h = Integer.parseInt(m1.group(1));
+            int m = Integer.parseInt(m1.group(2));
+            int s = m1.group(3) != null ? Integer.parseInt(m1.group(3)) : 0;
+            if (h == 24 && m == 0 && s == 0) return LocalTime.of(23, 59, 59);
+            if (h >= 0 && h < 24 && m >= 0 && m < 60 && s >= 0 && s < 60) {
+                return LocalTime.of(h, m, s);
+            }
+        }
+        java.util.regex.Matcher m2 = java.util.regex.Pattern.compile("(\\d{1,2})\\s*시(?:\\s*(\\d{1,2})\\s*분)?").matcher(trimmed);
+        if (m2.find()) {
+            int h = Integer.parseInt(m2.group(1));
+            int m = m2.group(2) != null ? Integer.parseInt(m2.group(2)) : 0;
+            if (h == 24 && m == 0) return LocalTime.of(23, 59, 59);
+            if (h >= 0 && h < 24 && m >= 0 && m < 60) {
+                return LocalTime.of(h, m, 0);
+            }
+        }
+        return null;
+    }
+
     private record ExtractedFields(
             @JsonDeserialize(using = LenientStringDeserializer.class) String companyName,
             @JsonDeserialize(using = LenientStringDeserializer.class) String positionTitle,
             @JsonDeserialize(using = LenientStringListDeserializer.class) List<String> positionTitles,
             @JsonDeserialize(using = LenientStringDeserializer.class) String source,
             @JsonDeserialize(using = LenientStringDeserializer.class) String deadline,
+            @JsonDeserialize(using = LenientStringDeserializer.class) String deadlineTime,
             Boolean alwaysOpen,
             @JsonDeserialize(using = LenientStringDeserializer.class) String salaryNote,
             @JsonDeserialize(using = LenientStringDeserializer.class) String location,

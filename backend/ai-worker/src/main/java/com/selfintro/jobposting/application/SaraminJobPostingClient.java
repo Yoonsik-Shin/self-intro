@@ -190,6 +190,12 @@ public class SaraminJobPostingClient {
                                 .atZone(SEOUL)
                                 .toLocalDate()
                         : null;
+        java.time.LocalTime deadlineTime =
+                job.expirationTimestamp() != null
+                        ? Instant.ofEpochSecond(job.expirationTimestamp())
+                                .atZone(SEOUL)
+                                .toLocalTime()
+                        : null;
         // 사람인은 상시채용 공고에도 별도 플래그 없이 만료 타임스탬프를 아예 내려주지 않는다.
         boolean alwaysOpen = deadline == null;
         String jobCodeName =
@@ -211,6 +217,7 @@ public class SaraminJobPostingClient {
                 location,
                 employmentType,
                 deadline,
+                deadlineTime,
                 alwaysOpen,
                 salaryNote,
                 null,
