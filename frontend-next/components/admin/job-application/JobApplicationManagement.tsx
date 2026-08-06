@@ -4232,15 +4232,21 @@ export function JobApplicationManagement() {
                                                                     onClick={() => openDrawer(item)}
                                                                     className={`cursor-pointer transition ${
                                                                         isDDay
-                                                                            ? `bg-rose-50/60 hover:bg-rose-100/80 text-slate-800 font-medium border-x-2 border-rose-500 border-t border-t-rose-200/60 ${
-                                                                                  isLastInGroup
-                                                                                      ? 'border-b-2 border-b-rose-500'
-                                                                                      : ''
-                                                                              }`
+                                                                            ? 'bg-rose-50/40 hover:bg-rose-100/60 text-slate-800 font-medium'
                                                                             : 'text-slate-600 hover:bg-slate-50'
                                                                     }`}
                                                                 >
-                                                                    <td className="min-w-48 px-5 py-3">
+                                                                    <td
+                                                                        className={`min-w-48 px-5 py-3 ${
+                                                                            isDDay
+                                                                                ? 'border-l-2 border-l-rose-300 border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <div className="flex items-center gap-1.5">
                                                                             <span className="font-bold text-slate-800">
                                                                                 {item.companyName}
@@ -4256,7 +4262,17 @@ export function JobApplicationManagement() {
                                                                             {item.positionTitle}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <td
+                                                                        className={`px-5 py-3 whitespace-nowrap ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <DeadlineDisplayPill
                                                                             deadline={item.deadline}
                                                                             deadlineTime={
@@ -4273,7 +4289,17 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         />
                                                                     </td>
-                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <td
+                                                                        className={`px-5 py-3 whitespace-nowrap ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <MatchScoreBadge
                                                                             score={item.matchScore}
                                                                             reason={
@@ -4281,7 +4307,17 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         />
                                                                     </td>
-                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <td
+                                                                        className={`px-5 py-3 whitespace-nowrap ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <JobplanetScoreBadge
                                                                             rating={
                                                                                 item.jobplanetRating
@@ -4294,12 +4330,32 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         />
                                                                     </td>
-                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <td
+                                                                        className={`px-5 py-3 whitespace-nowrap ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         {formatDateYYMMDD(
                                                                             item.appliedAt
                                                                         )}
                                                                     </td>
-                                                                    <td className="px-5 py-3">
+                                                                    <td
+                                                                        className={`px-5 py-3 ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <span
                                                                             className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[item.status as ApplicationStatus]}`}
                                                                         >
@@ -4310,7 +4366,17 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-5 py-3 text-right">
+                                                                    <td
+                                                                        className={`px-5 py-3 text-right ${
+                                                                            isDDay
+                                                                                ? 'border-r-2 border-r-rose-300 border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <div className="flex items-center justify-end gap-1.5 xl:gap-3">
                                                                             {item.status ===
                                                                             'DISMISSED' ? (
