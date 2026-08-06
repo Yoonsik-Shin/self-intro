@@ -34,7 +34,7 @@ public class ClaudeAiClient {
 
     public String generate(String systemPrompt, String userPrompt, String modelName) {
         if (!isConfigured()) {
-            throw new IllegalStateException("로컬 터미널/환경변수에 ANTHROPIC_API_KEY 가 설정되지 않았습니다.\n(export ANTHROPIC_API_KEY=\"sk-ant-api03-...\")");
+            throw new IllegalArgumentException("ANTHROPIC_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
         String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "claude-3-5-sonnet-20241022";

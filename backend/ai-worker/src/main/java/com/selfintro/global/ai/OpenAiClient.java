@@ -33,7 +33,7 @@ public class OpenAiClient {
 
     public String generate(String systemPrompt, String userPrompt, String modelName) {
         if (!isConfigured()) {
-            throw new IllegalStateException("로컬 터미널/환경변수에 OPENAI_API_KEY 가 설정되지 않았습니다.\n(export OPENAI_API_KEY=\"sk-proj-...\")");
+            throw new IllegalArgumentException("OPENAI_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
         String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "gpt-4o";
