@@ -91,6 +91,14 @@ services:
       - .env
     environment:
       - SPRING_PROFILES_ACTIVE=local
+      # 1차(관계형) 데이터소스 — api 모듈과 동일한 MySQL을 본다(application.yml의 MYSQL_DB_* 값).
+      # docker-compose에 이게 빠져있으면 조용히 H2 인메모리로 fallback돼 job_posting 등이 재시작마다
+      # 통째로 비워진다 — 실제로 이 문제였다(2026-08-07).
+      - MYSQL_DB_URL=jdbc:mysql://backend-db:3306/self_intro?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      - MYSQL_DB_USERNAME=self_intro_app
+      - MYSQL_DB_PASSWORD=password123
+      - MYSQL_DB_DRIVER=com.mysql.cj.jdbc.Driver
+      # 2차(벡터) 데이터소스 — 기존 그대로 H2/Oracle 모드 유지.
       - DB_URL=jdbc:h2:mem:workerdb;MODE=Oracle
       - DB_USERNAME=sa
       - DB_PASSWORD=
@@ -105,6 +113,8 @@ services:
     volumes:
       - backend_logs:/app/logs
     depends_on:
+      backend-db:
+        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
