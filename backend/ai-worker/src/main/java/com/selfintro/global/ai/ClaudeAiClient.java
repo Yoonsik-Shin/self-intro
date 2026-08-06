@@ -32,6 +32,16 @@ public class ClaudeAiClient {
         return apiKey != null && !apiKey.isBlank();
     }
 
+    /**
+     * Anthropic Messages API엔 OpenAI 스타일의 강제 JSON 응답 모드가 없어, 시스템 프롬프트에 JSON 전용 지시문을
+     * 덧붙이는 방식으로 흉내낸다. 파싱은 호출부(AiJsonSupport 등)의 관대한 파서가 처리한다.
+     */
+    public String generateJson(String systemPrompt, String userPrompt, String modelName) {
+        String jsonSystemPrompt = systemPrompt
+                + "\n\n반드시 JSON 객체 하나만 응답하세요. 설명 문장이나 ```json 같은 코드펜스 없이 순수 JSON만 출력하세요.";
+        return generate(jsonSystemPrompt, userPrompt, modelName);
+    }
+
     public String generate(String systemPrompt, String userPrompt, String modelName) {
         if (!isConfigured()) {
             throw new IllegalArgumentException("ANTHROPIC_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");

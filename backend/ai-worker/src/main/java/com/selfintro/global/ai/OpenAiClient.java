@@ -45,6 +45,18 @@ public class OpenAiClient {
     }
 
     public String generate(String systemPrompt, String userPrompt, String modelName) {
+        return generate(systemPrompt, userPrompt, modelName, false);
+    }
+
+    /**
+     * Chat Completions API의 네이티브 {@code response_format: json_object} 옵션을 켜서 구조화 JSON 응답을 강제한다.
+     * NVIDIA NIM 전용이었던 {@code generateJsonOnce}와 동등한 기능을 OpenAI 모델에도 제공한다.
+     */
+    public String generateJson(String systemPrompt, String userPrompt, String modelName) {
+        return generate(systemPrompt, userPrompt, modelName, true);
+    }
+
+    private String generate(String systemPrompt, String userPrompt, String modelName, boolean forceJsonResponse) {
         if (!isConfigured()) {
             throw new IllegalArgumentException("OPENAI_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
@@ -58,7 +70,8 @@ public class OpenAiClient {
                     List.of(
                             new OpenAiMessage("system", systemPrompt),
                             new OpenAiMessage("user", userPrompt)
-                    )
+                    ),
+                    forceJsonResponse ? new OpenAiResponseFormat("json_object") : null
             );
 
             String requestJson = objectMapper.writeValueAsString(body);
@@ -103,7 +116,13 @@ public class OpenAiClient {
 
     private record OpenAiMessage(String role, String content) {}
 
-    private record OpenAiRequest(String model, List<OpenAiMessage> messages) {}
+    private record OpenAiResponseFormat(String type) {}
+
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    private record OpenAiRequest(
+            String model,
+            List<OpenAiMessage> messages,
+            @com.fasterxml.jackson.annotation.JsonProperty("response_format") OpenAiResponseFormat responseFormat) {}
 
     private static class OpenAiResponse {
         public List<OpenAiChoice> choices;

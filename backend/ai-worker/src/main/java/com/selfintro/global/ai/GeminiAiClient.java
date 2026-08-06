@@ -45,6 +45,18 @@ public class GeminiAiClient {
     }
 
     public String generate(String systemPrompt, String userPrompt, String modelName) {
+        return generate(systemPrompt, userPrompt, modelName, false);
+    }
+
+    /**
+     * Gemini generateContent API의 네이티브 {@code generationConfig.responseMimeType=application/json} 옵션을 켜서
+     * 구조화 JSON 응답을 강제한다.
+     */
+    public String generateJson(String systemPrompt, String userPrompt, String modelName) {
+        return generate(systemPrompt, userPrompt, modelName, true);
+    }
+
+    private String generate(String systemPrompt, String userPrompt, String modelName, boolean forceJsonResponse) {
         if (!isConfigured()) {
             throw new IllegalArgumentException("GEMINI_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
@@ -56,7 +68,8 @@ public class GeminiAiClient {
             String combinedPrompt = systemPrompt + "\n\n" + userPrompt;
 
             GeminiRequest body = new GeminiRequest(
-                    List.of(new GeminiContent("user", List.of(new GeminiPart(combinedPrompt))))
+                    List.of(new GeminiContent("user", List.of(new GeminiPart(combinedPrompt)))),
+                    forceJsonResponse ? new GeminiGenerationConfig("application/json") : null
             );
 
             String requestJson = objectMapper.writeValueAsString(body);
@@ -107,7 +120,11 @@ public class GeminiAiClient {
 
     private record GeminiContent(String role, List<GeminiPart> parts) {}
 
-    private record GeminiRequest(List<GeminiContent> contents) {}
+    private record GeminiGenerationConfig(
+            @com.fasterxml.jackson.annotation.JsonProperty("responseMimeType") String responseMimeType) {}
+
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    private record GeminiRequest(List<GeminiContent> contents, GeminiGenerationConfig generationConfig) {}
 
     private static class GeminiResponse {
         public List<GeminiCandidate> candidates;
