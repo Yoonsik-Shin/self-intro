@@ -36,7 +36,7 @@ public class OpenAiClient {
             throw new IllegalArgumentException("OPENAI_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
-        String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "gpt-4o";
+        String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "gpt-5.4-mini";
 
         try {
             OpenAiRequest body = new OpenAiRequest(

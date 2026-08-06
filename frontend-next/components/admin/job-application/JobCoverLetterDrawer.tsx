@@ -36,21 +36,21 @@ interface JobCoverLetterDrawerProps {
 const AI_MODEL_OPTIONS = [
     {
         id: 'CLAUDE_3_5_SONNET',
-        name: 'Claude 3.5 Sonnet',
+        name: 'Claude Sonnet 5',
         badge: '자소서 1위 🥇',
-        price: '회당 ~35원',
+        price: '1M 토큰당 $2/$10',
     },
     {
-        id: 'CLAUDE_3_7_SONNET',
-        name: 'Claude 3.7 Sonnet',
-        badge: '최신 최정상 🚀',
-        price: '회당 ~35원',
+        id: 'GEMINI_3_1_FLASH_LITE',
+        name: 'Gemini 3.1 Flash-Lite',
+        badge: '가성비 추천 💰',
+        price: '1M 토큰당 $0.25/$1.50',
     },
     {
-        id: 'GEMINI_2_FLASH',
-        name: 'Gemini 2.0 Flash',
-        badge: '무료 ⚡ (속도 1위)',
-        price: '$0 (무료 API)',
+        id: 'GEMINI_3_6_FLASH',
+        name: 'Gemini 3.6 Flash',
+        badge: '고성능 ⚡',
+        price: '1M 토큰당 $1.50/$7.50',
     },
     {
         id: 'NVIDIA_NIM',
@@ -59,16 +59,16 @@ const AI_MODEL_OPTIONS = [
         price: '$0 (기본 내장)',
     },
     {
-        id: 'O3_MINI',
-        name: 'OpenAI o3-mini',
-        badge: '최신 추론 🧠',
-        price: '회당 ~20원',
+        id: 'GPT_5_4_NANO',
+        name: 'GPT-5.4 Nano',
+        badge: '초저가 💰',
+        price: '1M 토큰당 $0.20/$1.25',
     },
     {
-        id: 'GPT_4O',
-        name: 'GPT-4o',
-        badge: '플래그십 🏆',
-        price: '회당 ~40원',
+        id: 'GPT_5_4_MINI',
+        name: 'GPT-5.4 Mini',
+        badge: '균형 ⚖️',
+        price: '1M 토큰당 $0.75/$4.50',
     },
     {
         id: 'CUSTOM',
@@ -377,7 +377,7 @@ export function JobCoverLetterDrawer({
                                     type="text"
                                     value={customModelInput}
                                     onChange={(e) => setCustomModelInput(e.target.value)}
-                                    placeholder="공식 API 모델명 입력 (예: claude-3-7-sonnet-latest, gpt-4o)"
+                                    placeholder="공식 API 모델명 입력 (예: claude-sonnet-5, gpt-5.4-mini)"
                                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
                                 />
                             )}

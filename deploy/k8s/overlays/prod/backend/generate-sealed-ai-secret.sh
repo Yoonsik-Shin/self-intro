@@ -22,6 +22,19 @@ ANTHROPIC_KEY="${ANTHROPIC_API_KEY:-}"
 GEMINI_KEY="${GEMINI_API_KEY:-}"
 OPENAI_KEY="${OPENAI_API_KEY:-}"
 
+MISSING=""
+[ -z "$ANTHROPIC_KEY" ] && MISSING="${MISSING} ANTHROPIC_API_KEY"
+[ -z "$GEMINI_KEY" ] && MISSING="${MISSING} GEMINI_API_KEY"
+[ -z "$OPENAI_KEY" ] && MISSING="${MISSING} OPENAI_API_KEY"
+[ -z "$KAKAO_KEY" ] && MISSING="${MISSING} KAKAO_REST_API_KEY"
+[ -z "$NVIDIA_KEY" ] && MISSING="${MISSING} NVIDIA_API_KEY"
+
+if [ -n "$MISSING" ]; then
+    echo "❌ 값이 비어 있습니다:${MISSING}"
+    echo "   export 후 같은 셸에서 이 스크립트를 실행하세요."
+    exit 1
+fi
+
 kubectl create secret generic ${SECRET_NAME} \
   --namespace=${NAMESPACE} \
   --from-literal=NVIDIA_API_KEY="${NVIDIA_KEY}" \

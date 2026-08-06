@@ -37,7 +37,7 @@ public class ClaudeAiClient {
             throw new IllegalArgumentException("ANTHROPIC_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
-        String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "claude-3-5-sonnet-20241022";
+        String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "claude-sonnet-5";
 
         try {
             ClaudeRequest body = new ClaudeRequest(

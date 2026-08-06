@@ -87,11 +87,13 @@ public class CoverLetterDraftAiService {
     private String resolveAiModelLabel(String aiModel, String customModelName) {
         if (aiModel == null || aiModel.isBlank()) return "Nvidia NIM";
         return switch (aiModel.toUpperCase()) {
-            case "CLAUDE_3_5_SONNET", "CLAUDE" -> "Claude 3.5 Sonnet";
-            case "CLAUDE_3_7_SONNET" -> "Claude 3.7 Sonnet";
-            case "GEMINI_2_FLASH", "GEMINI" -> "Gemini 2.0 Flash";
+            case "CLAUDE_3_5_SONNET", "CLAUDE_3_7_SONNET", "CLAUDE" -> "Claude Sonnet 5";
+            case "GEMINI_2_FLASH" -> "Gemini 2.0 Flash";
+            case "GEMINI_3_6_FLASH" -> "Gemini 3.6 Flash";
+            case "GEMINI_3_1_FLASH_LITE", "GEMINI" -> "Gemini 3.1 Flash-Lite";
             case "O3_MINI" -> "OpenAI o3-mini";
-            case "GPT_4O", "GPT" -> "GPT-4o";
+            case "GPT_5_4_NANO" -> "GPT-5.4 Nano";
+            case "GPT_5_4_MINI", "GPT_4O", "GPT" -> "GPT-5.4 Mini";
             case "CUSTOM" -> (customModelName != null && !customModelName.isBlank()) ? customModelName : "Custom LLM";
             default -> "Nvidia NIM";
         };
@@ -101,11 +103,12 @@ public class CoverLetterDraftAiService {
         String modelKey = request.aiModel() != null ? request.aiModel().toUpperCase() : "NVIDIA_NIM";
 
         return switch (modelKey) {
-            case "CLAUDE_3_5_SONNET", "CLAUDE" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-3-5-sonnet-20241022");
-            case "CLAUDE_3_7_SONNET" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-3-7-sonnet-latest");
-            case "GEMINI_2_FLASH", "GEMINI" -> geminiAiClient.generate(systemPrompt, userPrompt, "gemini-2.0-flash");
-            case "O3_MINI" -> openAiClient.generate(systemPrompt, userPrompt, "o3-mini");
-            case "GPT_4O", "GPT" -> openAiClient.generate(systemPrompt, userPrompt, "gpt-4o");
+            case "CLAUDE_3_5_SONNET", "CLAUDE" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-sonnet-5");
+            case "CLAUDE_3_7_SONNET" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-sonnet-5");
+            case "GEMINI_3_6_FLASH" -> geminiAiClient.generate(systemPrompt, userPrompt, "gemini-3.6-flash");
+            case "GEMINI_3_1_FLASH_LITE", "GEMINI" -> geminiAiClient.generate(systemPrompt, userPrompt, "gemini-3.1-flash-lite");
+            case "GPT_5_4_NANO" -> openAiClient.generate(systemPrompt, userPrompt, "gpt-5.4-nano");
+            case "GPT_5_4_MINI", "GPT_4O", "GPT" -> openAiClient.generate(systemPrompt, userPrompt, "gpt-5.4-mini");
             case "CUSTOM" -> {
                 String customName = request.customModelName();
                 if (!AiJsonSupport.hasText(customName)) {
