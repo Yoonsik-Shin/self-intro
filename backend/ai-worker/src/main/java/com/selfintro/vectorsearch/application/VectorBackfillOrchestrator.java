@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 기존 Experience/Study 전체를 Oracle 26ai 벡터 인덱스로 백필한다. 관리자가 벡터 스택을 처음 붙이거나
@@ -29,6 +30,7 @@ public class VectorBackfillOrchestrator {
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
 
     @Async
+    @Transactional(readOnly = true)
     public void backfillAll() {
         int experienceChunks = 0;
         int experienceCount = 0;
