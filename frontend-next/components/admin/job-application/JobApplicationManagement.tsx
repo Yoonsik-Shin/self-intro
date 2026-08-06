@@ -2258,9 +2258,6 @@ export function JobApplicationManagement() {
         'ALL'
     );
     const [applicationDeadlineSoonOnly, setApplicationDeadlineSoonOnly] = useState(false);
-    const [applicationSubTab, setApplicationSubTab] = useState<
-        'ALL' | 'HAS_DEADLINE' | 'ALWAYS_OPEN_OR_NO_DEADLINE' | 'EXPIRED'
-    >('ALL');
     const [stageDraft, setStageDraft] = useState<ApplicationStatus | null>(null);
     const [stageMemo, setStageMemo] = useState('');
     const [dragOverStage, setDragOverStage] = useState<ApplicationStatus | null>(null);
@@ -3039,54 +3036,35 @@ export function JobApplicationManagement() {
     const rawListApplications = useMemo(() => {
         return filteredApplications.filter((item) => {
             if (item.status === 'DISMISSED' && !showDismissed) return false;
-            if (applicationStageFilter !== 'ALL' && applicationStageFilter !== item.status)
-                return false;
             if (applicationDeadlineSoonOnly && !isDeadlineSoon(item.deadline)) return false;
             return true;
         });
-    }, [filteredApplications, applicationStageFilter, applicationDeadlineSoonOnly, showDismissed]);
+    }, [filteredApplications, applicationDeadlineSoonOnly, showDismissed]);
 
-    const applicationSubTabCounts = useMemo(() => {
-        let all = 0;
-        let hasDeadline = 0;
-        let noDeadline = 0;
-        let expired = 0;
-
+    const applicationStageCounts = useMemo(() => {
+        const counts: Record<string, number> = {
+            ALL: rawListApplications.length,
+        };
+        STAGE_ORDER.forEach((stage) => {
+            counts[stage] = 0;
+        });
         for (const item of rawListApplications) {
-            all++;
-            const dDay = dDayLabel(item.deadline, item.deadlineTime);
-            if (dDay === '마감') {
-                expired++;
-            } else if (item.alwaysOpen || !item.deadline) {
-                noDeadline++;
-            } else {
-                hasDeadline++;
+            if (item.status in counts) {
+                counts[item.status] = (counts[item.status] || 0) + 1;
             }
         }
-        return {
-            ALL: all,
-            HAS_DEADLINE: hasDeadline,
-            ALWAYS_OPEN_OR_NO_DEADLINE: noDeadline,
-            EXPIRED: expired,
-        };
+        return counts;
     }, [rawListApplications]);
 
     const listApplications = useMemo(() => {
         const filtered = rawListApplications.filter((item) => {
-            const dDay = dDayLabel(item.deadline, item.deadlineTime);
-            if (applicationSubTab === 'HAS_DEADLINE') {
-                return !item.alwaysOpen && Boolean(item.deadline) && dDay !== '마감';
-            }
-            if (applicationSubTab === 'ALWAYS_OPEN_OR_NO_DEADLINE') {
-                return (item.alwaysOpen || !item.deadline) && dDay !== '마감';
-            }
-            if (applicationSubTab === 'EXPIRED') {
-                return dDay === '마감';
+            if (applicationStageFilter !== 'ALL' && item.status !== applicationStageFilter) {
+                return false;
             }
             return true;
         });
         return sortByDeadlineAsc(filtered);
-    }, [rawListApplications, applicationSubTab]);
+    }, [rawListApplications, applicationStageFilter]);
 
     const isCandidateFilterActive =
         candidateStatusFilter !== 'ALL' ||
@@ -3102,16 +3080,12 @@ export function JobApplicationManagement() {
     }
 
     const isApplicationFilterActive =
-        applicationStageFilter !== 'ALL' ||
-        applicationDeadlineSoonOnly ||
-        showDismissed ||
-        applicationSubTab !== 'ALL';
+        applicationStageFilter !== 'ALL' || applicationDeadlineSoonOnly || showDismissed;
 
     function resetApplicationFilters() {
         setApplicationStageFilter('ALL');
         setApplicationDeadlineSoonOnly(false);
         setShowDismissed(false);
-        setApplicationSubTab('ALL');
     }
 
     const byStage = useMemo(() => {
@@ -3442,8 +3416,8 @@ export function JobApplicationManagement() {
                         <div className="flex items-center gap-5 pt-4">
                             {(
                                 [
-                                    ['CANDIDATES', '수집함', listCandidates.length],
-                                    ['APPLICATIONS', '지원 현황', listApplications.length],
+                                    ['CANDIDATES', '수집함', rawListCandidates.length],
+                                    ['APPLICATIONS', '지원 현황', rawListApplications.length],
                                 ] as const
                             ).map(([value, label, count]) => (
                                 <button
@@ -3516,22 +3490,6 @@ export function JobApplicationManagement() {
                                 </>
                             ) : (
                                 <>
-                                    <select
-                                        value={applicationStageFilter}
-                                        onChange={(e) =>
-                                            setApplicationStageFilter(
-                                                e.target.value as 'ALL' | ApplicationStatus
-                                            )
-                                        }
-                                        className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 focus:border-slate-400 focus:outline-none"
-                                    >
-                                        <option value="ALL">전체 상태</option>
-                                        {STAGE_ORDER.map((stage) => (
-                                            <option key={stage} value={stage}>
-                                                {STAGE_LABELS[stage]}
-                                            </option>
-                                        ))}
-                                    </select>
                                     <label className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-500 cursor-pointer">
                                         <input
                                             type="checkbox"
@@ -3609,26 +3567,24 @@ export function JobApplicationManagement() {
                               ))
                             : (
                                   [
-                                      ['ALL', '전체', applicationSubTabCounts.ALL],
-                                      [
-                                          'HAS_DEADLINE',
-                                          '마감일O',
-                                          applicationSubTabCounts.HAS_DEADLINE,
-                                      ],
-                                      [
-                                          'ALWAYS_OPEN_OR_NO_DEADLINE',
-                                          '상시채용+마감일X',
-                                          applicationSubTabCounts.ALWAYS_OPEN_OR_NO_DEADLINE,
-                                      ],
-                                      ['EXPIRED', '마감된 공고', applicationSubTabCounts.EXPIRED],
+                                      ['ALL', '전체', applicationStageCounts.ALL],
+                                      ...STAGE_ORDER.map((stage) => [
+                                          stage,
+                                          STAGE_LABELS[stage],
+                                          applicationStageCounts[stage] ?? 0,
+                                      ]),
                                   ] as const
                               ).map(([key, label, count]) => (
                                   <button
                                       key={key}
                                       type="button"
-                                      onClick={() => setApplicationSubTab(key)}
+                                      onClick={() =>
+                                          setApplicationStageFilter(
+                                              key as 'ALL' | ApplicationStatus
+                                          )
+                                      }
                                       className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition whitespace-nowrap ${
-                                          applicationSubTab === key
+                                          applicationStageFilter === key
                                               ? 'bg-slate-900 text-white shadow-2xs'
                                               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
                                       }`}
@@ -3636,7 +3592,7 @@ export function JobApplicationManagement() {
                                       {label}
                                       <span
                                           className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
-                                              applicationSubTab === key
+                                              applicationStageFilter === key
                                                   ? 'bg-slate-800 text-slate-200'
                                                   : 'bg-slate-100 text-slate-500'
                                           }`}
