@@ -66,6 +66,9 @@ app:
   ai:
     base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
     api-key: ${NVIDIA_API_KEY:dummy-key-for-local-dev}
+    anthropic-api-key: ${ANTHROPIC_API_KEY:}
+    gemini-api-key: ${GEMINI_API_KEY:}
+    openai-api-key: ${OPENAI_API_KEY:}
     model: ${NVIDIA_MODEL:nvidia/nemotron-3-super-120b-a12b}
     vision-model: ${NVIDIA_VISION_MODEL:meta/llama-3.2-11b-vision-instruct}
     max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:8192}

@@ -600,6 +600,8 @@ export type JobPostingCoverLetterDraftRequest = {
     currentDraft?: string | null;
     feedbackInstruction?: string | null;
     coverLetterItemId?: number | null;
+    aiModel?: string | null;
+    customModelName?: string | null;
 };
 
 export type JobPostingCoverLetterDraftResponse = {

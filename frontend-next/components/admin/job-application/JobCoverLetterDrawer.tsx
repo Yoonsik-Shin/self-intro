@@ -8,6 +8,7 @@ import {
     Check,
     ChevronLeft,
     Copy,
+    Cpu,
     FileText,
     Loader2,
     MessageSquare,
@@ -32,6 +33,51 @@ interface JobCoverLetterDrawerProps {
     onSaveAnswer: (itemId: number, newAnswer: string) => Promise<void>;
 }
 
+const AI_MODEL_OPTIONS = [
+    {
+        id: 'CLAUDE_3_5_SONNET',
+        name: 'Claude 3.5 Sonnet',
+        badge: '자소서 1위 🥇',
+        price: '회당 ~35원',
+    },
+    {
+        id: 'CLAUDE_3_7_SONNET',
+        name: 'Claude 3.7 Sonnet',
+        badge: '최신 최정상 🚀',
+        price: '회당 ~35원',
+    },
+    {
+        id: 'GEMINI_2_FLASH',
+        name: 'Gemini 2.0 Flash',
+        badge: '무료 ⚡ (속도 1위)',
+        price: '$0 (무료 API)',
+    },
+    {
+        id: 'NVIDIA_NIM',
+        name: 'Nvidia NIM (Llama 3.3)',
+        badge: '무료 🟢',
+        price: '$0 (기본 내장)',
+    },
+    {
+        id: 'O3_MINI',
+        name: 'OpenAI o3-mini',
+        badge: '최신 추론 🧠',
+        price: '회당 ~20원',
+    },
+    {
+        id: 'GPT_4O',
+        name: 'GPT-4o',
+        badge: '플래그십 🏆',
+        price: '회당 ~40원',
+    },
+    {
+        id: 'CUSTOM',
+        name: '직접 모델명 입력',
+        badge: '커스텀 ⚙️',
+        price: 'API 지정',
+    },
+];
+
 export function JobCoverLetterDrawer({
     isOpen,
     onClose,
@@ -49,6 +95,8 @@ export function JobCoverLetterDrawer({
     const [feedbackInput, setFeedbackInput] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedAiModel, setSelectedAiModel] = useState<string>('CLAUDE_3_5_SONNET');
+    const [customModelInput, setCustomModelInput] = useState<string>('');
     const chatBottomRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -120,6 +168,9 @@ export function JobCoverLetterDrawer({
                     currentDraft: answerText || undefined,
                     feedbackInstruction: feedbackInstruction?.trim() || undefined,
                     coverLetterItemId: item.id,
+                    aiModel: selectedAiModel,
+                    customModelName:
+                        selectedAiModel === 'CUSTOM' ? customModelInput.trim() : undefined,
                 },
                 { signal: controller.signal }
             );
@@ -261,7 +312,7 @@ export function JobCoverLetterDrawer({
                     {/* Right Column: AI Chat & Feedback Timeline (5 Columns) */}
                     <div className="col-span-12 lg:col-span-5 flex flex-col h-full overflow-hidden bg-white">
                         {/* Chat Header */}
-                        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 bg-indigo-50/50 shrink-0">
+                        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 bg-indigo-50/50 shrink-0">
                             <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="rounded-xl bg-indigo-600 p-2 text-white shrink-0 shadow-xs">
                                     <Sparkles className="h-4 w-4" />
@@ -298,6 +349,38 @@ export function JobCoverLetterDrawer({
                                     </>
                                 )}
                             </button>
+                        </div>
+
+                        {/* Model Selector Bar */}
+                        <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100/70 px-4 py-2.5 shrink-0">
+                            <div className="flex items-center justify-between gap-2">
+                                <label className="text-[11px] font-extrabold text-slate-700 whitespace-nowrap flex items-center gap-1">
+                                    <Cpu className="h-3.5 w-3.5 text-indigo-600" />
+                                    AI 생성 모델:
+                                </label>
+                                <div className="flex items-center gap-2 flex-1 max-w-[280px]">
+                                    <select
+                                        value={selectedAiModel}
+                                        onChange={(e) => setSelectedAiModel(e.target.value)}
+                                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-800 focus:border-indigo-500 focus:outline-none shadow-2xs"
+                                    >
+                                        {AI_MODEL_OPTIONS.map((opt) => (
+                                            <option key={opt.id} value={opt.id}>
+                                                {opt.name} ({opt.badge} · {opt.price})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            {selectedAiModel === 'CUSTOM' && (
+                                <input
+                                    type="text"
+                                    value={customModelInput}
+                                    onChange={(e) => setCustomModelInput(e.target.value)}
+                                    placeholder="공식 API 모델명 입력 (예: claude-3-7-sonnet-latest, gpt-4o)"
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
+                                />
+                            )}
                         </div>
 
                         {/* Chat Messages Timeline */}

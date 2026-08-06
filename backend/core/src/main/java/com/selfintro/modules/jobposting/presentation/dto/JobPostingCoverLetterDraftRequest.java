@@ -7,5 +7,7 @@ public record JobPostingCoverLetterDraftRequest(
         Integer characterLimit,
         String currentDraft,
         String feedbackInstruction,
-        Long coverLetterItemId
+        Long coverLetterItemId,
+        String aiModel,
+        String customModelName
 ) {}

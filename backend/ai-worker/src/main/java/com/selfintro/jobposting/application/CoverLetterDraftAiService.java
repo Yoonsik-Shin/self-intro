@@ -2,7 +2,10 @@ package com.selfintro.jobposting.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.CareerProfileDigestBuilder;
+import com.selfintro.global.ai.ClaudeAiClient;
+import com.selfintro.global.ai.GeminiAiClient;
 import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.global.ai.OpenAiClient;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterRevision;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
@@ -44,6 +47,9 @@ public class CoverLetterDraftAiService {
     private final JobPostingRepository jobPostingRepository;
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
     private final NvidiaNimClient nvidiaNimClient;
+    private final ClaudeAiClient claudeAiClient;
+    private final GeminiAiClient geminiAiClient;
+    private final OpenAiClient openAiClient;
     private final JobPostingCoverLetterRevisionRepository revisionRepository;
 
     @Transactional
@@ -56,7 +62,7 @@ public class CoverLetterDraftAiService {
         String systemPrompt = hasFeedback ? REVISION_SYSTEM_PROMPT : DRAFT_SYSTEM_PROMPT;
         String userPrompt = buildUserPrompt(posting, profileDigest, request);
 
-        String rawDraft = nvidiaNimClient.generate(systemPrompt, userPrompt);
+        String rawDraft = generateByModel(request, systemPrompt, userPrompt);
         String draftAnswer = rawDraft.replace("\\n", "\n").trim();
 
         // 히스토리 저장 (coverLetterItemId가 존재하는 경우)
@@ -75,6 +81,32 @@ public class CoverLetterDraftAiService {
                 draftAnswer,
                 request.characterLimit()
         );
+    }
+
+    private String generateByModel(JobPostingCoverLetterDraftRequest request, String systemPrompt, String userPrompt) {
+        String modelKey = request.aiModel() != null ? request.aiModel().toUpperCase() : "NVIDIA_NIM";
+
+        return switch (modelKey) {
+            case "CLAUDE_3_5_SONNET", "CLAUDE" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-3-5-sonnet-20241022");
+            case "CLAUDE_3_7_SONNET" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-3-7-sonnet-latest");
+            case "GEMINI_2_FLASH", "GEMINI" -> geminiAiClient.generate(systemPrompt, userPrompt, "gemini-2.0-flash");
+            case "O3_MINI" -> openAiClient.generate(systemPrompt, userPrompt, "o3-mini");
+            case "GPT_4O", "GPT" -> openAiClient.generate(systemPrompt, userPrompt, "gpt-4o");
+            case "CUSTOM" -> {
+                String customName = request.customModelName();
+                if (!AiJsonSupport.hasText(customName)) {
+                    throw new IllegalArgumentException("커스텀 모델명을 입력해 주세요.");
+                }
+                if (customName.startsWith("claude")) {
+                    yield claudeAiClient.generate(systemPrompt, userPrompt, customName);
+                } else if (customName.startsWith("gemini")) {
+                    yield geminiAiClient.generate(systemPrompt, userPrompt, customName);
+                } else {
+                    yield openAiClient.generate(systemPrompt, userPrompt, customName);
+                }
+            }
+            default -> nvidiaNimClient.generate(systemPrompt, userPrompt);
+        };
     }
 
     private String buildUserPrompt(
