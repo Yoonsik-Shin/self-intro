@@ -54,6 +54,7 @@ export function JobCoverLetterDrawer({
     const [isSaving, setIsSaving] = useState(false);
     const globalAiModel = useAiModelStore((state) => state.modelKey);
     const globalCustomModelName = useAiModelStore((state) => state.customModelName);
+    const setSuppressFloatingWidget = useAiModelStore((state) => state.setSuppressFloatingWidget);
     // 대시보드 헤더에서 고른 전역 기본값으로 초기화하되, 이 드로어 안에서 바꿔도 전역 값은 그대로 둔다.
     const [selectedAiModel, setSelectedAiModel] = useState<string>(globalAiModel);
     const [customModelInput, setCustomModelInput] = useState<string>(globalCustomModelName);
@@ -95,6 +96,13 @@ export function JobCoverLetterDrawer({
             scrollToBottom();
         }
     }, [revisions, scrollToBottom]);
+
+    // 이 드로어는 자체 모델 선택 드롭다운을 갖고 있어, 열려 있는 동안 전역 플로팅 위젯까지
+    // 겹쳐 보이면 어느 쪽이 우선인지 헷갈린다 — 열려 있는 동안 위젯을 숨긴다.
+    useEffect(() => {
+        setSuppressFloatingWidget(isOpen);
+        return () => setSuppressFloatingWidget(false);
+    }, [isOpen, setSuppressFloatingWidget]);
 
     if (!isOpen || !item || !mounted) return null;
 
