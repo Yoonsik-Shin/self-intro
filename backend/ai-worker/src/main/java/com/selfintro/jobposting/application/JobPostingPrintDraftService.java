@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.selfintro.bff.application.BffService;
 import com.selfintro.bff.presentation.dto.IntroductionResponse;
 import com.selfintro.global.ai.AiJsonSupport;
-import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
@@ -23,6 +23,9 @@ import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.profile.presentation.dto.ProfileResponse;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService.RelevantMatches;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Duration;
@@ -35,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -50,6 +54,7 @@ public class JobPostingPrintDraftService {
     private static final Duration AI_TIMEOUT = Duration.ofSeconds(90);
     private static final long STREAM_TIMEOUT_MILLIS = 360_000L;
     private static final int AI_MAX_OUTPUT_TOKENS = 8192;
+    private static final int PROJECT_RELEVANCE_TOP_K = 15;
     private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d+(?:[.,]\\d+)?%?");
     private static final String SECTION_ORDER =
             "[\"skills\",\"competencies\",\"career\",\"projects\",\"credentials\",\"cover-letter\"]";
@@ -92,7 +97,8 @@ public class JobPostingPrintDraftService {
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
     private final JobPostingSourceImageRepository sourceImageRepository;
     private final BffService bffService;
-    private final NvidiaNimClient nvidiaNimClient;
+    private final RelevantProfileDigestService relevantProfileDigestService;
+    private final LlmDispatcher llmDispatcher;
     private final PrintTemplateService printTemplateService;
     private final ObjectMapper objectMapper;
 
@@ -101,17 +107,17 @@ public class JobPostingPrintDraftService {
      * 헤더가 즉시 나가므로 AI 호출이 90초를 넘겨도 요청이 끊기지 않는다(VectorBackfillOrchestrator와
      * 동일한 문제, JobApplicationUrlParseService.parseStream과 동일한 해법).
      */
-    public SseEmitter generateStream(Long jobPostingId) {
+    public SseEmitter generateStream(Long jobPostingId, String aiModel, String customModelName) {
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-print-draft-stream")
-                .start(() -> streamGenerate(jobPostingId, emitter));
+                .start(() -> streamGenerate(jobPostingId, aiModel, customModelName, emitter));
         return emitter;
     }
 
-    private void streamGenerate(Long jobPostingId, SseEmitter emitter) {
+    private void streamGenerate(Long jobPostingId, String aiModel, String customModelName, SseEmitter emitter) {
         try {
-            JobPostingPrintDraftResponse response = generate(jobPostingId);
+            JobPostingPrintDraftResponse response = generate(jobPostingId, aiModel, customModelName);
             send(emitter, new CompleteEvent("complete", response));
             emitter.complete();
         } catch (ResponseStatusException exception) {
@@ -147,7 +153,7 @@ public class JobPostingPrintDraftService {
 
     private record ErrorEvent(String type, String message) {}
 
-    public JobPostingPrintDraftResponse generate(Long jobPostingId) {
+    public JobPostingPrintDraftResponse generate(Long jobPostingId, String aiModel, String customModelName) {
         JobPosting postingEntity =
                 jobPostingRepository
                         .findById(jobPostingId)
@@ -165,13 +171,14 @@ public class JobPostingPrintDraftService {
                         sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(
                                 postingEntity.getId()));
         IntroductionResponse introduction = bffService.getIntroduction();
-        String input = serializeInput(posting, introduction);
+        List<ExperienceResponse> relevantExperiences = filterRelevantExperiences(posting, introduction);
+        String input = serializeInput(posting, introduction, relevantExperiences);
         String raw =
-                nvidiaNimClient.generateJsonOnce(
-                        SYSTEM_PROMPT, input, AI_MAX_OUTPUT_TOKENS, AI_TIMEOUT);
+                llmDispatcher.generateJson(
+                        SYSTEM_PROMPT, input, aiModel, customModelName, AI_MAX_OUTPUT_TOKENS, AI_TIMEOUT);
         JsonNode plan = parseJson(raw);
 
-        DraftArtifacts artifacts = assemble(plan, introduction);
+        DraftArtifacts artifacts = assemble(plan, introduction, relevantExperiences);
         String metadata = writeJson(buildMetadata(plan, artifacts));
         PrintTemplate template =
                 printTemplateService.createAiDraft(
@@ -196,21 +203,52 @@ public class JobPostingPrintDraftService {
                 strings(plan.path("warnings")));
     }
 
-    private String serializeInput(JobPostingResponse posting, IntroductionResponse introduction) {
+    private String serializeInput(
+            JobPostingResponse posting, IntroductionResponse introduction, List<ExperienceResponse> experiences) {
         ObjectNode input = objectMapper.createObjectNode();
         input.set("jobPosting", objectMapper.valueToTree(posting));
         input.set("profile", objectMapper.valueToTree(introduction.profile()));
         input.set("skills", objectMapper.valueToTree(introduction.skills()));
-        input.set("experiences", objectMapper.valueToTree(introduction.experiences()));
+        input.set("experiences", objectMapper.valueToTree(experiences));
         input.set("coreProjects", objectMapper.valueToTree(introduction.coreProjects()));
         input.set("competencies", objectMapper.valueToTree(introduction.competencies()));
         return writeJson(input);
     }
 
-    private DraftArtifacts assemble(JsonNode plan, IntroductionResponse intro) {
+    /**
+     * 프로필 전체(경력/프로젝트)를 통째로 넣는 대신, 채용공고 요건과 하이브리드 검색으로 관련도 높은 프로젝트만 AI 선택 후보로 좁힌다. 회사 경력
+     * 레코드 자체(type != PROJECT)와 고정 노출 대상인 core project는 관련도와 무관하게 항상 후보에 남긴다 — AI가 실제로 제거하는 건
+     * 프로젝트/세부 성과뿐이라는 시스템 프롬프트 규칙과 같은 맥락이다. 벡터 인덱스가 비어 있으면 필터링 없이 전체를 그대로 넘긴다.
+     */
+    private List<ExperienceResponse> filterRelevantExperiences(
+            JobPostingResponse posting, IntroductionResponse intro) {
+        String queryText = JobPostingRetrievalQueryText.build(
+                posting.positionTitle(), posting.jobDescription(), posting.requiredQualifications(), posting.preferredQualifications());
+        RelevantMatches matches = relevantProfileDigestService.search(queryText, new TopK(PROJECT_RELEVANCE_TOP_K, 0));
+        if (matches.isEmpty()) {
+            return intro.experiences();
+        }
+
+        Set<Long> relevantIds =
+                matches.experiences().stream()
+                        .map(match -> match.item().getExperienceId())
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Long> coreProjectIds = new HashSet<>();
+        intro.coreProjects().forEach(project -> coreProjectIds.add(project.id()));
+
+        return intro.experiences().stream()
+                .filter(
+                        experience ->
+                                !"PROJECT".equals(experience.type())
+                                        || relevantIds.contains(experience.id())
+                                        || coreProjectIds.contains(experience.id()))
+                .toList();
+    }
+
+    private DraftArtifacts assemble(JsonNode plan, IntroductionResponse intro, List<ExperienceResponse> experiencesToConsider) {
         Map<Long, ExperienceResponse> experiences = new HashMap<>();
         Map<Long, ExperienceDetailResponse> details = new HashMap<>();
-        for (ExperienceResponse experience : intro.experiences()) {
+        for (ExperienceResponse experience : experiencesToConsider) {
             experiences.put(experience.id(), experience);
             for (ExperienceDetailResponse detail : experience.details()) {
                 if (detail.visible()) details.put(detail.id(), detail);
@@ -218,7 +256,7 @@ public class JobPostingPrintDraftService {
         }
 
         Set<Long> projectIds = new LinkedHashSet<>();
-        intro.experiences().stream()
+        experiencesToConsider.stream()
                 .filter(experience -> "PROJECT".equals(experience.type()))
                 .forEach(experience -> projectIds.add(experience.id()));
         Set<Long> coreProjectIds = new HashSet<>();
