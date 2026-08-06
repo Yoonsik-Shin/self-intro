@@ -10,6 +10,7 @@ import type {
     JobPostingCoverLetterDraftResponse,
     JobPostingCoverLetterItem,
     JobPostingCoverLetterItemRequest,
+    JobPostingCoverLetterRevision,
     JobPostingCollectionResult,
     JobPostingIngestStreamEvent,
     JobPostingPrintDraftResponse,
@@ -27,6 +28,10 @@ export const jobPostingApi = {
     get: (id: number) => request<JobPosting>(`/api/admin/job-postings/${id}`),
     coverLetterItems: (id: number) =>
         request<JobPostingCoverLetterItem[]>(`/api/admin/job-postings/${id}/cover-letter-items`),
+    coverLetterRevisions: (itemId: number) =>
+        request<JobPostingCoverLetterRevision[]>(
+            `/api/admin/job-postings/cover-letter-items/${itemId}/revisions`
+        ),
     replaceCoverLetterItems: (id: number, items: JobPostingCoverLetterItemRequest[]) =>
         request<JobPostingCoverLetterItem[]>(`/api/admin/job-postings/${id}/cover-letter-items`, {
             method: 'PUT',

@@ -593,12 +593,21 @@ export type JobPostingCoverLetterDraftRequest = {
     characterLimit?: number | null;
     currentDraft?: string | null;
     feedbackInstruction?: string | null;
+    coverLetterItemId?: number | null;
 };
 
 export type JobPostingCoverLetterDraftResponse = {
     question: string;
     draftAnswer: string;
     characterLimit?: number | null;
+};
+
+export type JobPostingCoverLetterRevision = {
+    id: number;
+    coverLetterItemId: number;
+    senderType: 'USER' | 'AI';
+    content: string;
+    createdAt: string;
 };
 
 export type JobApplicationUrlParseResponse = {
