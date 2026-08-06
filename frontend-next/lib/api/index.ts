@@ -11,6 +11,7 @@ export * from './bff';
 export * from './competency';
 export * from './donation';
 export * from './visitor';
+export * from './systemStatus';
 export * from './profile';
 export * from './skill';
 export * from './experience';

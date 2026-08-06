@@ -29,8 +29,9 @@ import {
     ExternalLink,
     FolderGit2,
     ListTree,
+    Radio,
 } from 'lucide-react';
-import { bffApi, skillApi } from '@/lib/api';
+import { bffApi, skillApi, systemStatusApi } from '@/lib/api';
 import type { Experience, IntroductionResponse, Skill } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
@@ -222,6 +223,53 @@ export function AdminDashboardShell() {
     });
     const [isResizingPreview, setIsResizingPreview] = useState(false);
     const previewResizeStartRef = useRef<{ x: number; width: number } | null>(null);
+    const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
+    const statusPanelRef = useRef<HTMLDivElement>(null);
+    const {
+        data: externalStatuses,
+        isFetching: isStatusLoading,
+        isError: isStatusError,
+        refetch: refetchExternalStatuses,
+    } = useQuery({
+        queryKey: ['admin-external-status'],
+        queryFn: systemStatusApi.external,
+        enabled: false,
+        staleTime: 30_000,
+    });
+
+    useEffect(() => {
+        if (!isStatusPanelOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (statusPanelRef.current && !statusPanelRef.current.contains(event.target as Node)) {
+                setIsStatusPanelOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isStatusPanelOpen]);
+
+    const toggleStatusPanel = () => {
+        setIsStatusPanelOpen((open) => {
+            const next = !open;
+            if (next) refetchExternalStatuses();
+            return next;
+        });
+    };
+
+    const STATUS_INDICATOR_STYLE: Record<string, { label: string; dot: string; text: string }> = {
+        none: { label: '정상', dot: 'bg-emerald-500', text: 'text-emerald-600' },
+        minor: { label: '부분 장애', dot: 'bg-amber-500', text: 'text-amber-600' },
+        major: { label: '주요 장애', dot: 'bg-orange-500', text: 'text-orange-600' },
+        critical: { label: '심각한 장애', dot: 'bg-red-500', text: 'text-red-600' },
+        unknown: { label: '확인 불가', dot: 'bg-slate-400', text: 'text-slate-500' },
+    };
+    const worstIndicator = (externalStatuses ?? []).reduce<string | null>((worst, service) => {
+        const rank = ['none', 'unknown', 'minor', 'major', 'critical'];
+        if (!worst || rank.indexOf(service.indicator) > rank.indexOf(worst)) {
+            return service.indicator;
+        }
+        return worst;
+    }, null);
     const [viewportWidth, setViewportWidth] = useState(() =>
         typeof window !== 'undefined' ? window.innerWidth : 1280
     );
@@ -537,6 +585,84 @@ export function AdminDashboardShell() {
                         <span className="hidden md:inline">Actions</span>
                         <ExternalLink className="hidden h-3 w-3 opacity-40 md:inline" />
                     </a>
+                    <div className="relative" ref={statusPanelRef}>
+                        <button
+                            type="button"
+                            onClick={toggleStatusPanel}
+                            title="GitHub/Anthropic/OpenAI/Google Cloud 서비스 상태를 확인합니다"
+                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+                                isStatusPanelOpen
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-slate-200 text-slate-600 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600'
+                            }`}
+                        >
+                            <Radio className="h-3.5 w-3.5" />
+                            <span className="hidden md:inline">서비스 상태</span>
+                            {worstIndicator && (
+                                <span
+                                    className={`h-2 w-2 rounded-full ${STATUS_INDICATOR_STYLE[worstIndicator]?.dot ?? 'bg-slate-400'}`}
+                                />
+                            )}
+                        </button>
+                        {isStatusPanelOpen && (
+                            <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+                                <div className="mb-2 flex items-center justify-between px-1">
+                                    <span className="text-xs font-black text-slate-500">
+                                        외부 서비스 상태
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => refetchExternalStatuses()}
+                                        title="새로고침"
+                                        className="text-slate-400 hover:text-slate-700"
+                                    >
+                                        <RefreshCw
+                                            className={`h-3.5 w-3.5 ${isStatusLoading ? 'animate-spin' : ''}`}
+                                        />
+                                    </button>
+                                </div>
+                                {isStatusLoading && !externalStatuses ? (
+                                    <p className="px-1 py-3 text-center text-xs text-slate-400">
+                                        확인 중...
+                                    </p>
+                                ) : isStatusError ? (
+                                    <p className="px-1 py-3 text-center text-xs text-red-500">
+                                        조회 실패
+                                    </p>
+                                ) : (
+                                    <ul className="space-y-1">
+                                        {externalStatuses?.map((service) => {
+                                            const style =
+                                                STATUS_INDICATOR_STYLE[service.indicator] ??
+                                                STATUS_INDICATOR_STYLE.unknown;
+                                            return (
+                                                <li key={service.name}>
+                                                    <a
+                                                        href={service.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-slate-50"
+                                                    >
+                                                        <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                                                            <span
+                                                                className={`h-2 w-2 shrink-0 rounded-full ${style.dot}`}
+                                                            />
+                                                            {service.name}
+                                                        </span>
+                                                        <span
+                                                            className={`text-xs font-bold ${style.text}`}
+                                                        >
+                                                            {style.label}
+                                                        </span>
+                                                    </a>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
+                    </div>
                     <a
                         href="/"
                         title="메인페이지로 이동합니다"
