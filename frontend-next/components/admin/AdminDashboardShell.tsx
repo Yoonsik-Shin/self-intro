@@ -35,6 +35,8 @@ import { bffApi, skillApi, systemStatusApi } from '@/lib/api';
 import type { Experience, IntroductionResponse, Skill } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
+import { useAiModelStore } from '@/store/useAiModelStore';
+import { AI_MODEL_OPTIONS } from '@/lib/constants/aiModels';
 import { StudyManagement } from './study/StudyManagement';
 import { LearningResourceManagement } from './learning-resource/LearningResourceManagement';
 import { TaxonomyManagement } from './taxonomy/TaxonomyManagement';
@@ -225,6 +227,13 @@ export function AdminDashboardShell() {
     const previewResizeStartRef = useRef<{ x: number; width: number } | null>(null);
     const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
     const statusPanelRef = useRef<HTMLDivElement>(null);
+    const [isAiModelPanelOpen, setIsAiModelPanelOpen] = useState(false);
+    const aiModelPanelRef = useRef<HTMLDivElement>(null);
+    const aiModel = useAiModelStore((state) => state.modelKey);
+    const aiCustomModelName = useAiModelStore((state) => state.customModelName);
+    const setAiModel = useAiModelStore((state) => state.setModelKey);
+    const setAiCustomModelName = useAiModelStore((state) => state.setCustomModelName);
+    const selectedAiModelOption = AI_MODEL_OPTIONS.find((option) => option.id === aiModel);
     const {
         data: externalStatuses,
         isFetching: isStatusLoading,
@@ -247,6 +256,20 @@ export function AdminDashboardShell() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isStatusPanelOpen]);
+
+    useEffect(() => {
+        if (!isAiModelPanelOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                aiModelPanelRef.current &&
+                !aiModelPanelRef.current.contains(event.target as Node)
+            ) {
+                setIsAiModelPanelOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isAiModelPanelOpen]);
 
     const toggleStatusPanel = () => {
         setIsStatusPanelOpen((open) => {
@@ -538,6 +561,55 @@ export function AdminDashboardShell() {
                     <h1 className="text-base font-black text-slate-900">관리자 대시보드</h1>
                 </div>
                 <div className="flex items-center gap-2">
+                    <div className="relative" ref={aiModelPanelRef}>
+                        <button
+                            type="button"
+                            onClick={() => setIsAiModelPanelOpen((open) => !open)}
+                            title="어필분석/보완프로젝트추천/학습계획/PDF초안/자소서에서 기본으로 쓸 AI 모델을 고릅니다"
+                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+                                isAiModelPanelOpen
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600'
+                            }`}
+                        >
+                            <Cpu className="h-3.5 w-3.5" />
+                            <span className="hidden md:inline">
+                                {selectedAiModelOption?.name ?? 'AI 모델'}
+                            </span>
+                        </button>
+                        {isAiModelPanelOpen && (
+                            <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+                                <div className="mb-2 px-1 text-xs font-black text-slate-500">
+                                    기본 AI 모델
+                                </div>
+                                <select
+                                    value={aiModel}
+                                    onChange={(e) => setAiModel(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-extrabold text-slate-800 focus:border-indigo-500 focus:outline-none"
+                                >
+                                    {AI_MODEL_OPTIONS.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name} ({option.badge} · {option.price})
+                                        </option>
+                                    ))}
+                                </select>
+                                {aiModel === 'CUSTOM' && (
+                                    <input
+                                        type="text"
+                                        value={aiCustomModelName}
+                                        onChange={(e) => setAiCustomModelName(e.target.value)}
+                                        placeholder="공식 API 모델명 입력 (예: claude-sonnet-5, gpt-5.4-mini)"
+                                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
+                                    />
+                                )}
+                                <p className="mt-2 px-1 text-[11px] leading-relaxed text-slate-400">
+                                    어필분석·보완프로젝트추천·학습계획·PDF초안·자소서 초안 생성의
+                                    기본값입니다. 각 화면에서 필요하면 그때그때 다른 모델로 덮어써
+                                    실행할 수 있습니다.
+                                </p>
+                            </div>
+                        )}
+                    </div>
                     <button
                         type="button"
                         onClick={togglePreview}
