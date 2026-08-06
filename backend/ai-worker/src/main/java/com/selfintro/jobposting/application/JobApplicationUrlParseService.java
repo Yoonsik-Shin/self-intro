@@ -365,7 +365,7 @@ public class JobApplicationUrlParseService {
             long parseAiMillis = elapsedMillis(parseAiStartedAt);
             if ((looksIncomplete(extracted)
                     || pageText.trim().length() < MIN_MEANINGFUL_TEXT_LENGTH)) {
-                extracted = enrichFromBannerImage(extracted, document);
+                extracted = enrichFromBannerImage(extracted, document, uri);
             }
             LocalDate deadline = parseDate(extracted.deadline());
             boolean alwaysOpen = deadline == null && Boolean.TRUE.equals(extracted.alwaysOpen());
@@ -891,8 +891,8 @@ public class JobApplicationUrlParseService {
                 computeAdditionalPositionTitles(extracted.positionTitle(), extracted.positionTitles()));
     }
 
-    private ExtractedFields enrichFromBannerImage(ExtractedFields base, Document document) {
-        return findBannerImage(document)
+    private ExtractedFields enrichFromBannerImage(ExtractedFields base, Document document, URI refererUri) {
+        return findBannerImage(document, refererUri)
                 .map(image -> merge(base, visionExtractOrEmpty(image)))
                 .orElse(base);
     }
@@ -1171,7 +1171,7 @@ public class JobApplicationUrlParseService {
         }
     }
 
-    private Optional<ImageCandidate> findBannerImage(Document document) {
+    private Optional<ImageCandidate> findBannerImage(Document document, URI refererUri) {
         List<String> candidates =
                 document.select("img[src]").stream()
                         .map(img -> img.absUrl("src"))
@@ -1196,12 +1196,18 @@ public class JobApplicationUrlParseService {
                                         java.util.concurrent.CompletableFuture.supplyAsync(
                                                 () -> {
                                                     try {
-                                                        byte[] bytes = downloadImage(src);
+                                                        byte[] bytes =
+                                                                downloadImage(
+                                                                        src, refererUri.toString());
                                                         if (bytes.length >= MIN_BANNER_IMAGE_BYTES
                                                                 && bytes.length
                                                                         <= MAX_BANNER_IMAGE_BYTES) {
-                                                            return new ImageCandidate(
-                                                                    bytes, guessMimeType(src));
+                                                            String mimeType =
+                                                                    sniffImageMimeType(bytes);
+                                                            if (mimeType != null) {
+                                                                return new ImageCandidate(
+                                                                        bytes, mimeType);
+                                                            }
                                                         }
                                                     } catch (Exception ignored) {
                                                     }
@@ -1231,30 +1237,57 @@ public class JobApplicationUrlParseService {
      */
     public NvidiaNimClient.ImagePart downloadImagePart(String url, String mimeType) {
         try {
-            return new NvidiaNimClient.ImagePart(downloadImage(url), mimeType);
+            return new NvidiaNimClient.ImagePart(downloadImage(url, null), mimeType);
         } catch (IOException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "이미지를 불러오지 못했습니다: " + url, exception);
         }
     }
 
-    private byte[] downloadImage(String url) throws IOException {
-        Connection.Response response =
+    private byte[] downloadImage(String url, String refererUrl) throws IOException {
+        Connection connection =
                 Jsoup.connect(url)
                         .userAgent(USER_AGENT)
                         .timeout(FETCH_TIMEOUT_MILLIS)
                         .maxBodySize(MAX_BANNER_IMAGE_BYTES)
-                        .ignoreContentType(true)
-                        .execute();
-        return response.bodyAsBytes();
+                        .ignoreContentType(true);
+        // 원본 페이지에서 요청한 것처럼 보이지 않으면(Referer 누락) 핫링크 방지에 걸려 실제 이미지
+        // 대신 HTML 에러/차단 페이지가 내려오는 사이트가 있다 — 비전 모델이 그 바이트를 이미지로
+        // 디코드하려다 실패하는 원인이었다.
+        if (refererUrl != null) {
+            connection.header("Referer", refererUrl);
+        }
+        return connection.execute().bodyAsBytes();
     }
 
-    private static String guessMimeType(String url) {
-        String lower = url.toLowerCase(Locale.ROOT);
-        if (lower.endsWith(".png")) return "image/png";
-        if (lower.endsWith(".gif")) return "image/gif";
-        if (lower.endsWith(".webp")) return "image/webp";
-        return "image/jpeg";
+    /**
+     * 파일 매직 넘버로 실제 이미지 포맷을 확인한다. URL 확장자만 보고 mime을 추측하면, 핫링크 차단
+     * 등으로 실제로는 이미지가 아닌 바이트(HTML 에러 페이지 등)가 내려와도 걸러내지 못하고 그대로
+     * 비전 모델에 전달되어 400 오류로 이어진다. 알려진 이미지 시그니처가 없으면 null을 반환해
+     * 해당 후보를 건너뛴다.
+     */
+    private static String sniffImageMimeType(byte[] bytes) {
+        if (bytes.length < 12) return null;
+        if ((bytes[0] & 0xFF) == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G') {
+            return "image/png";
+        }
+        if ((bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8) {
+            return "image/jpeg";
+        }
+        if (bytes[0] == 'G' && bytes[1] == 'I' && bytes[2] == 'F') {
+            return "image/gif";
+        }
+        if (bytes[0] == 'R'
+                && bytes[1] == 'I'
+                && bytes[2] == 'F'
+                && bytes[3] == 'F'
+                && bytes[8] == 'W'
+                && bytes[9] == 'E'
+                && bytes[10] == 'B'
+                && bytes[11] == 'P') {
+            return "image/webp";
+        }
+        return null;
     }
 
     private record ImageCandidate(byte[] bytes, String mimeType) {}
