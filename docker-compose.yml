@@ -35,8 +35,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile.api
     container_name: self-intro-backend
-    ports:
-      - "8080:8080"
+    # 8080은 더 이상 호스트에 직접 노출하지 않는다 — nginx(로컬 전용 경로 라우팅)가 대신 8080을
+    # 잡고 /api/worker/**는 backend-worker로, 나머지는 이 컨테이너로 넘긴다. 컨테이너 간 통신은
+    # 그대로 backend:8080으로 붙는다(예: frontend-next의 API_INTERNAL_BASE_URL).
     env_file:
       - .env
     environment:
@@ -110,6 +111,17 @@ services:
         condition: service_healthy
       nosql:
         condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: self-intro-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - backend-worker
 
   nosql:
     image: ghcr.io/oracle/nosql:latest-ce
