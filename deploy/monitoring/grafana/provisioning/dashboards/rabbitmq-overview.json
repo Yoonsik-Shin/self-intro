@@ -1,5 +1,5 @@
 {
-  "title": "RabbitMQ Overview",
+  "title": "[Queue] RabbitMQ Message Broker",
   "uid": "rabbitmq-overview",
   "tags": ["rabbitmq"],
   "timezone": "browser",

@@ -26,3 +26,6 @@ configMapGenerator:
       - pod-overview.json
       - spring-boot-statistics.json
       - app-logs.json
+      - redis-overview.json
+      - ingress-nginx-overview.json
+      - ai-worker-business-ops.json

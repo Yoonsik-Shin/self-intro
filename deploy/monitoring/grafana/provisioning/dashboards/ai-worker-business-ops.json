@@ -1,0 +1,98 @@
+{
+  "title": "[Business] AI Worker & Scraper Pipeline Ops",
+  "uid": "ai-worker-business-ops",
+  "tags": ["business", "ai", "scraper", "worker"],
+  "timezone": "browser",
+  "schemaVersion": 30,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Job Posting Scrapes Count",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(job_posting_scrape_status_total)",
+          "legendFormat": "Total Scrapes"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Scrape Success Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(job_posting_scrape_status_total{status=\"success\"}) / sum(job_posting_scrape_status_total) * 100",
+          "legendFormat": "Success %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Captcha Detection Triggers",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(job_posting_scrape_status_total{status=\"captcha\"})",
+          "legendFormat": "Captcha Count"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Playwright Scraper Avg Duration",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(job_posting_scrape_duration_seconds_sum[1m]) / rate(job_posting_scrape_duration_seconds_count[1m])",
+          "legendFormat": "Avg Duration"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Scraper Execution Status Distribution",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(job_posting_scrape_status_total[1m])) by (status)",
+          "legendFormat": "Status {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "OpenAI / AI Prompt Latency & Token Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "rate(ai_openai_request_duration_seconds_sum[1m]) / rate(ai_openai_request_duration_seconds_count[1m])",
+          "legendFormat": "Avg Response Time (s)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    }
+  ]
+}
