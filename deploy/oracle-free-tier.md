@@ -200,14 +200,7 @@ https://api.example.com/api/studies
 - Backend Pod는 stateless하게 유지한다.
 - DB 비밀번호는 Kubernetes Secret으로 관리한다.
 - 운영 데이터가 생기면 `JPA_DDL_AUTO=update` 대신 migration 도구 도입을 검토한다.
+- **OCI Always Free 한도 주의**:
+  - ARM (Ampere A1): 총 2 OCPU / 12GB RAM (월 1,500 OCPU hours / 9,000 GB hours)
+  - Block Storage: 총합 200 GB (노드 부트 볼륨 + K8s PVC 볼륨 합산 기준)
 
-## AMD Micro VM (4-in-1 O&M 통합 서버)
-
-OCI Always Free `VM.Standard.E2.1.Micro` (1/8 OCPU, 1GB RAM) 1대를 활용한 독립 운영/보안 서버 구성:
-
-- **Bastion Host & Tailscale VPN**: SSH 커스텀 포트 `2222`, `fail2ban` 지정, Tailscale 접속
-- **Uptime Kuma**: Docker 1개 구동, 웹 대시보드 헬스체크 및 Slack/Discord 즉시 알림
-- **DB 백업 스케줄러**: 매일 새벽 3시 `mysqldump` -> OCI Object Storage(10GB 무료) 업로드
-- **Node Exporter**: 서버 하드웨어 상태(CPU/RAM/디스크) 모니터링 데몬
-
-상세 구축 스크립트 및 설정은 `deploy/amd-micro-vms/vm-ops-all-in-one/` 참조.
