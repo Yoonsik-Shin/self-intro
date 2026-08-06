@@ -54,6 +54,7 @@ import {
 import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { useAiModelStore } from '@/store/useAiModelStore';
+import { AiModelUsageBadge } from '../AiModelUsageBadge';
 import { PositionChoicePicker } from './PositionChoicePicker';
 import { PostingMemoEditor } from './PostingMemoEditor';
 import { ScreenshotIngestPanel } from './ScreenshotIngestPanel';
@@ -1527,7 +1528,7 @@ function PrintTemplatesPanel({
                         마지막 분석 · {appealAnalyzedAt.replace('T', ' ').slice(0, 16)}
                     </p>
                 )}
-                <div className="mt-3">
+                <div className="mt-3 flex items-center gap-2">
                     {hasAppealAnalysis ? (
                         <button
                             type="button"
@@ -1546,18 +1547,18 @@ function PrintTemplatesPanel({
                                   ? '새 AI 초안 생성'
                                   : 'AI 초안 생성'}
                         </button>
-                    ) : (
-                        onNavigateToAppealAnalysis && (
-                            <button
-                                type="button"
-                                onClick={onNavigateToAppealAnalysis}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.98]"
-                            >
-                                <Sparkles className="h-3.5 w-3.5 text-indigo-200" />
-                                AI 어필 포인트 분석으로 이동
-                                <ArrowRight className="h-3.5 w-3.5 opacity-80" />
-                            </button>
-                        )
+                    ) : null}
+                    {hasAppealAnalysis && <AiModelUsageBadge />}
+                    {!hasAppealAnalysis && onNavigateToAppealAnalysis && (
+                        <button
+                            type="button"
+                            onClick={onNavigateToAppealAnalysis}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.98]"
+                        >
+                            <Sparkles className="h-3.5 w-3.5 text-indigo-200" />
+                            AI 어필 포인트 분석으로 이동
+                            <ArrowRight className="h-3.5 w-3.5 opacity-80" />
+                        </button>
                     )}
                 </div>
             </div>
@@ -2114,23 +2115,26 @@ function GapProjectDocumentsPanel({
                 <p className="text-xs leading-5 text-violet-700">
                     부족한 경험을 실제로 증명할 수 있는 2~6주 프로젝트와 검증 산출물을 추천합니다.
                 </p>
-                <button
-                    type="button"
-                    disabled={!hasAppealAnalysis || generateMutation.isPending}
-                    onClick={() => generateMutation.mutate()}
-                    className="flex shrink-0 items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                    {generateMutation.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
-                    )}
-                    {generateMutation.isPending
-                        ? '문서 생성 중...'
-                        : documents.length
-                          ? '새 버전 만들기'
-                          : '추천 문서 만들기'}
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                    <AiModelUsageBadge />
+                    <button
+                        type="button"
+                        disabled={!hasAppealAnalysis || generateMutation.isPending}
+                        onClick={() => generateMutation.mutate()}
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        {generateMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <Sparkles className="h-3.5 w-3.5" />
+                        )}
+                        {generateMutation.isPending
+                            ? '문서 생성 중...'
+                            : documents.length
+                              ? '새 버전 만들기'
+                              : '추천 문서 만들기'}
+                    </button>
+                </div>
             </div>
             {!hasAppealAnalysis && (
                 <p className="text-xs font-semibold text-amber-600">
@@ -5450,6 +5454,7 @@ export function JobApplicationManagement() {
                                                                               ? '다시 분석'
                                                                               : '분석하기'}
                                                                     </button>
+                                                                    <AiModelUsageBadge />
                                                                 </div>
                                                             );
 

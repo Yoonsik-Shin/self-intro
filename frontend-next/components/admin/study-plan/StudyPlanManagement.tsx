@@ -22,6 +22,7 @@ import { ApiError, learningResourceApi, studyPlanApi } from '@/lib/api';
 import type { StudyPlan, StudyPlanCandidate, StudyPlanItem, StudyPlanStage } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAiModelStore } from '@/store/useAiModelStore';
+import { AiModelUsageBadge } from '@/components/admin/AiModelUsageBadge';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { LearningResourceDetailPanel } from '@/components/admin/learning-resource/LearningResourceDetailPanel';
 
@@ -303,23 +304,26 @@ export function StudyPlanManagement() {
                                         후보 학습 자료 (선택 {selectedCandidateCount}/
                                         {plan.candidates.length}개)
                                     </h3>
-                                    <button
-                                        disabled={
-                                            generateMutation.isPending ||
-                                            selectedCandidateCount === 0
-                                        }
-                                        onClick={() => generateMutation.mutate()}
-                                        className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {generateMutation.isPending ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Sparkles className="h-4 w-4" />
-                                        )}
-                                        {generateMutation.isPending
-                                            ? '생성 중...'
-                                            : '이 자료들로 계획 생성'}
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <AiModelUsageBadge />
+                                        <button
+                                            disabled={
+                                                generateMutation.isPending ||
+                                                selectedCandidateCount === 0
+                                            }
+                                            onClick={() => generateMutation.mutate()}
+                                            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {generateMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Sparkles className="h-4 w-4" />
+                                            )}
+                                            {generateMutation.isPending
+                                                ? '생성 중...'
+                                                : '이 자료들로 계획 생성'}
+                                        </button>
+                                    </div>
                                 </div>
                                 {plan.candidates.length === 0 ? (
                                     <p className="text-sm text-slate-500">
@@ -527,18 +531,25 @@ export function StudyPlanManagement() {
                                     value={feedback}
                                     onChange={(e) => setFeedback(e.target.value)}
                                 />
-                                <button
-                                    disabled={sendMessageMutation.isPending || !feedback.trim()}
-                                    onClick={() => sendMessageMutation.mutate(feedback.trim())}
-                                    className="flex items-center justify-center gap-2 self-end rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {sendMessageMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Sparkles className="h-4 w-4" />
-                                    )}
-                                    {sendMessageMutation.isPending ? '반영 중...' : '피드백 보내기'}
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                    {/* 후보 좁히기(수집) 단계는 이 모델 설정을 안 쓰고 고정 모델로
+                                        키워드만 뽑는다 — 계획을 실제로 다시 짤 때만 보여준다. */}
+                                    {!isCollecting && <AiModelUsageBadge />}
+                                    <button
+                                        disabled={sendMessageMutation.isPending || !feedback.trim()}
+                                        onClick={() => sendMessageMutation.mutate(feedback.trim())}
+                                        className="flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {sendMessageMutation.isPending ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Sparkles className="h-4 w-4" />
+                                        )}
+                                        {sendMessageMutation.isPending
+                                            ? '반영 중...'
+                                            : '피드백 보내기'}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
