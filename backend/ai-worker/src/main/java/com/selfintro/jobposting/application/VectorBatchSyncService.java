@@ -36,18 +36,16 @@ public class VectorBatchSyncService {
     ) {}
 
     /**
-     * 프로젝트 경험 텍스트 청킹 및 Oracle 26ai 배치 동기화
+     * 프로젝트 경험 텍스트 청킹 및 Oracle 26ai 배치 동기화.
+     * {@code content}는 이미 프롬프트/임베딩용으로 요약된 텍스트다({@code CareerProfileDigestBuilder.buildForExperience}).
      */
     @Transactional
-    public int syncExperienceVector(Long experienceId, String title, String role, String techStack, String description) {
+    public int syncExperienceVector(Long experienceId, String title, String content) {
         experienceVectorRepository.deleteByExperienceId(experienceId);
 
-        String contextualHeader = String.format(
-                "[도메인: 경력/프로젝트 | 제목: %s | 역할: %s | 기술스택: %s]",
-                safe(title), safe(role), safe(techStack)
-        );
+        String contextualHeader = String.format("[도메인: 경력/프로젝트 | 제목: %s]", safe(title));
 
-        List<String> chunks = contextualChunker.chunkTextWithContext(description, contextualHeader);
+        List<String> chunks = contextualChunker.chunkTextWithContext(content, contextualHeader);
         int createdCount = 0;
 
         for (String chunk : chunks) {
@@ -69,13 +67,10 @@ public class VectorBatchSyncService {
      * 기술 스터디 마크다운 청킹 및 Oracle 26ai 배치 동기화
      */
     @Transactional
-    public int syncStudyVector(Long studyId, String title, String category, String markdownContent) {
+    public int syncStudyVector(Long studyId, String title, String markdownContent) {
         studyVectorRepository.deleteByStudyId(studyId);
 
-        String contextualHeader = String.format(
-                "[도메인: 기술 스터디 | 제목: %s | 카테고리: %s]",
-                safe(title), safe(category)
-        );
+        String contextualHeader = String.format("[도메인: 기술 스터디 | 제목: %s]", safe(title));
 
         List<String> chunks = contextualChunker.chunkTextWithContext(markdownContent, contextualHeader);
         int createdCount = 0;

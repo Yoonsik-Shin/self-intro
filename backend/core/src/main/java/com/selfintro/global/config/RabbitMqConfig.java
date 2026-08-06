@@ -16,8 +16,12 @@ public class RabbitMqConfig {
     public static final String EXCHANGE_NAME = "selfintro.event.exchange";
     public static final String QUEUE_JOB_POSTING_COLLECTED = "selfintro.queue.job-posting.collected";
     public static final String QUEUE_JOB_MATCHING_COMPLETED = "selfintro.queue.job-matching.completed";
+    public static final String QUEUE_EXPERIENCE_UPDATED = "selfintro.queue.experience.updated";
+    public static final String QUEUE_STUDY_UPDATED = "selfintro.queue.study.updated";
     public static final String ROUTING_KEY_COLLECTED = "job.posting.collected";
     public static final String ROUTING_KEY_MATCHING = "job.matching.completed";
+    public static final String ROUTING_KEY_EXPERIENCE_UPDATED = "experience.updated";
+    public static final String ROUTING_KEY_STUDY_UPDATED = "study.updated";
 
     @Bean
     public TopicExchange eventExchange() {
@@ -35,6 +39,16 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    public Queue experienceUpdatedQueue() {
+        return new Queue(QUEUE_EXPERIENCE_UPDATED, true);
+    }
+
+    @Bean
+    public Queue studyUpdatedQueue() {
+        return new Queue(QUEUE_STUDY_UPDATED, true);
+    }
+
+    @Bean
     public Binding jobPostingCollectedBinding(
             @Qualifier("jobPostingCollectedQueue") Queue jobPostingCollectedQueue,
             @Qualifier("eventExchange") TopicExchange eventExchange) {
@@ -46,6 +60,20 @@ public class RabbitMqConfig {
             @Qualifier("jobMatchingCompletedQueue") Queue jobMatchingCompletedQueue,
             @Qualifier("eventExchange") TopicExchange eventExchange) {
         return BindingBuilder.bind(jobMatchingCompletedQueue).to(eventExchange).with(ROUTING_KEY_MATCHING);
+    }
+
+    @Bean
+    public Binding experienceUpdatedBinding(
+            @Qualifier("experienceUpdatedQueue") Queue experienceUpdatedQueue,
+            @Qualifier("eventExchange") TopicExchange eventExchange) {
+        return BindingBuilder.bind(experienceUpdatedQueue).to(eventExchange).with(ROUTING_KEY_EXPERIENCE_UPDATED);
+    }
+
+    @Bean
+    public Binding studyUpdatedBinding(
+            @Qualifier("studyUpdatedQueue") Queue studyUpdatedQueue,
+            @Qualifier("eventExchange") TopicExchange eventExchange) {
+        return BindingBuilder.bind(studyUpdatedQueue).to(eventExchange).with(ROUTING_KEY_STUDY_UPDATED);
     }
 
     @Bean

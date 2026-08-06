@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * 1536차원 벡터 임베딩 수치 배열 생성 서비스 (OpenAI text-embedding-3-small / NVIDIA NIM 연동)
+ * 2048차원 벡터 임베딩 수치 배열 생성 서비스 (NVIDIA NIM nvidia/nemotron-3-embed-1b 연동)
  */
 @Slf4j
 @Service
@@ -20,7 +20,7 @@ public class VectorEmbeddingService {
     }
 
     /**
-     * 텍스트 청크를 1536차원 임베딩 수치 문자열(Oracle 26ai VECTOR 호환 형식 "[0.012, -0.045, ...]")로 변환한다.
+     * 텍스트 청크를 2048차원 임베딩 수치 문자열(Oracle 26ai VECTOR 호환 형식 "[0.012, -0.045, ...]")로 변환한다.
      */
     public String embedToVectorString(String text) {
         if (text == null || text.isBlank()) {
@@ -55,15 +55,15 @@ public class VectorEmbeddingService {
     }
 
     /**
-     * 텍스트 해시 기반 1536차원 결정론적(Deterministic) 폴백 벡터 생성 (로컬/테스트 환경용)
+     * 텍스트 해시 기반 2048차원 결정론적(Deterministic) 폴백 벡터 생성 (로컬/테스트 환경용)
      */
     private String generateFallbackVectorString(String text) {
         long seed = (text == null) ? 42L : text.hashCode();
         Random random = new Random(seed);
-        float[] dummy = new float[1536];
+        float[] dummy = new float[2048];
         double sumSq = 0.0;
 
-        for (int i = 0; i < 1536; i++) {
+        for (int i = 0; i < 2048; i++) {
             dummy[i] = (float) (random.nextGaussian() * 0.1);
             sumSq += dummy[i] * dummy[i];
         }
@@ -71,7 +71,7 @@ public class VectorEmbeddingService {
         // L2 단위 벡터 정규화
         float norm = (float) Math.sqrt(sumSq);
         if (norm > 0) {
-            for (int i = 0; i < 1536; i++) {
+            for (int i = 0; i < 2048; i++) {
                 dummy[i] /= norm;
             }
         }

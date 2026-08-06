@@ -1,12 +1,10 @@
 package com.selfintro.jobposting.application;
 
 import com.selfintro.global.ai.VectorEmbeddingService;
-import com.selfintro.vectorsearch.domain.entity.ExperienceVector;
 import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository;
-import com.selfintro.vectorsearch.domain.entity.JobPostingVector;
-import com.selfintro.vectorsearch.domain.repository.JobPostingVectorRepository;
-import com.selfintro.vectorsearch.domain.entity.StudyVector;
+import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository.ExperienceVectorMatch;
 import com.selfintro.vectorsearch.domain.repository.StudyVectorRepository;
+import com.selfintro.vectorsearch.domain.repository.StudyVectorRepository.StudyVectorMatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +21,6 @@ import java.util.*;
 @RequiredArgsConstructor
 public class HybridSearchService {
 
-    private final JobPostingVectorRepository jobPostingVectorRepository;
     private final ExperienceVectorRepository experienceVectorRepository;
     private final StudyVectorRepository studyVectorRepository;
     private final VectorEmbeddingService vectorEmbeddingService;
@@ -39,15 +36,15 @@ public class HybridSearchService {
     /**
      * 채용공고 자격요건 쿼리와 가장 연관된 내 경험/프로젝트 청크를 하이브리드 검색(Hybrid Search)으로 탐색한다.
      */
-    public List<HybridMatchResult<ExperienceVector>> searchTopSimilarExperiences(String queryText, List<String> requiredKeywords, int limit) {
+    public List<HybridMatchResult<ExperienceVectorMatch>> searchTopSimilarExperiences(String queryText, List<String> requiredKeywords, int limit) {
         String queryVector = vectorEmbeddingService.embedToVectorString(queryText);
-        List<ExperienceVector> vectorResults = experienceVectorRepository.findTopSimilarExperienceChunks(queryVector, limit * 2);
+        List<ExperienceVectorMatch> vectorResults = experienceVectorRepository.findTopSimilarExperienceChunks(queryVector, limit * 2);
 
-        List<HybridMatchResult<ExperienceVector>> hybridResults = new ArrayList<>();
-        for (ExperienceVector expVec : vectorResults) {
+        List<HybridMatchResult<ExperienceVectorMatch>> hybridResults = new ArrayList<>();
+        for (ExperienceVectorMatch expVec : vectorResults) {
             double lexicalScore = calculateLexicalScore(expVec.getChunkContent(), requiredKeywords);
-            // Oracle 26ai Vector Distance (COSINE) -> Similarity (1.0 - Distance)
-            double vectorScore = 0.85; // Default baseline for top vector hits
+            // Oracle 26ai COSINE VECTOR_DISTANCE(0=동일 ~ 2=반대) -> 유사도(1.0 - distance)
+            double vectorScore = 1.0 - expVec.getDistance();
             double hybridScore = 0.7 * vectorScore + 0.3 * lexicalScore;
 
             hybridResults.add(new HybridMatchResult<>(expVec, expVec.getChunkContent(), hybridScore, vectorScore, lexicalScore));
@@ -60,14 +57,14 @@ public class HybridSearchService {
     /**
      * 쿼리와 가장 유사한 스터디 마크다운 청크 탐색
      */
-    public List<HybridMatchResult<StudyVector>> searchTopSimilarStudies(String queryText, List<String> keywords, int limit) {
+    public List<HybridMatchResult<StudyVectorMatch>> searchTopSimilarStudies(String queryText, List<String> keywords, int limit) {
         String queryVector = vectorEmbeddingService.embedToVectorString(queryText);
-        List<StudyVector> vectorResults = studyVectorRepository.findTopSimilarStudyChunks(queryVector, limit * 2);
+        List<StudyVectorMatch> vectorResults = studyVectorRepository.findTopSimilarStudyChunks(queryVector, limit * 2);
 
-        List<HybridMatchResult<StudyVector>> hybridResults = new ArrayList<>();
-        for (StudyVector studyVec : vectorResults) {
+        List<HybridMatchResult<StudyVectorMatch>> hybridResults = new ArrayList<>();
+        for (StudyVectorMatch studyVec : vectorResults) {
             double lexicalScore = calculateLexicalScore(studyVec.getChunkContent(), keywords);
-            double vectorScore = 0.85;
+            double vectorScore = 1.0 - studyVec.getDistance();
             double hybridScore = 0.7 * vectorScore + 0.3 * lexicalScore;
 
             hybridResults.add(new HybridMatchResult<>(studyVec, studyVec.getChunkContent(), hybridScore, vectorScore, lexicalScore));

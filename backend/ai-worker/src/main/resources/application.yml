@@ -49,7 +49,9 @@ spring:
           top-p: 0.9
           max-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:4096}
       embedding:
-        enabled: false
+        enabled: true
+        options:
+          model: ${NVIDIA_EMBEDDING_MODEL:nvidia/nemotron-3-embed-1b}
 
 app:
   cors:

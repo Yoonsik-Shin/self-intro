@@ -1,5 +1,6 @@
 package com.selfintro.modules.study.application;
 
+import com.selfintro.global.config.RabbitMqConfig;
 import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
 import com.selfintro.modules.experience.domain.repository.ExperienceDetailRepository;
@@ -17,6 +18,7 @@ import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.domain.repository.StudySearchCondition;
 import com.selfintro.modules.study.domain.repository.StudyTaxonomyCurationRepository;
 import com.selfintro.modules.study.domain.repository.TagRepository;
+import com.selfintro.modules.study.event.StudyUpdatedEvent;
 import com.selfintro.modules.study.presentation.dto.StudyImageRequest;
 import com.selfintro.modules.study.presentation.dto.StudyPageResponse;
 import com.selfintro.modules.study.presentation.dto.StudyRelationRequest;
@@ -40,6 +42,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -60,6 +63,7 @@ public class StudyService {
     private final ExperienceRepository experienceRepository;
     private final ExperienceDetailRepository experienceDetailRepository;
     private final StorageService storageService;
+    private final RabbitTemplate rabbitTemplate;
 
     public StudyPageResponse searchPublished(
             String keyword,
@@ -213,6 +217,7 @@ public class StudyService {
         Study saved = studyRepository.save(study);
         applyRelations(saved, request.relatedStudies());
         storageService.deleteAll(removedImageKeys);
+        publishVectorSyncEvent(saved);
         return toResponse(saved);
     }
 
@@ -240,6 +245,7 @@ public class StudyService {
         List<String> removedImageKeys = applyAssociations(study, request);
         applyRelations(study, request.relatedStudies());
         storageService.deleteAll(removedImageKeys);
+        publishVectorSyncEvent(study);
         return toResponse(study);
     }
 
@@ -328,6 +334,13 @@ public class StudyService {
                 study.getLearnedAt(),
                 publishedAt);
         return toResponse(study);
+    }
+
+    private void publishVectorSyncEvent(Study saved) {
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.EXCHANGE_NAME,
+                RabbitMqConfig.ROUTING_KEY_STUDY_UPDATED,
+                new StudyUpdatedEvent(saved.getId(), saved.getTitle(), saved.getContentMarkdown()));
     }
 
     private TaxonomyNode findTaxonomyNode(Long id) {

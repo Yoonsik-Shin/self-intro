@@ -41,6 +41,26 @@ public class CareerProfileDigestBuilder {
         return AiJsonSupport.limit(sb.toString(), DEFAULT_MAX_LENGTH);
     }
 
+    /**
+     * 핵심역량만 프롬프트용 텍스트로 요약한다. 데이터량이 작아 검색으로 거르지 않고 항상 전체를 사용한다
+     * (자소서 초안 생성에서 경험/스터디는 벡터 검색 결과로 대체하지만 핵심역량은 그대로 유지).
+     */
+    public String buildCompetencyDigest() {
+        StringBuilder sb = new StringBuilder();
+        competencyRepository.findAllByVisibleTrueOrderByDisplayOrderAsc().stream()
+                .forEach(competency -> appendCompetency(sb, competency));
+        return sb.toString();
+    }
+
+    /**
+     * 경험 하나만 프롬프트/임베딩용 텍스트로 요약한다. 벡터 동기화(청킹 대상 텍스트 생성)에서 재사용된다.
+     */
+    public String buildForExperience(Experience experience) {
+        StringBuilder sb = new StringBuilder();
+        appendExperience(sb, experience);
+        return sb.toString();
+    }
+
     private void appendExperience(StringBuilder sb, Experience experience) {
         sb.append("### ").append(experience.getTitle());
         if (experience.getPeriodStart() != null) {

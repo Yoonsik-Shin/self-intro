@@ -6,14 +6,18 @@ import com.selfintro.global.ai.ClaudeAiClient;
 import com.selfintro.global.ai.GeminiAiClient;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.global.ai.OpenAiClient;
+import com.selfintro.jobposting.application.HybridSearchService.HybridMatchResult;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterRevision;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
+import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository.ExperienceVectorMatch;
+import com.selfintro.vectorsearch.domain.repository.StudyVectorRepository.StudyVectorMatch;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,8 +48,13 @@ public class CoverLetterDraftAiService {
             4. 글자 수 제약조건이 주어진 경우 이를 엄격히 준수하여 분량을 맞추세요.
             """;
 
+    private static final int EXPERIENCE_TOP_K = 6;
+    private static final int STUDY_TOP_K = 4;
+
     private final JobPostingRepository jobPostingRepository;
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
+    private final HybridSearchService hybridSearchService;
+    private final QueryKeywordExtractionService queryKeywordExtractionService;
     private final NvidiaNimClient nvidiaNimClient;
     private final ClaudeAiClient claudeAiClient;
     private final GeminiAiClient geminiAiClient;
@@ -57,7 +66,7 @@ public class CoverLetterDraftAiService {
         JobPosting posting = jobPostingRepository.findById(jobPostingId)
                 .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + jobPostingId));
 
-        String profileDigest = careerProfileDigestBuilder.build();
+        String profileDigest = buildRelevantProfileDigest(posting);
         boolean hasFeedback = AiJsonSupport.hasText(request.feedbackInstruction());
         String systemPrompt = hasFeedback ? REVISION_SYSTEM_PROMPT : DRAFT_SYSTEM_PROMPT;
         String userPrompt = buildUserPrompt(posting, profileDigest, request);
@@ -127,6 +136,56 @@ public class CoverLetterDraftAiService {
             }
             default -> nvidiaNimClient.generate(systemPrompt, userPrompt);
         };
+    }
+
+    /**
+     * 프로필 전체를 덤프하는 대신, 채용공고 요건과 하이브리드 검색(벡터+키워드)으로 가장 관련도 높은
+     * 경험/스터디 청크만 골라 프롬프트에 넣는다. 핵심역량은 데이터량이 작아 항상 전체 유지.
+     * 벡터 인덱스가 아직 비어 있는 경우(백필 전 등)에는 기존 전체 덤프로 폴백한다.
+     */
+    private String buildRelevantProfileDigest(JobPosting posting) {
+        String queryText = buildRetrievalQueryText(posting);
+        List<String> keywords = queryKeywordExtractionService.extract(queryText);
+
+        List<HybridMatchResult<ExperienceVectorMatch>> topExperiences =
+                hybridSearchService.searchTopSimilarExperiences(queryText, keywords, EXPERIENCE_TOP_K);
+        List<HybridMatchResult<StudyVectorMatch>> topStudies =
+                hybridSearchService.searchTopSimilarStudies(queryText, keywords, STUDY_TOP_K);
+
+        if (topExperiences.isEmpty() && topStudies.isEmpty()) {
+            return careerProfileDigestBuilder.build();
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if (!topExperiences.isEmpty()) {
+            sb.append("### 관련 경력/프로젝트\n");
+            for (HybridMatchResult<ExperienceVectorMatch> match : topExperiences) {
+                sb.append(match.matchedChunk()).append("\n\n");
+            }
+        }
+        if (!topStudies.isEmpty()) {
+            sb.append("### 관련 학습/공부\n");
+            for (HybridMatchResult<StudyVectorMatch> match : topStudies) {
+                sb.append(match.matchedChunk()).append("\n\n");
+            }
+        }
+        sb.append(careerProfileDigestBuilder.buildCompetencyDigest());
+        return sb.toString();
+    }
+
+    private String buildRetrievalQueryText(JobPosting posting) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(posting.getPositionTitle()).append(" ");
+        if (AiJsonSupport.hasText(posting.getJobDescription())) {
+            sb.append(posting.getJobDescription()).append(" ");
+        }
+        if (AiJsonSupport.hasText(posting.getRequiredQualifications())) {
+            sb.append(posting.getRequiredQualifications()).append(" ");
+        }
+        if (AiJsonSupport.hasText(posting.getPreferredQualifications())) {
+            sb.append(posting.getPreferredQualifications());
+        }
+        return sb.toString();
     }
 
     private String buildUserPrompt(

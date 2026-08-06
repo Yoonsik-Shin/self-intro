@@ -16,14 +16,14 @@ public class VectorBatchSyncController {
 
     private final VectorBatchSyncService vectorBatchSyncService;
 
-    public record ExperienceSyncRequest(Long id, String title, String role, String techStack, String description) {}
-    public record StudySyncRequest(Long id, String title, String category, String markdownContent) {}
+    public record ExperienceSyncRequest(Long id, String title, String content) {}
+    public record StudySyncRequest(Long id, String title, String markdownContent) {}
     public record JobPostingSyncRequest(Long id, String title, String companyName, String rawText) {}
 
     @PostMapping("/experience")
     public ResponseEntity<Map<String, Object>> syncExperience(@RequestBody ExperienceSyncRequest request) {
         int count = vectorBatchSyncService.syncExperienceVector(
-                request.id(), request.title(), request.role(), request.techStack(), request.description()
+                request.id(), request.title(), request.content()
         );
         return ResponseEntity.ok(Map.of("status", "SUCCESS", "experienceId", request.id(), "chunksCreated", count));
     }
@@ -31,7 +31,7 @@ public class VectorBatchSyncController {
     @PostMapping("/study")
     public ResponseEntity<Map<String, Object>> syncStudy(@RequestBody StudySyncRequest request) {
         int count = vectorBatchSyncService.syncStudyVector(
-                request.id(), request.title(), request.category(), request.markdownContent()
+                request.id(), request.title(), request.markdownContent()
         );
         return ResponseEntity.ok(Map.of("status", "SUCCESS", "studyId", request.id(), "chunksCreated", count));
     }

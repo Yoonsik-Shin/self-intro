@@ -1,8 +1,11 @@
 package com.selfintro.modules.experience.application;
 
+import com.selfintro.global.ai.CareerProfileDigestBuilder;
+import com.selfintro.global.config.RabbitMqConfig;
 import com.selfintro.modules.experience.domain.entity.*;
 import com.selfintro.modules.experience.domain.enums.*;
 import com.selfintro.modules.experience.domain.repository.*;
+import com.selfintro.modules.experience.event.ExperienceUpdatedEvent;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceImageRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceRequest;
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +44,8 @@ public class ExperienceService {
     private final SkillRepository skillRepository;
     private final TagRepository tagRepository;
     private final StorageService storageService;
+    private final CareerProfileDigestBuilder careerProfileDigestBuilder;
+    private final RabbitTemplate rabbitTemplate;
 
     public List<Experience> getAllExperiences() {
         return experienceRepository.findAllByOrderByDisplayOrderAsc();
@@ -180,6 +186,7 @@ public class ExperienceService {
         exp.reconcileImages(toImageDrafts(request.images()));
         Experience saved = experienceRepository.save(exp);
         saved.replaceTags(resolveTags(request.tagNames()));
+        publishVectorSyncEvent(saved);
         return toResponse(saved);
     }
 
@@ -274,6 +281,7 @@ public class ExperienceService {
         exp.reconcileImages(imageDrafts);
         Experience saved = experienceRepository.save(exp);
         storageService.deleteAll(removedImageKeys);
+        publishVectorSyncEvent(saved);
         return toResponse(saved);
     }
 
@@ -291,6 +299,14 @@ public class ExperienceService {
                 exp.getImages().stream().map(ExperienceImage::getObjectKey).toList();
         experienceRepository.delete(exp);
         storageService.deleteAll(objectKeys);
+    }
+
+    private void publishVectorSyncEvent(Experience saved) {
+        String content = careerProfileDigestBuilder.buildForExperience(saved);
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.EXCHANGE_NAME,
+                RabbitMqConfig.ROUTING_KEY_EXPERIENCE_UPDATED,
+                new ExperienceUpdatedEvent(saved.getId(), saved.getTitle(), content));
     }
 
     private List<ExperienceImage.Draft> toImageDrafts(List<ExperienceImageRequest> imageRequests) {
