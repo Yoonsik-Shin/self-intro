@@ -73,6 +73,9 @@ public class JobPosting {
     @Column(name = "deadline")
     private LocalDate deadline;
 
+    @Column(name = "deadline_time")
+    private java.time.LocalTime deadlineTime;
+
     /** 마감일이 없으면서 공고 원문에 상시채용이라고 명시된 경우 true. 단순히 마감일을 못 읽은 경우와 구분하는 용도다. */
     @Column(name = "is_always_open", nullable = false)
     private boolean alwaysOpen;
@@ -233,6 +236,17 @@ public class JobPosting {
                 now);
     }
 
+    public java.time.LocalTime getDeadlineTime() {
+        if (alwaysOpen || deadline == null) {
+            return null;
+        }
+        return deadlineTime != null ? deadlineTime : java.time.LocalTime.of(18, 0);
+    }
+
+    public void setDeadlineTime(java.time.LocalTime deadlineTime) {
+        this.deadlineTime = deadlineTime;
+    }
+
     /** "새 지원 공고 등록" — 수집 단계 없이 이미 지원 완료한 공고를 바로 기록한다. */
     public static JobPosting registerApplied(
             String companyName,
@@ -241,6 +255,7 @@ public class JobPosting {
             String source,
             LocalDate appliedAt,
             LocalDate deadline,
+            java.time.LocalTime deadlineTime,
             boolean alwaysOpen,
             String salaryNote,
             String location,
@@ -253,7 +268,7 @@ public class JobPosting {
             String applicationMethod,
             String compensationDetail,
             LocalDateTime now) {
-        return new JobPosting(
+        JobPosting posting = new JobPosting(
                 companyName,
                 positionTitle,
                 postingUrl,
@@ -276,6 +291,49 @@ public class JobPosting {
                 applicationMethod,
                 compensationDetail,
                 now);
+        posting.deadlineTime = deadlineTime;
+        return posting;
+    }
+
+    public static JobPosting registerApplied(
+            String companyName,
+            String positionTitle,
+            String postingUrl,
+            String source,
+            LocalDate appliedAt,
+            LocalDate deadline,
+            boolean alwaysOpen,
+            String salaryNote,
+            String location,
+            String employmentType,
+            String memo,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
+            LocalDateTime now) {
+        return registerApplied(
+                companyName,
+                positionTitle,
+                postingUrl,
+                source,
+                appliedAt,
+                deadline,
+                null,
+                alwaysOpen,
+                salaryNote,
+                location,
+                employmentType,
+                memo,
+                jobDescription,
+                requiredQualifications,
+                preferredQualifications,
+                hiringProcess,
+                applicationMethod,
+                compensationDetail,
+                now);
     }
 
     /**
@@ -288,6 +346,7 @@ public class JobPosting {
             String postingUrl,
             String source,
             LocalDate deadline,
+            java.time.LocalTime deadlineTime,
             boolean alwaysOpen,
             String salaryNote,
             String location,
@@ -307,6 +366,7 @@ public class JobPosting {
         this.postingUrl = postingUrl;
         this.source = source;
         this.deadline = deadline;
+        this.deadlineTime = deadlineTime;
         this.alwaysOpen = alwaysOpen;
         this.salaryNote = salaryNote;
         this.location = location;
@@ -319,6 +379,45 @@ public class JobPosting {
         this.applicationMethod = applicationMethod;
         this.compensationDetail = compensationDetail;
         this.updatedAt = now;
+    }
+
+    public void update(
+            String companyName,
+            String positionTitle,
+            String postingUrl,
+            String source,
+            LocalDate deadline,
+            boolean alwaysOpen,
+            String salaryNote,
+            String location,
+            String employmentType,
+            String memo,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
+            LocalDateTime now) {
+        update(
+                companyName,
+                positionTitle,
+                postingUrl,
+                source,
+                deadline,
+                this.deadlineTime,
+                alwaysOpen,
+                salaryNote,
+                location,
+                employmentType,
+                memo,
+                jobDescription,
+                requiredQualifications,
+                preferredQualifications,
+                hiringProcess,
+                applicationMethod,
+                compensationDetail,
+                now);
     }
 
     public void updateMemo(String memo, LocalDateTime now) {

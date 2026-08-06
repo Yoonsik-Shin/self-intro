@@ -14,6 +14,7 @@ public record JobPostingRequest(
         @NotBlank String source,
         LocalDate appliedAt,
         LocalDate deadline,
+        java.time.LocalTime deadlineTime,
         boolean alwaysOpen,
         String salaryNote,
         String location,
