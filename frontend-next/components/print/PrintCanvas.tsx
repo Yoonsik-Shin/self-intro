@@ -1065,8 +1065,17 @@ export function PrintCanvas({
         const itemTitle = getAtomDisplayTitle(id);
         const isExcluded = store.printExcludedIds.includes(id);
 
+        const shortItemTitle = itemTitle.length > 8 ? `${itemTitle.slice(0, 8)}...` : itemTitle;
+
         const pinAndGapButtons = (
             <>
+                <div
+                    onMouseDown={startGapDrag(id)}
+                    title="위치/여백 조절 (마우스로 위아래를 끌어서 간격 세밀 조절)"
+                    className="flex h-6 w-6 cursor-ns-resize items-center justify-center rounded-full bg-blue-600 hover:bg-blue-500 active:scale-95 transition shadow-sm shrink-0"
+                >
+                    <MoveVertical className="h-3 w-3 text-white" />
+                </div>
                 <button
                     type="button"
                     onClick={(e) => {
@@ -1074,34 +1083,34 @@ export function PrintCanvas({
                         store.toggleExcluded(id);
                     }}
                     title={isExcluded ? '핀 고정하여 인쇄 포함' : '핀 해제하여 인쇄 제외'}
-                    className={`flex h-6 w-6 items-center justify-center rounded-full shadow-sm transition cursor-pointer ${
+                    className={`flex h-6 w-6 items-center justify-center rounded-full shadow-sm transition cursor-pointer shrink-0 ${
                         isExcluded
                             ? 'bg-slate-700 hover:bg-slate-600'
                             : 'bg-blue-600 hover:bg-blue-500'
                     }`}
                 >
-                    {isExcluded ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                    {isExcluded ? (
+                        <PinOff className="h-3 w-3 text-white" />
+                    ) : (
+                        <Pin className="h-3 w-3 text-white" />
+                    )}
                 </button>
-                <div
-                    onMouseDown={startGapDrag(id)}
-                    title="마우스를 위아래로 끌어서 간격 세밀 조절"
-                    className="flex h-6 w-6 cursor-ns-resize items-center justify-center rounded-full bg-slate-700 hover:bg-slate-600 transition"
-                >
-                    <MoveVertical className="h-3 w-3" />
-                </div>
             </>
         );
 
         if (forcedPage !== undefined) {
-            const labelText = `${itemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
+            const labelText = `${shortItemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
 
             return (
                 <div className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 shrink">
                         <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
                             강제 위치 배치됨
                         </span>
-                        <span className="text-[11px] text-indigo-100 font-semibold truncate max-w-[320px]">
+                        <span
+                            className="text-[11px] text-indigo-100 font-semibold truncate max-w-[220px]"
+                            title={`${itemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`}
+                        >
                             {labelText}
                         </span>
                     </div>
@@ -1113,11 +1122,13 @@ export function PrintCanvas({
                                     e.stopPropagation();
                                     store.forcePage(getAssociatedAtomIds(id), forcedPage - 1);
                                 }}
-                                className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer"
-                                title={`이 항목을 ${forcedPage}페이지로 한 단계 더 끌어올립니다.`}
+                                className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
+                                title={`'${itemTitle}' 항목을 ${forcedPage}페이지로 한 단계 더 끌어올립니다.`}
                             >
-                                <ArrowUp className="h-3.5 w-3.5" />
-                                <span>{forcedPage}페이지로 더 올리기</span>
+                                <ArrowUp className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate max-w-[150px]">
+                                    {forcedPage}페이지로 더 올리기
+                                </span>
                             </button>
                         )}
                         <button
@@ -1126,11 +1137,13 @@ export function PrintCanvas({
                                 e.stopPropagation();
                                 store.clearForcedPage(getAssociatedAtomIds(id));
                             }}
-                            className="flex items-center gap-1 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer"
+                            className="flex items-center gap-1 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
                             title="강제 위치 배제를 해제하고 원래 자동 배치 상태로 복원합니다."
                         >
-                            <ArrowDown className="h-3.5 w-3.5" />
-                            <span>강제 배치 해제 (원래 위치로)</span>
+                            <ArrowDown className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate max-w-[160px]">
+                                강제 배치 해제 (원래 위치로)
+                            </span>
                         </button>
                         {pinAndGapButtons}
                     </div>
@@ -1144,14 +1157,21 @@ export function PrintCanvas({
             <div
                 className={`absolute -top-7 ${isBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto`}
             >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 shrink">
                     <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
                         페이지 분할 지점
                     </span>
-                    <span className="text-[11px] text-slate-200 font-semibold truncate max-w-[320px]">
+                    <span
+                        className="text-[11px] text-slate-200 font-semibold truncate max-w-[220px]"
+                        title={
+                            isBoundary
+                                ? `${itemTitle} 항목부터 다음 페이지로 분할되었습니다.`
+                                : `${itemTitle} 여백 세밀 조절 중`
+                        }
+                    >
                         {isBoundary
-                            ? `${itemTitle} 항목부터 다음 페이지로 분할되었습니다.`
-                            : `${itemTitle} 여백 세밀 조절 중`}
+                            ? `${shortItemTitle} 항목부터 다음 페이지로 분할`
+                            : `${shortItemTitle} 여백 세밀 조절 중`}
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
@@ -1162,37 +1182,17 @@ export function PrintCanvas({
                                 e.stopPropagation();
                                 store.forcePage(getAssociatedAtomIds(id), targetPrevPage);
                             }}
-                            className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer"
+                            title={`'${itemTitle}' 항목을 ${targetPrevPage + 1}페이지로 강제 올립니다.`}
+                            className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
                         >
-                            <ArrowUp className="h-3.5 w-3.5" />
-                            <span>
-                                {itemTitle} {targetPrevPage + 1}페이지로 강제 올리기
+                            <ArrowUp className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate max-w-[160px]">
+                                &apos;{shortItemTitle}&apos; {targetPrevPage + 1}페이지로 강제
+                                올리기
                             </span>
                         </button>
                     )}
-                    <div
-                        onMouseDown={startGapDrag(id)}
-                        title="마우스로 위아래 여백을 끌어서 조절 (다음 페이지 위치 세밀 조절)"
-                        className="flex cursor-ns-resize items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm"
-                    >
-                        <MoveVertical className="h-3.5 w-3.5" />
-                        <span>위치/여백 조절</span>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            store.toggleExcluded(id);
-                        }}
-                        title={isExcluded ? '핀 고정하여 인쇄 포함' : '핀 해제하여 인쇄 제외'}
-                        className={`flex h-6 w-6 items-center justify-center rounded-full shadow-sm transition cursor-pointer ${
-                            isExcluded
-                                ? 'bg-slate-700 hover:bg-slate-600'
-                                : 'bg-blue-600 hover:bg-blue-500'
-                        }`}
-                    >
-                        {isExcluded ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-                    </button>
+                    {pinAndGapButtons}
                 </div>
             </div>
         );
