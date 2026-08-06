@@ -101,6 +101,8 @@ services:
       - ORACLE_NOSQL_ENABLED=true
       - ORACLE_NOSQL_ENDPOINT=http://nosql:8080
       - ORACLE_NOSQL_MODE=local
+    volumes:
+      - backend_logs:/app/logs
     depends_on:
       redis:
         condition: service_healthy
@@ -163,6 +165,17 @@ services:
       timeout: 3s
       retries: 5
       interval: 5s
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: self-intro-redis-exporter
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
 
   minio:
     image: minio/minio

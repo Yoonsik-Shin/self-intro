@@ -17,9 +17,22 @@ local.file_match "self_intro_backend" {
   ]
 }
 
+loki.process "parse_logs" {
+  stage.regex {
+    expression = "^(?P<time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\s+(?P<level>\\w+)\\s+\\[(?P<traceId>[^\\]]*),(?P<spanId>[^\\]]*)\\]"
+  }
+  stage.labels {
+    values = {
+      level = "level",
+      traceId = "traceId",
+    }
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
 loki.source.file "self_intro_backend" {
   targets    = local.file_match.self_intro_backend.targets
-  forward_to = [loki.write.local.receiver]
+  forward_to = [loki.process.parse_logs.receiver]
 }
 
 loki.write "local" {
