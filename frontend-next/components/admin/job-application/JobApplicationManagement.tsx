@@ -3857,7 +3857,7 @@ export function JobApplicationManagement() {
                                                                         className={`min-w-48 px-5 py-3 ${
                                                                             isDDay
                                                                                 ? 'border-l-2 border-l-rose-300 border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -3894,7 +3894,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 whitespace-nowrap ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -3923,7 +3923,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 whitespace-nowrap ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -3943,7 +3943,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 whitespace-nowrap ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -3966,7 +3966,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 text-right ${
                                                                             isDDay
                                                                                 ? 'border-r-2 border-r-rose-300 border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -4240,7 +4240,7 @@ export function JobApplicationManagement() {
                                                                         className={`min-w-48 px-5 py-3 ${
                                                                             isDDay
                                                                                 ? 'border-l-2 border-l-rose-300 border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -4266,7 +4266,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 whitespace-nowrap ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -4293,7 +4293,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 whitespace-nowrap ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -4311,7 +4311,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 whitespace-nowrap ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -4334,7 +4334,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 whitespace-nowrap ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -4349,7 +4349,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 ${
                                                                             isDDay
                                                                                 ? 'border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
@@ -4370,7 +4370,7 @@ export function JobApplicationManagement() {
                                                                         className={`px-5 py-3 text-right ${
                                                                             isDDay
                                                                                 ? 'border-r-2 border-r-rose-300 border-t border-t-rose-200/50'
-                                                                                : ''
+                                                                                : 'border-t border-slate-100'
                                                                         } ${
                                                                             isDDay && isLastInGroup
                                                                                 ? 'border-b-2 border-b-rose-300'
