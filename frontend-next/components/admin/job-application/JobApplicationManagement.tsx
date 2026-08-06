@@ -4547,7 +4547,7 @@ export function JobApplicationManagement() {
                                             </div>
                                         ) : (
                                             <div>
-                                                {isCreating && (
+                                                {isCreating && !showScreenshotPanel && (
                                                     <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 mb-4">
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-1.5 font-bold text-blue-900 text-xs">

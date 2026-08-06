@@ -5,6 +5,7 @@ import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
@@ -125,15 +126,17 @@ public class JobPostingService {
      * 없는 구간이 nginx ingress의 기본 프록시 타임아웃보다 길어질 위험이 있다 — {@code
      * ingestUrlStream}과 동일하게 heartbeat로 연결을 유지한다.
      */
-    public SseEmitter ingestImagesStream(List<JobPostingImageIngestRequest.ImageRef> images) {
+    public SseEmitter ingestImagesStream(
+            List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl) {
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-ingest-images-stream")
-                .start(() -> streamImageIngest(images, emitter));
+                .start(() -> streamImageIngest(images, sourceUrl, emitter));
         return emitter;
     }
 
-    private void streamImageIngest(List<JobPostingImageIngestRequest.ImageRef> images, SseEmitter emitter) {
+    private void streamImageIngest(
+            List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl, SseEmitter emitter) {
         boolean acquired = false;
         Thread heartbeat = startHeartbeat(emitter);
         try {
@@ -143,7 +146,7 @@ public class JobPostingService {
                         "현재 처리 중인 공고 수집 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
             }
             acquired = true;
-            JobPostingResponse response = ingestImages(images);
+            JobPostingResponse response = ingestImages(images, sourceUrl);
             send(emitter, new CompleteEvent("complete", response));
             emitter.complete();
         } catch (ResponseStatusException exception) {
@@ -422,7 +425,8 @@ public class JobPostingService {
      * {@code @Transactional}을 명시해야 한다(2026-08-06 self-invocation 사고 재발 방지).
      */
     @Transactional
-    public JobPostingResponse ingestImages(List<JobPostingImageIngestRequest.ImageRef> images) {
+    public JobPostingResponse ingestImages(
+            List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl) {
         if (images.isEmpty() || images.size() > MAX_INGEST_IMAGE_COUNT) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "이미지는 1장 이상 " + MAX_INGEST_IMAGE_COUNT + "장 이하만 가능합니다.");
@@ -484,6 +488,26 @@ public class JobPostingService {
             sourceImageRepository.save(
                     JobPostingSourceImage.of(
                             posting.getId(), image.objectKey(), image.url(), baseOrder + i, now));
+        }
+
+        // sourceUrl은 "원본 보기" 링크로만 저장한다 — 이 URL의 텍스트를 다시 파싱해 내용에
+        // 섞지 않는다(URL 파싱을 못 믿을 상황이라 스크린샷을 쓴 것이므로, 섞으면 다시
+        // 오염된다). job_posting.posting_url(엔티티 컬럼)도 그대로 null로 둬서 "정보
+        // 새로고침"이 이 URL을 다시 긁어오지 않게 막는다.
+        if (AiJsonSupport.hasText(sourceUrl)) {
+            String trimmedUrl = sourceUrl.trim();
+            if (!sourceUrlRepository.existsByUrl(trimmedUrl)) {
+                JobPostingPlatform platform = JobPostingPlatform.fromUrl(trimmedUrl);
+                boolean hasNoSourceUrlYet =
+                        sourceUrlRepository
+                                .findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(posting.getId())
+                                .isEmpty();
+                sourceUrlRepository.save(
+                        hasNoSourceUrlYet
+                                ? JobPostingSourceUrl.primary(posting.getId(), trimmedUrl, platform, now)
+                                : JobPostingSourceUrl.additional(
+                                        posting.getId(), trimmedUrl, platform, now));
+            }
         }
 
         return toResponse(posting);

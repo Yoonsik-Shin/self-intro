@@ -77,7 +77,7 @@ public class JobPostingController {
     /** URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록한다(기능 B). */
     @PostMapping(value = "/ingest-images/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter ingestImagesStream(@Valid @RequestBody JobPostingImageIngestRequest request) {
-        return jobPostingService.ingestImagesStream(request.images());
+        return jobPostingService.ingestImagesStream(request.images(), request.sourceUrl());
     }
 
     @PostMapping(value = "/ingest-urls/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

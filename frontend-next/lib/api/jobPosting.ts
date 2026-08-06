@@ -90,12 +90,13 @@ export const jobPostingApi = {
     /** URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록한다. */
     ingestImagesStream: (
         images: { objectKey: string; url: string; contentType: string }[],
+        sourceUrl: string | null,
         onEvent: (event: JobPostingIngestStreamEvent) => void,
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingIngestStreamEvent>(
             '/api/worker/job-postings/ingest-images/stream',
-            { images },
+            { images, sourceUrl },
             onEvent,
             signal
         ),
