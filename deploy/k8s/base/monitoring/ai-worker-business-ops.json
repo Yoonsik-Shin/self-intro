@@ -79,13 +79,17 @@
     },
     {
       "id": 6,
-      "title": "OpenAI / AI Prompt Latency & Token Usage",
+      "title": "LLM API Avg Latency (OpenAI vs Gemini)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "targets": [
         {
           "expr": "rate(ai_openai_request_duration_seconds_sum[1m]) / rate(ai_openai_request_duration_seconds_count[1m])",
-          "legendFormat": "Avg Response Time (s)"
+          "legendFormat": "OpenAI Avg Latency (s)"
+        },
+        {
+          "expr": "rate(ai_gemini_request_duration_seconds_sum[1m]) / rate(ai_gemini_request_duration_seconds_count[1m])",
+          "legendFormat": "Gemini Avg Latency (s)"
         }
       ],
       "fieldConfig": {
@@ -93,6 +97,22 @@
           "unit": "s"
         }
       }
+    },
+    {
+      "id": 7,
+      "title": "LLM Request Status (Success vs Failed)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum(rate(ai_openai_request_status_total[1m])) by (status, model)",
+          "legendFormat": "OpenAI {{model}} ({{status}})"
+        },
+        {
+          "expr": "sum(rate(ai_gemini_request_status_total[1m])) by (status, model)",
+          "legendFormat": "Gemini {{model}} ({{status}})"
+        }
+      ]
     }
   ]
 }
