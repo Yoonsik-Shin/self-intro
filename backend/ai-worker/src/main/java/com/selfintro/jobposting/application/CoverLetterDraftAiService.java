@@ -26,6 +26,17 @@ public class CoverLetterDraftAiService {
             4. 글자 수 제약조건이 주어진 경우 이를 엄격히 준수하여 분량을 맞추세요.
             """;
 
+    private static final String REVISION_SYSTEM_PROMPT =
+            """
+            당신은 지원자의 프로필과 기존 자소서 초안, 그리고 사용자의 지적/보완 요청사항을 바탕으로 자소서 답변을 고품질로 개작(Revision)하는 전문 커리어 컨설턴트입니다.
+
+            [작성 원칙]
+            1. 프로필에 명시된 실제 경험과 사실만을 근거로 삼아 작성하세요.
+            2. 사용자가 지적한 피드백/보완 요청사항을 최우선으로 반영하여 기존 초안의 부족한 점을 적극 수정 및 강화하세요.
+            3. 인사말이나 부연 설명 없이 곧바로 제출 가능한 자소서 답변 본문만 작성하세요.
+            4. 글자 수 제약조건이 주어진 경우 이를 엄격히 준수하여 분량을 맞추세요.
+            """;
+
     private final JobPostingRepository jobPostingRepository;
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
     private final NvidiaNimClient nvidiaNimClient;
@@ -35,9 +46,11 @@ public class CoverLetterDraftAiService {
                 .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + jobPostingId));
 
         String profileDigest = careerProfileDigestBuilder.build();
-        String userPrompt = buildUserPrompt(posting, profileDigest, request.question(), request.characterLimit());
+        boolean hasFeedback = AiJsonSupport.hasText(request.feedbackInstruction());
+        String systemPrompt = hasFeedback ? REVISION_SYSTEM_PROMPT : DRAFT_SYSTEM_PROMPT;
+        String userPrompt = buildUserPrompt(posting, profileDigest, request);
 
-        String rawDraft = nvidiaNimClient.generate(DRAFT_SYSTEM_PROMPT, userPrompt);
+        String rawDraft = nvidiaNimClient.generate(systemPrompt, userPrompt);
         String draftAnswer = rawDraft.replace("\\n", "\n").trim();
 
         return new JobPostingCoverLetterDraftResponse(
@@ -50,8 +63,7 @@ public class CoverLetterDraftAiService {
     private String buildUserPrompt(
             JobPosting posting,
             String profileDigest,
-            String question,
-            Integer characterLimit) {
+            JobPostingCoverLetterDraftRequest request) {
         StringBuilder sb = new StringBuilder();
         sb.append("## 지원자 프로필 (경력/프로젝트/공부/역량)\n").append(profileDigest).append("\n\n");
         sb.append("## 지원 대상 채용 공고\n");
@@ -67,17 +79,29 @@ public class CoverLetterDraftAiService {
             sb.append("우대사항:\n").append(posting.getPreferredQualifications()).append("\n");
         }
         sb.append("\n## 작성할 자기소개서 문항\n");
-        sb.append("질문: ").append(question).append("\n");
+        sb.append("질문: ").append(request.question()).append("\n");
 
+        if (AiJsonSupport.hasText(request.currentDraft())) {
+            sb.append("\n## 이전 작성 초안\n").append(request.currentDraft()).append("\n");
+        }
+
+        if (AiJsonSupport.hasText(request.feedbackInstruction())) {
+            sb.append("\n## 사용자의 지적사항 및 보완 요청\n");
+            sb.append(request.feedbackInstruction()).append("\n");
+            sb.append("위 사용자의 지적사항과 요청을 최우선으로 반영하여 이전 초안을 수정 및 보완해 주세요.\n");
+        }
+
+        Integer characterLimit = request.characterLimit();
         if (characterLimit != null && characterLimit > 0) {
             int minChars = Math.max(100, characterLimit - 100);
             int maxChars = Math.max(minChars + 10, characterLimit - 50);
-            sb.append(String.format("글자 수 제한: 공백 포함 최대로 %d자 제한입니다. 분량을 철저히 준수하여 공백 포함 약 %d자 ~ %d자 사이로 작성해 주세요.\n",
+            sb.append(String.format("\n글자 수 제한: 공백 포함 최대로 %d자 제한입니다. 분량을 철저히 준수하여 공백 포함 약 %d자 ~ %d자 사이로 작성해 주세요.\n",
                     characterLimit, minChars, maxChars));
         } else {
-            sb.append("글자 수 제한: 별도 제한이 없으므로 공백 포함 약 500자 ~ 700자 내외로 작성해 주세요.\n");
+            sb.append("\n글자 수 제한: 별도 제한이 없으므로 공백 포함 약 500자 ~ 700자 내외로 작성해 주세요.\n");
         }
 
         return sb.toString();
     }
 }
+

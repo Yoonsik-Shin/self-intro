@@ -41,7 +41,7 @@ class CoverLetterDraftAiServiceTest {
         when(careerProfileDigestBuilder.build()).thenReturn("프로필 요약 정보");
         when(nvidiaNimClient.generate(anyString(), anyString())).thenReturn("생성된 AI 초안 답변입니다.");
 
-        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("지원 동기를 작성하세요.", 1000);
+        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("지원 동기를 작성하세요.", 1000, null, null);
         JobPostingCoverLetterDraftResponse response = service.generateDraft(1L, request);
 
         assertThat(response.question()).isEqualTo("지원 동기를 작성하세요.");
@@ -50,10 +50,24 @@ class CoverLetterDraftAiServiceTest {
     }
 
     @Test
+    void generatesRevisionDraftWithFeedbackPrompt() {
+        JobPosting posting = JobPosting.registerApplied(
+                "원티드", "백엔드 개발자", null, "직접입력", null, null, false, null, null, null, null, "담당업무", "자격요건", "우대사항", null, null, null, java.time.LocalDateTime.now());
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
+        when(careerProfileDigestBuilder.build()).thenReturn("프로필 요약 정보");
+        when(nvidiaNimClient.generate(anyString(), anyString())).thenReturn("피드백이 반영되어 개작된 AI 답변입니다.");
+
+        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("지원 동기를 작성하세요.", 1000, "이전 초안", "성과 수치를 더 강조해주세요.");
+        JobPostingCoverLetterDraftResponse response = service.generateDraft(1L, request);
+
+        assertThat(response.draftAnswer()).isEqualTo("피드백이 반영되어 개작된 AI 답변입니다.");
+    }
+
+    @Test
     void throwsEntityNotFoundExceptionWhenJobPostingMissing() {
         when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
 
-        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("질문", 500);
+        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("질문", 500, null, null);
 
         assertThatThrownBy(() -> service.generateDraft(99L, request))
                 .isInstanceOf(EntityNotFoundException.class);
