@@ -591,6 +591,8 @@ export type JobPostingCoverLetterItemRequest = {
 export type JobPostingCoverLetterDraftRequest = {
     question: string;
     characterLimit?: number | null;
+    currentDraft?: string | null;
+    feedbackInstruction?: string | null;
 };
 
 export type JobPostingCoverLetterDraftResponse = {
