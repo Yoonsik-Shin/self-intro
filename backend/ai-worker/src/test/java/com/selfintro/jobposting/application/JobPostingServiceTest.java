@@ -293,6 +293,8 @@ class JobPostingServiceTest {
                                 "https://example.com/posting",
                         List.of()));
 
+        when(matchingService.evaluate(any(), any()))
+                .thenReturn(new JobMatchingService.MatchResult(80, "추천"));
         JobPostingResponse response = jobPostingService.refresh(1L);
 
         assertThat(response.deadline()).isEqualTo(freshDeadline);
@@ -329,6 +331,8 @@ class JobPostingServiceTest {
                                 "https://example.com/posting",
                         List.of()));
 
+        when(matchingService.evaluate(any(), any()))
+                .thenReturn(new JobMatchingService.MatchResult(80, "추천"));
         JobPostingResponse response = jobPostingService.refresh(1L);
 
         assertThat(response.deadline()).isEqualTo(originalDeadline);

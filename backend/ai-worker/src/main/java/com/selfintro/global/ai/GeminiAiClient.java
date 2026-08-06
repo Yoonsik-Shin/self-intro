@@ -7,6 +7,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -16,12 +19,22 @@ public class GeminiAiClient {
     private final String apiKey;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
     public GeminiAiClient(
             @Value("${app.ai.gemini-api-key:}") String apiKey,
             ObjectMapper objectMapper) {
+        this(apiKey, objectMapper, null);
+    }
+
+    @Autowired
+    public GeminiAiClient(
+            @Value("${app.ai.gemini-api-key:}") String apiKey,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) MeterRegistry meterRegistry) {
         this.apiKey = apiKey;
         this.objectMapper = objectMapper;
+        this.meterRegistry = meterRegistry;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -37,6 +50,7 @@ public class GeminiAiClient {
         }
 
         String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "gemini-3.1-flash-lite";
+        Timer.Sample sample = (meterRegistry != null) ? Timer.start(meterRegistry) : null;
 
         try {
             String combinedPrompt = systemPrompt + "\n\n" + userPrompt;
@@ -58,7 +72,17 @@ public class GeminiAiClient {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
+                if (meterRegistry != null) {
+                    meterRegistry.counter("ai.gemini.request.status", "status", "failed", "model", targetModel).increment();
+                }
                 throw new RuntimeException("Gemini API Error (" + response.statusCode() + "): " + response.body());
+            }
+
+            if (meterRegistry != null) {
+                meterRegistry.counter("ai.gemini.request.status", "status", "success", "model", targetModel).increment();
+                if (sample != null) {
+                    sample.stop(meterRegistry.timer("ai.gemini.request.duration", "model", targetModel));
+                }
             }
 
             GeminiResponse resBody = objectMapper.readValue(response.body(), GeminiResponse.class);

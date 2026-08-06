@@ -7,6 +7,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -16,12 +19,22 @@ public class OpenAiClient {
     private final String apiKey;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
     public OpenAiClient(
             @Value("${app.ai.openai-api-key:}") String apiKey,
             ObjectMapper objectMapper) {
+        this(apiKey, objectMapper, null);
+    }
+
+    @Autowired
+    public OpenAiClient(
+            @Value("${app.ai.openai-api-key:}") String apiKey,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) MeterRegistry meterRegistry) {
         this.apiKey = apiKey;
         this.objectMapper = objectMapper;
+        this.meterRegistry = meterRegistry;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -37,6 +50,7 @@ public class OpenAiClient {
         }
 
         String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "gpt-5.4-mini";
+        Timer.Sample sample = (meterRegistry != null) ? Timer.start(meterRegistry) : null;
 
         try {
             OpenAiRequest body = new OpenAiRequest(
@@ -60,7 +74,17 @@ public class OpenAiClient {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
+                if (meterRegistry != null) {
+                    meterRegistry.counter("ai.openai.request.status", "status", "failed", "model", targetModel).increment();
+                }
                 throw new RuntimeException("OpenAI API Error (" + response.statusCode() + "): " + response.body());
+            }
+
+            if (meterRegistry != null) {
+                meterRegistry.counter("ai.openai.request.status", "status", "success", "model", targetModel).increment();
+                if (sample != null) {
+                    sample.stop(meterRegistry.timer("ai.openai.request.duration", "model", targetModel));
+                }
             }
 
             OpenAiResponse resBody = objectMapper.readValue(response.body(), OpenAiResponse.class);
