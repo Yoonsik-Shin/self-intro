@@ -256,8 +256,11 @@ function getDDayBadgeStyle(deadline: string | null, deadlineTime?: string | null
     }
     if (label?.startsWith('D-')) {
         const diffDays = parseInt(label.replace('D-', ''), 10);
+        if (diffDays <= 2) {
+            return 'bg-orange-100 text-orange-700 border border-orange-200';
+        }
         if (diffDays <= 7) {
-            return 'bg-rose-50 text-rose-600 border border-rose-200';
+            return 'bg-amber-50 text-amber-700 border border-amber-200';
         }
         if (diffDays <= 14) {
             return 'bg-blue-50 text-blue-600 border border-blue-200';
@@ -342,14 +345,19 @@ function DeadlineDisplayPill({
 
     if (dDay?.startsWith('D-')) {
         const diffDays = parseInt(dDay.replace('D-', ''), 10);
-        const isUrgent = diffDays <= 7;
+        const isUrgent = diffDays <= 2;
+        const isSoon = diffDays <= 7;
         return (
             <div className="flex items-center gap-1.5 text-xs">
                 <span className="font-semibold text-slate-800">{dateStr}</span>
                 <span className="font-medium text-slate-500">{timeStr}</span>
                 <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                        isUrgent ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+                        isUrgent
+                            ? 'bg-orange-100 text-orange-700'
+                            : isSoon
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-slate-100 text-slate-600'
                     }`}
                 >
                     {dDay}
@@ -439,18 +447,18 @@ function getDDayGroupHeaderStyle(groupKey: string): {
         const diffDays = parseInt(dDay.replace('D-', ''), 10);
         if (diffDays <= 2) {
             return {
-                rowBg: 'bg-rose-50/90 border-y border-rose-200/80',
-                iconColor: 'text-rose-500',
-                textColor: 'text-rose-900 font-extrabold',
-                badgeStyle: 'bg-rose-500 text-white font-extrabold',
+                rowBg: 'bg-orange-50/90 border-y border-orange-200/80',
+                iconColor: 'text-orange-600',
+                textColor: 'text-orange-950 font-extrabold',
+                badgeStyle: 'bg-orange-500 text-white font-extrabold shadow-2xs',
             };
         }
         if (diffDays <= 7) {
             return {
                 rowBg: 'bg-amber-50/90 border-y border-amber-200/80',
-                iconColor: 'text-amber-500',
-                textColor: 'text-amber-900 font-extrabold',
-                badgeStyle: 'bg-amber-500 text-white font-extrabold',
+                iconColor: 'text-amber-600',
+                textColor: 'text-amber-950 font-extrabold',
+                badgeStyle: 'bg-amber-500 text-white font-extrabold shadow-2xs',
             };
         }
         if (diffDays <= 30) {
@@ -3777,7 +3785,7 @@ export function JobApplicationManagement() {
                                                                 }
                                                                 className={`cursor-pointer transition ${
                                                                     isDDay
-                                                                        ? 'bg-rose-50/80 hover:bg-rose-100/90 text-rose-950 font-medium border-l-4 border-l-rose-500'
+                                                                        ? 'bg-rose-50/50 hover:bg-rose-100/70 text-slate-800 font-medium border-l-4 border-l-rose-500'
                                                                         : 'text-slate-500 hover:bg-slate-50'
                                                                 }`}
                                                             >
@@ -4093,7 +4101,7 @@ export function JobApplicationManagement() {
                                                                 onClick={() => openDrawer(item)}
                                                                 className={`cursor-pointer transition ${
                                                                     isDDay
-                                                                        ? 'bg-rose-50/80 hover:bg-rose-100/90 text-rose-950 font-medium border-l-4 border-l-rose-500'
+                                                                        ? 'bg-rose-50/50 hover:bg-rose-100/70 text-slate-800 font-medium border-l-4 border-l-rose-500'
                                                                         : 'text-slate-600 hover:bg-slate-50'
                                                                 }`}
                                                             >
