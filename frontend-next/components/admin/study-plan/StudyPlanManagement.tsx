@@ -21,12 +21,15 @@ import { adminDetailMarkdownComponents } from '@/lib/markdown';
 import { ApiError, learningResourceApi, studyPlanApi } from '@/lib/api';
 import type { StudyPlan, StudyPlanCandidate, StudyPlanItem, StudyPlanStage } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useAiModelStore } from '@/store/useAiModelStore';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { LearningResourceDetailPanel } from '@/components/admin/learning-resource/LearningResourceDetailPanel';
 
 export function StudyPlanManagement() {
     const queryClient = useQueryClient();
     const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
+    const aiModel = useAiModelStore((s) => s.modelKey);
+    const aiCustomModelName = useAiModelStore((s) => s.customModelName);
     const handleMutationError = (error: unknown) => {
         if (error instanceof ApiError && error.status === 401) setUnauthenticated();
     };
@@ -84,7 +87,12 @@ export function StudyPlanManagement() {
 
     const sendMessageMutation = useMutation({
         mutationFn: (content: string) =>
-            studyPlanApi.sendMessage(effectiveSelectedId as number, content),
+            studyPlanApi.sendMessage(
+                effectiveSelectedId as number,
+                content,
+                aiModel,
+                aiCustomModelName || undefined
+            ),
         onSuccess: (updated) => {
             setPlanCache(updated);
             setFeedback('');
@@ -93,7 +101,12 @@ export function StudyPlanManagement() {
     });
 
     const generateMutation = useMutation({
-        mutationFn: () => studyPlanApi.generate(effectiveSelectedId as number),
+        mutationFn: () =>
+            studyPlanApi.generate(
+                effectiveSelectedId as number,
+                aiModel,
+                aiCustomModelName || undefined
+            ),
         onSuccess: setPlanCache,
         onError: (error) => alertError(error, '계획 생성에 실패했습니다.'),
     });

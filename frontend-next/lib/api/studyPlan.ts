@@ -1,6 +1,14 @@
 import { request } from './client';
 import type { StudyPlan, StudyPlanCreateRequest, StudyPlanSummary } from './types';
 
+function aiModelQuery(aiModel?: string, customModelName?: string): string {
+    const params = new URLSearchParams();
+    if (aiModel) params.set('aiModel', aiModel);
+    if (customModelName) params.set('customModelName', customModelName);
+    const query = params.toString();
+    return query ? `?${query}` : '';
+}
+
 export const studyPlanApi = {
     list: () => request<StudyPlanSummary[]>('/api/admin/study-plans'),
     get: (id: number) => request<StudyPlan>(`/api/admin/study-plans/${id}`),
@@ -9,13 +17,16 @@ export const studyPlanApi = {
             method: 'POST',
             body: JSON.stringify(payload),
         }),
-    sendMessage: (id: number, content: string) =>
+    sendMessage: (id: number, content: string, aiModel?: string, customModelName?: string) =>
         request<StudyPlan>(`/api/admin/study-plans/${id}/messages`, {
             method: 'POST',
-            body: JSON.stringify({ content }),
+            body: JSON.stringify({ content, aiModel, customModelName }),
         }),
-    generate: (id: number) =>
-        request<StudyPlan>(`/api/admin/study-plans/${id}/generate`, { method: 'POST' }),
+    generate: (id: number, aiModel?: string, customModelName?: string) =>
+        request<StudyPlan>(
+            `/api/admin/study-plans/${id}/generate${aiModelQuery(aiModel, customModelName)}`,
+            { method: 'POST' }
+        ),
     toggleCandidateSelected: (planId: number, resourceId: number) =>
         request<StudyPlan>(
             `/api/admin/study-plans/${planId}/candidates/${resourceId}/toggle-selected`,
