@@ -519,20 +519,11 @@ export function JobCoverLetterDrawer({
                                 className="flex items-end gap-2"
                             >
                                 <textarea
-                                    rows={1}
+                                    rows={2}
                                     value={feedbackInput}
                                     onChange={(e) => setFeedbackInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            if (e.nativeEvent.isComposing) return;
-                                            e.preventDefault();
-                                            if (feedbackInput.trim() && !isGenerating) {
-                                                handleGenerate(feedbackInput);
-                                            }
-                                        }
-                                    }}
-                                    placeholder="지적사항을 입력하세요 (Shift+Enter: 줄바꿈, Enter: 전송)"
-                                    className="flex-1 min-w-0 resize-none max-h-32 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-none transition font-medium leading-5"
+                                    placeholder="지적사항이나 보완 요청을 입력하세요 (전송 버튼 클릭 시 반영)"
+                                    className="flex-1 min-w-0 resize-y min-h-[52px] max-h-36 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-none transition font-medium leading-5"
                                 />
                                 <button
                                     type="submit"
