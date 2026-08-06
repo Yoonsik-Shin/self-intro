@@ -587,6 +587,7 @@ public class JobPostingService {
     public JobPostingResponse updateRefreshedPosting(
             Long id, JobApplicationUrlParseResponse parsed) {
         JobPosting posting = findOrThrow(id);
+        LocalDateTime now = LocalDateTime.now();
         boolean deadlineKnown = parsed.deadline() != null || parsed.alwaysOpen();
         posting.update(
                 posting.getCompanyName(),
@@ -605,7 +606,18 @@ public class JobPostingService {
                 pick(parsed.hiringProcess(), posting.getHiringProcess()),
                 pick(parsed.applicationMethod(), posting.getApplicationMethod()),
                 pick(parsed.compensationDetail(), posting.getCompensationDetail()),
-                LocalDateTime.now());
+                now);
+        // 정보 새로고침으로 직무상세/자격요건 텍스트가 바뀌었을 수 있으니, 매칭 원문과 점수도
+        // 같이 다시 계산한다(요건이 새로고침 전 부실한 값에 고정돼 매칭 점수가 실제 공고 내용과
+        // 어긋나는 문제 방지).
+        posting.refreshRequiredSkillsRaw(
+                combineForMatching(
+                        posting.getJobDescription(),
+                        posting.getRequiredQualifications(),
+                        posting.getPreferredQualifications()));
+        JobMatchingService.MatchResult match =
+                matchingService.evaluate(posting.getPositionTitle(), posting.getRequiredSkillsRaw());
+        posting.applyMatch(match.score(), match.reason(), now);
         return toResponse(posting);
     }
 
@@ -617,6 +629,14 @@ public class JobPostingService {
     @Transactional
     public JobPostingResponse rematch(Long id) {
         JobPosting posting = findOrThrow(id);
+        // 매칭 원문(requiredSkillsRaw)이 최초 수집 시점 값에 고정돼 있으면 그 사이 정보
+        // 새로고침으로 채워진 최신 직무상세/자격요건이 반영되지 않아 재계산해도 계속 부실한
+        // 결과가 나온다 — 지원 전이라면 여기서도 최신 필드 기준으로 다시 합쳐준다.
+        posting.refreshRequiredSkillsRaw(
+                combineForMatching(
+                        posting.getJobDescription(),
+                        posting.getRequiredQualifications(),
+                        posting.getPreferredQualifications()));
         JobMatchingService.MatchResult match =
                 matchingService.evaluate(
                         posting.getPositionTitle(), posting.getRequiredSkillsRaw());
@@ -629,10 +649,13 @@ public class JobPostingService {
      * JobMatchingService의 키워드/AI 매칭이 제목만으로 판단하지 않고 실제 요건 텍스트를 근거로 삼을 수 있다.
      */
     private String combineForMatching(JobApplicationUrlParseResponse parsed) {
-        return Stream.of(
-                        parsed.jobDescription(),
-                        parsed.requiredQualifications(),
-                        parsed.preferredQualifications())
+        return combineForMatching(
+                parsed.jobDescription(), parsed.requiredQualifications(), parsed.preferredQualifications());
+    }
+
+    private String combineForMatching(
+            String jobDescription, String requiredQualifications, String preferredQualifications) {
+        return Stream.of(jobDescription, requiredQualifications, preferredQualifications)
                 .filter(AiJsonSupport::hasText)
                 .collect(Collectors.joining("\n"));
     }

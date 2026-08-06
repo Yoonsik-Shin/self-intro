@@ -447,6 +447,18 @@ public class JobPosting {
         this.updatedAt = now;
     }
 
+    /**
+     * 지원 전까지는 정보 새로고침·재매칭 때마다 최신 직무상세/자격요건 텍스트로 매칭 원문을
+     * 다시 합쳐도 되지만, {@link #requiredSkillsRaw} 필드 설명대로 지원 이후엔 그 시점 요건을
+     * 이력으로 고정해야 하므로 갱신하지 않는다.
+     */
+    public void refreshRequiredSkillsRaw(String requiredSkillsRaw) {
+        if (this.status == JobPostingStatus.APPLIED) {
+            return;
+        }
+        this.requiredSkillsRaw = requiredSkillsRaw;
+    }
+
     public void applyAppealAnalysis(String analysis, LocalDateTime now) {
         this.appealAnalysis = analysis;
         this.appealAnalyzedAt = now;
