@@ -208,7 +208,7 @@ function formatDateYYMMDD(value: string | null | undefined): string {
 }
 
 function formatDeadlineTime(deadlineTime?: string | null): string {
-    if (!deadlineTime) return '18:00';
+    if (!deadlineTime) return '23:59';
     return deadlineTime.slice(0, 5);
 }
 
@@ -232,10 +232,17 @@ function dDayLabel(deadline: string | null, deadlineTime?: string | null): strin
     // diffDays === 0: D-day!
     const timeStr = formatDeadlineTime(deadlineTime);
     const [hStr, mStr] = timeStr.split(':');
-    const targetHours = parseInt(hStr || '18', 10);
-    const targetMins = parseInt(mStr || '0', 10);
+    const targetHours = parseInt(hStr || '23', 10);
+    const targetMins = parseInt(mStr || '59', 10);
 
-    const targetDateTime = new Date(targetYear, targetMonth, targetDay, targetHours, targetMins, 0);
+    const targetDateTime = new Date(
+        targetYear,
+        targetMonth,
+        targetDay,
+        targetHours,
+        targetMins,
+        59
+    );
     const diffMs = targetDateTime.getTime() - now.getTime();
 
     if (diffMs <= 0) return '마감';
@@ -2215,7 +2222,7 @@ const emptyForm: JobPostingRequest = {
     source: '',
     appliedAt: new Date().toISOString().slice(0, 10),
     deadline: '',
-    deadlineTime: '18:00',
+    deadlineTime: '23:59',
     alwaysOpen: false,
     salaryNote: '',
     location: '',
@@ -3188,7 +3195,7 @@ export function JobApplicationManagement() {
             source: item.source,
             appliedAt: item.appliedAt,
             deadline: item.deadline ?? '',
-            deadlineTime: item.deadlineTime ? item.deadlineTime.slice(0, 5) : '18:00',
+            deadlineTime: item.deadlineTime ? item.deadlineTime.slice(0, 5) : '23:59',
             alwaysOpen: item.alwaysOpen,
             salaryNote: item.salaryNote ?? '',
             location: item.location ?? '',
@@ -3218,7 +3225,7 @@ export function JobApplicationManagement() {
             postingUrl: form.postingUrl?.trim() || null,
             deadline: form.alwaysOpen ? null : form.deadline?.trim() || null,
             deadlineTime:
-                form.alwaysOpen || !form.deadline ? null : form.deadlineTime?.trim() || '18:00',
+                form.alwaysOpen || !form.deadline ? null : form.deadlineTime?.trim() || '23:59:59',
             salaryNote: form.salaryNote?.trim() || null,
             location: form.location?.trim() || null,
             employmentType: form.employmentType?.trim() || null,
@@ -6123,7 +6130,7 @@ export function JobApplicationManagement() {
                                                                                 }
                                                                                 value={
                                                                                     form.deadlineTime ||
-                                                                                    '18:00'
+                                                                                    '23:59'
                                                                                 }
                                                                                 onChange={(e) =>
                                                                                     setForm(

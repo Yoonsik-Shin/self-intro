@@ -1221,7 +1221,7 @@ export default function JobPostingMapView({
                                                     .replace(/^20/, '')}{' '}
                                                 {activeItem.posting.deadlineTime
                                                     ? activeItem.posting.deadlineTime.slice(0, 5)
-                                                    : '18:00'}
+                                                    : '23:59'}
                                             </span>
                                         </div>
                                     )}

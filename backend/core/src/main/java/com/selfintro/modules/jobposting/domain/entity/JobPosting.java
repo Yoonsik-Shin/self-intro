@@ -211,36 +211,39 @@ public class JobPosting {
 
     /** URL 수집/사람인 자동수집으로 "아직 지원 안 한 후보"를 만든다. */
     public static JobPosting collect(Draft draft, LocalDateTime now) {
-        return new JobPosting(
-                draft.companyName(),
-                draft.positionTitle(),
-                draft.postingUrl(),
-                draft.externalId(),
-                draft.collectionMethod(),
-                draft.sourceLabel(),
-                JobPostingStatus.NEW,
-                null,
-                draft.deadline(),
-                draft.alwaysOpen(),
-                draft.salaryNote(),
-                draft.location(),
-                draft.employmentType(),
-                null,
-                draft.requiredSkillsRaw(),
-                draft.jobDescription(),
-                draft.requiredQualifications(),
-                draft.preferredQualifications(),
-                draft.hiringProcess(),
-                draft.applicationMethod(),
-                draft.compensationDetail(),
-                now);
+        JobPosting posting =
+                new JobPosting(
+                        draft.companyName(),
+                        draft.positionTitle(),
+                        draft.postingUrl(),
+                        draft.externalId(),
+                        draft.collectionMethod(),
+                        draft.sourceLabel(),
+                        JobPostingStatus.NEW,
+                        null,
+                        draft.deadline(),
+                        draft.alwaysOpen(),
+                        draft.salaryNote(),
+                        draft.location(),
+                        draft.employmentType(),
+                        null,
+                        draft.requiredSkillsRaw(),
+                        draft.jobDescription(),
+                        draft.requiredQualifications(),
+                        draft.preferredQualifications(),
+                        draft.hiringProcess(),
+                        draft.applicationMethod(),
+                        draft.compensationDetail(),
+                        now);
+        posting.deadlineTime = draft.deadlineTime();
+        return posting;
     }
 
     public java.time.LocalTime getDeadlineTime() {
         if (alwaysOpen || deadline == null) {
             return null;
         }
-        return deadlineTime != null ? deadlineTime : java.time.LocalTime.of(18, 0);
+        return deadlineTime != null ? deadlineTime : java.time.LocalTime.of(23, 59, 59);
     }
 
     public void setDeadlineTime(java.time.LocalTime deadlineTime) {
@@ -562,6 +565,7 @@ public class JobPosting {
             String location,
             String employmentType,
             LocalDate deadline,
+            java.time.LocalTime deadlineTime,
             boolean alwaysOpen,
             String salaryNote,
             String jobDescription,
@@ -570,6 +574,45 @@ public class JobPosting {
             String hiringProcess,
             String applicationMethod,
             String compensationDetail) {
+
+        public Draft(
+                String positionTitle,
+                String companyName,
+                String postingUrl,
+                String externalId,
+                JobPostingSource collectionMethod,
+                String requiredSkillsRaw,
+                String location,
+                String employmentType,
+                LocalDate deadline,
+                boolean alwaysOpen,
+                String salaryNote,
+                String jobDescription,
+                String requiredQualifications,
+                String preferredQualifications,
+                String hiringProcess,
+                String applicationMethod,
+                String compensationDetail) {
+            this(
+                    positionTitle,
+                    companyName,
+                    postingUrl,
+                    externalId,
+                    collectionMethod,
+                    requiredSkillsRaw,
+                    location,
+                    employmentType,
+                    deadline,
+                    null,
+                    alwaysOpen,
+                    salaryNote,
+                    jobDescription,
+                    requiredQualifications,
+                    preferredQualifications,
+                    hiringProcess,
+                    applicationMethod,
+                    compensationDetail);
+        }
 
         public String sourceLabel() {
             return switch (collectionMethod) {
