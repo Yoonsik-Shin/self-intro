@@ -444,10 +444,10 @@ function getDDayGroupHeaderStyle(groupKey: string): {
 
     if (dDay.startsWith('D-day')) {
         return {
-            rowBg: 'bg-rose-100/95 border-t-2 border-x-2 border-rose-500 border-b border-rose-300 shadow-xs',
+            rowBg: 'bg-rose-100/60 text-xs',
             iconColor: 'text-rose-600 animate-pulse',
             textColor: 'text-rose-950 font-black',
-            badgeStyle: 'bg-rose-600 text-white font-black animate-pulse shadow-2xs',
+            badgeStyle: 'bg-rose-500 text-white font-bold shadow-2xs',
         };
     }
 
@@ -3764,7 +3764,15 @@ export function JobApplicationManagement() {
                                                                             >
                                                                                 <td
                                                                                     colSpan={5}
-                                                                                    className="px-5 py-2"
+                                                                                    className={`px-5 py-2 ${
+                                                                                        dDayLabel(
+                                                                                            groupKey
+                                                                                        )?.startsWith(
+                                                                                            'D-day'
+                                                                                        )
+                                                                                            ? 'border-t-2 border-l-2 border-r-2 border-rose-300 border-b border-rose-200/70'
+                                                                                            : ''
+                                                                                    }`}
                                                                                 >
                                                                                     <div className="flex items-center gap-2">
                                                                                         {groupKey ===
@@ -3841,15 +3849,21 @@ export function JobApplicationManagement() {
                                                                     }
                                                                     className={`cursor-pointer transition ${
                                                                         isDDay
-                                                                            ? `bg-rose-50/60 hover:bg-rose-100/80 text-slate-800 font-medium border-x-2 border-rose-500 border-t border-t-rose-200/60 ${
-                                                                                  isLastInGroup
-                                                                                      ? 'border-b-2 border-b-rose-500'
-                                                                                      : ''
-                                                                              }`
+                                                                            ? 'bg-rose-50/40 hover:bg-rose-100/60 text-slate-800 font-medium'
                                                                             : 'text-slate-500 hover:bg-slate-50'
                                                                     }`}
                                                                 >
-                                                                    <td className="min-w-48 px-5 py-3">
+                                                                    <td
+                                                                        className={`min-w-48 px-5 py-3 ${
+                                                                            isDDay
+                                                                                ? 'border-l-2 border-l-rose-300 border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <div className="flex items-center gap-1.5">
                                                                             <span className="font-bold text-slate-700">
                                                                                 {
@@ -3876,7 +3890,17 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <td
+                                                                        className={`px-5 py-3 whitespace-nowrap ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <DeadlineDisplayPill
                                                                             deadline={
                                                                                 candidate.deadline
@@ -3895,7 +3919,17 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         />
                                                                     </td>
-                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <td
+                                                                        className={`px-5 py-3 whitespace-nowrap ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <MatchScoreBadge
                                                                             score={
                                                                                 candidate.matchScore
@@ -3905,7 +3939,17 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         />
                                                                     </td>
-                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <td
+                                                                        className={`px-5 py-3 whitespace-nowrap ${
+                                                                            isDDay
+                                                                                ? 'border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <JobplanetScoreBadge
                                                                             rating={
                                                                                 candidate.jobplanetRating
@@ -3918,7 +3962,17 @@ export function JobApplicationManagement() {
                                                                             }
                                                                         />
                                                                     </td>
-                                                                    <td className="px-5 py-3 text-right">
+                                                                    <td
+                                                                        className={`px-5 py-3 text-right ${
+                                                                            isDDay
+                                                                                ? 'border-r-2 border-r-rose-300 border-t border-t-rose-200/50'
+                                                                                : ''
+                                                                        } ${
+                                                                            isDDay && isLastInGroup
+                                                                                ? 'border-b-2 border-b-rose-300'
+                                                                                : ''
+                                                                        }`}
+                                                                    >
                                                                         <div className="flex items-center justify-end gap-1.5 xl:gap-3">
                                                                             <button
                                                                                 type="button"
