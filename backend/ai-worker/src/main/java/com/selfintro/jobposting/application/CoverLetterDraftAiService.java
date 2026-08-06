@@ -4,12 +4,16 @@ import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.CareerProfileDigestBuilder;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterRevision;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,7 +44,9 @@ public class CoverLetterDraftAiService {
     private final JobPostingRepository jobPostingRepository;
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
     private final NvidiaNimClient nvidiaNimClient;
+    private final JobPostingCoverLetterRevisionRepository revisionRepository;
 
+    @Transactional
     public JobPostingCoverLetterDraftResponse generateDraft(Long jobPostingId, JobPostingCoverLetterDraftRequest request) {
         JobPosting posting = jobPostingRepository.findById(jobPostingId)
                 .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + jobPostingId));
@@ -52,6 +58,17 @@ public class CoverLetterDraftAiService {
 
         String rawDraft = nvidiaNimClient.generate(systemPrompt, userPrompt);
         String draftAnswer = rawDraft.replace("\\n", "\n").trim();
+
+        // 히스토리 저장 (coverLetterItemId가 존재하는 경우)
+        if (request.coverLetterItemId() != null && request.coverLetterItemId() > 0) {
+            LocalDateTime now = LocalDateTime.now();
+            if (hasFeedback) {
+                revisionRepository.save(JobPostingCoverLetterRevision.create(
+                        request.coverLetterItemId(), "USER", request.feedbackInstruction().trim(), now));
+            }
+            revisionRepository.save(JobPostingCoverLetterRevision.create(
+                    request.coverLetterItemId(), "AI", draftAnswer, now));
+        }
 
         return new JobPostingCoverLetterDraftResponse(
                 request.question(),

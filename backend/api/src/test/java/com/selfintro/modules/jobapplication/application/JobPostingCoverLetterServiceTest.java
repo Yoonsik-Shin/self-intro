@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterItem;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterItemRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
@@ -26,12 +27,14 @@ class JobPostingCoverLetterServiceTest {
 
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private JobPostingCoverLetterItemRepository coverLetterItemRepository;
+    @Mock private JobPostingCoverLetterRevisionRepository revisionRepository;
 
     private JobPostingCoverLetterService service;
 
     @BeforeEach
     void setUp() {
-        service = new JobPostingCoverLetterService(jobPostingRepository, coverLetterItemRepository);
+        service = new JobPostingCoverLetterService(
+                jobPostingRepository, coverLetterItemRepository, revisionRepository);
     }
 
     @Test

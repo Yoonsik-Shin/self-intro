@@ -2,12 +2,15 @@ package com.selfintro.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.global.ai.CareerProfileDigestBuilder;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
@@ -25,12 +28,14 @@ class CoverLetterDraftAiServiceTest {
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private CareerProfileDigestBuilder careerProfileDigestBuilder;
     @Mock private NvidiaNimClient nvidiaNimClient;
+    @Mock private JobPostingCoverLetterRevisionRepository revisionRepository;
 
     private CoverLetterDraftAiService service;
 
     @BeforeEach
     void setUp() {
-        service = new CoverLetterDraftAiService(jobPostingRepository, careerProfileDigestBuilder, nvidiaNimClient);
+        service = new CoverLetterDraftAiService(
+                jobPostingRepository, careerProfileDigestBuilder, nvidiaNimClient, revisionRepository);
     }
 
     @Test
@@ -41,12 +46,13 @@ class CoverLetterDraftAiServiceTest {
         when(careerProfileDigestBuilder.build()).thenReturn("프로필 요약 정보");
         when(nvidiaNimClient.generate(anyString(), anyString())).thenReturn("생성된 AI 초안 답변입니다.");
 
-        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("지원 동기를 작성하세요.", 1000, null, null);
+        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("지원 동기를 작성하세요.", 1000, null, null, 10L);
         JobPostingCoverLetterDraftResponse response = service.generateDraft(1L, request);
 
         assertThat(response.question()).isEqualTo("지원 동기를 작성하세요.");
         assertThat(response.draftAnswer()).isEqualTo("생성된 AI 초안 답변입니다.");
         assertThat(response.characterLimit()).isEqualTo(1000);
+        verify(revisionRepository).save(any());
     }
 
     @Test
@@ -57,7 +63,7 @@ class CoverLetterDraftAiServiceTest {
         when(careerProfileDigestBuilder.build()).thenReturn("프로필 요약 정보");
         when(nvidiaNimClient.generate(anyString(), anyString())).thenReturn("피드백이 반영되어 개작된 AI 답변입니다.");
 
-        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("지원 동기를 작성하세요.", 1000, "이전 초안", "성과 수치를 더 강조해주세요.");
+        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("지원 동기를 작성하세요.", 1000, "이전 초안", "성과 수치를 더 강조해주세요.", 10L);
         JobPostingCoverLetterDraftResponse response = service.generateDraft(1L, request);
 
         assertThat(response.draftAnswer()).isEqualTo("피드백이 반영되어 개작된 AI 답변입니다.");
@@ -67,9 +73,10 @@ class CoverLetterDraftAiServiceTest {
     void throwsEntityNotFoundExceptionWhenJobPostingMissing() {
         when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
 
-        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("질문", 500, null, null);
+        JobPostingCoverLetterDraftRequest request = new JobPostingCoverLetterDraftRequest("질문", 500, null, null, null);
 
         assertThatThrownBy(() -> service.generateDraft(99L, request))
                 .isInstanceOf(EntityNotFoundException.class);
     }
 }
+

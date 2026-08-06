@@ -2,8 +2,10 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterItem;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterItemRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterRevisionResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
@@ -19,6 +21,7 @@ public class JobPostingCoverLetterService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingCoverLetterItemRepository coverLetterItemRepository;
+    private final JobPostingCoverLetterRevisionRepository revisionRepository;
 
     public List<JobPostingCoverLetterItemResponse> list(Long jobPostingId) {
         ensurePostingExists(jobPostingId);
@@ -26,6 +29,12 @@ public class JobPostingCoverLetterService {
                 .findAllByJobPostingIdOrderByDisplayOrderAsc(jobPostingId)
                 .stream()
                 .map(JobPostingCoverLetterItemResponse::from)
+                .toList();
+    }
+
+    public List<JobPostingCoverLetterRevisionResponse> getRevisions(Long itemId) {
+        return revisionRepository.findByCoverLetterItemIdOrderByIdAsc(itemId).stream()
+                .map(JobPostingCoverLetterRevisionResponse::from)
                 .toList();
     }
 

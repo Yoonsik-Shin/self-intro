@@ -3,10 +3,12 @@ package com.selfintro.modules.jobapplication.presentation;
 import com.selfintro.modules.jobapplication.application.JobPostingCoverLetterService;
 import com.selfintro.modules.jobapplication.application.JobPostingCrudService;
 import com.selfintro.modules.jobapplication.application.JobPostingGeocodingBackfillRunner;
+import com.selfintro.modules.jobapplication.application.JobPostingPositionChoiceService;
 import com.selfintro.modules.jobapplication.application.JobplanetCompanyService;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingMemoRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingPositionChoiceSaveRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingSettingRequest;
@@ -44,6 +46,7 @@ public class JobPostingCrudController {
     private final JobplanetCompanyService jobplanetCompanyService;
     private final JobPostingCoverLetterService coverLetterService;
     private final JobPostingGeocodingBackfillRunner geocodingBackfillRunner;
+    private final JobPostingPositionChoiceService positionChoiceService;
 
     @GetMapping
     public List<JobPostingResponse> list() {
@@ -154,10 +157,23 @@ public class JobPostingCrudController {
         return coverLetterService.list(id);
     }
 
+    @GetMapping("/cover-letter-items/{itemId}/revisions")
+    public List<com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterRevisionResponse> coverLetterRevisions(
+            @PathVariable Long itemId) {
+        return coverLetterService.getRevisions(itemId);
+    }
+
     @PutMapping("/{id}/cover-letter-items")
     public List<JobPostingCoverLetterItemResponse> replaceCoverLetterItems(
             @PathVariable Long id, @Valid @RequestBody JobPostingCoverLetterSaveRequest request) {
         return coverLetterService.replace(id, request);
+    }
+
+    /** 2지망 이상을 확정/수정한다(1지망은 PUT /{id}로 관리하는 positionTitle이 담당). */
+    @PutMapping("/{id}/position-choices")
+    public List<JobPostingResponse.PositionChoice> replacePositionChoices(
+            @PathVariable Long id, @Valid @RequestBody JobPostingPositionChoiceSaveRequest request) {
+        return positionChoiceService.replace(id, request);
     }
 
     @GetMapping("/{id}/jobplanet")
