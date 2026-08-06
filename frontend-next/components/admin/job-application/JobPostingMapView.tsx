@@ -1163,7 +1163,13 @@ export default function JobPostingMapView({
                                             <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                                             <span className="text-slate-500">마감일:</span>
                                             <span className="font-bold text-slate-900">
-                                                {activeItem.posting.deadline}
+                                                {activeItem.posting.deadline
+                                                    .slice(0, 10)
+                                                    .replaceAll('-', '.')
+                                                    .replace(/^20/, '')}{' '}
+                                                {activeItem.posting.deadlineTime
+                                                    ? activeItem.posting.deadlineTime.slice(0, 5)
+                                                    : '18:00'}
                                             </span>
                                         </div>
                                     )}

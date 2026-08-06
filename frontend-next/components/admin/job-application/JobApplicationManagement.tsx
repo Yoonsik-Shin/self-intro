@@ -1,6 +1,7 @@
 'use client';
 
 import {
+    Fragment,
     useCallback,
     useEffect,
     useLayoutEffect,
@@ -27,6 +28,7 @@ import {
     Check,
     ChevronDown,
     Clipboard,
+    Clock,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
@@ -47,6 +49,7 @@ import {
     Trash2,
     Upload,
     X,
+    XCircle,
 } from 'lucide-react';
 import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
@@ -195,45 +198,324 @@ function isCandidateDetailMissing(candidate: JobPosting): boolean {
     );
 }
 
-function dDayLabel(deadline: string | null): string | null {
-    if (!deadline) return null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(`${deadline}T00:00:00`);
-    const diffDays = Math.round((target.getTime() - today.getTime()) / 86_400_000);
-    if (diffDays < 0) return '마감';
-    if (diffDays === 0) return 'D-day';
-    return `D-${diffDays}`;
+function formatDateYYMMDD(value: string | null | undefined): string {
+    if (!value) return '-';
+    const cleaned = value.slice(0, 10).replaceAll('-', '.');
+    if (cleaned.length === 10 && cleaned.startsWith('20')) {
+        return cleaned.slice(2);
+    }
+    return cleaned;
 }
 
-function getDDayBadgeStyle(deadline: string | null): string {
-    if (!deadline) return 'bg-slate-100 text-slate-500 border border-slate-200';
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(`${deadline}T00:00:00`);
-    const diffDays = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+function formatDeadlineTime(deadlineTime?: string | null): string {
+    if (!deadlineTime) return '18:00';
+    return deadlineTime.slice(0, 5);
+}
 
-    if (diffDays < 0) {
+function dDayLabel(deadline: string | null, deadlineTime?: string | null): string | null {
+    if (!deadline) return null;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const dateParts = deadline.slice(0, 10).split('-');
+    if (dateParts.length < 3) return null;
+    const targetYear = parseInt(dateParts[0], 10);
+    const targetMonth = parseInt(dateParts[1], 10) - 1;
+    const targetDay = parseInt(dateParts[2], 10);
+
+    const targetDateMidnight = new Date(targetYear, targetMonth, targetDay);
+    const diffDays = Math.round((targetDateMidnight.getTime() - today.getTime()) / 86_400_000);
+
+    if (diffDays < 0) return '마감';
+    if (diffDays > 0) return `D-${diffDays}`;
+
+    // diffDays === 0: D-day!
+    const timeStr = formatDeadlineTime(deadlineTime);
+    const [hStr, mStr] = timeStr.split(':');
+    const targetHours = parseInt(hStr || '18', 10);
+    const targetMins = parseInt(mStr || '0', 10);
+
+    const targetDateTime = new Date(targetYear, targetMonth, targetDay, targetHours, targetMins, 0);
+    const diffMs = targetDateTime.getTime() - now.getTime();
+
+    if (diffMs <= 0) return '마감';
+
+    const remainingHours = Math.ceil(diffMs / (1000 * 60 * 60));
+    return `D-day (${remainingHours}h)`;
+}
+
+function getDDayBadgeStyle(deadline: string | null, deadlineTime?: string | null): string {
+    if (!deadline) return 'bg-slate-100 text-slate-500 border border-slate-200';
+    const label = dDayLabel(deadline, deadlineTime);
+
+    if (label === '마감') {
         return 'bg-slate-100 text-slate-400 border border-slate-200';
     }
-    if (diffDays <= 7) {
-        return 'bg-rose-50 text-rose-600 border border-rose-200';
+    if (label?.startsWith('D-day')) {
+        return 'bg-rose-100 text-rose-700 border border-rose-300 font-extrabold animate-pulse';
     }
-    if (diffDays <= 14) {
-        return 'bg-blue-50 text-blue-600 border border-blue-200';
+    if (label?.startsWith('D-')) {
+        const diffDays = parseInt(label.replace('D-', ''), 10);
+        if (diffDays <= 7) {
+            return 'bg-rose-50 text-rose-600 border border-rose-200';
+        }
+        if (diffDays <= 14) {
+            return 'bg-blue-50 text-blue-600 border border-blue-200';
+        }
     }
     return 'bg-slate-100 text-slate-600 border border-slate-200';
 }
 
-function sortByDeadlineAsc<T extends { deadline: string | null; id: number }>(items: T[]): T[] {
+function DeadlineDisplayPill({
+    deadline,
+    deadlineTime,
+    alwaysOpen,
+    hideDate = false,
+}: {
+    deadline: string | null;
+    deadlineTime?: string | null;
+    alwaysOpen?: boolean;
+    hideDate?: boolean;
+}) {
+    if (alwaysOpen) {
+        return <AlwaysOpenBadge />;
+    }
+    if (!deadline) {
+        return <span className="text-slate-300">—</span>;
+    }
+
+    const dDay = dDayLabel(deadline, deadlineTime);
+    const dateStr = formatDateYYMMDD(deadline);
+    const timeStr = formatDeadlineTime(deadlineTime);
+
+    if (dDay === '마감') {
+        return (
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="font-medium text-slate-400 line-through decoration-slate-300">
+                    {dateStr} {timeStr}
+                </span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">
+                    마감
+                </span>
+            </div>
+        );
+    }
+
+    if (hideDate) {
+        if (dDay?.startsWith('D-day')) {
+            const timeRemaining = dDay.includes('(') ? `(${dDay.split('(')[1]}` : '';
+            return (
+                <div className="flex items-center gap-1.5 text-xs">
+                    <span className="font-bold text-rose-600 flex items-center gap-1">
+                        <Clock className="h-3 w-3 animate-pulse text-rose-500" />
+                        {timeStr}
+                    </span>
+                    {timeRemaining && (
+                        <span className="text-[11px] font-extrabold text-rose-500">
+                            {timeRemaining}
+                        </span>
+                    )}
+                </div>
+            );
+        }
+        return (
+            <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-semibold text-slate-700">{timeStr}</span>
+            </div>
+        );
+    }
+
+    if (dDay?.startsWith('D-day')) {
+        return (
+            <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-extrabold text-slate-900">{dateStr}</span>
+                <span className="font-bold text-rose-600 flex items-center gap-1">
+                    <Clock className="h-3 w-3 animate-pulse text-rose-500" />
+                    {timeStr}
+                </span>
+                <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white animate-pulse">
+                    {dDay}
+                </span>
+            </div>
+        );
+    }
+
+    if (dDay?.startsWith('D-')) {
+        const diffDays = parseInt(dDay.replace('D-', ''), 10);
+        const isUrgent = diffDays <= 7;
+        return (
+            <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-semibold text-slate-800">{dateStr}</span>
+                <span className="font-medium text-slate-500">{timeStr}</span>
+                <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        isUrgent ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+                    }`}
+                >
+                    {dDay}
+                </span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <span className="font-medium">{dateStr}</span>
+            <span className="text-slate-400">{timeStr}</span>
+        </div>
+    );
+}
+
+function getGroupKey(item: {
+    alwaysOpen?: boolean;
+    deadline: string | null;
+    deadlineTime?: string | null;
+}): string {
+    if (item.alwaysOpen) return 'ALWAYS_OPEN';
+    if (!item.deadline) return 'NO_DEADLINE';
+    const dDay = dDayLabel(item.deadline, item.deadlineTime);
+    if (dDay === '마감') return 'EXPIRED';
+    return item.deadline.slice(0, 10);
+}
+
+function getGroupOrder(key: string): number {
+    if (key === 'ALWAYS_OPEN') return 1000;
+    if (key === 'NO_DEADLINE') return 2000;
+    if (key === 'EXPIRED') return 3000;
+    return 0;
+}
+
+function getDDayGroupHeaderStyle(groupKey: string): {
+    rowBg: string;
+    iconColor: string;
+    textColor: string;
+    badgeStyle: string;
+} {
+    if (groupKey === 'ALWAYS_OPEN') {
+        return {
+            rowBg: 'bg-emerald-50/80 border-y border-emerald-200/70',
+            iconColor: 'text-emerald-600',
+            textColor: 'text-emerald-900 font-extrabold',
+            badgeStyle: 'bg-emerald-100 text-emerald-700 border border-emerald-300',
+        };
+    }
+    if (groupKey === 'NO_DEADLINE') {
+        return {
+            rowBg: 'bg-slate-100/70 border-y border-slate-200/80',
+            iconColor: 'text-slate-400',
+            textColor: 'text-slate-500 font-bold',
+            badgeStyle: 'bg-slate-200 text-slate-600',
+        };
+    }
+    if (groupKey === 'EXPIRED') {
+        return {
+            rowBg: 'bg-slate-100/80 border-y border-slate-200/90',
+            iconColor: 'text-slate-400',
+            textColor: 'text-slate-500 font-bold',
+            badgeStyle: 'bg-slate-200 text-slate-500',
+        };
+    }
+
+    const dDay = dDayLabel(groupKey);
+    if (!dDay) {
+        return {
+            rowBg: 'bg-slate-100/70 border-y border-slate-200/80',
+            iconColor: 'text-slate-500',
+            textColor: 'text-slate-800 font-bold',
+            badgeStyle: 'bg-slate-200 text-slate-700',
+        };
+    }
+
+    if (dDay.startsWith('D-day')) {
+        return {
+            rowBg: 'bg-rose-100/90 border-y border-rose-300',
+            iconColor: 'text-rose-600 animate-pulse',
+            textColor: 'text-rose-950 font-black',
+            badgeStyle: 'bg-rose-600 text-white font-black animate-pulse shadow-2xs',
+        };
+    }
+
+    if (dDay.startsWith('D-')) {
+        const diffDays = parseInt(dDay.replace('D-', ''), 10);
+        if (diffDays <= 2) {
+            return {
+                rowBg: 'bg-rose-50/90 border-y border-rose-200/80',
+                iconColor: 'text-rose-500',
+                textColor: 'text-rose-900 font-extrabold',
+                badgeStyle: 'bg-rose-500 text-white font-extrabold',
+            };
+        }
+        if (diffDays <= 7) {
+            return {
+                rowBg: 'bg-amber-50/90 border-y border-amber-200/80',
+                iconColor: 'text-amber-500',
+                textColor: 'text-amber-900 font-extrabold',
+                badgeStyle: 'bg-amber-500 text-white font-extrabold',
+            };
+        }
+        if (diffDays <= 30) {
+            return {
+                rowBg: 'bg-blue-50/80 border-y border-blue-200/70',
+                iconColor: 'text-blue-500',
+                textColor: 'text-blue-900 font-bold',
+                badgeStyle: 'bg-blue-500 text-white font-bold',
+            };
+        }
+        return {
+            rowBg: 'bg-slate-100/70 border-y border-slate-200/80',
+            iconColor: 'text-slate-400',
+            textColor: 'text-slate-700 font-bold',
+            badgeStyle: 'bg-slate-200 text-slate-600 font-bold',
+        };
+    }
+
+    return {
+        rowBg: 'bg-slate-100/70 border-y border-slate-200/80',
+        iconColor: 'text-slate-500',
+        textColor: 'text-slate-800 font-bold',
+        badgeStyle: 'bg-slate-200 text-slate-700',
+    };
+}
+
+function sortByDeadlineAsc<
+    T extends {
+        deadline: string | null;
+        deadlineTime?: string | null;
+        alwaysOpen?: boolean;
+        id: number;
+    },
+>(items: T[]): T[] {
     return [...items].sort((a, b) => {
+        const keyA = getGroupKey(a);
+        const keyB = getGroupKey(b);
+
+        const orderA = getGroupOrder(keyA);
+        const orderB = getGroupOrder(keyB);
+
+        if (orderA !== orderB) {
+            return orderA - orderB;
+        }
+
+        if (keyA === 'ALWAYS_OPEN' || keyA === 'NO_DEADLINE') {
+            return b.id - a.id;
+        }
+
+        if (keyA === 'EXPIRED') {
+            if (a.deadline && b.deadline) {
+                const cmp = b.deadline.localeCompare(a.deadline);
+                if (cmp !== 0) return cmp;
+            }
+            return b.id - a.id;
+        }
+
         if (a.deadline && b.deadline) {
             const cmp = a.deadline.localeCompare(b.deadline);
             if (cmp !== 0) return cmp;
-            return b.id - a.id;
+            if (a.deadlineTime && b.deadlineTime) {
+                const tCmp = a.deadlineTime.localeCompare(b.deadlineTime);
+                if (tCmp !== 0) return tCmp;
+            }
         }
-        if (a.deadline && !b.deadline) return -1;
-        if (!a.deadline && b.deadline) return 1;
         return b.id - a.id;
     });
 }
@@ -1892,7 +2174,7 @@ function toDateKey(date: Date): string {
 }
 
 function formatBoardStatusDate(value: string): string {
-    return value.slice(2, 10).replaceAll('-', '.');
+    return formatDateYYMMDD(value);
 }
 
 type CalendarCell = { date: Date | null };
@@ -1916,6 +2198,7 @@ const emptyForm: JobPostingRequest = {
     source: '',
     appliedAt: new Date().toISOString().slice(0, 10),
     deadline: '',
+    deadlineTime: '18:00',
     alwaysOpen: false,
     salaryNote: '',
     location: '',
@@ -1950,11 +2233,17 @@ export function JobApplicationManagement() {
         'ALL' | PreApplicationStatus
     >('ALL');
     const [candidateDeadlineSoonOnly, setCandidateDeadlineSoonOnly] = useState(false);
+    const [candidateSubTab, setCandidateSubTab] = useState<
+        'ALL' | 'HAS_DEADLINE' | 'ALWAYS_OPEN_OR_NO_DEADLINE' | 'EXPIRED'
+    >('ALL');
     const [showDismissed, setShowDismissed] = useState(false);
     const [applicationStageFilter, setApplicationStageFilter] = useState<'ALL' | ApplicationStatus>(
         'ALL'
     );
     const [applicationDeadlineSoonOnly, setApplicationDeadlineSoonOnly] = useState(false);
+    const [applicationSubTab, setApplicationSubTab] = useState<
+        'ALL' | 'HAS_DEADLINE' | 'ALWAYS_OPEN_OR_NO_DEADLINE' | 'EXPIRED'
+    >('ALL');
     const [stageDraft, setStageDraft] = useState<ApplicationStatus | null>(null);
     const [stageMemo, setStageMemo] = useState('');
     const [dragOverStage, setDragOverStage] = useState<ApplicationStatus | null>(null);
@@ -2677,47 +2966,135 @@ export function JobApplicationManagement() {
         [candidates]
     );
 
-    // 리스트뷰의 수집함/지원 현황 두 섹션은 각자 독립된 상태/마감임박 필터를 갖는다.
-    const listCandidates = useMemo(() => {
-        // 제외됨은 숨김폴더처럼 기본적으로 안 보인다 — 체크박스를 켜거나, 상태 필터에서 직접 "제외됨"을 고르면 노출된다.
+    const rawListCandidates = useMemo(() => {
         const revealDismissed = showDismissed || candidateStatusFilter === 'DISMISSED';
-        const filtered = filteredCandidates.filter((item) => {
+        return filteredCandidates.filter((item) => {
             if (item.status === 'DISMISSED' && !revealDismissed) return false;
             if (candidateStatusFilter !== 'ALL' && candidateStatusFilter !== item.status)
                 return false;
             if (candidateDeadlineSoonOnly && !isDeadlineSoon(item.deadline)) return false;
             return true;
         });
-        return sortByDeadlineAsc(filtered);
     }, [filteredCandidates, candidateStatusFilter, candidateDeadlineSoonOnly, showDismissed]);
 
-    const listApplications = useMemo(() => {
-        const filtered = filteredApplications.filter((item) => {
+    const candidateSubTabCounts = useMemo(() => {
+        let all = 0;
+        let hasDeadline = 0;
+        let noDeadline = 0;
+        let expired = 0;
+
+        for (const c of rawListCandidates) {
+            all++;
+            const dDay = dDayLabel(c.deadline, c.deadlineTime);
+            if (dDay === '마감') {
+                expired++;
+            } else if (c.alwaysOpen || !c.deadline) {
+                noDeadline++;
+            } else {
+                hasDeadline++;
+            }
+        }
+        return {
+            ALL: all,
+            HAS_DEADLINE: hasDeadline,
+            ALWAYS_OPEN_OR_NO_DEADLINE: noDeadline,
+            EXPIRED: expired,
+        };
+    }, [rawListCandidates]);
+
+    const listCandidates = useMemo(() => {
+        const filtered = rawListCandidates.filter((item) => {
+            const dDay = dDayLabel(item.deadline, item.deadlineTime);
+            if (candidateSubTab === 'HAS_DEADLINE') {
+                return !item.alwaysOpen && Boolean(item.deadline) && dDay !== '마감';
+            }
+            if (candidateSubTab === 'ALWAYS_OPEN_OR_NO_DEADLINE') {
+                return (item.alwaysOpen || !item.deadline) && dDay !== '마감';
+            }
+            if (candidateSubTab === 'EXPIRED') {
+                return dDay === '마감';
+            }
+            return true;
+        });
+        return sortByDeadlineAsc(filtered);
+    }, [rawListCandidates, candidateSubTab]);
+
+    const rawListApplications = useMemo(() => {
+        return filteredApplications.filter((item) => {
             if (item.status === 'DISMISSED' && !showDismissed) return false;
             if (applicationStageFilter !== 'ALL' && applicationStageFilter !== item.status)
                 return false;
             if (applicationDeadlineSoonOnly && !isDeadlineSoon(item.deadline)) return false;
             return true;
         });
-        return sortByDeadlineAsc(filtered);
     }, [filteredApplications, applicationStageFilter, applicationDeadlineSoonOnly, showDismissed]);
 
+    const applicationSubTabCounts = useMemo(() => {
+        let all = 0;
+        let hasDeadline = 0;
+        let noDeadline = 0;
+        let expired = 0;
+
+        for (const item of rawListApplications) {
+            all++;
+            const dDay = dDayLabel(item.deadline, item.deadlineTime);
+            if (dDay === '마감') {
+                expired++;
+            } else if (item.alwaysOpen || !item.deadline) {
+                noDeadline++;
+            } else {
+                hasDeadline++;
+            }
+        }
+        return {
+            ALL: all,
+            HAS_DEADLINE: hasDeadline,
+            ALWAYS_OPEN_OR_NO_DEADLINE: noDeadline,
+            EXPIRED: expired,
+        };
+    }, [rawListApplications]);
+
+    const listApplications = useMemo(() => {
+        const filtered = rawListApplications.filter((item) => {
+            const dDay = dDayLabel(item.deadline, item.deadlineTime);
+            if (applicationSubTab === 'HAS_DEADLINE') {
+                return !item.alwaysOpen && Boolean(item.deadline) && dDay !== '마감';
+            }
+            if (applicationSubTab === 'ALWAYS_OPEN_OR_NO_DEADLINE') {
+                return (item.alwaysOpen || !item.deadline) && dDay !== '마감';
+            }
+            if (applicationSubTab === 'EXPIRED') {
+                return dDay === '마감';
+            }
+            return true;
+        });
+        return sortByDeadlineAsc(filtered);
+    }, [rawListApplications, applicationSubTab]);
+
     const isCandidateFilterActive =
-        candidateStatusFilter !== 'ALL' || candidateDeadlineSoonOnly || showDismissed;
+        candidateStatusFilter !== 'ALL' ||
+        candidateDeadlineSoonOnly ||
+        showDismissed ||
+        candidateSubTab !== 'ALL';
 
     function resetCandidateFilters() {
         setCandidateStatusFilter('ALL');
         setCandidateDeadlineSoonOnly(false);
         setShowDismissed(false);
+        setCandidateSubTab('ALL');
     }
 
     const isApplicationFilterActive =
-        applicationStageFilter !== 'ALL' || applicationDeadlineSoonOnly || showDismissed;
+        applicationStageFilter !== 'ALL' ||
+        applicationDeadlineSoonOnly ||
+        showDismissed ||
+        applicationSubTab !== 'ALL';
 
     function resetApplicationFilters() {
         setApplicationStageFilter('ALL');
         setApplicationDeadlineSoonOnly(false);
         setShowDismissed(false);
+        setApplicationSubTab('ALL');
     }
 
     const byStage = useMemo(() => {
@@ -2820,6 +3197,7 @@ export function JobApplicationManagement() {
             source: item.source,
             appliedAt: item.appliedAt,
             deadline: item.deadline ?? '',
+            deadlineTime: item.deadlineTime ? item.deadlineTime.slice(0, 5) : '18:00',
             alwaysOpen: item.alwaysOpen,
             salaryNote: item.salaryNote ?? '',
             location: item.location ?? '',
@@ -2848,6 +3226,8 @@ export function JobApplicationManagement() {
             ...form,
             postingUrl: form.postingUrl?.trim() || null,
             deadline: form.alwaysOpen ? null : form.deadline?.trim() || null,
+            deadlineTime:
+                form.alwaysOpen || !form.deadline ? null : form.deadlineTime?.trim() || '18:00',
             salaryNote: form.salaryNote?.trim() || null,
             location: form.location?.trim() || null,
             employmentType: form.employmentType?.trim() || null,
@@ -3170,6 +3550,85 @@ export function JobApplicationManagement() {
                             )}
                         </div>
                     </div>
+                    <div className="flex items-center gap-1.5 border-b border-slate-100 bg-slate-50/70 px-5 py-2 overflow-x-auto">
+                        {listSection === 'CANDIDATES'
+                            ? (
+                                  [
+                                      ['ALL', '전체', candidateSubTabCounts.ALL],
+                                      [
+                                          'HAS_DEADLINE',
+                                          '마감일O',
+                                          candidateSubTabCounts.HAS_DEADLINE,
+                                      ],
+                                      [
+                                          'ALWAYS_OPEN_OR_NO_DEADLINE',
+                                          '상시채용+마감일X',
+                                          candidateSubTabCounts.ALWAYS_OPEN_OR_NO_DEADLINE,
+                                      ],
+                                      ['EXPIRED', '마감된 공고', candidateSubTabCounts.EXPIRED],
+                                  ] as const
+                              ).map(([key, label, count]) => (
+                                  <button
+                                      key={key}
+                                      type="button"
+                                      onClick={() => setCandidateSubTab(key)}
+                                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition whitespace-nowrap ${
+                                          candidateSubTab === key
+                                              ? 'bg-slate-900 text-white shadow-2xs'
+                                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                                      }`}
+                                  >
+                                      {label}
+                                      <span
+                                          className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                                              candidateSubTab === key
+                                                  ? 'bg-slate-800 text-slate-200'
+                                                  : 'bg-slate-100 text-slate-500'
+                                          }`}
+                                      >
+                                          {count}
+                                      </span>
+                                  </button>
+                              ))
+                            : (
+                                  [
+                                      ['ALL', '전체', applicationSubTabCounts.ALL],
+                                      [
+                                          'HAS_DEADLINE',
+                                          '마감일O',
+                                          applicationSubTabCounts.HAS_DEADLINE,
+                                      ],
+                                      [
+                                          'ALWAYS_OPEN_OR_NO_DEADLINE',
+                                          '상시채용+마감일X',
+                                          applicationSubTabCounts.ALWAYS_OPEN_OR_NO_DEADLINE,
+                                      ],
+                                      ['EXPIRED', '마감된 공고', applicationSubTabCounts.EXPIRED],
+                                  ] as const
+                              ).map(([key, label, count]) => (
+                                  <button
+                                      key={key}
+                                      type="button"
+                                      onClick={() => setApplicationSubTab(key)}
+                                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition whitespace-nowrap ${
+                                          applicationSubTab === key
+                                              ? 'bg-slate-900 text-white shadow-2xs'
+                                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                                      }`}
+                                  >
+                                      {label}
+                                      <span
+                                          className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                                              applicationSubTab === key
+                                                  ? 'bg-slate-800 text-slate-200'
+                                                  : 'bg-slate-100 text-slate-500'
+                                          }`}
+                                      >
+                                          {count}
+                                      </span>
+                                  </button>
+                              ))}
+                    </div>
                     {listSection === 'CANDIDATES' ? (
                         <>
                             {listCandidates.length === 0 ? (
@@ -3195,188 +3654,292 @@ export function JobApplicationManagement() {
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
+                                                <th className="px-5 py-3 font-bold">마감시간</th>
                                                 <th className="px-5 py-3 font-bold">AI 매칭</th>
                                                 <th className="px-5 py-3 font-bold">잡플래닛</th>
-                                                <th className="px-5 py-3 font-bold">마감일</th>
                                                 <th className="px-5 py-3 font-bold text-right">
                                                     관리
                                                 </th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {listCandidates.map((candidate) => {
-                                                const dDay = dDayLabel(candidate.deadline);
-                                                return (
-                                                    <tr
-                                                        key={candidate.id}
-                                                        onClick={() => openDrawer(candidate)}
-                                                        className="cursor-pointer text-slate-500 transition hover:bg-slate-50"
-                                                    >
-                                                        <td className="min-w-48 px-5 py-3">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="font-bold text-slate-700">
-                                                                    {candidate.companyName}
-                                                                </span>
-                                                                {candidate.status ===
-                                                                    'DISMISSED' && (
-                                                                    <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
-                                                                        숨김됨
-                                                                    </span>
-                                                                )}
-                                                                {isCandidateDetailMissing(
-                                                                    candidate
-                                                                ) && (
-                                                                    <span title="상세 정보를 자동으로 가져오지 못했어요">
-                                                                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <span className="mt-0.5 block text-xs text-slate-400">
-                                                                {candidate.positionTitle}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-5 py-3 whitespace-nowrap">
-                                                            <MatchScoreBadge
-                                                                score={candidate.matchScore}
-                                                                reason={candidate.matchReason}
-                                                            />
-                                                        </td>
-                                                        <td className="px-5 py-3 whitespace-nowrap">
-                                                            <JobplanetScoreBadge
-                                                                rating={candidate.jobplanetRating}
-                                                                reviewCount={
-                                                                    candidate.jobplanetReviewCount
-                                                                }
-                                                                companyUrl={
-                                                                    candidate.jobplanetCompanyUrl
-                                                                }
-                                                            />
-                                                        </td>
-                                                        <td className="px-5 py-3 whitespace-nowrap">
-                                                            {candidate.alwaysOpen ? (
-                                                                <AlwaysOpenBadge />
-                                                            ) : candidate.deadline ? (
-                                                                <span className="inline-flex items-center gap-1.5">
-                                                                    {candidate.deadline}
-                                                                    {dDay && (
-                                                                        <span
-                                                                            className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
-                                                                                candidate.deadline
-                                                                            )}`}
-                                                                        >
-                                                                            {dDay}
-                                                                        </span>
-                                                                    )}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-slate-300">
-                                                                    —
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-5 py-3 text-right">
-                                                            <div className="flex items-center justify-end gap-1.5 xl:gap-3">
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                        applyMutation.isPending
-                                                                    }
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        applyMutation.mutate(
-                                                                            candidate.id
+                                            {(() => {
+                                                let lastGroupKey: string | null = null;
+                                                return listCandidates.map((candidate) => {
+                                                    const groupKey = getGroupKey(candidate);
+                                                    const showHeader = groupKey !== lastGroupKey;
+                                                    lastGroupKey = groupKey;
+
+                                                    const dDay = dDayLabel(
+                                                        candidate.deadline,
+                                                        candidate.deadlineTime
+                                                    );
+                                                    const isDDay = dDay?.startsWith('D-day');
+
+                                                    return (
+                                                        <Fragment key={`cand-frag-${candidate.id}`}>
+                                                            {showHeader &&
+                                                                (() => {
+                                                                    const headerStyle =
+                                                                        getDDayGroupHeaderStyle(
+                                                                            groupKey
                                                                         );
-                                                                    }}
-                                                                    title="지원하기"
-                                                                    aria-label="지원하기"
-                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                >
-                                                                    <Check className="h-4 w-4 xl:hidden" />
-                                                                    <span className="hidden xl:inline">
-                                                                        지원하기
-                                                                    </span>
-                                                                </button>
-                                                                {candidate.status ===
-                                                                'DISMISSED' ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        disabled={
-                                                                            undismissCandidateMutation.isPending
-                                                                        }
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            undismissCandidateMutation.mutate(
-                                                                                candidate.id
-                                                                            );
-                                                                        }}
-                                                                        title="숨김 해제"
-                                                                        aria-label="숨김 해제"
-                                                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                    >
-                                                                        <Eye className="h-4 w-4 xl:hidden" />
-                                                                        <span className="hidden xl:inline">
-                                                                            숨김 해제
+                                                                    return (
+                                                                        <tr
+                                                                            key={`group-${groupKey}`}
+                                                                            className={`${headerStyle.rowBg} text-xs`}
+                                                                        >
+                                                                            <td
+                                                                                colSpan={5}
+                                                                                className="px-5 py-2"
+                                                                            >
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {groupKey ===
+                                                                                    'ALWAYS_OPEN' ? (
+                                                                                        <span
+                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
+                                                                                        >
+                                                                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                                                            상시
+                                                                                            채용
+                                                                                            공고
+                                                                                        </span>
+                                                                                    ) : groupKey ===
+                                                                                      'NO_DEADLINE' ? (
+                                                                                        <span
+                                                                                            className={`font-bold ${headerStyle.textColor}`}
+                                                                                        >
+                                                                                            마감일
+                                                                                            미지정
+                                                                                        </span>
+                                                                                    ) : groupKey ===
+                                                                                      'EXPIRED' ? (
+                                                                                        <span
+                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
+                                                                                        >
+                                                                                            <XCircle className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                                                                            마감된
+                                                                                            공고
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            {dDayLabel(
+                                                                                                groupKey
+                                                                                            )?.startsWith(
+                                                                                                'D-day'
+                                                                                            ) ? (
+                                                                                                <Clock
+                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <CalendarIcon
+                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                />
+                                                                                            )}
+                                                                                            <span
+                                                                                                className={`font-extrabold ${headerStyle.textColor}`}
+                                                                                            >
+                                                                                                {formatDateYYMMDD(
+                                                                                                    groupKey
+                                                                                                )}
+                                                                                            </span>
+                                                                                            {dDayLabel(
+                                                                                                groupKey
+                                                                                            ) && (
+                                                                                                <span
+                                                                                                    className={`rounded-full px-2 py-0.5 text-[10px] ${headerStyle.badgeStyle}`}
+                                                                                                >
+                                                                                                    {dDayLabel(
+                                                                                                        groupKey
+                                                                                                    )}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })()}
+                                                            <tr
+                                                                key={candidate.id}
+                                                                onClick={() =>
+                                                                    openDrawer(candidate)
+                                                                }
+                                                                className={`cursor-pointer transition ${
+                                                                    isDDay
+                                                                        ? 'bg-rose-50/80 hover:bg-rose-100/90 text-rose-950 font-medium border-l-4 border-l-rose-500'
+                                                                        : 'text-slate-500 hover:bg-slate-50'
+                                                                }`}
+                                                            >
+                                                                <td className="min-w-48 px-5 py-3">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="font-bold text-slate-700">
+                                                                            {candidate.companyName}
                                                                         </span>
-                                                                    </button>
-                                                                ) : (
-                                                                    <button
-                                                                        type="button"
-                                                                        disabled={
-                                                                            dismissCandidateMutation.isPending
+                                                                        {candidate.status ===
+                                                                            'DISMISSED' && (
+                                                                            <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                                숨김됨
+                                                                            </span>
+                                                                        )}
+                                                                        {isCandidateDetailMissing(
+                                                                            candidate
+                                                                        ) && (
+                                                                            <span title="상세 정보를 자동으로 가져오지 못했어요">
+                                                                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="mt-0.5 block text-xs text-slate-400">
+                                                                        {candidate.positionTitle}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <DeadlineDisplayPill
+                                                                        deadline={
+                                                                            candidate.deadline
                                                                         }
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (
-                                                                                confirm(
-                                                                                    '이 공고를 숨김 처리할까요?'
-                                                                                )
-                                                                            ) {
-                                                                                dismissCandidateMutation.mutate(
+                                                                        deadlineTime={
+                                                                            candidate.deadlineTime
+                                                                        }
+                                                                        alwaysOpen={
+                                                                            candidate.alwaysOpen
+                                                                        }
+                                                                        hideDate={
+                                                                            groupKey !==
+                                                                                'ALWAYS_OPEN' &&
+                                                                            groupKey !==
+                                                                                'NO_DEADLINE'
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <MatchScoreBadge
+                                                                        score={candidate.matchScore}
+                                                                        reason={
+                                                                            candidate.matchReason
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <JobplanetScoreBadge
+                                                                        rating={
+                                                                            candidate.jobplanetRating
+                                                                        }
+                                                                        reviewCount={
+                                                                            candidate.jobplanetReviewCount
+                                                                        }
+                                                                        companyUrl={
+                                                                            candidate.jobplanetCompanyUrl
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <td className="px-5 py-3 text-right">
+                                                                    <div className="flex items-center justify-end gap-1.5 xl:gap-3">
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={
+                                                                                applyMutation.isPending
+                                                                            }
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                applyMutation.mutate(
                                                                                     candidate.id
                                                                                 );
+                                                                            }}
+                                                                            title="지원하기"
+                                                                            aria-label="지원하기"
+                                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                        >
+                                                                            <Check className="h-4 w-4 xl:hidden" />
+                                                                            <span className="hidden xl:inline">
+                                                                                지원하기
+                                                                            </span>
+                                                                        </button>
+                                                                        {candidate.status ===
+                                                                        'DISMISSED' ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={
+                                                                                    undismissCandidateMutation.isPending
+                                                                                }
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    undismissCandidateMutation.mutate(
+                                                                                        candidate.id
+                                                                                    );
+                                                                                }}
+                                                                                title="숨김 해제"
+                                                                                aria-label="숨김 해제"
+                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                            >
+                                                                                <Eye className="h-4 w-4 xl:hidden" />
+                                                                                <span className="hidden xl:inline">
+                                                                                    숨김 해제
+                                                                                </span>
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={
+                                                                                    dismissCandidateMutation.isPending
+                                                                                }
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (
+                                                                                        confirm(
+                                                                                            '이 공고를 숨김 처리할까요?'
+                                                                                        )
+                                                                                    ) {
+                                                                                        dismissCandidateMutation.mutate(
+                                                                                            candidate.id
+                                                                                        );
+                                                                                    }
+                                                                                }}
+                                                                                title="숨김"
+                                                                                aria-label="숨김"
+                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                            >
+                                                                                <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                                <span className="hidden xl:inline">
+                                                                                    숨김
+                                                                                </span>
+                                                                            </button>
+                                                                        )}
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={
+                                                                                deleteMutation.isPending
                                                                             }
-                                                                        }}
-                                                                        title="숨김"
-                                                                        aria-label="숨김"
-                                                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                    >
-                                                                        <EyeOff className="h-4 w-4 xl:hidden" />
-                                                                        <span className="hidden xl:inline">
-                                                                            숨김
-                                                                        </span>
-                                                                    </button>
-                                                                )}
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                        deleteMutation.isPending
-                                                                    }
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (
-                                                                            confirm(
-                                                                                '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
-                                                                            )
-                                                                        ) {
-                                                                            deleteMutation.mutate(
-                                                                                candidate.id
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                    title="완전히 삭제"
-                                                                    aria-label="완전히 삭제"
-                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4 xl:hidden" />
-                                                                    <span className="hidden xl:inline">
-                                                                        삭제
-                                                                    </span>
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (
+                                                                                    confirm(
+                                                                                        '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
+                                                                                    )
+                                                                                ) {
+                                                                                    deleteMutation.mutate(
+                                                                                        candidate.id
+                                                                                    );
+                                                                                }
+                                                                            }}
+                                                                            title="완전히 삭제"
+                                                                            aria-label="완전히 삭제"
+                                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4 xl:hidden" />
+                                                                            <span className="hidden xl:inline">
+                                                                                삭제
+                                                                            </span>
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        </Fragment>
+                                                    );
+                                                });
+                                            })()}
                                         </tbody>
                                     </table>
                                 </div>
@@ -3407,10 +3970,10 @@ export function JobApplicationManagement() {
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
+                                                <th className="px-5 py-3 font-bold">마감시간</th>
                                                 <th className="px-5 py-3 font-bold">AI 매칭</th>
                                                 <th className="px-5 py-3 font-bold">잡플래닛</th>
                                                 <th className="px-5 py-3 font-bold">지원일</th>
-                                                <th className="px-5 py-3 font-bold">마감일</th>
                                                 <th className="px-5 py-3 font-bold">현재 단계</th>
                                                 <th className="px-5 py-3 font-bold text-right">
                                                     관리
@@ -3418,144 +3981,264 @@ export function JobApplicationManagement() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {listApplications.map((item) => (
-                                                <tr
-                                                    key={item.id}
-                                                    onClick={() => openDrawer(item)}
-                                                    className="cursor-pointer text-slate-600 transition hover:bg-slate-50"
-                                                >
-                                                    <td className="min-w-48 px-5 py-3">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="font-bold text-slate-800">
-                                                                {item.companyName}
-                                                            </span>
-                                                            {item.status === 'DISMISSED' && (
-                                                                <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
-                                                                    숨김됨
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <span className="mt-0.5 block text-xs text-slate-400">
-                                                            {item.positionTitle}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-3 whitespace-nowrap">
-                                                        <MatchScoreBadge
-                                                            score={item.matchScore}
-                                                            reason={item.matchReason}
-                                                        />
-                                                    </td>
-                                                    <td className="px-5 py-3 whitespace-nowrap">
-                                                        <JobplanetScoreBadge
-                                                            rating={item.jobplanetRating}
-                                                            reviewCount={item.jobplanetReviewCount}
-                                                            companyUrl={item.jobplanetCompanyUrl}
-                                                        />
-                                                    </td>
-                                                    <td className="px-5 py-3 whitespace-nowrap">
-                                                        {item.appliedAt}
-                                                    </td>
-                                                    <td className="px-5 py-3 whitespace-nowrap">
-                                                        {item.alwaysOpen ? (
-                                                            <AlwaysOpenBadge />
-                                                        ) : (
-                                                            (item.deadline ?? (
-                                                                <span className="text-slate-300">
-                                                                    —
-                                                                </span>
-                                                            ))
-                                                        )}
-                                                    </td>
-                                                    <td className="px-5 py-3">
-                                                        <span
-                                                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[item.status as ApplicationStatus]}`}
-                                                        >
-                                                            {
-                                                                STAGE_LABELS[
-                                                                    item.status as ApplicationStatus
-                                                                ]
-                                                            }
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-3 text-right">
-                                                        <div className="flex items-center justify-end gap-1.5 xl:gap-3">
-                                                            {item.status === 'DISMISSED' ? (
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                        undismissCandidateMutation.isPending
-                                                                    }
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        undismissCandidateMutation.mutate(
-                                                                            item.id
+                                            {(() => {
+                                                let lastGroupKey: string | null = null;
+                                                return listApplications.map((item) => {
+                                                    const groupKey = getGroupKey(item);
+                                                    const showHeader = groupKey !== lastGroupKey;
+                                                    lastGroupKey = groupKey;
+
+                                                    const dDay = dDayLabel(
+                                                        item.deadline,
+                                                        item.deadlineTime
+                                                    );
+                                                    const isDDay = dDay?.startsWith('D-day');
+
+                                                    return (
+                                                        <Fragment key={`app-frag-${item.id}`}>
+                                                            {showHeader &&
+                                                                (() => {
+                                                                    const headerStyle =
+                                                                        getDDayGroupHeaderStyle(
+                                                                            groupKey
                                                                         );
-                                                                    }}
-                                                                    title="숨김 해제"
-                                                                    aria-label="숨김 해제"
-                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                >
-                                                                    <Eye className="h-4 w-4 xl:hidden" />
-                                                                    <span className="hidden xl:inline">
-                                                                        숨김 해제
-                                                                    </span>
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                        dismissCandidateMutation.isPending
-                                                                    }
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        if (
-                                                                            confirm(
-                                                                                '이 지원 공고를 숨김 처리할까요?'
-                                                                            )
-                                                                        ) {
-                                                                            dismissCandidateMutation.mutate(
-                                                                                item.id
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                    title="숨김"
-                                                                    aria-label="숨김"
-                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                >
-                                                                    <EyeOff className="h-4 w-4 xl:hidden" />
-                                                                    <span className="hidden xl:inline">
-                                                                        숨김
-                                                                    </span>
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                type="button"
-                                                                disabled={deleteMutation.isPending}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (
-                                                                        confirm(
-                                                                            '이 지원 공고를 완전히 삭제할까요?'
-                                                                        )
-                                                                    ) {
-                                                                        deleteMutation.mutate(
-                                                                            item.id
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                title="완전히 삭제"
-                                                                aria-label="완전히 삭제"
-                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                    return (
+                                                                        <tr
+                                                                            key={`group-${groupKey}`}
+                                                                            className={`${headerStyle.rowBg} text-xs`}
+                                                                        >
+                                                                            <td
+                                                                                colSpan={7}
+                                                                                className="px-5 py-2"
+                                                                            >
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {groupKey ===
+                                                                                    'ALWAYS_OPEN' ? (
+                                                                                        <span
+                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
+                                                                                        >
+                                                                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                                                            상시
+                                                                                            채용
+                                                                                            공고
+                                                                                        </span>
+                                                                                    ) : groupKey ===
+                                                                                      'NO_DEADLINE' ? (
+                                                                                        <span
+                                                                                            className={`font-bold ${headerStyle.textColor}`}
+                                                                                        >
+                                                                                            마감일
+                                                                                            미지정
+                                                                                        </span>
+                                                                                    ) : groupKey ===
+                                                                                      'EXPIRED' ? (
+                                                                                        <span
+                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
+                                                                                        >
+                                                                                            <XCircle className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                                                                            마감된
+                                                                                            공고
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            {dDayLabel(
+                                                                                                groupKey
+                                                                                            )?.startsWith(
+                                                                                                'D-day'
+                                                                                            ) ? (
+                                                                                                <Clock
+                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <CalendarIcon
+                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                />
+                                                                                            )}
+                                                                                            <span
+                                                                                                className={`font-extrabold ${headerStyle.textColor}`}
+                                                                                            >
+                                                                                                {formatDateYYMMDD(
+                                                                                                    groupKey
+                                                                                                )}
+                                                                                            </span>
+                                                                                            {dDayLabel(
+                                                                                                groupKey
+                                                                                            ) && (
+                                                                                                <span
+                                                                                                    className={`rounded-full px-2 py-0.5 text-[10px] ${headerStyle.badgeStyle}`}
+                                                                                                >
+                                                                                                    {dDayLabel(
+                                                                                                        groupKey
+                                                                                                    )}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })()}
+                                                            <tr
+                                                                key={item.id}
+                                                                onClick={() => openDrawer(item)}
+                                                                className={`cursor-pointer transition ${
+                                                                    isDDay
+                                                                        ? 'bg-rose-50/80 hover:bg-rose-100/90 text-rose-950 font-medium border-l-4 border-l-rose-500'
+                                                                        : 'text-slate-600 hover:bg-slate-50'
+                                                                }`}
                                                             >
-                                                                <Trash2 className="h-4 w-4 xl:hidden" />
-                                                                <span className="hidden xl:inline">
-                                                                    삭제
-                                                                </span>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                                <td className="min-w-48 px-5 py-3">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="font-bold text-slate-800">
+                                                                            {item.companyName}
+                                                                        </span>
+                                                                        {item.status ===
+                                                                            'DISMISSED' && (
+                                                                            <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                                숨김됨
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="mt-0.5 block text-xs text-slate-400">
+                                                                        {item.positionTitle}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <DeadlineDisplayPill
+                                                                        deadline={item.deadline}
+                                                                        deadlineTime={
+                                                                            item.deadlineTime
+                                                                        }
+                                                                        alwaysOpen={item.alwaysOpen}
+                                                                        hideDate={
+                                                                            groupKey !==
+                                                                                'ALWAYS_OPEN' &&
+                                                                            groupKey !==
+                                                                                'NO_DEADLINE'
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <MatchScoreBadge
+                                                                        score={item.matchScore}
+                                                                        reason={item.matchReason}
+                                                                    />
+                                                                </td>
+                                                                <td className="px-5 py-3 whitespace-nowrap">
+                                                                    <JobplanetScoreBadge
+                                                                        rating={
+                                                                            item.jobplanetRating
+                                                                        }
+                                                                        reviewCount={
+                                                                            item.jobplanetReviewCount
+                                                                        }
+                                                                        companyUrl={
+                                                                            item.jobplanetCompanyUrl
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <td className="px-5 py-3 whitespace-nowrap">
+                                                                    {formatDateYYMMDD(
+                                                                        item.appliedAt
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-5 py-3">
+                                                                    <span
+                                                                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[item.status as ApplicationStatus]}`}
+                                                                    >
+                                                                        {
+                                                                            STAGE_LABELS[
+                                                                                item.status as ApplicationStatus
+                                                                            ]
+                                                                        }
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-5 py-3 text-right">
+                                                                    <div className="flex items-center justify-end gap-1.5 xl:gap-3">
+                                                                        {item.status ===
+                                                                        'DISMISSED' ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={
+                                                                                    undismissCandidateMutation.isPending
+                                                                                }
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    undismissCandidateMutation.mutate(
+                                                                                        item.id
+                                                                                    );
+                                                                                }}
+                                                                                title="숨김 해제"
+                                                                                aria-label="숨김 해제"
+                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                            >
+                                                                                <Eye className="h-4 w-4 xl:hidden" />
+                                                                                <span className="hidden xl:inline">
+                                                                                    숨김 해제
+                                                                                </span>
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={
+                                                                                    dismissCandidateMutation.isPending
+                                                                                }
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (
+                                                                                        confirm(
+                                                                                            '이 지원 공고를 숨김 처리할까요?'
+                                                                                        )
+                                                                                    ) {
+                                                                                        dismissCandidateMutation.mutate(
+                                                                                            item.id
+                                                                                        );
+                                                                                    }
+                                                                                }}
+                                                                                title="숨김"
+                                                                                aria-label="숨김"
+                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                            >
+                                                                                <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                                <span className="hidden xl:inline">
+                                                                                    숨김
+                                                                                </span>
+                                                                            </button>
+                                                                        )}
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={
+                                                                                deleteMutation.isPending
+                                                                            }
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (
+                                                                                    confirm(
+                                                                                        '이 지원 공고를 완전히 삭제할까요?'
+                                                                                    )
+                                                                                ) {
+                                                                                    deleteMutation.mutate(
+                                                                                        item.id
+                                                                                    );
+                                                                                }
+                                                                            }}
+                                                                            title="완전히 삭제"
+                                                                            aria-label="완전히 삭제"
+                                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4 xl:hidden" />
+                                                                            <span className="hidden xl:inline">
+                                                                                삭제
+                                                                            </span>
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        </Fragment>
+                                                    );
+                                                });
+                                            })()}
                                         </tbody>
                                     </table>
                                 </div>
@@ -3596,7 +4279,10 @@ export function JobApplicationManagement() {
                             </div>
                             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain pr-1">
                                 {boardCandidates.map((candidate) => {
-                                    const dDay = dDayLabel(candidate.deadline);
+                                    const dDay = dDayLabel(
+                                        candidate.deadline,
+                                        candidate.deadlineTime
+                                    );
                                     return (
                                         <div
                                             key={candidate.id}
@@ -3605,22 +4291,30 @@ export function JobApplicationManagement() {
                                             onClick={() => openDrawer(candidate)}
                                             className="cursor-grab rounded-xl border border-slate-200 bg-slate-50 p-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow active:cursor-grabbing"
                                         >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span
-                                                    className="truncate text-[11px] font-semibold text-slate-400"
-                                                    title="공고 마감일"
-                                                >
-                                                    {candidate.alwaysOpen || !candidate.deadline
-                                                        ? '-'
-                                                        : formatBoardStatusDate(candidate.deadline)}
-                                                </span>
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex flex-col text-[11px] font-semibold text-slate-400">
+                                                    <span>
+                                                        {candidate.alwaysOpen || !candidate.deadline
+                                                            ? '-'
+                                                            : formatDateYYMMDD(candidate.deadline)}
+                                                    </span>
+                                                    {!candidate.alwaysOpen &&
+                                                        candidate.deadline && (
+                                                            <span className="text-[10px] text-slate-400 font-medium">
+                                                                {formatDeadlineTime(
+                                                                    candidate.deadlineTime
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                </div>
                                                 {candidate.alwaysOpen ? (
                                                     <AlwaysOpenBadge rounded="rounded-full" />
                                                 ) : (
                                                     dDay && (
                                                         <span
                                                             className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
-                                                                candidate.deadline
+                                                                candidate.deadline,
+                                                                candidate.deadlineTime
                                                             )}`}
                                                         >
                                                             {dDay}
@@ -4085,7 +4779,7 @@ export function JobApplicationManagement() {
                                                             지원일
                                                         </dt>
                                                         <dd className="mt-0.5 text-slate-800">
-                                                            {drawerItem.appliedAt}
+                                                            {formatDateYYMMDD(drawerItem.appliedAt)}
                                                         </dd>
                                                     </div>
                                                 )}
@@ -4097,20 +4791,36 @@ export function JobApplicationManagement() {
                                                         {drawerItem.alwaysOpen ? (
                                                             <AlwaysOpenBadge />
                                                         ) : drawerItem.deadline ? (
-                                                            <span className="inline-flex items-center gap-1.5">
-                                                                {drawerItem.deadline}
-                                                                {dDayLabel(drawerItem.deadline) && (
-                                                                    <span
-                                                                        className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
-                                                                            drawerItem.deadline
-                                                                        )}`}
-                                                                    >
-                                                                        {dDayLabel(
+                                                            <div className="flex flex-col gap-0.5 text-sm">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-semibold text-slate-900">
+                                                                        {formatDateYYMMDD(
                                                                             drawerItem.deadline
                                                                         )}
                                                                     </span>
-                                                                )}
-                                                            </span>
+                                                                    {dDayLabel(
+                                                                        drawerItem.deadline,
+                                                                        drawerItem.deadlineTime
+                                                                    ) && (
+                                                                        <span
+                                                                            className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
+                                                                                drawerItem.deadline,
+                                                                                drawerItem.deadlineTime
+                                                                            )}`}
+                                                                        >
+                                                                            {dDayLabel(
+                                                                                drawerItem.deadline,
+                                                                                drawerItem.deadlineTime
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-xs font-medium text-slate-500">
+                                                                    {formatDeadlineTime(
+                                                                        drawerItem.deadlineTime
+                                                                    )}
+                                                                </span>
+                                                            </div>
                                                         ) : (
                                                             <span className="text-slate-300">
                                                                 —
@@ -5410,24 +6120,52 @@ export function JobApplicationManagement() {
                                                                                 상시채용
                                                                             </label>
                                                                         </div>
-                                                                        <input
-                                                                            type="date"
-                                                                            disabled={
-                                                                                form.alwaysOpen
-                                                                            }
-                                                                            value={
-                                                                                form.deadline ?? ''
-                                                                            }
-                                                                            onChange={(e) =>
-                                                                                setForm((prev) => ({
-                                                                                    ...prev,
-                                                                                    deadline:
-                                                                                        e.target
-                                                                                            .value,
-                                                                                }))
-                                                                            }
-                                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
-                                                                        />
+                                                                        <div className="flex gap-2">
+                                                                            <input
+                                                                                type="date"
+                                                                                disabled={
+                                                                                    form.alwaysOpen
+                                                                                }
+                                                                                value={
+                                                                                    form.deadline ??
+                                                                                    ''
+                                                                                }
+                                                                                onChange={(e) =>
+                                                                                    setForm(
+                                                                                        (prev) => ({
+                                                                                            ...prev,
+                                                                                            deadline:
+                                                                                                e
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        })
+                                                                                    )
+                                                                                }
+                                                                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                                                                            />
+                                                                            <input
+                                                                                type="time"
+                                                                                disabled={
+                                                                                    form.alwaysOpen
+                                                                                }
+                                                                                value={
+                                                                                    form.deadlineTime ||
+                                                                                    '18:00'
+                                                                                }
+                                                                                onChange={(e) =>
+                                                                                    setForm(
+                                                                                        (prev) => ({
+                                                                                            ...prev,
+                                                                                            deadlineTime:
+                                                                                                e
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        })
+                                                                                    )
+                                                                                }
+                                                                                className="w-32 shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                                                                            />
+                                                                        </div>
                                                                     </label>
                                                                 </div>
                                                                 <label className="block text-sm">
