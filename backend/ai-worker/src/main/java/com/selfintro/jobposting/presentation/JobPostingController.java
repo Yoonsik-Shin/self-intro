@@ -89,6 +89,12 @@ public class JobPostingController {
         return jobPostingService.refreshAll(onlyActive);
     }
 
+    @PostMapping(value = "/refresh-all/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter refreshAllStream(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true") boolean onlyActive) {
+        return jobPostingService.refreshAllStream(onlyActive);
+    }
+
     @PostMapping("/collect")
     public JobPostingCollectionResult collect() {
         return jobPostingCollectorService.collectNow();

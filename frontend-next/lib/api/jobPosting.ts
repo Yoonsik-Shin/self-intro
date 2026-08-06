@@ -148,6 +148,18 @@ export const jobPostingApi = {
         }>(`/api/worker/job-postings/refresh-all?onlyActive=${onlyActive}`, {
             method: 'POST',
         }),
+    /** 등록된 공고 전체 백필 재수집을 SSE 스트림으로 실시간 진행상황 받아오며 수행한다. */
+    refreshAllStream: (
+        onEvent: (event: JobPostingBulkIngestStreamEvent) => void,
+        onlyActive: boolean = true,
+        signal?: AbortSignal
+    ) =>
+        requestEventStream<JobPostingBulkIngestStreamEvent>(
+            `/api/worker/job-postings/refresh-all/stream?onlyActive=${onlyActive}`,
+            {},
+            onEvent,
+            signal
+        ),
     save: (id: number) =>
         request<void>(`/api/admin/job-postings/${id}/save`, {
             method: 'PATCH',

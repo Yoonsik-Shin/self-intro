@@ -626,7 +626,91 @@ public class JobPostingService {
         }
         return new JobPostingBulkRefreshResult(total, success, failed, skipped, logs);
     }
+    public SseEmitter refreshAllStream(boolean onlyActive) {
+        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        Thread.ofVirtual()
+                .name("job-posting-refresh-all-stream")
+                .start(() -> streamRefreshAll(onlyActive, emitter));
+        return emitter;
+    }
 
+    private void streamRefreshAll(boolean onlyActive, SseEmitter emitter) {
+        Thread heartbeat = startHeartbeat(emitter);
+        List<JobPosting> list =
+                jobPostingRepository.findAll().stream()
+                        .filter(p -> AiJsonSupport.hasText(p.getPostingUrl()))
+                        .filter(
+                                p ->
+                                        !onlyActive
+                                                || (p.getStatus() != com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.DISMISSED
+                                                        && p.getStatus() != com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.EXPIRED))
+                        .toList();
+
+        int total = list.size();
+        java.util.concurrent.atomic.AtomicInteger completed = new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger errorCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        try {
+            send(
+                    emitter,
+                    new BulkProgressEvent(
+                            "progress", total, 0, "전체 공고 재수집 백필 준비 완료 (" + total + "건)", "processing"));
+
+            for (JobPosting posting : list) {
+                String label = posting.getCompanyName() + " - " + posting.getPositionTitle();
+                boolean acquired = false;
+                try {
+                    ingestSemaphore.acquire();
+                    acquired = true;
+                    send(
+                            emitter,
+                            new BulkProgressEvent(
+                                    "progress", total, completed.get(), label, "processing"));
+
+                    JobPostingResponse response = refresh(posting.getId());
+                    successCount.incrementAndGet();
+                    send(
+                            emitter,
+                            new BulkItemSuccessEvent(
+                                    "item_success",
+                                    total,
+                                    completed.incrementAndGet(),
+                                    label,
+                                    response));
+
+                    // 원격 사이트 WAF/IP 차단(Rate Limiting) 방지를 위한 요청 간 500ms 딜레이
+                    Thread.sleep(500);
+                } catch (Exception ex) {
+                    errorCount.incrementAndGet();
+                    String msg =
+                            ex instanceof ResponseStatusException rse && rse.getReason() != null
+                                    ? rse.getReason()
+                                    : ex.getMessage();
+                    send(
+                            emitter,
+                            new BulkItemErrorEvent(
+                                    "item_error",
+                                    total,
+                                    completed.incrementAndGet(),
+                                    label,
+                                    msg != null ? msg : "재수집 실패"));
+                } finally {
+                    if (acquired) {
+                        ingestSemaphore.release();
+                    }
+                }
+            }
+            send(
+                    emitter,
+                    new BulkCompleteEvent("complete", total, successCount.get(), errorCount.get()));
+            emitter.complete();
+        } catch (Exception ex) {
+            fail(emitter, "전체 공고 재수집 중 오류 발생: " + ex.getMessage());
+        } finally {
+            heartbeat.interrupt();
+        }
+    }
     @Transactional
     public JobPostingResponse refresh(Long id) {
         JobPosting posting = findOrThrow(id);

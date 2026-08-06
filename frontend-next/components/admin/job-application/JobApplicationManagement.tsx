@@ -2938,17 +2938,45 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '공고 수집에 실패했습니다.'),
     });
 
-    const refreshAllMutation = useMutation({
-        mutationFn: () => jobPostingApi.refreshAll(true),
-        onSuccess: (result) => {
+    const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+    const [refreshProgressText, setRefreshProgressText] = useState('');
+
+    const handleRefreshAll = async () => {
+        if (!confirm('등록된 모든 활성 공고의 최신 정보(마감시간 등)를 백필/재수집하시겠습니까?')) {
+            return;
+        }
+        setIsRefreshingAll(true);
+        setRefreshProgressText('백필 준비 중...');
+
+        try {
+            await jobPostingApi.refreshAllStream((event) => {
+                if (event.type === 'progress') {
+                    setRefreshProgressText(`백필 진행 중 (${event.current}/${event.total})`);
+                } else if (event.type === 'item_success') {
+                    setRefreshProgressText(
+                        `진행 중 (${event.current}/${event.total}) — ${event.label}`
+                    );
+                } else if (event.type === 'item_error') {
+                    setRefreshProgressText(`오류 발생 (${event.current}/${event.total})`);
+                } else if (event.type === 'complete') {
+                    invalidate();
+                    alert(
+                        `전체 공고 재수집 완료:\n- 총 공고: ${event.total}건\n- 성공: ${event.successCount}건\n- 실패: ${event.errorCount}건`
+                    );
+                }
+            });
             invalidate();
+        } catch (error) {
             alert(
-                `전체 공고 재수집 (백필) 완료:\n- 대상 공고: ${result.totalTarget}건\n- 성공: ${result.successCount}건\n- 실패: ${result.failedCount}건\n- 건너뜀: ${result.skippedCount}건`
+                error instanceof ApiError
+                    ? error.message
+                    : '전체 공고 재수집 중 오류가 발생했습니다.'
             );
-        },
-        onError: (error) =>
-            alert(error instanceof ApiError ? error.message : '전체 공고 재수집에 실패했습니다.'),
-    });
+        } finally {
+            setIsRefreshingAll(false);
+            setRefreshProgressText('');
+        }
+    };
 
     const updateSettingsMutation = useMutation({
         mutationFn: (payload: JobPostingSettingRequest) => jobPostingApi.updateSettings(payload),
@@ -3353,31 +3381,23 @@ export function JobApplicationManagement() {
                     </button>
                     <button
                         type="button"
-                        disabled={refreshAllMutation.isPending}
-                        onClick={() => {
-                            if (
-                                confirm(
-                                    '등록된 모든 활성 공고의 최신 정보(마감시간 등)를 백필/재수집하시겠습니까?'
-                                )
-                            ) {
-                                refreshAllMutation.mutate();
-                            }
-                        }}
+                        disabled={isRefreshingAll}
+                        onClick={handleRefreshAll}
                         title={
-                            refreshAllMutation.isPending
-                                ? '전체 공고 재수집 백필 진행 중...'
+                            isRefreshingAll
+                                ? refreshProgressText || '전체 공고 재수집 백필 진행 중...'
                                 : '전체 공고 재수집 (백필) · 원본 URL에서 최신 마감시간 및 정보를 일괄 갱신'
                         }
                         aria-label="전체 공고 재수집"
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 xl:h-auto xl:w-auto xl:gap-1.5 xl:rounded-lg xl:border xl:border-slate-200 xl:bg-white xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold xl:hover:bg-slate-50"
                     >
-                        {refreshAllMutation.isPending ? (
+                        {isRefreshingAll ? (
                             <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                         ) : (
                             <RefreshCw className="h-4 w-4 text-blue-600" />
                         )}
                         <span className="hidden xl:inline">
-                            {refreshAllMutation.isPending ? '백필 중...' : '전체 재수집'}
+                            {isRefreshingAll ? refreshProgressText || '백필 중...' : '전체 재수집'}
                         </span>
                     </button>
                     <button
