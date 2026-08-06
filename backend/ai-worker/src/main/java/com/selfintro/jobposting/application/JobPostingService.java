@@ -362,7 +362,15 @@ public class JobPostingService {
      * 이미 수집/등록된 공고를 원본 URL에서 다시 읽어 최신 정보로 갱신한다. 회사명/직무명/URL/출처 라벨/메모는 사용자가 직접 관리하는 값이라 건드리지 않고, 그 외
      * 상세 항목은 이번에 새로 읽은 값이 있으면 그걸로 덮어쓰되 없으면(일시적 추출 실패 등) 기존 값을 그대로 둔다 — 재수집 한 번 실패했다고 이미 확보한 상세 정보를
      * 지우지 않기 위해서다. 다만 마감일/상시채용 여부는 이번 결과가 "확실한 정보"(날짜를 읽었거나 상시채용이라고 명시됨)일 때만 갱신한다.
+     *
+     * <p>클래스 기본이 {@code @Transactional(readOnly = true)}라, 이 메서드에 쓰기 트랜잭션을 명시하지
+     * 않으면 아래 {@code updateRefreshedPosting()} 호출이 (같은 빈 안에서의 self-invocation이라 그
+     * 메서드 자신의 {@code @Transactional}이 프록시를 못 타고) 이 메서드가 물려받은 읽기 전용
+     * 트랜잭션 안에서 그대로 실행된다. 그러면 엔티티 필드는 메모리상 바뀌어 응답엔 새 값이 찍히지만
+     * DB에는 플러시되지 않아, 다음 조회에선 그대로 예전 값(특히 jobDescription 이하 상세 항목)이
+     * 나오는 조용한 데이터 유실이 생긴다(2026-08-06 발견).
      */
+    @Transactional
     public JobPostingResponse refresh(Long id) {
         JobPosting posting = findOrThrow(id);
         if (!AiJsonSupport.hasText(posting.getPostingUrl())) {
