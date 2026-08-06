@@ -13,3 +13,17 @@ datasources:
     access: proxy
     url: http://loki:3100
     editable: true
+    jsonData:
+      derivedFields:
+        - matcherType: regex
+          matcherRegex: "(?:traceId|trace_id)=(\\w+)"
+          name: TraceID
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    uid: tempo
+    editable: true

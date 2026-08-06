@@ -267,6 +267,19 @@ services:
     depends_on:
       - loki
 
+  tempo:
+    image: grafana/tempo:latest
+    container_name: self-intro-tempo
+    restart: always
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./deploy/monitoring/tempo/tempo-config.yml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+
   grafana:
     image: grafana/grafana:latest
     container_name: self-intro-grafana
@@ -274,8 +287,8 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=shin-yoonsik
+      - GF_SECURITY_ADMIN_PASSWORD=shin-yoonsik123!
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
@@ -283,6 +296,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
 
 volumes:
   mysql_data:
@@ -292,6 +306,7 @@ volumes:
   nosql_data:
   prometheus_data:
   loki_data:
+  tempo_data:
   grafana_data:
   backend_logs:
 

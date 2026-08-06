@@ -16,18 +16,18 @@ data:
         type: loki
         access: proxy
         url: http://loki.self-intro.svc.cluster.local:3100
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: grafana-data
-  namespace: self-intro
-spec:
-  storageClassName: oci-bv-paravirtualized
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 2Gi
+        jsonData:
+          derivedFields:
+            - matcherType: regex
+              matcherRegex: "(?:traceId|trace_id)=(\\w+)"
+              name: TraceID
+              url: '$${__value.raw}'
+              datasourceUid: tempo
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.self-intro.svc.cluster.local:3200
+        uid: tempo
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -56,9 +56,9 @@ spec:
               name: http
           env:
             - name: GF_SECURITY_ADMIN_USER
-              value: "admin"
+              value: "shin-yoonsik"
             - name: GF_SECURITY_ADMIN_PASSWORD
-              value: "admin"
+              value: "shin-yoonsik123!"
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
           resources:
@@ -79,8 +79,7 @@ spec:
               mountPath: /var/lib/grafana
       volumes:
         - name: grafana-data
-          persistentVolumeClaim:
-            claimName: grafana-data
+          emptyDir: {}
         - name: datasources-volume
           configMap:
             name: grafana-datasources

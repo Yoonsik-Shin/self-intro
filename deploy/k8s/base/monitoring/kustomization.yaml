@@ -12,6 +12,8 @@ resources:
   - grafana-ingress.yaml
   - node-exporter.yaml
   - kube-state-metrics.yaml
+  - tempo-configmap.yaml
+  - tempo.yaml
 
 configMapGenerator:
   - name: grafana-dashboards-provider
