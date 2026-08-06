@@ -15,7 +15,6 @@ import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
-import com.selfintro.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -106,9 +105,9 @@ public class JobPostingController {
         return coverLetterDraftAiService.generateDraft(id, request);
     }
 
-    @PostMapping("/{id}/print-template-draft")
-    public JobPostingPrintDraftResponse generatePrintTemplateDraft(@PathVariable Long id) {
-        return jobPostingPrintDraftService.generate(id);
+    @PostMapping(value = "/{id}/print-template-draft/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter generatePrintTemplateDraftStream(@PathVariable Long id) {
+        return jobPostingPrintDraftService.generateStream(id);
     }
 
     @GetMapping("/{id}/gap-project-documents")

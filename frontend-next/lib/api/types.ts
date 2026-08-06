@@ -936,6 +936,10 @@ export type JobPostingPrintDraftResponse = {
     warnings: string[];
 };
 
+export type JobPostingPrintDraftStreamEvent =
+    | { type: 'complete'; response: JobPostingPrintDraftResponse }
+    | { type: 'error'; message: string };
+
 export type JobplanetLookup = {
     jobPostingId: number;
     companyName: string;

@@ -1279,6 +1279,7 @@ function PrintTemplatesPanel({
     const [uploadingId, setUploadingId] = useState<number | null>(null);
     const [isUploadingDirectPdf, setIsUploadingDirectPdf] = useState(false);
     const [latestDraft, setLatestDraft] = useState<JobPostingPrintDraftResponse | null>(null);
+    const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
 
     const {
         data: templates = [],
@@ -1407,19 +1408,27 @@ function PrintTemplatesPanel({
         }
     }
 
-    const generatePrintDraftMutation = useMutation({
-        mutationFn: () => jobPostingApi.generatePrintDraft(jobPostingId),
-        onSuccess: (result) => {
-            setLatestDraft(result);
-            queryClient.invalidateQueries({ queryKey });
-        },
-        onError: (error) =>
+    async function generatePrintDraft() {
+        setIsGeneratingDraft(true);
+        try {
+            await jobPostingApi.generatePrintDraftStream(jobPostingId, (event) => {
+                if (event.type === 'error') {
+                    alert(`PDF 초안을 만들지 못했습니다. ${event.message}`);
+                    return;
+                }
+                setLatestDraft(event.response);
+                queryClient.invalidateQueries({ queryKey });
+            });
+        } catch (error) {
             alert(
                 error instanceof ApiError
                     ? `PDF 초안을 만들지 못했습니다. ${error.message}`
                     : 'PDF 초안을 만들지 못했습니다.'
-            ),
-    });
+            );
+        } finally {
+            setIsGeneratingDraft(false);
+        }
+    }
 
     function requestUpload(templateId: number) {
         setPendingUploadId(templateId);
@@ -1493,16 +1502,16 @@ function PrintTemplatesPanel({
                     {hasAppealAnalysis ? (
                         <button
                             type="button"
-                            disabled={generatePrintDraftMutation.isPending}
-                            onClick={() => generatePrintDraftMutation.mutate()}
+                            disabled={isGeneratingDraft}
+                            onClick={() => generatePrintDraft()}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                            {generatePrintDraftMutation.isPending ? (
+                            {isGeneratingDraft ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                                 <FileText className="h-3.5 w-3.5" />
                             )}
-                            {generatePrintDraftMutation.isPending
+                            {isGeneratingDraft
                                 ? '초안 구성 중...'
                                 : templates.length > 0
                                   ? '새 AI 초안 생성'

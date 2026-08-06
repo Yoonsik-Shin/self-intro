@@ -23,6 +23,8 @@ import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.profile.presentation.dto.ProfileResponse;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,8 +37,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +48,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class JobPostingPrintDraftService {
 
     private static final Duration AI_TIMEOUT = Duration.ofSeconds(90);
+    private static final long STREAM_TIMEOUT_MILLIS = 360_000L;
     private static final int AI_MAX_OUTPUT_TOKENS = 8192;
     private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d+(?:[.,]\\d+)?%?");
     private static final String SECTION_ORDER =
@@ -90,6 +95,57 @@ public class JobPostingPrintDraftService {
     private final NvidiaNimClient nvidiaNimClient;
     private final PrintTemplateService printTemplateService;
     private final ObjectMapper objectMapper;
+
+    /**
+     * generate()를 그대로 감싸되 Cloudflare 엣지 타임아웃(524)을 피하기 위해 SSE로 응답한다 —
+     * 헤더가 즉시 나가므로 AI 호출이 90초를 넘겨도 요청이 끊기지 않는다(VectorBackfillOrchestrator와
+     * 동일한 문제, JobApplicationUrlParseService.parseStream과 동일한 해법).
+     */
+    public SseEmitter generateStream(Long jobPostingId) {
+        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        Thread.ofVirtual()
+                .name("job-posting-print-draft-stream")
+                .start(() -> streamGenerate(jobPostingId, emitter));
+        return emitter;
+    }
+
+    private void streamGenerate(Long jobPostingId, SseEmitter emitter) {
+        try {
+            JobPostingPrintDraftResponse response = generate(jobPostingId);
+            send(emitter, new CompleteEvent("complete", response));
+            emitter.complete();
+        } catch (ResponseStatusException exception) {
+            log.warn("AI PDF 초안 스트리밍 실패: {}", exception.getReason(), exception);
+            fail(emitter, exception.getReason() == null ? "PDF 초안 생성에 실패했습니다." : exception.getReason());
+        } catch (Exception exception) {
+            log.warn("AI PDF 초안 스트리밍 중 예상하지 못한 오류", exception);
+            fail(emitter, "PDF 초안 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
+        }
+    }
+
+    private void send(SseEmitter emitter, Object payload) {
+        try {
+            emitter.send(
+                    SseEmitter.event()
+                            .data(
+                                    objectMapper.writeValueAsString(payload),
+                                    MediaType.APPLICATION_JSON));
+        } catch (IOException exception) {
+            throw new UncheckedIOException("SSE 이벤트 전송에 실패했습니다.", exception);
+        }
+    }
+
+    private void fail(SseEmitter emitter, String message) {
+        try {
+            send(emitter, new ErrorEvent("error", message));
+            emitter.complete();
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private record CompleteEvent(String type, JobPostingPrintDraftResponse response) {}
+
+    private record ErrorEvent(String type, String message) {}
 
     public JobPostingPrintDraftResponse generate(Long jobPostingId) {
         JobPosting postingEntity =

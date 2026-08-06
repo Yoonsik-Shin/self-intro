@@ -15,7 +15,7 @@ import type {
     JobPostingIngestStreamEvent,
     JobPostingPositionChoice,
     JobPostingPositionChoiceRequest,
-    JobPostingPrintDraftResponse,
+    JobPostingPrintDraftStreamEvent,
     JobPostingRequest,
     JobPostingSetting,
     JobPostingSettingRequest,
@@ -191,10 +191,16 @@ export const jobPostingApi = {
                 signal: options?.signal,
             }
         ),
-    generatePrintDraft: (id: number) =>
-        request<JobPostingPrintDraftResponse>(
-            `/api/worker/job-postings/${id}/print-template-draft`,
-            { method: 'POST' }
+    generatePrintDraftStream: (
+        id: number,
+        onEvent: (event: JobPostingPrintDraftStreamEvent) => void,
+        signal?: AbortSignal
+    ) =>
+        requestEventStream<JobPostingPrintDraftStreamEvent>(
+            `/api/worker/job-postings/${id}/print-template-draft/stream`,
+            {},
+            onEvent,
+            signal
         ),
     getJobplanet: (id: number) =>
         request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`),
