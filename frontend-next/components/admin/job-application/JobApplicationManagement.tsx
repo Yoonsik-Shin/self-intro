@@ -501,6 +501,8 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
     const [expandedIndexes, setExpandedIndexes] = useState<Set<number>>(() => new Set());
     const [generatingItemIds, setGeneratingItemIds] = useState<Set<number>>(() => new Set());
     const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+    const [feedbackOpenIds, setFeedbackOpenIds] = useState<Set<number>>(() => new Set());
+    const [feedbackTexts, setFeedbackTexts] = useState<Record<number, string>>({});
 
     const {
         data: items = [],
@@ -524,18 +526,32 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
     });
 
     const generateSingleDraft = useCallback(
-        async (itemId: number, question: string, characterLimit: number | null) => {
+        async (
+            itemId: number,
+            question: string,
+            characterLimit: number | null,
+            feedbackInstruction?: string
+        ) => {
             setGeneratingItemIds((prev) => new Set(prev).add(itemId));
             try {
+                const currentAnswer =
+                    answerDrafts[itemId] ?? items.find((i) => i.id === itemId)?.answer ?? '';
                 const res = await jobPostingApi.generateCoverLetterDraft(jobPostingId, {
                     question,
                     characterLimit,
+                    currentDraft: currentAnswer || undefined,
+                    feedbackInstruction: feedbackInstruction?.trim() || undefined,
                 });
                 setAnswerDrafts((current) => ({
                     ...current,
                     [itemId]: res.draftAnswer,
                 }));
-                // 생성된 답변을 바로 볼 수 있도록 해당 문항 아코디언 오픈
+                // 생성 완료 시 해당 문항 피드백 입력창 닫기 및 아코디언 오픈
+                setFeedbackOpenIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(itemId);
+                    return next;
+                });
                 const itemIndex = items.findIndex((i) => i.id === itemId);
                 if (itemIndex !== -1) {
                     setExpandedIndexes((prev) => new Set(prev).add(itemIndex));
@@ -554,7 +570,7 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                 });
             }
         },
-        [jobPostingId, items]
+        [jobPostingId, items, answerDrafts]
     );
 
     const generateAllDrafts = useCallback(async () => {
@@ -688,6 +704,10 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                     <ol className="space-y-4">
                         {items.map((item, index) => {
                             const isGeneratingThis = generatingItemIds.has(item.id);
+                            const isFeedbackOpen = feedbackOpenIds.has(item.id);
+                            const currentAnswerVal = answerDrafts[item.id] ?? item.answer;
+                            const hasDraftText = Boolean(currentAnswerVal.trim());
+
                             return (
                                 <li
                                     key={item.id}
@@ -737,28 +757,119 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                                                 <span className="text-xs font-bold text-slate-500">
                                                     답변
                                                 </span>
-                                                <button
-                                                    type="button"
-                                                    disabled={isGeneratingThis || isGeneratingAll}
-                                                    onClick={() =>
-                                                        generateSingleDraft(
-                                                            item.id,
-                                                            item.question,
-                                                            item.characterLimit
-                                                        )
-                                                    }
-                                                    className="flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-600 transition hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {isGeneratingThis ? (
-                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                    ) : (
-                                                        <Sparkles className="h-3 w-3 text-indigo-600" />
+                                                <div className="flex items-center gap-1.5">
+                                                    {hasDraftText && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                isGeneratingThis || isGeneratingAll
+                                                            }
+                                                            onClick={() =>
+                                                                setFeedbackOpenIds((prev) => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(item.id))
+                                                                        next.delete(item.id);
+                                                                    else next.add(item.id);
+                                                                    return next;
+                                                                })
+                                                            }
+                                                            className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition ${
+                                                                isFeedbackOpen
+                                                                    ? 'bg-amber-100 border-amber-300 text-amber-800'
+                                                                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                        >
+                                                            💬 피드백 반영 재생성
+                                                        </button>
                                                     )}
-                                                    {isGeneratingThis
-                                                        ? '초안 생성 중...'
-                                                        : 'AI 초안 생성'}
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={
+                                                            isGeneratingThis || isGeneratingAll
+                                                        }
+                                                        onClick={() =>
+                                                            generateSingleDraft(
+                                                                item.id,
+                                                                item.question,
+                                                                item.characterLimit
+                                                            )
+                                                        }
+                                                        className="flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-600 transition hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {isGeneratingThis ? (
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                        ) : (
+                                                            <Sparkles className="h-3 w-3 text-indigo-600" />
+                                                        )}
+                                                        {isGeneratingThis
+                                                            ? '초안 생성 중...'
+                                                            : 'AI 초안 생성'}
+                                                    </button>
+                                                </div>
                                             </div>
+
+                                            {isFeedbackOpen && (
+                                                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-xs font-extrabold text-amber-900">
+                                                            지적사항 및 보완 요청
+                                                        </span>
+                                                        <input
+                                                            type="text"
+                                                            value={feedbackTexts[item.id] ?? ''}
+                                                            onChange={(e) =>
+                                                                setFeedbackTexts((prev) => ({
+                                                                    ...prev,
+                                                                    [item.id]: e.target.value,
+                                                                }))
+                                                            }
+                                                            placeholder="예: 2번째 단락 성과 수치를 강조하고 문체를 부드럽게 바꿔줘"
+                                                            className="w-full rounded-md border border-amber-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-amber-400 focus:outline-none"
+                                                        />
+                                                    </label>
+                                                    <div className="mt-2 flex justify-end gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setFeedbackOpenIds((prev) => {
+                                                                    const next = new Set(prev);
+                                                                    next.delete(item.id);
+                                                                    return next;
+                                                                })
+                                                            }
+                                                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                                                        >
+                                                            취소
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                isGeneratingThis ||
+                                                                !(
+                                                                    feedbackTexts[item.id] ?? ''
+                                                                ).trim()
+                                                            }
+                                                            onClick={() =>
+                                                                generateSingleDraft(
+                                                                    item.id,
+                                                                    item.question,
+                                                                    item.characterLimit,
+                                                                    feedbackTexts[item.id]
+                                                                )
+                                                            }
+                                                            className="flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        >
+                                                            {isGeneratingThis ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            ) : (
+                                                                <Sparkles className="h-3 w-3" />
+                                                            )}
+                                                            피드백 반영하여 다시 생성
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <textarea
                                                 rows={9}
                                                 value={answerDrafts[item.id] ?? item.answer}
