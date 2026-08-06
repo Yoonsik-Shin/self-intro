@@ -444,7 +444,7 @@ function getDDayGroupHeaderStyle(groupKey: string): {
 
     if (dDay.startsWith('D-day')) {
         return {
-            rowBg: 'bg-rose-100/90 border-y border-rose-300',
+            rowBg: 'bg-rose-100/95 border-t-2 border-x-2 border-rose-500 border-b border-rose-300 shadow-xs',
             iconColor: 'text-rose-600 animate-pulse',
             textColor: 'text-rose-950 font-black',
             badgeStyle: 'bg-rose-600 text-white font-black animate-pulse shadow-2xs',
@@ -3715,7 +3715,7 @@ export function JobApplicationManagement() {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[720px] text-left text-sm">
+                                    <table className="w-full min-w-[720px] text-left text-sm border-collapse">
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
@@ -3730,280 +3730,303 @@ export function JobApplicationManagement() {
                                         <tbody className="divide-y divide-slate-100">
                                             {(() => {
                                                 let lastGroupKey: string | null = null;
-                                                return listCandidates.map((candidate) => {
-                                                    const groupKey = getGroupKey(candidate);
-                                                    const showHeader = groupKey !== lastGroupKey;
-                                                    lastGroupKey = groupKey;
+                                                return listCandidates.map(
+                                                    (candidate, index, array) => {
+                                                        const groupKey = getGroupKey(candidate);
+                                                        const showHeader =
+                                                            groupKey !== lastGroupKey;
+                                                        lastGroupKey = groupKey;
 
-                                                    const dDay = dDayLabel(
-                                                        candidate.deadline,
-                                                        candidate.deadlineTime
-                                                    );
-                                                    const isDDay = dDay?.startsWith('D-day');
+                                                        const dDay = dDayLabel(
+                                                            candidate.deadline,
+                                                            candidate.deadlineTime
+                                                        );
+                                                        const isDDay = dDay?.startsWith('D-day');
+                                                        const nextCandidate = array[index + 1];
+                                                        const isLastInGroup =
+                                                            !nextCandidate ||
+                                                            getGroupKey(nextCandidate) !== groupKey;
 
-                                                    return (
-                                                        <Fragment key={`cand-frag-${candidate.id}`}>
-                                                            {showHeader &&
-                                                                (() => {
-                                                                    const headerStyle =
-                                                                        getDDayGroupHeaderStyle(
-                                                                            groupKey
-                                                                        );
-                                                                    return (
-                                                                        <tr
-                                                                            key={`group-${groupKey}`}
-                                                                            className={`${headerStyle.rowBg} text-xs`}
-                                                                        >
-                                                                            <td
-                                                                                colSpan={5}
-                                                                                className="px-5 py-2"
+                                                        return (
+                                                            <Fragment
+                                                                key={`cand-frag-${candidate.id}`}
+                                                            >
+                                                                {showHeader &&
+                                                                    (() => {
+                                                                        const headerStyle =
+                                                                            getDDayGroupHeaderStyle(
+                                                                                groupKey
+                                                                            );
+                                                                        return (
+                                                                            <tr
+                                                                                key={`group-${groupKey}`}
+                                                                                className={`${headerStyle.rowBg} text-xs`}
                                                                             >
-                                                                                <div className="flex items-center gap-2">
-                                                                                    {groupKey ===
-                                                                                    'ALWAYS_OPEN' ? (
-                                                                                        <span
-                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
-                                                                                        >
-                                                                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                                                                            상시
-                                                                                            채용
-                                                                                            공고
-                                                                                        </span>
-                                                                                    ) : groupKey ===
-                                                                                      'NO_DEADLINE' ? (
-                                                                                        <span
-                                                                                            className={`font-bold ${headerStyle.textColor}`}
-                                                                                        >
-                                                                                            마감일
-                                                                                            미지정
-                                                                                        </span>
-                                                                                    ) : groupKey ===
-                                                                                      'EXPIRED' ? (
-                                                                                        <span
-                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
-                                                                                        >
-                                                                                            <XCircle className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                                                                            마감된
-                                                                                            공고
-                                                                                        </span>
-                                                                                    ) : (
-                                                                                        <div className="flex items-center gap-2">
-                                                                                            {dDayLabel(
-                                                                                                groupKey
-                                                                                            )?.startsWith(
-                                                                                                'D-day'
-                                                                                            ) ? (
-                                                                                                <Clock
-                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
-                                                                                                />
-                                                                                            ) : (
-                                                                                                <CalendarIcon
-                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
-                                                                                                />
-                                                                                            )}
+                                                                                <td
+                                                                                    colSpan={5}
+                                                                                    className="px-5 py-2"
+                                                                                >
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        {groupKey ===
+                                                                                        'ALWAYS_OPEN' ? (
                                                                                             <span
-                                                                                                className={`font-extrabold ${headerStyle.textColor}`}
+                                                                                                className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
                                                                                             >
-                                                                                                {formatDateYYMMDD(
-                                                                                                    groupKey
-                                                                                                )}
+                                                                                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                                                                상시
+                                                                                                채용
+                                                                                                공고
                                                                                             </span>
-                                                                                            {dDayLabel(
-                                                                                                groupKey
-                                                                                            ) && (
+                                                                                        ) : groupKey ===
+                                                                                          'NO_DEADLINE' ? (
+                                                                                            <span
+                                                                                                className={`font-bold ${headerStyle.textColor}`}
+                                                                                            >
+                                                                                                마감일
+                                                                                                미지정
+                                                                                            </span>
+                                                                                        ) : groupKey ===
+                                                                                          'EXPIRED' ? (
+                                                                                            <span
+                                                                                                className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
+                                                                                            >
+                                                                                                <XCircle className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                                                                                마감된
+                                                                                                공고
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                {dDayLabel(
+                                                                                                    groupKey
+                                                                                                )?.startsWith(
+                                                                                                    'D-day'
+                                                                                                ) ? (
+                                                                                                    <Clock
+                                                                                                        className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                    />
+                                                                                                ) : (
+                                                                                                    <CalendarIcon
+                                                                                                        className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                    />
+                                                                                                )}
                                                                                                 <span
-                                                                                                    className={`rounded-full px-2 py-0.5 text-[10px] ${headerStyle.badgeStyle}`}
+                                                                                                    className={`font-extrabold ${headerStyle.textColor}`}
                                                                                                 >
-                                                                                                    {dDayLabel(
+                                                                                                    {formatDateYYMMDD(
                                                                                                         groupKey
                                                                                                     )}
                                                                                                 </span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })()}
-                                                            <tr
-                                                                key={candidate.id}
-                                                                onClick={() =>
-                                                                    openDrawer(candidate)
-                                                                }
-                                                                className={`cursor-pointer transition ${
-                                                                    isDDay
-                                                                        ? 'bg-rose-50/50 hover:bg-rose-100/70 text-slate-800 font-medium border-l-4 border-l-rose-500'
-                                                                        : 'text-slate-500 hover:bg-slate-50'
-                                                                }`}
-                                                            >
-                                                                <td className="min-w-48 px-5 py-3">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span className="font-bold text-slate-700">
-                                                                            {candidate.companyName}
-                                                                        </span>
-                                                                        {candidate.status ===
-                                                                            'DISMISSED' && (
-                                                                            <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
-                                                                                숨김됨
+                                                                                                {dDayLabel(
+                                                                                                    groupKey
+                                                                                                ) && (
+                                                                                                    <span
+                                                                                                        className={`rounded-full px-2 py-0.5 text-[10px] ${headerStyle.badgeStyle}`}
+                                                                                                    >
+                                                                                                        {dDayLabel(
+                                                                                                            groupKey
+                                                                                                        )}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })()}
+                                                                <tr
+                                                                    key={candidate.id}
+                                                                    onClick={() =>
+                                                                        openDrawer(candidate)
+                                                                    }
+                                                                    className={`cursor-pointer transition ${
+                                                                        isDDay
+                                                                            ? `bg-rose-50/60 hover:bg-rose-100/80 text-slate-800 font-medium border-x-2 border-rose-500 border-t border-t-rose-200/60 ${
+                                                                                  isLastInGroup
+                                                                                      ? 'border-b-2 border-b-rose-500'
+                                                                                      : ''
+                                                                              }`
+                                                                            : 'text-slate-500 hover:bg-slate-50'
+                                                                    }`}
+                                                                >
+                                                                    <td className="min-w-48 px-5 py-3">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className="font-bold text-slate-700">
+                                                                                {
+                                                                                    candidate.companyName
+                                                                                }
                                                                             </span>
-                                                                        )}
-                                                                        {isCandidateDetailMissing(
-                                                                            candidate
-                                                                        ) && (
-                                                                            <span title="상세 정보를 자동으로 가져오지 못했어요">
-                                                                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <span className="mt-0.5 block text-xs text-slate-400">
-                                                                        {candidate.positionTitle}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-5 py-3 whitespace-nowrap">
-                                                                    <DeadlineDisplayPill
-                                                                        deadline={
-                                                                            candidate.deadline
-                                                                        }
-                                                                        deadlineTime={
-                                                                            candidate.deadlineTime
-                                                                        }
-                                                                        alwaysOpen={
-                                                                            candidate.alwaysOpen
-                                                                        }
-                                                                        hideDate={
-                                                                            groupKey !==
-                                                                                'ALWAYS_OPEN' &&
-                                                                            groupKey !==
-                                                                                'NO_DEADLINE'
-                                                                        }
-                                                                    />
-                                                                </td>
-                                                                <td className="px-5 py-3 whitespace-nowrap">
-                                                                    <MatchScoreBadge
-                                                                        score={candidate.matchScore}
-                                                                        reason={
-                                                                            candidate.matchReason
-                                                                        }
-                                                                    />
-                                                                </td>
-                                                                <td className="px-5 py-3 whitespace-nowrap">
-                                                                    <JobplanetScoreBadge
-                                                                        rating={
-                                                                            candidate.jobplanetRating
-                                                                        }
-                                                                        reviewCount={
-                                                                            candidate.jobplanetReviewCount
-                                                                        }
-                                                                        companyUrl={
-                                                                            candidate.jobplanetCompanyUrl
-                                                                        }
-                                                                    />
-                                                                </td>
-                                                                <td className="px-5 py-3 text-right">
-                                                                    <div className="flex items-center justify-end gap-1.5 xl:gap-3">
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={
-                                                                                applyMutation.isPending
+                                                                            {candidate.status ===
+                                                                                'DISMISSED' && (
+                                                                                <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                                    숨김됨
+                                                                                </span>
+                                                                            )}
+                                                                            {isCandidateDetailMissing(
+                                                                                candidate
+                                                                            ) && (
+                                                                                <span title="상세 정보를 자동으로 가져오지 못했어요">
+                                                                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="mt-0.5 block text-xs text-slate-400">
+                                                                            {
+                                                                                candidate.positionTitle
                                                                             }
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                applyMutation.mutate(
-                                                                                    candidate.id
-                                                                                );
-                                                                            }}
-                                                                            title="지원하기"
-                                                                            aria-label="지원하기"
-                                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                        >
-                                                                            <Check className="h-4 w-4 xl:hidden" />
-                                                                            <span className="hidden xl:inline">
-                                                                                지원하기
-                                                                            </span>
-                                                                        </button>
-                                                                        {candidate.status ===
-                                                                        'DISMISSED' ? (
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                        <DeadlineDisplayPill
+                                                                            deadline={
+                                                                                candidate.deadline
+                                                                            }
+                                                                            deadlineTime={
+                                                                                candidate.deadlineTime
+                                                                            }
+                                                                            alwaysOpen={
+                                                                                candidate.alwaysOpen
+                                                                            }
+                                                                            hideDate={
+                                                                                groupKey !==
+                                                                                    'ALWAYS_OPEN' &&
+                                                                                groupKey !==
+                                                                                    'NO_DEADLINE'
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                        <MatchScoreBadge
+                                                                            score={
+                                                                                candidate.matchScore
+                                                                            }
+                                                                            reason={
+                                                                                candidate.matchReason
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                        <JobplanetScoreBadge
+                                                                            rating={
+                                                                                candidate.jobplanetRating
+                                                                            }
+                                                                            reviewCount={
+                                                                                candidate.jobplanetReviewCount
+                                                                            }
+                                                                            companyUrl={
+                                                                                candidate.jobplanetCompanyUrl
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-5 py-3 text-right">
+                                                                        <div className="flex items-center justify-end gap-1.5 xl:gap-3">
                                                                             <button
                                                                                 type="button"
                                                                                 disabled={
-                                                                                    undismissCandidateMutation.isPending
+                                                                                    applyMutation.isPending
                                                                                 }
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    undismissCandidateMutation.mutate(
+                                                                                    applyMutation.mutate(
                                                                                         candidate.id
                                                                                     );
                                                                                 }}
-                                                                                title="숨김 해제"
-                                                                                aria-label="숨김 해제"
-                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                title="지원하기"
+                                                                                aria-label="지원하기"
+                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                             >
-                                                                                <Eye className="h-4 w-4 xl:hidden" />
+                                                                                <Check className="h-4 w-4 xl:hidden" />
                                                                                 <span className="hidden xl:inline">
-                                                                                    숨김 해제
+                                                                                    지원하기
                                                                                 </span>
                                                                             </button>
-                                                                        ) : (
+                                                                            {candidate.status ===
+                                                                            'DISMISSED' ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={
+                                                                                        undismissCandidateMutation.isPending
+                                                                                    }
+                                                                                    onClick={(
+                                                                                        e
+                                                                                    ) => {
+                                                                                        e.stopPropagation();
+                                                                                        undismissCandidateMutation.mutate(
+                                                                                            candidate.id
+                                                                                        );
+                                                                                    }}
+                                                                                    title="숨김 해제"
+                                                                                    aria-label="숨김 해제"
+                                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                >
+                                                                                    <Eye className="h-4 w-4 xl:hidden" />
+                                                                                    <span className="hidden xl:inline">
+                                                                                        숨김 해제
+                                                                                    </span>
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={
+                                                                                        dismissCandidateMutation.isPending
+                                                                                    }
+                                                                                    onClick={(
+                                                                                        e
+                                                                                    ) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (
+                                                                                            confirm(
+                                                                                                '이 공고를 숨김 처리할까요?'
+                                                                                            )
+                                                                                        ) {
+                                                                                            dismissCandidateMutation.mutate(
+                                                                                                candidate.id
+                                                                                            );
+                                                                                        }
+                                                                                    }}
+                                                                                    title="숨김"
+                                                                                    aria-label="숨김"
+                                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                >
+                                                                                    <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                                    <span className="hidden xl:inline">
+                                                                                        숨김
+                                                                                    </span>
+                                                                                </button>
+                                                                            )}
                                                                             <button
                                                                                 type="button"
                                                                                 disabled={
-                                                                                    dismissCandidateMutation.isPending
+                                                                                    deleteMutation.isPending
                                                                                 }
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     if (
                                                                                         confirm(
-                                                                                            '이 공고를 숨김 처리할까요?'
+                                                                                            '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
                                                                                         )
                                                                                     ) {
-                                                                                        dismissCandidateMutation.mutate(
+                                                                                        deleteMutation.mutate(
                                                                                             candidate.id
                                                                                         );
                                                                                     }
                                                                                 }}
-                                                                                title="숨김"
-                                                                                aria-label="숨김"
-                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                title="완전히 삭제"
+                                                                                aria-label="완전히 삭제"
+                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                             >
-                                                                                <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                                <Trash2 className="h-4 w-4 xl:hidden" />
                                                                                 <span className="hidden xl:inline">
-                                                                                    숨김
+                                                                                    삭제
                                                                                 </span>
                                                                             </button>
-                                                                        )}
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={
-                                                                                deleteMutation.isPending
-                                                                            }
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (
-                                                                                    confirm(
-                                                                                        '이 후보를 완전히 삭제할까요? 삭제하면 같은 URL을 다시 수집할 수 있어요.'
-                                                                                    )
-                                                                                ) {
-                                                                                    deleteMutation.mutate(
-                                                                                        candidate.id
-                                                                                    );
-                                                                                }
-                                                                            }}
-                                                                            title="완전히 삭제"
-                                                                            aria-label="완전히 삭제"
-                                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4 xl:hidden" />
-                                                                            <span className="hidden xl:inline">
-                                                                                삭제
-                                                                            </span>
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        </Fragment>
-                                                    );
-                                                });
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </Fragment>
+                                                        );
+                                                    }
+                                                );
                                             })()}
                                         </tbody>
                                     </table>
@@ -4031,7 +4054,7 @@ export function JobApplicationManagement() {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[820px] text-left text-sm">
+                                    <table className="w-full min-w-[820px] text-left text-sm border-collapse">
                                         <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
                                             <tr>
                                                 <th className="px-5 py-3 font-bold">회사 / 직무</th>
@@ -4048,261 +4071,280 @@ export function JobApplicationManagement() {
                                         <tbody className="divide-y divide-slate-100">
                                             {(() => {
                                                 let lastGroupKey: string | null = null;
-                                                return listApplications.map((item) => {
-                                                    const groupKey = getGroupKey(item);
-                                                    const showHeader = groupKey !== lastGroupKey;
-                                                    lastGroupKey = groupKey;
+                                                return listApplications.map(
+                                                    (item, index, array) => {
+                                                        const groupKey = getGroupKey(item);
+                                                        const showHeader =
+                                                            groupKey !== lastGroupKey;
+                                                        lastGroupKey = groupKey;
 
-                                                    const dDay = dDayLabel(
-                                                        item.deadline,
-                                                        item.deadlineTime
-                                                    );
-                                                    const isDDay = dDay?.startsWith('D-day');
+                                                        const dDay = dDayLabel(
+                                                            item.deadline,
+                                                            item.deadlineTime
+                                                        );
+                                                        const isDDay = dDay?.startsWith('D-day');
+                                                        const nextItem = array[index + 1];
+                                                        const isLastInGroup =
+                                                            !nextItem ||
+                                                            getGroupKey(nextItem) !== groupKey;
 
-                                                    return (
-                                                        <Fragment key={`app-frag-${item.id}`}>
-                                                            {showHeader &&
-                                                                (() => {
-                                                                    const headerStyle =
-                                                                        getDDayGroupHeaderStyle(
-                                                                            groupKey
-                                                                        );
-                                                                    return (
-                                                                        <tr
-                                                                            key={`group-${groupKey}`}
-                                                                            className={`${headerStyle.rowBg} text-xs`}
-                                                                        >
-                                                                            <td
-                                                                                colSpan={7}
-                                                                                className="px-5 py-2"
+                                                        return (
+                                                            <Fragment key={`app-frag-${item.id}`}>
+                                                                {showHeader &&
+                                                                    (() => {
+                                                                        const headerStyle =
+                                                                            getDDayGroupHeaderStyle(
+                                                                                groupKey
+                                                                            );
+                                                                        return (
+                                                                            <tr
+                                                                                key={`group-${groupKey}`}
+                                                                                className={`${headerStyle.rowBg} text-xs`}
                                                                             >
-                                                                                <div className="flex items-center gap-2">
-                                                                                    {groupKey ===
-                                                                                    'ALWAYS_OPEN' ? (
-                                                                                        <span
-                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
-                                                                                        >
-                                                                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                                                                            상시
-                                                                                            채용
-                                                                                            공고
-                                                                                        </span>
-                                                                                    ) : groupKey ===
-                                                                                      'NO_DEADLINE' ? (
-                                                                                        <span
-                                                                                            className={`font-bold ${headerStyle.textColor}`}
-                                                                                        >
-                                                                                            마감일
-                                                                                            미지정
-                                                                                        </span>
-                                                                                    ) : groupKey ===
-                                                                                      'EXPIRED' ? (
-                                                                                        <span
-                                                                                            className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
-                                                                                        >
-                                                                                            <XCircle className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                                                                            마감된
-                                                                                            공고
-                                                                                        </span>
-                                                                                    ) : (
-                                                                                        <div className="flex items-center gap-2">
-                                                                                            {dDayLabel(
-                                                                                                groupKey
-                                                                                            )?.startsWith(
-                                                                                                'D-day'
-                                                                                            ) ? (
-                                                                                                <Clock
-                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
-                                                                                                />
-                                                                                            ) : (
-                                                                                                <CalendarIcon
-                                                                                                    className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
-                                                                                                />
-                                                                                            )}
+                                                                                <td
+                                                                                    colSpan={7}
+                                                                                    className="px-5 py-2"
+                                                                                >
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        {groupKey ===
+                                                                                        'ALWAYS_OPEN' ? (
                                                                                             <span
-                                                                                                className={`font-extrabold ${headerStyle.textColor}`}
+                                                                                                className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
                                                                                             >
-                                                                                                {formatDateYYMMDD(
-                                                                                                    groupKey
-                                                                                                )}
+                                                                                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                                                                상시
+                                                                                                채용
+                                                                                                공고
                                                                                             </span>
-                                                                                            {dDayLabel(
-                                                                                                groupKey
-                                                                                            ) && (
+                                                                                        ) : groupKey ===
+                                                                                          'NO_DEADLINE' ? (
+                                                                                            <span
+                                                                                                className={`font-bold ${headerStyle.textColor}`}
+                                                                                            >
+                                                                                                마감일
+                                                                                                미지정
+                                                                                            </span>
+                                                                                        ) : groupKey ===
+                                                                                          'EXPIRED' ? (
+                                                                                            <span
+                                                                                                className={`flex items-center gap-1.5 ${headerStyle.textColor}`}
+                                                                                            >
+                                                                                                <XCircle className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                                                                                마감된
+                                                                                                공고
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                {dDayLabel(
+                                                                                                    groupKey
+                                                                                                )?.startsWith(
+                                                                                                    'D-day'
+                                                                                                ) ? (
+                                                                                                    <Clock
+                                                                                                        className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                    />
+                                                                                                ) : (
+                                                                                                    <CalendarIcon
+                                                                                                        className={`h-3.5 w-3.5 shrink-0 ${headerStyle.iconColor}`}
+                                                                                                    />
+                                                                                                )}
                                                                                                 <span
-                                                                                                    className={`rounded-full px-2 py-0.5 text-[10px] ${headerStyle.badgeStyle}`}
+                                                                                                    className={`font-extrabold ${headerStyle.textColor}`}
                                                                                                 >
-                                                                                                    {dDayLabel(
+                                                                                                    {formatDateYYMMDD(
                                                                                                         groupKey
                                                                                                     )}
                                                                                                 </span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })()}
-                                                            <tr
-                                                                key={item.id}
-                                                                onClick={() => openDrawer(item)}
-                                                                className={`cursor-pointer transition ${
-                                                                    isDDay
-                                                                        ? 'bg-rose-50/50 hover:bg-rose-100/70 text-slate-800 font-medium border-l-4 border-l-rose-500'
-                                                                        : 'text-slate-600 hover:bg-slate-50'
-                                                                }`}
-                                                            >
-                                                                <td className="min-w-48 px-5 py-3">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span className="font-bold text-slate-800">
-                                                                            {item.companyName}
-                                                                        </span>
-                                                                        {item.status ===
-                                                                            'DISMISSED' && (
-                                                                            <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
-                                                                                숨김됨
+                                                                                                {dDayLabel(
+                                                                                                    groupKey
+                                                                                                ) && (
+                                                                                                    <span
+                                                                                                        className={`rounded-full px-2 py-0.5 text-[10px] ${headerStyle.badgeStyle}`}
+                                                                                                    >
+                                                                                                        {dDayLabel(
+                                                                                                            groupKey
+                                                                                                        )}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })()}
+                                                                <tr
+                                                                    key={item.id}
+                                                                    onClick={() => openDrawer(item)}
+                                                                    className={`cursor-pointer transition ${
+                                                                        isDDay
+                                                                            ? `bg-rose-50/60 hover:bg-rose-100/80 text-slate-800 font-medium border-x-2 border-rose-500 border-t border-t-rose-200/60 ${
+                                                                                  isLastInGroup
+                                                                                      ? 'border-b-2 border-b-rose-500'
+                                                                                      : ''
+                                                                              }`
+                                                                            : 'text-slate-600 hover:bg-slate-50'
+                                                                    }`}
+                                                                >
+                                                                    <td className="min-w-48 px-5 py-3">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className="font-bold text-slate-800">
+                                                                                {item.companyName}
                                                                             </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <span className="mt-0.5 block text-xs text-slate-400">
-                                                                        {item.positionTitle}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-5 py-3 whitespace-nowrap">
-                                                                    <DeadlineDisplayPill
-                                                                        deadline={item.deadline}
-                                                                        deadlineTime={
-                                                                            item.deadlineTime
-                                                                        }
-                                                                        alwaysOpen={item.alwaysOpen}
-                                                                        hideDate={
-                                                                            groupKey !==
-                                                                                'ALWAYS_OPEN' &&
-                                                                            groupKey !==
-                                                                                'NO_DEADLINE'
-                                                                        }
-                                                                    />
-                                                                </td>
-                                                                <td className="px-5 py-3 whitespace-nowrap">
-                                                                    <MatchScoreBadge
-                                                                        score={item.matchScore}
-                                                                        reason={item.matchReason}
-                                                                    />
-                                                                </td>
-                                                                <td className="px-5 py-3 whitespace-nowrap">
-                                                                    <JobplanetScoreBadge
-                                                                        rating={
-                                                                            item.jobplanetRating
-                                                                        }
-                                                                        reviewCount={
-                                                                            item.jobplanetReviewCount
-                                                                        }
-                                                                        companyUrl={
-                                                                            item.jobplanetCompanyUrl
-                                                                        }
-                                                                    />
-                                                                </td>
-                                                                <td className="px-5 py-3 whitespace-nowrap">
-                                                                    {formatDateYYMMDD(
-                                                                        item.appliedAt
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-5 py-3">
-                                                                    <span
-                                                                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[item.status as ApplicationStatus]}`}
-                                                                    >
-                                                                        {
-                                                                            STAGE_LABELS[
-                                                                                item.status as ApplicationStatus
-                                                                            ]
-                                                                        }
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-5 py-3 text-right">
-                                                                    <div className="flex items-center justify-end gap-1.5 xl:gap-3">
-                                                                        {item.status ===
-                                                                        'DISMISSED' ? (
-                                                                            <button
-                                                                                type="button"
-                                                                                disabled={
-                                                                                    undismissCandidateMutation.isPending
-                                                                                }
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    undismissCandidateMutation.mutate(
-                                                                                        item.id
-                                                                                    );
-                                                                                }}
-                                                                                title="숨김 해제"
-                                                                                aria-label="숨김 해제"
-                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                            >
-                                                                                <Eye className="h-4 w-4 xl:hidden" />
-                                                                                <span className="hidden xl:inline">
-                                                                                    숨김 해제
+                                                                            {item.status ===
+                                                                                'DISMISSED' && (
+                                                                                <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                                    숨김됨
                                                                                 </span>
-                                                                            </button>
-                                                                        ) : (
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="mt-0.5 block text-xs text-slate-400">
+                                                                            {item.positionTitle}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                        <DeadlineDisplayPill
+                                                                            deadline={item.deadline}
+                                                                            deadlineTime={
+                                                                                item.deadlineTime
+                                                                            }
+                                                                            alwaysOpen={
+                                                                                item.alwaysOpen
+                                                                            }
+                                                                            hideDate={
+                                                                                groupKey !==
+                                                                                    'ALWAYS_OPEN' &&
+                                                                                groupKey !==
+                                                                                    'NO_DEADLINE'
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                        <MatchScoreBadge
+                                                                            score={item.matchScore}
+                                                                            reason={
+                                                                                item.matchReason
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                        <JobplanetScoreBadge
+                                                                            rating={
+                                                                                item.jobplanetRating
+                                                                            }
+                                                                            reviewCount={
+                                                                                item.jobplanetReviewCount
+                                                                            }
+                                                                            companyUrl={
+                                                                                item.jobplanetCompanyUrl
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-5 py-3 whitespace-nowrap">
+                                                                        {formatDateYYMMDD(
+                                                                            item.appliedAt
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-5 py-3">
+                                                                        <span
+                                                                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-extrabold ${STAGE_ACCENT[item.status as ApplicationStatus]}`}
+                                                                        >
+                                                                            {
+                                                                                STAGE_LABELS[
+                                                                                    item.status as ApplicationStatus
+                                                                                ]
+                                                                            }
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-5 py-3 text-right">
+                                                                        <div className="flex items-center justify-end gap-1.5 xl:gap-3">
+                                                                            {item.status ===
+                                                                            'DISMISSED' ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={
+                                                                                        undismissCandidateMutation.isPending
+                                                                                    }
+                                                                                    onClick={(
+                                                                                        e
+                                                                                    ) => {
+                                                                                        e.stopPropagation();
+                                                                                        undismissCandidateMutation.mutate(
+                                                                                            item.id
+                                                                                        );
+                                                                                    }}
+                                                                                    title="숨김 해제"
+                                                                                    aria-label="숨김 해제"
+                                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                >
+                                                                                    <Eye className="h-4 w-4 xl:hidden" />
+                                                                                    <span className="hidden xl:inline">
+                                                                                        숨김 해제
+                                                                                    </span>
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={
+                                                                                        dismissCandidateMutation.isPending
+                                                                                    }
+                                                                                    onClick={(
+                                                                                        e
+                                                                                    ) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (
+                                                                                            confirm(
+                                                                                                '이 지원 공고를 숨김 처리할까요?'
+                                                                                            )
+                                                                                        ) {
+                                                                                            dismissCandidateMutation.mutate(
+                                                                                                item.id
+                                                                                            );
+                                                                                        }
+                                                                                    }}
+                                                                                    title="숨김"
+                                                                                    aria-label="숨김"
+                                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                >
+                                                                                    <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                                    <span className="hidden xl:inline">
+                                                                                        숨김
+                                                                                    </span>
+                                                                                </button>
+                                                                            )}
                                                                             <button
                                                                                 type="button"
                                                                                 disabled={
-                                                                                    dismissCandidateMutation.isPending
+                                                                                    deleteMutation.isPending
                                                                                 }
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     if (
                                                                                         confirm(
-                                                                                            '이 지원 공고를 숨김 처리할까요?'
+                                                                                            '이 지원 공고를 완전히 삭제할까요?'
                                                                                         )
                                                                                     ) {
-                                                                                        dismissCandidateMutation.mutate(
+                                                                                        deleteMutation.mutate(
                                                                                             item.id
                                                                                         );
                                                                                     }
                                                                                 }}
-                                                                                title="숨김"
-                                                                                aria-label="숨김"
-                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                title="완전히 삭제"
+                                                                                aria-label="완전히 삭제"
+                                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
                                                                             >
-                                                                                <EyeOff className="h-4 w-4 xl:hidden" />
+                                                                                <Trash2 className="h-4 w-4 xl:hidden" />
                                                                                 <span className="hidden xl:inline">
-                                                                                    숨김
+                                                                                    삭제
                                                                                 </span>
                                                                             </button>
-                                                                        )}
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={
-                                                                                deleteMutation.isPending
-                                                                            }
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (
-                                                                                    confirm(
-                                                                                        '이 지원 공고를 완전히 삭제할까요?'
-                                                                                    )
-                                                                                ) {
-                                                                                    deleteMutation.mutate(
-                                                                                        item.id
-                                                                                    );
-                                                                                }
-                                                                            }}
-                                                                            title="완전히 삭제"
-                                                                            aria-label="완전히 삭제"
-                                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4 xl:hidden" />
-                                                                            <span className="hidden xl:inline">
-                                                                                삭제
-                                                                            </span>
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        </Fragment>
-                                                    );
-                                                });
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </Fragment>
+                                                        );
+                                                    }
+                                                );
                                             })()}
                                         </tbody>
                                     </table>
