@@ -6,7 +6,8 @@ export type ImageScope =
     | 'EXPERIENCE_GALLERY'
     | 'STUDY_MARKDOWN'
     | 'PRINT_TEMPLATE_FINAL_PDF'
-    | 'PORTFOLIO_ARCHITECTURE';
+    | 'PORTFOLIO_ARCHITECTURE'
+    | 'JOB_POSTING_SCREENSHOT';
 
 export type GalleryImage = {
     id?: number;
@@ -475,7 +476,7 @@ export type JobPostingStatus =
     | 'REJECTED'
     | 'WITHDRAWN';
 
-export type JobPostingSource = 'URL_INGEST' | 'SARAMIN' | 'MANUAL';
+export type JobPostingSource = 'URL_INGEST' | 'SARAMIN' | 'MANUAL' | 'IMAGE_INGEST';
 
 export type JobPostingPlatform = 'WANTED' | 'JOBKOREA' | 'SARAMIN' | 'GREETINGHR' | 'OTHER';
 
@@ -487,6 +488,20 @@ export type JobPostingSourceUrl = {
     primary: boolean;
 };
 
+/** 여러 직무가 나열된 공고의 2지망 이상. 1지망은 positionTitle 자신이 담당한다. */
+export type JobPostingPositionChoice = {
+    id: number;
+    rank: number;
+    positionTitle: string;
+};
+
+/** JD 스크린샷으로 등록된 공고의 원본 이미지. "원본 이미지 보기"가 그대로 나열한다. */
+export type JobPostingSourceImage = {
+    id: number;
+    url: string;
+    displayOrder: number;
+};
+
 /** 채용 공고 하나를 발견(수집)부터 지원 결과까지 하나로 추적한다. status가 NEW~EXPIRED이면 아직
  * 지원 전(수집 후보), APPLIED 이상이면 지원 완료 단계다. */
 export type JobPosting = {
@@ -495,6 +510,8 @@ export type JobPosting = {
     positionTitle: string;
     postingUrl: string | null;
     sourceUrls: JobPostingSourceUrl[];
+    positionChoices: JobPostingPositionChoice[];
+    sourceImages: JobPostingSourceImage[];
     externalId: string | null;
     collectionMethod: JobPostingSource;
     source: string;

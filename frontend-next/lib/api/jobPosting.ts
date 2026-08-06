@@ -87,6 +87,18 @@ export const jobPostingApi = {
             onEvent,
             signal
         ),
+    /** URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록한다. */
+    ingestImagesStream: (
+        images: { objectKey: string; url: string; contentType: string }[],
+        onEvent: (event: JobPostingIngestStreamEvent) => void,
+        signal?: AbortSignal
+    ) =>
+        requestEventStream<JobPostingIngestStreamEvent>(
+            '/api/worker/job-postings/ingest-images/stream',
+            { images },
+            onEvent,
+            signal
+        ),
     ingestUrlsStream: (
         urls: string[],
         onEvent: (event: JobPostingBulkIngestStreamEvent) => void,
