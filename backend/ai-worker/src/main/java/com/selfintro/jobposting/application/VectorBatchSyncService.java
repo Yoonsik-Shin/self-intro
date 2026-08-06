@@ -29,12 +29,6 @@ public class VectorBatchSyncService {
     private final ContextualChunker contextualChunker;
     private final VectorEmbeddingService vectorEmbeddingService;
 
-    public record BatchSyncSummary(
-            int jobPostingChunksCreated,
-            int experienceChunksCreated,
-            int studyChunksCreated
-    ) {}
-
     /**
      * 프로젝트 경험 텍스트 청킹 및 Oracle 26ai 배치 동기화.
      * {@code content}는 이미 프롬프트/임베딩용으로 요약된 텍스트다({@code CareerProfileDigestBuilder.buildForExperience}).
