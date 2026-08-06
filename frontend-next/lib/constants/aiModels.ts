@@ -1,7 +1,10 @@
+export type AiModelTagTone = 'emerald' | 'indigo' | 'amber' | 'slate';
+
 export type AiModelOption = {
     id: string;
     name: string;
-    badge: string;
+    tag: string;
+    tagTone: AiModelTagTone;
     price: string;
 };
 
@@ -11,44 +14,51 @@ export const AI_MODEL_OPTIONS: AiModelOption[] = [
     {
         id: 'CLAUDE_3_5_SONNET',
         name: 'Claude Sonnet 5',
-        badge: '자소서 1위 🥇',
-        price: '1M 토큰당 $2/$10',
+        tag: '자소서 추천',
+        tagTone: 'indigo',
+        price: '$2 / $10 · 1M 토큰',
     },
     {
         id: 'GEMINI_3_1_FLASH_LITE',
         name: 'Gemini 3.1 Flash-Lite',
-        badge: '가성비 추천 💰',
-        price: '1M 토큰당 $0.25/$1.50',
+        tag: '가성비',
+        tagTone: 'amber',
+        price: '$0.25 / $1.50 · 1M 토큰',
     },
     {
         id: 'GEMINI_3_6_FLASH',
         name: 'Gemini 3.6 Flash',
-        badge: '고성능 ⚡',
-        price: '1M 토큰당 $1.50/$7.50',
+        tag: '고성능',
+        tagTone: 'indigo',
+        price: '$1.50 / $7.50 · 1M 토큰',
     },
     {
         id: 'NVIDIA_NIM',
         name: 'Nvidia NIM (Llama 3.3)',
-        badge: '무료 🟢',
-        price: '$0 (기본 내장)',
+        tag: '무료',
+        tagTone: 'emerald',
+        price: '기본 내장',
     },
     {
         id: 'GPT_5_4_NANO',
         name: 'GPT-5.4 Nano',
-        badge: '초저가 💰',
-        price: '1M 토큰당 $0.20/$1.25',
+        tag: '초저가',
+        tagTone: 'amber',
+        price: '$0.20 / $1.25 · 1M 토큰',
     },
     {
         id: 'GPT_5_4_MINI',
         name: 'GPT-5.4 Mini',
-        badge: '균형 ⚖️',
-        price: '1M 토큰당 $0.75/$4.50',
+        tag: '균형',
+        tagTone: 'slate',
+        price: '$0.75 / $4.50 · 1M 토큰',
     },
     {
         id: 'CUSTOM',
-        name: '직접 모델명 입력',
-        badge: '커스텀 ⚙️',
-        price: 'API 지정',
+        name: '직접 입력',
+        tag: '커스텀',
+        tagTone: 'slate',
+        price: 'API 모델명 지정',
     },
 ];
 

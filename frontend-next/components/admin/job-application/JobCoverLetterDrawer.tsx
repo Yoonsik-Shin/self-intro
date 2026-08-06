@@ -326,7 +326,7 @@ export function JobCoverLetterDrawer({
                                     >
                                         {AI_MODEL_OPTIONS.map((opt) => (
                                             <option key={opt.id} value={opt.id}>
-                                                {opt.name} ({opt.badge} · {opt.price})
+                                                {opt.name} · {opt.tag}
                                             </option>
                                         ))}
                                     </select>

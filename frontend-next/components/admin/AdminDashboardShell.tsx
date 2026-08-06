@@ -589,7 +589,7 @@ export function AdminDashboardShell() {
                                 >
                                     {AI_MODEL_OPTIONS.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.name} ({option.badge} · {option.price})
+                                            {option.name} ({option.tag} · {option.price})
                                         </option>
                                     ))}
                                 </select>
