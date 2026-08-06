@@ -14,7 +14,9 @@ import com.selfintro.modules.experience.presentation.dto.ExperienceDetailRespons
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import com.selfintro.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
@@ -82,6 +84,8 @@ public class JobPostingPrintDraftService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
+    private final JobPostingPositionChoiceRepository positionChoiceRepository;
+    private final JobPostingSourceImageRepository sourceImageRepository;
     private final BffService bffService;
     private final NvidiaNimClient nvidiaNimClient;
     private final PrintTemplateService printTemplateService;
@@ -99,6 +103,10 @@ public class JobPostingPrintDraftService {
                 JobPostingResponse.from(
                         postingEntity,
                         sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
+                                postingEntity.getId()),
+                        positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(
+                                postingEntity.getId()),
+                        sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(
                                 postingEntity.getId()));
         IntroductionResponse introduction = bffService.getIntroduction();
         String input = serializeInput(posting, introduction);

@@ -12,7 +12,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -36,6 +38,8 @@ class JobPostingServiceTest {
 
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private JobPostingSourceUrlRepository sourceUrlRepository;
+    @Mock private JobPostingPositionChoiceRepository positionChoiceRepository;
+    @Mock private JobPostingSourceImageRepository sourceImageRepository;
     @Mock private JobApplicationUrlParseService urlParseService;
     @Mock private JobMatchingService matchingService;
     @Mock private JobPostingDedupService dedupService;
@@ -48,6 +52,8 @@ class JobPostingServiceTest {
                 new JobPostingService(
                         jobPostingRepository,
                         sourceUrlRepository,
+                        positionChoiceRepository,
+                        sourceImageRepository,
                         urlParseService,
                         matchingService,
                         dedupService,

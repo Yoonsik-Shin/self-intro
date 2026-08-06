@@ -11,8 +11,10 @@ import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingStatusEvent;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingStatusEventRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingRequest;
@@ -39,6 +41,8 @@ class JobPostingCrudServiceTest {
 
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private JobPostingSourceUrlRepository sourceUrlRepository;
+    @Mock private JobPostingPositionChoiceRepository positionChoiceRepository;
+    @Mock private JobPostingSourceImageRepository sourceImageRepository;
     @Mock private JobPostingStatusEventRepository statusEventRepository;
     @Mock private JobPostingSettingRepository settingRepository;
 
@@ -48,7 +52,12 @@ class JobPostingCrudServiceTest {
     void setUp() {
         jobPostingService =
                 new JobPostingCrudService(
-                        jobPostingRepository, sourceUrlRepository, statusEventRepository, settingRepository);
+                        jobPostingRepository,
+                        sourceUrlRepository,
+                        positionChoiceRepository,
+                        sourceImageRepository,
+                        statusEventRepository,
+                        settingRepository);
     }
 
     private JobPosting newCandidate() {

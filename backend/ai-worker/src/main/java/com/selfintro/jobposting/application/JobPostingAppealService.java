@@ -1,7 +1,9 @@
 package com.selfintro.jobposting.application;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -20,6 +22,8 @@ public class JobPostingAppealService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
+    private final JobPostingPositionChoiceRepository positionChoiceRepository;
+    private final JobPostingSourceImageRepository sourceImageRepository;
     private final CareerAppealAnalyzer careerAppealAnalyzer;
     private final JobMatchingService jobMatchingService;
 
@@ -51,6 +55,8 @@ public class JobPostingAppealService {
         return JobPostingResponse.from(
                 posting,
                 sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
-                        posting.getId()));
+                        posting.getId()),
+                positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),
+                sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()));
     }
 }

@@ -5,7 +5,9 @@ import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -45,6 +47,8 @@ public class JobPostingService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
+    private final JobPostingPositionChoiceRepository positionChoiceRepository;
+    private final JobPostingSourceImageRepository sourceImageRepository;
     private final JobApplicationUrlParseService urlParseService;
     private final JobMatchingService matchingService;
     private final JobPostingDedupService dedupService;
@@ -65,7 +69,9 @@ public class JobPostingService {
         return JobPostingResponse.from(
                 posting,
                 sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
-                        posting.getId()));
+                        posting.getId()),
+                positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),
+                sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()));
     }
 
     public SseEmitter ingestUrlStream(String url) {

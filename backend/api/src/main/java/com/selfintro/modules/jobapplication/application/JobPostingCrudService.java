@@ -2,13 +2,17 @@ package com.selfintro.modules.jobapplication.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingPositionChoice;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingStatusEvent;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingStatusEventRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingRequest;
@@ -40,6 +44,8 @@ public class JobPostingCrudService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
+    private final JobPostingPositionChoiceRepository positionChoiceRepository;
+    private final JobPostingSourceImageRepository sourceImageRepository;
     private final JobPostingStatusEventRepository statusEventRepository;
     private final JobPostingSettingRepository settingRepository;
 
@@ -50,12 +56,22 @@ public class JobPostingCrudService {
         java.util.Map<Long, List<JobPostingSourceUrl>> sourceUrlsByPostingId =
                 sourceUrlRepository.findByJobPostingIdInOrderByPrimaryDescCreatedAtAsc(ids).stream()
                         .collect(Collectors.groupingBy(JobPostingSourceUrl::getJobPostingId));
+        java.util.Map<Long, List<JobPostingPositionChoice>> positionChoicesByPostingId =
+                positionChoiceRepository.findByJobPostingIdInOrderByRankOrderAsc(ids).stream()
+                        .collect(Collectors.groupingBy(JobPostingPositionChoice::getJobPostingId));
+        java.util.Map<Long, List<JobPostingSourceImage>> sourceImagesByPostingId =
+                sourceImageRepository.findByJobPostingIdInOrderByDisplayOrderAsc(ids).stream()
+                        .collect(Collectors.groupingBy(JobPostingSourceImage::getJobPostingId));
         return postings.stream()
                 .map(
                         posting ->
                                 JobPostingResponse.from(
                                         posting,
                                         sourceUrlsByPostingId.getOrDefault(
+                                                posting.getId(), List.of()),
+                                        positionChoicesByPostingId.getOrDefault(
+                                                posting.getId(), List.of()),
+                                        sourceImagesByPostingId.getOrDefault(
                                                 posting.getId(), List.of())))
                 .toList();
     }
@@ -68,7 +84,9 @@ public class JobPostingCrudService {
         return JobPostingResponse.from(
                 posting,
                 sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
-                        posting.getId()));
+                        posting.getId()),
+                positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),
+                sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()));
     }
 
     public JobPostingSettingResponse getSettings() {

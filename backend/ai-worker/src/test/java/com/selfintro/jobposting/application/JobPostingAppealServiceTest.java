@@ -7,7 +7,9 @@ import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import java.time.LocalDateTime;
@@ -22,6 +24,8 @@ class JobPostingAppealServiceTest {
 
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private JobPostingSourceUrlRepository sourceUrlRepository;
+    @Mock private JobPostingPositionChoiceRepository positionChoiceRepository;
+    @Mock private JobPostingSourceImageRepository sourceImageRepository;
     @Mock private CareerAppealAnalyzer careerAppealAnalyzer;
     @Mock private JobMatchingService jobMatchingService;
 
@@ -66,6 +70,8 @@ class JobPostingAppealServiceTest {
                 new JobPostingAppealService(
                         jobPostingRepository,
                         sourceUrlRepository,
+                        positionChoiceRepository,
+                        sourceImageRepository,
                         careerAppealAnalyzer,
                         jobMatchingService);
 

@@ -1,6 +1,8 @@
 package com.selfintro.modules.jobposting.presentation.dto;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingPositionChoice;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
@@ -16,6 +18,8 @@ public record JobPostingResponse(
         String positionTitle,
         String postingUrl,
         List<SourceUrl> sourceUrls,
+        List<PositionChoice> positionChoices,
+        List<SourceImage> sourceImages,
         String externalId,
         JobPostingSource collectionMethod,
         String source,
@@ -56,13 +60,33 @@ public record JobPostingResponse(
         }
     }
 
-    public static JobPostingResponse from(JobPosting entity, List<JobPostingSourceUrl> sourceUrls) {
+    /** 2지망 이상. 1지망은 positionTitle 자신이 담당한다. */
+    public record PositionChoice(Long id, int rank, String positionTitle) {
+        public static PositionChoice from(JobPostingPositionChoice entity) {
+            return new PositionChoice(entity.getId(), entity.getRankOrder(), entity.getPositionTitle());
+        }
+    }
+
+    /** JD 스크린샷으로 등록된 공고의 원본 이미지. 상세 드로어 "원본 이미지 보기"가 그대로 나열한다. */
+    public record SourceImage(Long id, String url, int displayOrder) {
+        public static SourceImage from(JobPostingSourceImage entity) {
+            return new SourceImage(entity.getId(), entity.getImageUrl(), entity.getDisplayOrder());
+        }
+    }
+
+    public static JobPostingResponse from(
+            JobPosting entity,
+            List<JobPostingSourceUrl> sourceUrls,
+            List<JobPostingPositionChoice> positionChoices,
+            List<JobPostingSourceImage> sourceImages) {
         return new JobPostingResponse(
                 entity.getId(),
                 entity.getCompanyName(),
                 entity.getPositionTitle(),
                 entity.getPostingUrl(),
                 sourceUrls.stream().map(SourceUrl::from).toList(),
+                positionChoices.stream().map(PositionChoice::from).toList(),
+                sourceImages.stream().map(SourceImage::from).toList(),
                 entity.getExternalId(),
                 entity.getCollectionMethod(),
                 entity.getSource(),
