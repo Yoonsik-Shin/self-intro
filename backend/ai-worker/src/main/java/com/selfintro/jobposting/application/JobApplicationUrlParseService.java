@@ -37,12 +37,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -196,6 +199,7 @@ public class JobApplicationUrlParseService {
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
     private final String visionModel;
+    private final MeterRegistry meterRegistry;
     private final java.util.concurrent.Semaphore parseSemaphore =
             new java.util.concurrent.Semaphore(3);
 
@@ -203,9 +207,19 @@ public class JobApplicationUrlParseService {
             NvidiaNimClient nvidiaNimClient,
             ObjectMapper objectMapper,
             @Value("${app.ai.vision-model}") String visionModel) {
+        this(nvidiaNimClient, objectMapper, visionModel, null);
+    }
+
+    @Autowired
+    public JobApplicationUrlParseService(
+            NvidiaNimClient nvidiaNimClient,
+            ObjectMapper objectMapper,
+            @Value("${app.ai.vision-model}") String visionModel,
+            @Autowired(required = false) MeterRegistry meterRegistry) {
         this.nvidiaNimClient = nvidiaNimClient;
         this.objectMapper = objectMapper;
         this.visionModel = visionModel;
+        this.meterRegistry = meterRegistry;
     }
 
     public SseEmitter parseStream(String url) {
@@ -266,6 +280,26 @@ public class JobApplicationUrlParseService {
     private record ErrorEvent(String type, String message) {}
 
     public JobApplicationUrlParseResponse parse(String url) {
+        Timer.Sample sample = (meterRegistry != null) ? Timer.start(meterRegistry) : null;
+        try {
+            JobApplicationUrlParseResponse response = doParse(url);
+            if (meterRegistry != null) {
+                meterRegistry.counter("job_posting.scrape.status", "status", "success").increment();
+            }
+            return response;
+        } catch (Exception e) {
+            if (meterRegistry != null) {
+                meterRegistry.counter("job_posting.scrape.status", "status", "failed").increment();
+            }
+            throw e;
+        } finally {
+            if (sample != null) {
+                sample.stop(meterRegistry.timer("job_posting.scrape.duration"));
+            }
+        }
+    }
+
+    private JobApplicationUrlParseResponse doParse(String url) {
         long startedAt = System.nanoTime();
         URI uri = normalizeSaraminRelayUrl(validateUrl(url));
         long fetchStartedAt = System.nanoTime();
