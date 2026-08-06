@@ -63,6 +63,9 @@ public class CoverLetterDraftAiService {
         String userPrompt = buildUserPrompt(posting, profileDigest, request);
 
         String rawDraft = generateByModel(request, systemPrompt, userPrompt);
+        if (rawDraft == null || rawDraft.isBlank()) {
+            throw new IllegalStateException("AI 모델이 빈 응답을 반환했습니다.");
+        }
         String draftAnswer = rawDraft.replace("\\n", "\n").trim();
         String modelLabel = resolveAiModelLabel(request.aiModel(), request.customModelName());
 

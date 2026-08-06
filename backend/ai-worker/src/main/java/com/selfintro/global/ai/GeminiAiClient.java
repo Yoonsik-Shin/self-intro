@@ -64,11 +64,15 @@ public class GeminiAiClient {
             GeminiResponse resBody = objectMapper.readValue(response.body(), GeminiResponse.class);
             if (resBody.candidates != null && !resBody.candidates.isEmpty()) {
                 GeminiCandidate candidate = resBody.candidates.get(0);
-                if (candidate.content != null && candidate.content.parts != null && !candidate.content.parts.isEmpty()) {
-                    return candidate.content.parts.get(0).text;
+                if (candidate.content != null && candidate.content.parts != null) {
+                    for (GeminiPart part : candidate.content.parts) {
+                        if (part.text != null && !part.text.isBlank()) {
+                            return part.text;
+                        }
+                    }
                 }
             }
-            throw new RuntimeException("Gemini API 반환 결과가 비어 있습니다.");
+            throw new RuntimeException("Gemini API 반환 결과가 비어 있습니다: " + response.body());
         } catch (Exception e) {
             if (e instanceof RuntimeException) throw (RuntimeException) e;
             throw new RuntimeException("Gemini AI 호출 중 오류 발생: " + e.getMessage(), e);
