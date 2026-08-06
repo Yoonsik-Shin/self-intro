@@ -524,6 +524,7 @@ export type JobPosting = {
     status: JobPostingStatus;
     appliedAt: string | null;
     deadline: string | null;
+    deadlineTime?: string | null;
     alwaysOpen: boolean;
     salaryNote: string | null;
     location: string | null;
@@ -558,6 +559,7 @@ export type JobPostingRequest = {
     source: string;
     appliedAt?: string | null;
     deadline?: string | null;
+    deadlineTime?: string | null;
     alwaysOpen: boolean;
     salaryNote?: string | null;
     location?: string | null;
