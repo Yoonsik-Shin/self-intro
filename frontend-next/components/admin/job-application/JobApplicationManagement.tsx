@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
+import { PositionChoicePicker } from './PositionChoicePicker';
 import { PostingMemoEditor } from './PostingMemoEditor';
 import { ScreenshotIngestPanel } from './ScreenshotIngestPanel';
 import { SourceImagesPopover } from './SourceImagesPopover';
@@ -60,6 +61,7 @@ import type {
     JobPosting,
     JobPostingBulkIngestRow,
     JobPostingCoverLetterItemRequest,
+    JobPostingPositionChoiceRequest,
     JobPostingPrintDraftResponse,
     JobPostingRequest,
     JobPostingSettingRequest,
@@ -676,18 +678,18 @@ function CoverLetterEditor({
 
     if (!isManaging) {
         return (
-            <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold text-slate-400">
+            <div className="space-y-4 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <p className="text-xs font-semibold text-slate-500">
                         문항을 누르면 넓은 시원한 패널과 AI 대화창이 열립니다.
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         {items.length > 0 && (
                             <button
                                 type="button"
                                 disabled={isGeneratingAll || generatingItemIds.size > 0}
                                 onClick={generateAllDrafts}
-                                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-extrabold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-extrabold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                             >
                                 {isGeneratingAll ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -700,7 +702,7 @@ function CoverLetterEditor({
                         <button
                             type="button"
                             onClick={startManaging}
-                            className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                            className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 whitespace-nowrap"
                         >
                             {items.length > 0 ? (
                                 <SettingsIcon className="h-3.5 w-3.5" />
@@ -1961,6 +1963,16 @@ export function JobApplicationManagement() {
     const [singleUrl, setSingleUrl] = useState('');
     const [showManualForm, setShowManualForm] = useState(false);
     const [showScreenshotPanel, setShowScreenshotPanel] = useState(false);
+    // 자동수집이 한 페이지/이미지에서 여러 모집부문을 감지했을 때(1지망 제외 나머지), 방금
+    // 등록된 공고의 상세 드로어에만 지망 확정 배너를 띄우기 위해 대상 id를 함께 들고 있는다.
+    const [detectedPositions, setDetectedPositions] = useState<{
+        jobPostingId: number;
+        titles: string[];
+    } | null>(null);
+    const [positionChoiceDraft, setPositionChoiceDraft] = useState<
+        JobPostingPositionChoiceRequest[]
+    >([]);
+    const [showManualPositionChoices, setShowManualPositionChoices] = useState(false);
     const [isSingleIngesting, setIsSingleIngesting] = useState(false);
     const [singleIngestElapsedSeconds, setSingleIngestElapsedSeconds] = useState(0);
     const [bulkUrls, setBulkUrls] = useState<string[]>(['', '', '', '', '']);
@@ -1986,6 +1998,39 @@ export function JobApplicationManagement() {
     const [activeAppealSubTab, setActiveAppealSubTab] = useState<string>('score');
     const detailDrawerAnim = useSlideDrawer(!!drawerState);
     const settingsDrawerAnim = useSlideDrawer(isSettingsDrawerOpen && !!settingsForm);
+
+    // 공고 상세 드로어 드래그 앤 드롭 너비 조절 상태 (최소 하한 450px ~ 최대 상한 1400px/88vw)
+    const [detailDrawerWidth, setDetailDrawerWidth] = useState<number>(640);
+    const [isResizingDrawer, setIsResizingDrawer] = useState<boolean>(false);
+
+    const handleDrawerResizeStart = useCallback(
+        (e: React.MouseEvent) => {
+            e.preventDefault();
+            setIsResizingDrawer(true);
+            const startX = e.clientX;
+            const startWidth = detailDrawerWidth;
+
+            const handleMouseMove = (moveEvent: MouseEvent) => {
+                const deltaX = startX - moveEvent.clientX;
+                const minWidth = 450; // 최소 크기 하한
+                const maxWidth = Math.min(1400, Math.floor(window.innerWidth * 0.88)); // 최대 크기 상한
+                const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
+                setDetailDrawerWidth(newWidth);
+            };
+
+            const handleMouseUp = () => {
+                setIsResizingDrawer(false);
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+                document.body.style.removeProperty('user-select');
+            };
+
+            document.body.style.userSelect = 'none';
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        },
+        [detailDrawerWidth]
+    );
 
     const drawerJobPostingId = drawerState?.type === 'existing' ? drawerState.id : null;
     const { data: settingsData = null } = useQuery({
@@ -2058,8 +2103,14 @@ export function JobApplicationManagement() {
 
     const createMutation = useMutation({
         mutationFn: (payload: JobPostingRequest) => jobPostingApi.create(payload),
-        onSuccess: () => {
+        onSuccess: (response) => {
             invalidate();
+            if (positionChoiceDraft.length > 0) {
+                replacePositionChoicesMutation.mutate({
+                    id: response.id,
+                    choices: positionChoiceDraft,
+                });
+            }
             closeDrawer();
         },
         onError: (error) =>
@@ -2069,8 +2120,14 @@ export function JobApplicationManagement() {
     const updateMutation = useMutation({
         mutationFn: ({ id, payload }: { id: number; payload: JobPostingRequest }) =>
             jobPostingApi.update(id, payload),
-        onSuccess: () => {
+        onSuccess: (response) => {
             invalidate();
+            if (positionChoiceDraft.length > 0 || response.positionChoices.length > 0) {
+                replacePositionChoicesMutation.mutate({
+                    id: response.id,
+                    choices: positionChoiceDraft,
+                });
+            }
             setIsEditing(false);
         },
         onError: (error) =>
@@ -2135,6 +2192,18 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '매칭 점수 재계산에 실패했습니다.'),
     });
 
+    const replacePositionChoicesMutation = useMutation({
+        mutationFn: ({ id, choices }: { id: number; choices: JobPostingPositionChoiceRequest[] }) =>
+            jobPostingApi.replacePositionChoices(id, choices),
+        onSuccess: () => {
+            invalidate();
+            setDetectedPositions(null);
+            setPositionChoiceDraft([]);
+        },
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '지망 저장에 실패했습니다.'),
+    });
+
     const refreshMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.refresh(id),
         onSuccess: () => invalidate(),
@@ -2166,6 +2235,15 @@ export function JobApplicationManagement() {
                 setSingleUrl('');
                 closeDrawer();
                 openDrawer(event.response);
+                setDetectedPositions(
+                    event.detectedAdditionalPositionTitles.length > 0
+                        ? {
+                              jobPostingId: event.response.id,
+                              titles: event.detectedAdditionalPositionTitles,
+                          }
+                        : null
+                );
+                setPositionChoiceDraft([]);
 
                 if (isCandidateDetailMissing(event.response)) {
                     alert(
@@ -2196,7 +2274,10 @@ export function JobApplicationManagement() {
     }
 
     /** URL 파싱이 불가능해 스크린샷으로 등록한 공고가 성공했을 때 — URL 자동수집 성공 처리와 동일하게 목록에 반영하고 상세 드로어를 연다. */
-    function handleScreenshotIngestSuccess(posting: JobPosting) {
+    function handleScreenshotIngestSuccess(
+        posting: JobPosting,
+        detectedAdditionalPositionTitles: string[]
+    ) {
         queryClient.setQueryData(['jobPostings'], (prev: JobPosting[] | undefined) => [
             posting,
             ...(prev ?? []),
@@ -2204,6 +2285,12 @@ export function JobApplicationManagement() {
         setShowScreenshotPanel(false);
         closeDrawer();
         openDrawer(posting);
+        setDetectedPositions(
+            detectedAdditionalPositionTitles.length > 0
+                ? { jobPostingId: posting.id, titles: detectedAdditionalPositionTitles }
+                : null
+        );
+        setPositionChoiceDraft([]);
 
         if (isCandidateDetailMissing(posting)) {
             alert(
@@ -2678,6 +2765,9 @@ export function JobApplicationManagement() {
         setSingleUrl('');
         setShowManualForm(false);
         setShowScreenshotPanel(false);
+        setDetectedPositions(null);
+        setPositionChoiceDraft([]);
+        setShowManualPositionChoices(false);
         // 다중 수집이 진행 중이면 URL 입력값/진행 현황을 그대로 두고 다중 탭으로 복귀시켜
         // 창을 닫았다 다시 열어도 진행 상황을 이어서 볼 수 있게 한다.
         if (isBulkIngesting) {
@@ -2709,6 +2799,9 @@ export function JobApplicationManagement() {
         setSingleUrl('');
         setShowManualForm(false);
         setShowScreenshotPanel(false);
+        setDetectedPositions(null);
+        setPositionChoiceDraft([]);
+        setShowManualPositionChoices(false);
         // 다중 수집이 진행 중일 때 닫으면 URL 입력값/진행 현황은 남겨둔다 — 다시 열었을 때
         // openCreateDrawer가 이어서 보여준다.
         if (!isBulkIngesting) {
@@ -2739,6 +2832,13 @@ export function JobApplicationManagement() {
             applicationMethod: item.applicationMethod ?? '',
             compensationDetail: item.compensationDetail ?? '',
         });
+        setPositionChoiceDraft(
+            item.positionChoices.map((choice) => ({
+                rank: choice.rank,
+                positionTitle: choice.positionTitle,
+            }))
+        );
+        setShowManualPositionChoices(item.positionChoices.length > 0);
         setIsEditing(true);
     }
 
@@ -3828,8 +3928,21 @@ export function JobApplicationManagement() {
                             aria-hidden
                         />
                         <div
-                            className={`relative flex h-full w-full max-w-md flex-col overflow-hidden bg-white shadow-2xl transition-transform duration-300 ease-out ${detailDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                            style={{ width: `${detailDrawerWidth}px` }}
+                            className={`relative flex h-full max-w-[90vw] flex-col overflow-hidden bg-white shadow-2xl ${
+                                isResizingDrawer
+                                    ? ''
+                                    : 'transition-[transform,width] duration-300 ease-out'
+                            } ${detailDrawerAnim.isVisible ? 'translate-x-0' : 'translate-x-full'}`}
                         >
+                            {/* Resize Handle (Left Edge) */}
+                            <div
+                                onMouseDown={handleDrawerResizeStart}
+                                title="좌우로 드래그하여 공고 상세 창 크기 조절 (최소 450px ~ 최대 1400px)"
+                                className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-indigo-500/25 active:bg-indigo-600/40 transition-colors z-50 flex items-center justify-center group"
+                            >
+                                <div className="w-1 h-12 rounded-full bg-slate-300 group-hover:bg-indigo-600 transition-colors" />
+                            </div>
                             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 pb-8">
                                 <div className="mb-4 flex items-center justify-between">
                                     <h3 className="text-lg font-black text-slate-950">
@@ -3861,8 +3974,30 @@ export function JobApplicationManagement() {
                                                         {drawerItem.companyName}
                                                     </p>
                                                     <p className="mt-0.5 text-sm text-slate-500">
+                                                        {drawerItem.positionChoices.length > 0 && (
+                                                            <span className="mr-1.5 inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-extrabold text-slate-500">
+                                                                1지망
+                                                            </span>
+                                                        )}
                                                         {drawerItem.positionTitle}
                                                     </p>
+                                                    {drawerItem.positionChoices.length > 0 && (
+                                                        <div className="mt-1 flex flex-wrap gap-1">
+                                                            {drawerItem.positionChoices.map(
+                                                                (choice) => (
+                                                                    <span
+                                                                        key={choice.id}
+                                                                        className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500"
+                                                                    >
+                                                                        <span className="font-extrabold">
+                                                                            {choice.rank}지망
+                                                                        </span>
+                                                                        {choice.positionTitle}
+                                                                    </span>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 {isPreApplication(drawerItem.status) ? (
                                                     <span className="inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-extrabold text-white">
@@ -3885,6 +4020,50 @@ export function JobApplicationManagement() {
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {detectedPositions?.jobPostingId === drawerItem.id && (
+                                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                                    <p className="mb-2 text-xs font-bold text-amber-700">
+                                                        이 공고에서 다른 모집부문도 감지됐어요. 함께
+                                                        지원한 지망이 있으면 골라주세요(선택 사항).
+                                                    </p>
+                                                    <PositionChoicePicker
+                                                        detected={detectedPositions.titles}
+                                                        value={positionChoiceDraft}
+                                                        onChange={setPositionChoiceDraft}
+                                                    />
+                                                    <div className="mt-2 flex justify-end gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setDetectedPositions(null)
+                                                            }
+                                                            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+                                                        >
+                                                            건너뛰기
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={
+                                                                positionChoiceDraft.length === 0 ||
+                                                                replacePositionChoicesMutation.isPending
+                                                            }
+                                                            onClick={() =>
+                                                                replacePositionChoicesMutation.mutate(
+                                                                    {
+                                                                        id: drawerItem.id,
+                                                                        choices:
+                                                                            positionChoiceDraft,
+                                                                    }
+                                                                )
+                                                            }
+                                                            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+                                                        >
+                                                            지망 확정
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <JobplanetReputationCard
                                                 key={`jobplanet-${drawerItem.id}`}
@@ -5104,6 +5283,51 @@ export function JobApplicationManagement() {
                                                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
                                                                     />
                                                                 </label>
+
+                                                                {!showManualPositionChoices ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setShowManualPositionChoices(
+                                                                                true
+                                                                            )
+                                                                        }
+                                                                        className="text-xs font-bold text-slate-500 underline decoration-dotted underline-offset-2 hover:text-slate-700"
+                                                                    >
+                                                                        + 지망 추가 (2지망 이상)
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="rounded-xl border border-slate-200 p-3">
+                                                                        <div className="mb-2 flex items-center justify-between">
+                                                                            <span className="text-xs font-bold text-slate-600">
+                                                                                2지망 이상
+                                                                            </span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setShowManualPositionChoices(
+                                                                                        false
+                                                                                    );
+                                                                                    setPositionChoiceDraft(
+                                                                                        []
+                                                                                    );
+                                                                                }}
+                                                                                className="text-xs font-semibold text-slate-400 hover:text-slate-600"
+                                                                            >
+                                                                                숨기기
+                                                                            </button>
+                                                                        </div>
+                                                                        <PositionChoicePicker
+                                                                            value={
+                                                                                positionChoiceDraft
+                                                                            }
+                                                                            onChange={
+                                                                                setPositionChoiceDraft
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                )}
+
                                                                 <label className="block text-sm">
                                                                     <span className="mb-1 block font-bold text-slate-600">
                                                                         출처
