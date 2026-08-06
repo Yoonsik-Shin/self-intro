@@ -65,10 +65,14 @@ public class ClaudeAiClient {
             }
 
             ClaudeResponse resBody = objectMapper.readValue(response.body(), ClaudeResponse.class);
-            if (resBody.content != null && !resBody.content.isEmpty()) {
-                return resBody.content.get(0).text;
+            if (resBody.content != null) {
+                for (ClaudeContentBlock block : resBody.content) {
+                    if (block.text != null && !block.text.isBlank()) {
+                        return block.text;
+                    }
+                }
             }
-            throw new RuntimeException("Anthropic API 반환 결과가 비어 있습니다.");
+            throw new RuntimeException("Anthropic API 반환 결과가 비어 있습니다: " + response.body());
         } catch (Exception e) {
             if (e instanceof RuntimeException) throw (RuntimeException) e;
             throw new RuntimeException("Claude AI 호출 중 오류 발생: " + e.getMessage(), e);

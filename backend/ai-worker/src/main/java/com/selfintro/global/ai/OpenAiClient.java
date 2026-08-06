@@ -65,9 +65,12 @@ public class OpenAiClient {
 
             OpenAiResponse resBody = objectMapper.readValue(response.body(), OpenAiResponse.class);
             if (resBody.choices != null && !resBody.choices.isEmpty()) {
-                return resBody.choices.get(0).message.content;
+                String content = resBody.choices.get(0).message != null ? resBody.choices.get(0).message.content : null;
+                if (content != null && !content.isBlank()) {
+                    return content;
+                }
             }
-            throw new RuntimeException("OpenAI API 반환 결과가 비어 있습니다.");
+            throw new RuntimeException("OpenAI API 반환 결과가 비어 있습니다: " + response.body());
         } catch (Exception e) {
             if (e instanceof RuntimeException) throw (RuntimeException) e;
             throw new RuntimeException("OpenAI 호출 중 오류 발생: " + e.getMessage(), e);
