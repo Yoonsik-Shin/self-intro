@@ -1,6 +1,7 @@
 package com.selfintro.global.ai;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,7 +38,11 @@ public final class AiJsonSupport {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, stage + " 단계에서 AI가 올바른 JSON을 반환하지 않았습니다.");
         }
-        return objectMapper.readValue(raw.substring(start, end + 1), type);
+        // 트리로 먼저 파싱해 중복 키(예: 비전 모델이 "location"을 두 번 반환)를 병합한 뒤 바인딩한다.
+        // record는 세터가 없어, 문자열을 바로 readValue하면 중복 키의 두 번째 값 설정 시
+        // "No fallback setter/field defined for creator property" 예외가 난다.
+        JsonNode tree = objectMapper.readTree(raw.substring(start, end + 1));
+        return objectMapper.treeToValue(tree, type);
     }
 
     @FunctionalInterface
