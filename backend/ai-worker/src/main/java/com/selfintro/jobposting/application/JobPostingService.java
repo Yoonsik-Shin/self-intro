@@ -2,7 +2,9 @@ package com.selfintro.jobposting.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
+import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
@@ -10,6 +12,7 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.IOException;
@@ -44,6 +47,9 @@ public class JobPostingService {
 
     private static final long STREAM_TIMEOUT_MILLIS = 360_000L;
     private static final long HEARTBEAT_INTERVAL_MILLIS = 20_000L;
+    // vision 호출 1회의 토큰/타임아웃 한도(VISION_MAX_OUTPUT_TOKENS, VISION_AI_TIMEOUT)를 넘지
+    // 않도록 스크린샷(스크롤 캡처) 장수를 제한한다.
+    private static final int MAX_INGEST_IMAGE_COUNT = 6;
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
@@ -105,6 +111,47 @@ public class JobPostingService {
         } catch (Exception exception) {
             log.warn("채용공고 수집 스트리밍 중 예상하지 못한 오류", exception);
             fail(emitter, "공고 수집 중 오류가 발생했습니다. 다시 시도해주세요.");
+        } finally {
+            heartbeat.interrupt();
+            if (acquired) {
+                ingestSemaphore.release();
+            }
+        }
+    }
+
+    /**
+     * 스크린샷 등록(기능 B)의 SSE 진입점. vision 호출이 최대 {@link
+     * JobApplicationUrlParseService#VISION_AI_TIMEOUT}(120초)까지 걸릴 수 있어, 응답이 아예
+     * 없는 구간이 nginx ingress의 기본 프록시 타임아웃보다 길어질 위험이 있다 — {@code
+     * ingestUrlStream}과 동일하게 heartbeat로 연결을 유지한다.
+     */
+    public SseEmitter ingestImagesStream(List<JobPostingImageIngestRequest.ImageRef> images) {
+        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        Thread.ofVirtual()
+                .name("job-posting-ingest-images-stream")
+                .start(() -> streamImageIngest(images, emitter));
+        return emitter;
+    }
+
+    private void streamImageIngest(List<JobPostingImageIngestRequest.ImageRef> images, SseEmitter emitter) {
+        boolean acquired = false;
+        Thread heartbeat = startHeartbeat(emitter);
+        try {
+            if (!ingestSemaphore.tryAcquire(10, TimeUnit.SECONDS)) {
+                throw new ResponseStatusException(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        "현재 처리 중인 공고 수집 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+            }
+            acquired = true;
+            JobPostingResponse response = ingestImages(images);
+            send(emitter, new CompleteEvent("complete", response));
+            emitter.complete();
+        } catch (ResponseStatusException exception) {
+            log.warn("채용공고 스크린샷 등록 스트리밍 실패: {}", exception.getReason(), exception);
+            fail(emitter, exception.getReason() == null ? "공고 등록에 실패했습니다." : exception.getReason());
+        } catch (Exception exception) {
+            log.warn("채용공고 스크린샷 등록 스트리밍 중 예상하지 못한 오류", exception);
+            fail(emitter, "공고 등록 중 오류가 발생했습니다. 다시 시도해주세요.");
         } finally {
             heartbeat.interrupt();
             if (acquired) {
@@ -362,6 +409,84 @@ public class JobPostingService {
             return toResponse(
                     dedupService.attachAdditionalUrl(winner.getId(), trimmed, platform, now));
         }
+    }
+
+    /**
+     * URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록한다. URL 자동수집과 동일하게 파싱 즉시
+     * 저장하고(사람이 확인은 사후에), 파싱에 쓴 원본 이미지도 job_posting_source_image에 영구
+     * 보관해 상세 드로어에서 다시 볼 수 있게 한다. 회사명+직무명이 기존 공고와 완전일치하면
+     * 새 행을 만들지 않고 그 공고에 이미지만 추가한다({@link JobPostingDedupService}의 URL
+     * 버전과 같은 원칙).
+     *
+     * <p>클래스 기본이 읽기 전용 트랜잭션이라 {@code refresh()}와 같은 이유로 이 메서드에
+     * {@code @Transactional}을 명시해야 한다(2026-08-06 self-invocation 사고 재발 방지).
+     */
+    @Transactional
+    public JobPostingResponse ingestImages(List<JobPostingImageIngestRequest.ImageRef> images) {
+        if (images.isEmpty() || images.size() > MAX_INGEST_IMAGE_COUNT) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "이미지는 1장 이상 " + MAX_INGEST_IMAGE_COUNT + "장 이하만 가능합니다.");
+        }
+
+        List<NvidiaNimClient.ImagePart> parts =
+                images.stream()
+                        .map(image -> urlParseService.downloadImagePart(image.url(), image.contentType()))
+                        .toList();
+        JobApplicationUrlParseResponse parsed = urlParseService.parseFromImages(parts);
+        if (!AiJsonSupport.hasText(parsed.companyName()) || !AiJsonSupport.hasText(parsed.positionTitle())) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, "이미지에서 회사명/직무명을 추출하지 못했습니다.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        JobPosting posting =
+                dedupService
+                        .findExistingMatch(parsed.companyName(), parsed.positionTitle())
+                        .map(
+                                existing -> {
+                                    existing.touch(now);
+                                    return existing;
+                                })
+                        .orElseGet(
+                                () -> {
+                                    JobPosting.Draft draft =
+                                            new JobPosting.Draft(
+                                                    parsed.positionTitle(),
+                                                    parsed.companyName(),
+                                                    null,
+                                                    null,
+                                                    JobPostingSource.IMAGE_INGEST,
+                                                    combineForMatching(parsed),
+                                                    parsed.location(),
+                                                    parsed.employmentType(),
+                                                    parsed.deadline(),
+                                                    parsed.alwaysOpen(),
+                                                    parsed.salaryNote(),
+                                                    parsed.jobDescription(),
+                                                    parsed.requiredQualifications(),
+                                                    parsed.preferredQualifications(),
+                                                    parsed.hiringProcess(),
+                                                    parsed.applicationMethod(),
+                                                    parsed.compensationDetail());
+                                    JobPosting draftEntity = JobPosting.collect(draft, now);
+                                    JobMatchingService.MatchResult match =
+                                            matchingService.evaluate(
+                                                    draftEntity.getPositionTitle(),
+                                                    draftEntity.getRequiredSkillsRaw());
+                                    draftEntity.applyMatch(match.score(), match.reason(), now);
+                                    return jobPostingRepository.save(draftEntity);
+                                });
+
+        int baseOrder =
+                sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()).size();
+        for (int i = 0; i < images.size(); i++) {
+            JobPostingImageIngestRequest.ImageRef image = images.get(i);
+            sourceImageRepository.save(
+                    JobPostingSourceImage.of(
+                            posting.getId(), image.objectKey(), image.url(), baseOrder + i, now));
+        }
+
+        return toResponse(posting);
     }
 
     /**

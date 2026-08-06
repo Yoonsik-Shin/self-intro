@@ -465,6 +465,7 @@ public class JobPosting {
                 case URL_INGEST -> "URL 수집";
                 case SARAMIN -> "사람인";
                 case MANUAL -> "직접입력";
+                case IMAGE_INGEST -> "스크린샷 등록";
             };
         }
     }

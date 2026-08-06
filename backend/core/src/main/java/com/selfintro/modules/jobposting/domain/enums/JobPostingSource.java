@@ -7,5 +7,6 @@ package com.selfintro.modules.jobposting.domain.enums;
 public enum JobPostingSource {
     URL_INGEST,
     SARAMIN,
-    MANUAL
+    MANUAL,
+    IMAGE_INGEST
 }

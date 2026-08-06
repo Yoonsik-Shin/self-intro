@@ -128,6 +128,19 @@ public class JobApplicationUrlParseService {
             {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
+    /**
+     * URL 파싱이 불가능해 사용자가 직접 채용 페이지를 캡처한 스크린샷으로 등록하는 경로 전용
+     * 프롬프트. 포스터/배너형 홍보 이미지를 전제로 한 {@link #VISION_PARSE_PROMPT}와 달리,
+     * 브라우저로 페이지 전체를 캡처한 경우가 많아 헤더/로고에 회사명이 있을 가능성이 높다는
+     * 힌트를 추가했다.
+     */
+    private static final String SCREENSHOT_PARSE_PROMPT =
+            VISION_PARSE_PROMPT.replaceFirst(
+                    "당신은 채용 공고 이미지\\(포스터/배너\\)에서 사실만 추출하는 편집 보조입니다\\.",
+                    "당신은 채용 공고 페이지를 캡처한 스크린샷에서 사실만 추출하는 편집 보조입니다. "
+                            + "브라우저로 페이지 전체를 캡처한 경우가 많으므로, 상단 헤더/로고/사이트 제목에서 "
+                            + "회사명을 먼저 찾고, 본문에서 직무명을 찾으세요.");
+
     private static final int MAX_PAGE_TEXT_LENGTH = 12000;
     // job_posting.company_name/position_title 컬럼 길이(각각 varchar(100)/varchar(150))와 맞춘다.
     // AI가 부제목이나 회사 소개 문구까지 붙여 넘길 때가 있어, DB에 넣기 전에 여기서 한 번 잘라야
@@ -754,6 +767,59 @@ public class JobApplicationUrlParseService {
                 || filledDetailCount < MIN_FILLED_DETAIL_FIELDS;
     }
 
+    /**
+     * URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록하는 경로. {@link #sliceForVision}/{@link
+     * NvidiaNimClient#generateWithImages}는 배너 이미지 경로와 그대로 공유하고, 프롬프트만
+     * {@link #SCREENSHOT_PARSE_PROMPT}로 바꾼다. 여러 장이면(스크롤 캡처) 업로드 순서대로 모두
+     * 한 번의 호출에 실어 보낸다. postingUrl은 없으므로 null로 반환한다.
+     */
+    public JobApplicationUrlParseResponse parseFromImages(List<NvidiaNimClient.ImagePart> rawImages) {
+        List<NvidiaNimClient.ImagePart> parts =
+                rawImages.stream()
+                        .flatMap(image -> sliceForVision(image.bytes(), image.mimeType()).stream())
+                        .toList();
+        String userPrompt =
+                parts.size() > 1
+                        ? "채용 공고 페이지를 캡처한 스크린샷 " + parts.size() + "장입니다. 순서대로 이어서 읽고 정보를 추출하세요."
+                        : "채용 공고 페이지를 캡처한 스크린샷에서 정보를 추출하세요.";
+        ExtractedFields extracted;
+        try {
+            String raw =
+                    nvidiaNimClient.generateWithImages(
+                            SCREENSHOT_PARSE_PROMPT,
+                            userPrompt,
+                            visionModel,
+                            parts,
+                            VISION_MAX_OUTPUT_TOKENS,
+                            VISION_AI_TIMEOUT);
+            extracted = AiJsonSupport.parseJson(objectMapper, raw, ExtractedFields.class, "채용공고 스크린샷 분석");
+        } catch (Exception exception) {
+            log.warn("채용공고 스크린샷 분석 실패", exception);
+            extracted = EMPTY_EXTRACTED_FIELDS;
+        }
+
+        LocalDate deadline = parseDate(extracted.deadline());
+        boolean alwaysOpen = deadline == null && Boolean.TRUE.equals(extracted.alwaysOpen());
+        return new JobApplicationUrlParseResponse(
+                AiJsonSupport.blankToNull(
+                        AiJsonSupport.limit(extracted.companyName(), MAX_COMPANY_NAME_LENGTH)),
+                AiJsonSupport.blankToNull(
+                        AiJsonSupport.limit(extracted.positionTitle(), MAX_POSITION_TITLE_LENGTH)),
+                AiJsonSupport.blankToNull(extracted.source()),
+                deadline,
+                alwaysOpen,
+                AiJsonSupport.blankToNull(extracted.salaryNote()),
+                AiJsonSupport.blankToNull(extracted.location()),
+                AiJsonSupport.blankToNull(extracted.employmentType()),
+                AiJsonSupport.blankToNull(extracted.jobDescription()),
+                AiJsonSupport.blankToNull(extracted.requiredQualifications()),
+                AiJsonSupport.blankToNull(extracted.preferredQualifications()),
+                AiJsonSupport.blankToNull(extracted.hiringProcess()),
+                AiJsonSupport.blankToNull(extracted.applicationMethod()),
+                AiJsonSupport.blankToNull(extracted.compensationDetail()),
+                null);
+    }
+
     private ExtractedFields enrichFromBannerImage(ExtractedFields base, Document document) {
         return findBannerImage(document)
                 .map(image -> merge(base, visionExtractOrEmpty(image)))
@@ -1082,6 +1148,19 @@ public class JobApplicationUrlParseService {
             }
         }
         return Optional.ofNullable(best);
+    }
+
+    /**
+     * 스크린샷 업로드(기능 B) 경로용 — 프론트가 presigned URL로 이미 올려둔 이미지를 공개
+     * URL(STORAGE_PUBLIC_BASE_URL)에서 바이트로 내려받는다. 인증이 필요 없다.
+     */
+    public NvidiaNimClient.ImagePart downloadImagePart(String url, String mimeType) {
+        try {
+            return new NvidiaNimClient.ImagePart(downloadImage(url), mimeType);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY, "이미지를 불러오지 못했습니다: " + url, exception);
+        }
     }
 
     private byte[] downloadImage(String url) throws IOException {

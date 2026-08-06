@@ -12,6 +12,7 @@ import com.selfintro.jobposting.application.JobPostingService;
 import com.selfintro.jobposting.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -71,6 +72,12 @@ public class JobPostingController {
     @PostMapping(value = "/ingest-url/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter ingestUrlStream(@Valid @RequestBody JobApplicationUrlParseRequest request) {
         return jobPostingService.ingestUrlStream(request.url());
+    }
+
+    /** URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록한다(기능 B). */
+    @PostMapping(value = "/ingest-images/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter ingestImagesStream(@Valid @RequestBody JobPostingImageIngestRequest request) {
+        return jobPostingService.ingestImagesStream(request.images());
     }
 
     @PostMapping(value = "/ingest-urls/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
