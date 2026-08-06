@@ -20,6 +20,8 @@ import {
 import { jobPostingApi } from '@/lib/api/jobPosting';
 import { ApiError } from '@/lib/api/client';
 import type { JobPostingCoverLetterItem } from '@/lib/api/types';
+import { AI_MODEL_OPTIONS } from '@/lib/constants/aiModels';
+import { useAiModelStore } from '@/store/useAiModelStore';
 
 interface JobCoverLetterDrawerProps {
     isOpen: boolean;
@@ -32,51 +34,6 @@ interface JobCoverLetterDrawerProps {
     initialAnswer: string;
     onSaveAnswer: (itemId: number, newAnswer: string) => Promise<void>;
 }
-
-const AI_MODEL_OPTIONS = [
-    {
-        id: 'CLAUDE_3_5_SONNET',
-        name: 'Claude Sonnet 5',
-        badge: '자소서 1위 🥇',
-        price: '1M 토큰당 $2/$10',
-    },
-    {
-        id: 'GEMINI_3_1_FLASH_LITE',
-        name: 'Gemini 3.1 Flash-Lite',
-        badge: '가성비 추천 💰',
-        price: '1M 토큰당 $0.25/$1.50',
-    },
-    {
-        id: 'GEMINI_3_6_FLASH',
-        name: 'Gemini 3.6 Flash',
-        badge: '고성능 ⚡',
-        price: '1M 토큰당 $1.50/$7.50',
-    },
-    {
-        id: 'NVIDIA_NIM',
-        name: 'Nvidia NIM (Llama 3.3)',
-        badge: '무료 🟢',
-        price: '$0 (기본 내장)',
-    },
-    {
-        id: 'GPT_5_4_NANO',
-        name: 'GPT-5.4 Nano',
-        badge: '초저가 💰',
-        price: '1M 토큰당 $0.20/$1.25',
-    },
-    {
-        id: 'GPT_5_4_MINI',
-        name: 'GPT-5.4 Mini',
-        badge: '균형 ⚖️',
-        price: '1M 토큰당 $0.75/$4.50',
-    },
-    {
-        id: 'CUSTOM',
-        name: '직접 모델명 입력',
-        badge: '커스텀 ⚙️',
-        price: 'API 지정',
-    },
-];
 
 export function JobCoverLetterDrawer({
     isOpen,
@@ -95,8 +52,11 @@ export function JobCoverLetterDrawer({
     const [feedbackInput, setFeedbackInput] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [selectedAiModel, setSelectedAiModel] = useState<string>('CLAUDE_3_5_SONNET');
-    const [customModelInput, setCustomModelInput] = useState<string>('');
+    const globalAiModel = useAiModelStore((state) => state.modelKey);
+    const globalCustomModelName = useAiModelStore((state) => state.customModelName);
+    // 대시보드 헤더에서 고른 전역 기본값으로 초기화하되, 이 드로어 안에서 바꿔도 전역 값은 그대로 둔다.
+    const [selectedAiModel, setSelectedAiModel] = useState<string>(globalAiModel);
+    const [customModelInput, setCustomModelInput] = useState<string>(globalCustomModelName);
     const chatBottomRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 

@@ -25,6 +25,14 @@ import type {
     JobplanetLookup,
 } from './types';
 
+function aiModelQuery(aiModel?: string, customModelName?: string): string {
+    const params = new URLSearchParams();
+    if (aiModel) params.set('aiModel', aiModel);
+    if (customModelName) params.set('customModelName', customModelName);
+    const query = params.toString();
+    return query ? `?${query}` : '';
+}
+
 export const jobPostingApi = {
     list: () => request<JobPosting[]>('/api/admin/job-postings'),
     get: (id: number) => request<JobPosting>(`/api/admin/job-postings/${id}`),
@@ -197,10 +205,11 @@ export const jobPostingApi = {
         request<JobPosting>(`/api/admin/job-postings/${id}/status-events/${eventId}`, {
             method: 'DELETE',
         }),
-    analyzeAppeal: (id: number) =>
-        request<JobPosting>(`/api/worker/job-postings/${id}/analyze-appeal`, {
-            method: 'POST',
-        }),
+    analyzeAppeal: (id: number, aiModel?: string, customModelName?: string) =>
+        request<JobPosting>(
+            `/api/worker/job-postings/${id}/analyze-appeal${aiModelQuery(aiModel, customModelName)}`,
+            { method: 'POST' }
+        ),
     generateCoverLetterDraft: (
         id: number,
         payload: JobPostingCoverLetterDraftRequest,
@@ -217,10 +226,12 @@ export const jobPostingApi = {
     generatePrintDraftStream: (
         id: number,
         onEvent: (event: JobPostingPrintDraftStreamEvent) => void,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        aiModel?: string,
+        customModelName?: string
     ) =>
         requestEventStream<JobPostingPrintDraftStreamEvent>(
-            `/api/worker/job-postings/${id}/print-template-draft/stream`,
+            `/api/worker/job-postings/${id}/print-template-draft/stream${aiModelQuery(aiModel, customModelName)}`,
             {},
             onEvent,
             signal
@@ -238,10 +249,11 @@ export const jobPostingApi = {
         }),
     gapProjectDocuments: (id: number) =>
         request<GapProjectDocument[]>(`/api/worker/job-postings/${id}/gap-project-documents`),
-    generateGapProjectDocument: (id: number) =>
-        request<GapProjectDocument>(`/api/worker/job-postings/${id}/gap-project-documents`, {
-            method: 'POST',
-        }),
+    generateGapProjectDocument: (id: number, aiModel?: string, customModelName?: string) =>
+        request<GapProjectDocument>(
+            `/api/worker/job-postings/${id}/gap-project-documents${aiModelQuery(aiModel, customModelName)}`,
+            { method: 'POST' }
+        ),
     rematch: (id: number) =>
         request<JobPosting>(`/api/worker/job-postings/${id}/rematch`, {
             method: 'POST',

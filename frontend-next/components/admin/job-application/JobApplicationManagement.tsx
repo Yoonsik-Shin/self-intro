@@ -53,6 +53,7 @@ import {
 } from 'lucide-react';
 import { ApiError, imageApi, jobPostingApi, printTemplateApi } from '@/lib/api';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
+import { useAiModelStore } from '@/store/useAiModelStore';
 import { PositionChoicePicker } from './PositionChoicePicker';
 import { PostingMemoEditor } from './PostingMemoEditor';
 import { ScreenshotIngestPanel } from './ScreenshotIngestPanel';
@@ -1300,6 +1301,8 @@ function PrintTemplatesPanel({
     const [isUploadingDirectPdf, setIsUploadingDirectPdf] = useState(false);
     const [latestDraft, setLatestDraft] = useState<JobPostingPrintDraftResponse | null>(null);
     const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+    const aiModel = useAiModelStore((state) => state.modelKey);
+    const aiCustomModelName = useAiModelStore((state) => state.customModelName);
 
     const {
         data: templates = [],
@@ -1431,14 +1434,20 @@ function PrintTemplatesPanel({
     async function generatePrintDraft() {
         setIsGeneratingDraft(true);
         try {
-            await jobPostingApi.generatePrintDraftStream(jobPostingId, (event) => {
-                if (event.type === 'error') {
-                    alert(`PDF 초안을 만들지 못했습니다. ${event.message}`);
-                    return;
-                }
-                setLatestDraft(event.response);
-                queryClient.invalidateQueries({ queryKey });
-            });
+            await jobPostingApi.generatePrintDraftStream(
+                jobPostingId,
+                (event) => {
+                    if (event.type === 'error') {
+                        alert(`PDF 초안을 만들지 못했습니다. ${event.message}`);
+                        return;
+                    }
+                    setLatestDraft(event.response);
+                    queryClient.invalidateQueries({ queryKey });
+                },
+                undefined,
+                aiModel,
+                aiCustomModelName || undefined
+            );
         } catch (error) {
             alert(
                 error instanceof ApiError
@@ -2078,8 +2087,15 @@ function GapProjectDocumentsPanel({
         queryFn: () => jobPostingApi.gapProjectDocuments(jobPostingId),
     });
     const selected = documents.find((document) => document.id === selectedId) ?? documents[0];
+    const aiModel = useAiModelStore((state) => state.modelKey);
+    const aiCustomModelName = useAiModelStore((state) => state.customModelName);
     const generateMutation = useMutation({
-        mutationFn: () => jobPostingApi.generateGapProjectDocument(jobPostingId),
+        mutationFn: () =>
+            jobPostingApi.generateGapProjectDocument(
+                jobPostingId,
+                aiModel,
+                aiCustomModelName || undefined
+            ),
         onSuccess: (document: GapProjectDocument) => {
             setSelectedId(document.id);
             queryClient.invalidateQueries({ queryKey });
@@ -2248,6 +2264,8 @@ type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP';
 
 export function JobApplicationManagement() {
     const queryClient = useQueryClient();
+    const aiModel = useAiModelStore((state) => state.modelKey);
+    const aiCustomModelName = useAiModelStore((state) => state.customModelName);
     const [viewMode, setViewMode] = useState<ViewMode>('LIST');
     const [calendarMonth, setCalendarMonth] = useState(() => {
         const now = new Date();
@@ -2494,7 +2512,8 @@ export function JobApplicationManagement() {
     });
 
     const analyzeAppealMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.analyzeAppeal(id),
+        mutationFn: (id: number) =>
+            jobPostingApi.analyzeAppeal(id, aiModel, aiCustomModelName || undefined),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '경력 매칭 분석에 실패했습니다.'),
