@@ -4,8 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.selfintro.global.ai.CareerProfileDigestBuilder;
-import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.jobposting.domain.entity.GapProjectDocument;
 import com.selfintro.jobposting.domain.repository.GapProjectDocumentRepository;
 import com.selfintro.jobposting.presentation.dto.GapProjectDocumentResponse;
@@ -15,6 +14,8 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.util.List;
@@ -64,13 +65,16 @@ public class GapProjectDocumentService {
             }
             """;
 
+    private static final int EXPERIENCE_TOP_K = 8;
+    private static final int STUDY_TOP_K = 5;
+
     private final GapProjectDocumentRepository repository;
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
     private final JobPostingSourceImageRepository sourceImageRepository;
-    private final CareerProfileDigestBuilder careerProfileDigestBuilder;
-    private final NvidiaNimClient nvidiaNimClient;
+    private final RelevantProfileDigestService relevantProfileDigestService;
+    private final LlmDispatcher llmDispatcher;
     private final ObjectMapper objectMapper;
 
     public List<GapProjectDocumentResponse> list(Long jobPostingId) {
@@ -80,20 +84,24 @@ public class GapProjectDocumentService {
                 .toList();
     }
 
-    public GapProjectDocumentResponse generate(Long jobPostingId) {
+    public GapProjectDocumentResponse generate(Long jobPostingId, String aiModel, String customModelName) {
         JobPostingResponse posting = toResponse(findPostingOrThrow(jobPostingId));
         if (posting.appealAnalysis() == null || posting.appealAnalysis().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "먼저 AI 어필 포인트 분석을 실행해주세요.");
         }
 
+        String queryText = JobPostingRetrievalQueryText.build(
+                posting.positionTitle(), posting.jobDescription(), posting.requiredQualifications(), posting.preferredQualifications());
+        String candidateProfile = relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+
         ObjectNode input = objectMapper.createObjectNode();
         input.set("jobPosting", objectMapper.valueToTree(posting));
         input.put("appealAnalysis", posting.appealAnalysis());
-        input.put("candidateProfile", careerProfileDigestBuilder.build());
+        input.put("candidateProfile", candidateProfile);
 
         String raw =
-                nvidiaNimClient.generateJsonOnce(
-                        SYSTEM_PROMPT, writeJson(input), 6144, Duration.ofSeconds(120));
+                llmDispatcher.generateJson(
+                        SYSTEM_PROMPT, writeJson(input), aiModel, customModelName, 6144, Duration.ofSeconds(120));
         JsonNode content = parseJson(raw);
         JsonNode projects = content.path("projects");
         if (!projects.isArray() || projects.isEmpty()) {
