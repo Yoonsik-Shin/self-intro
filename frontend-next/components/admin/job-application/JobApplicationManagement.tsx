@@ -54,6 +54,7 @@ import { PostingMemoEditor } from './PostingMemoEditor';
 import { ScreenshotIngestPanel } from './ScreenshotIngestPanel';
 import { SourceImagesPopover } from './SourceImagesPopover';
 import { SourceLinksPopover } from './SourceLinksPopover';
+import { JobCoverLetterDrawer } from './JobCoverLetterDrawer';
 import type {
     GapProjectDocument,
     JobPosting,
@@ -492,7 +493,15 @@ function newCoverLetterDraft(
 
 /** 질문과 글자 수 제한은 "문항 관리"에서 구성하고, 답변은 평소 화면에서 언제든 바로 수정한다.
  * 답변이 비어 있어도 문항만 먼저 저장할 수 있으며 수정 이력은 만들지 않는다. */
-function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
+function CoverLetterEditor({
+    jobPostingId,
+    companyName,
+    positionTitle,
+}: {
+    jobPostingId: number;
+    companyName: string;
+    positionTitle: string;
+}) {
     const queryClient = useQueryClient();
     const queryKey = ['jobPostings', jobPostingId, 'coverLetterItems'] as const;
     const [isManaging, setIsManaging] = useState(false);
@@ -501,8 +510,10 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
     const [expandedIndexes, setExpandedIndexes] = useState<Set<number>>(() => new Set());
     const [generatingItemIds, setGeneratingItemIds] = useState<Set<number>>(() => new Set());
     const [isGeneratingAll, setIsGeneratingAll] = useState(false);
-    const [feedbackOpenIds, setFeedbackOpenIds] = useState<Set<number>>(() => new Set());
-    const [feedbackTexts, setFeedbackTexts] = useState<Record<number, string>>({});
+
+    // 슬라이드 드로어 상태
+    const [drawerItemId, setDrawerItemId] = useState<number | null>(null);
+    const [drawerItemIndex, setDrawerItemIndex] = useState<number>(0);
 
     const {
         data: items = [],
@@ -512,6 +523,11 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
         queryKey,
         queryFn: () => jobPostingApi.coverLetterItems(jobPostingId),
     });
+
+    const activeDrawerItem = useMemo(
+        () => items.find((i) => i.id === drawerItemId) ?? null,
+        [items, drawerItemId]
+    );
 
     const saveMutation = useMutation({
         mutationFn: (payload: JobPostingCoverLetterItemRequest[]) =>
@@ -524,6 +540,19 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '자소서 저장에 실패했습니다.'),
     });
+
+    const handleSaveSingleAnswer = useCallback(
+        async (itemId: number, newAnswer: string) => {
+            setAnswerDrafts((prev) => ({ ...prev, [itemId]: newAnswer }));
+            const updatedPayload = items.map((item) => ({
+                question: item.question,
+                answer: item.id === itemId ? newAnswer : (answerDrafts[item.id] ?? item.answer),
+                characterLimit: item.characterLimit,
+            }));
+            await saveMutation.mutateAsync(updatedPayload);
+        },
+        [items, answerDrafts, saveMutation]
+    );
 
     const generateSingleDraft = useCallback(
         async (
@@ -541,17 +570,12 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                     characterLimit,
                     currentDraft: currentAnswer || undefined,
                     feedbackInstruction: feedbackInstruction?.trim() || undefined,
+                    coverLetterItemId: itemId,
                 });
                 setAnswerDrafts((current) => ({
                     ...current,
                     [itemId]: res.draftAnswer,
                 }));
-                // 생성 완료 시 해당 문항 피드백 입력창 닫기 및 아코디언 오픈
-                setFeedbackOpenIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(itemId);
-                    return next;
-                });
                 const itemIndex = items.findIndex((i) => i.id === itemId);
                 if (itemIndex !== -1) {
                     setExpandedIndexes((prev) => new Set(prev).add(itemIndex));
@@ -576,11 +600,8 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
     const generateAllDrafts = useCallback(async () => {
         if (items.length === 0 || isGeneratingAll) return;
         setIsGeneratingAll(true);
-
-        // 모든 문항 펼치기
         setExpandedIndexes(new Set(items.map((_, idx) => idx)));
 
-        // 동시 요청 3개 제한 헬퍼
         const concurrency = 3;
         let index = 0;
 
@@ -658,7 +679,7 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
             <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-semibold text-slate-400">
-                        문항을 먼저 등록하고 답변은 필요할 때마다 바로 수정하세요.
+                        문항을 누르면 넓은 시원한 패널과 AI 대화창이 열립니다.
                     </p>
                     <div className="flex items-center gap-2">
                         {items.length > 0 && (
@@ -704,34 +725,30 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                     <ol className="space-y-4">
                         {items.map((item, index) => {
                             const isGeneratingThis = generatingItemIds.has(item.id);
-                            const isFeedbackOpen = feedbackOpenIds.has(item.id);
                             const currentAnswerVal = answerDrafts[item.id] ?? item.answer;
-                            const hasDraftText = Boolean(currentAnswerVal.trim());
 
                             return (
                                 <li
                                     key={item.id}
-                                    className="overflow-hidden rounded-xl border border-slate-200"
+                                    className="overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-slate-300 hover:shadow-xs"
                                 >
-                                    <button
-                                        type="button"
-                                        aria-expanded={expandedIndexes.has(index)}
-                                        aria-controls={`cover-letter-answer-${item.id}`}
-                                        onClick={() =>
-                                            setExpandedIndexes((current) => {
-                                                const next = new Set(current);
-                                                if (next.has(index)) next.delete(index);
-                                                else next.add(index);
-                                                return next;
-                                            })
-                                        }
-                                        className="flex w-full items-start justify-between gap-3 p-4 text-left transition hover:bg-slate-50"
-                                    >
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-extrabold text-slate-400">
-                                                문항 {index + 1}
-                                            </p>
-                                            <p className="mt-1 whitespace-pre-wrap text-sm font-extrabold text-slate-800">
+                                    <div className="flex w-full items-start justify-between gap-3 p-4 text-left">
+                                        <div
+                                            className="min-w-0 flex-1 cursor-pointer"
+                                            onClick={() => {
+                                                setDrawerItemId(item.id);
+                                                setDrawerItemIndex(index);
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-extrabold text-slate-400">
+                                                    문항 {index + 1}
+                                                </span>
+                                                <span className="rounded-md bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-extrabold text-indigo-600 transition hover:bg-indigo-100">
+                                                    💬 AI 채팅 및 시원하게 수정
+                                                </span>
+                                            </div>
+                                            <p className="mt-1 whitespace-pre-wrap text-sm font-extrabold text-slate-800 hover:text-indigo-600 transition">
                                                 {item.question}
                                             </p>
                                         </div>
@@ -741,196 +758,118 @@ function CoverLetterEditor({ jobPostingId }: { jobPostingId: number }) {
                                                     ? `${item.characterLimit.toLocaleString()}자`
                                                     : '제한 없음'}
                                             </span>
-                                            <ChevronDown
-                                                className={`mt-0.5 h-4 w-4 text-slate-400 transition-transform ${
-                                                    expandedIndexes.has(index) ? 'rotate-180' : ''
-                                                }`}
-                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setDrawerItemId(item.id);
+                                                    setDrawerItemIndex(index);
+                                                }}
+                                                className="flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800"
+                                            >
+                                                <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
+                                                열기
+                                            </button>
                                         </div>
-                                    </button>
-                                    {expandedIndexes.has(index) && (
-                                        <div
-                                            id={`cover-letter-answer-${item.id}`}
-                                            className="border-t border-slate-100 p-4"
-                                        >
-                                            <div className="mb-2 flex items-center justify-between">
-                                                <span className="text-xs font-bold text-slate-500">
-                                                    답변
-                                                </span>
-                                                <div className="flex items-center gap-1.5">
-                                                    {hasDraftText && (
-                                                        <button
-                                                            type="button"
-                                                            disabled={
-                                                                isGeneratingThis || isGeneratingAll
-                                                            }
-                                                            onClick={() =>
-                                                                setFeedbackOpenIds((prev) => {
-                                                                    const next = new Set(prev);
-                                                                    if (next.has(item.id))
-                                                                        next.delete(item.id);
-                                                                    else next.add(item.id);
-                                                                    return next;
-                                                                })
-                                                            }
-                                                            className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition ${
-                                                                isFeedbackOpen
-                                                                    ? 'bg-amber-100 border-amber-300 text-amber-800'
-                                                                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
-                                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                        >
-                                                            💬 피드백 반영 재생성
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        disabled={
-                                                            isGeneratingThis || isGeneratingAll
-                                                        }
-                                                        onClick={() =>
-                                                            generateSingleDraft(
-                                                                item.id,
-                                                                item.question,
-                                                                item.characterLimit
-                                                            )
-                                                        }
-                                                        className="flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-600 transition hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {isGeneratingThis ? (
-                                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                                        ) : (
-                                                            <Sparkles className="h-3 w-3 text-indigo-600" />
-                                                        )}
-                                                        {isGeneratingThis
-                                                            ? '초안 생성 중...'
-                                                            : 'AI 초안 생성'}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {isFeedbackOpen && (
-                                                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-                                                    <label className="block">
-                                                        <span className="mb-1 block text-xs font-extrabold text-amber-900">
-                                                            지적사항 및 보완 요청
-                                                        </span>
-                                                        <input
-                                                            type="text"
-                                                            value={feedbackTexts[item.id] ?? ''}
-                                                            onChange={(e) =>
-                                                                setFeedbackTexts((prev) => ({
-                                                                    ...prev,
-                                                                    [item.id]: e.target.value,
-                                                                }))
-                                                            }
-                                                            placeholder="예: 2번째 단락 성과 수치를 강조하고 문체를 부드럽게 바꿔줘"
-                                                            className="w-full rounded-md border border-amber-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-amber-400 focus:outline-none"
-                                                        />
-                                                    </label>
-                                                    <div className="mt-2 flex justify-end gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setFeedbackOpenIds((prev) => {
-                                                                    const next = new Set(prev);
-                                                                    next.delete(item.id);
-                                                                    return next;
-                                                                })
-                                                            }
-                                                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
-                                                        >
-                                                            취소
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            disabled={
-                                                                isGeneratingThis ||
-                                                                !(
-                                                                    feedbackTexts[item.id] ?? ''
-                                                                ).trim()
-                                                            }
-                                                            onClick={() =>
-                                                                generateSingleDraft(
-                                                                    item.id,
-                                                                    item.question,
-                                                                    item.characterLimit,
-                                                                    feedbackTexts[item.id]
-                                                                )
-                                                            }
-                                                            className="flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                                                        >
-                                                            {isGeneratingThis ? (
-                                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                                            ) : (
-                                                                <Sparkles className="h-3 w-3" />
-                                                            )}
-                                                            피드백 반영하여 다시 생성
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <textarea
-                                                rows={9}
-                                                value={answerDrafts[item.id] ?? item.answer}
-                                                onChange={(event) =>
-                                                    setAnswerDrafts((current) => ({
-                                                        ...current,
-                                                        [item.id]: event.target.value,
-                                                    }))
+                                    </div>
+                                    <div className="border-t border-slate-100 p-4 bg-slate-50/40">
+                                        <div className="mb-2 flex items-center justify-between">
+                                            <span className="text-xs font-bold text-slate-500">
+                                                답변 요약 / 즉시 수정
+                                            </span>
+                                            <button
+                                                type="button"
+                                                disabled={isGeneratingThis || isGeneratingAll}
+                                                onClick={() =>
+                                                    generateSingleDraft(
+                                                        item.id,
+                                                        item.question,
+                                                        item.characterLimit
+                                                    )
                                                 }
-                                                placeholder="답변을 작성하거나 AI 초안 생성 버튼을 누르세요."
-                                                className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm leading-6 focus:border-slate-400 focus:outline-none"
-                                            />
-                                            <div className="mt-1 flex items-center justify-between gap-3">
-                                                {(() => {
-                                                    const length = (
-                                                        answerDrafts[item.id] ?? item.answer
-                                                    ).length;
-                                                    const overLimit =
-                                                        item.characterLimit !== null &&
-                                                        length > item.characterLimit;
-                                                    return (
-                                                        <span
-                                                            className={`text-[11px] font-semibold ${
-                                                                overLimit
-                                                                    ? 'text-rose-500'
-                                                                    : 'text-slate-400'
-                                                            }`}
-                                                        >
-                                                            {length.toLocaleString()}자
-                                                            {item.characterLimit !== null &&
-                                                                ` / ${item.characterLimit.toLocaleString()}자`}
-                                                            {overLimit &&
-                                                                ` · ${(length - item.characterLimit!).toLocaleString()}자 초과`}
-                                                        </span>
-                                                    );
-                                                })()}
-                                                <button
-                                                    type="button"
-                                                    disabled={
-                                                        saveMutation.isPending ||
-                                                        (answerDrafts[item.id] ?? item.answer) ===
-                                                            item.answer
-                                                    }
-                                                    onClick={saveAnswers}
-                                                    className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
-                                                >
-                                                    {saveMutation.isPending ? (
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    ) : (
-                                                        <Check className="h-3.5 w-3.5" />
-                                                    )}
-                                                    답변 저장
-                                                </button>
-                                            </div>
+                                                className="flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-600 transition hover:bg-indigo-100 disabled:opacity-50"
+                                            >
+                                                {isGeneratingThis ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <Sparkles className="h-3 w-3 text-indigo-600" />
+                                                )}
+                                                {isGeneratingThis ? '생성 중...' : '빠른 AI 초안'}
+                                            </button>
                                         </div>
-                                    )}
+                                        <textarea
+                                            rows={4}
+                                            value={currentAnswerVal}
+                                            onChange={(event) =>
+                                                setAnswerDrafts((current) => ({
+                                                    ...current,
+                                                    [item.id]: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="답변을 입력하거나 문항을 클릭하여 시원한 대화창 패널을 열어보세요."
+                                            className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 focus:border-slate-400 focus:outline-none"
+                                        />
+                                        <div className="mt-1 flex items-center justify-between gap-3">
+                                            {(() => {
+                                                const length = currentAnswerVal.length;
+                                                const overLimit =
+                                                    item.characterLimit !== null &&
+                                                    length > item.characterLimit;
+                                                return (
+                                                    <span
+                                                        className={`text-[11px] font-semibold ${
+                                                            overLimit
+                                                                ? 'text-rose-500'
+                                                                : 'text-slate-400'
+                                                        }`}
+                                                    >
+                                                        {length.toLocaleString()}자
+                                                        {item.characterLimit !== null &&
+                                                            ` / ${item.characterLimit.toLocaleString()}자`}
+                                                        {overLimit &&
+                                                            ` · ${(length - item.characterLimit!).toLocaleString()}자 초과`}
+                                                    </span>
+                                                );
+                                            })()}
+                                            <button
+                                                type="button"
+                                                disabled={
+                                                    saveMutation.isPending ||
+                                                    currentAnswerVal === item.answer
+                                                }
+                                                onClick={saveAnswers}
+                                                className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+                                            >
+                                                {saveMutation.isPending ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Check className="h-3.5 w-3.5" />
+                                                )}
+                                                답변 저장
+                                            </button>
+                                        </div>
+                                    </div>
                                 </li>
                             );
                         })}
                     </ol>
                 )}
+
+                {/* 시원한 슬라이드 드로어 컴포넌트 */}
+                <JobCoverLetterDrawer
+                    isOpen={drawerItemId !== null}
+                    onClose={() => setDrawerItemId(null)}
+                    jobPostingId={jobPostingId}
+                    companyName={companyName}
+                    positionTitle={positionTitle}
+                    item={activeDrawerItem}
+                    itemIndex={drawerItemIndex}
+                    initialAnswer={
+                        drawerItemId
+                            ? (answerDrafts[drawerItemId] ?? activeDrawerItem?.answer ?? '')
+                            : ''
+                    }
+                    onSaveAnswer={handleSaveSingleAnswer}
+                />
             </div>
         );
     }
@@ -4130,6 +4069,10 @@ export function JobApplicationManagement() {
                                                         content: (
                                                             <CoverLetterEditor
                                                                 jobPostingId={drawerItem.id}
+                                                                companyName={drawerItem.companyName}
+                                                                positionTitle={
+                                                                    drawerItem.positionTitle
+                                                                }
                                                             />
                                                         ),
                                                     },
