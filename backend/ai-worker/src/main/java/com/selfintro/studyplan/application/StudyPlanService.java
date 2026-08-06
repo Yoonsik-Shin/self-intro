@@ -74,7 +74,7 @@ public class StudyPlanService {
     }
 
     @Transactional
-    public StudyPlanResponse sendMessage(Long id, String content) {
+    public StudyPlanResponse sendMessage(Long id, String content, String aiModel, String customModelName) {
         StudyPlan plan = findOrThrow(id);
         LocalDateTime now = LocalDateTime.now();
 
@@ -107,7 +107,7 @@ public class StudyPlanService {
         }
 
         Map<Long, CompletionState> snapshot = snapshotCompletion(plan);
-        GeneratedPlan generated = studyPlanAiService.regenerate(plan, content);
+        GeneratedPlan generated = studyPlanAiService.regenerate(plan, content, aiModel, customModelName);
         applyGeneratedPlan(plan, generated, snapshot, now);
         plan.addMessage(StudyPlanMessageRole.USER, content, now);
         plan.addMessage(StudyPlanMessageRole.ASSISTANT, generated.assistantReply(), now);
@@ -117,7 +117,7 @@ public class StudyPlanService {
 
     /** COLLECTING 단계에서 확정된 후보로 최초 Stage/Item을 만들고 DRAFT로 전환한다. */
     @Transactional
-    public StudyPlanResponse generatePlan(Long id) {
+    public StudyPlanResponse generatePlan(Long id, String aiModel, String customModelName) {
         StudyPlan plan = findOrThrow(id);
         if (!plan.isCollecting()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 계획이 생성된 상태입니다.");
@@ -129,7 +129,7 @@ public class StudyPlanService {
         LocalDateTime now = LocalDateTime.now();
         GeneratedPlan generated =
                 studyPlanAiService.generateInitial(
-                        selected, plan.getWeeklyAvailableMinutes(), plan.getFocusGoal());
+                        selected, plan.getWeeklyAvailableMinutes(), plan.getFocusGoal(), aiModel, customModelName);
         applyGeneratedPlan(plan, generated, Map.of(), now);
         plan.markGenerated(now);
         plan.addMessage(StudyPlanMessageRole.USER, "이 자료들로 계획을 생성해주세요.", now);

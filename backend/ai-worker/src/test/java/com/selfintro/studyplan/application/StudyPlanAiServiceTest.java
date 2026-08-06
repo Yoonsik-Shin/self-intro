@@ -2,13 +2,13 @@ package com.selfintro.studyplan.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.global.ai.CareerProfileDigestBuilder;
-import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
@@ -19,6 +19,7 @@ import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedItem;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedPlan;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedStage;
 import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,8 +33,8 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 class StudyPlanAiServiceTest {
 
-    @Mock private CareerProfileDigestBuilder careerProfileDigestBuilder;
-    @Mock private NvidiaNimClient nvidiaNimClient;
+    @Mock private RelevantProfileDigestService relevantProfileDigestService;
+    @Mock private LlmDispatcher llmDispatcher;
 
     private StudyPlanAiService service;
     private TaxonomyNode taxonomyNode;
@@ -42,7 +43,7 @@ class StudyPlanAiServiceTest {
     void setUp() throws Exception {
         service =
                 new StudyPlanAiService(
-                        careerProfileDigestBuilder, nvidiaNimClient, new ObjectMapper());
+                        relevantProfileDigestService, llmDispatcher, new ObjectMapper());
         var constructor = TaxonomyNode.class.getDeclaredConstructor();
         constructor.setAccessible(true);
         taxonomyNode = constructor.newInstance();
@@ -74,7 +75,7 @@ class StudyPlanAiServiceTest {
     @Test
     void throwsBadGatewayWhenAiReturnsUnknownResourceId() {
         LearningResource resource = newResource(1L, "A");
-        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
+        when(llmDispatcher.generateJson(anyString(), anyString(), any(), any(), anyInt(), any()))
                 .thenReturn(
                         """
                         {"assistantReply":"ok","stages":[{"stageOrder":1,"theme":"기본기",
@@ -82,7 +83,7 @@ class StudyPlanAiServiceTest {
                         "notes":null,"checkQuestions":[]}]}]}
                         """);
 
-        assertThatThrownBy(() -> service.generateInitial(List.of(resource), 300, null))
+        assertThatThrownBy(() -> service.generateInitial(List.of(resource), 300, null, null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -92,10 +93,10 @@ class StudyPlanAiServiceTest {
 
     @Test
     void throwsBadGatewayWhenAiResponseIsNotJson() {
-        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
+        when(llmDispatcher.generateJson(anyString(), anyString(), any(), any(), anyInt(), any()))
                 .thenReturn("이건 JSON이 아닙니다");
 
-        assertThatThrownBy(() -> service.generateInitial(List.of(), 300, null))
+        assertThatThrownBy(() -> service.generateInitial(List.of(), 300, null, null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -115,7 +116,7 @@ class StudyPlanAiServiceTest {
 
         // AI mistakenly puts the dependent(after=2) in an earlier stage than its
         // prerequisite(before=1).
-        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
+        when(llmDispatcher.generateJson(anyString(), anyString(), any(), any(), anyInt(), any()))
                 .thenReturn(
                         """
                         {"assistantReply":"ok","stages":[
@@ -124,7 +125,7 @@ class StudyPlanAiServiceTest {
                         ]}
                         """);
 
-        GeneratedPlan plan = service.generateInitial(List.of(before, after), 300, null);
+        GeneratedPlan plan = service.generateInitial(List.of(before, after), 300, null, null, null);
 
         int beforeStageIndex = stageIndexOf(plan, 1L);
         int afterStageIndex = stageIndexOf(plan, 2L);
@@ -136,7 +137,7 @@ class StudyPlanAiServiceTest {
         LearningResource a = newResource(1L, "CS 기초 자료");
         LearningResource b = newResource(2L, "데이터베이스 자료");
         // 둘 사이엔 선후관계가 없다 — 같은 레벨에 서로 다른 테마로 나와도 하나로 합쳐지면 안 된다.
-        when(nvidiaNimClient.generate(anyString(), anyString(), anyInt()))
+        when(llmDispatcher.generateJson(anyString(), anyString(), any(), any(), anyInt(), any()))
                 .thenReturn(
                         """
                         {"assistantReply":"ok","stages":[
@@ -145,7 +146,7 @@ class StudyPlanAiServiceTest {
                         ]}
                         """);
 
-        GeneratedPlan plan = service.generateInitial(List.of(a, b), 300, null);
+        GeneratedPlan plan = service.generateInitial(List.of(a, b), 300, null, null, null);
 
         assertThat(plan.stages()).hasSize(2);
         assertThat(plan.stages()).allSatisfy(stage -> assertThat(stage.stageOrder()).isEqualTo(1));

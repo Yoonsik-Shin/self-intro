@@ -105,9 +105,9 @@ class StudyPlanServiceTest {
         ReflectionTestUtils.setField(saved, "id", 1L);
         lenient().when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
 
-        when(studyPlanAiService.generateInitial(any(), eq(300), eq("목표"))).thenReturn(generated);
+        when(studyPlanAiService.generateInitial(any(), eq(300), eq("목표"), any(), any())).thenReturn(generated);
         when(learningResourceRepository.findAllById(any())).thenReturn(candidates);
-        service.generatePlan(1L);
+        service.generatePlan(1L, null, null);
 
         // 실제 JPA라면 저장 시 id가 채번되지만, 이 테스트는 repository를 mock했으므로 직접 채번을
         // 흉내낸다 — toggle 계열 테스트가 item id로 조회할 수 있어야 하기 때문.
@@ -208,10 +208,10 @@ class StudyPlanServiceTest {
                                         List.of(
                                                 new GeneratedItem(
                                                         10L, null, 60, null, List.of())))));
-        when(studyPlanAiService.regenerate(any(), eq("스프링은 빼주세요"))).thenReturn(regenerated);
+        when(studyPlanAiService.regenerate(any(), eq("스프링은 빼주세요"), any(), any())).thenReturn(regenerated);
         when(learningResourceRepository.findAllById(any())).thenReturn(List.of(resourceA));
 
-        StudyPlanResponse response = service.sendMessage(1L, "스프링은 빼주세요");
+        StudyPlanResponse response = service.sendMessage(1L, "스프링은 빼주세요", null, null);
 
         assertThat(response.stages()).hasSize(1);
         List<StudyPlanItemResponse> items = response.stages().get(0).items();
@@ -236,7 +236,7 @@ class StudyPlanServiceTest {
         when(studyPlanRetrievalService.adjust(List.of(resourceA, resourceB), "프론트엔드는 빼줘"))
                 .thenReturn(toCollected(List.of(resourceA)));
 
-        StudyPlanResponse response = service.sendMessage(1L, "프론트엔드는 빼줘");
+        StudyPlanResponse response = service.sendMessage(1L, "프론트엔드는 빼줘", null, null);
 
         assertThat(response.status().name()).isEqualTo("COLLECTING");
         assertThat(response.candidates()).hasSize(1);
@@ -284,13 +284,13 @@ class StudyPlanServiceTest {
                                         List.of(
                                                 new GeneratedItem(
                                                         10L, null, 60, null, List.of())))));
-        when(studyPlanAiService.generateInitial(eq(List.of(resourceA)), eq(300), eq("목표")))
+        when(studyPlanAiService.generateInitial(eq(List.of(resourceA)), eq(300), eq("목표"), any(), any()))
                 .thenReturn(generated);
         when(learningResourceRepository.findAllById(any())).thenReturn(List.of(resourceA));
 
-        service.generatePlan(1L);
+        service.generatePlan(1L, null, null);
 
-        verify(studyPlanAiService).generateInitial(eq(List.of(resourceA)), eq(300), eq("목표"));
+        verify(studyPlanAiService).generateInitial(eq(List.of(resourceA)), eq(300), eq("목표"), any(), any());
     }
 
     @Test
@@ -308,7 +308,7 @@ class StudyPlanServiceTest {
                                                         10L, null, 60, null, List.of())))));
         createAndRegister(List.of(resource), generated);
 
-        assertThatThrownBy(() -> service.generatePlan(1L))
+        assertThatThrownBy(() -> service.generatePlan(1L, null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -331,7 +331,7 @@ class StudyPlanServiceTest {
         createAndRegister(List.of(newResource(99L, "더미 자료")), generated);
         service.confirm(1L);
 
-        assertThatThrownBy(() -> service.sendMessage(1L, "피드백"))
+        assertThatThrownBy(() -> service.sendMessage(1L, "피드백", null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->

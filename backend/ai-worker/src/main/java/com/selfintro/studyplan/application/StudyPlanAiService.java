@@ -3,8 +3,7 @@ package com.selfintro.studyplan.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
-import com.selfintro.global.ai.CareerProfileDigestBuilder;
-import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
@@ -14,6 +13,9 @@ import com.selfintro.studyplan.domain.entity.StudyPlanItem;
 import com.selfintro.studyplan.domain.entity.StudyPlanMessage;
 import com.selfintro.studyplan.domain.entity.StudyPlanStage;
 import com.selfintro.studyplan.domain.enums.StudyPlanMessageRole;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -56,6 +58,9 @@ public class StudyPlanAiService {
     // 여기 상한은 방어적 안전망일 뿐이다.
     private static final int MAX_CANDIDATES = 50;
 
+    private static final int EXPERIENCE_TOP_K = 6;
+    private static final int STUDY_TOP_K = 4;
+
     private static final String SYSTEM_PROMPT =
             """
 detailed thinking off
@@ -83,27 +88,32 @@ detailed thinking off
 {"assistantReply":"","stages":[{"stageOrder":1,"theme":"기본기1","items":[{"learningResourceId":1,"freeTextLabel":null,"allocatedMinutes":60,"notes":"","checkQuestions":[{"question":"","modelAnswerHint":""}]}]},{"stageOrder":1,"theme":"기본기2","items":[{"learningResourceId":2,"freeTextLabel":null,"allocatedMinutes":60,"notes":"","checkQuestions":[]}]},{"stageOrder":2,"theme":"응용","items":[{"learningResourceId":3,"freeTextLabel":null,"allocatedMinutes":60,"notes":"","checkQuestions":[]}]}]}
 """;
 
-    private final CareerProfileDigestBuilder careerProfileDigestBuilder;
-    private final NvidiaNimClient nvidiaNimClient;
+    private final RelevantProfileDigestService relevantProfileDigestService;
+    private final LlmDispatcher llmDispatcher;
     private final ObjectMapper objectMapper;
 
     public GeneratedPlan generateInitial(
             Collection<LearningResource> confirmedCandidates,
             int weeklyAvailableMinutes,
-            String focusGoal) {
+            String focusGoal,
+            String aiModel,
+            String customModelName) {
         CandidateSet candidates = loadCandidates(confirmedCandidates);
         String userPrompt = buildInitialUserPrompt(candidates, weeklyAvailableMinutes, focusGoal);
-        return callAndValidate(userPrompt, candidates);
+        return callAndValidate(userPrompt, candidates, aiModel, customModelName);
     }
 
-    public GeneratedPlan regenerate(StudyPlan plan, String feedbackContent) {
+    public GeneratedPlan regenerate(StudyPlan plan, String feedbackContent, String aiModel, String customModelName) {
         CandidateSet candidates = loadCandidates(plan.getSelectedResources());
         String userPrompt = buildRegenerateUserPrompt(candidates, plan, feedbackContent);
-        return callAndValidate(userPrompt, candidates);
+        return callAndValidate(userPrompt, candidates, aiModel, customModelName);
     }
 
-    private GeneratedPlan callAndValidate(String userPrompt, CandidateSet candidates) {
-        String raw = nvidiaNimClient.generate(SYSTEM_PROMPT, userPrompt, MAX_OUTPUT_TOKENS);
+    private GeneratedPlan callAndValidate(
+            String userPrompt, CandidateSet candidates, String aiModel, String customModelName) {
+        String raw =
+                llmDispatcher.generateJson(
+                        SYSTEM_PROMPT, userPrompt, aiModel, customModelName, MAX_OUTPUT_TOKENS, Duration.ofSeconds(180));
         StudyPlanAiResponse response;
         try {
             response =
@@ -222,7 +232,7 @@ detailed thinking off
     private String buildInitialUserPrompt(
             CandidateSet candidates, int weeklyAvailableMinutes, String focusGoal) {
         StringBuilder sb = new StringBuilder();
-        appendProfile(sb);
+        appendProfile(sb, candidates, focusGoal);
         appendCandidates(sb, candidates);
         appendPrerequisites(sb, candidates);
         appendUserInput(sb, weeklyAvailableMinutes, focusGoal);
@@ -232,7 +242,7 @@ detailed thinking off
     private String buildRegenerateUserPrompt(
             CandidateSet candidates, StudyPlan plan, String feedbackContent) {
         StringBuilder sb = new StringBuilder();
-        appendProfile(sb);
+        appendProfile(sb, candidates, plan.getFocusGoal());
         appendCandidates(sb, candidates);
         appendPrerequisites(sb, candidates);
         appendUserInput(sb, plan.getWeeklyAvailableMinutes(), plan.getFocusGoal());
@@ -245,8 +255,23 @@ detailed thinking off
         return sb.toString();
     }
 
-    private void appendProfile(StringBuilder sb) {
-        sb.append("## 지원자 프로필\n").append(careerProfileDigestBuilder.build()).append("\n\n");
+    /**
+     * 학습 후보 선택 자체(이미 {@link StudyPlanRetrievalService}가 확정)에 관여하지 않는 보조 배경 정보라, 목표/후보 제목을
+     * 쿼리로 삼아 관련 경험/스터디만 골라 넣는다. 벡터 인덱스가 비어 있으면 전체 덤프로 폴백한다.
+     */
+    private void appendProfile(StringBuilder sb, CandidateSet candidates, String focusGoal) {
+        String queryText = buildProfileQueryText(candidates, focusGoal);
+        String profileDigest = relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+        sb.append("## 지원자 프로필\n").append(profileDigest).append("\n\n");
+    }
+
+    private String buildProfileQueryText(CandidateSet candidates, String focusGoal) {
+        StringBuilder query = new StringBuilder();
+        if (AiJsonSupport.hasText(focusGoal)) {
+            query.append(focusGoal).append(" ");
+        }
+        candidates.byId().values().forEach(resource -> query.append(resource.getTitle()).append(" "));
+        return query.toString();
     }
 
     private void appendCandidates(StringBuilder sb, CandidateSet candidates) {
