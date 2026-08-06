@@ -573,6 +573,60 @@ public class JobPostingService {
      * DB에는 플러시되지 않아, 다음 조회에선 그대로 예전 값(특히 jobDescription 이하 상세 항목)이
      * 나오는 조용한 데이터 유실이 생긴다(2026-08-06 발견).
      */
+    public record JobPostingBulkRefreshResult(
+            int totalTarget,
+            int successCount,
+            int failedCount,
+            int skippedCount,
+            List<String> logs) {}
+
+    /**
+     * 등록된 모든 공고(또는 활성 공고)를 원본 URL에서 일괄 다시 읽어 최신 정보(마감시간 등)로 갱신하는 백필 메서드.
+     */
+    public JobPostingBulkRefreshResult refreshAll(boolean onlyActive) {
+        List<JobPosting> list = jobPostingRepository.findAll();
+        int total = 0;
+        int success = 0;
+        int failed = 0;
+        int skipped = 0;
+        List<String> logs = new ArrayList<>();
+
+        for (JobPosting posting : list) {
+            String url = posting.getPostingUrl();
+            if (!AiJsonSupport.hasText(url)) {
+                skipped++;
+                continue;
+            }
+            if (onlyActive
+                    && (posting.getStatus() == com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.DISMISSED
+                            || posting.getStatus() == com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.EXPIRED)) {
+                skipped++;
+                continue;
+            }
+            total++;
+            try {
+                refresh(posting.getId());
+                success++;
+                logs.add(
+                        String.format(
+                                "SUCCESS [ID:%d] %s (%s)",
+                                posting.getId(), posting.getCompanyName(), posting.getPositionTitle()));
+            } catch (Exception e) {
+                failed++;
+                log.warn(
+                        "공고 일괄 갱신 실패 id={}, company={}: {}",
+                        posting.getId(),
+                        posting.getCompanyName(),
+                        e.getMessage());
+                logs.add(
+                        String.format(
+                                "FAILED [ID:%d] %s: %s",
+                                posting.getId(), posting.getCompanyName(), e.getMessage()));
+            }
+        }
+        return new JobPostingBulkRefreshResult(total, success, failed, skipped, logs);
+    }
+
     @Transactional
     public JobPostingResponse refresh(Long id) {
         JobPosting posting = findOrThrow(id);

@@ -137,6 +137,17 @@ export const jobPostingApi = {
         request<JobPosting>(`/api/worker/job-postings/${id}/refresh`, {
             method: 'POST',
         }),
+    /** 등록된 공고 전체를 원본 URL에서 일괄 다시 읽어 최신 정보로 백필/갱신한다. */
+    refreshAll: (onlyActive: boolean = true) =>
+        request<{
+            totalTarget: number;
+            successCount: number;
+            failedCount: number;
+            skippedCount: number;
+            logs: string[];
+        }>(`/api/worker/job-postings/refresh-all?onlyActive=${onlyActive}`, {
+            method: 'POST',
+        }),
     save: (id: number) =>
         request<void>(`/api/admin/job-postings/${id}/save`, {
             method: 'PATCH',

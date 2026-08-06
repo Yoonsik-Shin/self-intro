@@ -83,6 +83,12 @@ public class JobPostingController {
         return jobPostingService.refresh(id);
     }
 
+    @PostMapping("/refresh-all")
+    public JobPostingService.JobPostingBulkRefreshResult refreshAll(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true") boolean onlyActive) {
+        return jobPostingService.refreshAll(onlyActive);
+    }
+
     @PostMapping("/collect")
     public JobPostingCollectionResult collect() {
         return jobPostingCollectorService.collectNow();
