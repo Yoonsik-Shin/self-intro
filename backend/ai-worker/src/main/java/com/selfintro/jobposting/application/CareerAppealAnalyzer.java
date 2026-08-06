@@ -1,8 +1,9 @@
 package com.selfintro.jobposting.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
-import com.selfintro.global.ai.CareerProfileDigestBuilder;
-import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.global.ai.LlmDispatcher;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -35,16 +36,23 @@ public class CareerAppealAnalyzer {
             "특별히 부족한 부분은 보이지 않습니다"라고만 쓰세요.)
             """;
 
-    private final CareerProfileDigestBuilder careerProfileDigestBuilder;
-    private final NvidiaNimClient nvidiaNimClient;
+    private static final int EXPERIENCE_TOP_K = 8;
+    private static final int STUDY_TOP_K = 5;
+
+    private final RelevantProfileDigestService relevantProfileDigestService;
+    private final LlmDispatcher llmDispatcher;
 
     public String analyze(
             String companyName,
             String title,
             String jobDescription,
             String requiredQualifications,
-            String preferredQualifications) {
-        String profileDigest = careerProfileDigestBuilder.build();
+            String preferredQualifications,
+            String aiModel,
+            String customModelName) {
+        String queryText = JobPostingRetrievalQueryText.build(
+                title, jobDescription, requiredQualifications, preferredQualifications);
+        String profileDigest = relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
         String userPrompt =
                 buildUserPrompt(
                         companyName,
@@ -53,7 +61,7 @@ public class CareerAppealAnalyzer {
                         requiredQualifications,
                         preferredQualifications,
                         profileDigest);
-        String analysis = nvidiaNimClient.generate(APPEAL_PROMPT, userPrompt);
+        String analysis = llmDispatcher.generate(APPEAL_PROMPT, userPrompt, aiModel, customModelName);
         // 이 모델은 이 프롬프트처럼 순수 텍스트(비-JSON)를 길게 생성할 때 종종 실제 줄바꿈 대신
         // 문자 그대로의 "\n"을 뱉는다 — JSON 모드로 학습된 습관이 새어나오는 것으로 보인다.
         // JSON 응답은 Jackson이 이스케이프를 정상적으로 풀어주지만, 이 경로는 raw 텍스트라 직접

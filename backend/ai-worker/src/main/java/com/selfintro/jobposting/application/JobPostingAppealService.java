@@ -28,7 +28,7 @@ public class JobPostingAppealService {
     private final JobMatchingService jobMatchingService;
 
     @Transactional
-    public JobPostingResponse analyzeAppeal(Long id) {
+    public JobPostingResponse analyzeAppeal(Long id, String aiModel, String customModelName) {
         JobPosting posting =
                 jobPostingRepository
                         .findById(id)
@@ -41,7 +41,9 @@ public class JobPostingAppealService {
                         posting.getPositionTitle(),
                         posting.getJobDescription(),
                         posting.getRequiredQualifications(),
-                        posting.getPreferredQualifications());
+                        posting.getPreferredQualifications(),
+                        aiModel,
+                        customModelName);
 
         posting.applyAppealAnalysis(analysis, now);
 

@@ -61,6 +61,8 @@ class JobPostingAppealServiceTest {
                         nullable(String.class),
                         nullable(String.class),
                         nullable(String.class),
+                        nullable(String.class),
+                        nullable(String.class),
                         nullable(String.class)))
                 .thenReturn("어필 포인트 분석 내용");
         when(jobMatchingService.evaluate(nullable(String.class), nullable(String.class)))
@@ -75,7 +77,7 @@ class JobPostingAppealServiceTest {
                         careerAppealAnalyzer,
                         jobMatchingService);
 
-        JobPostingResponse response = service.analyzeAppeal(1L);
+        JobPostingResponse response = service.analyzeAppeal(1L, null, null);
 
         assertThat(response.appealAnalysis()).isEqualTo("어필 포인트 분석 내용");
         assertThat(response.matchScore()).isEqualTo(75);
