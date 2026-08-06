@@ -18,7 +18,7 @@ images:
     newTag: "82b9f43"
   - name: self-intro-backend-worker
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend-worker
-    newTag: "43f3134"
+    newTag: "82b9f43"
 
 
 configMapGenerator:
