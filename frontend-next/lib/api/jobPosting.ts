@@ -178,12 +178,17 @@ export const jobPostingApi = {
         request<JobPosting>(`/api/worker/job-postings/${id}/analyze-appeal`, {
             method: 'POST',
         }),
-    generateCoverLetterDraft: (id: number, payload: JobPostingCoverLetterDraftRequest) =>
+    generateCoverLetterDraft: (
+        id: number,
+        payload: JobPostingCoverLetterDraftRequest,
+        options?: { signal?: AbortSignal }
+    ) =>
         request<JobPostingCoverLetterDraftResponse>(
             `/api/worker/job-postings/${id}/generate-cover-letter-draft`,
             {
                 method: 'POST',
                 body: JSON.stringify(payload),
+                signal: options?.signal,
             }
         ),
     generatePrintDraft: (id: number) =>
