@@ -70,7 +70,7 @@ public class VectorBatchSyncService {
      * 프로젝트 경험 텍스트 청킹 및 Oracle 26ai 배치 동기화.
      * {@code content}는 이미 프롬프트/임베딩용으로 요약된 텍스트다({@code CareerProfileDigestBuilder.buildForExperience}).
      */
-    @Transactional
+    @Transactional("vectorTransactionManager")
     public int syncExperienceVector(Long experienceId, String title, String content) {
         experienceVectorRepository.deleteByExperienceId(experienceId);
 
@@ -97,7 +97,7 @@ public class VectorBatchSyncService {
     /**
      * 기술 스터디 마크다운 청킹 및 Oracle 26ai 배치 동기화
      */
-    @Transactional
+    @Transactional("vectorTransactionManager")
     public int syncStudyVector(Long studyId, String title, String markdownContent) {
         studyVectorRepository.deleteByStudyId(studyId);
 
@@ -124,7 +124,7 @@ public class VectorBatchSyncService {
     /**
      * 채용공고 텍스트 청킹 및 Oracle 26ai 배치 동기화
      */
-    @Transactional
+    @Transactional("vectorTransactionManager")
     public int syncJobPostingVector(Long jobPostingId, String title, String companyName, String rawText) {
         jobPostingVectorRepository.deleteByJobPostingId(jobPostingId);
 
