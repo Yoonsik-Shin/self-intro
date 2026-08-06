@@ -1,23 +1,17 @@
 package com.selfintro.jobposting.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
-import com.selfintro.global.ai.CareerProfileDigestBuilder;
-import com.selfintro.global.ai.ClaudeAiClient;
-import com.selfintro.global.ai.GeminiAiClient;
-import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.global.ai.OpenAiClient;
-import com.selfintro.jobposting.application.HybridSearchService.HybridMatchResult;
+import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterRevision;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
-import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository.ExperienceVectorMatch;
-import com.selfintro.vectorsearch.domain.repository.StudyVectorRepository.StudyVectorMatch;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
+import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,13 +46,8 @@ public class CoverLetterDraftAiService {
     private static final int STUDY_TOP_K = 4;
 
     private final JobPostingRepository jobPostingRepository;
-    private final CareerProfileDigestBuilder careerProfileDigestBuilder;
-    private final HybridSearchService hybridSearchService;
-    private final QueryKeywordExtractionService queryKeywordExtractionService;
-    private final NvidiaNimClient nvidiaNimClient;
-    private final ClaudeAiClient claudeAiClient;
-    private final GeminiAiClient geminiAiClient;
-    private final OpenAiClient openAiClient;
+    private final RelevantProfileDigestService relevantProfileDigestService;
+    private final LlmDispatcher llmDispatcher;
     private final JobPostingCoverLetterRevisionRepository revisionRepository;
 
     @Transactional
@@ -71,12 +60,12 @@ public class CoverLetterDraftAiService {
         String systemPrompt = hasFeedback ? REVISION_SYSTEM_PROMPT : DRAFT_SYSTEM_PROMPT;
         String userPrompt = buildUserPrompt(posting, profileDigest, request);
 
-        String rawDraft = generateByModel(request, systemPrompt, userPrompt);
+        String rawDraft = llmDispatcher.generate(systemPrompt, userPrompt, request.aiModel(), request.customModelName());
         if (rawDraft == null || rawDraft.isBlank()) {
             throw new IllegalStateException("AI 모델이 빈 응답을 반환했습니다.");
         }
         String draftAnswer = rawDraft.replace("\\n", "\n").trim();
-        String modelLabel = resolveAiModelLabel(request.aiModel(), request.customModelName());
+        String modelLabel = llmDispatcher.resolveLabel(request.aiModel(), request.customModelName());
 
         // 히스토리 저장 (coverLetterItemId가 존재하는 경우)
         if (request.coverLetterItemId() != null && request.coverLetterItemId() > 0) {
@@ -96,96 +85,18 @@ public class CoverLetterDraftAiService {
         );
     }
 
-    private String resolveAiModelLabel(String aiModel, String customModelName) {
-        if (aiModel == null || aiModel.isBlank()) return "Nvidia NIM";
-        return switch (aiModel.toUpperCase()) {
-            case "CLAUDE_3_5_SONNET", "CLAUDE_3_7_SONNET", "CLAUDE" -> "Claude Sonnet 5";
-            case "GEMINI_2_FLASH" -> "Gemini 2.0 Flash";
-            case "GEMINI_3_6_FLASH" -> "Gemini 3.6 Flash";
-            case "GEMINI_3_1_FLASH_LITE", "GEMINI" -> "Gemini 3.1 Flash-Lite";
-            case "O3_MINI" -> "OpenAI o3-mini";
-            case "GPT_5_4_NANO" -> "GPT-5.4 Nano";
-            case "GPT_5_4_MINI", "GPT_4O", "GPT" -> "GPT-5.4 Mini";
-            case "CUSTOM" -> (customModelName != null && !customModelName.isBlank()) ? customModelName : "Custom LLM";
-            default -> "Nvidia NIM";
-        };
-    }
-
-    private String generateByModel(JobPostingCoverLetterDraftRequest request, String systemPrompt, String userPrompt) {
-        String modelKey = request.aiModel() != null ? request.aiModel().toUpperCase() : "NVIDIA_NIM";
-
-        return switch (modelKey) {
-            case "CLAUDE_3_5_SONNET", "CLAUDE" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-sonnet-5");
-            case "CLAUDE_3_7_SONNET" -> claudeAiClient.generate(systemPrompt, userPrompt, "claude-sonnet-5");
-            case "GEMINI_3_6_FLASH" -> geminiAiClient.generate(systemPrompt, userPrompt, "gemini-3.6-flash");
-            case "GEMINI_3_1_FLASH_LITE", "GEMINI" -> geminiAiClient.generate(systemPrompt, userPrompt, "gemini-3.1-flash-lite");
-            case "GPT_5_4_NANO" -> openAiClient.generate(systemPrompt, userPrompt, "gpt-5.4-nano");
-            case "GPT_5_4_MINI", "GPT_4O", "GPT" -> openAiClient.generate(systemPrompt, userPrompt, "gpt-5.4-mini");
-            case "CUSTOM" -> {
-                String customName = request.customModelName();
-                if (!AiJsonSupport.hasText(customName)) {
-                    throw new IllegalArgumentException("커스텀 모델명을 입력해 주세요.");
-                }
-                if (customName.startsWith("claude")) {
-                    yield claudeAiClient.generate(systemPrompt, userPrompt, customName);
-                } else if (customName.startsWith("gemini")) {
-                    yield geminiAiClient.generate(systemPrompt, userPrompt, customName);
-                } else {
-                    yield openAiClient.generate(systemPrompt, userPrompt, customName);
-                }
-            }
-            default -> nvidiaNimClient.generate(systemPrompt, userPrompt);
-        };
-    }
-
     /**
      * 프로필 전체를 덤프하는 대신, 채용공고 요건과 하이브리드 검색(벡터+키워드)으로 가장 관련도 높은
-     * 경험/스터디 청크만 골라 프롬프트에 넣는다. 핵심역량은 데이터량이 작아 항상 전체 유지.
-     * 벡터 인덱스가 아직 비어 있는 경우(백필 전 등)에는 기존 전체 덤프로 폴백한다.
+     * 경험/스터디 청크만 골라 프롬프트에 넣는다. 벡터 인덱스가 아직 비어 있는 경우(백필 전 등)에는
+     * {@link RelevantProfileDigestService}가 내부적으로 전체 덤프로 폴백한다.
      */
     private String buildRelevantProfileDigest(JobPosting posting) {
-        String queryText = buildRetrievalQueryText(posting);
-        List<String> keywords = queryKeywordExtractionService.extract(queryText);
-
-        List<HybridMatchResult<ExperienceVectorMatch>> topExperiences =
-                hybridSearchService.searchTopSimilarExperiences(queryText, keywords, EXPERIENCE_TOP_K);
-        List<HybridMatchResult<StudyVectorMatch>> topStudies =
-                hybridSearchService.searchTopSimilarStudies(queryText, keywords, STUDY_TOP_K);
-
-        if (topExperiences.isEmpty() && topStudies.isEmpty()) {
-            return careerProfileDigestBuilder.build();
-        }
-
-        StringBuilder sb = new StringBuilder();
-        if (!topExperiences.isEmpty()) {
-            sb.append("### 관련 경력/프로젝트\n");
-            for (HybridMatchResult<ExperienceVectorMatch> match : topExperiences) {
-                sb.append(match.matchedChunk()).append("\n\n");
-            }
-        }
-        if (!topStudies.isEmpty()) {
-            sb.append("### 관련 학습/공부\n");
-            for (HybridMatchResult<StudyVectorMatch> match : topStudies) {
-                sb.append(match.matchedChunk()).append("\n\n");
-            }
-        }
-        sb.append(careerProfileDigestBuilder.buildCompetencyDigest());
-        return sb.toString();
-    }
-
-    private String buildRetrievalQueryText(JobPosting posting) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(posting.getPositionTitle()).append(" ");
-        if (AiJsonSupport.hasText(posting.getJobDescription())) {
-            sb.append(posting.getJobDescription()).append(" ");
-        }
-        if (AiJsonSupport.hasText(posting.getRequiredQualifications())) {
-            sb.append(posting.getRequiredQualifications()).append(" ");
-        }
-        if (AiJsonSupport.hasText(posting.getPreferredQualifications())) {
-            sb.append(posting.getPreferredQualifications());
-        }
-        return sb.toString();
+        String queryText = JobPostingRetrievalQueryText.build(
+                posting.getPositionTitle(),
+                posting.getJobDescription(),
+                posting.getRequiredQualifications(),
+                posting.getPreferredQualifications());
+        return relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
     }
 
     private String buildUserPrompt(
