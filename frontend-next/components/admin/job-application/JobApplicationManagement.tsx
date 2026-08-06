@@ -612,6 +612,10 @@ function JobplanetScoreBadge({
     );
 }
 
+function stripLeadingBullet(line: string): string {
+    return line.replace(/^[\s•\-\*·\-]+/, '').trim();
+}
+
 /** AI가 자격요건/우대사항 등을 줄바꿈으로 구분된 목록으로 저장해두므로(PARSE_PROMPT 계약),
  * 2줄 이상이면 불릿 리스트로, 1줄이면 기존처럼 문단으로 보여준다. */
 function BulletText({ text }: { text: string }) {
@@ -620,13 +624,14 @@ function BulletText({ text }: { text: string }) {
         .map((line) => line.trim())
         .filter(Boolean);
     if (lines.length <= 1) {
-        return <p className="whitespace-pre-wrap text-slate-800">{text}</p>;
+        return <p className="whitespace-pre-wrap text-slate-800">{stripLeadingBullet(text)}</p>;
     }
     return (
         <ul className="list-disc space-y-1 pl-4 text-slate-800">
-            {lines.map((line, index) => (
-                <li key={index}>{line}</li>
-            ))}
+            {lines.map((line, index) => {
+                const cleaned = stripLeadingBullet(line);
+                return <li key={index}>{cleaned || line}</li>;
+            })}
         </ul>
     );
 }
@@ -2933,6 +2938,18 @@ export function JobApplicationManagement() {
             alert(error instanceof ApiError ? error.message : '공고 수집에 실패했습니다.'),
     });
 
+    const refreshAllMutation = useMutation({
+        mutationFn: () => jobPostingApi.refreshAll(true),
+        onSuccess: (result) => {
+            invalidate();
+            alert(
+                `전체 공고 재수집 (백필) 완료:\n- 대상 공고: ${result.totalTarget}건\n- 성공: ${result.successCount}건\n- 실패: ${result.failedCount}건\n- 건너뜀: ${result.skippedCount}건`
+            );
+        },
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '전체 공고 재수집에 실패했습니다.'),
+    });
+
     const updateSettingsMutation = useMutation({
         mutationFn: (payload: JobPostingSettingRequest) => jobPostingApi.updateSettings(payload),
         onSuccess: () => {
@@ -3332,6 +3349,35 @@ export function JobApplicationManagement() {
                         )}
                         <span className="hidden xl:inline">
                             {collectMutation.isPending ? '수집 중...' : '지금 수집'}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        disabled={refreshAllMutation.isPending}
+                        onClick={() => {
+                            if (
+                                confirm(
+                                    '등록된 모든 활성 공고의 최신 정보(마감시간 등)를 백필/재수집하시겠습니까?'
+                                )
+                            ) {
+                                refreshAllMutation.mutate();
+                            }
+                        }}
+                        title={
+                            refreshAllMutation.isPending
+                                ? '전체 공고 재수집 백필 진행 중...'
+                                : '전체 공고 재수집 (백필) · 원본 URL에서 최신 마감시간 및 정보를 일괄 갱신'
+                        }
+                        aria-label="전체 공고 재수집"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 xl:h-auto xl:w-auto xl:gap-1.5 xl:rounded-lg xl:border xl:border-slate-200 xl:bg-white xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold xl:hover:bg-slate-50"
+                    >
+                        {refreshAllMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        ) : (
+                            <RefreshCw className="h-4 w-4 text-blue-600" />
+                        )}
+                        <span className="hidden xl:inline">
+                            {refreshAllMutation.isPending ? '백필 중...' : '전체 재수집'}
                         </span>
                     </button>
                     <button
