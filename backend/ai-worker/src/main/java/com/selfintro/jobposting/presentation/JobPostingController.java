@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -106,8 +107,11 @@ public class JobPostingController {
     }
 
     @PostMapping("/{id}/analyze-appeal")
-    public JobPostingResponse analyzeAppeal(@PathVariable Long id) {
-        return jobPostingAppealService.analyzeAppeal(id);
+    public JobPostingResponse analyzeAppeal(
+            @PathVariable Long id,
+            @RequestParam(required = false) String aiModel,
+            @RequestParam(required = false) String customModelName) {
+        return jobPostingAppealService.analyzeAppeal(id, aiModel, customModelName);
     }
 
     @PostMapping("/{id}/generate-cover-letter-draft")
@@ -118,8 +122,11 @@ public class JobPostingController {
     }
 
     @PostMapping(value = "/{id}/print-template-draft/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter generatePrintTemplateDraftStream(@PathVariable Long id) {
-        return jobPostingPrintDraftService.generateStream(id);
+    public SseEmitter generatePrintTemplateDraftStream(
+            @PathVariable Long id,
+            @RequestParam(required = false) String aiModel,
+            @RequestParam(required = false) String customModelName) {
+        return jobPostingPrintDraftService.generateStream(id, aiModel, customModelName);
     }
 
     @GetMapping("/{id}/gap-project-documents")
@@ -128,8 +135,11 @@ public class JobPostingController {
     }
 
     @PostMapping("/{id}/gap-project-documents")
-    public GapProjectDocumentResponse generateGapProjectDocument(@PathVariable Long id) {
-        return gapProjectDocumentService.generate(id);
+    public GapProjectDocumentResponse generateGapProjectDocument(
+            @PathVariable Long id,
+            @RequestParam(required = false) String aiModel,
+            @RequestParam(required = false) String customModelName) {
+        return gapProjectDocumentService.generate(id, aiModel, customModelName);
     }
 
     @PostMapping("/{id}/rematch")

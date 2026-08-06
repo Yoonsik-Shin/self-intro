@@ -49,12 +49,15 @@ public class StudyPlanController {
     @PostMapping("/{id}/messages")
     public StudyPlanResponse sendMessage(
             @PathVariable Long id, @Valid @RequestBody StudyPlanMessageRequest request) {
-        return studyPlanService.sendMessage(id, request.content());
+        return studyPlanService.sendMessage(id, request.content(), request.aiModel(), request.customModelName());
     }
 
     @PostMapping("/{id}/generate")
-    public StudyPlanResponse generatePlan(@PathVariable Long id) {
-        return studyPlanService.generatePlan(id);
+    public StudyPlanResponse generatePlan(
+            @PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String aiModel,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String customModelName) {
+        return studyPlanService.generatePlan(id, aiModel, customModelName);
     }
 
     @PostMapping("/{id}/confirm")
