@@ -495,6 +495,12 @@ export type JobPostingPositionChoice = {
     positionTitle: string;
 };
 
+/** PUT /{id}/position-choices 요청 항목. rank는 2 이상만 받는다. */
+export type JobPostingPositionChoiceRequest = {
+    rank: number;
+    positionTitle: string;
+};
+
 /** JD 스크린샷으로 등록된 공고의 원본 이미지. "원본 이미지 보기"가 그대로 나열한다. */
 export type JobPostingSourceImage = {
     id: number;
@@ -624,6 +630,8 @@ export type JobApplicationUrlParseResponse = {
     applicationMethod: string | null;
     compensationDetail: string | null;
     postingUrl: string;
+    /** positionTitle(1지망)을 제외한 나머지 모집부문. 한 페이지에 여러 직무가 나열된 경우에만 채워진다. */
+    additionalPositionTitles: string[];
 };
 
 export type JobApplicationUrlParseStreamEvent =
@@ -637,7 +645,13 @@ export type JobPostingCollectionResult = {
 };
 
 export type JobPostingIngestStreamEvent =
-    { type: 'complete'; response: JobPosting } | { type: 'error'; message: string };
+    | {
+          type: 'complete';
+          response: JobPosting;
+          /** 자동 감지된 나머지 모집부문(1지망 제외). 자동 저장되지 않아 빈 배열이면 지망 선택 UI를 띄우지 않는다. */
+          detectedAdditionalPositionTitles: string[];
+      }
+    | { type: 'error'; message: string };
 
 export type JobPostingBulkIngestStreamEvent =
     | { type: 'progress'; total: number; current: number; label: string; status: string }

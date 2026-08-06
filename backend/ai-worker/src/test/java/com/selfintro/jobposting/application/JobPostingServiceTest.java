@@ -135,7 +135,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
-                                "https://example.com/posting"));
+                                "https://example.com/posting",
+                        List.of()));
 
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
                 .isInstanceOf(ResponseStatusException.class);
@@ -163,7 +164,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
-                                "https://example.com/posting"));
+                                "https://example.com/posting",
+                        List.of()));
         when(dedupService.findExistingMatch(any(), any())).thenReturn(Optional.empty());
         when(dedupService.createNew(any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -197,7 +199,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
-                                "https://www.jobkorea.co.kr/Recruit/GI_Read/1"));
+                                "https://www.jobkorea.co.kr/Recruit/GI_Read/1",
+                        List.of()));
         JobPosting existing = newCandidate();
         when(dedupService.findExistingMatch("테스트 회사", "백엔드 개발자"))
                 .thenReturn(Optional.of(existing));
@@ -231,7 +234,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
-                                "https://www.jobkorea.co.kr/Recruit/GI_Read/1"));
+                                "https://www.jobkorea.co.kr/Recruit/GI_Read/1",
+                        List.of()));
         when(matchingService.evaluate(any(), any()))
                 .thenReturn(new JobMatchingService.MatchResult(80, "보유 기술과 일치도가 높습니다."));
         JobPosting winner = newCandidate();
@@ -286,7 +290,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
-                                "https://example.com/posting"));
+                                "https://example.com/posting",
+                        List.of()));
 
         JobPostingResponse response = jobPostingService.refresh(1L);
 
@@ -321,7 +326,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 null,
-                                "https://example.com/posting"));
+                                "https://example.com/posting",
+                        List.of()));
 
         JobPostingResponse response = jobPostingService.refresh(1L);
 

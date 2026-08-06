@@ -94,8 +94,13 @@ public class JobApplicationUrlParseService {
             옮기세요. 상세 주소가 없을 때만 요약 표현을 쓰세요(예: "서울특별시 종로구", "서울/경기",
             "재택근무"). employmentType은 고용형태입니다(예: "정규직", "계약직", "인턴",
             "프리랜서"). 둘 다 본문에 명시되어 있지 않으면 null로 두세요.
+            positionTitles는 본문에 나열된 모든 모집부문/직무명을 발견된 순서 그대로 배열로
+            반환하세요. 한 공고에 여러 모집부문이 함께 나열된 경우에만(예: "Java 백엔드 개발자,
+            AI 개발자, 프론트엔드 개발자" 처럼 채용관 형태로 여러 직무를 동시 모집) 2개 이상이
+            되고, 모집부문이 하나뿐이면 그 하나만(positionTitle과 동일한 값) 담으세요. 모집부문을
+            하나도 특정할 수 없으면 빈 배열로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"positionTitles":[],"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     private static final String VISION_PARSE_PROMPT =
@@ -127,8 +132,12 @@ public class JobApplicationUrlParseService {
             해당 섹션이 없으면 null로 두세요.
             location은 근무지, employmentType은 고용형태(정규직/계약직/인턴 등)입니다. 이미지에 보이는
             표현을 그대로 짧게 옮기고, 없으면 null로 두세요.
+            positionTitles는 이미지에 나열된 모든 모집부문/직무명을 보이는 순서 그대로 배열로
+            반환하세요. 한 이미지에 여러 모집부문이 함께 나열된 경우에만 2개 이상이 되고,
+            모집부문이 하나뿐이면 그 하나만(positionTitle과 동일한 값) 담으세요. 모집부문을
+            하나도 특정할 수 없으면 빈 배열로 두세요.
             설명이나 마크다운 없이 반드시 아래 JSON 구조만 반환하세요.
-            {"companyName":null,"positionTitle":null,"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
+            {"companyName":null,"positionTitle":null,"positionTitles":[],"source":null,"deadline":null,"alwaysOpen":false,"salaryNote":null,"location":null,"employmentType":null,"jobDescription":null,"requiredQualifications":null,"preferredQualifications":null,"hiringProcess":null,"applicationMethod":null,"compensationDetail":null}
             """;
 
     /**
@@ -193,8 +202,8 @@ public class JobApplicationUrlParseService {
     private static final double HEADLESS_NAVIGATE_TIMEOUT_MILLIS = 20_000;
     private static final ExtractedFields EMPTY_EXTRACTED_FIELDS =
             new ExtractedFields(
-                    null, null, null, null, null, null, null, null, null, null, null, null, null,
-                    null);
+                    null, null, List.of(), null, null, null, null, null, null, null, null, null,
+                    null, null, null);
 
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
@@ -380,7 +389,9 @@ public class JobApplicationUrlParseService {
                             AiJsonSupport.blankToNull(extracted.hiringProcess()),
                             AiJsonSupport.blankToNull(extracted.applicationMethod()),
                             AiJsonSupport.blankToNull(extracted.compensationDetail()),
-                            url);
+                            url,
+                            computeAdditionalPositionTitles(
+                                    extracted.positionTitle(), extracted.positionTitles()));
             if (jobkoreaResponse.isPresent()) {
                 response = mergeJobkoreaFallback(jobkoreaResponse.get(), response);
             }
@@ -395,6 +406,29 @@ public class JobApplicationUrlParseService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
         }
+    }
+
+    /**
+     * AI가 반환한 positionTitles(전체 모집부문 목록)에서 이미 positionTitle(1지망)로 쓰인 값을
+     * 한 번만 제외하고 나머지를 반환한다. 목록이 비었거나 1지망 하나만 있으면 빈 리스트다.
+     */
+    private static List<String> computeAdditionalPositionTitles(
+            String positionTitle, List<String> positionTitles) {
+        if (positionTitles == null || positionTitles.isEmpty()) {
+            return List.of();
+        }
+        List<String> additional = new ArrayList<>();
+        boolean primaryRemoved = false;
+        for (String title : positionTitles) {
+            if (!primaryRemoved && title.equals(positionTitle)) {
+                primaryRemoved = true;
+                continue;
+            }
+            if (AiJsonSupport.hasText(title)) {
+                additional.add(title.trim());
+            }
+        }
+        return additional;
     }
 
     private ExtractedFields extractFields(String userPrompt) throws JsonProcessingException {
@@ -478,7 +512,8 @@ public class JobApplicationUrlParseService {
                         sections.hiringProcess(),
                         sections.applicationMethod(),
                         sections.compensationDetail(),
-                        postingUrl));
+                        postingUrl,
+                        List.of()));
     }
 
     private static String greetingHrSummaryValue(Document document, String wantedLabel) {
@@ -700,7 +735,8 @@ public class JobApplicationUrlParseService {
                         null,
                         null,
                         null,
-                        postingUrl));
+                        postingUrl,
+                        List.of()));
     }
 
     private static String extractRegexGroup(String text, String regex) {
@@ -851,7 +887,8 @@ public class JobApplicationUrlParseService {
                 AiJsonSupport.blankToNull(extracted.hiringProcess()),
                 AiJsonSupport.blankToNull(extracted.applicationMethod()),
                 AiJsonSupport.blankToNull(extracted.compensationDetail()),
-                null);
+                null,
+                computeAdditionalPositionTitles(extracted.positionTitle(), extracted.positionTitles()));
     }
 
     private ExtractedFields enrichFromBannerImage(ExtractedFields base, Document document) {
@@ -929,6 +966,9 @@ public class JobApplicationUrlParseService {
         return new ExtractedFields(
                 pick(base.companyName(), fromImage.companyName()),
                 pick(base.positionTitle(), fromImage.positionTitle()),
+                base.positionTitles() != null && !base.positionTitles().isEmpty()
+                        ? base.positionTitles()
+                        : fromImage.positionTitles(),
                 pick(base.source(), fromImage.source()),
                 pick(base.deadline(), fromImage.deadline()),
                 base.alwaysOpen() != null ? base.alwaysOpen() : fromImage.alwaysOpen(),
@@ -969,7 +1009,8 @@ public class JobApplicationUrlParseService {
                 pick(jobkorea.hiringProcess(), aiFallback.hiringProcess()),
                 pick(jobkorea.applicationMethod(), aiFallback.applicationMethod()),
                 pick(jobkorea.compensationDetail(), aiFallback.compensationDetail()),
-                jobkorea.postingUrl());
+                jobkorea.postingUrl(),
+                aiFallback.additionalPositionTitles());
     }
 
     private URI validateUrl(String url) {
@@ -1244,6 +1285,7 @@ public class JobApplicationUrlParseService {
     private record ExtractedFields(
             @JsonDeserialize(using = LenientStringDeserializer.class) String companyName,
             @JsonDeserialize(using = LenientStringDeserializer.class) String positionTitle,
+            @JsonDeserialize(using = LenientStringListDeserializer.class) List<String> positionTitles,
             @JsonDeserialize(using = LenientStringDeserializer.class) String source,
             @JsonDeserialize(using = LenientStringDeserializer.class) String deadline,
             Boolean alwaysOpen,
@@ -1274,6 +1316,29 @@ public class JobApplicationUrlParseService {
                 return items.isEmpty() ? null : String.join("\n", items);
             }
             return node.isNull() || node.isMissingNode() ? null : node.asText(null);
+        }
+    }
+
+    /** 비전/텍스트 모델이 positionTitles를 배열 대신 단일 문자열로 반환하는 경우가 있어 관대하게 파싱한다. */
+    private static final class LenientStringListDeserializer extends JsonDeserializer<List<String>> {
+        @Override
+        public List<String> deserialize(JsonParser parser, DeserializationContext context)
+                throws IOException {
+            JsonNode node = parser.getCodec().readTree(parser);
+            if (node.isArray()) {
+                List<String> items = new ArrayList<>();
+                node.forEach(
+                        item -> {
+                            String text = item.asText(null);
+                            if (AiJsonSupport.hasText(text)) items.add(text.trim());
+                        });
+                return items;
+            }
+            if (node.isTextual()) {
+                String text = node.asText(null);
+                return AiJsonSupport.hasText(text) ? List.of(text.trim()) : List.of();
+            }
+            return List.of();
         }
     }
 }

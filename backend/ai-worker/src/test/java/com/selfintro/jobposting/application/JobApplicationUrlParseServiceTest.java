@@ -97,7 +97,8 @@ class JobApplicationUrlParseServiceTest {
                         null,
                         null,
                         null,
-                        "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372");
+                        "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372",
+                        List.of());
         JobApplicationUrlParseResponse aiFallback =
                 new JobApplicationUrlParseResponse(
                         "다른 회사명으로 오독됨",
@@ -114,7 +115,8 @@ class JobApplicationUrlParseServiceTest {
                         "전형절차 내용",
                         "지원방법 내용",
                         null,
-                        "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372");
+                        "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372",
+                        List.of());
 
         JobApplicationUrlParseResponse merged =
                 JobApplicationUrlParseService.mergeJobkoreaFallback(jobkorea, aiFallback);

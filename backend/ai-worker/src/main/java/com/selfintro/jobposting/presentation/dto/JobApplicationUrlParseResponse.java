@@ -1,6 +1,7 @@
 package com.selfintro.jobposting.presentation.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record JobApplicationUrlParseResponse(
         String companyName,
@@ -17,4 +18,14 @@ public record JobApplicationUrlParseResponse(
         String hiringProcess,
         String applicationMethod,
         String compensationDetail,
-        String postingUrl) {}
+        String postingUrl,
+        /**
+         * positionTitle(1지망)을 제외한 나머지 모집부문 목록. 한 페이지/이미지에 여러 직무가
+         * 나열된 경우에만 채워지고, 자동 저장되지 않는다 — 지망 확정은 사람이 선택해야 한다.
+         */
+        List<String> additionalPositionTitles) {
+
+    public JobApplicationUrlParseResponse {
+        additionalPositionTitles = additionalPositionTitles == null ? List.of() : additionalPositionTitles;
+    }
+}

@@ -8,7 +8,7 @@ import type { JobPosting } from '@/lib/api/types';
 type UploadedImage = { objectKey: string; url: string; contentType: string };
 
 type ScreenshotIngestPanelProps = {
-    onSuccess: (posting: JobPosting) => void;
+    onSuccess: (posting: JobPosting, detectedAdditionalPositionTitles: string[]) => void;
 };
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -86,7 +86,7 @@ export function ScreenshotIngestPanel({ onSuccess }: ScreenshotIngestPanelProps)
             }
             setIngesting(false);
             setImages([]);
-            onSuccess(event.response);
+            onSuccess(event.response, event.detectedAdditionalPositionTitles);
         });
     };
 

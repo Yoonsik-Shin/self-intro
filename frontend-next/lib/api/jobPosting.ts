@@ -13,6 +13,8 @@ import type {
     JobPostingCoverLetterRevision,
     JobPostingCollectionResult,
     JobPostingIngestStreamEvent,
+    JobPostingPositionChoice,
+    JobPostingPositionChoiceRequest,
     JobPostingPrintDraftResponse,
     JobPostingRequest,
     JobPostingSetting,
@@ -36,6 +38,12 @@ export const jobPostingApi = {
         request<JobPostingCoverLetterItem[]>(`/api/admin/job-postings/${id}/cover-letter-items`, {
             method: 'PUT',
             body: JSON.stringify({ items }),
+        }),
+    /** 2지망 이상을 확정/수정한다(1지망은 update()가 관리하는 positionTitle이 담당). */
+    replacePositionChoices: (id: number, choices: JobPostingPositionChoiceRequest[]) =>
+        request<JobPostingPositionChoice[]>(`/api/admin/job-postings/${id}/position-choices`, {
+            method: 'PUT',
+            body: JSON.stringify({ choices }),
         }),
     /** "새 지원 공고 등록" — 수집 단계 없이 이미 지원 완료한 공고를 바로 기록한다. */
     create: (payload: JobPostingRequest) =>

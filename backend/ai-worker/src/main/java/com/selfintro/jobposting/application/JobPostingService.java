@@ -104,8 +104,11 @@ public class JobPostingService {
                         "현재 처리 중인 공고 수집 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
             }
             acquired = true;
-            JobPostingResponse response = ingestUrl(url);
-            send(emitter, new CompleteEvent("complete", response));
+            IngestResult result = ingestUrlInternal(url);
+            send(
+                    emitter,
+                    new CompleteEvent(
+                            "complete", result.response(), result.detectedAdditionalPositionTitles()));
             emitter.complete();
         } catch (ResponseStatusException exception) {
             log.warn("채용공고 수집 스트리밍 실패: {}", exception.getReason(), exception);
@@ -147,8 +150,11 @@ public class JobPostingService {
                         "현재 처리 중인 공고 수집 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
             }
             acquired = true;
-            JobPostingResponse response = ingestImages(images, sourceUrl);
-            send(emitter, new CompleteEvent("complete", response));
+            IngestResult result = ingestImagesInternal(images, sourceUrl);
+            send(
+                    emitter,
+                    new CompleteEvent(
+                            "complete", result.response(), result.detectedAdditionalPositionTitles()));
             emitter.complete();
         } catch (ResponseStatusException exception) {
             log.warn("채용공고 스크린샷 등록 스트리밍 실패: {}", exception.getReason(), exception);
@@ -348,7 +354,16 @@ public class JobPostingService {
         }
     }
 
-    private record CompleteEvent(String type, JobPostingResponse response) {}
+    private record CompleteEvent(
+            String type, JobPostingResponse response, List<String> detectedAdditionalPositionTitles) {}
+
+    /**
+     * 한 페이지/이미지에 직무가 여러 개 나열돼 자동 감지된 경우, 1지망(positionTitle)으로 쓰인
+     * 것 외 나머지를 담는다. 자동 저장되지 않으며 SSE complete 이벤트에만 실려 프론트가 지망
+     * 선택 UI를 띄울지 판단하는 데 쓰인다.
+     */
+    private record IngestResult(
+            JobPostingResponse response, List<String> detectedAdditionalPositionTitles) {}
 
     private record ErrorEvent(String type, String message) {}
 
@@ -364,6 +379,10 @@ public class JobPostingService {
     private record BulkCompleteEvent(String type, int total, int successCount, int errorCount) {}
 
     public JobPostingResponse ingestUrl(String url) {
+        return ingestUrlInternal(url).response();
+    }
+
+    private IngestResult ingestUrlInternal(String url) {
         String trimmed = url.trim();
         if (sourceUrlRepository.existsByUrl(trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
@@ -384,9 +403,11 @@ public class JobPostingService {
         java.util.Optional<JobPosting> existingMatch =
                 dedupService.findExistingMatch(parsed.companyName(), parsed.positionTitle());
         if (existingMatch.isPresent()) {
-            return toResponse(
-                    dedupService.attachAdditionalUrl(
-                            existingMatch.get().getId(), trimmed, platform, now));
+            return new IngestResult(
+                    toResponse(
+                            dedupService.attachAdditionalUrl(
+                                    existingMatch.get().getId(), trimmed, platform, now)),
+                    parsed.additionalPositionTitles());
         }
 
         JobPosting.Draft draft =
@@ -416,7 +437,9 @@ public class JobPostingService {
         posting.applyMatch(match.score(), match.reason(), now);
 
         try {
-            return toResponse(dedupService.createNew(posting, trimmed, platform, now));
+            return new IngestResult(
+                    toResponse(dedupService.createNew(posting, trimmed, platform, now)),
+                    parsed.additionalPositionTitles());
         } catch (DataIntegrityViolationException exception) {
             // 동시에 들어온 다른 URL(최대 5건 동시 수집)이 같은 회사+직무로 먼저 저장을 끝낸 경우다.
             // dedupService.createNew는 별도 빈의 트랜잭션이라 이 시점엔 이미 롤백이 끝나 있으므로,
@@ -425,8 +448,10 @@ public class JobPostingService {
                     dedupService
                             .findExistingMatch(parsed.companyName(), parsed.positionTitle())
                             .orElseThrow(() -> exception);
-            return toResponse(
-                    dedupService.attachAdditionalUrl(winner.getId(), trimmed, platform, now));
+            return new IngestResult(
+                    toResponse(
+                            dedupService.attachAdditionalUrl(winner.getId(), trimmed, platform, now)),
+                    parsed.additionalPositionTitles());
         }
     }
 
@@ -442,6 +467,11 @@ public class JobPostingService {
      */
     @Transactional
     public JobPostingResponse ingestImages(
+            List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl) {
+        return ingestImagesInternal(images, sourceUrl).response();
+    }
+
+    private IngestResult ingestImagesInternal(
             List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl) {
         if (images.isEmpty() || images.size() > MAX_INGEST_IMAGE_COUNT) {
             throw new ResponseStatusException(
@@ -526,7 +556,7 @@ public class JobPostingService {
             }
         }
 
-        return toResponse(posting);
+        return new IngestResult(toResponse(posting), parsed.additionalPositionTitles());
     }
 
     /**
