@@ -618,11 +618,16 @@ export type JobPostingIngestStreamEvent =
     { type: 'complete'; response: JobPosting } | { type: 'error'; message: string };
 
 export type JobPostingBulkIngestStreamEvent =
-    | { type: 'progress'; total: number; current: number; url: string; status: string }
-    | { type: 'item_success'; total: number; current: number; url: string; response: JobPosting }
-    | { type: 'item_error'; total: number; current: number; url: string; message: string }
+    | { type: 'progress'; total: number; current: number; label: string; status: string }
+    | { type: 'item_success'; total: number; current: number; label: string; response: JobPosting }
+    | { type: 'item_error'; total: number; current: number; label: string; message: string }
     | { type: 'complete'; total: number; successCount: number; errorCount: number }
     | { type: 'error'; message: string };
+
+export type JobPostingBulkIngestRow = {
+    url: string;
+    images: { objectKey: string; url: string; contentType: string }[];
+};
 
 export type JobPostingSetting = {
     saraminEnabled: boolean;

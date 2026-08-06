@@ -17,6 +17,7 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
@@ -351,7 +352,12 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlsStreamThrowsExceptionWhenUrlsEmpty() {
-        assertThatThrownBy(() -> jobPostingService.ingestUrlsStream(List.of("  ", "")))
+        assertThatThrownBy(
+                        () ->
+                                jobPostingService.ingestUrlsStream(
+                                        List.of(
+                                                new JobPostingBulkIngestRequest.Row("  ", null),
+                                                new JobPostingBulkIngestRequest.Row("", null))))
                 .isInstanceOf(ResponseStatusException.class);
     }
 }

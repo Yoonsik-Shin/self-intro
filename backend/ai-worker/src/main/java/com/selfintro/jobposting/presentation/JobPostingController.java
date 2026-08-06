@@ -12,6 +12,7 @@ import com.selfintro.jobposting.application.JobPostingService;
 import com.selfintro.jobposting.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -81,11 +82,8 @@ public class JobPostingController {
     }
 
     @PostMapping(value = "/ingest-urls/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter ingestUrlsStream(
-            @Valid @RequestBody
-                    com.selfintro.jobposting.presentation.dto.JobApplicationUrlsParseRequest
-                            request) {
-        return jobPostingService.ingestUrlsStream(request.urls());
+    public SseEmitter ingestUrlsStream(@Valid @RequestBody JobPostingBulkIngestRequest request) {
+        return jobPostingService.ingestUrlsStream(request.rows());
     }
 
     /** 이미 수집/등록된 공고를 원본 URL에서 다시 읽어 최신 정보(마감일 등)로 갱신한다. */

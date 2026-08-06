@@ -4,6 +4,7 @@ import type {
     JobApplicationUrlParseResponse,
     JobApplicationUrlParseStreamEvent,
     JobPosting,
+    JobPostingBulkIngestRow,
     JobPostingBulkIngestStreamEvent,
     JobPostingCoverLetterItem,
     JobPostingCoverLetterItemRequest,
@@ -100,14 +101,15 @@ export const jobPostingApi = {
             onEvent,
             signal
         ),
+    /** rows의 각 행은 url만 있으면 URL 자동수집, images가 있으면(url이 같이 있어도) 스크린샷 등록으로 처리된다. */
     ingestUrlsStream: (
-        urls: string[],
+        rows: JobPostingBulkIngestRow[],
         onEvent: (event: JobPostingBulkIngestStreamEvent) => void,
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingBulkIngestStreamEvent>(
             '/api/worker/job-postings/ingest-urls/stream',
-            { urls },
+            { rows },
             onEvent,
             signal
         ),

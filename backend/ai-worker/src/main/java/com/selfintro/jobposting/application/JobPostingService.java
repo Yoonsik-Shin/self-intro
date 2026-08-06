@@ -13,6 +13,7 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -163,32 +164,37 @@ public class JobPostingService {
         }
     }
 
-    public SseEmitter ingestUrlsStream(List<String> urls) {
-        List<String> cleanedUrls =
-                urls.stream()
-                        .filter(u -> u != null && !u.trim().isBlank())
-                        .map(String::trim)
-                        .distinct()
+    public SseEmitter ingestUrlsStream(List<JobPostingBulkIngestRequest.Row> rows) {
+        List<JobPostingBulkIngestRequest.Row> cleanedRows =
+                rows.stream()
+                        .map(
+                                row ->
+                                        new JobPostingBulkIngestRequest.Row(
+                                                AiJsonSupport.hasText(row.url())
+                                                        ? row.url().trim()
+                                                        : null,
+                                                row.images()))
+                        .filter(row -> AiJsonSupport.hasText(row.url()) || row.hasImages())
                         .toList();
 
-        if (cleanedUrls.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수집할 URL이 없습니다.");
+        if (cleanedRows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수집할 공고가 없습니다.");
         }
-        if (cleanedUrls.size() > 5) {
+        if (cleanedRows.size() > 5) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "한 번에 최대 5개의 URL까지 수집할 수 있습니다.");
+                    HttpStatus.BAD_REQUEST, "한 번에 최대 5개까지 수집할 수 있습니다.");
         }
 
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-bulk-ingest-stream")
-                .start(() -> streamBulkIngest(cleanedUrls, emitter));
+                .start(() -> streamBulkIngest(cleanedRows, emitter));
         return emitter;
     }
 
-    private void streamBulkIngest(List<String> urls, SseEmitter emitter) {
+    private void streamBulkIngest(List<JobPostingBulkIngestRequest.Row> rows, SseEmitter emitter) {
         Thread heartbeat = startHeartbeat(emitter);
-        int total = urls.size();
+        int total = rows.size();
         java.util.concurrent.atomic.AtomicInteger completed =
                 new java.util.concurrent.atomic.AtomicInteger(0);
         java.util.concurrent.atomic.AtomicInteger successCount =
@@ -198,14 +204,20 @@ public class JobPostingService {
 
         try {
             List<Thread> threads = new ArrayList<>();
-            for (String url : urls) {
+            for (JobPostingBulkIngestRequest.Row row : rows) {
+                // 진행상황/결과 이벤트에 붙이는 라벨. url이 있으면 그걸, 스크린샷만 있는 행이면
+                // "스크린샷 N장"으로 표시한다.
+                String label =
+                        AiJsonSupport.hasText(row.url())
+                                ? row.url()
+                                : "스크린샷 " + row.images().size() + "장";
                 Thread t =
                         Thread.ofVirtual()
                                 .start(
                                         () -> {
                                             boolean acquired = false;
                                             try {
-                                                // 한 번에 최대 3건만 AI 분석하되, 같은 bulk 요청 안의 나머지 URL은
+                                                // 한 번에 최대 3건만 AI 분석하되, 같은 bulk 요청 안의 나머지 행은
                                                 // 30초 뒤 실패시키지 않고 앞선 작업이 끝날 때까지 대기시킨다.
                                                 // 최대 5건이라는 입력 상한이 있어 대기열이 무한히 늘어나지 않는다.
                                                 ingestSemaphore.acquire();
@@ -216,10 +228,14 @@ public class JobPostingService {
                                                                 "progress",
                                                                 total,
                                                                 completed.get(),
-                                                                url,
+                                                                label,
                                                                 "processing"));
 
-                                                JobPostingResponse response = ingestUrl(url);
+                                                JobPostingResponse response =
+                                                        row.hasImages()
+                                                                ? ingestImages(
+                                                                        row.images(), row.url())
+                                                                : ingestUrl(row.url());
                                                 successCount.incrementAndGet();
                                                 send(
                                                         emitter,
@@ -227,7 +243,7 @@ public class JobPostingService {
                                                                 "item_success",
                                                                 total,
                                                                 completed.incrementAndGet(),
-                                                                url,
+                                                                label,
                                                                 response));
                                             } catch (ResponseStatusException ex) {
                                                 errorCount.incrementAndGet();
@@ -241,7 +257,7 @@ public class JobPostingService {
                                                                 "item_error",
                                                                 total,
                                                                 completed.incrementAndGet(),
-                                                                url,
+                                                                label,
                                                                 msg));
                                             } catch (InterruptedException ex) {
                                                 Thread.currentThread().interrupt();
@@ -252,10 +268,10 @@ public class JobPostingService {
                                                                 "item_error",
                                                                 total,
                                                                 completed.incrementAndGet(),
-                                                                url,
+                                                                label,
                                                                 "공고 수집 대기가 중단되었습니다."));
                                             } catch (Exception ex) {
-                                                log.warn("다중 공고 수집 중 오류: url={}", url, ex);
+                                                log.warn("다중 공고 수집 중 오류: label={}", label, ex);
                                                 errorCount.incrementAndGet();
                                                 send(
                                                         emitter,
@@ -263,7 +279,7 @@ public class JobPostingService {
                                                                 "item_error",
                                                                 total,
                                                                 completed.incrementAndGet(),
-                                                                url,
+                                                                label,
                                                                 "공고 수집 중 오류가 발생했습니다."));
                                             } finally {
                                                 if (acquired) {
@@ -337,13 +353,13 @@ public class JobPostingService {
     private record ErrorEvent(String type, String message) {}
 
     private record BulkProgressEvent(
-            String type, int total, int current, String url, String status) {}
+            String type, int total, int current, String label, String status) {}
 
     private record BulkItemSuccessEvent(
-            String type, int total, int current, String url, JobPostingResponse response) {}
+            String type, int total, int current, String label, JobPostingResponse response) {}
 
     private record BulkItemErrorEvent(
-            String type, int total, int current, String url, String message) {}
+            String type, int total, int current, String label, String message) {}
 
     private record BulkCompleteEvent(String type, int total, int successCount, int errorCount) {}
 

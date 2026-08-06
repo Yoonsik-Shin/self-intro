@@ -33,6 +33,7 @@ import {
     Eye,
     EyeOff,
     FileText,
+    ImagePlus,
     Info,
     LayoutGrid,
     List as ListIcon,
@@ -56,6 +57,7 @@ import { SourceLinksPopover } from './SourceLinksPopover';
 import type {
     GapProjectDocument,
     JobPosting,
+    JobPostingBulkIngestRow,
     JobPostingCoverLetterItemRequest,
     JobPostingPrintDraftResponse,
     JobPostingRequest,
@@ -1810,10 +1812,16 @@ export function JobApplicationManagement() {
     const [isSingleIngesting, setIsSingleIngesting] = useState(false);
     const [singleIngestElapsedSeconds, setSingleIngestElapsedSeconds] = useState(0);
     const [bulkUrls, setBulkUrls] = useState<string[]>(['', '', '', '', '']);
+    const [bulkRowImages, setBulkRowImages] = useState<
+        { objectKey: string; url: string; contentType: string }[][]
+    >([[], [], [], [], []]);
+    const [bulkUploadingRow, setBulkUploadingRow] = useState<number | null>(null);
+    const bulkImageInputRef = useRef<HTMLInputElement>(null);
+    const bulkImageInputRowRef = useRef<number | null>(null);
     const [isDropZoneOver, setIsDropZoneOver] = useState(false);
     const [bulkResults, setBulkResults] = useState<
         Array<{
-            url: string;
+            label: string;
             status: 'pending' | 'processing' | 'success' | 'error';
             message?: string;
             response?: JobPosting;
@@ -2218,25 +2226,77 @@ export function JobApplicationManagement() {
         }
     }
 
-    async function requestBulkIngestUrls(urlsToIngest: string[]) {
-        const cleaned = urlsToIngest.map((u) => u.trim()).filter(Boolean);
-        if (cleaned.length === 0) return;
+    /** 다중 일괄 수집의 한 행에 스크린샷을 첨부한다 — URL만으로 못 쓰는 공고(예: 모든 직무가 한 페이지에 섞여있는 경우)도 행 단위로 섞어서 넣을 수 있게 한다. */
+    async function handleBulkRowFiles(rowIndex: number, files: FileList | null) {
+        if (!files || files.length === 0) return;
+        setBulkUploadingRow(rowIndex);
+        try {
+            const uploaded: { objectKey: string; url: string; contentType: string }[] = [];
+            for (const file of Array.from(files)) {
+                if (!file.type.startsWith('image/')) continue;
+                if (file.size > 8 * 1024 * 1024) {
+                    alert(`파일이 너무 큽니다(최대 8MB): ${file.name}`);
+                    continue;
+                }
+                const presigned = await imageApi.requestPresignedUpload(
+                    'JOB_POSTING_SCREENSHOT',
+                    file.name,
+                    file.type
+                );
+                await imageApi.uploadToPresignedUrl(presigned.uploadUrl, file);
+                uploaded.push({
+                    objectKey: presigned.objectKey,
+                    url: presigned.publicUrl,
+                    contentType: file.type,
+                });
+            }
+            setBulkRowImages((prev) => {
+                const next = [...prev];
+                next[rowIndex] = [...(next[rowIndex] ?? []), ...uploaded];
+                return next;
+            });
+        } catch (err) {
+            alert(err instanceof ApiError ? err.message : '스크린샷 업로드에 실패했습니다.');
+        } finally {
+            setBulkUploadingRow(null);
+            if (bulkImageInputRef.current) bulkImageInputRef.current.value = '';
+        }
+    }
+
+    function removeBulkRowImage(rowIndex: number, imageIndex: number) {
+        setBulkRowImages((prev) => {
+            const next = [...prev];
+            next[rowIndex] = (next[rowIndex] ?? []).filter((_, i) => i !== imageIndex);
+            return next;
+        });
+    }
+
+    async function requestBulkIngest() {
+        const rows: JobPostingBulkIngestRow[] = bulkUrls
+            .map((url, index) => ({ url: url.trim(), images: bulkRowImages[index] ?? [] }))
+            .filter((row) => row.url || row.images.length > 0);
+        if (rows.length === 0) return;
 
         setIsBulkIngesting(true);
-        setBulkResults(cleaned.map((url) => ({ url, status: 'pending' })));
+        setBulkResults(
+            rows.map((row) => ({
+                label: row.url || `스크린샷 ${row.images.length}장`,
+                status: 'pending',
+            }))
+        );
 
         try {
-            await jobPostingApi.ingestUrlsStream(cleaned, (event) => {
+            await jobPostingApi.ingestUrlsStream(rows, (event) => {
                 if (event.type === 'progress') {
                     setBulkResults((prev) =>
                         prev.map((item) =>
-                            item.url === event.url ? { ...item, status: 'processing' } : item
+                            item.label === event.label ? { ...item, status: 'processing' } : item
                         )
                     );
                 } else if (event.type === 'item_success') {
                     setBulkResults((prev) =>
                         prev.map((item) =>
-                            item.url === event.url
+                            item.label === event.label
                                 ? { ...item, status: 'success', response: event.response }
                                 : item
                         )
@@ -2248,7 +2308,7 @@ export function JobApplicationManagement() {
                 } else if (event.type === 'item_error') {
                     setBulkResults((prev) =>
                         prev.map((item) =>
-                            item.url === event.url
+                            item.label === event.label
                                 ? { ...item, status: 'error', message: event.message }
                                 : item
                         )
@@ -2473,6 +2533,7 @@ export function JobApplicationManagement() {
         } else {
             setIngestMode('single');
             setBulkUrls(['', '', '', '', '']);
+            setBulkRowImages([[], [], [], [], []]);
             setBulkResults([]);
         }
         setDrawerState({ type: 'create' });
@@ -2501,6 +2562,7 @@ export function JobApplicationManagement() {
         if (!isBulkIngesting) {
             setIngestMode('single');
             setBulkUrls(['', '', '', '', '']);
+            setBulkRowImages([[], [], [], [], []]);
             setBulkResults([]);
         }
     }
@@ -4382,7 +4444,9 @@ export function JobApplicationManagement() {
 
                                                 <div className="mb-4 space-y-2">
                                                     <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                                                        <span>수집할 공고 URL (최대 5개)</span>
+                                                        <span>
+                                                            수집할 공고 URL / 스크린샷 (최대 5개)
+                                                        </span>
                                                         <div className="flex items-center gap-2">
                                                             <button
                                                                 type="button"
@@ -4392,7 +4456,10 @@ export function JobApplicationManagement() {
                                                                 <Clipboard className="h-3 w-3" />
                                                                 클립보드에서 가져오기 (Cmd+V)
                                                             </button>
-                                                            {bulkUrls.some(Boolean) && (
+                                                            {(bulkUrls.some(Boolean) ||
+                                                                bulkRowImages.some(
+                                                                    (imgs) => imgs.length > 0
+                                                                )) && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => {
@@ -4402,6 +4469,13 @@ export function JobApplicationManagement() {
                                                                             '',
                                                                             '',
                                                                             '',
+                                                                        ]);
+                                                                        setBulkRowImages([
+                                                                            [],
+                                                                            [],
+                                                                            [],
+                                                                            [],
+                                                                            [],
                                                                         ]);
                                                                         setBulkResults([]);
                                                                     }}
@@ -4413,39 +4487,111 @@ export function JobApplicationManagement() {
                                                         </div>
                                                     </div>
                                                     {bulkUrls.map((url, index) => (
-                                                        <div
-                                                            key={index}
-                                                            className="flex items-center gap-1.5"
-                                                        >
-                                                            <span className="shrink-0 text-xs font-semibold text-slate-400 w-4 text-right">
-                                                                {index + 1}.
-                                                            </span>
-                                                            <input
-                                                                type="url"
-                                                                value={url}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setBulkUrls((prev) => {
-                                                                        const next = [...prev];
-                                                                        next[index] = val;
-                                                                        return next;
-                                                                    });
-                                                                }}
-                                                                placeholder={`채용 공고 URL ${index + 1}`}
-                                                                className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
-                                                            />
+                                                        <div key={index} className="space-y-1">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="shrink-0 text-xs font-semibold text-slate-400 w-4 text-right">
+                                                                    {index + 1}.
+                                                                </span>
+                                                                <input
+                                                                    type="url"
+                                                                    value={url}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setBulkUrls((prev) => {
+                                                                            const next = [...prev];
+                                                                            next[index] = val;
+                                                                            return next;
+                                                                        });
+                                                                    }}
+                                                                    placeholder={`채용 공고 URL ${index + 1} (또는 URL 없이 스크린샷만)`}
+                                                                    className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    title="이 행에 스크린샷 추가"
+                                                                    disabled={
+                                                                        bulkUploadingRow === index
+                                                                    }
+                                                                    onClick={() => {
+                                                                        bulkImageInputRowRef.current =
+                                                                            index;
+                                                                        bulkImageInputRef.current?.click();
+                                                                    }}
+                                                                    className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-400 transition hover:border-slate-400 hover:text-slate-600 disabled:opacity-50"
+                                                                >
+                                                                    {bulkUploadingRow === index ? (
+                                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                    ) : (
+                                                                        <ImagePlus className="h-3.5 w-3.5" />
+                                                                    )}
+                                                                </button>
+                                                            </div>
+                                                            {(bulkRowImages[index]?.length ?? 0) >
+                                                                0 && (
+                                                                <div className="ml-5 flex flex-wrap gap-1">
+                                                                    {bulkRowImages[index].map(
+                                                                        (image, imgIndex) => (
+                                                                            <div
+                                                                                key={
+                                                                                    image.objectKey
+                                                                                }
+                                                                                className="group relative h-10 w-10 overflow-hidden rounded border border-slate-200"
+                                                                            >
+                                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                <img
+                                                                                    src={image.url}
+                                                                                    alt=""
+                                                                                    className="h-full w-full object-cover"
+                                                                                />
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() =>
+                                                                                        removeBulkRowImage(
+                                                                                            index,
+                                                                                            imgIndex
+                                                                                        )
+                                                                                    }
+                                                                                    className="absolute inset-0 hidden items-center justify-center bg-black/50 text-white group-hover:flex"
+                                                                                >
+                                                                                    <X className="h-3 w-3" />
+                                                                                </button>
+                                                                            </div>
+                                                                        )
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
+                                                <input
+                                                    ref={bulkImageInputRef}
+                                                    type="file"
+                                                    accept="image/png,image/jpeg,image/webp,image/gif"
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        const rowIndex =
+                                                            bulkImageInputRowRef.current;
+                                                        if (rowIndex !== null) {
+                                                            handleBulkRowFiles(
+                                                                rowIndex,
+                                                                e.target.files
+                                                            );
+                                                        }
+                                                    }}
+                                                />
 
                                                 <button
                                                     type="button"
                                                     disabled={
                                                         isBulkIngesting ||
-                                                        bulkUrls.filter((u) => u.trim()).length ===
-                                                            0
+                                                        (bulkUrls.filter((u) => u.trim()).length ===
+                                                            0 &&
+                                                            bulkRowImages.every(
+                                                                (imgs) => imgs.length === 0
+                                                            ))
                                                     }
-                                                    onClick={() => requestBulkIngestUrls(bulkUrls)}
+                                                    onClick={() => requestBulkIngest()}
                                                     className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 mb-3"
                                                 >
                                                     <Sparkles className="h-4 w-4" />
@@ -4487,9 +4633,9 @@ export function JobApplicationManagement() {
                                                                     <div className="flex items-center justify-between gap-2">
                                                                         <span
                                                                             className="truncate font-mono text-[11px] text-slate-600 max-w-[200px]"
-                                                                            title={item.url}
+                                                                            title={item.label}
                                                                         >
-                                                                            {item.url}
+                                                                            {item.label}
                                                                         </span>
                                                                         {item.status ===
                                                                             'pending' && (
