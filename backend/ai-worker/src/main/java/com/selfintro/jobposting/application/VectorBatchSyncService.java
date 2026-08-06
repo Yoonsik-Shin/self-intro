@@ -1,7 +1,12 @@
 package com.selfintro.jobposting.application;
 
+import com.selfintro.global.ai.CareerProfileDigestBuilder;
 import com.selfintro.global.ai.ContextualChunker;
 import com.selfintro.global.ai.VectorEmbeddingService;
+import com.selfintro.modules.experience.domain.entity.Experience;
+import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
+import com.selfintro.modules.study.domain.entity.Study;
+import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.vectorsearch.domain.entity.ExperienceVector;
 import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository;
 import com.selfintro.vectorsearch.domain.entity.JobPostingVector;
@@ -28,12 +33,38 @@ public class VectorBatchSyncService {
     private final StudyVectorRepository studyVectorRepository;
     private final ContextualChunker contextualChunker;
     private final VectorEmbeddingService vectorEmbeddingService;
+    private final ExperienceRepository experienceRepository;
+    private final StudyRepository studyRepository;
+    private final CareerProfileDigestBuilder careerProfileDigestBuilder;
 
     public record BatchSyncSummary(
             int jobPostingChunksCreated,
             int experienceChunksCreated,
             int studyChunksCreated
     ) {}
+
+    /**
+     * MySQL에 있는 기존 Experience/Study 전체를 한 번에 Oracle 26ai 벡터 인덱스로 백필한다.
+     * 벡터 스택을 처음 붙이거나(이번처럼) 재구축이 필요할 때 관리자가 1회 수동 트리거하는 용도.
+     */
+    public BatchSyncSummary backfillAll() {
+        int experienceChunks = 0;
+        for (Experience experience : experienceRepository.findAllByOrderByDisplayOrderAsc()) {
+            experienceChunks += syncExperienceVector(
+                    experience.getId(),
+                    experience.getTitle(),
+                    careerProfileDigestBuilder.buildForExperience(experience));
+        }
+
+        int studyChunks = 0;
+        for (Study study : studyRepository.findAll()) {
+            studyChunks += syncStudyVector(study.getId(), study.getTitle(), study.getContentMarkdown());
+        }
+
+        log.info("[VectorBackfill] Experience {}건, Study {}건 백필 완료 (청크: exp={}, study={})",
+                experienceRepository.count(), studyRepository.count(), experienceChunks, studyChunks);
+        return new BatchSyncSummary(0, experienceChunks, studyChunks);
+    }
 
     /**
      * 프로젝트 경험 텍스트 청킹 및 Oracle 26ai 배치 동기화.

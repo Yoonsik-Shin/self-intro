@@ -43,4 +43,17 @@ public class VectorBatchSyncController {
         );
         return ResponseEntity.ok(Map.of("status", "SUCCESS", "jobPostingId", request.id(), "chunksCreated", count));
     }
+
+    /**
+     * 기존 Experience/Study 전체를 한 번에 백필한다. 벡터 스택을 처음 붙일 때 관리자가 1회 수동 트리거.
+     */
+    @PostMapping("/backfill-all")
+    public ResponseEntity<Map<String, Object>> backfillAll() {
+        VectorBatchSyncService.BatchSyncSummary summary = vectorBatchSyncService.backfillAll();
+        return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "experienceChunksCreated", summary.experienceChunksCreated(),
+                "studyChunksCreated", summary.studyChunksCreated()
+        ));
+    }
 }

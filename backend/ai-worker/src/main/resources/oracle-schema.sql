@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS job_posting_vector (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_job_posting_vector_hnsw 
+CREATE VECTOR INDEX IF NOT EXISTS idx_job_posting_vector_hnsw 
 ON job_posting_vector (embedding_vector) 
 ORGANIZATION INMEMORY NEIGHBOR GRAPH 
 DISTANCE COSINE;
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS experience_vector (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_experience_vector_hnsw 
+CREATE VECTOR INDEX IF NOT EXISTS idx_experience_vector_hnsw 
 ON experience_vector (embedding_vector) 
 ORGANIZATION INMEMORY NEIGHBOR GRAPH 
 DISTANCE COSINE;
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS study_vector (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_study_vector_hnsw 
+CREATE VECTOR INDEX IF NOT EXISTS idx_study_vector_hnsw 
 ON study_vector (embedding_vector) 
 ORGANIZATION INMEMORY NEIGHBOR GRAPH 
 DISTANCE COSINE;
