@@ -64,6 +64,7 @@ public class CoverLetterDraftAiService {
 
         String rawDraft = generateByModel(request, systemPrompt, userPrompt);
         String draftAnswer = rawDraft.replace("\\n", "\n").trim();
+        String modelLabel = resolveAiModelLabel(request.aiModel(), request.customModelName());
 
         // 히스토리 저장 (coverLetterItemId가 존재하는 경우)
         if (request.coverLetterItemId() != null && request.coverLetterItemId() > 0) {
@@ -73,7 +74,7 @@ public class CoverLetterDraftAiService {
                         request.coverLetterItemId(), "USER", request.feedbackInstruction().trim(), now));
             }
             revisionRepository.save(JobPostingCoverLetterRevision.create(
-                    request.coverLetterItemId(), "AI", draftAnswer, now));
+                    request.coverLetterItemId(), "AI", draftAnswer, modelLabel, now));
         }
 
         return new JobPostingCoverLetterDraftResponse(
@@ -81,6 +82,19 @@ public class CoverLetterDraftAiService {
                 draftAnswer,
                 request.characterLimit()
         );
+    }
+
+    private String resolveAiModelLabel(String aiModel, String customModelName) {
+        if (aiModel == null || aiModel.isBlank()) return "Nvidia NIM";
+        return switch (aiModel.toUpperCase()) {
+            case "CLAUDE_3_5_SONNET", "CLAUDE" -> "Claude 3.5 Sonnet";
+            case "CLAUDE_3_7_SONNET" -> "Claude 3.7 Sonnet";
+            case "GEMINI_2_FLASH", "GEMINI" -> "Gemini 2.0 Flash";
+            case "O3_MINI" -> "OpenAI o3-mini";
+            case "GPT_4O", "GPT" -> "GPT-4o";
+            case "CUSTOM" -> (customModelName != null && !customModelName.isBlank()) ? customModelName : "Custom LLM";
+            default -> "Nvidia NIM";
+        };
     }
 
     private String generateByModel(JobPostingCoverLetterDraftRequest request, String systemPrompt, String userPrompt) {

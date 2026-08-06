@@ -426,11 +426,25 @@ export function JobCoverLetterDrawer({
                                                         : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
                                                 }`}
                                             >
-                                                {isUser && (
+                                                {isUser ? (
                                                     <p className="mb-1 text-[10px] font-bold text-amber-100 flex items-center gap-1">
                                                         <MessageSquare className="h-3 w-3" />
                                                         지적 / 보완 요청
                                                     </p>
+                                                ) : (
+                                                    <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                                                        <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 text-[10px] font-extrabold text-indigo-700 shadow-2xs">
+                                                            <Cpu className="h-3 w-3 text-indigo-600" />
+                                                            {rev.aiModel || 'AI 답변'}
+                                                        </span>
+                                                        <span className="text-[10px] font-semibold text-slate-400">
+                                                            {rev.createdAt
+                                                                ? rev.createdAt
+                                                                      .replace('T', ' ')
+                                                                      .slice(0, 16)
+                                                                : ''}
+                                                        </span>
+                                                    </div>
                                                 )}
                                                 <div className="whitespace-pre-wrap">
                                                     {rev.content}

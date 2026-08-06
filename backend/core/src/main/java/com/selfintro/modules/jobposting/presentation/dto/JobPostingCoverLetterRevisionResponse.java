@@ -8,6 +8,7 @@ public record JobPostingCoverLetterRevisionResponse(
         Long coverLetterItemId,
         String senderType,
         String content,
+        String aiModel,
         LocalDateTime createdAt
 ) {
     public static JobPostingCoverLetterRevisionResponse from(JobPostingCoverLetterRevision entity) {
@@ -16,6 +17,7 @@ public record JobPostingCoverLetterRevisionResponse(
                 entity.getCoverLetterItemId(),
                 entity.getSenderType(),
                 entity.getContent(),
+                entity.getAiModel(),
                 entity.getCreatedAt()
         );
     }

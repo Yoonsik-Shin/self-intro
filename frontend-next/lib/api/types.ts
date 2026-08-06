@@ -615,6 +615,7 @@ export type JobPostingCoverLetterRevision = {
     coverLetterItemId: number;
     senderType: 'USER' | 'AI';
     content: string;
+    aiModel?: string | null;
     createdAt: string;
 };
 

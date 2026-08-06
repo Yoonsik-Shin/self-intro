@@ -30,19 +30,28 @@ public class JobPostingCoverLetterRevision {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "ai_model", length = 50)
+    private String aiModel;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     private JobPostingCoverLetterRevision(
-            Long coverLetterItemId, String senderType, String content, LocalDateTime createdAt) {
+            Long coverLetterItemId, String senderType, String content, String aiModel, LocalDateTime createdAt) {
         this.coverLetterItemId = coverLetterItemId;
         this.senderType = senderType;
         this.content = content;
+        this.aiModel = aiModel;
         this.createdAt = createdAt;
     }
 
     public static JobPostingCoverLetterRevision create(
             Long coverLetterItemId, String senderType, String content, LocalDateTime createdAt) {
-        return new JobPostingCoverLetterRevision(coverLetterItemId, senderType, content, createdAt);
+        return new JobPostingCoverLetterRevision(coverLetterItemId, senderType, content, null, createdAt);
+    }
+
+    public static JobPostingCoverLetterRevision create(
+            Long coverLetterItemId, String senderType, String content, String aiModel, LocalDateTime createdAt) {
+        return new JobPostingCoverLetterRevision(coverLetterItemId, senderType, content, aiModel, createdAt);
     }
 }
