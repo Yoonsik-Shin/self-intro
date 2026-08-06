@@ -77,6 +77,61 @@ class JobApplicationUrlParseServiceTest {
     }
 
     @Test
+    void mergeJobkoreaFallbackKeepsJobkoreaFieldsAndFillsDetailFromAi() {
+        // GI_Read_Frame(상세 iframe) 404로 jobDescription 이하가 비어있는 잡코리아 파싱 결과
+        // (2026-08-06). 회사명/직무명/근무지/마감일은 정규식으로 뽑은 값을 그대로 신뢰하고,
+        // 상세 항목만 AI 추출 결과로 채워야 한다.
+        JobApplicationUrlParseResponse jobkorea =
+                new JobApplicationUrlParseResponse(
+                        "랜드소프트㈜",
+                        "백엔드 개발자 채용",
+                        "잡코리아",
+                        LocalDate.of(2026, 8, 16),
+                        false,
+                        null,
+                        "서울 마포구 양화로10길 19",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372");
+        JobApplicationUrlParseResponse aiFallback =
+                new JobApplicationUrlParseResponse(
+                        "다른 회사명으로 오독됨",
+                        "다른 직무명으로 오독됨",
+                        "잡코리아",
+                        LocalDate.of(1999, 1, 1),
+                        false,
+                        null,
+                        "다른 근무지로 오독됨",
+                        "정규직",
+                        "담당업무 내용",
+                        "자격요건 내용",
+                        "우대사항 내용",
+                        "전형절차 내용",
+                        "지원방법 내용",
+                        null,
+                        "https://www.jobkorea.co.kr/Recruit/GI_Read/49686372");
+
+        JobApplicationUrlParseResponse merged =
+                JobApplicationUrlParseService.mergeJobkoreaFallback(jobkorea, aiFallback);
+
+        assertThat(merged.companyName()).isEqualTo("랜드소프트㈜");
+        assertThat(merged.positionTitle()).isEqualTo("백엔드 개발자 채용");
+        assertThat(merged.location()).isEqualTo("서울 마포구 양화로10길 19");
+        assertThat(merged.deadline()).isEqualTo(LocalDate.of(2026, 8, 16));
+        assertThat(merged.employmentType()).isEqualTo("정규직");
+        assertThat(merged.jobDescription()).isEqualTo("담당업무 내용");
+        assertThat(merged.requiredQualifications()).isEqualTo("자격요건 내용");
+        assertThat(merged.preferredQualifications()).isEqualTo("우대사항 내용");
+        assertThat(merged.hiringProcess()).isEqualTo("전형절차 내용");
+        assertThat(merged.applicationMethod()).isEqualTo("지원방법 내용");
+    }
+
+    @Test
     void parsesIsoDeadline() {
         assertThat(service.parseDate("2026-08-02")).isEqualTo(LocalDate.of(2026, 8, 2));
     }

@@ -265,13 +265,23 @@ public class JobApplicationUrlParseService {
         }
         Optional<JobApplicationUrlParseResponse> jobkoreaResponse =
                 parseJobkoreaDocument(uri, document, url);
-        if (jobkoreaResponse.isPresent()) {
+        if (jobkoreaResponse.isPresent()
+                && AiJsonSupport.hasText(jobkoreaResponse.get().jobDescription())) {
             log.info(
                     "잡코리아 공고 직접 구조 파싱 완료: host={}, fetch={}ms, total={}ms",
                     uri.getHost(),
                     fetchMillis,
                     elapsedMillis(startedAt));
             return jobkoreaResponse.get();
+        }
+        if (jobkoreaResponse.isPresent()) {
+            // 잡코리아의 상세요강 iframe(GI_Read_Frame)이 사이트 개편으로 404가 나면(2026-08-06)
+            // companyName/positionTitle/location/deadline은 정규식으로 이미 정확히 뽑았어도
+            // jobDescription 이하가 전부 null로 반환된다. 그대로 돌려주는 대신 회사명/직무명
+            // 같은 확실한 값은 살려두고, 상세 항목만 아래 일반 AI(+헤드리스 브라우저) 경로로
+            // 다시 채운 뒤 mergeJobkoreaFallback()에서 합친다.
+            log.info(
+                    "잡코리아 상세 프레임 조회 실패, AI 추출로 상세 항목 보강 시도: host={}", uri.getHost());
         }
         if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH
                 || looksLikeMissingDetailSection(document.text())) {
@@ -324,6 +334,9 @@ public class JobApplicationUrlParseService {
                             AiJsonSupport.blankToNull(extracted.applicationMethod()),
                             AiJsonSupport.blankToNull(extracted.compensationDetail()),
                             url);
+            if (jobkoreaResponse.isPresent()) {
+                response = mergeJobkoreaFallback(jobkoreaResponse.get(), response);
+            }
             log.info(
                     "채용공고 URL 분석 완료: host={}, fetch={}ms, parseAi={}ms, total={}ms",
                     uri.getHost(),
@@ -832,6 +845,31 @@ public class JobApplicationUrlParseService {
 
     private static String pick(String primary, String fallback) {
         return AiJsonSupport.hasText(primary) ? primary : fallback;
+    }
+
+    /**
+     * 잡코리아 전용 파서가 정규식으로 확실히 뽑아낸 값(회사명·직무명·마감일·근무지 등)은 그대로
+     * 살리고, 상세 프레임 조회 실패로 비어있던 항목(담당업무·자격요건 등)만 일반 AI 추출 결과로
+     * 채운다.
+     */
+    static JobApplicationUrlParseResponse mergeJobkoreaFallback(
+            JobApplicationUrlParseResponse jobkorea, JobApplicationUrlParseResponse aiFallback) {
+        return new JobApplicationUrlParseResponse(
+                pick(jobkorea.companyName(), aiFallback.companyName()),
+                pick(jobkorea.positionTitle(), aiFallback.positionTitle()),
+                pick(jobkorea.source(), aiFallback.source()),
+                jobkorea.deadline() != null ? jobkorea.deadline() : aiFallback.deadline(),
+                jobkorea.alwaysOpen() || aiFallback.alwaysOpen(),
+                pick(jobkorea.salaryNote(), aiFallback.salaryNote()),
+                pick(jobkorea.location(), aiFallback.location()),
+                pick(jobkorea.employmentType(), aiFallback.employmentType()),
+                pick(jobkorea.jobDescription(), aiFallback.jobDescription()),
+                pick(jobkorea.requiredQualifications(), aiFallback.requiredQualifications()),
+                pick(jobkorea.preferredQualifications(), aiFallback.preferredQualifications()),
+                pick(jobkorea.hiringProcess(), aiFallback.hiringProcess()),
+                pick(jobkorea.applicationMethod(), aiFallback.applicationMethod()),
+                pick(jobkorea.compensationDetail(), aiFallback.compensationDetail()),
+                jobkorea.postingUrl());
     }
 
     private URI validateUrl(String url) {
