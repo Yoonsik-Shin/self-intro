@@ -125,6 +125,24 @@ function resolvePrecisionCoordinates(posting: JobPosting): { lat: number; lng: n
     return { lat: 37.5006, lng: 127.0365 };
 }
 
+const ONGOING_STATUSES = new Set([
+    'APPLIED',
+    'SUPPORTED',
+    'CODING_TEST',
+    'ASSIGNMENT',
+    'APTITUDE_TEST',
+    'INTERVIEW_1',
+    'INTERVIEW_2',
+    'FINAL_INTERVIEW',
+    'OFFER',
+    'IN_PROGRESS',
+]);
+
+function isOngoingPostingStatus(status: string): boolean {
+    if (!status) return false;
+    return ONGOING_STATUSES.has(status.toUpperCase());
+}
+
 export default function JobPostingMapView({
     postings,
     settings,
@@ -133,6 +151,7 @@ export default function JobPostingMapView({
 }: JobPostingMapViewProps) {
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
     const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('ALL');
+    const [onlyOngoing, setOnlyOngoing] = useState(false);
     const [tileStyle, setTileStyle] = useState<TileStyleOption>('LIGHT');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPostingId, setSelectedPostingId] = useState<number | null>(null);
@@ -197,9 +216,13 @@ export default function JobPostingMapView({
         });
     }, [postings, homeLat, homeLng]);
 
-    // 검색 및 소요시간 필터링 적용
+    // 검색, 소요시간, 전형 진행 중 필터링 적용
     const filteredItems = useMemo(() => {
         return postingsWithCommute.filter(({ posting, estimate }) => {
+            if (onlyOngoing && !isOngoingPostingStatus(posting.status)) {
+                return false;
+            }
+
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const matchCompany = posting.companyName.toLowerCase().includes(q);
@@ -219,7 +242,36 @@ export default function JobPostingMapView({
 
             return true;
         });
-    }, [postingsWithCommute, searchQuery, timeFilter]);
+    }, [postingsWithCommute, searchQuery, timeFilter, onlyOngoing]);
+
+    // 🎯 최신 filteredItems 동기화용 Ref (Leaflet 이벤트 헨들러 스틸 클로저 방지)
+    const filteredItemsRef = useRef(filteredItems);
+    useEffect(() => {
+        filteredItemsRef.current = filteredItems;
+    }, [filteredItems]);
+
+    // 🎯 지도 화면 이동/확대축소 및 필터 변경 시 실시간 화면 범위 내 공고 추출 갱신 함수
+    const updateVisiblePostingIds = useCallback(() => {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        const bounds = map.getBounds();
+        const visibleSet = new Set<number>();
+
+        filteredItemsRef.current.forEach((item) => {
+            if (item.lat && item.lng && bounds.contains([item.lat, item.lng])) {
+                visibleSet.add(item.posting.id);
+            }
+        });
+
+        setVisibleInMapPostingIds(visibleSet);
+        setCurrentZoomLevel(map.getZoom());
+    }, []);
+
+    // 필터 조건 변경 시 실시간 화면 범위 공고 목록 즉시 재계산 동기화
+    useEffect(() => {
+        updateVisiblePostingIds();
+    }, [filteredItems, updateVisiblePostingIds]);
 
     // 🎯 [실시간 지도 화면 연동] 현재 화면 범위 안에 조망되고 있는 공고만 필터링!
     const visibleInViewportItems = useMemo(() => {
@@ -249,7 +301,7 @@ export default function JobPostingMapView({
     };
 
     // 📍 특정 공고 선택 및 지도 위치로 이동 (현재 보고 있는 줌 배율 100% 보존 유지)
-    const handleSelectPostingAndPan = (item: (typeof filteredItems)[0]) => {
+    const handleSelectPostingAndPan = useCallback((item: (typeof filteredItems)[0]) => {
         setSelectedPostingId(item.posting.id);
         setIsDetailPanelOpen(true);
 
@@ -259,7 +311,7 @@ export default function JobPostingMapView({
                 animate: true,
             });
         }
-    };
+    }, []);
 
     // ↔️ 패널 드래그앤드롭 리사이저 이벤트 핸들러
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -331,21 +383,6 @@ export default function JobPostingMapView({
 
                     markersGroupRef.current = L.layerGroup().addTo(map);
                     ringsGroupRef.current = L.layerGroup().addTo(map);
-
-                    // 🎯 지도 화면 이동/확대축소 시 실시간 화면 범위 내 공고 추출 갱신 함수
-                    const updateVisiblePostingIds = () => {
-                        const bounds = map.getBounds();
-                        const visibleSet = new Set<number>();
-
-                        filteredItems.forEach((item) => {
-                            if (item.lat && item.lng && bounds.contains([item.lat, item.lng])) {
-                                visibleSet.add(item.posting.id);
-                            }
-                        });
-
-                        setVisibleInMapPostingIds(visibleSet);
-                        setCurrentZoomLevel(map.getZoom());
-                    };
 
                     map.on('zoomend moveend dragend', updateVisiblePostingIds);
 
@@ -709,6 +746,8 @@ export default function JobPostingMapView({
         selectedPostingId,
         filteredItems,
         expandedClusters,
+        handleSelectPostingAndPan,
+        updateVisiblePostingIds,
     ]);
 
     useEffect(() => {
@@ -729,7 +768,7 @@ export default function JobPostingMapView({
             `}</style>
             {/* 1. 상단 툴바 */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/90 p-3.5 backdrop-blur-md">
-                {/* [왼쪽 그룹] 출퇴근 소요시간 필터 탭 + 검색창 */}
+                {/* [왼쪽 그룹] 출퇴근 소요시간 필터 탭 + 전형 진행 중 필터 + 검색창 */}
                 <div className="flex flex-wrap items-center gap-2.5">
                     {/* 출퇴근 소요시간 필터 탭 */}
                     <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
@@ -772,6 +811,19 @@ export default function JobPostingMapView({
                             }`}
                         >
                             ⚡ 60분 이내
+                        </button>
+                        <div className="h-4 w-[1px] bg-slate-200 mx-0.5" />
+                        <button
+                            onClick={() => setOnlyOngoing((prev) => !prev)}
+                            className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                                onlyOngoing
+                                    ? 'bg-indigo-600 text-white shadow-xs'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                            }`}
+                            title="현재 전형 단계가 진행 중인 공고만 필터링합니다"
+                        >
+                            <Briefcase className="h-3.5 w-3.5" />
+                            <span>전형 진행 중만</span>
                         </button>
                     </div>
 
@@ -893,8 +945,8 @@ export default function JobPostingMapView({
                                             }`}
                                         >
                                             <span className="flex items-center gap-1.5">
-                                                <Compass className="h-3.5 w-3.5" />
-                                                🎯 반경 동심원 (10/20/30km)
+                                                <Compass className="h-3.5 w-3.5 text-amber-600" />
+                                                반경 동심원 (10/20/30km)
                                             </span>
                                             {layerToggles.showDistanceRings ? (
                                                 <Eye className="h-3.5 w-3.5 text-amber-600" />
@@ -913,8 +965,8 @@ export default function JobPostingMapView({
                                             }`}
                                         >
                                             <span className="flex items-center gap-1.5">
-                                                <Radio className="h-3.5 w-3.5" />
-                                                🏷️ 마커 뱃지 라벨 보기
+                                                <Radio className="h-3.5 w-3.5 text-purple-600" />
+                                                마커 뱃지 라벨 보기
                                             </span>
                                             {layerToggles.showPinLabels ? (
                                                 <Eye className="h-3.5 w-3.5 text-purple-600" />
@@ -933,8 +985,8 @@ export default function JobPostingMapView({
                                             }`}
                                         >
                                             <span className="flex items-center gap-1.5">
-                                                <Star className="h-3.5 w-3.5" />⭐ 잡플래닛 점수
-                                                뱃지
+                                                <Star className="h-3.5 w-3.5 text-amber-600" />
+                                                잡플래닛 점수 뱃지
                                             </span>
                                             {layerToggles.showJobplanetBadge ? (
                                                 <Eye className="h-3.5 w-3.5 text-amber-600" />
