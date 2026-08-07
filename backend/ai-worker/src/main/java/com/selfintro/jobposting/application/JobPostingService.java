@@ -96,13 +96,15 @@ public class JobPostingService {
 
     public SseEmitter ingestUrlStream(String url) {
         String trimmed = url.trim();
-        if (sourceUrlRepository.existsByUrl(trimmed)) {
+        String normalized = com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(trimmed);
+        String targetUrl = normalized != null ? normalized : trimmed;
+        if (sourceUrlRepository.existsByUrl(targetUrl) || sourceUrlRepository.existsByUrl(trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
         }
         SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-ingest-stream")
-                .start(() -> streamIngest(trimmed, emitter));
+                .start(() -> streamIngest(targetUrl, emitter));
         return emitter;
     }
 
@@ -396,11 +398,13 @@ public class JobPostingService {
 
     private IngestResult ingestUrlInternal(String url) {
         String trimmed = url.trim();
-        if (sourceUrlRepository.existsByUrl(trimmed)) {
+        String normalized = com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(trimmed);
+        String targetUrl = normalized != null ? normalized : trimmed;
+        if (sourceUrlRepository.existsByUrl(targetUrl) || sourceUrlRepository.existsByUrl(trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
         }
 
-        JobApplicationUrlParseResponse parsed = urlParseService.parse(trimmed);
+        JobApplicationUrlParseResponse parsed = urlParseService.parse(targetUrl);
         if (!AiJsonSupport.hasText(parsed.companyName())
                 || !AiJsonSupport.hasText(parsed.positionTitle())) {
             throw new ResponseStatusException(
@@ -408,7 +412,7 @@ public class JobPostingService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        JobPostingPlatform platform = JobPostingPlatform.fromUrl(trimmed);
+        JobPostingPlatform platform = JobPostingPlatform.fromUrl(targetUrl);
 
         // 다른 플랫폼(원티드/잡코리아/사람인 등)에 이미 같은 회사+직무 공고가 있으면 새 행을 만들지
         // 않고 이번 URL을 그 공고의 출처로만 추가한다.
@@ -418,7 +422,7 @@ public class JobPostingService {
             return new IngestResult(
                     toResponse(
                             dedupService.attachAdditionalUrl(
-                                    existingMatch.get().getId(), trimmed, platform, now)),
+                                    existingMatch.get().getId(), targetUrl, platform, now)),
                     parsed.additionalPositionTitles());
         }
 
@@ -426,7 +430,7 @@ public class JobPostingService {
                 new JobPosting.Draft(
                         parsed.positionTitle(),
                         parsed.companyName(),
-                        trimmed,
+                        targetUrl,
                         null,
                         JobPostingSource.URL_INGEST,
                         combineForMatching(parsed),
@@ -451,7 +455,7 @@ public class JobPostingService {
 
         try {
             return new IngestResult(
-                    toResponse(dedupService.createNew(posting, trimmed, platform, now)),
+                    toResponse(dedupService.createNew(posting, targetUrl, platform, now)),
                     parsed.additionalPositionTitles());
         } catch (DataIntegrityViolationException exception) {
             // 동시에 들어온 다른 URL(최대 5건 동시 수집)이 같은 회사+직무로 먼저 저장을 끝낸 경우다.
@@ -463,7 +467,7 @@ public class JobPostingService {
                             .orElseThrow(() -> exception);
             return new IngestResult(
                     toResponse(
-                            dedupService.attachAdditionalUrl(winner.getId(), trimmed, platform, now)),
+                            dedupService.attachAdditionalUrl(winner.getId(), targetUrl, platform, now)),
                     parsed.additionalPositionTitles());
         }
     }
