@@ -10,6 +10,7 @@ on:
       - 'backend/build.gradle'
       - 'backend/Dockerfile.worker'
       - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch: {}
 
 permissions:
   contents: write
