@@ -985,7 +985,7 @@ function CoverLetterEditor({
             <div className="space-y-4 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                     <p className="text-xs font-semibold text-slate-500">
-                        문항을 누르면 넓은 시원한 패널과 AI 대화창이 열립니다.
+                        문항이나 '열기' 버튼을 클릭하면 AI 에디터 패널이 열립니다.
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
                         {items.length > 0 && (
@@ -1050,9 +1050,6 @@ function CoverLetterEditor({
                                                 <span className="text-xs font-extrabold text-slate-400">
                                                     문항 {index + 1}
                                                 </span>
-                                                <span className="rounded-md bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-extrabold text-indigo-600 transition hover:bg-indigo-100">
-                                                    💬 AI 채팅 및 시원하게 수정
-                                                </span>
                                             </div>
                                             <p className="mt-1 whitespace-pre-wrap text-sm font-extrabold text-slate-800 hover:text-indigo-600 transition">
                                                 {item.question}
@@ -1099,7 +1096,7 @@ function CoverLetterEditor({
                                                 ) : (
                                                     <Sparkles className="h-3 w-3 text-indigo-600" />
                                                 )}
-                                                {isGeneratingThis ? '생성 중...' : '빠른 AI 초안'}
+                                                {isGeneratingThis ? '생성 중...' : 'AI 초안 생성'}
                                             </button>
                                         </div>
                                         <textarea
@@ -1111,7 +1108,7 @@ function CoverLetterEditor({
                                                     [item.id]: event.target.value,
                                                 }))
                                             }
-                                            placeholder="답변을 입력하거나 문항을 클릭하여 시원한 대화창 패널을 열어보세요."
+                                            placeholder="답변을 직접 입력하거나 문항 / '열기' 버튼을 클릭하여 AI 에디터 패널을 열어보세요."
                                             className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 focus:border-slate-400 focus:outline-none"
                                         />
                                         <div className="mt-1 flex items-center justify-between gap-3">
