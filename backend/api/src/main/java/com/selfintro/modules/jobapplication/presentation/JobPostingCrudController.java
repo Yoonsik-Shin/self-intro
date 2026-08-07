@@ -5,6 +5,7 @@ import com.selfintro.modules.jobapplication.application.JobPostingCrudService;
 import com.selfintro.modules.jobapplication.application.JobPostingGeocodingBackfillRunner;
 import com.selfintro.modules.jobapplication.application.JobPostingPositionChoiceService;
 import com.selfintro.modules.jobapplication.application.JobplanetCompanyService;
+import com.selfintro.modules.jobapplication.application.JobPostingDedupMigrationService;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingMemoRequest;
@@ -47,6 +48,12 @@ public class JobPostingCrudController {
     private final JobPostingCoverLetterService coverLetterService;
     private final JobPostingGeocodingBackfillRunner geocodingBackfillRunner;
     private final JobPostingPositionChoiceService positionChoiceService;
+    private final JobPostingDedupMigrationService dedupMigrationService;
+
+    @PostMapping("/dedup-migration")
+    public JobPostingDedupMigrationService.MigrationResult runDedupMigration() {
+        return dedupMigrationService.runMigration();
+    }
 
     @GetMapping
     public List<JobPostingResponse> list() {
