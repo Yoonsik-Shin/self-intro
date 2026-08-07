@@ -25,18 +25,18 @@ public class JobPostingSourceUrl {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "job_posting_id", nullable = false, updatable = false)
+    @Column(name = "job_posting_id", nullable = false)
     private Long jobPostingId;
 
-    @Column(name = "url", nullable = false, updatable = false, length = 500)
+    @Column(name = "url", nullable = false, length = 500)
     private String url;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "platform", nullable = false, updatable = false, length = 20)
+    @Column(name = "platform", nullable = false, length = 20)
     private JobPostingPlatform platform;
 
     /** 처음 이 공고를 만든 URL. 카드/팝오버에서 대표로 보여주는 기준이다. */
-    @Column(name = "is_primary", nullable = false, updatable = false)
+    @Column(name = "is_primary", nullable = false)
     private boolean primary;
 
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -63,5 +63,15 @@ public class JobPostingSourceUrl {
     public static JobPostingSourceUrl additional(
             Long jobPostingId, String url, JobPostingPlatform platform, LocalDateTime now) {
         return new JobPostingSourceUrl(jobPostingId, url, platform, false, now);
+    }
+
+    public void updateUrlAndPlatform(String url, JobPostingPlatform platform) {
+        this.url = url;
+        this.platform = platform;
+    }
+
+    public void reassignTo(Long winnerJobPostingId, boolean primary) {
+        this.jobPostingId = winnerJobPostingId;
+        this.primary = primary;
     }
 }

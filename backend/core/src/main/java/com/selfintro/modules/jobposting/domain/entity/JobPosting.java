@@ -250,6 +250,11 @@ public class JobPosting {
         this.deadlineTime = deadlineTime;
     }
 
+    public void updateNormalizedFields(String companyNameNormalized, String positionTitleNormalized) {
+        this.companyNameNormalized = companyNameNormalized;
+        this.positionTitleNormalized = positionTitleNormalized;
+    }
+
     /** "새 지원 공고 등록" — 수집 단계 없이 이미 지원 완료한 공고를 바로 기록한다. */
     public static JobPosting registerApplied(
             String companyName,

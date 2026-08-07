@@ -14,4 +14,11 @@ public interface JobPostingPositionChoiceRepository
             Collection<Long> jobPostingIds);
 
     void deleteByJobPostingId(Long jobPostingId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "UPDATE JobPostingPositionChoice c SET c.jobPostingId = :winnerId WHERE c.jobPostingId = :loserId")
+    void reassignToWinner(
+            @org.springframework.data.repository.query.Param("loserId") Long loserId,
+            @org.springframework.data.repository.query.Param("winnerId") Long winnerId);
 }

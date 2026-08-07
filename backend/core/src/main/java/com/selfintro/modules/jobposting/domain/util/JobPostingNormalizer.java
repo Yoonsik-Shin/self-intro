@@ -54,12 +54,16 @@ public final class JobPostingNormalizer {
             return "";
         }
         String normalized = raw.trim();
+        // 타이틀 상단 회사명/구분자 접두어 제거 (예: (주)스카이웨어 채용 - , [스카이웨어] , 회사명 - )
+        normalized = normalized.replaceAll("^(?:\\([^)]+\\)|㈜|주식회사)?\\s*[^-\\|:]+?\\s*(?:채용)?\\s*[-|:]\\s*", "");
+        normalized = normalized.replaceAll("^\\[[^\\]]+\\]\\s*", "");
+
         // 괄호 안의 고용형태/자격요건/경력 태그 제거 (예: (신입/Java개발), [신입/경력], (인턴))
         normalized = normalized.replaceAll("(?i)[\\[\\(][^\\]\\)]*?(?:신입|경력|인턴|정규직|계약직|프리랜서)[^\\]\\)]*?[\\]\\)]", "");
         // "채용" 보일러플레이트 제거
-        normalized = normalized.replaceAll("(?i)\\s*채용\\s*", " ");
-        // 특수문자 제거 및 공백/대소문자 정규화
-        normalized = WHITESPACE.matcher(normalized).replaceAll(" ").trim();
+        normalized = normalized.replaceAll("(?i)\\s*채용\\s*", "");
+        // 특수문자 및 공백 제거로 비교키 생성
+        normalized = WHITESPACE.matcher(normalized).replaceAll("").trim();
         return normalized.toUpperCase(Locale.ROOT);
     }
 }
