@@ -70,6 +70,8 @@ export function AiModelFloatingWidget() {
     const [isDragging, setIsDragging] = useState(false);
     const [isNearDock, setIsNearDock] = useState(false);
 
+    const [dockHomePosition, setDockHomePosition] = useState<Point | null>(null);
+
     const modelKey = useAiModelStore((state) => state.modelKey);
     const customModelName = useAiModelStore((state) => state.customModelName);
     const setModelKey = useAiModelStore((state) => state.setModelKey);
@@ -80,6 +82,14 @@ export function AiModelFloatingWidget() {
     const containerRef = useRef<HTMLDivElement>(null);
     const wasSuppressedRef = useRef(false);
     const nearDockRef = useRef(false);
+    const autoFloatedRef = useRef(false);
+    const userDraggedRef = useRef(false);
+    const modeRef = useRef(mode);
+
+    useEffect(() => {
+        modeRef.current = mode;
+    }, [mode]);
+
     // 도킹 상태일 때 버튼이 실제로 있는 화면 좌표 — 드래그 스냅/마커의 기준점이다. 도킹 중엔 계속
     // 최신 값으로 갱신되고(리사이즈 등으로 헤더가 움직여도 따라감), 탈착된 뒤에는 마지막으로 도킹돼
     // 있던 좌표가 그대로 남아 "제자리"로 쓰인다.
@@ -109,12 +119,92 @@ export function AiModelFloatingWidget() {
         return () => window.removeEventListener('resize', syncHome);
     }, [mounted, mode]);
 
+    // 수집된 공고 상세 등 드로어/모달/팝업 창(fixed inset-0 오버레이)이 열렸는지 감지하여,
+    // 한 번도 수동 드래그를 안 한 docked 상태이면 자동으로 floating(fixed portal) 모드로 변환한다.
+    useEffect(() => {
+        if (!mounted) return;
+
+        function isOverlayOrPopupPresent(): boolean {
+            if (typeof document === 'undefined') return false;
+            const dialogs = document.querySelectorAll(
+                '[role="dialog"], [aria-modal="true"], [data-modal="true"], [data-popup="true"]'
+            );
+            for (let i = 0; i < dialogs.length; i++) {
+                const el = dialogs[i] as HTMLElement;
+                const style = window.getComputedStyle(el);
+                if (
+                    style.display !== 'none' &&
+                    style.visibility !== 'hidden' &&
+                    style.opacity !== '0'
+                ) {
+                    return true;
+                }
+            }
+            const fixedElements = document.querySelectorAll(
+                '.fixed.inset-0, [class*="fixed"][class*="inset-0"]'
+            );
+            for (let i = 0; i < fixedElements.length; i++) {
+                const el = fixedElements[i] as HTMLElement;
+                if (el.closest('[data-ai-widget="true"]')) continue;
+                const style = window.getComputedStyle(el);
+                if (
+                    style.display !== 'none' &&
+                    style.visibility !== 'hidden' &&
+                    style.opacity !== '0'
+                ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function checkAndToggleAutoFloating() {
+            const popupPresent = isOverlayOrPopupPresent();
+
+            if (popupPresent) {
+                if (modeRef.current === 'docked' && !userDraggedRef.current) {
+                    const rect = buttonRef.current?.getBoundingClientRect();
+                    if (rect && (rect.left > 0 || rect.top > 0)) {
+                        setFloatingPosition({ x: rect.left, y: rect.top });
+                    } else if (homeRef.current) {
+                        setFloatingPosition(homeRef.current);
+                    }
+                    setMode('floating');
+                    autoFloatedRef.current = true;
+                }
+            } else {
+                if (autoFloatedRef.current && !userDraggedRef.current) {
+                    setMode('docked');
+                    setFloatingPosition(null);
+                    autoFloatedRef.current = false;
+                }
+            }
+        }
+
+        checkAndToggleAutoFloating();
+
+        const observer = new MutationObserver(() => {
+            checkAndToggleAutoFloating();
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'aria-hidden'],
+        });
+
+        return () => observer.disconnect();
+    }, [mounted]);
+
     // 자기만의 모델 선택 UI가 있는 화면(자소서 드로어 등)이 열려 숨겨졌다가 닫혀서 다시 필요해지는
     // 순간에만 헤더 자리로 되돌아온다. 드래그해서 옮긴 위치는 그 전까지는 그대로 유지된다.
     useEffect(() => {
         if (wasSuppressedRef.current && !suppressFloatingWidget) {
             setMode('docked');
             setFloatingPosition(null);
+            autoFloatedRef.current = false;
+            userDraggedRef.current = false;
         }
         wasSuppressedRef.current = suppressFloatingWidget;
     }, [suppressFloatingWidget]);
@@ -137,6 +227,7 @@ export function AiModelFloatingWidget() {
         setMode('floating');
         setFloatingPosition({ x: rect.left, y: rect.top });
         setIsDragging(true);
+        setDockHomePosition(homeRef.current);
         dragStateRef.current = {
             startX: event.clientX,
             startY: event.clientY,
@@ -173,11 +264,17 @@ export function AiModelFloatingWidget() {
             } else if (nearDockRef.current) {
                 setMode('docked');
                 setFloatingPosition(null);
+                userDraggedRef.current = false;
+                autoFloatedRef.current = false;
+            } else if (dragStateRef.current?.moved) {
+                userDraggedRef.current = true;
+                autoFloatedRef.current = false;
             }
             dragStateRef.current = null;
             nearDockRef.current = false;
             setIsNearDock(false);
             setIsDragging(false);
+            setDockHomePosition(null);
         }
 
         window.addEventListener('mousemove', handleMove);
@@ -192,13 +289,15 @@ export function AiModelFloatingWidget() {
     const selected = AI_MODEL_OPTIONS.find((option) => option.id === modelKey);
     const badgeColor = selected ? PROVIDER_COLOR[selected.provider] : PROVIDER_COLOR.custom;
     const showTooltip = isHovering && !isOpen && !isDragging;
-    const dockHome = isDragging ? homeRef.current : null;
+    const dockHome = isDragging ? dockHomePosition : null;
 
-    const currentRect = buttonRef.current?.getBoundingClientRect();
-    const refX = floatingPosition?.x ?? currentRect?.left ?? window.innerWidth - 120;
-    const refY = floatingPosition?.y ?? currentRect?.top ?? 16;
-    const openToLeft = refX + WIDGET_SIZE / 2 > window.innerWidth / 2;
-    const openUpward = refY + WIDGET_SIZE / 2 > window.innerHeight / 2;
+    const refX =
+        floatingPosition?.x ?? (typeof window !== 'undefined' ? window.innerWidth - 120 : 0);
+    const refY = floatingPosition?.y ?? 16;
+    const openToLeft =
+        refX + WIDGET_SIZE / 2 > (typeof window !== 'undefined' ? window.innerWidth / 2 : 500);
+    const openUpward =
+        refY + WIDGET_SIZE / 2 > (typeof window !== 'undefined' ? window.innerHeight / 2 : 400);
 
     const panelStyle: CSSProperties = {
         position: 'absolute',
@@ -341,6 +440,7 @@ export function AiModelFloatingWidget() {
         return (
             <div
                 ref={containerRef}
+                data-ai-widget="true"
                 className="relative mr-2 inline-flex shrink-0"
                 style={{ width: WIDGET_SIZE, height: WIDGET_SIZE }}
             >
@@ -356,6 +456,7 @@ export function AiModelFloatingWidget() {
             {dockMarkerEl}
             <div
                 ref={containerRef}
+                data-ai-widget="true"
                 className="fixed z-[10000]"
                 style={{ left: floatingPosition?.x ?? 0, top: floatingPosition?.y ?? 0 }}
             >
