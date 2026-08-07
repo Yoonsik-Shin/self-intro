@@ -234,8 +234,20 @@ public class JobApplicationUrlParseService {
         this.meterRegistry = meterRegistry;
     }
 
+    private SseEmitter createSseEmitter(long timeoutMillis) {
+        SseEmitter emitter = new SseEmitter(timeoutMillis);
+        emitter.onTimeout(() -> {
+            log.info("채용공고 파싱 SSE 스트림 타임아웃 발생");
+            emitter.complete();
+        });
+        emitter.onError(ex -> {
+            log.debug("채용공고 파싱 SSE 스트림 에러: {}", ex.getMessage());
+        });
+        return emitter;
+    }
+
     public SseEmitter parseStream(String url) {
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-application-parse-stream")
                 .start(() -> streamParse(url, emitter));

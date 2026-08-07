@@ -112,8 +112,20 @@ public class PortfolioCaseStudyAiService {
             generating.set(false);
             throw exception;
         }
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual().name("portfolio-ai-stream").start(() -> stream(prepared, emitter));
+        return emitter;
+    }
+
+    private SseEmitter createSseEmitter(long timeoutMillis) {
+        SseEmitter emitter = new SseEmitter(timeoutMillis);
+        emitter.onTimeout(() -> {
+            log.info("포트폴리오 AI SSE 스트림 타임아웃 발생");
+            emitter.complete();
+        });
+        emitter.onError(ex -> {
+            log.debug("포트폴리오 AI SSE 스트림 에러: {}", ex.getMessage());
+        });
         return emitter;
     }
 

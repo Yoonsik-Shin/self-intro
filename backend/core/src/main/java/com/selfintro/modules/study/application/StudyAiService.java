@@ -113,10 +113,22 @@ public class StudyAiService {
             generating.set(false);
             throw exception;
         }
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("study-ai-stream")
                 .start(() -> streamSuggestions(prepared, emitter));
+        return emitter;
+    }
+
+    private SseEmitter createSseEmitter(long timeoutMillis) {
+        SseEmitter emitter = new SseEmitter(timeoutMillis);
+        emitter.onTimeout(() -> {
+            log.info("학습 정리 AI SSE 스트림 타임아웃 발생");
+            emitter.complete();
+        });
+        emitter.onError(ex -> {
+            log.debug("학습 정리 AI SSE 스트림 에러: {}", ex.getMessage());
+        });
         return emitter;
     }
 

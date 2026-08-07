@@ -82,12 +82,24 @@ public class JobPostingService {
                 sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()));
     }
 
+    private SseEmitter createSseEmitter(long timeoutMillis) {
+        SseEmitter emitter = new SseEmitter(timeoutMillis);
+        emitter.onTimeout(() -> {
+            log.info("채용공고 SSE 스트림 타임아웃 발생");
+            emitter.complete();
+        });
+        emitter.onError(ex -> {
+            log.debug("채용공고 SSE 스트림 에러: {}", ex.getMessage());
+        });
+        return emitter;
+    }
+
     public SseEmitter ingestUrlStream(String url) {
         String trimmed = url.trim();
         if (sourceUrlRepository.existsByUrl(trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
         }
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-ingest-stream")
                 .start(() -> streamIngest(trimmed, emitter));
@@ -132,7 +144,7 @@ public class JobPostingService {
      */
     public SseEmitter ingestImagesStream(
             List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl) {
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-ingest-images-stream")
                 .start(() -> streamImageIngest(images, sourceUrl, emitter));
@@ -191,7 +203,7 @@ public class JobPostingService {
                     HttpStatus.BAD_REQUEST, "한 번에 최대 5개까지 수집할 수 있습니다.");
         }
 
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-bulk-ingest-stream")
                 .start(() -> streamBulkIngest(cleanedRows, emitter));
@@ -627,7 +639,7 @@ public class JobPostingService {
         return new JobPostingBulkRefreshResult(total, success, failed, skipped, logs);
     }
     public SseEmitter refreshAllStream(boolean onlyActive) {
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-refresh-all-stream")
                 .start(() -> streamRefreshAll(onlyActive, emitter));

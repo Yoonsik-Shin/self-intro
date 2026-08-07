@@ -107,8 +107,20 @@ public class JobPostingPrintDraftService {
      * 헤더가 즉시 나가므로 AI 호출이 90초를 넘겨도 요청이 끊기지 않는다(VectorBackfillOrchestrator와
      * 동일한 문제, JobApplicationUrlParseService.parseStream과 동일한 해법).
      */
+    private SseEmitter createSseEmitter(long timeoutMillis) {
+        SseEmitter emitter = new SseEmitter(timeoutMillis);
+        emitter.onTimeout(() -> {
+            log.info("PDF 초안 SSE 스트림 타임아웃 발생");
+            emitter.complete();
+        });
+        emitter.onError(ex -> {
+            log.debug("PDF 초안 SSE 스트림 에러: {}", ex.getMessage());
+        });
+        return emitter;
+    }
+
     public SseEmitter generateStream(Long jobPostingId, String aiModel, String customModelName) {
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
                 .name("job-posting-print-draft-stream")
                 .start(() -> streamGenerate(jobPostingId, aiModel, customModelName, emitter));
