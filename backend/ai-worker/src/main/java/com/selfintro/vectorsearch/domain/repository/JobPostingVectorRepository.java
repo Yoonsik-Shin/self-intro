@@ -16,7 +16,7 @@ public interface JobPostingVectorRepository extends JpaRepository<JobPostingVect
      * Oracle 26ai 내장 VECTOR_DISTANCE 코사인 유사도 검색 쿼리. 거리값도 함께 반환한다(0에 가까울수록 유사).
      */
     @Query(value = """
-            SELECT v.id AS id, v.job_posting_id AS jobPostingId, v.chunk_content AS chunkContent,
+            SELECT v.id AS id, v.job_posting_id AS jobPostingId, TO_CHAR(v.chunk_content) AS chunkContent,
                    VECTOR_DISTANCE(v.embedding_vector, to_vector(:queryVector), COSINE) AS distance
             FROM job_posting_vector v
             ORDER BY distance ASC

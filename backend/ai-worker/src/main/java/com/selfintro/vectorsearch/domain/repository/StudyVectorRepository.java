@@ -17,7 +17,7 @@ public interface StudyVectorRepository extends JpaRepository<StudyVector, Long> 
      * 가장 코사인 유사도가 높은 스터디 마크다운 청크 TOP K 탐색. 거리값도 함께 반환한다(0에 가까울수록 유사).
      */
     @Query(value = """
-            SELECT s.id AS id, s.study_id AS studyId, s.chunk_content AS chunkContent,
+            SELECT s.id AS id, s.study_id AS studyId, TO_CHAR(s.chunk_content) AS chunkContent,
                    VECTOR_DISTANCE(s.embedding_vector, :queryVector, COSINE) AS distance
             FROM study_vector s
             ORDER BY distance ASC

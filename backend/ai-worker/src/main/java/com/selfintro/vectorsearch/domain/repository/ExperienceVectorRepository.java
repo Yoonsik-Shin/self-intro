@@ -17,7 +17,7 @@ public interface ExperienceVectorRepository extends JpaRepository<ExperienceVect
      * 가장 코사인 유사도가 높은 내 경험 청크 TOP K 탐색. 거리값도 함께 반환한다(0에 가까울수록 유사).
      */
     @Query(value = """
-            SELECT e.id AS id, e.experience_id AS experienceId, e.chunk_content AS chunkContent,
+            SELECT e.id AS id, e.experience_id AS experienceId, TO_CHAR(e.chunk_content) AS chunkContent,
                    VECTOR_DISTANCE(e.embedding_vector, :queryVector, COSINE) AS distance
             FROM experience_vector e
             ORDER BY distance ASC
