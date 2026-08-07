@@ -70,7 +70,7 @@ class JobApplicationUrlParseServiceTest {
                         .orElseThrow();
 
         assertThat(response.companyName()).isEqualTo("랜드소프트㈜");
-        assertThat(response.positionTitle()).isEqualTo("백엔드 개발자 채용");
+        assertThat(response.positionTitle()).isEqualTo("백엔드 개발자");
         assertThat(response.deadline()).isEqualTo(LocalDate.of(2026, 8, 16));
         assertThat(response.location()).isEqualTo("서울 마포구 양화로10길 19");
         assertThat(response.source()).isEqualTo("잡코리아");
@@ -331,6 +331,18 @@ class JobApplicationUrlParseServiceTest {
 
         assertThat(parts).hasSize(1);
         assertThat(parts.getFirst().bytes()).isEqualTo(notAnImage);
+    }
+
+    @Test
+    void cleansJobkoreaPositionTitleCorrectly() {
+        String company = "(주)스카이웨어";
+        String rawTitle1 = "(주)스카이웨어 채용 - AI 개발 엔지니어 채용(신입/Java개발) | 잡코리아";
+        String rawTitle2 = "[스카이웨어] AI 개발 엔지니어 채용 | 잡코리아";
+
+        assertThat(JobApplicationUrlParseService.cleanJobkoreaPositionTitle(rawTitle1, company))
+                .isEqualTo("AI 개발 엔지니어(신입/Java개발)");
+        assertThat(JobApplicationUrlParseService.cleanJobkoreaPositionTitle(rawTitle2, company))
+                .isEqualTo("AI 개발 엔지니어");
     }
 
     private static byte[] pngOf(int width, int height) {

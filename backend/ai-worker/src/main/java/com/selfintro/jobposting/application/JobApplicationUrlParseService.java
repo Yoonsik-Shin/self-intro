@@ -30,7 +30,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -681,21 +680,7 @@ public class JobApplicationUrlParseService {
             }
         }
 
-        String positionTitle = positionTitleRaw;
-        if (positionTitle != null) {
-            positionTitle =
-                    positionTitle
-                            .replace("| 잡코리아", "")
-                            .replace("- 잡코리아", "")
-                            .replace("잡코리아 - ", "")
-                            .trim();
-            if (companyName != null
-                    && !companyName.isBlank()
-                    && positionTitle.startsWith("[" + companyName + "]")) {
-                positionTitle =
-                        positionTitle.substring(("[" + companyName + "]").length()).trim();
-            }
-        }
+        String positionTitle = cleanJobkoreaPositionTitle(positionTitleRaw, companyName);
 
         String deadlineText =
                 extractRegexGroup(
@@ -759,6 +744,50 @@ public class JobApplicationUrlParseService {
                         null,
                         postingUrl,
                         List.of()));
+    }
+
+    static String cleanJobkoreaPositionTitle(String rawTitle, String companyName) {
+        if (rawTitle == null || rawTitle.isBlank()) {
+            return rawTitle;
+        }
+        String cleaned = rawTitle
+                .replace("| 잡코리아", "")
+                .replace("- 잡코리아", "")
+                .replace("잡코리아 - ", "")
+                .trim();
+
+        if (companyName != null && !companyName.isBlank()) {
+            String normCompany = com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer.normalizeCompanyName(companyName);
+            if (cleaned.startsWith("[" + companyName + "]")) {
+                cleaned = cleaned.substring(("[" + companyName + "]").length()).trim();
+            } else if (!normCompany.isEmpty() && cleaned.startsWith("[" + normCompany + "]")) {
+                cleaned = cleaned.substring(("[" + normCompany + "]").length()).trim();
+            } else if (cleaned.startsWith(companyName)) {
+                cleaned = cleaned.substring(companyName.length()).trim();
+                if (cleaned.startsWith("채용")) {
+                    cleaned = cleaned.substring("채용".length()).trim();
+                }
+                if (cleaned.startsWith("-") || cleaned.startsWith(":")) {
+                    cleaned = cleaned.substring(1).trim();
+                }
+            } else if (!normCompany.isEmpty()) {
+                java.util.regex.Pattern compPrefixPattern =
+                        java.util.regex.Pattern.compile(
+                                "^[\\[\\(\\s]*(?:\\(주\\)|㈜|주식회사)?\\s*"
+                                        + java.util.regex.Pattern.quote(normCompany)
+                                        + "\\s*(?:\\(주\\)|㈜|주식회사)?\\s*[\\]\\)\\s]*(?:채용)?\\s*[-:]?\\s*",
+                                java.util.regex.Pattern.CASE_INSENSITIVE);
+                java.util.regex.Matcher m = compPrefixPattern.matcher(cleaned);
+                if (m.find()) {
+                    cleaned = cleaned.substring(m.end()).trim();
+                }
+            }
+        }
+
+        cleaned = cleaned.replaceAll("(?i)\\s+채용(\\s*\\()", "$1");
+        cleaned = cleaned.replaceAll("(?i)\\s+채용$", "");
+
+        return cleaned.trim();
     }
 
     private static String extractRegexGroup(String text, String regex) {
