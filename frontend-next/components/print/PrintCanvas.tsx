@@ -218,7 +218,11 @@ export function PrintCanvas({
     const [isRevising, setIsRevising] = useState(false);
     const reviseAbortControllerRef = useRef<AbortController | null>(null);
 
-    const canRevise = Boolean(jobPostingId && activeTemplate?.id);
+    // jobPostingId prop은 /print?jobPostingId=로 직접 열었을 때만 채워진다 — 공고 상세
+    // "템플릿 편집 & 미리보기"나 관리자 템플릿 목록은 templateId만 넘기므로, 이미 로드된
+    // activeTemplate 자신의 jobPostingId를 폴백으로 써야 대화형 재생성 버튼이 뜬다.
+    const effectiveJobPostingId = jobPostingId ?? activeTemplate?.jobPostingId ?? null;
+    const canRevise = Boolean(effectiveJobPostingId && activeTemplate?.id);
     const { data: revisions = [], isLoading: isRevisionsLoading } = useQuery({
         queryKey: ['printTemplateRevisions', activeTemplate?.id],
         queryFn: () => printTemplateApi.revisions(activeTemplate!.id),
@@ -238,13 +242,13 @@ export function PrintCanvas({
         aiModel: string,
         customModelName?: string
     ) => {
-        if (isRevising || !jobPostingId || !activeTemplate?.id) return;
+        if (isRevising || !effectiveJobPostingId || !activeTemplate?.id) return;
         setIsRevising(true);
         const controller = new AbortController();
         reviseAbortControllerRef.current = controller;
         try {
             await jobPostingApi.reviseAiPrintDraftStream(
-                jobPostingId,
+                effectiveJobPostingId,
                 activeTemplate.id,
                 feedbackInstruction ?? '',
                 async (event) => {
@@ -255,8 +259,8 @@ export function PrintCanvas({
                     queryClient.invalidateQueries({
                         queryKey: ['printTemplateRevisions', activeTemplate.id],
                     });
-                    const refreshed = jobPostingId
-                        ? await printTemplateApi.listByJobPosting(jobPostingId)
+                    const refreshed = effectiveJobPostingId
+                        ? await printTemplateApi.listByJobPosting(effectiveJobPostingId)
                         : [];
                     const updated = refreshed.find((t) => t.id === event.response.templateId);
                     if (updated) {

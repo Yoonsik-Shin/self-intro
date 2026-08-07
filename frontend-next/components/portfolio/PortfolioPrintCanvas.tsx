@@ -11,9 +11,11 @@ import {
 } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, LayoutTemplate, MoveVertical, RotateCcw, X } from 'lucide-react';
 import type { PortfolioCaseStudy, PortfolioCaseStudyContent, PrintTemplate } from '@/lib/api/types';
 import { resumeMarkdownComponents } from '@/lib/markdown';
+import { printTemplateApi, portfolioPrintDraftApi } from '@/lib/api';
 import {
     getPageMetrics,
     partitionAtomsIntoPages,
@@ -24,6 +26,7 @@ import { usePortfolioPrintStore } from '@/store/usePortfolioPrintStore';
 import { PdfPageLayer } from '@/components/print/PdfPageLayer';
 import { PrintPreviewBar } from '@/components/print/PrintPreviewBar';
 import { PrintEyeButton } from '@/components/print/PrintEyeButton';
+import { AiRevisionChat } from '@/components/shared/AiRevisionChat';
 
 type ContentOverrides = {
     summary?: string;
@@ -42,7 +45,7 @@ type PortfolioContentOverridesPayload = {
 };
 
 type Props = {
-    caseStudy: Pick<PortfolioCaseStudy, 'title'>;
+    caseStudy: Pick<PortfolioCaseStudy, 'id' | 'title'>;
     content: PortfolioCaseStudyContent;
     onExit: () => void;
     initialLayout?: PrintTemplate | null;
@@ -128,8 +131,80 @@ export function PortfolioPrintCanvas({
     onSaveLayout,
 }: Props) {
     const store = usePortfolioPrintStore();
+    const queryClient = useQueryClient();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const [inlineEditMode, setInlineEditMode] = useState(false);
+    const [aiChatOpen, setAiChatOpen] = useState(false);
+    const [isRevising, setIsRevising] = useState(false);
+    const reviseAbortControllerRef = useRef<AbortController | null>(null);
+
+    // 이미 저장된 배치(대개 AI 초안)를 편집 중일 때만 대화형 재생성이 가능하다 — 아직
+    // 저장된 적 없는 방향(initialLayout=null)에는 다듬을 대상 자체가 없다.
+    const templateId = initialLayout?.id ?? null;
+    const canRevise = Boolean(templateId);
+    const { data: revisions = [], isLoading: isRevisionsLoading } = useQuery({
+        queryKey: ['printTemplateRevisions', templateId],
+        queryFn: () => printTemplateApi.revisions(templateId!),
+        enabled: aiChatOpen && canRevise,
+    });
+
+    const handleCancelRevise = () => {
+        if (reviseAbortControllerRef.current) {
+            reviseAbortControllerRef.current.abort();
+            reviseAbortControllerRef.current = null;
+        }
+        setIsRevising(false);
+    };
+
+    const handleReviseGenerate = async (
+        feedbackInstruction: string | undefined,
+        aiModel: string,
+        customModelName?: string
+    ) => {
+        if (isRevising || !templateId) return;
+        setIsRevising(true);
+        const controller = new AbortController();
+        reviseAbortControllerRef.current = controller;
+        try {
+            await portfolioPrintDraftApi.reviseStream(
+                caseStudy.id,
+                templateId,
+                feedbackInstruction ?? '',
+                async (event) => {
+                    if (event.type === 'error') {
+                        alert(`AI 재생성에 실패했습니다. ${event.message}`);
+                        return;
+                    }
+                    queryClient.invalidateQueries({
+                        queryKey: ['printTemplateRevisions', templateId],
+                    });
+                    const refreshed = await printTemplateApi.listByPortfolioCaseStudy(caseStudy.id);
+                    const updated = refreshed.find((t) => t.id === event.response.templateId);
+                    if (updated) {
+                        const payload = updated.contentOverrides as
+                            PortfolioContentOverridesPayload | undefined;
+                        store.applyLayout({
+                            excludedIds: updated.excludedIds,
+                            sectionGaps: updated.sectionGaps,
+                            forcedPageOverrides: payload?.forcedPageOverrides ?? {},
+                            lineHeight: updated.lineHeight,
+                        });
+                        setContentOverrides(payload?.narrative ?? {});
+                    }
+                },
+                controller.signal,
+                aiModel,
+                customModelName
+            );
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return;
+            alert('AI 재생성 중 오류가 발생했습니다. 다시 시도해 주세요.');
+        } finally {
+            setIsRevising(false);
+            reviseAbortControllerRef.current = null;
+        }
+    };
+
     // 부모가 이 컴포넌트를 열 때마다(닫혀 있다가 다시 열릴 때) 매번 새로 마운트하는 것을 전제로,
     // 초기 문구 override는 lazy state 초기값에서 한 번만 계산한다 — effect에서 다시 setState하지 않는다.
     const [contentOverrides, setContentOverrides] = useState<ContentOverrides>(() => {
@@ -651,6 +726,8 @@ export function PortfolioPrintCanvas({
                 onToggleHideGuides={store.toggleHideGuides}
                 inlineEditMode={adminMode ? inlineEditMode : undefined}
                 onToggleInlineEditMode={adminMode ? () => setInlineEditMode((v) => !v) : undefined}
+                aiChatOpen={aiChatOpen}
+                onToggleAiChat={canRevise ? () => setAiChatOpen((v) => !v) : undefined}
             />
 
             <div className="flex h-10 shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900 px-4 print:hidden">
@@ -672,52 +749,83 @@ export function PortfolioPrintCanvas({
                 ))}
             </div>
 
-            <div
-                ref={canvasRef}
-                className="relative flex-1 overflow-auto bg-slate-950 py-10"
-                style={{ scrollbarGutter: 'stable' }}
-            >
+            <div className="flex flex-1 min-h-0">
                 <div
-                    className="mx-auto flex flex-col items-center gap-10 transition-transform"
-                    style={
-                        {
-                            transform: `scale(${store.zoom})`,
-                            transformOrigin: 'top center',
-                            '--print-line-height': store.lineHeight,
-                        } as CSSProperties
-                    }
+                    ref={canvasRef}
+                    className="relative flex-1 overflow-auto bg-slate-950 py-10"
+                    style={{ scrollbarGutter: 'stable' }}
                 >
-                    {pageLayers.map((page) => (
-                        <PdfPageLayer
-                            key={page.pageIndex}
-                            pageIndex={page.pageIndex}
-                            totalPages={pageLayers.length}
-                            orientation={store.orientation}
-                            hideGuides={store.hideGuides}
-                        >
-                            <div className="portfolio-page flex h-full w-full flex-col gap-3">
-                                {page.items.map((atom) => {
-                                    const gap = Math.max(0, store.sectionGaps[atom.id] ?? 0);
-                                    return (
-                                        <Fragment key={atom.id}>
-                                            {gap > 0 && (
+                    <div
+                        className="mx-auto flex flex-col items-center gap-10 transition-transform"
+                        style={
+                            {
+                                transform: `scale(${store.zoom})`,
+                                transformOrigin: 'top center',
+                                '--print-line-height': store.lineHeight,
+                            } as CSSProperties
+                        }
+                    >
+                        {pageLayers.map((page) => (
+                            <PdfPageLayer
+                                key={page.pageIndex}
+                                pageIndex={page.pageIndex}
+                                totalPages={pageLayers.length}
+                                orientation={store.orientation}
+                                hideGuides={store.hideGuides}
+                            >
+                                <div className="portfolio-page flex h-full w-full flex-col gap-3">
+                                    {page.items.map((atom) => {
+                                        const gap = Math.max(0, store.sectionGaps[atom.id] ?? 0);
+                                        return (
+                                            <Fragment key={atom.id}>
+                                                {gap > 0 && (
+                                                    <div
+                                                        aria-hidden
+                                                        data-print-gap
+                                                        style={{ height: `${gap}px` }}
+                                                    />
+                                                )}
                                                 <div
-                                                    aria-hidden
-                                                    data-print-gap
-                                                    style={{ height: `${gap}px` }}
-                                                />
-                                            )}
-                                            <div data-atom-id={atom.id} className="group relative">
-                                                {renderItemControls(atom.id)}
-                                                {renderAtomContent(atom)}
-                                            </div>
-                                        </Fragment>
-                                    );
-                                })}
-                            </div>
-                        </PdfPageLayer>
-                    ))}
+                                                    data-atom-id={atom.id}
+                                                    className="group relative"
+                                                >
+                                                    {renderItemControls(atom.id)}
+                                                    {renderAtomContent(atom)}
+                                                </div>
+                                            </Fragment>
+                                        );
+                                    })}
+                                </div>
+                            </PdfPageLayer>
+                        ))}
+                    </div>
                 </div>
+
+                {aiChatOpen && canRevise && (
+                    <div className="print:hidden shrink-0 w-[360px] border-l border-slate-800 bg-white relative">
+                        <button
+                            type="button"
+                            onClick={() => setAiChatOpen(false)}
+                            className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            aria-label="AI 대화 패널 닫기"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                        <AiRevisionChat
+                            revisions={revisions}
+                            isRevisionsLoading={isRevisionsLoading}
+                            isGenerating={isRevising}
+                            onGenerate={handleReviseGenerate}
+                            onCancelGenerate={handleCancelRevise}
+                            title="AI 포트폴리오 배치 다듬기"
+                            subtitle="지적사항을 입력하면 현재 배치를 다시 구성합니다."
+                            generateButtonLabel="피드백 없이 재구성"
+                            emptyTitle="아직 대화 이력이 없습니다."
+                            emptyDescription="지적사항을 입력해 현재 배치를 계속 다듬어 보세요."
+                            inputPlaceholder="지적사항이나 보완 요청을 입력하세요 (전송 시 현재 배치에 반영)"
+                        />
+                    </div>
+                )}
             </div>
 
             {adminMode && (
