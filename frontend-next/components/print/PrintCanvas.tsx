@@ -1,7 +1,16 @@
 'use client';
 
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+    Fragment,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+} from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowDown,
     ArrowUp,
@@ -17,13 +26,16 @@ import {
     Settings,
     Plus,
     RotateCcw,
+    X,
 } from 'lucide-react';
+import { jobPostingApi, printTemplateApi } from '@/lib/api';
 import type {
     IntroductionResponse,
     JobPostingCoverLetterItem,
     PrintTemplate,
     PrintTemplateContentOverrides,
 } from '@/lib/api/types';
+import { AiRevisionChat } from '@/components/shared/AiRevisionChat';
 import {
     buildCareerCards,
     buildMilestones,
@@ -131,7 +143,7 @@ function renderDetailFields(
 
     if (inlineEditMode) {
         return (
-            <div className="resume-detail-text relative mt-1 text-[12px] leading-relaxed text-slate-600">
+            <div className="resume-detail-text relative mt-1 text-[12px] pdf-body-text text-slate-600">
                 {/* 마크다운을 원래 렌더링한 결과가 레이아웃 높이를 계속 담당한다.
                     원문 textarea는 위에 겹쳐져 편집 모드 전환만으로 높이가 바뀌지 않는다. */}
                 <div aria-hidden="true" className="invisible">
@@ -142,7 +154,7 @@ function renderDetailFields(
                         value: detail.narrative ?? merged ?? '',
                         baseValue: origNarrative,
                         multiline: true,
-                        textClassName: 'h-full text-[12px] leading-relaxed text-slate-600',
+                        textClassName: 'h-full text-[12px] pdf-body-text text-slate-600',
                         placeholder: '상세 성과 및 기술적 설명을 입력하세요',
                         onChange: onNarrativeChange,
                     })}
@@ -152,7 +164,7 @@ function renderDetailFields(
     }
 
     return (
-        <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
+        <div className="resume-detail-text mt-1 text-[12px] pdf-body-text text-slate-600">
             <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
         </div>
     );
@@ -189,6 +201,7 @@ export function PrintCanvas({
     jobPostingId = null,
 }: Props) {
     const store = usePrintStore();
+    const queryClient = useQueryClient();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const printLayoutFrozenRef = useRef(false);
     const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
@@ -201,6 +214,74 @@ export function PrintCanvas({
         if (initialTemplate) return initialTemplate.name;
         return '기본 이력서';
     });
+    const [aiChatOpen, setAiChatOpen] = useState(false);
+    const [isRevising, setIsRevising] = useState(false);
+    const reviseAbortControllerRef = useRef<AbortController | null>(null);
+
+    const canRevise = Boolean(jobPostingId && activeTemplate?.id);
+    const { data: revisions = [], isLoading: isRevisionsLoading } = useQuery({
+        queryKey: ['printTemplateRevisions', activeTemplate?.id],
+        queryFn: () => printTemplateApi.revisions(activeTemplate!.id),
+        enabled: aiChatOpen && canRevise,
+    });
+
+    const handleCancelRevise = () => {
+        if (reviseAbortControllerRef.current) {
+            reviseAbortControllerRef.current.abort();
+            reviseAbortControllerRef.current = null;
+        }
+        setIsRevising(false);
+    };
+
+    const handleReviseGenerate = async (
+        feedbackInstruction: string | undefined,
+        aiModel: string,
+        customModelName?: string
+    ) => {
+        if (isRevising || !jobPostingId || !activeTemplate?.id) return;
+        setIsRevising(true);
+        const controller = new AbortController();
+        reviseAbortControllerRef.current = controller;
+        try {
+            await jobPostingApi.reviseAiPrintDraftStream(
+                jobPostingId,
+                activeTemplate.id,
+                feedbackInstruction ?? '',
+                async (event) => {
+                    if (event.type === 'error') {
+                        alert(`AI 재생성에 실패했습니다. ${event.message}`);
+                        return;
+                    }
+                    queryClient.invalidateQueries({
+                        queryKey: ['printTemplateRevisions', activeTemplate.id],
+                    });
+                    const refreshed = jobPostingId
+                        ? await printTemplateApi.listByJobPosting(jobPostingId)
+                        : [];
+                    const updated = refreshed.find((t) => t.id === event.response.templateId);
+                    if (updated) {
+                        setActiveTemplate(updated);
+                        store.applyTemplate({
+                            excludedIds: updated.excludedIds,
+                            sectionOrder: updated.sectionOrder,
+                            sectionGaps: updated.sectionGaps,
+                            lineHeight: updated.lineHeight,
+                        });
+                        setContentOverrides(updated.contentOverrides ?? {});
+                    }
+                },
+                controller.signal,
+                aiModel,
+                customModelName
+            );
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return;
+            alert('AI 재생성 중 오류가 발생했습니다. 다시 시도해 주세요.');
+        } finally {
+            setIsRevising(false);
+            reviseAbortControllerRef.current = null;
+        }
+    };
 
     const updateUrlParams = (tmplId: number | null) => {
         if (typeof window === 'undefined') return;
@@ -1332,12 +1413,12 @@ export function PrintCanvas({
                                 <span>unbrdn.me</span>
                             </div>
                             <div>
-                                <div className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs leading-relaxed">
+                                <div className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs pdf-body-text">
                                     {renderInlineText({
                                         value: profile.bio,
                                         baseValue: origProfile?.bio ?? '',
                                         multiline: true,
-                                        textClassName: 'text-slate-600 text-xs leading-relaxed',
+                                        textClassName: 'text-slate-600 text-xs pdf-body-text',
                                         placeholder: '자기소개 및 소개 문구를 입력하세요',
                                         onChange: (val) => setProfileOverride('bio', val),
                                     })}
@@ -1554,13 +1635,13 @@ export function PrintCanvas({
                                     )}
                                 </div>
                                 <div className="min-w-0">
-                                    <div className="resume-body font-semibold text-slate-700 text-xs leading-relaxed">
+                                    <div className="resume-body font-semibold text-slate-700 text-xs pdf-body-text">
                                         {renderInlineText({
                                             value: competency.summary,
                                             baseValue: origSummary,
                                             multiline: true,
                                             textClassName:
-                                                'font-semibold text-slate-700 text-xs leading-relaxed',
+                                                'font-semibold text-slate-700 text-xs pdf-body-text',
                                             placeholder: '핵심 역량 요약 및 설명을 입력하세요',
                                             onChange: (val) =>
                                                 setCompetencyOverride(
@@ -1853,7 +1934,7 @@ export function PrintCanvas({
                                 </span>
                             </div>
                             {kind === '교육' && cred.summary && (
-                                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                                <p className="mt-1 text-xs text-slate-600 pdf-body-text">
                                     {cred.summary}
                                 </p>
                             )}
@@ -2061,7 +2142,7 @@ export function PrintCanvas({
                                 })}
                             </div>
                             {inlineEditMode ? (
-                                <div className="resume-detail-text relative mt-1 text-[12px] leading-relaxed text-slate-600">
+                                <div className="resume-detail-text relative mt-1 text-[12px] pdf-body-text text-slate-600">
                                     <div aria-hidden="true" className="invisible">
                                         <ReactMarkdown components={resumeMarkdownComponents}>
                                             {item.answer}
@@ -2073,14 +2154,14 @@ export function PrintCanvas({
                                             baseValue: origAnswer,
                                             multiline: true,
                                             textClassName:
-                                                'h-full text-[12px] leading-relaxed text-slate-600',
+                                                'h-full text-[12px] pdf-body-text text-slate-600',
                                             placeholder: '답변을 입력하세요',
                                             onChange: onAnswerChange,
                                         })}
                                     </div>
                                 </div>
                             ) : (
-                                <div className="resume-detail-text mt-1 text-[12px] leading-relaxed text-slate-600">
+                                <div className="resume-detail-text mt-1 text-[12px] pdf-body-text text-slate-600">
                                     <ReactMarkdown components={resumeMarkdownComponents}>
                                         {item.answer}
                                     </ReactMarkdown>
@@ -2258,10 +2339,14 @@ export function PrintCanvas({
                     zoom={store.zoom}
                     onZoomChange={store.setZoom}
                     onZoomFit={handleZoomFit}
+                    lineHeight={store.lineHeight}
+                    onLineHeightChange={store.setLineHeight}
                     hideGuides={store.hidePrintGuides}
                     onToggleHideGuides={store.toggleHidePrintGuides}
                     inlineEditMode={inlineEditMode}
                     onToggleInlineEditMode={() => setInlineEditMode(!inlineEditMode)}
+                    aiChatOpen={aiChatOpen}
+                    onToggleAiChat={canRevise ? () => setAiChatOpen((v) => !v) : undefined}
                 />
 
                 {inlineEditMode && (
@@ -2282,7 +2367,12 @@ export function PrintCanvas({
                     >
                         <div
                             className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
-                            style={{ zoom: store.zoom }}
+                            style={
+                                {
+                                    zoom: store.zoom,
+                                    '--print-line-height': store.lineHeight,
+                                } as CSSProperties
+                            }
                         >
                             {pageLayers.map((page, pageIdx) => (
                                 <PdfPageLayer
@@ -2331,6 +2421,32 @@ export function PrintCanvas({
                             excludedCount={store.printExcludedIds.length}
                         />
                     </div>
+
+                    {aiChatOpen && canRevise && (
+                        <div className="print:hidden shrink-0 w-[360px] border-l border-slate-800 bg-white relative">
+                            <button
+                                type="button"
+                                onClick={() => setAiChatOpen(false)}
+                                className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                aria-label="AI 대화 패널 닫기"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                            <AiRevisionChat
+                                revisions={revisions}
+                                isRevisionsLoading={isRevisionsLoading}
+                                isGenerating={isRevising}
+                                onGenerate={handleReviseGenerate}
+                                onCancelGenerate={handleCancelRevise}
+                                title="AI 이력서 초안 다듬기"
+                                subtitle="지적사항을 입력하면 현재 초안을 다시 구성합니다."
+                                generateButtonLabel="피드백 없이 재구성"
+                                emptyTitle="아직 대화 이력이 없습니다."
+                                emptyDescription="지적사항을 입력해 현재 이력서 초안을 계속 다듬어 보세요."
+                                inputPlaceholder="지적사항이나 보완 요청을 입력하세요 (전송 시 현재 초안에 반영)"
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -2369,6 +2485,7 @@ export function PrintCanvas({
                     targetRole: activeTemplate?.targetRole ?? 'GENERAL',
                     contentOverrides,
                     baseContentFingerprint: getPrintContentFingerprint(introData),
+                    lineHeight: store.lineHeight,
                 }}
                 editingTemplate={activeTemplate}
                 defaultJobPostingId={jobPostingId}

@@ -18,10 +18,20 @@ import {
     HardDrive,
     Pencil,
     FolderGit2,
+    Sparkles,
+    Loader2,
 } from 'lucide-react';
-import { bffApi, printTemplateApi, jobPostingApi, portfolioApi } from '@/lib/api';
+import {
+    ApiError,
+    bffApi,
+    printTemplateApi,
+    jobPostingApi,
+    portfolioApi,
+    portfolioPrintDraftApi,
+} from '@/lib/api';
 import type {
     PortfolioCaseStudyContent,
+    PortfolioPrintDraftResponse,
     PortfolioPrintTemplateRequest,
     PrintTemplate,
 } from '@/lib/api/types';
@@ -37,6 +47,8 @@ import {
     type LocalPrintSave,
 } from '@/lib/printTemplateLocal';
 import { PortfolioPrintCanvas } from '@/components/portfolio/PortfolioPrintCanvas';
+import { useAiModelStore } from '@/store/useAiModelStore';
+import { AiModelUsageBadge } from '../AiModelUsageBadge';
 
 const PUBLIC_TEMPLATE_LIMIT = 5;
 const PORTFOLIO_EMPTY_CONTENT: PortfolioCaseStudyContent = {
@@ -69,6 +81,13 @@ export function PrintTemplateManagement() {
     const localSaves = useLocalPrintSaves();
     const [selectedCaseStudyId, setSelectedCaseStudyId] = useState<number | null>(null);
     const [openOrientation, setOpenOrientation] = useState<'PORTRAIT' | 'LANDSCAPE' | null>(null);
+    const [generatingOrientation, setGeneratingOrientation] = useState<
+        'PORTRAIT' | 'LANDSCAPE' | null
+    >(null);
+    const [latestPortfolioDraft, setLatestPortfolioDraft] =
+        useState<PortfolioPrintDraftResponse | null>(null);
+    const aiModel = useAiModelStore((state) => state.modelKey);
+    const aiCustomModelName = useAiModelStore((state) => state.customModelName);
 
     const { data: templates = [], isLoading } = useQuery({
         queryKey: ['printTemplates', 'admin'],
@@ -101,6 +120,7 @@ export function PrintTemplateManagement() {
             sectionGaps: Record<string, number>;
             forcedPageOverrides: Record<string, number>;
             contentOverrides: Record<string, string | undefined>;
+            lineHeight: number;
         }) => {
             const orientation: 'PORTRAIT' | 'LANDSCAPE' =
                 settings.orientation === 'landscape' ? 'LANDSCAPE' : 'PORTRAIT';
@@ -116,6 +136,7 @@ export function PrintTemplateManagement() {
                     forcedPageOverrides: settings.forcedPageOverrides,
                 }),
                 isDefault: true,
+                lineHeight: settings.lineHeight,
             };
             return existing
                 ? printTemplateApi.updatePortfolio(
@@ -132,6 +153,38 @@ export function PrintTemplateManagement() {
             setOpenOrientation(null);
         },
     });
+    async function generatePortfolioDraft(orientation: 'PORTRAIT' | 'LANDSCAPE') {
+        if (selectedCaseStudyId === null) return;
+        setGeneratingOrientation(orientation);
+        try {
+            await portfolioPrintDraftApi.generateStream(
+                selectedCaseStudyId,
+                orientation,
+                (event) => {
+                    if (event.type === 'error') {
+                        alert(`포트폴리오 PDF 초안을 만들지 못했습니다. ${event.message}`);
+                        return;
+                    }
+                    setLatestPortfolioDraft(event.response);
+                    queryClient.invalidateQueries({
+                        queryKey: ['printTemplates', 'portfolio', selectedCaseStudyId],
+                    });
+                },
+                undefined,
+                aiModel,
+                aiCustomModelName || undefined
+            );
+        } catch (error) {
+            alert(
+                error instanceof ApiError
+                    ? `포트폴리오 PDF 초안을 만들지 못했습니다. ${error.message}`
+                    : '포트폴리오 PDF 초안을 만들지 못했습니다.'
+            );
+        } finally {
+            setGeneratingOrientation(null);
+        }
+    }
+
     const { data: introData } = useQuery({
         queryKey: ['introduction', 'print-template-editor'],
         queryFn: bffApi.getIntroduction,
@@ -157,6 +210,7 @@ export function PrintTemplateManagement() {
         visible: template.visible,
         displayOrder: template.displayOrder,
         jobPostingId: template.jobPostingId,
+        lineHeight: template.lineHeight,
     });
 
     const updateMutation = useMutation({
@@ -469,8 +523,9 @@ export function PrintTemplateManagement() {
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                    title="포트폴리오 배치는 아래 '포트폴리오 배치' 섹션에서 케이스스터디를 선택해 만듭니다."
                 >
-                    <Plus className="h-4 w-4" /> 새 인쇄 템플릿 만들기
+                    <Plus className="h-4 w-4" /> 새 이력서 템플릿 만들기
                 </a>
             </div>
 
@@ -576,16 +631,62 @@ export function PrintTemplateManagement() {
                                             {existing ? '설정됨' : '미설정'}
                                         </span>
                                     </div>
-                                    <button
-                                        onClick={() => setOpenOrientation(orientation)}
-                                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition"
-                                    >
-                                        <Edit2 className="h-3.5 w-3.5 text-blue-400" />
-                                        배치 편집
-                                    </button>
+                                    <div className="flex items-center gap-1.5">
+                                        {caseStudyDetail?.caseStudy.publishedRevisionId ? (
+                                            <button
+                                                type="button"
+                                                disabled={generatingOrientation !== null}
+                                                onClick={() => generatePortfolioDraft(orientation)}
+                                                className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-1 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                                title="발행된 케이스스터디 본문을 바탕으로 AI가 지면 배치를 초안으로 구성합니다."
+                                            >
+                                                {generatingOrientation === orientation ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Sparkles className="h-3.5 w-3.5" />
+                                                )}
+                                                {generatingOrientation === orientation
+                                                    ? '초안 구성 중...'
+                                                    : 'AI 포트폴리오 초안'}
+                                            </button>
+                                        ) : (
+                                            <span
+                                                className="text-[11px] font-semibold text-slate-400"
+                                                title="발행된 케이스스터디만 AI 초안을 생성할 수 있습니다."
+                                            >
+                                                미발행
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => setOpenOrientation(orientation)}
+                                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition"
+                                        >
+                                            <Edit2 className="h-3.5 w-3.5 text-blue-400" />
+                                            배치 편집
+                                        </button>
+                                    </div>
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+                {caseStudyDetail?.caseStudy.publishedRevisionId && (
+                    <div className="border-t border-slate-100 px-5 py-2">
+                        <AiModelUsageBadge />
+                    </div>
+                )}
+                {latestPortfolioDraft && (
+                    <div className="border-t border-slate-100 bg-violet-50/60 px-5 py-3">
+                        <p className="text-sm font-extrabold text-violet-900">
+                            AI 포트폴리오 PDF 초안이 만들어졌습니다
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                            {latestPortfolioDraft.strategySummary}
+                        </p>
+                        <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                            포함 후보 {latestPortfolioDraft.includedCount}개 · 제외 설정{' '}
+                            {latestPortfolioDraft.excludedCount}개
+                        </p>
                     </div>
                 )}
             </div>

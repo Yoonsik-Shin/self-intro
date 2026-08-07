@@ -1,12 +1,14 @@
 'use client';
 
 import {
+    AlignJustify,
     Eye,
     EyeOff,
     FileEdit,
     FileText,
     FolderOpen,
     ListChecks,
+    MessageSquare,
     Printer,
     Save,
     X,
@@ -27,10 +29,14 @@ type PrintPreviewBarProps = {
     zoom: number;
     onZoomChange: (zoom: number) => void;
     onZoomFit: () => void;
+    lineHeight?: number;
+    onLineHeightChange?: (value: number) => void;
     hideGuides?: boolean;
     onToggleHideGuides?: () => void;
     inlineEditMode?: boolean;
     onToggleInlineEditMode?: () => void;
+    aiChatOpen?: boolean;
+    onToggleAiChat?: () => void;
 };
 
 /** 단일 고정 상단 툴바 (양쪽 상단 둥글기 rounded-t-2xl 대칭 균형 완벽 적용) */
@@ -49,10 +55,14 @@ export function PrintPreviewBar({
     zoom,
     onZoomChange,
     onZoomFit,
+    lineHeight,
+    onLineHeightChange,
     hideGuides = false,
     onToggleHideGuides,
     inlineEditMode = false,
     onToggleInlineEditMode,
+    aiChatOpen = false,
+    onToggleAiChat,
 }: PrintPreviewBarProps) {
     const zoomControl = (
         <div className="flex items-center gap-1 bg-slate-800 border border-slate-700/60 rounded-xl px-1.5 py-1 text-white shrink-0">
@@ -79,6 +89,28 @@ export function PrintPreviewBar({
             </button>
         </div>
     );
+
+    const lineHeightControl =
+        lineHeight !== undefined && onLineHeightChange ? (
+            <div
+                className="flex items-center gap-1.5 bg-slate-800 border border-slate-700/60 rounded-xl px-2 py-1 text-white shrink-0"
+                title="본문 줄간격 조절"
+            >
+                <AlignJustify className="h-3.5 w-3.5 text-slate-400" />
+                <input
+                    type="range"
+                    min={1.0}
+                    max={2.2}
+                    step={0.025}
+                    value={lineHeight}
+                    onChange={(e) => onLineHeightChange(Number(e.target.value))}
+                    className="h-1 w-16 cursor-pointer accent-blue-500"
+                />
+                <span className="w-7 text-[10px] font-extrabold text-slate-300">
+                    {lineHeight.toFixed(2)}
+                </span>
+            </div>
+        ) : null;
 
     return (
         <div className="relative z-50 flex h-14 w-full shrink-0 items-center justify-between gap-4 bg-slate-900 px-4 shadow-xl print:hidden sm:px-6 border-b border-slate-800">
@@ -110,6 +142,7 @@ export function PrintPreviewBar({
 
             <div className="flex items-center gap-2 shrink-0">
                 {zoomControl}
+                {lineHeightControl}
                 {onToggleInlineEditMode && (
                     <button
                         onClick={onToggleInlineEditMode}
@@ -164,6 +197,21 @@ export function PrintPreviewBar({
                     <ListChecks className="h-3.5 w-3.5" />
                     <span>구성 관리</span>
                 </button>
+                {onToggleAiChat && (
+                    <button
+                        onClick={onToggleAiChat}
+                        aria-pressed={aiChatOpen}
+                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                            aiChatOpen
+                                ? 'border-indigo-400 bg-indigo-600 text-white shadow-sm'
+                                : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
+                        }`}
+                        title="AI와 대화하며 초안을 계속 다듬기"
+                    >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        <span>AI 대화</span>
+                    </button>
+                )}
                 {onOpenTemplateModal && (
                     <button
                         onClick={onOpenTemplateModal}

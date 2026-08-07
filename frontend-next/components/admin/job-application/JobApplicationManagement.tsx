@@ -1514,10 +1514,10 @@ function PrintTemplatesPanel({
                 onChange={handleDirectFileSelected}
             />
             <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3.5">
-                <p className="text-sm font-extrabold text-indigo-900">AI 맞춤 초안</p>
+                <p className="text-sm font-extrabold text-indigo-900">AI 이력서 초안</p>
                 <p className="mt-1 text-xs leading-5 text-indigo-700">
                     {hasAppealAnalysis
-                        ? '현재 어필 포인트 분석을 기준으로 PDF에 넣을 내용과 뺄 내용을 구성합니다.'
+                        ? '현재 어필 포인트 분석을 기준으로 이력서 PDF에 넣을 내용과 뺄 내용을 구성합니다.'
                         : '먼저 경력 매칭 분석 탭에서 AI 어필 포인트 분석을 실행해 주세요.'}
                 </p>
                 {appealAnalyzedAt && (
@@ -1541,8 +1541,8 @@ function PrintTemplatesPanel({
                             {isGeneratingDraft
                                 ? '초안 구성 중...'
                                 : templates.length > 0
-                                  ? '새 AI 초안 생성'
-                                  : 'AI 초안 생성'}
+                                  ? '새 AI 이력서 초안 생성'
+                                  : 'AI 이력서 초안 생성'}
                         </button>
                     ) : null}
                     {hasAppealAnalysis && <AiModelUsageBadge />}

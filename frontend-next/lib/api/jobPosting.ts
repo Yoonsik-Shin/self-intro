@@ -236,6 +236,21 @@ export const jobPostingApi = {
             onEvent,
             signal
         ),
+    reviseAiPrintDraftStream: (
+        id: number,
+        templateId: number,
+        feedbackInstruction: string,
+        onEvent: (event: JobPostingPrintDraftStreamEvent) => void,
+        signal?: AbortSignal,
+        aiModel?: string,
+        customModelName?: string
+    ) =>
+        requestEventStream<JobPostingPrintDraftStreamEvent>(
+            `/api/worker/job-postings/${id}/print-template-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
+            { feedbackInstruction },
+            onEvent,
+            signal
+        ),
     getJobplanet: (id: number) =>
         request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`),
     saveJobplanet: (id: number, payload: JobplanetCompanyRequest) =>
