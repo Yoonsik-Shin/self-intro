@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
+import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRevisionRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import com.selfintro.modules.storage.application.StorageService;
 import java.util.Optional;
@@ -18,13 +19,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class PrintTemplateServiceTest {
     @Mock PrintTemplateRepository repository;
+    @Mock PrintTemplateRevisionRepository revisionRepository;
     @Mock StorageService storageService;
 
     private PrintTemplateService service;
 
     @BeforeEach
     void setUp() {
-        service = new PrintTemplateService(repository, storageService);
+        service = new PrintTemplateService(repository, revisionRepository, storageService);
         when(repository.save(any(PrintTemplate.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -33,7 +35,8 @@ class PrintTemplateServiceTest {
     void oldRequestGetsCompatibleContentDefaults() {
         PrintTemplateRequest request =
                 new PrintTemplateRequest(
-                        "기본", "[]", "[\"skills\"]", "{}", null, null, null, null, true, 1, null);
+                        "기본", "[]", "[\"skills\"]", "{}", null, null, null, null, true, 1, null,
+                        null);
 
         PrintTemplate saved = service.create(request);
 
@@ -56,7 +59,8 @@ class PrintTemplateServiceTest {
                         2,
                         true,
                         1,
-                        null);
+                        null,
+                        PrintTemplate.DEFAULT_LINE_HEIGHT);
         when(repository.findById(1L)).thenReturn(Optional.of(existing));
         PrintTemplateRequest request =
                 new PrintTemplateRequest(
@@ -70,6 +74,7 @@ class PrintTemplateServiceTest {
                         null,
                         true,
                         1,
+                        null,
                         null);
 
         PrintTemplate saved = service.update(1L, request);

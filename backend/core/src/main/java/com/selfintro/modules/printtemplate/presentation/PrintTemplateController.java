@@ -6,6 +6,7 @@ import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTempla
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateFinalPdfRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateResponse;
+import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRevisionResponse;
 import com.selfintro.modules.storage.application.StorageService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -139,6 +140,12 @@ public class PrintTemplateController {
     @DeleteMapping("/api/admin/print-templates/{id}/final-pdf")
     public ResponseEntity<PrintTemplateResponse> removeFinalPdf(@PathVariable Long id) {
         return ResponseEntity.ok(toResponse(printTemplateService.removeFinalPdf(id)));
+    }
+
+    /** 대화형 재생성 채팅 히스토리 — 이력서/포트폴리오 공용(둘 다 printTemplateId 기준). */
+    @GetMapping("/api/admin/print-templates/{id}/revisions")
+    public ResponseEntity<List<PrintTemplateRevisionResponse>> revisions(@PathVariable Long id) {
+        return ResponseEntity.ok(printTemplateService.getRevisions(id));
     }
 
     private PrintTemplateResponse toResponse(

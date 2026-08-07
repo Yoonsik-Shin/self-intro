@@ -14,6 +14,8 @@ public class PrintTemplate {
     public static final String SOURCE_MANUAL = "MANUAL";
     public static final String SOURCE_AI = "AI";
     public static final String SOURCE_EXTERNAL = "EXTERNAL";
+    /** 프론트에 하드코딩돼 있던 leading-relaxed(Tailwind)와 동일한 배수 — 이 기본값을 쓰면 기존 템플릿은 시각적으로 그대로다. */
+    public static final double DEFAULT_LINE_HEIGHT = 1.625;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -73,6 +75,10 @@ public class PrintTemplate {
     @Column(nullable = false, length = 10)
     private String orientation;
 
+    /** 본문 줄간격 배수. 섹션 간 간격(sectionGaps)과 달리 AI 초안이 관여하지 않는 순수 사용자 조작 값이다. */
+    @Column(name = "line_height", nullable = false)
+    private double lineHeight;
+
     @Column(name = "is_final_submission", nullable = false)
     private boolean finalSubmission;
 
@@ -104,6 +110,7 @@ public class PrintTemplate {
             String documentType,
             Long portfolioCaseStudyId,
             String orientation,
+            double lineHeight,
             String source,
             String generationMetadata,
             LocalDateTime generatedAt) {
@@ -121,6 +128,7 @@ public class PrintTemplate {
         this.documentType = documentType;
         this.portfolioCaseStudyId = portfolioCaseStudyId;
         this.orientation = orientation;
+        this.lineHeight = lineHeight;
         this.source = source;
         this.generationMetadata = generationMetadata;
         this.generatedAt = generatedAt;
@@ -140,7 +148,8 @@ public class PrintTemplate {
             int schemaVersion,
             boolean visible,
             int displayOrder,
-            Long jobPostingId) {
+            Long jobPostingId,
+            double lineHeight) {
         return new PrintTemplate(
                 name,
                 excludedIds,
@@ -156,6 +165,7 @@ public class PrintTemplate {
                 DOCUMENT_TYPE_RESUME,
                 null,
                 ORIENTATION_PORTRAIT,
+                lineHeight,
                 "MANUAL",
                 null,
                 null);
@@ -187,6 +197,7 @@ public class PrintTemplate {
                 DOCUMENT_TYPE_RESUME,
                 null,
                 ORIENTATION_PORTRAIT,
+                DEFAULT_LINE_HEIGHT,
                 SOURCE_AI,
                 generationMetadata,
                 now);
@@ -213,6 +224,7 @@ public class PrintTemplate {
                         DOCUMENT_TYPE_RESUME,
                         null,
                         ORIENTATION_PORTRAIT,
+                        DEFAULT_LINE_HEIGHT,
                         SOURCE_EXTERNAL,
                         null,
                         null);
@@ -230,7 +242,9 @@ public class PrintTemplate {
             String sectionGaps,
             String contentOverrides,
             String source,
-            boolean isDefault) {
+            boolean isDefault,
+            double lineHeight,
+            String generationMetadata) {
         return new PrintTemplate(
                 name,
                 excludedIds,
@@ -246,8 +260,9 @@ public class PrintTemplate {
                 DOCUMENT_TYPE_PORTFOLIO,
                 portfolioCaseStudyId,
                 orientation,
+                lineHeight,
                 source,
-                null,
+                generationMetadata,
                 null);
     }
 
@@ -269,7 +284,8 @@ public class PrintTemplate {
                 2,
                 visible,
                 displayOrder,
-                null);
+                null,
+                DEFAULT_LINE_HEIGHT);
     }
 
     public void update(
@@ -283,7 +299,8 @@ public class PrintTemplate {
             int schemaVersion,
             boolean visible,
             int displayOrder,
-            Long jobPostingId) {
+            Long jobPostingId,
+            double lineHeight) {
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
@@ -299,6 +316,7 @@ public class PrintTemplate {
             this.finalSubmission = false;
         }
         this.jobPostingId = jobPostingId;
+        this.lineHeight = lineHeight;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -309,13 +327,30 @@ public class PrintTemplate {
             String sectionOrder,
             String sectionGaps,
             String contentOverrides,
-            boolean isDefault) {
+            boolean isDefault,
+            double lineHeight) {
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
         this.sectionGaps = sectionGaps;
         this.contentOverrides = contentOverrides == null ? "{}" : contentOverrides;
         this.visible = isDefault;
+        this.lineHeight = lineHeight;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /** 대화형 재생성 — name/visible/displayOrder/lineHeight 등 사용자 조작 필드는 안 건드린다. */
+    public void updateAiDraftContent(
+            String excludedIds,
+            String sectionOrder,
+            String targetRole,
+            String contentOverrides,
+            String generationMetadata) {
+        this.excludedIds = excludedIds;
+        this.sectionOrder = sectionOrder;
+        this.targetRole = targetRole;
+        this.contentOverrides = contentOverrides;
+        this.generationMetadata = generationMetadata;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -405,6 +440,10 @@ public class PrintTemplate {
 
     public String getOrientation() {
         return orientation;
+    }
+
+    public double getLineHeight() {
+        return lineHeight;
     }
 
     public boolean isFinalSubmission() {

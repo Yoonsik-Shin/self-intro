@@ -2,8 +2,10 @@ package com.selfintro.modules.printtemplate.application;
 
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
+import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRevisionRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
+import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRevisionResponse;
 import com.selfintro.modules.storage.application.StorageService;
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PrintTemplateService {
 
     private final PrintTemplateRepository printTemplateRepository;
+    private final PrintTemplateRevisionRepository printTemplateRevisionRepository;
     private final StorageService storageService;
 
     @Cacheable(value = "print_template:public")
@@ -59,7 +62,9 @@ public class PrintTemplateService {
                         request.sectionGaps(),
                         request.contentOverrides(),
                         "MANUAL",
-                        request.isDefault());
+                        request.isDefault(),
+                        defaultLineHeight(request.lineHeight()),
+                        null);
         return printTemplateRepository.save(template);
     }
 
@@ -75,7 +80,8 @@ public class PrintTemplateService {
                 request.sectionOrder(),
                 request.sectionGaps(),
                 request.contentOverrides(),
-                request.isDefault());
+                request.isDefault(),
+                request.lineHeight() == null ? template.getLineHeight() : request.lineHeight());
         return printTemplateRepository.save(template);
     }
 
@@ -88,7 +94,8 @@ public class PrintTemplateService {
                         existing.getSectionOrder(),
                         existing.getSectionGaps(),
                         existing.getContentOverrides(),
-                        false));
+                        false,
+                        existing.getLineHeight()));
     }
 
     @Transactional
@@ -106,7 +113,8 @@ public class PrintTemplateService {
                         request.schemaVersion() == null ? 2 : request.schemaVersion(),
                         request.visible(),
                         request.displayOrder(),
-                        request.jobPostingId());
+                        request.jobPostingId(),
+                        defaultLineHeight(request.lineHeight()));
         return printTemplateRepository.save(template);
     }
 
@@ -136,6 +144,63 @@ public class PrintTemplateService {
                         Math.toIntExact(version - 1),
                         jobPostingId);
         return printTemplateRepository.save(template);
+    }
+
+    /** 대화형 재생성 — 기존 슬롯(row)의 name/visible/lineHeight 등 사용자 조작 필드는 그대로 두고 AI가 만든 콘텐츠만 갱신한다. */
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate applyAiRevision(
+            Long templateId,
+            String excludedIds,
+            String sectionOrder,
+            String targetRole,
+            String contentOverrides,
+            String generationMetadata) {
+        PrintTemplate template = getOrThrow(templateId);
+        template.updateAiDraftContent(
+                excludedIds, sectionOrder, targetRole, contentOverrides, generationMetadata);
+        return printTemplateRepository.save(template);
+    }
+
+    /**
+     * 포트폴리오 AI 초안 — 기존 수동 배치의 기본값을 함부로 덮어쓰지 않도록 항상 isDefault=false로
+     * 만든다(마음에 들면 관리자가 updatePortfolio로 승격).
+     */
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate createPortfolioAiDraft(
+            Long caseStudyId,
+            String caseStudyTitle,
+            String orientation,
+            String excludedIds,
+            String sectionOrder,
+            String contentOverrides,
+            String generationMetadata) {
+        long version =
+                printTemplateRepository.countByPortfolioCaseStudyIdAndOrientation(
+                                caseStudyId, orientation)
+                        + 1;
+        String name = caseStudyTitle + " AI 초안 v" + version;
+        PrintTemplate template =
+                PrintTemplate.createPortfolio(
+                        name,
+                        caseStudyId,
+                        orientation,
+                        excludedIds,
+                        sectionOrder,
+                        "{}",
+                        contentOverrides,
+                        PrintTemplate.SOURCE_AI,
+                        false,
+                        PrintTemplate.DEFAULT_LINE_HEIGHT,
+                        generationMetadata);
+        return printTemplateRepository.save(template);
+    }
+
+    public List<PrintTemplateRevisionResponse> getRevisions(Long templateId) {
+        return printTemplateRevisionRepository.findByPrintTemplateIdOrderByIdAsc(templateId).stream()
+                .map(PrintTemplateRevisionResponse::from)
+                .toList();
     }
 
     @Transactional
@@ -179,7 +244,8 @@ public class PrintTemplateService {
                         : request.schemaVersion(),
                 request.visible(),
                 request.displayOrder(),
-                request.jobPostingId());
+                request.jobPostingId(),
+                request.lineHeight() == null ? template.getLineHeight() : request.lineHeight());
         return printTemplateRepository.save(template);
     }
 
@@ -241,7 +307,7 @@ public class PrintTemplateService {
         printTemplateRepository.deleteById(id);
     }
 
-    private PrintTemplate getOrThrow(Long id) {
+    public PrintTemplate getOrThrow(Long id) {
         return printTemplateRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("PrintTemplate not found: " + id));
@@ -260,5 +326,9 @@ public class PrintTemplateService {
 
     private String defaultString(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private double defaultLineHeight(Double value) {
+        return value == null ? PrintTemplate.DEFAULT_LINE_HEIGHT : value;
     }
 }

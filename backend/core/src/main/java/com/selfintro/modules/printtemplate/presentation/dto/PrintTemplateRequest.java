@@ -15,4 +15,5 @@ public record PrintTemplateRequest(
         Integer schemaVersion,
         @NotNull Boolean visible,
         int displayOrder,
-        Long jobPostingId) {}
+        Long jobPostingId,
+        Double lineHeight) {}

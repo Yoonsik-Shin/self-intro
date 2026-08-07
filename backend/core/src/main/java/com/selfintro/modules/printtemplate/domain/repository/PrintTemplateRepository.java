@@ -35,6 +35,8 @@ public interface PrintTemplateRepository extends JpaRepository<PrintTemplate, Lo
     java.util.Optional<PrintTemplate> findByPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
             Long portfolioCaseStudyId, String orientation);
 
+    long countByPortfolioCaseStudyIdAndOrientation(Long portfolioCaseStudyId, String orientation);
+
     /**
      * 중복 채용공고 병합(백필) 전용. 인쇄 템플릿이 연동하던 공고 행이 다른 승자 행으로 합쳐질 때, finalSubmission 등 다른 필드는 건드리지 않고
      * job_posting_id만 옮긴다.

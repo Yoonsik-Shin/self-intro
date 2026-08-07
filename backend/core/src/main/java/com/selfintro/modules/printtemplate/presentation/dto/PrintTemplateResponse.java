@@ -23,6 +23,7 @@ public record PrintTemplateResponse(
         String documentType,
         Long portfolioCaseStudyId,
         String orientation,
+        double lineHeight,
         boolean isFinalSubmission,
         String finalPdfUrl) {
     public static PrintTemplateResponse from(
@@ -46,6 +47,7 @@ public record PrintTemplateResponse(
                 entity.getDocumentType(),
                 entity.getPortfolioCaseStudyId(),
                 entity.getOrientation(),
+                entity.getLineHeight(),
                 entity.isFinalSubmission(),
                 entity.getFinalPdfObjectKey() == null
                         ? null

@@ -12,4 +12,5 @@ public record PortfolioPrintTemplateRequest(
         @NotNull String sectionOrder,
         @NotNull String sectionGaps,
         String contentOverrides,
-        boolean isDefault) {}
+        boolean isDefault,
+        Double lineHeight) {}
