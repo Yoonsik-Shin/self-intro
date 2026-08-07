@@ -57,31 +57,32 @@ public class JobPostingDedupMigrationService {
         int urlsNormalizedCount = 0;
         int duplicateUrlsDeletedCount = 0;
 
-        Map<Long, Set<String>> existingUrlsByPostingId = new HashMap<>();
+        Set<String> globalCanonicalUrls = new HashSet<>();
 
         for (JobPostingSourceUrl sourceUrl : allSourceUrls) {
             String rawUrl = sourceUrl.getUrl();
             String canonicalUrl = JobPostingUrlNormalizer.normalizeUrl(rawUrl);
-            if (canonicalUrl == null) {
+            if (canonicalUrl == null || canonicalUrl.isBlank()) {
                 canonicalUrl = rawUrl != null ? rawUrl.trim() : null;
             }
             JobPostingPlatform newPlatform = JobPostingPlatform.fromUrl(canonicalUrl);
 
-            Set<String> postingUrls =
-                    existingUrlsByPostingId.computeIfAbsent(
-                            sourceUrl.getJobPostingId(), k -> new HashSet<>());
-
-            if (postingUrls.contains(canonicalUrl)) {
+            if (canonicalUrl != null && globalCanonicalUrls.contains(canonicalUrl)) {
+                // job_posting_source_url.url의 전역 UNIQUE 제약조건(uk_job_posting_source_url_url)을
+                // 위반하지 않도록 이미 가공된 동일 Canonical URL이 테이블 전체에 존재하면 해당 행 삭제
                 sourceUrlRepository.delete(sourceUrl);
                 duplicateUrlsDeletedCount++;
             } else {
-                postingUrls.add(canonicalUrl);
-                if (!canonicalUrl.equals(rawUrl) || sourceUrl.getPlatform() != newPlatform) {
+                if (canonicalUrl != null) {
+                    globalCanonicalUrls.add(canonicalUrl);
+                }
+                if (canonicalUrl != null && (!canonicalUrl.equals(rawUrl) || sourceUrl.getPlatform() != newPlatform)) {
                     sourceUrl.updateUrlAndPlatform(canonicalUrl, newPlatform);
                     urlsNormalizedCount++;
                 }
             }
         }
+        sourceUrlRepository.flush();
 
         // 2. 모든 JobPosting 정규화 필드 재계산
         List<JobPosting> allPostings = jobPostingRepository.findAll();

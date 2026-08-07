@@ -162,4 +162,76 @@ class JobPostingDedupMigrationServiceTest {
                         .orElseThrow();
         assertThat(saraminSource.getPlatform()).isEqualTo(JobPostingPlatform.SARAMIN);
     }
+
+    @Test
+    @DisplayName("서로 다른 공고에 동일한 공고의 수집 URL 파라미터가 다르게 등록되어도 전역 UK 에러 없이 마이그레이션한다")
+    void handlesCrossPostingSameCanonicalUrlWithoutUniqueConstraintViolation() {
+        LocalDateTime now = LocalDateTime.now();
+
+        JobPosting p1 =
+                jobPostingRepository.save(
+                        JobPosting.collect(
+                                new JobPosting.Draft(
+                                        "백엔드 개발자",
+                                        "A회사",
+                                        "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=54637383&utm_source=mail",
+                                        null,
+                                        JobPostingSource.URL_INGEST,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        false,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null),
+                                now));
+        sourceUrlRepository.save(
+                JobPostingSourceUrl.primary(
+                        p1.getId(),
+                        "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=54637383&utm_source=mail",
+                        JobPostingPlatform.OTHER,
+                        now));
+
+        JobPosting p2 =
+                jobPostingRepository.save(
+                        JobPosting.collect(
+                                new JobPosting.Draft(
+                                        "백엔드 개발자",
+                                        "A회사",
+                                        "https://www.saramin.co.kr/zf_user/jobs/relay/view?view_type=list&rec_idx=54637383",
+                                        null,
+                                        JobPostingSource.URL_INGEST,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        false,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null),
+                                now));
+        sourceUrlRepository.save(
+                JobPostingSourceUrl.primary(
+                        p2.getId(),
+                        "https://www.saramin.co.kr/zf_user/jobs/relay/view?view_type=list&rec_idx=54637383",
+                        JobPostingPlatform.SARAMIN,
+                        now));
+
+        JobPostingDedupMigrationService.MigrationResult result = migrationService.runMigration();
+
+        assertThat(result.duplicateUrlsDeletedCount()).isGreaterThanOrEqualTo(1);
+        List<JobPosting> aPostings = jobPostingRepository.findByCompanyNameNormalized("A회사");
+        assertThat(aPostings).hasSize(1);
+    }
 }
