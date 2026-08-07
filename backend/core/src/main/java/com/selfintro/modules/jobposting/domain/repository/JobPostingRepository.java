@@ -20,6 +20,8 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     Optional<JobPosting> findByCompanyNameNormalizedAndPositionTitleNormalized(
             String companyNameNormalized, String positionTitleNormalized);
 
+    List<JobPosting> findByCompanyNameNormalized(String companyNameNormalized);
+
     /**
      * 마감일이 지났다고 바로 숨기지 않는다 — 명시적으로 {@link JobPosting#markExpired}가 호출돼 EXPIRED 상태가 되기 전까지는(= "지금
      * 수집"/스케줄 정리가 한 번 돌기 전까지는) 목록에 그대로 보이고, 마감 여부는 프론트에서 D-day 배지로 표시한다. EXPIRED만 전체 목록에서 제외한다 — 지원

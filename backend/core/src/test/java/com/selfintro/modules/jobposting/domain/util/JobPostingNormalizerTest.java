@@ -35,8 +35,18 @@ class JobPostingNormalizerTest {
     }
 
     @Test
+    void normalizesPositionTitleKeyForCrossPlatformMatching() {
+        String saraminTitle = "AI 개발 엔지니어";
+        String jobkoreaTitle = "AI 개발 엔지니어(신입/Java개발)";
+
+        assertThat(JobPostingNormalizer.normalizePositionTitleKey(saraminTitle))
+                .isEqualTo(JobPostingNormalizer.normalizePositionTitleKey(jobkoreaTitle));
+    }
+
+    @Test
     void treatsNullAsEmptyString() {
         assertThat(JobPostingNormalizer.normalizeCompanyName(null)).isEqualTo("");
         assertThat(JobPostingNormalizer.normalizePositionTitle(null)).isEqualTo("");
+        assertThat(JobPostingNormalizer.normalizePositionTitleKey(null)).isEqualTo("");
     }
 }

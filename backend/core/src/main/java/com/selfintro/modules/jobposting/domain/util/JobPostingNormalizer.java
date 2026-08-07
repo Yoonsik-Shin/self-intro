@@ -44,4 +44,22 @@ public final class JobPostingNormalizer {
         String normalized = WHITESPACE.matcher(raw.trim()).replaceAll(" ");
         return normalized.toUpperCase(Locale.ROOT);
     }
+
+    /**
+     * 플랫폼 간 직무명 표기 차이(예: "AI 개발 엔지니어" vs "AI 개발 엔지니어(신입/Java개발)")를
+     * 완화하여 중복 매칭에 사용하는 직무명 핵심 비교 키를 생성한다.
+     */
+    public static String normalizePositionTitleKey(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String normalized = raw.trim();
+        // 괄호 안의 고용형태/자격요건/경력 태그 제거 (예: (신입/Java개발), [신입/경력], (인턴))
+        normalized = normalized.replaceAll("(?i)[\\[\\(][^\\]\\)]*?(?:신입|경력|인턴|정규직|계약직|프리랜서)[^\\]\\)]*?[\\]\\)]", "");
+        // "채용" 보일러플레이트 제거
+        normalized = normalized.replaceAll("(?i)\\s*채용\\s*", " ");
+        // 특수문자 제거 및 공백/대소문자 정규화
+        normalized = WHITESPACE.matcher(normalized).replaceAll(" ").trim();
+        return normalized.toUpperCase(Locale.ROOT);
+    }
 }

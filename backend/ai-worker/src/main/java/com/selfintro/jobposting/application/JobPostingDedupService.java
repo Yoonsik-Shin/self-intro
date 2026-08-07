@@ -6,6 +6,7 @@ import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer;
+import com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -32,17 +33,47 @@ public class JobPostingDedupService {
     public Optional<JobPosting> findExistingMatch(String companyName, String positionTitle) {
         String normalizedCompany = JobPostingNormalizer.normalizeCompanyName(companyName);
         String normalizedTitle = JobPostingNormalizer.normalizePositionTitle(positionTitle);
-        return jobPostingRepository.findByCompanyNameNormalizedAndPositionTitleNormalized(
-                normalizedCompany, normalizedTitle);
+
+        // 1차: 정규화된 회사명+직무명 완전일치
+        Optional<JobPosting> exactMatch =
+                jobPostingRepository.findByCompanyNameNormalizedAndPositionTitleNormalized(
+                        normalizedCompany, normalizedTitle);
+        if (exactMatch.isPresent()) {
+            return exactMatch;
+        }
+
+        // 2차: 직무명 표기 차이(채용 접두어/고용형태 태그 노이즈 등)가 있는 동일 회사의 기존 진행 공고 매칭
+        String cleanTitleKey = JobPostingNormalizer.normalizePositionTitleKey(positionTitle);
+        if (cleanTitleKey.isBlank()) {
+            return Optional.empty();
+        }
+
+        java.util.List<JobPosting> companyPostings =
+                jobPostingRepository.findByCompanyNameNormalized(normalizedCompany);
+        for (JobPosting candidate : companyPostings) {
+            String candidateKey =
+                    JobPostingNormalizer.normalizePositionTitleKey(candidate.getPositionTitle());
+            if (cleanTitleKey.equals(candidateKey)
+                    || cleanTitleKey.contains(candidateKey)
+                    || candidateKey.contains(cleanTitleKey)) {
+                return Optional.of(candidate);
+            }
+        }
+
+        return Optional.empty();
     }
 
     /** 새 공고를 저장하고, 수집에 쓰인 URL을 그 공고의 대표(primary) 출처로 함께 등록한다. */
     @Transactional
     public JobPosting createNew(
             JobPosting posting, String url, JobPostingPlatform platform, LocalDateTime now) {
+        String normalizedUrl = JobPostingUrlNormalizer.normalizeUrl(url);
+        if (normalizedUrl == null) {
+            normalizedUrl = url != null ? url.trim() : null;
+        }
         JobPosting saved = jobPostingRepository.save(posting);
         sourceUrlRepository.save(
-                JobPostingSourceUrl.primary(saved.getId(), url, platform, now));
+                JobPostingSourceUrl.primary(saved.getId(), normalizedUrl, platform, now));
         return saved;
     }
 
@@ -62,11 +93,15 @@ public class JobPostingDedupService {
                                         new EntityNotFoundException(
                                                 "존재하지 않는 채용 공고입니다: " + existingJobPostingId));
         posting.touch(now);
-        if (!sourceUrlRepository.existsByUrl(url)) {
+        String normalizedUrl = JobPostingUrlNormalizer.normalizeUrl(url);
+        if (normalizedUrl == null) {
+            normalizedUrl = url != null ? url.trim() : null;
+        }
+        if (!sourceUrlRepository.existsByUrl(normalizedUrl)) {
             sourceUrlRepository.save(
-                    JobPostingSourceUrl.additional(posting.getId(), url, platform, now));
+                    JobPostingSourceUrl.additional(posting.getId(), normalizedUrl, platform, now));
         } else {
-            log.debug("이미 등록된 공고 URL이라 추가 등록을 건너뜁니다: {}", url);
+            log.debug("이미 등록된 공고 URL이라 추가 등록을 건너뜁니다: {}", normalizedUrl);
         }
         return posting;
     }
