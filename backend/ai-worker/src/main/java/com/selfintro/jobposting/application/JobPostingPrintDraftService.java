@@ -9,6 +9,7 @@ import com.selfintro.bff.application.BffService;
 import com.selfintro.bff.presentation.dto.IntroductionResponse;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.LlmDispatcher;
+import com.selfintro.global.ai.PrintDraftStreamSupport;
 import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
@@ -21,14 +22,15 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRep
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.entity.PrintTemplateRevision;
+import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRevisionRepository;
 import com.selfintro.modules.profile.presentation.dto.ProfileResponse;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService.RelevantMatches;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,7 +43,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -92,6 +93,41 @@ public class JobPostingPrintDraftService {
             }
             """;
 
+    private static final String REVISION_SYSTEM_PROMPT =
+            """
+            당신은 한국 개발자 이력서 편집자다. 이미 만들어진 PDF 이력서 초안(currentDraft)과 사용자의
+            지적/보완 요청(feedbackInstruction)을 바탕으로, 채용 공고와 후보자의 실제 경력 데이터 범위 안에서
+            초안을 다시 구성한다. 반드시 JSON 객체 하나만 반환한다.
+
+            원칙:
+            - 사용자의 feedbackInstruction을 최우선으로 반영해 currentDraft의 부족한 점을 적극 수정한다.
+            - ID는 입력에 존재하는 값만 사용한다. ID를 새로 만들지 않는다.
+            - 프로젝트/성과/기술/역량은 공고 관련성과 증거 강도를 기준으로 선택한다.
+            - 수치, 기간, 도구, 성과를 추측하거나 새로 만들지 않는다.
+            - 문구 개선은 원문의 의미와 사실을 유지하고 짧고 구체적인 한국어로 쓴다.
+            - 회사 경력 자체는 제거 대상이 아니며, 그 안의 프로젝트와 세부 성과만 선별한다.
+            - selectedSkillIds, includedExperienceIds, includedDetailIds, includedCompetencyIds는 반드시 JSON 숫자 배열이다.
+            - 원문과 동일한 문장은 override에 반복하지 말고, 실제로 개선할 항목만 넣는다.
+            - experienceOverrides는 최대 8개, detailOverrides는 최대 12개, competencyOverrides는 최대 5개다.
+            - decisions는 핵심 판단만 최대 20개, warnings는 최대 5개로 제한한다.
+
+            응답 스키마:
+            {
+              "strategySummary":"이번 재구성에서 무엇을 어떻게 반영했는지 1~3문장",
+              "targetRole":"60자 이하 목표 직무",
+              "selectedSkillIds":[1],
+              "includedExperienceIds":[1],
+              "includedDetailIds":[1],
+              "includedCompetencyIds":[1],
+              "profile":{"jobTitle":"","bio":"","coreStackSummary":""},
+              "experienceOverrides":[{"id":1,"summary":"","takeaway":"","role":""}],
+              "detailOverrides":[{"id":1,"content":"","narrative":""}],
+              "competencyOverrides":[{"id":1,"title":"","summary":""}],
+              "decisions":[{"itemType":"PROJECT|DETAIL|SKILL|COMPETENCY","itemId":"1","decision":"INCLUDE|EXCLUDE","reason":"근거"}],
+              "warnings":["보완 또는 확인할 점"]
+            }
+            """;
+
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
@@ -100,6 +136,8 @@ public class JobPostingPrintDraftService {
     private final RelevantProfileDigestService relevantProfileDigestService;
     private final LlmDispatcher llmDispatcher;
     private final PrintTemplateService printTemplateService;
+    private final PrintTemplateRevisionRepository printTemplateRevisionRepository;
+    private final PrintDraftStreamSupport printDraftStreamSupport;
     private final ObjectMapper objectMapper;
 
     /**
@@ -107,20 +145,8 @@ public class JobPostingPrintDraftService {
      * 헤더가 즉시 나가므로 AI 호출이 90초를 넘겨도 요청이 끊기지 않는다(VectorBackfillOrchestrator와
      * 동일한 문제, JobApplicationUrlParseService.parseStream과 동일한 해법).
      */
-    private SseEmitter createSseEmitter(long timeoutMillis) {
-        SseEmitter emitter = new SseEmitter(timeoutMillis);
-        emitter.onTimeout(() -> {
-            log.info("PDF 초안 SSE 스트림 타임아웃 발생");
-            emitter.complete();
-        });
-        emitter.onError(ex -> {
-            log.debug("PDF 초안 SSE 스트림 에러: {}", ex.getMessage());
-        });
-        return emitter;
-    }
-
     public SseEmitter generateStream(Long jobPostingId, String aiModel, String customModelName) {
-        SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
+        SseEmitter emitter = printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "이력서 PDF 초안");
         Thread.ofVirtual()
                 .name("job-posting-print-draft-stream")
                 .start(() -> streamGenerate(jobPostingId, aiModel, customModelName, emitter));
@@ -130,40 +156,58 @@ public class JobPostingPrintDraftService {
     private void streamGenerate(Long jobPostingId, String aiModel, String customModelName, SseEmitter emitter) {
         try {
             JobPostingPrintDraftResponse response = generate(jobPostingId, aiModel, customModelName);
-            send(emitter, new CompleteEvent("complete", response));
-            emitter.complete();
+            printDraftStreamSupport.sendComplete(emitter, response);
         } catch (ResponseStatusException exception) {
             log.warn("AI PDF 초안 스트리밍 실패: {}", exception.getReason(), exception);
-            fail(emitter, exception.getReason() == null ? "PDF 초안 생성에 실패했습니다." : exception.getReason());
+            printDraftStreamSupport.sendError(
+                    emitter, exception.getReason() == null ? "PDF 초안 생성에 실패했습니다." : exception.getReason());
         } catch (Exception exception) {
             log.warn("AI PDF 초안 스트리밍 중 예상하지 못한 오류", exception);
-            fail(emitter, "PDF 초안 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
+            printDraftStreamSupport.sendError(emitter, "PDF 초안 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
         }
     }
 
-    private void send(SseEmitter emitter, Object payload) {
+    public SseEmitter reviseStream(
+            Long jobPostingId,
+            Long templateId,
+            String feedbackInstruction,
+            String aiModel,
+            String customModelName) {
+        SseEmitter emitter = printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "이력서 PDF 재생성");
+        Thread.ofVirtual()
+                .name("job-posting-print-draft-revise-stream")
+                .start(
+                        () ->
+                                streamRevise(
+                                        jobPostingId,
+                                        templateId,
+                                        feedbackInstruction,
+                                        aiModel,
+                                        customModelName,
+                                        emitter));
+        return emitter;
+    }
+
+    private void streamRevise(
+            Long jobPostingId,
+            Long templateId,
+            String feedbackInstruction,
+            String aiModel,
+            String customModelName,
+            SseEmitter emitter) {
         try {
-            emitter.send(
-                    SseEmitter.event()
-                            .data(
-                                    objectMapper.writeValueAsString(payload),
-                                    MediaType.APPLICATION_JSON));
-        } catch (IOException exception) {
-            throw new UncheckedIOException("SSE 이벤트 전송에 실패했습니다.", exception);
+            JobPostingPrintDraftResponse response =
+                    revise(jobPostingId, templateId, feedbackInstruction, aiModel, customModelName);
+            printDraftStreamSupport.sendComplete(emitter, response);
+        } catch (ResponseStatusException exception) {
+            log.warn("AI PDF 재생성 스트리밍 실패: {}", exception.getReason(), exception);
+            printDraftStreamSupport.sendError(
+                    emitter, exception.getReason() == null ? "PDF 재생성에 실패했습니다." : exception.getReason());
+        } catch (Exception exception) {
+            log.warn("AI PDF 재생성 스트리밍 중 예상하지 못한 오류", exception);
+            printDraftStreamSupport.sendError(emitter, "PDF 재생성 중 오류가 발생했습니다. 다시 시도해주세요.");
         }
     }
-
-    private void fail(SseEmitter emitter, String message) {
-        try {
-            send(emitter, new ErrorEvent("error", message));
-            emitter.complete();
-        } catch (RuntimeException ignored) {
-        }
-    }
-
-    private record CompleteEvent(String type, JobPostingPrintDraftResponse response) {}
-
-    private record ErrorEvent(String type, String message) {}
 
     public JobPostingPrintDraftResponse generate(Long jobPostingId, String aiModel, String customModelName) {
         JobPosting postingEntity =
@@ -204,15 +248,141 @@ public class JobPostingPrintDraftService {
                         writeJson(artifacts.contentOverrides()),
                         metadata);
 
+        String strategySummary =
+                text(plan, "strategySummary", "공고 관련성이 높은 경력과 성과를 우선 배치했습니다.", 1000);
+        String modelLabel = llmDispatcher.resolveLabel(aiModel, customModelName);
+        printTemplateRevisionRepository.save(
+                PrintTemplateRevision.create(
+                        template.getId(),
+                        PrintTemplateRevision.SENDER_AI,
+                        strategySummary,
+                        modelLabel,
+                        LocalDateTime.now()));
+
         return new JobPostingPrintDraftResponse(
                 template.getId(),
                 template.getName(),
-                text(plan, "strategySummary", "공고 관련성이 높은 경력과 성과를 우선 배치했습니다.", 1000),
+                strategySummary,
                 template.getTargetRole(),
                 artifacts.includedCount(),
                 artifacts.excludedIds().size(),
                 decisions(plan),
                 strings(plan.path("warnings")));
+    }
+
+    private JobPostingPrintDraftResponse revise(
+            Long jobPostingId,
+            Long templateId,
+            String feedbackInstruction,
+            String aiModel,
+            String customModelName) {
+        JobPosting postingEntity =
+                jobPostingRepository
+                        .findById(jobPostingId)
+                        .orElseThrow(
+                                () ->
+                                        new jakarta.persistence.EntityNotFoundException(
+                                                "존재하지 않는 채용 공고입니다: " + jobPostingId));
+        JobPostingResponse posting =
+                JobPostingResponse.from(
+                        postingEntity,
+                        sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
+                                postingEntity.getId()),
+                        positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(
+                                postingEntity.getId()),
+                        sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(
+                                postingEntity.getId()));
+        IntroductionResponse introduction = bffService.getIntroduction();
+        List<ExperienceResponse> relevantExperiences = filterRelevantExperiences(posting, introduction);
+        PrintTemplate current = printTemplateService.getOrThrow(templateId);
+        String input =
+                serializeRevisionInput(
+                        posting, introduction, relevantExperiences, current, feedbackInstruction);
+        String raw =
+                llmDispatcher.generateJson(
+                        REVISION_SYSTEM_PROMPT,
+                        input,
+                        aiModel,
+                        customModelName,
+                        AI_MAX_OUTPUT_TOKENS,
+                        AI_TIMEOUT);
+        JsonNode plan = parseJson(raw);
+
+        DraftArtifacts artifacts = assemble(plan, introduction, relevantExperiences);
+        String metadata = writeJson(buildMetadata(plan, artifacts));
+        PrintTemplate template =
+                printTemplateService.applyAiRevision(
+                        templateId,
+                        writeJson(artifacts.excludedIds()),
+                        SECTION_ORDER,
+                        text(plan, "targetRole", posting.positionTitle(), 60),
+                        writeJson(artifacts.contentOverrides()),
+                        metadata);
+
+        String strategySummary =
+                text(plan, "strategySummary", "피드백을 반영해 초안을 다시 구성했습니다.", 1000);
+        String modelLabel = llmDispatcher.resolveLabel(aiModel, customModelName);
+        LocalDateTime now = LocalDateTime.now();
+        if (AiJsonSupport.hasText(feedbackInstruction)) {
+            printTemplateRevisionRepository.save(
+                    PrintTemplateRevision.create(
+                            templateId,
+                            PrintTemplateRevision.SENDER_USER,
+                            feedbackInstruction.trim(),
+                            now));
+        }
+        printTemplateRevisionRepository.save(
+                PrintTemplateRevision.create(
+                        templateId, PrintTemplateRevision.SENDER_AI, strategySummary, modelLabel, now));
+
+        return new JobPostingPrintDraftResponse(
+                template.getId(),
+                template.getName(),
+                strategySummary,
+                template.getTargetRole(),
+                artifacts.includedCount(),
+                artifacts.excludedIds().size(),
+                decisions(plan),
+                strings(plan.path("warnings")));
+    }
+
+    private String serializeRevisionInput(
+            JobPostingResponse posting,
+            IntroductionResponse introduction,
+            List<ExperienceResponse> experiences,
+            PrintTemplate current,
+            String feedbackInstruction) {
+        ObjectNode input = objectMapper.createObjectNode();
+        input.set("jobPosting", objectMapper.valueToTree(posting));
+        input.set("profile", objectMapper.valueToTree(introduction.profile()));
+        input.set("skills", objectMapper.valueToTree(introduction.skills()));
+        input.set("experiences", objectMapper.valueToTree(experiences));
+        input.set("coreProjects", objectMapper.valueToTree(introduction.coreProjects()));
+        input.set("competencies", objectMapper.valueToTree(introduction.competencies()));
+
+        ObjectNode currentDraft = objectMapper.createObjectNode();
+        currentDraft.put("targetRole", current.getTargetRole());
+        currentDraft.set("excludedIds", readJsonOrEmptyArray(current.getExcludedIds()));
+        currentDraft.set("contentOverrides", readJsonOrEmptyObject(current.getContentOverrides()));
+        input.set("currentDraft", currentDraft);
+        input.put("feedbackInstruction", feedbackInstruction == null ? "" : feedbackInstruction.trim());
+        return writeJson(input);
+    }
+
+    private JsonNode readJsonOrEmptyArray(String raw) {
+        try {
+            return raw == null || raw.isBlank() ? objectMapper.createArrayNode() : objectMapper.readTree(raw);
+        } catch (JsonProcessingException exception) {
+            return objectMapper.createArrayNode();
+        }
+    }
+
+    private JsonNode readJsonOrEmptyObject(String raw) {
+        try {
+            return raw == null || raw.isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(raw);
+        } catch (JsonProcessingException exception) {
+            return objectMapper.createObjectNode();
+        }
     }
 
     private String serializeInput(
@@ -514,19 +684,11 @@ public class JobPostingPrintDraftService {
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("PDF 초안 JSON 직렬화에 실패했습니다.", exception);
-        }
+        return AiJsonSupport.writeJson(objectMapper, value);
     }
 
     private String text(JsonNode node, String field, String fallback, int maxLength) {
-        JsonNode value = node.path(field);
-        if (!value.isValueNode()) return fallback;
-        String result = value.asText().trim();
-        if (result.isBlank()) return fallback;
-        return result.length() > maxLength ? result.substring(0, maxLength) : result;
+        return AiJsonSupport.text(node, field, fallback, maxLength);
     }
 
     private long longValue(JsonNode node) {

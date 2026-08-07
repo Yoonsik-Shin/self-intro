@@ -15,6 +15,7 @@ import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
+import com.selfintro.jobposting.presentation.dto.PrintTemplateRevisionRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -127,6 +128,19 @@ public class JobPostingController {
             @RequestParam(required = false) String aiModel,
             @RequestParam(required = false) String customModelName) {
         return jobPostingPrintDraftService.generateStream(id, aiModel, customModelName);
+    }
+
+    @PostMapping(
+            value = "/{id}/print-template-draft/{templateId}/revise/stream",
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter revisePrintTemplateDraftStream(
+            @PathVariable Long id,
+            @PathVariable Long templateId,
+            @Valid @RequestBody PrintTemplateRevisionRequest request,
+            @RequestParam(required = false) String aiModel,
+            @RequestParam(required = false) String customModelName) {
+        return jobPostingPrintDraftService.reviseStream(
+                id, templateId, request.feedbackInstruction(), aiModel, customModelName);
     }
 
     @GetMapping("/{id}/gap-project-documents")

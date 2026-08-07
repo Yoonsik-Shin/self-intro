@@ -10,7 +10,7 @@ class JobPostingPrintDraftServiceTest {
 
     private final JobPostingPrintDraftService service =
             new JobPostingPrintDraftService(
-                    null, null, null, null, null, null, null, null, new ObjectMapper());
+                    null, null, null, null, null, null, null, null, null, null, new ObjectMapper());
 
     @Test
     void parsesJsonEvenWhenModelAddsTextAroundIt() {

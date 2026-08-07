@@ -115,4 +115,21 @@ public final class AiJsonSupport {
         String trimmed = value.trim();
         return trimmed.length() <= max ? trimmed : trimmed.substring(0, max);
     }
+
+    /** AI 응답 JsonNode에서 필드 하나를 안전하게 꺼낸다 — 값이 없거나 공백이면 fallback을 쓴다. */
+    public static String text(JsonNode node, String field, String fallback, int maxLength) {
+        JsonNode value = node.path(field);
+        if (!value.isValueNode()) return fallback;
+        String result = value.asText().trim();
+        if (result.isBlank()) return fallback;
+        return result.length() > maxLength ? result.substring(0, maxLength) : result;
+    }
+
+    public static String writeJson(ObjectMapper objectMapper, Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("AI 초안 JSON 직렬화에 실패했습니다.", exception);
+        }
+    }
 }
