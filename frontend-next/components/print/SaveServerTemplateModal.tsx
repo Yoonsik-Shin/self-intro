@@ -22,6 +22,7 @@ type SaveServerTemplateModalProps = {
         targetRole: string;
         contentOverrides: PrintTemplateContentOverrides;
         baseContentFingerprint: string;
+        lineHeight: number;
     };
     editingTemplate?: PrintTemplate | null;
     /** 지원 공고를 통해 PDF를 내보낸 경우 그 공고 id로 미리 채워둔다(직접 바꿀 수 있음). */
@@ -106,6 +107,7 @@ export function SaveServerTemplateModal({
             visible,
             displayOrder: editingTemplate?.displayOrder ?? 1,
             jobPostingId,
+            lineHeight: currentSettings.lineHeight,
         };
 
         if (editingTemplate?.id) {

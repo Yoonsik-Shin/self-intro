@@ -3,11 +3,15 @@ import { reorderablePrintSections, LOCKED_PRINT_SECTION_ID } from '@/lib/printSe
 
 type DragPosition = 'before' | 'after' | null;
 
+/** 프론트 leading-relaxed(Tailwind)와 같은 배수 — 백엔드 PrintTemplate.DEFAULT_LINE_HEIGHT와 동일값. */
+export const DEFAULT_LINE_HEIGHT = 1.625;
+
 type PrintState = {
     zoom: number;
     printExcludedIds: string[];
     printSectionOrder: string[];
     sectionGaps: Record<string, number>;
+    lineHeight: number;
     forcedPageOverrides: Record<string, number>;
     itemOrderOverrides: Record<string, string[]>;
     hidePrintGuides: boolean;
@@ -36,6 +40,7 @@ type PrintState = {
     setItemOrderOverrides: (overrides: Record<string, string[]>) => void;
     setGap: (id: string, px: number) => void;
     setSectionGaps: (gaps: Record<string, number>) => void;
+    setLineHeight: (value: number) => void;
     forcePage: (ids: string[], pageIndex: number) => void;
     clearForcedPage: (ids: string[]) => void;
     setForcedPageOverrides: (overrides: Record<string, number>) => void;
@@ -53,6 +58,7 @@ type PrintState = {
         sectionGaps: Record<string, number>;
         forcedPageOverrides?: Record<string, number>;
         itemOrderOverrides?: Record<string, string[]>;
+        lineHeight?: number;
     }) => void;
 };
 
@@ -70,6 +76,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     printExcludedIds: [],
     printSectionOrder: reorderablePrintSections.map((s) => s.id),
     sectionGaps: {},
+    lineHeight: DEFAULT_LINE_HEIGHT,
     forcedPageOverrides: {},
     itemOrderOverrides: {},
     hidePrintGuides: readHidePrintGuides(),
@@ -152,6 +159,8 @@ export const usePrintStore = create<PrintState>((set, get) => ({
 
     setSectionGaps: (gaps) => set({ sectionGaps: gaps }),
 
+    setLineHeight: (value) => set({ lineHeight: Math.min(Math.max(value, 1.0), 2.5) }),
+
     forcePage: (ids, pageIndex) =>
         set((state) => {
             const next = { ...state.forcedPageOverrides };
@@ -202,6 +211,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             printExcludedIds: [],
             printSectionOrder: reorderablePrintSections.map((s) => s.id),
             sectionGaps: {},
+            lineHeight: DEFAULT_LINE_HEIGHT,
             forcedPageOverrides: {},
             itemOrderOverrides: {},
             printPending: false,
@@ -223,6 +233,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             printExcludedIds: settings.excludedIds || [],
             printSectionOrder: merged,
             sectionGaps: settings.sectionGaps || {},
+            lineHeight: settings.lineHeight ?? DEFAULT_LINE_HEIGHT,
             forcedPageOverrides: overrides,
             itemOrderOverrides: settings.itemOrderOverrides || {},
             printPending: false,

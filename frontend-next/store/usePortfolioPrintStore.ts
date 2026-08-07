@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { PageOrientation } from '@/lib/pdfLayoutEngine';
+import { DEFAULT_LINE_HEIGHT } from '@/store/usePrintStore';
 
 /**
  * usePrintStore(이력서)와 같은 상태 shape을 쓰되, 포트폴리오 케이스스터디는 섹션 순서가
@@ -11,6 +12,7 @@ type PortfolioPrintState = {
     zoom: number;
     excludedIds: string[];
     sectionGaps: Record<string, number>;
+    lineHeight: number;
     forcedPageOverrides: Record<string, number>;
     atomHeights: Map<string, number>;
     hideGuides: boolean;
@@ -22,6 +24,7 @@ type PortfolioPrintState = {
     setExcludedIds: (ids: string[]) => void;
     setGap: (id: string, px: number) => void;
     setSectionGaps: (gaps: Record<string, number>) => void;
+    setLineHeight: (value: number) => void;
     forcePage: (ids: string[], pageIndex: number) => void;
     clearForcedPage: (ids: string[]) => void;
     setForcedPageOverrides: (overrides: Record<string, number>) => void;
@@ -34,6 +37,7 @@ type PortfolioPrintState = {
         excludedIds: string[];
         sectionGaps: Record<string, number>;
         forcedPageOverrides?: Record<string, number>;
+        lineHeight?: number;
     }) => void;
 };
 
@@ -42,6 +46,7 @@ export const usePortfolioPrintStore = create<PortfolioPrintState>((set, get) => 
     zoom: 1.0,
     excludedIds: [],
     sectionGaps: {},
+    lineHeight: DEFAULT_LINE_HEIGHT,
     forcedPageOverrides: {},
     atomHeights: new Map(),
     hideGuides: false,
@@ -64,6 +69,8 @@ export const usePortfolioPrintStore = create<PortfolioPrintState>((set, get) => 
         set((state) => ({ sectionGaps: { ...state.sectionGaps, [id]: Math.max(0, px) } })),
 
     setSectionGaps: (gaps) => set({ sectionGaps: gaps }),
+
+    setLineHeight: (value) => set({ lineHeight: Math.min(Math.max(value, 1.0), 2.5) }),
 
     forcePage: (ids, pageIndex) =>
         set((state) => {
@@ -95,6 +102,7 @@ export const usePortfolioPrintStore = create<PortfolioPrintState>((set, get) => 
         set({
             excludedIds: [],
             sectionGaps: {},
+            lineHeight: DEFAULT_LINE_HEIGHT,
             forcedPageOverrides: {},
             printPending: false,
         }),
@@ -103,6 +111,7 @@ export const usePortfolioPrintStore = create<PortfolioPrintState>((set, get) => 
         set({
             excludedIds: settings.excludedIds || [],
             sectionGaps: settings.sectionGaps || {},
+            lineHeight: settings.lineHeight ?? DEFAULT_LINE_HEIGHT,
             forcedPageOverrides: settings.forcedPageOverrides || {},
             printPending: false,
         }),

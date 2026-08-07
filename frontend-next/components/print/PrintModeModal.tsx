@@ -29,6 +29,7 @@ type PrintSettings = {
     forcedPageOverrides?: Record<string, number>;
     itemOrderOverrides?: Record<string, string[]>;
     contentOverrides?: PrintTemplateContentOverrides;
+    lineHeight?: number;
     selectedTemplate?: PrintTemplate;
 };
 
@@ -95,6 +96,7 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
                     ? (__itemOrderOverrides as Record<string, string[]>)
                     : {},
             contentOverrides: t.contentOverrides || {},
+            lineHeight: t.lineHeight,
             selectedTemplate: t,
         });
     };

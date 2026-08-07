@@ -5,6 +5,7 @@ import type {
     PrintTemplate,
     PrintTemplateRaw,
     PrintTemplateRequest,
+    PrintTemplateRevision,
 } from './types';
 
 function safeParseJson<T>(rawStr: string | null | undefined, fallback: T): T {
@@ -39,6 +40,7 @@ function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
         documentType: raw.documentType,
         portfolioCaseStudyId: raw.portfolioCaseStudyId,
         orientation: raw.orientation,
+        lineHeight: raw.lineHeight,
         isFinalSubmission: raw.isFinalSubmission,
         finalPdfUrl: raw.finalPdfUrl,
     };
@@ -140,4 +142,6 @@ export const printTemplateApi = {
         );
         return parsePrintTemplate(raw);
     },
+    revisions: (templateId: number) =>
+        request<PrintTemplateRevision[]>(`/api/admin/print-templates/${templateId}/revisions`),
 };

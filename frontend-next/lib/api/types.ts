@@ -871,6 +871,7 @@ export type PrintTemplateRaw = {
     documentType: 'RESUME' | 'PORTFOLIO';
     portfolioCaseStudyId: number | null;
     orientation: 'PORTRAIT' | 'LANDSCAPE';
+    lineHeight: number;
     isFinalSubmission: boolean;
     finalPdfUrl: string | null;
 };
@@ -914,6 +915,7 @@ export type PrintTemplate = {
     documentType: 'RESUME' | 'PORTFOLIO';
     portfolioCaseStudyId: number | null;
     orientation: 'PORTRAIT' | 'LANDSCAPE';
+    lineHeight: number;
     isFinalSubmission: boolean;
     finalPdfUrl: string | null;
 };
@@ -984,6 +986,7 @@ export type PrintTemplateRequest = {
     visible: boolean;
     displayOrder: number;
     jobPostingId: number | null;
+    lineHeight?: number | null;
 };
 
 export type PortfolioPrintTemplateRequest = {
@@ -994,7 +997,31 @@ export type PortfolioPrintTemplateRequest = {
     sectionGaps: string;
     contentOverrides: string;
     isDefault: boolean;
+    lineHeight?: number | null;
 };
+
+export type PrintTemplateRevision = {
+    id: number;
+    printTemplateId: number;
+    senderType: 'USER' | 'AI' | string;
+    content: string;
+    aiModel: string | null;
+    createdAt: string;
+};
+
+export type PortfolioPrintDraftResponse = {
+    templateId: number;
+    templateName: string;
+    strategySummary: string;
+    includedCount: number;
+    excludedCount: number;
+    decisions: JobPostingPrintDraftDecision[];
+    warnings: string[];
+};
+
+export type PortfolioPrintDraftStreamEvent =
+    | { type: 'complete'; response: PortfolioPrintDraftResponse }
+    | { type: 'error'; message: string };
 
 export type DirectPdfUploadRequest = {
     name?: string;

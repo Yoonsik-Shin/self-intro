@@ -1,6 +1,14 @@
 'use client';
 
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+    Fragment,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+} from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ArrowDown, ArrowUp, LayoutTemplate, MoveVertical, RotateCcw, X } from 'lucide-react';
@@ -47,6 +55,7 @@ type Props = {
         sectionGaps: Record<string, number>;
         forcedPageOverrides: Record<string, number>;
         contentOverrides: ContentOverrides;
+        lineHeight: number;
     }) => void;
 };
 
@@ -141,6 +150,7 @@ export function PortfolioPrintCanvas({
                 excludedIds: initialLayout.excludedIds,
                 sectionGaps: initialLayout.sectionGaps,
                 forcedPageOverrides: payload?.forcedPageOverrides ?? {},
+                lineHeight: initialLayout.lineHeight,
             });
         } else {
             store.reset();
@@ -468,11 +478,11 @@ export function PortfolioPrintCanvas({
                             {caseStudy.title}
                         </h1>
                         {resolved.summary && (
-                            <div className="mt-1 text-xs leading-relaxed text-slate-600">
+                            <div className="mt-1 text-xs pdf-body-text text-slate-600">
                                 {renderInlineText(
                                     'summary',
                                     content.summary,
-                                    'text-xs leading-relaxed text-slate-600',
+                                    'text-xs pdf-body-text text-slate-600',
                                     '한줄 요약'
                                 )}
                             </div>
@@ -486,7 +496,7 @@ export function PortfolioPrintCanvas({
                         {renderInlineText(
                             'problem',
                             content.problem,
-                            'text-[12px] leading-relaxed text-slate-700',
+                            'text-[12px] pdf-body-text text-slate-700',
                             '문제 인식'
                         )}
                     </div>
@@ -498,7 +508,7 @@ export function PortfolioPrintCanvas({
                         {renderInlineText(
                             'thoughtProcess',
                             content.thoughtProcess,
-                            'text-[12px] leading-relaxed text-slate-700',
+                            'text-[12px] pdf-body-text text-slate-700',
                             '고민한 것'
                         )}
                     </div>
@@ -515,7 +525,7 @@ export function PortfolioPrintCanvas({
                 return (
                     <div data-print-el className="rounded-lg border border-slate-200 p-2.5">
                         <h3 className="text-[12px] font-black text-slate-900">{tradeoff.option}</h3>
-                        <ul className="mt-1 space-y-0.5 text-[11px] leading-relaxed text-slate-600">
+                        <ul className="mt-1 space-y-0.5 text-[11px] pdf-body-text text-slate-600">
                             {tradeoff.pros && <li>+ {tradeoff.pros}</li>}
                             {tradeoff.cons && <li>- {tradeoff.cons}</li>}
                             {tradeoff.chosenBecause && (
@@ -534,7 +544,7 @@ export function PortfolioPrintCanvas({
                         {renderInlineText(
                             'solution',
                             content.solution,
-                            'text-[12px] leading-relaxed text-slate-700',
+                            'text-[12px] pdf-body-text text-slate-700',
                             '해결'
                         )}
                     </div>
@@ -551,7 +561,7 @@ export function PortfolioPrintCanvas({
                         {renderInlineText(
                             'outcomeSummary',
                             content.outcome.summary,
-                            'text-[12px] leading-relaxed text-slate-700',
+                            'text-[12px] pdf-body-text text-slate-700',
                             '성과 요약'
                         )}
                     </div>
@@ -617,6 +627,7 @@ export function PortfolioPrintCanvas({
             sectionGaps: store.sectionGaps,
             forcedPageOverrides: store.forcedPageOverrides,
             contentOverrides,
+            lineHeight: store.lineHeight,
         });
     };
 
@@ -634,6 +645,8 @@ export function PortfolioPrintCanvas({
                 zoom={store.zoom}
                 onZoomChange={store.setZoom}
                 onZoomFit={handleZoomFit}
+                lineHeight={store.lineHeight}
+                onLineHeightChange={store.setLineHeight}
                 hideGuides={store.hideGuides}
                 onToggleHideGuides={store.toggleHideGuides}
                 inlineEditMode={adminMode ? inlineEditMode : undefined}
@@ -666,7 +679,13 @@ export function PortfolioPrintCanvas({
             >
                 <div
                     className="mx-auto flex flex-col items-center gap-10 transition-transform"
-                    style={{ transform: `scale(${store.zoom})`, transformOrigin: 'top center' }}
+                    style={
+                        {
+                            transform: `scale(${store.zoom})`,
+                            transformOrigin: 'top center',
+                            '--print-line-height': store.lineHeight,
+                        } as CSSProperties
+                    }
                 >
                     {pageLayers.map((page) => (
                         <PdfPageLayer

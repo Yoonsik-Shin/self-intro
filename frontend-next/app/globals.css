@@ -731,6 +731,13 @@ body {
     line-height: 1.5;
 }
 
+/* 이력서/포트폴리오 PDF 본문 줄간격 — 관리자가 프리뷰 상단 슬라이더로 조절한 값을
+   --print-line-height CSS 변수로 캔버스 루트에 주입하면 이 클래스가 붙은 모든 텍스트에
+   일괄 반영된다. 기본값(1.625)은 이전에 하드코딩돼 있던 Tailwind leading-relaxed와 동일하다. */
+.pdf-body-text {
+    line-height: var(--print-line-height, 1.625);
+}
+
 .pdf-page-layer section {
     margin-top: 3mm;
     padding-top: 2mm !important;
