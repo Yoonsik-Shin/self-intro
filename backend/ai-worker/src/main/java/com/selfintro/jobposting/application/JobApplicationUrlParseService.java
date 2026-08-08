@@ -898,6 +898,7 @@ public class JobApplicationUrlParseService {
         List<NvidiaNimClient.ImagePart> parts =
                 rawImages.stream()
                         .flatMap(image -> sliceForVision(image.bytes(), image.mimeType()).stream())
+                        .limit(6)
                         .toList();
         String userPrompt =
                 parts.size() > 1
@@ -915,8 +916,23 @@ public class JobApplicationUrlParseService {
                             VISION_AI_TIMEOUT);
             extracted = AiJsonSupport.parseJson(objectMapper, raw, ExtractedFields.class, "채용공고 스크린샷 분석");
         } catch (Exception exception) {
-            log.warn("채용공고 스크린샷 분석 실패", exception);
-            extracted = EMPTY_EXTRACTED_FIELDS;
+            log.warn("채용공고 스크린샷 1차 분석 실패, 파트 축소 후 재시도", exception);
+            try {
+                // 초과 페이로드로 인한 500 엔진 에러 시 조각 수를 4개로 더 축소해 2차 재시도
+                List<NvidiaNimClient.ImagePart> reducedParts = parts.stream().limit(4).toList();
+                String raw =
+                        nvidiaNimClient.generateWithImages(
+                                SCREENSHOT_PARSE_PROMPT,
+                                userPrompt,
+                                visionModel,
+                                reducedParts,
+                                VISION_MAX_OUTPUT_TOKENS,
+                                VISION_AI_TIMEOUT);
+                extracted = AiJsonSupport.parseJson(objectMapper, raw, ExtractedFields.class, "채용공고 스크린샷 2차 분석");
+            } catch (Exception retryEx) {
+                log.warn("채용공고 스크린샷 2차 분석 최종 실패", retryEx);
+                extracted = EMPTY_EXTRACTED_FIELDS;
+            }
         }
 
         LocalDate deadline = parseDate(extracted.deadline());
@@ -1302,9 +1318,32 @@ public class JobApplicationUrlParseService {
         }
     }
 
+    private String resolveDownloadUrl(String url) {
+        if (url == null) return null;
+        if (url.startsWith("http://localhost:9000/")) {
+            return url.replace("http://localhost:9000/", "http://minio:9000/");
+        }
+        if (url.startsWith("http://127.0.0.1:9000/")) {
+            return url.replace("http://127.0.0.1:9000/", "http://minio:9000/");
+        }
+        return url;
+    }
+
     private byte[] downloadImage(String url, String refererUrl) throws IOException {
+        String targetUrl = resolveDownloadUrl(url);
+        try {
+            return fetchBytes(targetUrl, refererUrl);
+        } catch (IOException e) {
+            if (!targetUrl.equals(url)) {
+                return fetchBytes(url, refererUrl);
+            }
+            throw e;
+        }
+    }
+
+    private byte[] fetchBytes(String targetUrl, String refererUrl) throws IOException {
         Connection connection =
-                Jsoup.connect(url)
+                Jsoup.connect(targetUrl)
                         .userAgent(USER_AGENT)
                         .timeout(FETCH_TIMEOUT_MILLIS)
                         .maxBodySize(MAX_BANNER_IMAGE_BYTES)
