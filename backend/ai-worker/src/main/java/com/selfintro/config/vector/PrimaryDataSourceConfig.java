@@ -45,7 +45,15 @@ public class PrimaryDataSourceConfig {
     @Bean
     public LocalContainerEntityManagerFactoryBean entityManagerFactory(
             EntityManagerFactoryBuilder builder, @Qualifier("dataSource") DataSource dataSource) {
-        return builder.dataSource(dataSource).packages("com.selfintro").persistenceUnit("default").build();
+        return builder.dataSource(dataSource)
+                .packages(
+                        "com.selfintro.modules",
+                        "com.selfintro.jobposting",
+                        "com.selfintro.portfolio",
+                        "com.selfintro.studyplan"
+                )
+                .persistenceUnit("default")
+                .build();
     }
 
     @Primary
