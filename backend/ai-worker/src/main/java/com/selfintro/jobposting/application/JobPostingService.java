@@ -500,15 +500,13 @@ public class JobPostingService {
                         .map(image -> urlParseService.downloadImagePart(image.url(), image.contentType()))
                         .toList();
         JobApplicationUrlParseResponse parsed = urlParseService.parseFromImages(parts);
-        if (!AiJsonSupport.hasText(parsed.companyName()) || !AiJsonSupport.hasText(parsed.positionTitle())) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNPROCESSABLE_ENTITY, "이미지에서 회사명/직무명을 추출하지 못했습니다.");
-        }
+        String companyName = AiJsonSupport.hasText(parsed.companyName()) ? parsed.companyName() : "회사명 미상";
+        String positionTitle = AiJsonSupport.hasText(parsed.positionTitle()) ? parsed.positionTitle() : "수집 공고 (직무 미상)";
 
         LocalDateTime now = LocalDateTime.now();
         JobPosting posting =
                 dedupService
-                        .findExistingMatch(parsed.companyName(), parsed.positionTitle())
+                        .findExistingMatch(companyName, positionTitle)
                         .map(
                                 existing -> {
                                     existing.touch(now);
@@ -518,8 +516,8 @@ public class JobPostingService {
                                 () -> {
                                     JobPosting.Draft draft =
                                             new JobPosting.Draft(
-                                                    parsed.positionTitle(),
-                                                    parsed.companyName(),
+                                                    positionTitle,
+                                                    companyName,
                                                     null,
                                                     null,
                                                     JobPostingSource.IMAGE_INGEST,
