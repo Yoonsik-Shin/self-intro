@@ -198,7 +198,7 @@ public class NvidiaNimClient {
                     String content =
                             chatClient
                                     .prompt()
-                                    .system(systemPrompt)
+                                    .system(withThinkingOff(systemPrompt))
                                     .user(u -> u.text(userPrompt).media(media))
                                     .options(buildOptions(model, maxOutputTokensOverride))
                                     .call()
