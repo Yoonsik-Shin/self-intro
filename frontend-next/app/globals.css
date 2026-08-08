@@ -531,7 +531,6 @@ body {
 
     .print-competency-row .resume-body {
         font-size: 9.2pt !important;
-        line-height: 1.45 !important;
     }
 
     .print-competency-row .resume-meta {
@@ -583,7 +582,6 @@ body {
 
     .resume-body {
         font-size: 10.5pt !important;
-        line-height: 1.52 !important;
     }
 
     .resume-subtitle {
@@ -612,7 +610,6 @@ body {
     .resume-detail-text p,
     .resume-detail-text li {
         font-size: 8.8pt !important;
-        line-height: 1.4 !important;
         color: #475569 !important;
     }
 
@@ -983,7 +980,6 @@ body {
 
 .resume-page .print-competency-row .resume-body {
     font-size: 9.2pt !important;
-    line-height: 1.45 !important;
 }
 
 .resume-page .print-competency-row .resume-meta {
@@ -1029,7 +1025,6 @@ body {
 
 .resume-page .resume-body {
     font-size: 10pt !important;
-    line-height: 1.5 !important;
 }
 
 .resume-page .resume-subtitle {
@@ -1058,7 +1053,6 @@ body {
 .resume-page .resume-detail-text p,
 .resume-page .resume-detail-text li {
     font-size: 8.8pt !important;
-    line-height: 1.4 !important;
     color: #475569 !important;
 }
 

@@ -1719,7 +1719,7 @@ export function PrintCanvas({
                                 {career.department} / {career.role}
                             </p>
                             {career.summary && (
-                                <div className="resume-body mt-2 text-xs text-slate-600">
+                                <div className="resume-body mt-2 text-xs pdf-body-text text-slate-600">
                                     {renderInlineText({
                                         value: career.summary ?? '',
                                         baseValue: origSummary,
@@ -1797,7 +1797,7 @@ export function PrintCanvas({
                                     <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider text-[10px]">
                                         프로젝트 설명 및 역할
                                     </h4>
-                                    <div className="resume-body mt-0.5 text-xs text-slate-600">
+                                    <div className="resume-body mt-0.5 text-xs pdf-body-text text-slate-600">
                                         {renderInlineText({
                                             value: project.summary ?? '',
                                             baseValue: origSummary,
