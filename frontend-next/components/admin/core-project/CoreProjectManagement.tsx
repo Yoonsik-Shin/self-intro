@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { experienceApi, experiencePlacementApi } from '@/lib/api';
 import type { Experience, ExperiencePlacementRequest } from '@/lib/api/types';
+import { useTouchDrag } from '@/hooks/useTouchDrag';
 
 type DraftPlacement = ExperiencePlacementRequest;
 
@@ -120,6 +121,24 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
     };
 
     const move = (index: number, direction: -1 | 1) => reorder(index, index + direction);
+
+    const touchDrag = useTouchDrag({
+        disabled: !isEditing,
+        onDragStart: (sourceId) => {
+            const sourceIndex = draft.findIndex((item) => String(item.experienceId) === sourceId);
+            setDraggedIndex(sourceIndex >= 0 ? sourceIndex : null);
+        },
+        onDragOver: (_, targetId) => {
+            const targetIndex = draft.findIndex((item) => String(item.experienceId) === targetId);
+            if (targetIndex >= 0) setDraggedIndex(targetIndex);
+        },
+        onDrop: (sourceId, targetId) => {
+            const sourceIndex = draft.findIndex((item) => String(item.experienceId) === sourceId);
+            const targetIndex = draft.findIndex((item) => String(item.experienceId) === targetId);
+            reorder(sourceIndex, targetIndex);
+        },
+        onDragEnd: () => setDraggedIndex(null),
+    });
 
     const handleDragStart = (event: DragEvent<HTMLElement>, index: number) => {
         setDraggedIndex(index);
@@ -285,6 +304,7 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                             return (
                                 <article
                                     key={placement.experienceId}
+                                    {...touchDrag.dropTargetProps(String(placement.experienceId))}
                                     onClick={() => {
                                         if (experience.details.length === 0) return;
                                         setExpandedExperienceId((current) =>
@@ -307,17 +327,20 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
                                     <div className="flex items-center gap-2">
                                         {isEditing && (
                                             <span
+                                                {...touchDrag.dragHandleProps(
+                                                    String(placement.experienceId)
+                                                )}
                                                 draggable
                                                 role="button"
                                                 tabIndex={0}
                                                 aria-label={`${experience.title} 순서 이동`}
-                                                title="드래그하여 순서 변경"
+                                                title="드래그 또는 터치하여 순서 변경"
                                                 onClick={(event) => event.stopPropagation()}
                                                 onDragStart={(event) =>
                                                     handleDragStart(event, index)
                                                 }
                                                 onDragEnd={() => setDraggedIndex(null)}
-                                                className="grid h-9 w-7 shrink-0 cursor-grab place-items-center rounded-lg text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
+                                                className="grid h-9 w-7 shrink-0 touch-none cursor-grab select-none place-items-center rounded-lg text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
                                             >
                                                 <GripVertical className="h-5 w-5" />
                                             </span>

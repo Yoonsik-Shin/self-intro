@@ -48,6 +48,7 @@ import type { PendingExperienceIntent } from '../AdminDashboardShell';
 import { ExperienceDetailPanel } from './ExperienceDetailPanel';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
+import { useTouchDrag } from '@/hooks/useTouchDrag';
 
 const skillUsageOptions = [
     { value: 'LEARNING', label: '학습' },
@@ -746,6 +747,37 @@ export function ExperienceManagement({
     };
 
     const [draggedDetailIdx, setDraggedDetailIdx] = useState<number | null>(null);
+
+    const touchDetailDrag = useTouchDrag({
+        disabled: detailListSearch.trim() !== '',
+        onDragStart: (sourceId) => setDraggedDetailIdx(Number(sourceId)),
+        onDrop: (sourceId, targetId) => {
+            const sourceIndex = Number(sourceId);
+            const targetIndex = Number(targetId);
+            if (
+                !Number.isInteger(sourceIndex) ||
+                !Number.isInteger(targetIndex) ||
+                sourceIndex === targetIndex
+            ) {
+                return;
+            }
+            setExpForm((prev) => {
+                if (
+                    sourceIndex < 0 ||
+                    targetIndex < 0 ||
+                    sourceIndex >= prev.details.length ||
+                    targetIndex >= prev.details.length
+                ) {
+                    return prev;
+                }
+                const details = [...prev.details];
+                const [moved] = details.splice(sourceIndex, 1);
+                details.splice(targetIndex, 0, moved);
+                return { ...prev, details };
+            });
+        },
+        onDragEnd: () => setDraggedDetailIdx(null),
+    });
 
     const handleDetailDragStart = (idx: number) => {
         setDraggedDetailIdx(idx);
@@ -1918,6 +1950,7 @@ export function ExperienceManagement({
                                         return (
                                             <div
                                                 key={idx}
+                                                {...touchDetailDrag.dropTargetProps(String(idx))}
                                                 draggable={detailListSearch.trim() === ''}
                                                 onDragStart={() => handleDetailDragStart(idx)}
                                                 onDragOver={(e) => handleDetailDragOver(e, idx)}
@@ -1932,8 +1965,11 @@ export function ExperienceManagement({
                                             >
                                                 <div className="flex items-center justify-between gap-1.5 p-2">
                                                     <div
-                                                        className="flex shrink-0 items-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 p-0.5"
-                                                        title="드래그하여 순서 변경"
+                                                        {...touchDetailDrag.dragHandleProps(
+                                                            String(idx)
+                                                        )}
+                                                        className="flex shrink-0 touch-none select-none items-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 p-0.5"
+                                                        title="드래그 또는 터치하여 순서 변경"
                                                     >
                                                         <GripVertical className="h-4 w-4" />
                                                     </div>

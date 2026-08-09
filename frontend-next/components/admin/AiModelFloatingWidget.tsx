@@ -5,7 +5,7 @@ import {
     useRef,
     useState,
     type CSSProperties,
-    type MouseEvent as ReactMouseEvent,
+    type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Cpu } from 'lucide-react';
@@ -211,18 +211,20 @@ export function AiModelFloatingWidget() {
 
     useEffect(() => {
         if (!isOpen) return;
-        const handleClickOutside = (event: MouseEvent) => {
+        const handleClickOutside = (event: PointerEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('pointerdown', handleClickOutside);
+        return () => document.removeEventListener('pointerdown', handleClickOutside);
     }, [isOpen]);
 
-    function handleDragStart(event: ReactMouseEvent) {
+    function handleDragStart(event: ReactPointerEvent<HTMLButtonElement>) {
+        if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
         const rect = buttonRef.current?.getBoundingClientRect();
         if (!rect) return;
+        const pointerId = event.pointerId;
         event.preventDefault();
         setMode('floating');
         setFloatingPosition({ x: rect.left, y: rect.top });
@@ -236,7 +238,8 @@ export function AiModelFloatingWidget() {
             moved: false,
         };
 
-        function handleMove(moveEvent: MouseEvent) {
+        function handleMove(moveEvent: PointerEvent) {
+            if (moveEvent.pointerId !== pointerId) return;
             const dragState = dragStateRef.current;
             if (!dragState) return;
             const dx = moveEvent.clientX - dragState.startX;
@@ -256,19 +259,23 @@ export function AiModelFloatingWidget() {
             setIsNearDock(near);
         }
 
-        function handleUp() {
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleUp);
-            if (dragStateRef.current && !dragStateRef.current.moved) {
-                setIsOpen((open) => !open);
-            } else if (nearDockRef.current) {
-                setMode('docked');
-                setFloatingPosition(null);
-                userDraggedRef.current = false;
-                autoFloatedRef.current = false;
-            } else if (dragStateRef.current?.moved) {
-                userDraggedRef.current = true;
-                autoFloatedRef.current = false;
+        function handleUp(upEvent: PointerEvent) {
+            if (upEvent.pointerId !== pointerId) return;
+            window.removeEventListener('pointermove', handleMove);
+            window.removeEventListener('pointerup', handleUp);
+            window.removeEventListener('pointercancel', handleUp);
+            if (upEvent.type !== 'pointercancel') {
+                if (dragStateRef.current && !dragStateRef.current.moved) {
+                    setIsOpen((open) => !open);
+                } else if (nearDockRef.current) {
+                    setMode('docked');
+                    setFloatingPosition(null);
+                    userDraggedRef.current = false;
+                    autoFloatedRef.current = false;
+                } else if (dragStateRef.current?.moved) {
+                    userDraggedRef.current = true;
+                    autoFloatedRef.current = false;
+                }
             }
             dragStateRef.current = null;
             nearDockRef.current = false;
@@ -277,8 +284,9 @@ export function AiModelFloatingWidget() {
             setDockHomePosition(null);
         }
 
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('mouseup', handleUp);
+        window.addEventListener('pointermove', handleMove);
+        window.addEventListener('pointerup', handleUp);
+        window.addEventListener('pointercancel', handleUp);
     }
 
     if (!mounted) return null;
@@ -320,12 +328,12 @@ export function AiModelFloatingWidget() {
         <button
             ref={buttonRef}
             type="button"
-            onMouseDown={handleDragStart}
+            onPointerDown={handleDragStart}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
             aria-label={`기본 AI 모델: ${selected?.name ?? modelKey}`}
             style={{ height: WIDGET_SIZE, width: WIDGET_SIZE, backgroundColor: badgeColor }}
-            className={`relative flex cursor-grab items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white transition select-none active:cursor-grabbing ${
+            className={`relative flex touch-none cursor-grab items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white transition select-none active:cursor-grabbing ${
                 isNearDock ? 'scale-125 ring-4 ring-indigo-400' : isOpen ? 'ring-slate-900' : ''
             }`}
         >
