@@ -25,3 +25,7 @@ data:
           path: /var/tempo/wal
         local:
           path: /var/tempo/blocks
+
+    compactor:
+      compaction:
+        block_retention: 48h
