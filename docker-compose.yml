@@ -132,6 +132,7 @@ services:
       - ORACLE_NOSQL_ENDPOINT=http://nosql:8080
       - ORACLE_NOSQL_MODE=local
       - PDF_DRAFT_AI_TIMEOUT=${PDF_DRAFT_AI_TIMEOUT:-240s}
+      - OTLP_EXPORTER_ENDPOINT=http://tempo:4318/v1/traces
     volumes:
       - backend_logs:/app/logs
     depends_on:

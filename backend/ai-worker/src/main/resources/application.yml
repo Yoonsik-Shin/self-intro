@@ -115,6 +115,15 @@ oracle:
       driver-class-name: ${DB_DRIVER:org.h2.Driver}
 
 management:
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTLP_EXPORTER_ENDPOINT:http://tempo:4318/v1/traces}
+  observations:
+    key-values:
+      application: self-intro-ai-worker
   endpoint:
     health:
       show-details: always
