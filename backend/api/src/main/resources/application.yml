@@ -3,6 +3,9 @@ spring:
     allow-bean-definition-overriding: true
   application:
     name: self-intro-backend
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.actuate.autoconfigure.tracing.BraveAutoConfiguration
 
   http:
     client:
