@@ -1334,6 +1334,16 @@ function PrintTemplatesPanel({
             alert(error instanceof ApiError ? error.message : 'PDF 삭제에 실패했습니다.'),
     });
 
+    const deleteTemplateMutation = useMutation({
+        mutationFn: (id: number) => printTemplateApi.remove(id),
+        onSuccess: (_, deletedId) => {
+            if (latestDraft?.templateId === deletedId) setLatestDraft(null);
+            queryClient.invalidateQueries({ queryKey });
+        },
+        onError: (error) =>
+            alert(error instanceof ApiError ? error.message : '템플릿 삭제에 실패했습니다.'),
+    });
+
     async function uploadDirectPdfFile(file: File) {
         if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
             alert('PDF 파일만 업로드할 수 있습니다.');
@@ -1749,6 +1759,36 @@ function PrintTemplatesPanel({
                                         className="flex h-7 w-7 items-center justify-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                                {!t.finalPdfUrl && (
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            deleteTemplateMutation.isPending &&
+                                            deleteTemplateMutation.variables === t.id
+                                        }
+                                        onClick={() => {
+                                            const finalWarning = t.isFinalSubmission
+                                                ? '\n현재 최종 제출본으로 지정된 템플릿입니다.'
+                                                : '';
+                                            if (
+                                                confirm(
+                                                    `“${t.name}” 템플릿을 삭제할까요?${finalWarning}\nAI 수정 이력도 함께 삭제됩니다.`
+                                                )
+                                            ) {
+                                                deleteTemplateMutation.mutate(t.id);
+                                            }
+                                        }}
+                                        title="템플릿 삭제"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                                    >
+                                        {deleteTemplateMutation.isPending &&
+                                        deleteTemplateMutation.variables === t.id ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        )}
                                     </button>
                                 )}
                                 {!t.finalPdfUrl &&

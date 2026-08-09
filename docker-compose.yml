@@ -17,6 +17,27 @@ services:
       retries: 5
       interval: 5s
 
+  # Oracle ATP/26ai의 로컬 대체 DB. 운영 ATP와 완전히 분리된 Docker 볼륨에만
+  # 경험·스터디 벡터를 저장하며, Oracle 전용 VECTOR_DISTANCE SQL을 그대로 검증한다.
+  oracle-vector-db:
+    image: container-registry.oracle.com/database/free:latest-lite
+    container_name: self-intro-oracle-vector
+    environment:
+      - ORACLE_PWD=local_oracle_26ai
+    ports:
+      - "1522:1521"
+    shm_size: 1g
+    volumes:
+      - oracle_vector_data:/opt/oracle/oradata
+      - ./docker/oracle-vector/01-init-vector-schema.sql:/opt/oracle/scripts/startup/01-init-vector-schema.sql:ro
+      - ./docker/oracle-vector/oracle-schema-local.sql:/opt/oracle/vector-schema/oracle-schema-local.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/oracle/checkDBStatus.sh >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
   mysqld-exporter:
     image: prom/mysqld-exporter:latest
     container_name: self-intro-mysqld-exporter
@@ -98,11 +119,11 @@ services:
       - MYSQL_DB_USERNAME=self_intro_app
       - MYSQL_DB_PASSWORD=password123
       - MYSQL_DB_DRIVER=com.mysql.cj.jdbc.Driver
-      # 2차(벡터) 데이터소스 — 기존 그대로 H2/Oracle 모드 유지.
-      - DB_URL=jdbc:h2:mem:workerdb;MODE=Oracle
-      - DB_USERNAME=sa
-      - DB_PASSWORD=
-      - DB_DRIVER=org.h2.Driver
+      # 2차(벡터) 데이터소스 — 로컬 Oracle Database Free 26ai.
+      - DB_URL=jdbc:oracle:thin:@//oracle-vector-db:1521/FREEPDB1
+      - DB_USERNAME=self_intro_vector
+      - DB_PASSWORD=self_intro_vector_local
+      - DB_DRIVER=oracle.jdbc.OracleDriver
       - JPA_DDL_AUTO=update
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -110,6 +131,7 @@ services:
       - ORACLE_NOSQL_ENABLED=true
       - ORACLE_NOSQL_ENDPOINT=http://nosql:8080
       - ORACLE_NOSQL_MODE=local
+      - PDF_DRAFT_AI_TIMEOUT=${PDF_DRAFT_AI_TIMEOUT:-240s}
     volumes:
       - backend_logs:/app/logs
     depends_on:
@@ -120,6 +142,8 @@ services:
       rabbitmq:
         condition: service_healthy
       nosql:
+        condition: service_healthy
+      oracle-vector-db:
         condition: service_healthy
 
   nginx:
@@ -322,6 +346,7 @@ services:
 
 volumes:
   mysql_data:
+  oracle_vector_data:
   minio_data:
   redis_data:
   rabbitmq_data:
@@ -331,4 +356,3 @@ volumes:
   tempo_data:
   grafana_data:
   backend_logs:
-

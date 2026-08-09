@@ -75,6 +75,7 @@ app:
     vision-model: ${NVIDIA_VISION_MODEL:meta/llama-3.2-11b-vision-instruct}
     max-output-tokens: ${NVIDIA_MAX_OUTPUT_TOKENS:8192}
     json-response-format: ${NVIDIA_JSON_RESPONSE_FORMAT:false}
+    print-draft-timeout: ${PDF_DRAFT_AI_TIMEOUT:240s}
   job-posting:
     scheduler-enabled: ${JOB_POSTING_SCHEDULER_ENABLED:true}
     ingest-concurrency: ${JOB_POSTING_INGEST_CONCURRENCY:3}
