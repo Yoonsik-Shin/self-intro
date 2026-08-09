@@ -32,6 +32,7 @@ import {
     experiencePlacementApi,
     connectionApi,
 } from '@/lib/api';
+import { credentialKindLabel } from '@/lib/format';
 import type {
     Experience,
     ExperienceConnections,
@@ -101,6 +102,11 @@ const emptyExperienceForm: AdminExperienceForm = {
     repositoryUrl: '',
     careerId: undefined,
     institutionName: '',
+    educationType: 'ACADEMIC',
+    degree: '학사',
+    major: '',
+    gpa: '',
+    graduationStatus: 'GRADUATED',
     issuer: '',
     studyIds: [],
     relatedExperienceIds: [],
@@ -253,7 +259,17 @@ export function ExperienceManagement({
 
     const filteredExperiences = useMemo(() => {
         return sortedExperiences.filter((exp) => {
-            const matchesType = expFilter === 'ALL' || exp.type === expFilter;
+            const matchesType =
+                expFilter === 'ALL' ||
+                (expFilter === 'ACADEMIC'
+                    ? exp.type === 'EDUCATION' &&
+                      (exp.educationType === 'ACADEMIC' ||
+                          (!exp.educationType && credentialKindLabel(exp) === '학력'))
+                    : expFilter === 'COURSE'
+                      ? exp.type === 'EDUCATION' &&
+                        (exp.educationType === 'COURSE' ||
+                            (!exp.educationType && credentialKindLabel(exp) === '교육'))
+                      : exp.type === expFilter);
             const matchesVisibility =
                 visibilityFilter === 'ALL' ||
                 (visibilityFilter === 'VISIBLE' && exp.showOnTimeline) ||
@@ -663,6 +679,20 @@ export function ExperienceManagement({
                 expForm.type === 'PROJECT' ? expForm.repositoryUrl?.trim() || undefined : undefined,
             careerId: expForm.type === 'PROJECT' ? expForm.careerId : undefined,
             institutionName: expForm.type === 'EDUCATION' ? expForm.institutionName : undefined,
+            educationType: expForm.type === 'EDUCATION' ? expForm.educationType : undefined,
+            degree:
+                expForm.type === 'EDUCATION' && expForm.educationType === 'ACADEMIC'
+                    ? expForm.degree
+                    : undefined,
+            major:
+                expForm.type === 'EDUCATION' && expForm.educationType === 'ACADEMIC'
+                    ? expForm.major
+                    : undefined,
+            gpa:
+                expForm.type === 'EDUCATION' && expForm.educationType === 'ACADEMIC'
+                    ? expForm.gpa
+                    : undefined,
+            graduationStatus: expForm.type === 'EDUCATION' ? expForm.graduationStatus : undefined,
             issuer: expForm.type === 'CERTIFICATE' ? expForm.issuer : undefined,
         };
 
@@ -729,6 +759,13 @@ export function ExperienceManagement({
                 repositoryUrl: experience.repositoryUrl ?? '',
                 careerId: experience.careerId,
                 institutionName: experience.institutionName ?? '',
+                educationType:
+                    experience.educationType ??
+                    (credentialKindLabel(experience) === '학력' ? 'ACADEMIC' : 'COURSE'),
+                degree: experience.degree ?? '',
+                major: experience.major ?? '',
+                gpa: experience.gpa ?? '',
+                graduationStatus: experience.graduationStatus ?? 'GRADUATED',
                 issuer: experience.issuer ?? '',
                 studyIds: connections.studyIds,
                 relatedExperienceIds: connections.relatedExperiences.map(
@@ -954,26 +991,33 @@ export function ExperienceManagement({
                             </div>
                             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
                             <div className="flex flex-wrap gap-1">
-                                {['ALL', 'CAREER', 'PROJECT', 'EDUCATION', 'CERTIFICATE'].map(
-                                    (cat) => (
-                                        <button
-                                            key={cat}
-                                            type="button"
-                                            onClick={() => setExpFilter(cat)}
-                                            className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${expFilter === cat ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'}`}
-                                        >
-                                            {cat === 'ALL'
-                                                ? '전체 유형'
-                                                : cat === 'CAREER'
-                                                  ? '회사 경력'
-                                                  : cat === 'PROJECT'
-                                                    ? '프로젝트'
-                                                    : cat === 'EDUCATION'
-                                                      ? '학력'
-                                                      : '자격증'}
-                                        </button>
-                                    )
-                                )}
+                                {[
+                                    'ALL',
+                                    'CAREER',
+                                    'PROJECT',
+                                    'ACADEMIC',
+                                    'COURSE',
+                                    'CERTIFICATE',
+                                ].map((cat) => (
+                                    <button
+                                        key={cat}
+                                        type="button"
+                                        onClick={() => setExpFilter(cat)}
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${expFilter === cat ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 border border-slate-100'}`}
+                                    >
+                                        {cat === 'ALL'
+                                            ? '전체 유형'
+                                            : cat === 'CAREER'
+                                              ? '회사 경력'
+                                              : cat === 'PROJECT'
+                                                ? '프로젝트'
+                                                : cat === 'ACADEMIC'
+                                                  ? '학력'
+                                                  : cat === 'COURSE'
+                                                    ? '학습·교육'
+                                                    : '자격증'}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                         <div className="w-full sm:w-56">
@@ -1562,20 +1606,161 @@ export function ExperienceManagement({
                     )}
 
                     {expForm.type === 'EDUCATION' && (
-                        <div className="rounded-xl bg-slate-100/20 border border-slate-200/50 p-4">
-                            <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                학교 또는 교육 기관명
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                placeholder="예: OO대학교 컴퓨터공학"
-                                value={expForm.institutionName}
-                                onChange={(e) =>
-                                    setExpForm({ ...expForm, institutionName: e.target.value })
-                                }
-                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
-                            />
+                        <div className="rounded-xl bg-slate-100/20 border border-slate-200/50 p-4 space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mr-2">
+                                    구분
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setExpForm({ ...expForm, educationType: 'ACADEMIC' })
+                                    }
+                                    className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition ${expForm.educationType === 'ACADEMIC' || !expForm.educationType ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200'}`}
+                                >
+                                    🎓 정규 학력 (고등학교/대학교 등)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setExpForm({ ...expForm, educationType: 'COURSE' })
+                                    }
+                                    className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition ${expForm.educationType === 'COURSE' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200'}`}
+                                >
+                                    📚 학습 · 교육과정 (부트캠프/강의 등)
+                                </button>
+                            </div>
+
+                            {expForm.educationType === 'ACADEMIC' || !expForm.educationType ? (
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">
+                                            학교명
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="예: 차의과학대학교 / 서울고등학교"
+                                            value={expForm.institutionName}
+                                            onChange={(e) =>
+                                                setExpForm({
+                                                    ...expForm,
+                                                    institutionName: e.target.value,
+                                                })
+                                            }
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">
+                                            학력 구분 / 학위
+                                        </label>
+                                        <select
+                                            value={expForm.degree ?? '학사'}
+                                            onChange={(e) =>
+                                                setExpForm({ ...expForm, degree: e.target.value })
+                                            }
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                                        >
+                                            <option value="고등학교">고등학교</option>
+                                            <option value="전문학사">전문학사 (2·3년제)</option>
+                                            <option value="학사">학사 (4년제)</option>
+                                            <option value="석사">석사</option>
+                                            <option value="박사">박사</option>
+                                            <option value="기타">기타</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">
+                                            전공 / 계열
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="예: 스포츠의학과 / 이과계열"
+                                            value={expForm.major ?? ''}
+                                            onChange={(e) =>
+                                                setExpForm({ ...expForm, major: e.target.value })
+                                            }
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">
+                                            졸업 상태
+                                        </label>
+                                        <select
+                                            value={expForm.graduationStatus ?? 'GRADUATED'}
+                                            onChange={(e) =>
+                                                setExpForm({
+                                                    ...expForm,
+                                                    graduationStatus: e.target.value,
+                                                })
+                                            }
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                                        >
+                                            <option value="GRADUATED">졸업</option>
+                                            <option value="ATTENDING">재학</option>
+                                            <option value="COMPLETED">수료</option>
+                                            <option value="DROPPED_OUT">중퇴</option>
+                                            <option value="ON_LEAVE">휴학</option>
+                                        </select>
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">
+                                            학점 (GPA)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="예: 3.8 / 4.5 또는 4.0 / 4.5"
+                                            value={expForm.gpa ?? ''}
+                                            onChange={(e) =>
+                                                setExpForm({ ...expForm, gpa: e.target.value })
+                                            }
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">
+                                            교육 기관명
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="예: 멀티캠퍼스 / 청년취업사관학교"
+                                            value={expForm.institutionName}
+                                            onChange={(e) =>
+                                                setExpForm({
+                                                    ...expForm,
+                                                    institutionName: e.target.value,
+                                                })
+                                            }
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">
+                                            이수 상태
+                                        </label>
+                                        <select
+                                            value={expForm.graduationStatus ?? 'COMPLETED'}
+                                            onChange={(e) =>
+                                                setExpForm({
+                                                    ...expForm,
+                                                    graduationStatus: e.target.value,
+                                                })
+                                            }
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                                        >
+                                            <option value="COMPLETED">수료</option>
+                                            <option value="ATTENDING">수강 중</option>
+                                            <option value="DROPPED_OUT">중단</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -1,4 +1,5 @@
 export type StudyStatus = 'DRAFT' | 'PUBLISHED';
+export type StudySection = 'FUNDAMENTAL' | 'ADVANCED' | 'RETROSPECT' | 'ETC';
 export type StudyRelationType = 'RELATED' | 'PREREQUISITE' | 'FOLLOW_UP' | 'APPLIED_TO';
 
 export type ImageScope =
@@ -60,6 +61,7 @@ export type Study = {
     summary: string;
     contentMarkdown: string;
     status: StudyStatus;
+    section: StudySection;
     taxonomyNodes: TaxonomyNode[];
     tags: Tag[];
     skills: Skill[];
@@ -84,6 +86,7 @@ export type StudyRequest = {
     summary: string;
     contentMarkdown: string;
     status: StudyStatus;
+    section: StudySection;
     taxonomyNodeIds: number[];
     tagNames: string[];
     skillIds: number[];
@@ -131,6 +134,153 @@ export type StudySuggestionStreamEvent =
     | { type: 'facts'; factCount: number }
     | { type: 'complete'; suggestions: StudySuggestion[] }
     | { type: 'error'; message: string };
+
+export type DecisionDomain = 'BACKEND' | 'INFRASTRUCTURE' | 'ARCHITECTURE' | 'FRONTEND';
+export type VerificationStatus = 'DRAFT' | 'VERIFIED' | 'DEPRECATED';
+export type TradeoffCriterion =
+    | 'PERFORMANCE'
+    | 'CONSISTENCY'
+    | 'AVAILABILITY'
+    | 'SCALABILITY'
+    | 'IMPLEMENTATION_COMPLEXITY'
+    | 'OPERATIONAL_COMPLEXITY'
+    | 'COST'
+    | 'SECURITY'
+    | 'MAINTAINABILITY'
+    | 'FAILURE_ISOLATION';
+export type TradeoffLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CONTEXT_DEPENDENT';
+export type DecisionStudyRelationType =
+    | 'EXPLAINS'
+    | 'DEEP_DIVES'
+    | 'APPLIED'
+    | 'VALIDATED'
+    | 'FAILED'
+    | 'REPLACED'
+    | 'RETROSPECT'
+    | 'COUNTER_EXAMPLE';
+export type DecisionSituationRelationType =
+    'PREREQUISITE' | 'LEADS_TO' | 'ALTERNATIVE' | 'COMBINES_WITH';
+
+export type ExperienceTreeSituationRelation = {
+    sourceKey: string;
+    targetKey: string;
+    relationType: DecisionSituationRelationType;
+    displayOrder: number;
+};
+
+export type ExperienceTreeSituationSummary = {
+    stableKey: string;
+    parentKey?: string | null;
+    domain: DecisionDomain;
+    topic: string;
+    title: string;
+    summary: string;
+    verificationStatus: VerificationStatus;
+    optionCount: number;
+    warningCount: number;
+    studyCount: number;
+    verifiedAt?: string | null;
+    nextReviewAt?: string | null;
+    displayOrder: number;
+};
+
+export type ExperienceTreeIndex = {
+    version: string;
+    situations: ExperienceTreeSituationSummary[];
+    relations: ExperienceTreeSituationRelation[];
+};
+
+export type ExperienceTreeStudyLink = {
+    linkId: number;
+    studyId: number;
+    slug: string;
+    title: string;
+    summary: string;
+    section: StudySection;
+    relationType: DecisionStudyRelationType;
+    optionKey?: string | null;
+    note: string;
+    learnedAt: string;
+    managedByCatalog: boolean;
+};
+
+export type ExperienceTreeDetail = {
+    stableKey: string;
+    parentKey?: string | null;
+    domain: DecisionDomain;
+    topic: string;
+    title: string;
+    summary: string;
+    problem: string;
+    contextMarkdown: string;
+    constraintsMarkdown: string;
+    verificationStatus: VerificationStatus;
+    contentVersion: number;
+    contentHash: string;
+    verifiedAt?: string | null;
+    nextReviewAt?: string | null;
+    options: Array<{
+        id: number;
+        stableKey: string;
+        title: string;
+        summary: string;
+        mechanism: string;
+        applicableWhen: string;
+        avoidWhen: string;
+        advantages: string;
+        disadvantages: string;
+        operationalNotes: string;
+        displayOrder: number;
+        tradeoffs: Array<{
+            criterion: TradeoffCriterion;
+            level: TradeoffLevel;
+            explanation: string;
+            displayOrder: number;
+        }>;
+    }>;
+    warnings: Array<{
+        stableKey: string;
+        optionKey?: string | null;
+        classification: 'INVALID' | 'ANTI_PATTERN' | 'RISKY' | 'NOT_RECOMMENDED';
+        reasonType:
+            | 'PERFORMANCE'
+            | 'CORRECTNESS'
+            | 'RELIABILITY'
+            | 'SECURITY'
+            | 'OPERABILITY'
+            | 'MAINTAINABILITY';
+        title: string;
+        description: string;
+        failureCondition: string;
+        consequence: string;
+        correction: string;
+        severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        displayOrder: number;
+    }>;
+    sources: Array<{
+        optionKey?: string | null;
+        warningKey?: string | null;
+        sourceType: string;
+        title: string;
+        url: string;
+        publisher: string;
+        applicableVersion?: string | null;
+        accessedAt: string;
+        note: string;
+        displayOrder: number;
+    }>;
+    relations: ExperienceTreeSituationRelation[];
+    studies: ExperienceTreeStudyLink[];
+};
+
+export type DecisionStudyLinkRequest = {
+    situationKey: string;
+    optionKey?: string | null;
+    studyId: number;
+    relationType: DecisionStudyRelationType;
+    note?: string;
+    displayOrder: number;
+};
 
 export type LearningResourceType = 'ONLINE_COURSE' | 'BOOK' | 'OFFLINE';
 export type LearningResourceStatus = 'WISHLIST' | 'OWNED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -280,6 +430,11 @@ export type Experience = {
 
     // Education specific
     institutionName?: string;
+    educationType?: 'ACADEMIC' | 'COURSE';
+    degree?: string;
+    major?: string;
+    gpa?: string;
+    graduationStatus?: string;
 
     // Certificate specific
     issuer?: string;
@@ -737,6 +892,11 @@ export type ExperienceRequest = {
     repositoryUrl?: string;
     careerId?: number;
     institutionName?: string;
+    educationType?: 'ACADEMIC' | 'COURSE';
+    degree?: string;
+    major?: string;
+    gpa?: string;
+    graduationStatus?: string;
     issuer?: string;
 };
 

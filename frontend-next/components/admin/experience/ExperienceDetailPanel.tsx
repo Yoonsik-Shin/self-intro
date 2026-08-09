@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import type { Experience } from '@/lib/api/types';
 import { adminDetailMarkdownComponents } from '@/lib/markdown';
+import { graduationStatusLabel } from '@/lib/format';
 
 type ExperienceDetailPanelProps = {
     experience: Experience;
@@ -130,10 +131,20 @@ export function ExperienceDetailPanel({
                     <h3 className="mt-3 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">
                         {experience.title}
                     </h3>
-                    {(organization || experience.role) && (
+                    {(organization || experience.role || experience.degree || experience.major) && (
                         <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-500">
                             <Building2 className="h-4 w-4" />
-                            {[organization, experience.department, experience.role]
+                            {[
+                                organization,
+                                experience.department,
+                                experience.role,
+                                experience.degree,
+                                experience.major,
+                                experience.gpa ? `학점: ${experience.gpa}` : undefined,
+                                experience.graduationStatus
+                                    ? graduationStatusLabel(experience.graduationStatus)
+                                    : undefined,
+                            ]
                                 .filter(Boolean)
                                 .join(' · ')}
                         </p>
