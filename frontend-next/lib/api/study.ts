@@ -6,6 +6,7 @@ import type {
     TaxonomyNode,
     Tag,
     StudyStatus,
+    StudySection,
     StudyRequest,
     StudySuggestionRequest,
     StudySuggestionResponse,
@@ -23,11 +24,13 @@ export const studyApi = {
             experienceDetailIds?: number[];
             page?: number;
             size?: number;
+            section?: StudySection;
         } = {}
     ) => {
         const search = new URLSearchParams();
         if (params.q) search.set('q', params.q);
         if (params.taxonomyNodeId) search.set('taxonomyNodeId', String(params.taxonomyNodeId));
+        if (params.section) search.set('section', params.section);
         params.skillIds?.forEach((id) => search.append('skillIds', String(id)));
         params.experienceIds?.forEach((id) => search.append('experienceIds', String(id)));
         params.experienceDetailIds?.forEach((id) =>
@@ -49,12 +52,14 @@ export const studyApi = {
             skillIds?: number[];
             experienceIds?: number[];
             experienceDetailIds?: number[];
+            section?: StudySection;
         } = {}
     ) => {
         const search = new URLSearchParams({ size: '100' });
         if (params.q) search.set('q', params.q);
         if (params.taxonomyNodeId) search.set('taxonomyNodeId', String(params.taxonomyNodeId));
         if (params.status) search.set('status', params.status);
+        if (params.section) search.set('section', params.section);
         params.skillIds?.forEach((id) => search.append('skillIds', String(id)));
         params.experienceIds?.forEach((id) => search.append('experienceIds', String(id)));
         params.experienceDetailIds?.forEach((id) =>

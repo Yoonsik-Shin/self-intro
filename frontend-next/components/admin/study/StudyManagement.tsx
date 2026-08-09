@@ -44,6 +44,7 @@ const emptyStudyForm: StudyForm = {
     summary: '',
     contentMarkdown: '',
     status: 'DRAFT',
+    section: 'ETC',
     taxonomyNodeIds: [],
     tagNames: '',
     skillIds: [],
@@ -213,6 +214,7 @@ export function StudyManagement() {
     const [studyExperienceDetailSearch, setStudyExperienceDetailSearch] = useState('');
     const [relatedStudySearch, setRelatedStudySearch] = useState('');
     const [studyFilter, setStudyFilter] = useState<string>('ALL');
+    const [sectionFilter, setSectionFilter] = useState<StudyForm['section'] | 'ALL'>('ALL');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'PUBLISHED'>('ALL');
     const [selectedStudyIds, setSelectedStudyIds] = useState<number[]>([]);
     const [studySearch, setStudySearch] = useState<string>('');
@@ -250,6 +252,7 @@ export function StudyManagement() {
                 studyFilter === 'ALL' ||
                 study.taxonomyNodes.some((node) => node.slug === studyFilter);
             const matchesStatus = statusFilter === 'ALL' || study.status === statusFilter;
+            const matchesSection = sectionFilter === 'ALL' || study.section === sectionFilter;
             const matchesSearch =
                 !studySearch ||
                 study.title.toLowerCase().includes(studySearch.toLowerCase()) ||
@@ -261,9 +264,9 @@ export function StudyManagement() {
                 study.skills.some((skill) =>
                     skill.name.toLowerCase().includes(studySearch.toLowerCase())
                 );
-            return matchesCategory && matchesStatus && matchesSearch;
+            return matchesCategory && matchesStatus && matchesSection && matchesSearch;
         });
-    }, [studies, studyFilter, statusFilter, studySearch]);
+    }, [studies, studyFilter, statusFilter, sectionFilter, studySearch]);
 
     const selectedStudy = useMemo(
         () => studies?.find((study) => study.id === selectedStudyId) ?? null,
@@ -501,6 +504,7 @@ export function StudyManagement() {
                 summary: study.summary,
                 contentMarkdown: study.contentMarkdown,
                 status: study.status,
+                section: study.section,
                 taxonomyNodeIds: study.taxonomyNodes.map((node) => node.id),
                 tagNames: study.tags.map((tag) => tag.name).join(', '),
                 skillIds: study.skills.map((skill) => skill.id),
@@ -534,6 +538,7 @@ export function StudyManagement() {
                         summary: target.summary,
                         contentMarkdown: target.contentMarkdown,
                         status: target.status,
+                        section: target.section,
                         taxonomyNodeIds: target.taxonomyNodes.map((node) => node.id),
                         tagNames: target.tags.map((tag) => tag.name).join(', '),
                         skillIds: target.skills.map((skill) => skill.id),
@@ -635,6 +640,27 @@ export function StudyManagement() {
                     </div>
 
                     {/* Category Filter Pills */}
+                    <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2">
+                        <span className="mr-1 shrink-0 text-xs font-bold text-slate-400">
+                            분류:
+                        </span>
+                        {(['ALL', 'FUNDAMENTAL', 'ADVANCED', 'RETROSPECT', 'ETC'] as const).map(
+                            (section) => (
+                                <button
+                                    key={section}
+                                    type="button"
+                                    onClick={() => setSectionFilter(section)}
+                                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                                        sectionFilter === section
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                    }`}
+                                >
+                                    {section === 'ALL' ? '전체' : section}
+                                </button>
+                            )
+                        )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
                         <span className="text-xs font-bold text-slate-400 mr-1 shrink-0">
                             카테고리:
@@ -925,6 +951,26 @@ export function StudyManagement() {
                                     setStudyForm({ ...studyForm, taxonomyNodeIds: ids })
                                 }
                             />
+                        </div>
+                        <div>
+                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Study 분류
+                            </label>
+                            <select
+                                value={studyForm.section}
+                                onChange={(e) =>
+                                    setStudyForm({
+                                        ...studyForm,
+                                        section: e.target.value as StudyForm['section'],
+                                    })
+                                }
+                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                            >
+                                <option value="FUNDAMENTAL">Fundamental · 기반 원리</option>
+                                <option value="ADVANCED">Advanced · 심화 구현</option>
+                                <option value="RETROSPECT">Retrospect · 경험 회고</option>
+                                <option value="ETC">ETC · 기타 자료</option>
+                            </select>
                         </div>
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -1339,6 +1385,9 @@ export function StudyManagement() {
                                             onClick={() => syncStudyUrlState(study.id)}
                                         >
                                             <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">
+                                                    {study.section}
+                                                </span>
                                                 <span className="font-mono text-xs font-bold text-slate-400">
                                                     {study.learnedAt} ·{' '}
                                                     {study.taxonomyNodes
