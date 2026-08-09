@@ -17,6 +17,8 @@ import com.microsoft.playwright.options.WaitUntilState;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,9 +39,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+import io.micrometer.observation.annotation.Observed;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
@@ -143,10 +144,8 @@ public class JobApplicationUrlParseService {
             """;
 
     /**
-     * URL 파싱이 불가능해 사용자가 직접 채용 페이지를 캡처한 스크린샷으로 등록하는 경로 전용
-     * 프롬프트. 포스터/배너형 홍보 이미지를 전제로 한 {@link #VISION_PARSE_PROMPT}와 달리,
-     * 브라우저로 페이지 전체를 캡처한 경우가 많아 헤더/로고에 회사명이 있을 가능성이 높다는
-     * 힌트를 추가했다.
+     * URL 파싱이 불가능해 사용자가 직접 채용 페이지를 캡처한 스크린샷으로 등록하는 경로 전용 프롬프트. 포스터/배너형 홍보 이미지를 전제로 한 {@link
+     * #VISION_PARSE_PROMPT}와 달리, 브라우저로 페이지 전체를 캡처한 경우가 많아 헤더/로고에 회사명이 있을 가능성이 높다는 힌트를 추가했다.
      */
     private static final String SCREENSHOT_PARSE_PROMPT =
             VISION_PARSE_PROMPT.replaceFirst(
@@ -235,13 +234,15 @@ public class JobApplicationUrlParseService {
 
     private SseEmitter createSseEmitter(long timeoutMillis) {
         SseEmitter emitter = new SseEmitter(timeoutMillis);
-        emitter.onTimeout(() -> {
-            log.info("채용공고 파싱 SSE 스트림 타임아웃 발생");
-            emitter.complete();
-        });
-        emitter.onError(ex -> {
-            log.debug("채용공고 파싱 SSE 스트림 에러: {}", ex.getMessage());
-        });
+        emitter.onTimeout(
+                () -> {
+                    log.info("채용공고 파싱 SSE 스트림 타임아웃 발생");
+                    emitter.complete();
+                });
+        emitter.onError(
+                ex -> {
+                    log.debug("채용공고 파싱 SSE 스트림 에러: {}", ex.getMessage());
+                });
         return emitter;
     }
 
@@ -302,6 +303,7 @@ public class JobApplicationUrlParseService {
 
     private record ErrorEvent(String type, String message) {}
 
+    @Observed(name = "job.posting.parse.workflow")
     public JobApplicationUrlParseResponse parse(String url) {
         Timer.Sample sample = (meterRegistry != null) ? Timer.start(meterRegistry) : null;
         try {
@@ -350,8 +352,7 @@ public class JobApplicationUrlParseService {
             // jobDescription 이하가 전부 null로 반환된다. 그대로 돌려주는 대신 회사명/직무명
             // 같은 확실한 값은 살려두고, 상세 항목만 아래 일반 AI(+헤드리스 브라우저) 경로로
             // 다시 채운 뒤 mergeJobkoreaFallback()에서 합친다.
-            log.info(
-                    "잡코리아 상세 프레임 조회 실패, AI 추출로 상세 항목 보강 시도: host={}", uri.getHost());
+            log.info("잡코리아 상세 프레임 조회 실패, AI 추출로 상세 항목 보강 시도: host={}", uri.getHost());
         }
         if (document.text().trim().length() < MIN_MEANINGFUL_TEXT_LENGTH
                 || looksLikeMissingDetailSection(document.text())) {
@@ -428,8 +429,8 @@ public class JobApplicationUrlParseService {
     }
 
     /**
-     * AI가 반환한 positionTitles(전체 모집부문 목록)에서 이미 positionTitle(1지망)로 쓰인 값을
-     * 한 번만 제외하고 나머지를 반환한다. 목록이 비었거나 1지망 하나만 있으면 빈 리스트다.
+     * AI가 반환한 positionTitles(전체 모집부문 목록)에서 이미 positionTitle(1지망)로 쓰인 값을 한 번만 제외하고 나머지를 반환한다. 목록이
+     * 비었거나 1지망 하나만 있으면 빈 리스트다.
      */
     private static List<String> computeAdditionalPositionTitles(
             String positionTitle, List<String> positionTitles) {
@@ -654,7 +655,10 @@ public class JobApplicationUrlParseService {
             }
         }
 
-        String companyName = extractRegexGroup(html, "(?:\\\\?&quot;|\\\\?\")companyName(?:\\\\?&quot;|\\\\?\")\\s*:\\s*(?:\\\\?&quot;|\\\\?\")([^\"&\\\\]+?)(?:\\\\?&quot;|\\\\?\")");
+        String companyName =
+                extractRegexGroup(
+                        html,
+                        "(?:\\\\?&quot;|\\\\?\")companyName(?:\\\\?&quot;|\\\\?\")\\s*:\\s*(?:\\\\?&quot;|\\\\?\")([^\"&\\\\]+?)(?:\\\\?&quot;|\\\\?\")");
         if (!AiJsonSupport.hasText(companyName) && positionTitleRaw != null) {
             companyName = extractRegexGroup(positionTitleRaw, "^\\[([^\\]]+)\\]");
         }
@@ -674,7 +678,8 @@ public class JobApplicationUrlParseService {
             }
         }
         if (!AiJsonSupport.hasText(companyName)) {
-            Element coNameEl = document.selectFirst(".coName, .header .name, #company-section span");
+            Element coNameEl =
+                    document.selectFirst(".coName, .header .name, #company-section span");
             if (coNameEl != null) {
                 companyName = coNameEl.text();
             }
@@ -750,14 +755,13 @@ public class JobApplicationUrlParseService {
         if (rawTitle == null || rawTitle.isBlank()) {
             return rawTitle;
         }
-        String cleaned = rawTitle
-                .replace("| 잡코리아", "")
-                .replace("- 잡코리아", "")
-                .replace("잡코리아 - ", "")
-                .trim();
+        String cleaned =
+                rawTitle.replace("| 잡코리아", "").replace("- 잡코리아", "").replace("잡코리아 - ", "").trim();
 
         if (companyName != null && !companyName.isBlank()) {
-            String normCompany = com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer.normalizeCompanyName(companyName);
+            String normCompany =
+                    com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer
+                            .normalizeCompanyName(companyName);
             if (cleaned.startsWith("[" + companyName + "]")) {
                 cleaned = cleaned.substring(("[" + companyName + "]").length()).trim();
             } else if (!normCompany.isEmpty() && cleaned.startsWith("[" + normCompany + "]")) {
@@ -890,11 +894,12 @@ public class JobApplicationUrlParseService {
 
     /**
      * URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록하는 경로. {@link #sliceForVision}/{@link
-     * NvidiaNimClient#generateWithImages}는 배너 이미지 경로와 그대로 공유하고, 프롬프트만
-     * {@link #SCREENSHOT_PARSE_PROMPT}로 바꾼다. 여러 장이면(스크롤 캡처) 업로드 순서대로 모두
-     * 한 번의 호출에 실어 보낸다. postingUrl은 없으므로 null로 반환한다.
+     * NvidiaNimClient#generateWithImages}는 배너 이미지 경로와 그대로 공유하고, 프롬프트만 {@link
+     * #SCREENSHOT_PARSE_PROMPT}로 바꾼다. 여러 장이면(스크롤 캡처) 업로드 순서대로 모두 한 번의 호출에 실어 보낸다. postingUrl은 없으므로
+     * null로 반환한다.
      */
-    public JobApplicationUrlParseResponse parseFromImages(List<NvidiaNimClient.ImagePart> rawImages) {
+    public JobApplicationUrlParseResponse parseFromImages(
+            List<NvidiaNimClient.ImagePart> rawImages) {
         List<NvidiaNimClient.ImagePart> parts =
                 rawImages.stream()
                         .flatMap(image -> sliceForVision(image.bytes(), image.mimeType()).stream())
@@ -914,7 +919,9 @@ public class JobApplicationUrlParseService {
                             parts,
                             VISION_MAX_OUTPUT_TOKENS,
                             VISION_AI_TIMEOUT);
-            extracted = AiJsonSupport.parseJson(objectMapper, raw, ExtractedFields.class, "채용공고 스크린샷 분석");
+            extracted =
+                    AiJsonSupport.parseJson(
+                            objectMapper, raw, ExtractedFields.class, "채용공고 스크린샷 분석");
         } catch (Exception exception) {
             log.warn("채용공고 스크린샷 1차 분석 실패, 파트 축소 후 재시도", exception);
             try {
@@ -928,7 +935,9 @@ public class JobApplicationUrlParseService {
                                 reducedParts,
                                 VISION_MAX_OUTPUT_TOKENS,
                                 VISION_AI_TIMEOUT);
-                extracted = AiJsonSupport.parseJson(objectMapper, raw, ExtractedFields.class, "채용공고 스크린샷 2차 분석");
+                extracted =
+                        AiJsonSupport.parseJson(
+                                objectMapper, raw, ExtractedFields.class, "채용공고 스크린샷 2차 분석");
             } catch (Exception retryEx) {
                 log.warn("채용공고 스크린샷 2차 분석 최종 실패", retryEx);
                 extracted = EMPTY_EXTRACTED_FIELDS;
@@ -960,10 +969,12 @@ public class JobApplicationUrlParseService {
                 AiJsonSupport.blankToNull(extracted.applicationMethod()),
                 AiJsonSupport.blankToNull(extracted.compensationDetail()),
                 null,
-                computeAdditionalPositionTitles(extracted.positionTitle(), extracted.positionTitles()));
+                computeAdditionalPositionTitles(
+                        extracted.positionTitle(), extracted.positionTitles()));
     }
 
-    private ExtractedFields enrichFromBannerImage(ExtractedFields base, Document document, URI refererUri) {
+    private ExtractedFields enrichFromBannerImage(
+            ExtractedFields base, Document document, URI refererUri) {
         return findBannerImage(document, refererUri)
                 .map(image -> merge(base, visionExtractOrEmpty(image)))
                 .orElse(base);
@@ -1061,9 +1072,8 @@ public class JobApplicationUrlParseService {
     }
 
     /**
-     * 잡코리아 전용 파서가 정규식으로 확실히 뽑아낸 값(회사명·직무명·마감일·근무지 등)은 그대로
-     * 살리고, 상세 프레임 조회 실패로 비어있던 항목(담당업무·자격요건 등)만 일반 AI 추출 결과로
-     * 채운다.
+     * 잡코리아 전용 파서가 정규식으로 확실히 뽑아낸 값(회사명·직무명·마감일·근무지 등)은 그대로 살리고, 상세 프레임 조회 실패로 비어있던 항목(담당업무·자격요건 등)만
+     * 일반 AI 추출 결과로 채운다.
      */
     static JobApplicationUrlParseResponse mergeJobkoreaFallback(
             JobApplicationUrlParseResponse jobkorea, JobApplicationUrlParseResponse aiFallback) {
@@ -1072,7 +1082,9 @@ public class JobApplicationUrlParseService {
                 pick(jobkorea.positionTitle(), aiFallback.positionTitle()),
                 pick(jobkorea.source(), aiFallback.source()),
                 jobkorea.deadline() != null ? jobkorea.deadline() : aiFallback.deadline(),
-                jobkorea.deadlineTime() != null ? jobkorea.deadlineTime() : aiFallback.deadlineTime(),
+                jobkorea.deadlineTime() != null
+                        ? jobkorea.deadlineTime()
+                        : aiFallback.deadlineTime(),
                 jobkorea.alwaysOpen() || aiFallback.alwaysOpen(),
                 pick(jobkorea.salaryNote(), aiFallback.salaryNote()),
                 pick(jobkorea.location(), aiFallback.location()),
@@ -1306,8 +1318,8 @@ public class JobApplicationUrlParseService {
     }
 
     /**
-     * 스크린샷 업로드(기능 B) 경로용 — 프론트가 presigned URL로 이미 올려둔 이미지를 공개
-     * URL(STORAGE_PUBLIC_BASE_URL)에서 바이트로 내려받는다. 인증이 필요 없다.
+     * 스크린샷 업로드(기능 B) 경로용 — 프론트가 presigned URL로 이미 올려둔 이미지를 공개 URL(STORAGE_PUBLIC_BASE_URL)에서 바이트로
+     * 내려받는다. 인증이 필요 없다.
      */
     public NvidiaNimClient.ImagePart downloadImagePart(String url, String mimeType) {
         try {
@@ -1358,10 +1370,8 @@ public class JobApplicationUrlParseService {
     }
 
     /**
-     * 파일 매직 넘버로 실제 이미지 포맷을 확인한다. URL 확장자만 보고 mime을 추측하면, 핫링크 차단
-     * 등으로 실제로는 이미지가 아닌 바이트(HTML 에러 페이지 등)가 내려와도 걸러내지 못하고 그대로
-     * 비전 모델에 전달되어 400 오류로 이어진다. 알려진 이미지 시그니처가 없으면 null을 반환해
-     * 해당 후보를 건너뛴다.
+     * 파일 매직 넘버로 실제 이미지 포맷을 확인한다. URL 확장자만 보고 mime을 추측하면, 핫링크 차단 등으로 실제로는 이미지가 아닌 바이트(HTML 에러 페이지
+     * 등)가 내려와도 걸러내지 못하고 그대로 비전 모델에 전달되어 400 오류로 이어진다. 알려진 이미지 시그니처가 없으면 null을 반환해 해당 후보를 건너뛴다.
      */
     private static String sniffImageMimeType(byte[] bytes) {
         if (bytes.length < 12) return null;
@@ -1415,7 +1425,9 @@ public class JobApplicationUrlParseService {
     LocalTime parseTime(String value) {
         if (!AiJsonSupport.hasText(value)) return null;
         String trimmed = value.trim();
-        java.util.regex.Matcher m1 = java.util.regex.Pattern.compile("(\\d{1,2}):(\\d{2})(?::(\\d{2}))?").matcher(trimmed);
+        java.util.regex.Matcher m1 =
+                java.util.regex.Pattern.compile("(\\d{1,2}):(\\d{2})(?::(\\d{2}))?")
+                        .matcher(trimmed);
         if (m1.find()) {
             int h = Integer.parseInt(m1.group(1));
             int m = Integer.parseInt(m1.group(2));
@@ -1425,7 +1437,9 @@ public class JobApplicationUrlParseService {
                 return LocalTime.of(h, m, s);
             }
         }
-        java.util.regex.Matcher m2 = java.util.regex.Pattern.compile("(\\d{1,2})\\s*시(?:\\s*(\\d{1,2})\\s*분)?").matcher(trimmed);
+        java.util.regex.Matcher m2 =
+                java.util.regex.Pattern.compile("(\\d{1,2})\\s*시(?:\\s*(\\d{1,2})\\s*분)?")
+                        .matcher(trimmed);
         if (m2.find()) {
             int h = Integer.parseInt(m2.group(1));
             int m = m2.group(2) != null ? Integer.parseInt(m2.group(2)) : 0;
@@ -1440,7 +1454,8 @@ public class JobApplicationUrlParseService {
     private record ExtractedFields(
             @JsonDeserialize(using = LenientStringDeserializer.class) String companyName,
             @JsonDeserialize(using = LenientStringDeserializer.class) String positionTitle,
-            @JsonDeserialize(using = LenientStringListDeserializer.class) List<String> positionTitles,
+            @JsonDeserialize(using = LenientStringListDeserializer.class)
+                    List<String> positionTitles,
             @JsonDeserialize(using = LenientStringDeserializer.class) String source,
             @JsonDeserialize(using = LenientStringDeserializer.class) String deadline,
             @JsonDeserialize(using = LenientStringDeserializer.class) String deadlineTime,
@@ -1476,7 +1491,8 @@ public class JobApplicationUrlParseService {
     }
 
     /** 비전/텍스트 모델이 positionTitles를 배열 대신 단일 문자열로 반환하는 경우가 있어 관대하게 파싱한다. */
-    private static final class LenientStringListDeserializer extends JsonDeserializer<List<String>> {
+    private static final class LenientStringListDeserializer
+            extends JsonDeserializer<List<String>> {
         @Override
         public List<String> deserialize(JsonParser parser, DeserializationContext context)
                 throws IOException {

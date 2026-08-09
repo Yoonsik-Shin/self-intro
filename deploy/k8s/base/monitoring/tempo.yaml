@@ -20,6 +20,8 @@ metadata:
     app: tempo
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: tempo
@@ -28,9 +30,11 @@ spec:
       labels:
         app: tempo
     spec:
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: tempo
-          image: grafana/tempo:latest
+          image: docker.io/grafana/tempo:2.4.1
           args:
             - "-config.file=/etc/tempo/tempo.yaml"
           ports:
@@ -43,10 +47,10 @@ spec:
           resources:
             requests:
               cpu: 50m
-              memory: 64Mi
+              memory: 128Mi
             limits:
               cpu: 200m
-              memory: 128Mi
+              memory: 256Mi
           volumeMounts:
             - name: config
               mountPath: /etc/tempo
