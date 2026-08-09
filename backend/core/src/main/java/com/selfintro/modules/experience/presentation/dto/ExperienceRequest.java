@@ -37,6 +37,11 @@ public record ExperienceRequest(
 
         // Education specific fields
         String institutionName,
+        String educationType,
+        String degree,
+        String major,
+        String gpa,
+        String graduationStatus,
 
         // Certificate specific fields
         String issuer) {}

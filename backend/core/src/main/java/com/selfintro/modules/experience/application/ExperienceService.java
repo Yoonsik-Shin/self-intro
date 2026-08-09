@@ -165,7 +165,12 @@ public class ExperienceService {
                                     skills,
                                     request.showOnTimeline(),
                                     request.timelineLabel(),
-                                    request.institutionName());
+                                    request.institutionName(),
+                                    request.educationType(),
+                                    request.degree(),
+                                    request.major(),
+                                    request.gpa(),
+                                    request.graduationStatus());
             case "CERTIFICATE" ->
                     exp =
                             Certificate.create(
@@ -250,7 +255,12 @@ public class ExperienceService {
                     skills,
                     request.showOnTimeline(),
                     request.timelineLabel(),
-                    request.institutionName());
+                    request.institutionName(),
+                    request.educationType(),
+                    request.degree(),
+                    request.major(),
+                    request.gpa(),
+                    request.graduationStatus());
         } else if (exp instanceof Certificate cert
                 && "CERTIFICATE".equalsIgnoreCase(request.type())) {
             cert.update(

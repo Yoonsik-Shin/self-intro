@@ -41,6 +41,11 @@ public record ExperienceResponse(
 
         // Education
         String institutionName,
+        String educationType,
+        String degree,
+        String major,
+        String gpa,
+        String graduationStatus,
 
         // Certificate
         String issuer) {
@@ -70,6 +75,11 @@ public record ExperienceResponse(
                 repositoryUrl,
                 careerId,
                 institutionName,
+                educationType,
+                degree,
+                major,
+                gpa,
+                graduationStatus,
                 issuer);
     }
 
@@ -110,6 +120,11 @@ public record ExperienceResponse(
                     null,
                     null,
                     null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null);
         } else if (exp instanceof Project project) {
             return new ExperienceResponse(
@@ -135,6 +150,11 @@ public record ExperienceResponse(
                     project.getContributionRate(),
                     project.getRepositoryUrl(),
                     project.getCareer() != null ? project.getCareer().getId() : null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null,
                     null);
         } else if (exp instanceof Education edu) {
@@ -162,6 +182,11 @@ public record ExperienceResponse(
                     null,
                     null,
                     edu.getInstitutionName(),
+                    edu.getEducationType(),
+                    edu.getDegree(),
+                    edu.getMajor(),
+                    edu.getGpa(),
+                    edu.getGraduationStatus(),
                     null);
         } else if (exp instanceof Certificate cert) {
             return new ExperienceResponse(
@@ -179,6 +204,11 @@ public record ExperienceResponse(
                     skillResponses,
                     tagResponses,
                     imageResponses,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null,
                     null,
                     null,
