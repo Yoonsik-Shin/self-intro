@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type HTMLAttributes } from 'react';
 import {
     ChevronLeft,
     ChevronRight,
@@ -10,6 +10,7 @@ import {
     Lock,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useTouchDrag } from '@/hooks/useTouchDrag';
 
 type PrintPreviewNavSection = {
     id: string;
@@ -51,6 +52,28 @@ type PrintPreviewNavProps = {
     onToggleAll?: () => void;
     excludedCount?: number;
 };
+
+const touchItemKey = (scopeId: string, itemId: string, siblingIds: string[]) =>
+    JSON.stringify([scopeId, itemId, siblingIds]);
+
+function parseTouchItemKey(key: string): [string, string, string[]] | null {
+    try {
+        const parsed: unknown = JSON.parse(key);
+        if (
+            Array.isArray(parsed) &&
+            parsed.length === 3 &&
+            typeof parsed[0] === 'string' &&
+            typeof parsed[1] === 'string' &&
+            Array.isArray(parsed[2]) &&
+            parsed[2].every((id) => typeof id === 'string')
+        ) {
+            return [parsed[0], parsed[1], parsed[2]];
+        }
+    } catch {
+        // Ignore malformed data attributes from outside this drag zone.
+    }
+    return null;
+}
 
 function ToggleSwitch({
     on,
@@ -97,6 +120,8 @@ function NavTreeNode({
     draggedId,
     dragOverId,
     onDragStateChange,
+    touchDragHandleProps,
+    touchDropTargetProps,
 }: {
     item: PrintPreviewNavItem;
     depth: number;
@@ -116,6 +141,8 @@ function NavTreeNode({
     draggedId: string | null;
     dragOverId: string | null;
     onDragStateChange: (draggedId: string | null, dragOverId: string | null) => void;
+    touchDragHandleProps: (sourceId: string) => HTMLAttributes<HTMLElement>;
+    touchDropTargetProps: (targetId: string) => HTMLAttributes<HTMLElement>;
 }) {
     const excluded = excludedIds.includes(item.id);
     const hasChildren = Boolean(item.children && item.children.length > 0);
@@ -124,10 +151,12 @@ function NavTreeNode({
     const isOverThis = dragOverId === item.id;
     const childScopeId = item.scopeId ?? item.id;
     const childIds = item.children?.map((c) => c.id) ?? [];
+    const itemTouchKey = touchItemKey(scopeId, item.id, siblingIds);
 
     return (
         <div>
             <div
+                {...touchDropTargetProps(itemTouchKey)}
                 draggable
                 onDragStart={(e) => {
                     e.stopPropagation();
@@ -158,7 +187,14 @@ function NavTreeNode({
                     isDraggingThis ? 'opacity-30' : ''
                 } ${isOverThis ? 'ring-1 ring-blue-500 bg-blue-500/10' : 'hover:bg-slate-800/60'}`}
             >
-                <GripVertical className="h-3 w-3 shrink-0 text-slate-600 group-hover:text-slate-300 cursor-grab active:cursor-grabbing" />
+                <span
+                    {...touchDragHandleProps(itemTouchKey)}
+                    onClick={(event) => event.stopPropagation()}
+                    className="grid h-5 w-4 shrink-0 touch-none place-items-center text-slate-600 group-hover:text-slate-300 cursor-grab active:cursor-grabbing"
+                    title="드래그 또는 터치하여 순서 변경"
+                >
+                    <GripVertical className="h-3 w-3" />
+                </span>
                 {hasChildren ? (
                     <button
                         type="button"
@@ -204,6 +240,8 @@ function NavTreeNode({
                             draggedId={draggedId}
                             dragOverId={dragOverId}
                             onDragStateChange={onDragStateChange}
+                            touchDragHandleProps={touchDragHandleProps}
+                            touchDropTargetProps={touchDropTargetProps}
                         />
                     ))}
                 </div>
@@ -245,6 +283,40 @@ export function PrintPreviewNav({
         ...itemGroups.map((g) => g.sectionId),
         ...itemGroups.flatMap((g) => collectIdsWithChildren(g.items)),
     ]);
+
+    const touchSectionDrag = useTouchDrag({
+        onDragStart: (id) => setDraggedSectionId(id),
+        onDragOver: (_, targetId) => setDragOverSectionId(targetId),
+        onDrop: (sourceId, targetId) => {
+            if (sourceId !== targetId) onReorder(sourceId, targetId);
+        },
+        onDragEnd: () => {
+            setDraggedSectionId(null);
+            setDragOverSectionId(null);
+        },
+    });
+    const touchItemDrag = useTouchDrag({
+        onDragStart: (key) => {
+            const parsed = parseTouchItemKey(key);
+            if (parsed) setDraggedItemId(parsed[1]);
+        },
+        onDragOver: (_, targetKey) => {
+            const parsed = targetKey ? parseTouchItemKey(targetKey) : null;
+            setDragOverItemId(parsed?.[1] ?? null);
+        },
+        onDrop: (sourceKey, targetKey) => {
+            const source = parseTouchItemKey(sourceKey);
+            const target = parseTouchItemKey(targetKey);
+            if (!source || !target || source[0] !== target[0] || source[1] === target[1]) return;
+            if (source[2].includes(target[1])) {
+                onReorderItem(source[0], source[2], source[1], target[1]);
+            }
+        },
+        onDragEnd: () => {
+            setDraggedItemId(null);
+            setDragOverItemId(null);
+        },
+    });
 
     const itemsBySection = new Map(itemGroups.map((g) => [g.sectionId, g]));
 
@@ -341,6 +413,7 @@ export function PrintPreviewNav({
                     return (
                         <div
                             key={sec.id}
+                            {...touchSectionDrag.dropTargetProps(sec.id)}
                             draggable={!isLocked}
                             onDragStart={(e) => {
                                 if (isLocked) return;
@@ -378,7 +451,14 @@ export function PrintPreviewNav({
                                 className="flex items-center gap-1.5 px-2.5 py-2 cursor-pointer"
                             >
                                 {!isLocked && (
-                                    <GripVertical className="h-3.5 w-3.5 shrink-0 text-slate-500 group-hover:text-slate-300 cursor-grab active:cursor-grabbing" />
+                                    <span
+                                        {...touchSectionDrag.dragHandleProps(sec.id)}
+                                        onClick={(event) => event.stopPropagation()}
+                                        className="grid h-6 w-4 shrink-0 touch-none place-items-center text-slate-500 group-hover:text-slate-300 cursor-grab active:cursor-grabbing"
+                                        title="드래그 또는 터치하여 순서 변경"
+                                    >
+                                        <GripVertical className="h-3.5 w-3.5" />
+                                    </span>
                                 )}
                                 <sec.icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                                 <span
@@ -433,6 +513,8 @@ export function PrintPreviewNav({
                                                 setDraggedItemId(d);
                                                 setDragOverItemId(o);
                                             }}
+                                            touchDragHandleProps={touchItemDrag.dragHandleProps}
+                                            touchDropTargetProps={touchItemDrag.dropTargetProps}
                                         />
                                     ))}
                                 </div>

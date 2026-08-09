@@ -35,6 +35,7 @@ import {
     Eye,
     EyeOff,
     FileText,
+    GripVertical,
     ImagePlus,
     Info,
     LayoutGrid,
@@ -61,6 +62,7 @@ import { ScreenshotIngestPanel } from './ScreenshotIngestPanel';
 import { SourceImagesPopover } from './SourceImagesPopover';
 import { SourceLinksPopover } from './SourceLinksPopover';
 import { JobCoverLetterDrawer } from './JobCoverLetterDrawer';
+import { useTouchDrag } from '@/hooks/useTouchDrag';
 import type {
     GapProjectDocument,
     JobPosting,
@@ -3355,6 +3357,43 @@ export function JobApplicationManagement() {
         }
     }
 
+    const touchBoardDrag = useTouchDrag({
+        onDragOver: (_, targetId) => {
+            setIsDragOverCandidates(targetId === 'candidates');
+            setDragOverStage(
+                targetId && targetId !== 'candidates' ? (targetId as ApplicationStatus) : null
+            );
+        },
+        onDrop: (sourceId, targetId) => {
+            const id = Number(sourceId);
+            if (Number.isNaN(id)) return;
+            const target = postings.find((item) => item.id === id);
+            if (!target) return;
+
+            if (targetId === 'candidates') {
+                if (
+                    !isPreApplication(target.status) &&
+                    confirm('이 공고를 지원 전(수집됨) 상태로 되돌릴까요?')
+                ) {
+                    unapplyMutation.mutate(id);
+                }
+                return;
+            }
+
+            const stage = targetId as ApplicationStatus;
+            if (!STAGE_ORDER.includes(stage)) return;
+            if (isPreApplication(target.status)) {
+                applyMutation.mutate(id);
+            } else if (target.status !== stage) {
+                statusMutation.mutate({ id, status: stage });
+            }
+        },
+        onDragEnd: () => {
+            setIsDragOverCandidates(false);
+            setDragOverStage(null);
+        },
+    });
+
     const isSaving = createMutation.isPending || updateMutation.isPending;
 
     return (
@@ -4487,6 +4526,7 @@ export function JobApplicationManagement() {
                         }}
                     >
                         <div
+                            {...touchBoardDrag.dropTargetProps('candidates')}
                             onDragOver={handleCandidateColumnDragOver}
                             onDragLeave={() => setIsDragOverCandidates(false)}
                             onDrop={handleCandidateColumnDrop}
@@ -4535,20 +4575,34 @@ export function JobApplicationManagement() {
                                                             </span>
                                                         )}
                                                 </div>
-                                                {candidate.alwaysOpen ? (
-                                                    <AlwaysOpenBadge rounded="rounded-full" />
-                                                ) : (
-                                                    dDay && (
-                                                        <span
-                                                            className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
-                                                                candidate.deadline,
-                                                                candidate.deadlineTime
-                                                            )}`}
-                                                        >
-                                                            {dDay}
-                                                        </span>
-                                                    )
-                                                )}
+                                                <div className="flex items-center gap-1">
+                                                    {candidate.alwaysOpen ? (
+                                                        <AlwaysOpenBadge rounded="rounded-full" />
+                                                    ) : (
+                                                        dDay && (
+                                                            <span
+                                                                className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
+                                                                    candidate.deadline,
+                                                                    candidate.deadlineTime
+                                                                )}`}
+                                                            >
+                                                                {dDay}
+                                                            </span>
+                                                        )
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        {...touchBoardDrag.dragHandleProps(
+                                                            String(candidate.id)
+                                                        )}
+                                                        onClick={(event) => event.stopPropagation()}
+                                                        className="grid h-7 w-7 touch-none select-none place-items-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                                        aria-label={`${candidate.companyName} 터치로 단계 이동`}
+                                                        title="길게 누르지 않고 끌어서 단계 이동"
+                                                    >
+                                                        <GripVertical className="h-4 w-4" />
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div className="mt-1.5 flex min-w-0 items-center gap-2">
                                                 <p className="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800">
@@ -4625,6 +4679,7 @@ export function JobApplicationManagement() {
                             return (
                                 <div
                                     key={stage}
+                                    {...touchBoardDrag.dropTargetProps(stage)}
                                     onDragOver={(e) => handleColumnDragOver(e, stage)}
                                     onDragLeave={() =>
                                         setDragOverStage((prev) => (prev === stage ? null : prev))
@@ -4666,19 +4721,35 @@ export function JobApplicationManagement() {
                                                                 item.statusChangedAt
                                                             )}
                                                         </span>
-                                                        {item.alwaysOpen ? (
-                                                            <AlwaysOpenBadge rounded="rounded-full" />
-                                                        ) : dDay ? (
-                                                            <span
-                                                                className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
-                                                                    item.deadline
-                                                                )}`}
+                                                        <div className="flex items-center gap-1">
+                                                            {item.alwaysOpen ? (
+                                                                <AlwaysOpenBadge rounded="rounded-full" />
+                                                            ) : dDay ? (
+                                                                <span
+                                                                    className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold ${getDDayBadgeStyle(
+                                                                        item.deadline
+                                                                    )}`}
+                                                                >
+                                                                    {dDay}
+                                                                </span>
+                                                            ) : (
+                                                                <span />
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                {...touchBoardDrag.dragHandleProps(
+                                                                    String(item.id)
+                                                                )}
+                                                                onClick={(event) =>
+                                                                    event.stopPropagation()
+                                                                }
+                                                                className="grid h-7 w-7 touch-none select-none place-items-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                                                aria-label={`${item.companyName} 터치로 단계 이동`}
+                                                                title="길게 누르지 않고 끌어서 단계 이동"
                                                             >
-                                                                {dDay}
-                                                            </span>
-                                                        ) : (
-                                                            <span />
-                                                        )}
+                                                                <GripVertical className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     <p className="mt-1.5 truncate text-sm font-extrabold text-slate-800">
                                                         {item.companyName}
