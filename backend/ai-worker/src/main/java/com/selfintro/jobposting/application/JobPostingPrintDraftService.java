@@ -43,6 +43,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -52,7 +53,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Slf4j
 public class JobPostingPrintDraftService {
 
-    private static final Duration AI_TIMEOUT = Duration.ofSeconds(90);
     private static final long STREAM_TIMEOUT_MILLIS = 360_000L;
     private static final int AI_MAX_OUTPUT_TOKENS = 8192;
     private static final int PROJECT_RELEVANCE_TOP_K = 15;
@@ -140,9 +140,12 @@ public class JobPostingPrintDraftService {
     private final PrintDraftStreamSupport printDraftStreamSupport;
     private final ObjectMapper objectMapper;
 
+    @Value("${app.ai.print-draft-timeout:240s}")
+    private Duration aiTimeout = Duration.ofSeconds(240);
+
     /**
      * generate()를 그대로 감싸되 Cloudflare 엣지 타임아웃(524)을 피하기 위해 SSE로 응답한다 —
-     * 헤더가 즉시 나가므로 AI 호출이 90초를 넘겨도 요청이 끊기지 않는다(VectorBackfillOrchestrator와
+     * 헤더가 즉시 나가므로 긴 AI 호출 중에도 요청이 끊기지 않는다(VectorBackfillOrchestrator와
      * 동일한 문제, JobApplicationUrlParseService.parseStream과 동일한 해법).
      */
     public SseEmitter generateStream(Long jobPostingId, String aiModel, String customModelName) {
@@ -231,7 +234,12 @@ public class JobPostingPrintDraftService {
         String input = serializeInput(posting, introduction, relevantExperiences);
         String raw =
                 llmDispatcher.generateJson(
-                        SYSTEM_PROMPT, input, aiModel, customModelName, AI_MAX_OUTPUT_TOKENS, AI_TIMEOUT);
+                        SYSTEM_PROMPT,
+                        input,
+                        aiModel,
+                        customModelName,
+                        AI_MAX_OUTPUT_TOKENS,
+                        aiTimeout);
         JsonNode plan = parseJson(raw);
 
         DraftArtifacts artifacts = assemble(plan, introduction, relevantExperiences);
@@ -305,7 +313,7 @@ public class JobPostingPrintDraftService {
                         aiModel,
                         customModelName,
                         AI_MAX_OUTPUT_TOKENS,
-                        AI_TIMEOUT);
+                        aiTimeout);
         JsonNode plan = parseJson(raw);
 
         DraftArtifacts artifacts = assemble(plan, introduction, relevantExperiences);
