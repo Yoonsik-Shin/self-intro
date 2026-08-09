@@ -77,6 +77,8 @@ management:
       exposure:
         include: health,prometheus,metrics
   tracing:
+    propagation:
+      type: W3C
     sampling:
       probability: 1.0
   prometheus:
@@ -143,6 +145,10 @@ app:
     path-style-access: ${STORAGE_PATH_STYLE_ACCESS:true}
     presigned-upload-ttl-seconds: ${STORAGE_PRESIGNED_TTL_SECONDS:300}
     public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:9000/self-intro-images}
+  experience-tree:
+    # Git에 버전 관리되는 정적 카탈로그를 stable key 기준으로 멱등 동기화한다.
+    # 긴급 시 false로 내려 기존 DB read model만 제공할 수 있다.
+    import-enabled: ${EXPERIENCE_TREE_IMPORT_ENABLED:true}
 
 kakao:
   # job_posting 좌표 지오코딩 1순위 provider. 비어있으면 OSM Nominatim만 쓰는데, 국내 상세 건물

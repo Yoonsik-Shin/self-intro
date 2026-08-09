@@ -116,6 +116,8 @@ oracle:
 
 management:
   tracing:
+    propagation:
+      type: W3C
     sampling:
       probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
   otlp:
