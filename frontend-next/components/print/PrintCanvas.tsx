@@ -43,7 +43,7 @@ import {
     groupCoreSkills,
     groupSkillsByUsage,
 } from '@/lib/introDerivations';
-import { credentialKindLabel, formatCredentialPeriod } from '@/lib/format';
+import { credentialKindLabel, formatCredentialPeriod, graduationStatusLabel } from '@/lib/format';
 import { resumeMarkdownComponents } from '@/lib/markdown';
 import { partitionAtomsIntoPages, type PrintAtomItem } from '@/lib/pdfLayoutEngine';
 import {
@@ -415,7 +415,11 @@ export function PrintCanvas({
     const [coverLetterOverrides, setCoverLetterOverrides] = useState<
         Record<number, { question?: string; answer?: string }>
     >({});
-    // 인쇄 캔버스에서만 즉석으로 추가한 사전질문 항목. 음수 id로 서버 항목과 구분하며,
+    // 인쇄 캔버스 가변 추가 항목 섹션 제목 (기본값: '사전질문 · 추가 항목')
+    const [coverLetterSectionTitle, setCoverLetterSectionTitle] =
+        useState<string>('사전질문 · 추가 항목');
+
+    // 인쇄 캔버스에서만 즉석으로 추가한 사전질문/가변 항목. 음수 id로 서버 항목과 구분하며,
     // "자소서" 탭의 실제 데이터에는 저장되지 않는다(인쇄 결과에만 반영).
     const [addedCoverLetterItems, setAddedCoverLetterItems] = useState<JobPostingCoverLetterItem[]>(
         []
@@ -1915,6 +1919,20 @@ export function PrintCanvas({
                 if (!cred) return null;
                 const itemId = `credential:${cred.id}`;
                 const kind = credentialKindLabel(cred);
+                const academicMeta =
+                    kind === '학력'
+                        ? [
+                              cred.institutionName,
+                              cred.degree,
+                              cred.major,
+                              cred.gpa ? `학점 ${cred.gpa}` : undefined,
+                              cred.graduationStatus
+                                  ? graduationStatusLabel(cred.graduationStatus)
+                                  : undefined,
+                          ]
+                              .filter(Boolean)
+                              .join(' · ')
+                        : undefined;
 
                 return (
                     <Fragment key={atom.id}>
@@ -1937,6 +1955,11 @@ export function PrintCanvas({
                                     {formatCredentialPeriod(cred)}
                                 </span>
                             </div>
+                            {academicMeta && (
+                                <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                                    {academicMeta}
+                                </p>
+                            )}
                             {kind === '교육' && cred.summary && (
                                 <p className="mt-1 text-xs text-slate-600 pdf-body-text">
                                     {cred.summary}
@@ -2080,7 +2103,21 @@ export function PrintCanvas({
                         <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 w-full">
                             <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                                 <MessageSquareText className="h-4 w-4 text-slate-900" />
-                                사전질문
+                                {inlineEditMode ? (
+                                    renderInlineText({
+                                        value: coverLetterSectionTitle,
+                                        baseValue: '사전질문 · 추가 항목',
+                                        textClassName:
+                                            'font-black text-slate-900 text-sm sm:text-base',
+                                        placeholder: '섹션 제목 입력 (예: 사전질문, 추가 항목)',
+                                        onChange: (val) =>
+                                            setCoverLetterSectionTitle(
+                                                val ?? '사전질문 · 추가 항목'
+                                            ),
+                                    })
+                                ) : (
+                                    <span>{coverLetterSectionTitle || '사전질문 · 추가 항목'}</span>
+                                )}
                             </h2>
                             {inlineEditMode && (
                                 <button
@@ -2089,7 +2126,7 @@ export function PrintCanvas({
                                     className="print:hidden flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
                                 >
                                     <Plus className="h-3 w-3" />
-                                    질문 추가
+                                    항목 추가
                                 </button>
                             )}
                         </div>

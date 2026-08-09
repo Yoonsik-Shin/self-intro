@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { Award, GraduationCap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { Experience } from '@/lib/api/types';
 import { resumeMarkdownComponents } from '@/lib/markdown';
-import { formatCredentialPeriod } from '@/lib/format';
+import { formatCredentialPeriod, credentialKindLabel, graduationStatusLabel } from '@/lib/format';
 import { RelatedStudyNotes } from './RelatedStudyNotes';
 
 const badgeStyle =
@@ -18,6 +19,14 @@ type Props = {
 };
 
 export function CredentialsSection({ educationExperiences, certificateExperiences }: Props) {
+    const academicList = useMemo(
+        () => educationExperiences.filter((e) => credentialKindLabel(e) === '학력'),
+        [educationExperiences]
+    );
+    const courseList = useMemo(
+        () => educationExperiences.filter((e) => credentialKindLabel(e) === '교육'),
+        [educationExperiences]
+    );
     return (
         <section id="credentials" className="scroll-mt-24 space-y-6">
             <div className={cardStyle}>
@@ -38,47 +47,131 @@ export function CredentialsSection({ educationExperiences, certificateExperience
                             </span>
                         </h3>
                         {educationExperiences.length > 0 ? (
-                            <div className="space-y-3">
-                                {educationExperiences.map((education) => (
-                                    <article
-                                        id={`credential-experience-${education.id}`}
-                                        key={education.id}
-                                        className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
-                                    >
-                                        <div className="flex flex-wrap items-start justify-between gap-2">
-                                            <div>
-                                                <h4 className="resume-subtitle font-black text-slate-800">
-                                                    {education.title}
-                                                </h4>
-                                                <p className="resume-meta mt-0.5 font-semibold text-slate-500">
-                                                    {education.institutionName}
-                                                </p>
-                                            </div>
-                                            <span className="resume-label shrink-0 rounded border border-blue-100 bg-blue-50 px-2 py-1 font-bold text-blue-700">
-                                                {formatCredentialPeriod(education)}
-                                            </span>
-                                        </div>
-                                        {education.summary && (
-                                            <div className="resume-body mt-3 text-slate-600">
-                                                <ReactMarkdown
-                                                    components={resumeMarkdownComponents}
+                            <div className="space-y-6">
+                                {academicList.length > 0 && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                            <span>🎓</span> 정규 학력
+                                        </h4>
+                                        {academicList.map((education) => {
+                                            const metaParts = [
+                                                education.degree,
+                                                education.major,
+                                                education.gpa ? `학점 ${education.gpa}` : undefined,
+                                                education.graduationStatus
+                                                    ? graduationStatusLabel(
+                                                          education.graduationStatus
+                                                      )
+                                                    : undefined,
+                                            ].filter(Boolean);
+
+                                            return (
+                                                <article
+                                                    id={`credential-experience-${education.id}`}
+                                                    key={education.id}
+                                                    className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
                                                 >
-                                                    {education.summary}
-                                                </ReactMarkdown>
-                                            </div>
-                                        )}
-                                        {education.skills.length > 0 && (
-                                            <div className="mt-3 flex flex-wrap gap-1">
-                                                {education.skills.map((skill) => (
-                                                    <span key={skill.id} className={badgeStyle}>
-                                                        {skill.name}
+                                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                                        <div>
+                                                            <h4 className="resume-subtitle font-black text-slate-800">
+                                                                {education.title ||
+                                                                    education.institutionName}
+                                                            </h4>
+                                                            <p className="resume-meta mt-0.5 font-semibold text-slate-600">
+                                                                {[
+                                                                    education.institutionName,
+                                                                    ...metaParts,
+                                                                ]
+                                                                    .filter(Boolean)
+                                                                    .join(' · ')}
+                                                            </p>
+                                                        </div>
+                                                        <span className="resume-label shrink-0 rounded border border-blue-100 bg-blue-50 px-2 py-1 font-bold text-blue-700">
+                                                            {formatCredentialPeriod(education)}
+                                                        </span>
+                                                    </div>
+                                                    {education.summary && (
+                                                        <div className="resume-body mt-2.5 text-slate-600 text-xs sm:text-sm">
+                                                            <ReactMarkdown
+                                                                components={
+                                                                    resumeMarkdownComponents
+                                                                }
+                                                            >
+                                                                {education.summary}
+                                                            </ReactMarkdown>
+                                                        </div>
+                                                    )}
+                                                    {education.skills.length > 0 && (
+                                                        <div className="mt-3 flex flex-wrap gap-1">
+                                                            {education.skills.map((skill) => (
+                                                                <span
+                                                                    key={skill.id}
+                                                                    className={badgeStyle}
+                                                                >
+                                                                    {skill.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    <RelatedStudyNotes
+                                                        experienceId={education.id}
+                                                    />
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {courseList.length > 0 && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                            <span>📚</span> 학습 · 교육과정
+                                        </h4>
+                                        {courseList.map((education) => (
+                                            <article
+                                                id={`credential-experience-${education.id}`}
+                                                key={education.id}
+                                                className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
+                                            >
+                                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                                    <div>
+                                                        <h4 className="resume-subtitle font-black text-slate-800">
+                                                            {education.title}
+                                                        </h4>
+                                                        <p className="resume-meta mt-0.5 font-semibold text-slate-500">
+                                                            {education.institutionName}
+                                                        </p>
+                                                    </div>
+                                                    <span className="resume-label shrink-0 rounded border border-blue-100 bg-blue-50 px-2 py-1 font-bold text-blue-700">
+                                                        {formatCredentialPeriod(education)}
                                                     </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <RelatedStudyNotes experienceId={education.id} />
-                                    </article>
-                                ))}
+                                                </div>
+                                                {education.summary && (
+                                                    <div className="resume-body mt-3 text-slate-600">
+                                                        <ReactMarkdown
+                                                            components={resumeMarkdownComponents}
+                                                        >
+                                                            {education.summary}
+                                                        </ReactMarkdown>
+                                                    </div>
+                                                )}
+                                                {education.skills.length > 0 && (
+                                                    <div className="mt-3 flex flex-wrap gap-1">
+                                                        {education.skills.map((skill) => (
+                                                            <span
+                                                                key={skill.id}
+                                                                className={badgeStyle}
+                                                            >
+                                                                {skill.name}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <RelatedStudyNotes experienceId={education.id} />
+                                            </article>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <p className="rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">
