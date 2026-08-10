@@ -55,6 +55,10 @@ public class Study {
     @Column(nullable = false, length = 20)
     private StudyStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StudySection section = StudySection.ETC;
+
     @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
@@ -168,6 +172,11 @@ public class Study {
         this.status = status;
         this.learnedAt = learnedAt;
         this.publishedAt = publishedAt;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void changeSection(StudySection section) {
+        this.section = section == null ? StudySection.ETC : section;
         this.updatedAt = LocalDateTime.now();
     }
 

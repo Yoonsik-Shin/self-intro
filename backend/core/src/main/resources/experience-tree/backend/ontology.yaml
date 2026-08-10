@@ -1,0 +1,340 @@
+stableKey: backend.language.selection
+domain: BACKEND
+topic: LANGUAGE_SELECTION
+title: "기능과 운영 조건에 따라 백엔드 언어를 어떻게 선택할 것인가"
+summary: "팀의 숙련도만이 아니라 지연 특성, 동시성, 생태계, 배포와 장애 진단 비용을 함께 비교한다."
+problem: "언어 선택이 초기 개발 속도만 최적화하고 서비스 수명 전체의 성능·채용·관측·운영 비용을 악화시키지 않아야 한다."
+contextMarkdown: |
+  ## 언어 선택은 벤치마크 순위가 아니라 제약 조건의 교집합이다
+
+  언어 자체의 평균 처리량보다 먼저 **업무 실패 비용과 운영 환경**을 확인한다. 결제처럼 복잡한
+  트랜잭션과 장기간 유지되는 도메인은 정적 타입, 프레임워크 성숙도와 디버깅 가능성이 중요하다.
+  반면 작은 네트워크 에이전트는 메모리 상한, 단일 바이너리 배포와 빠른 시작 시간이 더 중요할 수 있다.
+
+  | 질문 | 신호 | 선택에 미치는 영향 |
+  |---|---|---|
+  | 요청은 CPU-bound인가 I/O-bound인가 | CPU flame graph, 외부 호출 대기 비율 | 런타임보다 병렬화·backpressure 모델이 중요해진다 |
+  | p99 지연과 메모리 상한은 얼마인가 | SLO, container limit | GC·JIT·프로세스 모델을 함께 본다 |
+  | 어떤 라이브러리가 필수인가 | DB driver, ML, 보안 인증 모듈 | 생태계 부재는 직접 구현과 보안 책임으로 전환된다 |
+  | 누가 3년간 운영하는가 | 팀 숙련도, on-call, 채용 시장 | 낯선 언어의 학습 비용보다 장애 진단 비용이 더 크다 |
+  | 배포 단위는 무엇인가 | Kubernetes, edge, Lambda, CLI | 시작 시간·바이너리 크기·runtime 설치 조건이 달라진다 |
+
+  ```mermaid
+  flowchart TD
+      A[업무와 SLO 정의] --> B{필수 생태계가 있는가?}
+      B -- 아니오 --> C[지원되는 언어 후보만 유지]
+      B -- 예 --> D{CPU 병렬 계산이 핵심인가?}
+      D -- 예 --> E[Go / Java / Rust 등 병렬 실행 후보]
+      D -- 아니오 --> F{I/O 동시성과 빠른 제품 실험이 핵심인가?}
+      F -- 예 --> G[Java Virtual Threads / Kotlin / Node.js / Python async]
+      F -- 아니오 --> H[팀 표준 언어 우선]
+      C --> I[대표 workload spike]
+      E --> I
+      G --> I
+      H --> I
+      I --> J[p50/p99, RSS, CPU, 장애 진단 비교]
+  ```
+
+  ## 같은 HTTP 기능도 실행 모델이 다르다
+
+  다음 코드는 외부 API 두 개를 병렬 호출한다. 문법보다 중요한 차이는 취소, timeout, context
+  전파와 관측 도구가 이 실행 단위를 어떻게 보여주는가이다.
+
+  ```java
+  // Java 21: virtual thread마다 익숙한 blocking 코드를 유지한다.
+  try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+      var profile = scope.fork(() -> profileClient.fetch(userId));
+      var orders  = scope.fork(() -> orderClient.fetch(userId));
+      scope.joinUntil(Instant.now().plusMillis(300));
+      scope.throwIfFailed();
+      return new Dashboard(profile.get(), orders.get());
+  }
+  ```
+
+  ```go
+  // Go: context 취소를 모든 goroutine과 client 호출로 전달해야 한다.
+  group, ctx := errgroup.WithContext(ctx)
+  group.Go(func() error { profile, err = fetchProfile(ctx, userID); return err })
+  group.Go(func() error { orders, err = fetchOrders(ctx, userID); return err })
+  if err := group.Wait(); err != nil { return Dashboard{}, err }
+  return Dashboard{Profile: profile, Orders: orders}, nil
+  ```
+
+  ```ts
+  // Node.js: Promise.all만으로 하위 네트워크 요청이 자동 취소되지는 않는다.
+  const signal = AbortSignal.timeout(300);
+  const [profile, orders] = await Promise.all([
+    fetchProfile(userId, { signal }),
+    fetchOrders(userId, { signal }),
+  ]);
+  return { profile, orders };
+  ```
+
+  ## 검증 방법
+
+  후보를 정한 뒤 toy benchmark 대신 대표 endpoint 하나를 수직으로 구현한다. 동일한 DB pool,
+  timeout, payload와 container limit에서 부하를 재현하고 다음을 함께 기록한다.
+
+  1. 정상 부하의 처리량과 p50/p95/p99
+  2. 하위 API가 느릴 때 thread·event-loop·goroutine의 증가와 취소 여부
+  3. 메모리 RSS, GC pause, CPU throttling
+  4. trace·profile·heap dump로 원인을 찾는 데 걸린 시간
+  5. 빌드, 보안 패치, 배포 이미지와 on-call runbook의 복잡도
+constraintsMarkdown: |
+  - 필수 SDK와 검증된 DB·메시지 드라이버가 존재하는가
+  - CPU·메모리·시작 시간과 p99 SLO가 수치로 정의됐는가
+  - 팀이 production profiling, heap·goroutine·event-loop 진단을 수행할 수 있는가
+  - polyglot 도입 시 공통 인증·관측·배포·보안 패치 체계를 제공할 수 있는가
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-15
+displayOrder: 180
+options:
+  - stableKey: backend.language.selection.jvm
+    title: "Java·Kotlin/JVM"
+    summary: "성숙한 서버 생태계, 강한 타입과 장기 운영 도구를 활용한다."
+    mechanism: "JIT·GC가 관리하는 JVM 위에서 platform thread, virtual thread, coroutine 또는 reactive 모델을 선택한다."
+    applicableWhen: "복잡한 도메인과 트랜잭션, 장기간 유지되는 API, Spring·JPA·Kafka 생태계와 풍부한 관측 도구가 중요할 때"
+    avoidWhen: "극도로 작은 이미지·메모리 상한·즉시 시작이 핵심이고 JVM 운영 기반이 없을 때"
+    advantages: "라이브러리와 진단 도구가 성숙하고 대규모 팀의 명시적 계약 관리에 유리하다."
+    disadvantages: "런타임·빌드 구성이 크고 GC, JIT warm-up, 프레임워크 추상화를 이해해야 한다."
+    operationalNotes: "GC 종류보다 allocation rate와 pause 목표를 먼저 관측하고, virtual thread 사용 시 pinning과 DB pool을 별도로 제한한다."
+    displayOrder: 10
+    tradeoffs:
+      - { criterion: MAINTAINABILITY, level: HIGH, explanation: "정적 타입과 성숙한 리팩터링·관측 도구가 장기 변경을 지원한다.", displayOrder: 10 }
+      - { criterion: OPERATIONAL_COMPLEXITY, level: MEDIUM, explanation: "GC·JIT·thread dump와 framework runtime을 운영해야 한다.", displayOrder: 20 }
+  - stableKey: backend.language.selection.go
+    title: "Go"
+    summary: "단순한 언어와 goroutine, 단일 바이너리로 네트워크 서비스를 구성한다."
+    mechanism: "작은 초기 stack을 가진 goroutine을 scheduler가 OS thread에 multiplex하고 명시적 context로 취소를 전파한다."
+    applicableWhen: "프록시·게이트웨이·수집기·플랫폼 도구처럼 네트워크 동시성, 빠른 시작과 단일 바이너리가 중요할 때"
+    avoidWhen: "풍부한 도메인 모델과 특정 JVM·Python 생태계 의존성이 핵심일 때"
+    advantages: "빌드·배포가 단순하고 동시성 도구와 메모리 사용 예측이 비교적 명확하다."
+    disadvantages: "오류·추상화 표현이 반복될 수 있고 필요한 업무 라이브러리를 직접 보강할 수 있다."
+    operationalNotes: "goroutine leak, context 미전파, unbounded channel을 profile과 metric으로 감시한다."
+    displayOrder: 20
+    tradeoffs:
+      - { criterion: PERFORMANCE, level: HIGH, explanation: "네트워크 동시성 workload에서 낮은 런타임 오버헤드와 빠른 시작을 제공한다.", displayOrder: 10 }
+      - { criterion: IMPLEMENTATION_COMPLEXITY, level: MEDIUM, explanation: "언어는 단순하지만 취소·channel 소유권과 오류 조합은 명시적으로 설계한다.", displayOrder: 20 }
+  - stableKey: backend.language.selection.node
+    title: "TypeScript·Node.js"
+    summary: "이벤트 루프와 웹 생태계로 I/O 중심 기능을 빠르게 전달한다."
+    mechanism: "한 event loop가 non-blocking I/O completion을 처리하고 CPU 작업은 worker 또는 별도 서비스로 격리한다."
+    applicableWhen: "BFF, 실시간 gateway, 웹 팀의 end-to-end 타입 공유와 제품 실험 속도가 중요할 때"
+    avoidWhen: "긴 CPU 계산, event loop 차단 가능성이 큰 네이티브 모듈, 강한 멀티스레드 계산이 핵심일 때"
+    advantages: "웹 생태계와 JSON 계약에 자연스럽고 한 팀이 프론트·백엔드를 빠르게 변경할 수 있다."
+    disadvantages: "event loop 지연, 의존성 공급망, 런타임 타입 검증과 비동기 취소를 세심하게 관리한다."
+    operationalNotes: "event loop lag, heap, active handles를 관측하고 입력은 schema validator로 런타임 검증한다."
+    displayOrder: 30
+    tradeoffs:
+      - { criterion: IMPLEMENTATION_COMPLEXITY, level: LOW, explanation: "웹·JSON 중심 기능은 공통 언어와 거대한 패키지 생태계를 재사용한다.", displayOrder: 10 }
+      - { criterion: FAILURE_ISOLATION, level: LOW, explanation: "CPU 차단 하나가 같은 프로세스의 모든 요청 지연으로 전파될 수 있다.", displayOrder: 20 }
+  - stableKey: backend.language.selection.python
+    title: "Python"
+    summary: "데이터·AI 생태계와 표현력을 활용해 자동화와 모델 서비스를 빠르게 만든다."
+    mechanism: "CPython과 sync·async framework를 사용하며 CPU 병렬성은 process, native library 또는 외부 worker로 분리한다."
+    applicableWhen: "AI·데이터 라이브러리, 자동화, 낮은 요청량의 모델 API와 빠른 검증이 핵심일 때"
+    avoidWhen: "한 프로세스의 높은 CPU 병렬 처리와 매우 엄격한 tail latency가 핵심일 때"
+    advantages: "도메인 라이브러리가 풍부하고 실험 코드를 서비스로 전환하기 쉽다."
+    disadvantages: "런타임 타입, dependency 환경, GIL과 sync·async 경계 운영이 필요하다."
+    operationalNotes: "CPU 모델 추론은 별도 worker와 concurrency limit로 격리하고 dependency lock과 image scan을 강제한다."
+    displayOrder: 40
+    tradeoffs:
+      - { criterion: MAINTAINABILITY, level: CONTEXT_DEPENDENT, explanation: "작은 자동화는 명료하지만 대규모 계약은 타입 검사와 런타임 검증 규율이 필요하다.", displayOrder: 10 }
+      - { criterion: PERFORMANCE, level: CONTEXT_DEPENDENT, explanation: "native library는 빠르지만 Python 수준 CPU 병렬성에는 별도 실행 모델이 필요하다.", displayOrder: 20 }
+warnings:
+  - { stableKey: backend.language.selection.benchmark-only, classification: ANTI_PATTERN, reasonType: MAINTAINABILITY, title: "마이크로 벤치마크 1위 언어를 바로 채택", description: "직렬화나 loop 계산 결과를 실제 DB·네트워크·관측·장애 복구 비용으로 오해한다.", failureCondition: "대표 workload와 팀 운영 능력을 검증하지 않는다.", consequence: "성능 이득보다 생태계 공백과 장애 진단 비용이 커진다.", correction: "동일한 수직 기능을 spike하고 p99·메모리·실패 복구·개발 변경 비용을 함께 비교한다.", severity: HIGH, displayOrder: 10 }
+  - { stableKey: backend.language.selection.polyglot-by-preference, classification: RISKY, reasonType: OPERABILITY, title: "개인 선호로 서비스마다 다른 언어 도입", description: "인증, 로깅, tracing, 배포, 보안 패치와 on-call 지식이 언어 수만큼 분열된다.", failureCondition: "새 언어 도입 기준과 공통 플랫폼 golden path가 없다.", consequence: "작은 서비스도 조직 전체의 영구 운영비를 증가시킨다.", correction: "표준 언어를 기본으로 하고 수치화된 제약이 표준으로 해결되지 않을 때만 예외를 승인한다.", severity: HIGH, displayOrder: 20 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "JEP 444: Virtual Threads", url: "https://openjdk.org/jeps/444", publisher: "OpenJDK", applicableVersion: "Java 21", accessedAt: 2026-08-09, note: "JVM virtual thread의 목표와 제약", displayOrder: 10 }
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "The Go Programming Language Specification", url: "https://go.dev/ref/spec", publisher: "The Go Authors", applicableVersion: "Current", accessedAt: 2026-08-09, note: "goroutine과 언어 동시성 의미", displayOrder: 20 }
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Node.js: Don't Block the Event Loop", url: "https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop", publisher: "Node.js", applicableVersion: "Current", accessedAt: 2026-08-09, note: "event loop와 worker pool 운영 제약", displayOrder: 30 }
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Python asyncio", url: "https://docs.python.org/3/library/asyncio.html", publisher: "Python Software Foundation", applicableVersion: "Python 3", accessedAt: 2026-08-09, note: "Python 비동기 I/O 실행 모델", displayOrder: 40 }
+---
+stableKey: backend.database.engine-selection
+domain: BACKEND
+topic: DATABASE_SELECTION
+title: "데이터 모델과 접근 패턴에 맞는 데이터베이스를 어떻게 선택할 것인가"
+summary: "RDBMS, 문서, 키-값 저장소를 유행이 아니라 불변식·질의·확장·복구 요구로 선택한다."
+problem: "저장소가 현재 쓰기 형태에는 편하지만 핵심 불변식, 미래 조회, 장애 복구와 운영 역량을 감당하지 못하는 상황을 피해야 한다."
+contextMarkdown: |
+  ## 제품명이 아니라 데이터의 책임부터 정의한다
+
+  먼저 한 문장으로 **동시에 참이어야 하는 불변식**을 적는다. 주문 생성과 재고 차감이 함께 성공해야
+  하고 임의 조건으로 탐색한다면 관계형 DB가 강한 기본값이다. 세션처럼 키 하나로 읽고 TTL 후 사라지는
+  데이터라면 key-value가 더 직접적이다. 문서 전체가 하나의 aggregate로 함께 변경되고 필드 모양이
+  다양하다면 document store를 검토한다.
+
+  | 판단 축 | 관계형 DB | Document store | Key-value |
+  |---|---|---|---|
+  | 핵심 접근 | 조건·조인·집계 | 문서 키와 문서 내부 필드 | primary key |
+  | 불변식 | 제약조건·트랜잭션 | 문서 단위 원자성 중심 | 키·명령 단위 원자성 중심 |
+  | 스키마 진화 | 명시적 migration | reader/writer 호환 규율 | value 포맷 버전 필요 |
+  | 수평 확장 | replica·partition·sharding | shard key 중심 | partitioning이 자연스러움 |
+  | 대표 실패 | 긴 트랜잭션·hot row | 잘못된 shard key·무제한 문서 | TTL·eviction·메모리 고갈 |
+
+  ```mermaid
+  flowchart TD
+      A[업무 불변식과 접근 패턴] --> B{여러 엔티티를 원자적으로 변경?}
+      B -- 예 --> R[RDBMS를 기본 후보로]
+      B -- 아니오 --> C{조회가 거의 key lookup인가?}
+      C -- 예 --> K[Key-value 후보]
+      C -- 아니오 --> D{aggregate 전체를 함께 읽고 쓰는가?}
+      D -- 예 --> M[Document store 후보]
+      D -- 아니오 --> R
+      R --> E[실제 쿼리와 데이터 분포 검증]
+      K --> E
+      M --> E
+      E --> F[백업 복원·장애 전환·비용 실험]
+  ```
+
+  ## 같은 주문 데이터의 모델 차이
+
+  관계형 모델은 DB가 참조와 금액 조건을 강제한다.
+
+  ```sql
+  CREATE TABLE orders (
+    id bigint PRIMARY KEY,
+    customer_id bigint NOT NULL REFERENCES customers(id),
+    status varchar(20) NOT NULL CHECK (status IN ('PENDING','PAID','CANCELLED')),
+    total_amount numeric(19,2) NOT NULL CHECK (total_amount >= 0),
+    version bigint NOT NULL
+  );
+  CREATE INDEX idx_orders_customer_created
+    ON orders(customer_id, created_at DESC, id DESC);
+  ```
+
+  문서 모델은 aggregate를 한 번에 읽지만 배열이 무제한 증가하지 않도록 경계를 정해야 한다.
+
+  ```json
+  {
+    "_id": "order-1024",
+    "schemaVersion": 3,
+    "customerId": "customer-7",
+    "status": "PAID",
+    "lines": [{ "sku": "A-1", "quantity": 2, "unitPrice": 12000 }],
+    "totalAmount": 24000
+  }
+  ```
+
+  키-값 모델은 의도적인 단일 접근 경로에서 강하다.
+
+  ```text
+  SET session:8f1... '{"userId":7,"roles":["ADMIN"],"v":2}' EX 1800 NX
+  GET session:8f1...
+  ```
+
+  ## 선택 검증 체크리스트
+
+  1. 상위 10개 읽기·쓰기 query를 실제 형태와 빈도로 적는다.
+  2. 데이터 크기뿐 아니라 tenant·시간·key별 분포와 hot partition을 만든다.
+  3. 일관성 수준, 허용 가능한 stale 시간과 conflict 해결 주체를 정한다.
+  4. 백업을 실제 복원하고 RPO·RTO, index 재구성 시간과 비용을 측정한다.
+  5. CDC, 검색, 분석 때문에 결국 두 번째 저장소가 필요하다면 원본 소유권과 재구축 경로를 명시한다.
+constraintsMarkdown: |
+  - 업무 불변식을 애플리케이션과 저장소 중 누가 강제하는가
+  - 예상 query와 정렬·집계·조인이 목록으로 정리됐는가
+  - partition key의 cardinality와 hot key 분포를 검증했는가
+  - 백업 복원, 장애 전환과 schema migration을 팀이 직접 운영할 수 있는가
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-03-15
+displayOrder: 190
+options:
+  - { stableKey: backend.database.engine-selection.relational, title: "관계형 데이터베이스", summary: "명시적 스키마, 제약조건, 트랜잭션과 유연한 질의를 사용한다.", mechanism: "정규화된 relation과 index, ACID transaction으로 데이터 불변식을 강제한다.", applicableWhen: "복수 엔티티의 강한 일관성, 임의 조건 조회, 조인과 집계가 중요할 때", avoidWhen: "접근이 단순 key lookup뿐이고 초대규모 partition 확장이 유일한 요구일 때", advantages: "데이터 무결성과 query 유연성, 성숙한 운영·백업 도구가 강하다.", disadvantages: "schema migration, 긴 transaction과 수평 partition 설계 비용이 있다.", operationalNotes: "PostgreSQL·MySQL 제품 차이는 필요한 isolation, extension, replication과 팀 운영 경험으로 다시 비교한다.", displayOrder: 10, tradeoffs: [{ criterion: CONSISTENCY, level: HIGH, explanation: "제약조건과 다중 행 transaction으로 불변식을 저장소에서 강제한다.", displayOrder: 10 }, { criterion: SCALABILITY, level: CONTEXT_DEPENDENT, explanation: "read replica와 partition이 가능하지만 임의 shard 간 transaction은 복잡해진다.", displayOrder: 20 }] }
+  - { stableKey: backend.database.engine-selection.document, title: "Document database", summary: "aggregate를 self-contained document로 저장하고 함께 읽고 쓴다.", mechanism: "document key와 내부 index를 사용하고 대체로 document 단위 원자성을 중심으로 모델링한다.", applicableWhen: "문서 모양이 다양하고 aggregate 전체를 함께 읽으며 관계가 경계 안에 머물 때", avoidWhen: "관계가 자주 바뀌고 여러 aggregate join·transaction이 핵심일 때", advantages: "애플리케이션 객체와 저장 모양이 가깝고 aggregate 단위 읽기가 직접적이다.", disadvantages: "데이터 중복, 문서 크기 증가, shard key와 교차 문서 일관성을 직접 다뤄야 한다.", operationalNotes: "schemaVersion, validator, 최대 문서 크기와 배열 성장 상한을 둔다.", displayOrder: 20, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: MEDIUM, explanation: "aggregate에는 단순하지만 중복 갱신과 교차 관계가 애플리케이션 책임이 된다.", displayOrder: 10 }] }
+  - { stableKey: backend.database.engine-selection.key-value, title: "Key-value store", summary: "정해진 키로 값을 빠르게 조회하고 TTL·원자 명령을 활용한다.", mechanism: "partition 가능한 key space와 제한된 자료구조·명령으로 읽고 쓴다.", applicableWhen: "세션, 캐시, idempotency key, rate counter처럼 접근 경로가 명확할 때", avoidWhen: "다양한 조건 검색과 관계 무결성을 나중에 요구할 가능성이 클 때", advantages: "낮은 지연과 수평 partition, TTL 같은 목적 기능이 강하다.", disadvantages: "query 유연성이 낮고 eviction·hot key·메모리 비용이 업무 정확성에 영향을 줄 수 있다.", operationalNotes: "캐시와 system of record를 구분하고 persistence·eviction·replication 실패 의미를 검증한다.", displayOrder: 30, tradeoffs: [{ criterion: PERFORMANCE, level: HIGH, explanation: "primary-key 중심 접근을 낮은 지연으로 처리한다.", displayOrder: 10 }, { criterion: CONSISTENCY, level: CONTEXT_DEPENDENT, explanation: "제품과 topology에 따라 복제·failover 중 보장이 달라진다.", displayOrder: 20 }] }
+warnings:
+  - { stableKey: backend.database.engine-selection.resume-driven, classification: ANTI_PATTERN, reasonType: MAINTAINABILITY, title: "이력서 기술 스택을 늘리기 위해 저장소 도입", description: "기존 DB로 충분한 작은 기능이 별도 백업·모니터링·보안·일관성 문제를 만든다.", failureCondition: "현재 저장소로 해결할 수 없는 수치화된 요구가 없다.", consequence: "polyglot persistence의 동기화와 on-call 비용만 영구적으로 남는다.", correction: "접근 패턴과 SLO가 기존 저장소의 한계를 입증할 때 대표 workload와 복구 실험 후 도입한다.", severity: HIGH, displayOrder: 10 }
+  - { stableKey: backend.database.engine-selection.schema-less, classification: INVALID, reasonType: CORRECTNESS, title: "문서·키-값 저장소는 스키마가 없다고 가정", description: "스키마는 사라지지 않고 모든 reader와 writer 코드에 암묵적으로 흩어진다.", failureCondition: "버전, validator, backward compatibility와 migration 전략이 없다.", consequence: "오래된 데이터가 새 코드에서 조용히 오해되거나 읽히지 않는다.", correction: "명시적 schemaVersion과 tolerant reader, migration·backfill 관측을 운영한다.", severity: HIGH, displayOrder: 20 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "PostgreSQL Constraints", url: "https://www.postgresql.org/docs/current/ddl-constraints.html", publisher: "PostgreSQL Global Development Group", applicableVersion: "Current", accessedAt: 2026-08-09, note: "관계형 무결성 제약", displayOrder: 10 }
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "MongoDB Data Modeling", url: "https://www.mongodb.com/docs/manual/data-modeling/", publisher: "MongoDB", applicableVersion: "Current", accessedAt: 2026-08-09, note: "document embedding과 reference 설계", displayOrder: 20 }
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Redis Data types", url: "https://redis.io/docs/latest/develop/data-types/", publisher: "Redis", applicableVersion: "Current", accessedAt: 2026-08-09, note: "key-value와 자료구조별 명령", displayOrder: 30 }
+---
+stableKey: backend.runtime.execution-model
+domain: BACKEND
+topic: RUNTIME_MODEL
+title: "요청 처리의 동시성 실행 모델을 어떻게 선택할 것인가"
+summary: "플랫폼 스레드, 가상 스레드, 이벤트 루프·리액티브 모델의 처리량보다 blocking 경계와 backpressure 책임을 비교한다."
+problem: "느린 I/O와 부하 급증이 실행 단위, 커넥션 풀과 메모리를 무제한 점유해 전체 서비스 장애로 번지지 않아야 한다."
+contextMarkdown: |
+  ## 실행 모델은 동시성 한도를 없애지 않는다
+
+  가상 스레드나 event loop는 대기 비용을 줄일 수 있지만 DB connection, 하위 API quota와 CPU는 그대로
+  제한돼 있다. 따라서 `동시에 시작할 수 있는 작업 수`와 `희소 자원을 사용하는 작업 수`를 분리한다.
+
+  ```mermaid
+  flowchart LR
+      R[HTTP requests] --> C{실행 모델}
+      C --> P[Platform thread pool]
+      C --> V[Virtual threads]
+      C --> E[Event loop / Reactive]
+      P --> L[Concurrency limiter]
+      V --> L
+      E --> L
+      L --> D[(DB pool 30)]
+      L --> X[External API quota 100]
+  ```
+
+  | 모델 | 대기 표현 | 장점 | 반드시 통제할 것 |
+  |---|---|---|---|
+  | 플랫폼 스레드 | thread가 blocking | 단순한 stack과 넓은 호환성 | thread pool·queue 상한 |
+  | 가상 스레드 | 저비용 virtual thread가 blocking | imperative 코드 유지, 높은 I/O 동시성 | pinning, DB·API semaphore |
+  | 이벤트 루프 | callback·Promise completion | 적은 thread와 높은 socket 동시성 | event loop 차단, CPU 작업 격리 |
+  | 리액티브 스트림 | 비동기 signal pipeline | end-to-end backpressure·stream 조합 | 전체 라이브러리 non-blocking 여부, context·debugging |
+
+  ## 희소 자원 앞에는 별도 bulkhead가 필요하다
+
+  ```java
+  // virtual thread를 요청마다 만들어도 DB 작업은 pool 용량 이하로 제한한다.
+  private final Semaphore databaseBulkhead = new Semaphore(30);
+
+  Order loadOrder(long id) throws Exception {
+      if (!databaseBulkhead.tryAcquire(50, TimeUnit.MILLISECONDS)) {
+          throw new ServiceUnavailableException("database concurrency exhausted");
+      }
+      try {
+          return orderRepository.findById(id).orElseThrow();
+      } finally {
+          databaseBulkhead.release();
+      }
+  }
+  ```
+
+  ```ts
+  // event loop에서 CPU 작업은 worker로 넘기고 queue 자체에도 상한을 둔다.
+  const result = await workerPool.run(job, {
+    queueTimeoutMs: 50,
+    executionTimeoutMs: 500,
+  });
+  ```
+
+  ## 장애 조건으로 부하 테스트한다
+
+  정상 응답만 빠르게 주는 benchmark는 실행 모델을 검증하지 못한다. 하위 API 지연을 50ms에서 3초로
+  올리고 DB pool을 고갈시키며 client disconnect를 발생시킨다. 이때 active task, queue depth,
+  event-loop lag, pinned thread, connection wait와 취소된 하위 요청 수를 관측한다.
+constraintsMarkdown: |
+  - 사용하는 DB·HTTP·파일 라이브러리가 blocking인지 non-blocking인지 목록화했는가
+  - DB pool, 외부 API quota와 CPU worker의 동시성 예산이 분리돼 있는가
+  - client 취소와 deadline이 하위 작업까지 전파되는가
+  - queue depth와 대기 timeout이 유한하며 overload 시 빠르게 실패하는가
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-04-15
+displayOrder: 200
+options:
+  - { stableKey: backend.runtime.execution-model.platform-thread, title: "제한된 플랫폼 스레드 풀", summary: "요청과 blocking 작업을 유한한 OS thread pool에서 처리한다.", mechanism: "thread가 I/O 동안 대기하며 pool과 queue가 전체 동시성을 제한한다.", applicableWhen: "동시 요청이 제한적이고 blocking 라이브러리와 단순한 stack trace가 중요할 때", avoidWhen: "긴 I/O 대기가 매우 많아 thread 수와 메모리 비용이 병목일 때", advantages: "동작·디버깅·ThreadLocal 문맥이 익숙하고 overload 한도가 명확하다.", disadvantages: "대기 작업이 thread를 점유하고 큰 queue는 tail latency를 숨긴다.", operationalNotes: "pool·queue·request timeout을 Little's Law와 실제 지연 분포로 정한다.", displayOrder: 10, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: LOW, explanation: "일반 blocking 코드와 도구를 그대로 사용한다.", displayOrder: 10 }] }
+  - { stableKey: backend.runtime.execution-model.virtual-thread, title: "요청별 가상 스레드", summary: "blocking 스타일을 유지하면서 대기 실행 단위 비용을 낮춘다.", mechanism: "JVM이 많은 virtual thread를 소수 carrier thread에 mount·unmount한다.", applicableWhen: "Java 21+, I/O 중심 요청과 blocking API를 imperative 코드로 유지할 때", avoidWhen: "CPU-bound 작업 또는 synchronized·native 호출로 장시간 pinning될 때", advantages: "callback 전환 없이 높은 I/O 동시성과 자연스러운 stack·취소 구조를 얻는다.", disadvantages: "작업 수가 쉬워진 만큼 희소 자원 고갈과 pinning을 별도로 통제해야 한다.", operationalNotes: "JFR pinned thread 이벤트와 DB connection wait를 함께 본다.", displayOrder: 20, tradeoffs: [{ criterion: SCALABILITY, level: HIGH, explanation: "I/O 대기당 platform thread를 점유하지 않는다.", displayOrder: 10 }] }
+  - { stableKey: backend.runtime.execution-model.event-loop, title: "이벤트 루프·리액티브", summary: "non-blocking completion과 bounded worker로 많은 연결을 처리한다.", mechanism: "소수 event-loop thread가 readiness 이벤트를 처리하고 pipeline이 demand와 취소를 전파한다.", applicableWhen: "streaming, gateway, 높은 socket 동시성과 end-to-end non-blocking stack이 있을 때", avoidWhen: "blocking SDK가 많거나 팀이 async context와 pipeline debugging을 운영하지 못할 때", advantages: "적은 thread로 높은 연결 수와 명시적 backpressure를 구성할 수 있다.", disadvantages: "한 blocking·CPU 호출이 loop 전체를 막고 stack·context 추적이 복잡하다.", operationalNotes: "event-loop lag과 blocking detector를 운영하고 blocking 경계를 bounded worker로 격리한다.", displayOrder: 30, tradeoffs: [{ criterion: PERFORMANCE, level: HIGH, explanation: "non-blocking I/O workload에서 thread 전환과 대기 비용을 줄인다.", displayOrder: 10 }, { criterion: MAINTAINABILITY, level: CONTEXT_DEPENDENT, explanation: "팀과 라이브러리가 모델을 공유할 때만 복잡도가 통제된다.", displayOrder: 20 }] }
+warnings:
+  - { stableKey: backend.runtime.execution-model.unbounded-virtual, classification: RISKY, reasonType: RELIABILITY, title: "가상 스레드가 싸다는 이유로 무제한 외부 호출", description: "실행 단위는 싸지만 DB connection과 외부 API quota는 유한하다.", failureCondition: "semaphore·rate limit·deadline 없이 요청마다 fan-out한다.", consequence: "connection wait와 하위 서비스 과부하가 수많은 대기 작업으로 누적된다.", correction: "희소 자원별 bulkhead와 deadline, fan-out 상한을 둔다.", severity: CRITICAL, displayOrder: 10 }
+  - { stableKey: backend.runtime.execution-model.block-event-loop, classification: INVALID, reasonType: PERFORMANCE, title: "이벤트 루프에서 blocking DB·파일·CPU 작업", description: "하나의 작업이 같은 loop의 모든 socket 처리와 timeout을 지연시킨다.", failureCondition: "동기 SDK나 긴 계산을 event-loop thread에서 직접 실행한다.", consequence: "낮은 평균 부하에서도 p99가 급증하고 health check까지 실패한다.", correction: "non-blocking driver를 사용하거나 bounded worker pool로 격리하고 event-loop lag을 감시한다.", severity: CRITICAL, displayOrder: 20 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "JEP 444: Virtual Threads", url: "https://openjdk.org/jeps/444", publisher: "OpenJDK", applicableVersion: "Java 21", accessedAt: 2026-08-09, note: "가상 스레드의 동작과 pinning", displayOrder: 10 }
+  - { sourceType: STANDARD, title: "Reactive Streams Specification", url: "https://www.reactive-streams.org/", publisher: "Reactive Streams", applicableVersion: "1.0.4", accessedAt: 2026-08-09, note: "비동기 스트림 backpressure 의미", displayOrder: 20 }
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Node.js Event Loop", url: "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick", publisher: "Node.js", applicableVersion: "Current", accessedAt: 2026-08-09, note: "event loop 단계와 실행 의미", displayOrder: 30 }

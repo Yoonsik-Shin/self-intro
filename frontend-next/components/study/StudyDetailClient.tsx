@@ -144,6 +144,9 @@ export function StudyDetailClient({ study }: Props) {
                     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                         <div className="mb-8 border-b border-slate-100 pb-6">
                             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                                <span className="rounded-full bg-blue-600 px-3 py-1 font-black text-white">
+                                    {study.section}
+                                </span>
                                 {study.taxonomyNodes.map((node) => (
                                     <span
                                         key={node.id}

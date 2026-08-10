@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
     ArrowUp,
-    BookOpen,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
@@ -18,7 +17,7 @@ import {
 } from 'lucide-react';
 import { SidebarSection } from '@/components/common/SidebarSection';
 import { studyApi, taxonomyApi } from '@/lib/api';
-import type { Study, StudyTaxonomyNode, StudyPage } from '@/lib/api/types';
+import type { Study, StudySection, StudyTaxonomyNode, StudyPage } from '@/lib/api/types';
 import { taxonomyBreadcrumbLabel, toTaxonomyNodeMap } from '@/lib/taxonomy';
 import { TaxonomyList } from './TaxonomyList';
 
@@ -77,6 +76,7 @@ export function StudyListClient({
     };
 
     const [search, setSearch] = useState('');
+    const [activeSection, setActiveSection] = useState<StudySection | null>(null);
     const [activeTaxonomyNodeId, setActiveTaxonomyNodeId] = useState<number | null>(null);
     const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
     const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
@@ -94,7 +94,8 @@ export function StudyListClient({
         }
     }, []);
 
-    const isDefaultQuery = search === '' && activeTaxonomyNodeId === null && !hasIdFilter;
+    const isDefaultQuery =
+        search === '' && activeTaxonomyNodeId === null && activeSection === null && !hasIdFilter;
 
     const handleClearHistory = () => {
         try {
@@ -130,6 +131,7 @@ export function StudyListClient({
             'public-infinite',
             search,
             activeTaxonomyNodeId,
+            activeSection,
             skillIdNum,
             experienceIdNum,
             experienceDetailIdNum,
@@ -138,6 +140,7 @@ export function StudyListClient({
             studyApi.list({
                 q: search || undefined,
                 taxonomyNodeId: activeTaxonomyNodeId ?? undefined,
+                section: activeSection ?? undefined,
                 skillIds: skillIdNum ? [skillIdNum] : undefined,
                 experienceIds: experienceIdNum ? [experienceIdNum] : undefined,
                 experienceDetailIds: experienceDetailIdNum ? [experienceDetailIdNum] : undefined,
@@ -254,22 +257,44 @@ export function StudyListClient({
                 )}
 
                 <div className="sticky top-16 z-20 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                            onClick={() => setActiveTaxonomyNodeId(null)}
-                            className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === null ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                        >
-                            전체 ({taxonomyNodes.reduce((sum, node) => sum + node.studyCount, 0)})
-                        </button>
-                        {taxonomyNodes.map((node) => (
+                    <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {(
+                                [
+                                    [null, '전체'],
+                                    ['FUNDAMENTAL', 'Fundamental'],
+                                    ['ADVANCED', 'Advanced'],
+                                    ['RETROSPECT', 'Retrospect'],
+                                    ['ETC', 'ETC'],
+                                ] as const
+                            ).map(([value, label]) => (
+                                <button
+                                    key={label}
+                                    onClick={() => setActiveSection(value)}
+                                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-black transition ${activeSection === value ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
                             <button
-                                key={node.id}
-                                onClick={() => setActiveTaxonomyNodeId(node.id)}
-                                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === node.id ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                                onClick={() => setActiveTaxonomyNodeId(null)}
+                                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === null ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                             >
-                                {node.name} ({node.studyCount})
+                                전체 (
+                                {taxonomyNodes.reduce((sum, node) => sum + node.studyCount, 0)})
                             </button>
-                        ))}
+                            {taxonomyNodes.map((node) => (
+                                <button
+                                    key={node.id}
+                                    onClick={() => setActiveTaxonomyNodeId(node.id)}
+                                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${activeTaxonomyNodeId === node.id ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                                >
+                                    {node.name} ({node.studyCount})
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     <input
                         type="search"
@@ -294,6 +319,9 @@ export function StudyListClient({
                             >
                                 <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
                                     <div className="flex flex-wrap gap-1">
+                                        <span className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-black text-white">
+                                            {study.section}
+                                        </span>
                                         {study.taxonomyNodes.map((node) => (
                                             <span
                                                 key={node.id}

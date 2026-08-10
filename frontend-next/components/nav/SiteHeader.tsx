@@ -4,7 +4,18 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Briefcase, Eye, Heart, Home, Menu, Printer, Terminal, X } from 'lucide-react';
+import {
+    BookOpen,
+    Briefcase,
+    Eye,
+    GitBranch,
+    Heart,
+    Home,
+    Menu,
+    Printer,
+    Terminal,
+    X,
+} from 'lucide-react';
 import { donationApi, visitorApi } from '@/lib/api';
 import { usePrintStore } from '@/store/usePrintStore';
 import { DonationModal } from '@/components/donation/DonationModal';
@@ -13,6 +24,12 @@ const pages = [
     { href: '/', label: '메인페이지', shortLabel: '메인', icon: Home },
     { href: '/experience', label: '경험', shortLabel: '경험', icon: Briefcase },
     { href: '/study', label: '공부 정리', shortLabel: '공부 정리', icon: BookOpen },
+    {
+        href: '/experience-tree',
+        label: '개발자 온톨로지',
+        shortLabel: '개발자 온톨로지',
+        icon: GitBranch,
+    },
     {
         href: '/architecture',
         label: '시스템 아키텍처',

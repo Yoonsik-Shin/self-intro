@@ -1,0 +1,167 @@
+stableKey: architecture.service-boundary
+domain: ARCHITECTURE
+topic: SERVICE_BOUNDARY
+title: "시스템을 모듈러 모놀리스로 유지할 것인가 마이크로서비스로 분리할 것인가"
+summary: "독립 배포·확장 이점과 분산 운영·일관성 비용을 비교한다."
+problem: "변경 경계와 팀 소유권을 분리하면서 시스템 복잡도를 감당 가능한 수준으로 유지해야 한다."
+contextMarkdown: "프로세스 수보다 명확한 도메인 경계와 데이터 소유권이 선행돼야 한다."
+constraintsMarkdown: "- 팀 수와 소유권\n- 독립 배포 필요\n- 부분 확장 필요\n- 분산 운영 역량"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 10
+options:
+  - { stableKey: architecture.boundary.modular-monolith, title: "모듈러 모놀리스", summary: "한 배포 단위 안에서 모듈 경계와 의존 규칙을 강제한다.", mechanism: "도메인별 패키지·모듈과 공개 인터페이스로 내부 결합을 통제한다.", applicableWhen: "작은 팀, 빠른 변경, 강한 트랜잭션이 중요할 때", avoidWhen: "조직과 부하가 독립 배포를 지속적으로 요구할 때", advantages: "운영과 데이터 일관성이 단순하다.", disadvantages: "배포·확장 단위가 크고 경계 규율이 무너지기 쉽다.", operationalNotes: "모듈 의존 테스트와 내부 API를 둔다.", displayOrder: 10, tradeoffs: [{ criterion: OPERATIONAL_COMPLEXITY, level: LOW, explanation: "배포·관측·트랜잭션 경계가 한 프로세스에 있다.", displayOrder: 10 }] }
+  - { stableKey: architecture.boundary.microservices, title: "마이크로서비스", summary: "업무 능력별 독립 배포·데이터 소유 단위로 분리한다.", mechanism: "네트워크 계약과 서비스별 저장소로 경계를 물리화한다.", applicableWhen: "팀과 배포·확장 요구가 실제로 독립적일 때", avoidWhen: "경계가 불명확하거나 운영 자동화가 부족할 때", advantages: "독립 배포, 장애 격리, 부분 확장이 가능하다.", disadvantages: "네트워크 실패, 관측, 데이터 일관성 비용이 커진다.", operationalNotes: "분리 전 호출·데이터 흐름과 소유 팀을 명확히 한다.", displayOrder: 20, tradeoffs: [{ criterion: OPERATIONAL_COMPLEXITY, level: HIGH, explanation: "서비스마다 배포·관측·보안·복구 체계가 필요하다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.boundary.distributed-monolith, classification: ANTI_PATTERN, reasonType: MAINTAINABILITY, title: "데이터와 배포는 결합된 채 프로세스만 분리", description: "서비스가 공유 DB와 동기 호출로 함께 변경·배포된다.", failureCondition: "독립 소유권 없이 네트워크 경계만 추가한다.", consequence: "모놀리스의 결합도와 분산 시스템 비용을 동시에 가진다.", correction: "먼저 모듈 경계와 데이터 소유권을 정립하고 필요할 때 분리한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Decompose monoliths into microservices", url: "https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-decomposing-monoliths/welcome.html", publisher: "AWS", applicableVersion: "Current", accessedAt: 2026-08-09, note: "분해 전략과 고려사항", displayOrder: 10 }
+---
+stableKey: architecture.communication-style
+domain: ARCHITECTURE
+topic: COMMUNICATION
+title: "서비스 간 통신을 동기로 호출할 것인가 이벤트로 연결할 것인가"
+summary: "즉시 응답과 단순 흐름, 시간적 결합 제거와 최종 일관성을 비교한다."
+problem: "업무 응답 요구를 만족하면서 장애와 부하가 서비스 사이로 확산되는 정도를 통제해야 한다."
+contextMarkdown: "동기와 비동기는 혼합할 수 있으며 업무상 즉시 필요한 결과와 후속 처리를 분리한다."
+constraintsMarkdown: "- 즉시 응답 필요\n- 호출 체인 길이\n- 순서와 중복\n- 최종 일관성 허용"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 20
+options:
+  - { stableKey: architecture.communication.sync, title: "동기 요청·응답", summary: "호출자가 결과를 기다리고 다음 처리를 진행한다.", mechanism: "HTTP/gRPC 호출과 timeout으로 직접 결과를 받는다.", applicableWhen: "사용자 응답에 결과가 즉시 필요하고 체인이 짧을 때", avoidWhen: "긴 fan-out과 일시 장애를 흡수해야 할 때", advantages: "제어 흐름과 오류 전달이 직관적이다.", disadvantages: "가용성과 latency가 호출 체인에 결합된다.", operationalNotes: "timeout budget, retry, circuit breaker를 함께 둔다.", displayOrder: 10, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: LOW, explanation: "호출 스택과 응답 계약이 직접적이다.", displayOrder: 10 }] }
+  - { stableKey: architecture.communication.async, title: "비동기 이벤트", summary: "발행자와 소비자가 시간적으로 분리된다.", mechanism: "broker가 이벤트를 저장·전달하고 소비자가 독립 처리한다.", applicableWhen: "후속 처리, fan-out, 부하 완충이 중요할 때", avoidWhen: "동일 요청에서 강한 일관된 결과가 필수일 때", advantages: "시간적 결합과 부하 피크를 줄인다.", disadvantages: "최종 일관성, 중복, 순서, 추적이 복잡하다.", operationalNotes: "스키마 호환성과 이벤트 ID를 관리한다.", displayOrder: 20, tradeoffs: [{ criterion: FAILURE_ISOLATION, level: HIGH, explanation: "소비자 일시 장애를 queue가 완충할 수 있다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.communication.unbounded-sync-chain, classification: ANTI_PATTERN, reasonType: RELIABILITY, title: "사용자 요청에 긴 동기 서비스 체인 구성", description: "각 호출의 지연·실패 확률이 전체 요청에 누적된다.", failureCondition: "여러 원격 호출을 직렬로 연결하고 timeout budget이 없다.", consequence: "tail latency와 연쇄 장애가 커진다.", correction: "즉시 필요한 호출만 남기고 후속 처리를 비동기로 분리한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Publish-subscribe pattern", url: "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/publish-subscribe.html", publisher: "AWS", applicableVersion: "Current", accessedAt: 2026-08-09, note: "비동기 발행·구독의 적용 조건", displayOrder: 10 }
+---
+stableKey: architecture.distributed-transaction
+domain: ARCHITECTURE
+topic: CONSISTENCY
+title: "여러 서비스의 업무 트랜잭션을 어떻게 일관되게 완료할 것인가"
+summary: "동기 분산 트랜잭션과 Saga 보상 흐름의 강한 일관성·가용성을 비교한다."
+problem: "서로 다른 데이터 저장소의 부분 성공을 허용 가능한 업무 상태로 수렴시켜야 한다."
+contextMarkdown: "Saga의 보상은 DB rollback이 아니라 이미 수행한 업무를 의미적으로 되돌리는 새 작업이다."
+constraintsMarkdown: "- 중간 상태 노출\n- 보상 가능성\n- 참여 서비스 수\n- 강한 일관성 요구"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 30
+options:
+  - { stableKey: architecture.transaction.two-phase, title: "2단계 커밋", summary: "참여 자원에 prepare와 commit을 조정한다.", mechanism: "transaction coordinator가 원자 커밋 결정을 관리한다.", applicableWhen: "지원 자원이 제한되고 강한 원자성이 최우선일 때", avoidWhen: "높은 가용성과 느슨한 서비스 결합이 중요할 때", advantages: "참여 자원 간 강한 원자성을 제공한다.", disadvantages: "조정자·잠금·지원 제약으로 가용성과 확장성이 낮아질 수 있다.", operationalNotes: "in-doubt transaction 복구 절차가 필요하다.", displayOrder: 10, tradeoffs: [{ criterion: CONSISTENCY, level: HIGH, explanation: "참여 자원의 커밋 결정을 조정한다.", displayOrder: 10 }] }
+  - { stableKey: architecture.transaction.saga, title: "Saga", summary: "로컬 트랜잭션과 보상 작업으로 업무를 수렴시킨다.", mechanism: "단계별 continuation과 실패 시 compensation을 실행한다.", applicableWhen: "서비스별 저장소와 최종 일관성을 허용할 때", avoidWhen: "업무상 보상이 불가능하거나 중간 상태 노출이 금지될 때", advantages: "장기 잠금 없이 서비스 자율성을 유지한다.", disadvantages: "보상, 중복, 관측, 상태 머신이 복잡하다.", operationalNotes: "각 단계와 보상을 멱등하게 설계한다.", displayOrder: 20, tradeoffs: [{ criterion: AVAILABILITY, level: HIGH, explanation: "장기 분산 잠금 없이 단계별 회복이 가능하다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.transaction.compensation-equals-rollback, optionKey: architecture.transaction.saga, classification: INVALID, reasonType: CORRECTNESS, title: "보상을 물리적 rollback과 동일하다고 가정", description: "이미 외부에 관찰된 작업은 정확히 이전 상태로 돌아가지 않을 수 있다.", failureCondition: "환불·재고 복구의 업무 의미와 실패 가능성을 모델링하지 않는다.", consequence: "보상 실패와 수동 조정 상태가 누락된다.", correction: "보상 자체를 재시도 가능한 업무 명령과 상태로 설계한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Saga patterns", url: "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/saga-patterns.html", publisher: "AWS", applicableVersion: "Current", accessedAt: 2026-08-09, note: "choreography, orchestration, compensation", displayOrder: 10 }
+---
+stableKey: architecture.dual-write
+domain: ARCHITECTURE
+topic: MESSAGING
+title: "DB 변경과 이벤트 발행의 이중 쓰기를 어떻게 원자적으로 연결할 것인가"
+summary: "직접 발행과 Transactional Outbox의 지연·신뢰성·운영 비용을 비교한다."
+problem: "DB 커밋과 broker 발행 중 하나만 성공해 데이터와 이벤트가 어긋나는 상태를 막아야 한다."
+contextMarkdown: "Outbox는 DB 변경과 이벤트 레코드를 같은 로컬 트랜잭션에 저장한 뒤 별도 relay가 발행한다."
+constraintsMarkdown: "- 발행 지연 허용\n- DB와 broker 종류\n- 중복 소비\n- 이벤트 순서"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 40
+options:
+  - { stableKey: architecture.dual-write.direct, title: "커밋 후 직접 발행", summary: "DB 성공 뒤 애플리케이션이 broker를 호출한다.", mechanism: "동기 또는 transaction callback에서 이벤트를 전송한다.", applicableWhen: "유실을 허용하거나 재조정 배치가 있고 단순성이 중요할 때", avoidWhen: "업무 변경과 이벤트 누락이 허용되지 않을 때", advantages: "구현과 운영 구성요소가 적다.", disadvantages: "커밋 후 프로세스 장애로 이벤트를 잃을 수 있다.", operationalNotes: "누락 탐지와 재발행 경로를 둔다.", displayOrder: 10, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: LOW, explanation: "별도 outbox와 relay가 필요 없다.", displayOrder: 10 }] }
+  - { stableKey: architecture.dual-write.outbox, title: "Transactional Outbox", summary: "업무 데이터와 이벤트를 같은 DB 트랜잭션에 저장한다.", mechanism: "relay가 outbox를 polling 또는 CDC로 읽어 broker에 발행한다.", applicableWhen: "DB 변경과 이벤트 유실을 함께 막아야 할 때", avoidWhen: "중복 소비와 outbox 정리·지연을 운영할 수 없을 때", advantages: "dual write 실패 창을 제거한다.", disadvantages: "relay, backlog, 중복, 정리 정책이 필요하다.", operationalNotes: "소비자는 중복 이벤트를 멱등하게 처리한다.", displayOrder: 20, tradeoffs: [{ criterion: CONSISTENCY, level: HIGH, explanation: "업무 변경과 발행 대상 레코드를 한 로컬 트랜잭션에 둔다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.dual-write.assume-once, optionKey: architecture.dual-write.outbox, classification: RISKY, reasonType: CORRECTNESS, title: "Outbox가 중복 발행까지 제거한다고 가정", description: "relay는 발행 성공 후 상태 기록 전에 실패할 수 있다.", failureCondition: "소비자 멱등성과 event ID가 없다.", consequence: "재발행 이벤트가 중복 부작용을 만든다.", correction: "고유 event ID와 멱등 소비자를 함께 구현한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Transactional outbox pattern", url: "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html", publisher: "AWS", applicableVersion: "Current", accessedAt: 2026-08-09, note: "dual write 문제와 outbox 고려사항", displayOrder: 10 }
+---
+stableKey: architecture.resilience.remote-call
+domain: ARCHITECTURE
+topic: RESILIENCE
+title: "불안정한 원격 호출을 어떻게 보호할 것인가"
+summary: "제한 재시도와 Circuit Breaker의 일시 오류 복구·연쇄 실패 차단 역할을 비교한다."
+problem: "일시 오류는 회복하되 지속 장애에 재시도가 부하를 증폭하지 않게 해야 한다."
+contextMarkdown: "timeout이 먼저이며 retry는 멱등한 일시 오류에 제한하고 circuit breaker로 지속 실패를 빠르게 차단한다."
+constraintsMarkdown: "- 호출 멱등성\n- 오류 지속 시간\n- timeout budget\n- fallback 가능성"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 50
+options:
+  - { stableKey: architecture.resilience.retry, title: "제한 재시도 + backoff", summary: "일시 오류에 횟수·시간이 제한된 재호출을 수행한다.", mechanism: "지수 backoff와 jitter, retry budget을 사용한다.", applicableWhen: "짧은 일시 오류이며 작업이 멱등할 때", avoidWhen: "지속 장애·과부하 또는 비멱등 부작용", advantages: "순간적인 네트워크 실패를 사용자에게 숨긴다.", disadvantages: "부하와 tail latency를 배수로 늘릴 수 있다.", operationalNotes: "전체 timeout budget 안에서만 재시도한다.", displayOrder: 10, tradeoffs: [{ criterion: AVAILABILITY, level: HIGH, explanation: "짧은 일시 실패를 자동 회복한다.", displayOrder: 10 }] }
+  - { stableKey: architecture.resilience.circuit-breaker, title: "Circuit Breaker", summary: "실패 임계치 이후 호출을 빠르게 차단하고 회복을 탐색한다.", mechanism: "closed, open, half-open 상태와 측정 창을 사용한다.", applicableWhen: "지속 장애나 높은 지연이 자원을 소모할 때", avoidWhen: "실패 표본이 너무 적고 상태 튜닝 근거가 없을 때", advantages: "실패 중인 하위 서비스로 자원 소모가 전파되는 것을 막는다.", disadvantages: "임계치와 half-open 정책이 잘못되면 정상 호출도 차단한다.", operationalNotes: "상태 전환과 거부 수를 관측한다.", displayOrder: 20, tradeoffs: [{ criterion: FAILURE_ISOLATION, level: HIGH, explanation: "지속 장애에 빠른 실패로 호출자 자원을 보호한다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.resilience.infinite-retry, classification: INVALID, reasonType: RELIABILITY, title: "timeout·횟수 제한 없는 즉시 재시도", description: "실패한 의존성에 요청을 더 빠르게 집중한다.", failureCondition: "backoff, jitter, retry budget이 없다.", consequence: "retry storm과 커넥션·스레드 고갈이 발생한다.", correction: "짧은 timeout, 제한 재시도, jitter와 circuit breaker를 조합한다.", severity: CRITICAL, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Circuit breaker pattern", url: "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/circuit-breaker.html", publisher: "AWS", applicableVersion: "Current", accessedAt: 2026-08-09, note: "지속 실패 차단과 회복 탐색", displayOrder: 10 }
+---
+stableKey: architecture.read-write-model
+domain: ARCHITECTURE
+topic: DATA_MODEL
+title: "읽기와 쓰기 모델을 하나로 유지할 것인가 CQRS로 분리할 것인가"
+summary: "단순 일관 모델과 조회 최적화·독립 확장의 비용을 비교한다."
+problem: "복잡한 조회 요구와 쓰기 불변식을 서로 방해하지 않게 하면서 동기화 복잡도를 통제해야 한다."
+contextMarkdown: "CQRS는 모든 CRUD의 기본값이 아니라 읽기·쓰기 모델의 요구가 실제로 다를 때 선택한다."
+constraintsMarkdown: "- 읽기·쓰기 부하 비대칭\n- 조회 모델 복잡도\n- 지연 일관성 허용\n- 재구축 가능성"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 60
+options:
+  - { stableKey: architecture.cqrs.shared-model, title: "공유 CRUD 모델", summary: "같은 도메인 모델과 저장소로 읽기·쓰기를 처리한다.", mechanism: "하나의 트랜잭션 모델에서 command와 query를 제공한다.", applicableWhen: "업무와 조회가 단순하고 강한 일관성이 중요할 때", avoidWhen: "조회 조합과 확장 요구가 쓰기 모델을 심하게 왜곡할 때", advantages: "동기화 지연과 중복 모델이 없다.", disadvantages: "복잡한 조회와 쓰기 불변식이 같은 모델에 얽힐 수 있다.", operationalNotes: "projection DTO로 먼저 분리 가능한지 검토한다.", displayOrder: 10, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: LOW, explanation: "하나의 데이터 모델과 일관성 경계를 유지한다.", displayOrder: 10 }] }
+  - { stableKey: architecture.cqrs.separated, title: "CQRS", summary: "command 모델과 query projection을 분리한다.", mechanism: "쓰기 이벤트 또는 변경을 읽기 모델에 투영한다.", applicableWhen: "읽기·쓰기 요구와 확장 특성이 크게 다를 때", avoidWhen: "단순 CRUD와 즉시 일관성이 필요한 작은 시스템", advantages: "각 모델을 목적에 맞게 최적화한다.", disadvantages: "동기화 지연, 중복 데이터, 재구축 운영이 생긴다.", operationalNotes: "read model lag와 rebuild 절차를 관측한다.", displayOrder: 20, tradeoffs: [{ criterion: SCALABILITY, level: HIGH, explanation: "읽기와 쓰기를 독립 저장·확장할 수 있다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.cqrs.for-simple-crud, optionKey: architecture.cqrs.separated, classification: NOT_RECOMMENDED, reasonType: MAINTAINABILITY, title: "단순 CRUD에 별도 DB까지 포함한 CQRS 선도입", description: "해결할 비대칭 없이 동기화와 운영 구성만 늘어난다.", failureCondition: "구체적인 읽기·쓰기 분리 요구나 지표가 없다.", consequence: "개발 속도와 장애 분석성이 악화된다.", correction: "단일 모델과 query projection으로 시작하고 필요가 확인될 때 분리한다.", severity: MEDIUM, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "CQRS pattern", url: "https://learn.microsoft.com/azure/architecture/patterns/cqrs", publisher: "Microsoft", applicableVersion: "Current", accessedAt: 2026-08-09, note: "CQRS 적용 조건과 고려사항", displayOrder: 10 }
+---
+stableKey: architecture.event-state
+domain: ARCHITECTURE
+topic: DATA_MODEL
+title: "현재 상태만 저장할 것인가 이벤트를 원본으로 저장할 것인가"
+summary: "단순 상태 조회와 완전한 변경 이력·재생 능력의 비용을 비교한다."
+problem: "감사와 시점 복구 요구를 만족하면서 모델·스키마 진화 복잡도를 감당해야 한다."
+contextMarkdown: "이벤트 소싱은 로그를 추가하는 수준이 아니라 상태의 원본과 변경 모델을 바꾸는 결정이다."
+constraintsMarkdown: "- 완전 감사 요구\n- 과거 상태 재생\n- 이벤트 스키마 진화\n- projection 재구축"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 70
+options:
+  - { stableKey: architecture.state.current, title: "현재 상태 저장", summary: "테이블에 최신 업무 상태를 직접 저장한다.", mechanism: "CRUD와 변경 이력 테이블을 필요에 따라 추가한다.", applicableWhen: "현재 상태 조회가 중심이고 완전 재생이 필요 없을 때", avoidWhen: "모든 변경의 원인과 시점 재구성이 필수일 때", advantages: "조회·수정·마이그레이션이 익숙하고 단순하다.", disadvantages: "별도 감사 없이 과거 상태를 재구성하기 어렵다.", operationalNotes: "필요한 핵심 이력만 append-only로 분리할 수 있다.", displayOrder: 10, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: LOW, explanation: "일반적인 관계형 모델과 직접 조회를 사용한다.", displayOrder: 10 }] }
+  - { stableKey: architecture.state.event-sourcing, title: "Event Sourcing", summary: "상태 변경 이벤트를 원본으로 저장하고 상태를 재생한다.", mechanism: "append-only event stream과 projection을 사용한다.", applicableWhen: "완전 감사, 시점 재생, 복잡한 상태 전이가 핵심일 때", avoidWhen: "단순 CRUD이며 이벤트 진화·재구축을 운영할 수 없을 때", advantages: "변경 사실과 원인을 보존하고 새 projection을 만들 수 있다.", disadvantages: "event schema 진화, 순서, snapshot, 개인정보 삭제가 어렵다.", operationalNotes: "불변 event와 수정 이벤트, upcaster 정책을 둔다.", displayOrder: 20, tradeoffs: [{ criterion: MAINTAINABILITY, level: CONTEXT_DEPENDENT, explanation: "감사·재생은 좋아지지만 이벤트 진화 부담이 장기화된다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.state.events-as-mutable-rows, optionKey: architecture.state.event-sourcing, classification: INVALID, reasonType: CORRECTNESS, title: "과거 이벤트를 현재 스키마에 맞게 직접 수정", description: "이미 발생한 사실과 재생 결과가 환경마다 달라진다.", failureCondition: "기존 event payload를 UPDATE하고 버전 처리하지 않는다.", consequence: "감사 신뢰성과 deterministic replay가 깨진다.", correction: "새 보정 이벤트와 버전별 upcaster로 진화한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Event sourcing pattern", url: "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/event-sourcing.html", publisher: "AWS", applicableVersion: "Current", accessedAt: 2026-08-09, note: "event를 source of truth로 사용하는 패턴", displayOrder: 10 }
+---
+stableKey: architecture.api-entry
+domain: ARCHITECTURE
+topic: API_GATEWAY
+title: "여러 백엔드 API를 클라이언트가 직접 호출할 것인가 BFF에서 조합할 것인가"
+summary: "범용 API 재사용과 화면 맞춤 조합·결합도 비용을 비교한다."
+problem: "클라이언트별 데이터 조합과 인증·오류 처리를 중복하지 않으면서 backend 경계를 보존해야 한다."
+contextMarkdown: "BFF는 클라이언트 경험을 위한 조합 계층이며 핵심 업무 규칙의 새 소유자가 되어서는 안 된다."
+constraintsMarkdown: "- 클라이언트 종류\n- 화면별 조합 수\n- 네트워크 왕복\n- 팀 소유권"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 80
+options:
+  - { stableKey: architecture.api-entry.direct, title: "클라이언트 직접 호출", summary: "클라이언트가 필요한 도메인 API를 각각 호출한다.", mechanism: "공개 API 계약과 클라이언트-side 조합을 사용한다.", applicableWhen: "호출 수가 적고 여러 클라이언트가 같은 API를 재사용할 때", avoidWhen: "화면 하나에 많은 fan-out과 인증 조합이 필요할 때", advantages: "중간 계층 없이 도메인 API를 재사용한다.", disadvantages: "클라이언트마다 조합·오류 처리가 중복된다.", operationalNotes: "병렬 호출과 부분 실패 UX를 정의한다.", displayOrder: 10, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: LOW, explanation: "서버 조합 계층을 추가하지 않는다.", displayOrder: 10 }] }
+  - { stableKey: architecture.api-entry.bff, title: "Backend for Frontend", summary: "클라이언트 경험에 맞춘 API 조합 계층을 둔다.", mechanism: "도메인 API 호출, 인증 전달, 응답 조합을 담당한다.", applicableWhen: "웹·모바일 요구가 다르고 fan-out이 반복될 때", avoidWhen: "하나의 단순 클라이언트이며 조합이 거의 없을 때", advantages: "왕복과 클라이언트 중복을 줄이고 맞춤 계약을 제공한다.", disadvantages: "추가 배포·장애 지점과 도메인 로직 중복 위험이 있다.", operationalNotes: "업무 규칙은 도메인 서비스에 남기고 timeout budget을 관리한다.", displayOrder: 20, tradeoffs: [{ criterion: MAINTAINABILITY, level: CONTEXT_DEPENDENT, explanation: "클라이언트 코드는 단순해지지만 서버 계층이 하나 늘어난다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: architecture.api-entry.bff-domain-owner, optionKey: architecture.api-entry.bff, classification: ANTI_PATTERN, reasonType: MAINTAINABILITY, title: "BFF가 핵심 업무 규칙과 데이터를 직접 소유", description: "도메인 서비스와 규칙이 중복되고 다른 클라이언트에서 재사용할 수 없다.", failureCondition: "화면 조합을 넘어 영속 업무 로직을 BFF에 구현한다.", consequence: "경계가 흐려지고 변경 시 여러 구현이 불일치한다.", correction: "BFF는 인증 전달·조합·표현 변환에 한정하고 규칙은 도메인에 둔다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Backends for Frontends pattern", url: "https://learn.microsoft.com/azure/architecture/patterns/backends-for-frontends", publisher: "Microsoft", applicableVersion: "Current", accessedAt: 2026-08-09, note: "BFF 적용 조건과 tradeoff", displayOrder: 10 }

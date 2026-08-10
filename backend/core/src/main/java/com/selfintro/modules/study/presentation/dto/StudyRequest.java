@@ -1,5 +1,6 @@
 package com.selfintro.modules.study.presentation.dto;
 
+import com.selfintro.modules.study.domain.enums.StudySection;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -15,6 +16,7 @@ public record StudyRequest(
         @NotBlank @Size(max = 500) String summary,
         @NotBlank String contentMarkdown,
         @NotNull StudyStatus status,
+        @NotNull StudySection section,
         List<Long> taxonomyNodeIds,
         List<@NotBlank @Size(max = 80) String> tagNames,
         List<Long> skillIds,

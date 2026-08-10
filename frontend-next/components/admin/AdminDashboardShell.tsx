@@ -51,6 +51,7 @@ import { AnalyticsPanel } from './analytics/AnalyticsPanel';
 import { DonationsPanel } from './donations/DonationsPanel';
 import { JobApplicationManagement } from './job-application/JobApplicationManagement';
 import { StudyPlanManagement } from './study-plan/StudyPlanManagement';
+import { ExperienceTreeManagement } from './experience-tree/ExperienceTreeManagement';
 
 const PREVIEW_MIN_WIDTH = 420;
 const PREVIEW_MAX_WIDTH = 960;
@@ -64,6 +65,7 @@ type TabId =
     | 'ANALYTICS'
     | 'DONATIONS'
     | 'STUDY'
+    | 'EXPERIENCE_TREE'
     | 'PROFILE'
     | 'SKILLS'
     | 'COMPETENCIES'
@@ -82,6 +84,7 @@ const ADMIN_MENU_GROUPS = [
         label: '콘텐츠 자산',
         items: [
             { id: 'STUDY', label: '공부 정리 관리', icon: BookOpen },
+            { id: 'EXPERIENCE_TREE', label: '개발자 온톨로지', icon: GitBranch },
             { id: 'LEARNING_RESOURCES', label: '학습 자료 관리', icon: GraduationCap },
             { id: 'STUDY_PLAN', label: 'AI 학습 계획', icon: CalendarCheck },
             { id: 'SKILLS', label: '기술 스택 관리', icon: Cpu },
@@ -138,6 +141,7 @@ export function AdminDashboardShell() {
                 'ANALYTICS',
                 'DONATIONS',
                 'STUDY',
+                'EXPERIENCE_TREE',
                 'PROFILE',
                 'SKILLS',
                 'COMPETENCIES',
@@ -305,6 +309,8 @@ export function AdminDashboardShell() {
         switch (activeTab) {
             case 'STUDY':
                 return { path: '/study' };
+            case 'EXPERIENCE_TREE':
+                return { path: '/experience-tree' };
             case 'PROFILE':
                 return { path: '/', section: 'intro-profile' };
             case 'SKILLS':
@@ -779,6 +785,7 @@ export function AdminDashboardShell() {
 
                         <section className="min-w-0 space-y-6">
                             {activeTab === 'STUDY' && <StudyManagement />}
+                            {activeTab === 'EXPERIENCE_TREE' && <ExperienceTreeManagement />}
                             {activeTab === 'SKILLS' && <SkillsManagement />}
                             {activeTab === 'EXPERIENCE' && (
                                 <ExperienceManagement

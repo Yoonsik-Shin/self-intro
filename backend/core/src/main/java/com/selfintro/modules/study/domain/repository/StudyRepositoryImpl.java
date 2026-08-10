@@ -40,6 +40,9 @@ public class StudyRepositoryImpl implements StudyRepositoryCustom {
         if (condition.status() != null) {
             where.and(study.status.eq(condition.status()));
         }
+        if (condition.section() != null) {
+            where.and(study.section.eq(condition.section()));
+        }
 
         List<Study> content =
                 queryFactory

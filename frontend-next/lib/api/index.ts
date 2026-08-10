@@ -3,6 +3,7 @@
 export * from './types';
 export * from './client';
 export * from './study';
+export * from './experienceTree';
 export * from './learningResource';
 export * from './taxonomy';
 export * from './image';

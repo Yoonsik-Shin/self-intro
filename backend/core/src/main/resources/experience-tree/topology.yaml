@@ -1,0 +1,90 @@
+parents:
+  backend.database.index-selection: backend.api.pagination
+  backend.database.concurrency-control: backend.database.transaction-isolation
+  backend.spring.transaction-propagation: backend.database.transaction-isolation
+  backend.cache.invalidation: backend.cache.placement
+  backend.security.password-storage: backend.security.authentication-state
+  backend.messaging.delivery: backend.async.execution
+  backend.runtime.execution-model: backend.language.selection
+  backend.async.execution: backend.runtime.execution-model
+  backend.database.engine-selection: backend.language.selection
+  backend.api.rate-limiting: backend.api.error-contract
+  backend.database.connection-pool: backend.database.transaction-isolation
+  backend.persistence.n-plus-one: backend.database.index-selection
+  architecture.communication-style: architecture.service-boundary
+  architecture.distributed-transaction: architecture.communication-style
+  architecture.dual-write: architecture.distributed-transaction
+  architecture.resilience.remote-call: architecture.communication-style
+  architecture.read-write-model: architecture.service-boundary
+  architecture.event-state: architecture.read-write-model
+  architecture.api-entry: architecture.service-boundary
+  architecture.data-ownership: architecture.service-boundary
+  architecture.multitenancy: architecture.data-ownership
+  architecture.contract-evolution: architecture.communication-style
+  infrastructure.kubernetes.probes: infrastructure.deployment.strategy
+  infrastructure.kubernetes.resources: infrastructure.deployment.strategy
+  infrastructure.kubernetes.autoscaling: infrastructure.kubernetes.resources
+  infrastructure.configuration.secrets: infrastructure.deployment.strategy
+  infrastructure.observability.signals: infrastructure.deployment.strategy
+  infrastructure.logging.collection: infrastructure.observability.signals
+  infrastructure.kubernetes.stateful-storage: infrastructure.deployment.strategy
+  infrastructure.network.ingress: infrastructure.deployment.strategy
+  infrastructure.recovery.backup: infrastructure.kubernetes.stateful-storage
+  infrastructure.delivery.iac: infrastructure.deployment.strategy
+  frontend.state.ownership: frontend.rendering.boundary
+  frontend.data.fetching: frontend.rendering.boundary
+  frontend.cache.revalidation: frontend.data.fetching
+  frontend.performance.lazy-loading: frontend.rendering.boundary
+  frontend.accessibility.interaction: frontend.component.api
+  frontend.list.identity: frontend.state.ownership
+  frontend.form.state: frontend.state.ownership
+  frontend.error.boundary: frontend.rendering.boundary
+  frontend.realtime.transport: frontend.data.fetching
+
+relations:
+  - { sourceKey: backend.api.pagination, targetKey: backend.database.index-selection, relationType: LEADS_TO, displayOrder: 10 }
+  - { sourceKey: backend.database.transaction-isolation, targetKey: backend.database.concurrency-control, relationType: LEADS_TO, displayOrder: 20 }
+  - { sourceKey: backend.cache.placement, targetKey: backend.cache.invalidation, relationType: LEADS_TO, displayOrder: 30 }
+  - { sourceKey: backend.api.idempotency, targetKey: backend.messaging.delivery, relationType: COMBINES_WITH, displayOrder: 40 }
+  - { sourceKey: backend.async.execution, targetKey: architecture.communication-style, relationType: LEADS_TO, displayOrder: 50 }
+  - { sourceKey: architecture.communication-style, targetKey: architecture.resilience.remote-call, relationType: LEADS_TO, displayOrder: 60 }
+  - { sourceKey: architecture.communication-style, targetKey: architecture.distributed-transaction, relationType: LEADS_TO, displayOrder: 70 }
+  - { sourceKey: architecture.distributed-transaction, targetKey: architecture.dual-write, relationType: LEADS_TO, displayOrder: 80 }
+  - { sourceKey: architecture.read-write-model, targetKey: architecture.event-state, relationType: LEADS_TO, displayOrder: 90 }
+  - { sourceKey: architecture.service-boundary, targetKey: infrastructure.deployment.strategy, relationType: LEADS_TO, displayOrder: 100 }
+  - { sourceKey: infrastructure.deployment.strategy, targetKey: infrastructure.kubernetes.probes, relationType: LEADS_TO, displayOrder: 110 }
+  - { sourceKey: infrastructure.kubernetes.resources, targetKey: infrastructure.kubernetes.autoscaling, relationType: PREREQUISITE, displayOrder: 120 }
+  - { sourceKey: infrastructure.observability.signals, targetKey: infrastructure.logging.collection, relationType: LEADS_TO, displayOrder: 130 }
+  - { sourceKey: frontend.rendering.boundary, targetKey: frontend.data.fetching, relationType: LEADS_TO, displayOrder: 140 }
+  - { sourceKey: frontend.data.fetching, targetKey: frontend.cache.revalidation, relationType: LEADS_TO, displayOrder: 150 }
+  - { sourceKey: frontend.state.ownership, targetKey: frontend.form.state, relationType: LEADS_TO, displayOrder: 160 }
+  - { sourceKey: frontend.state.ownership, targetKey: frontend.list.identity, relationType: COMBINES_WITH, displayOrder: 170 }
+  - { sourceKey: frontend.component.api, targetKey: frontend.accessibility.interaction, relationType: COMBINES_WITH, displayOrder: 180 }
+  - { sourceKey: frontend.performance.lazy-loading, targetKey: infrastructure.observability.signals, relationType: COMBINES_WITH, displayOrder: 190 }
+  - { sourceKey: backend.api.error-contract, targetKey: backend.api.rate-limiting, relationType: LEADS_TO, displayOrder: 200 }
+  - { sourceKey: backend.database.transaction-isolation, targetKey: backend.database.connection-pool, relationType: COMBINES_WITH, displayOrder: 210 }
+  - { sourceKey: backend.database.index-selection, targetKey: backend.persistence.n-plus-one, relationType: LEADS_TO, displayOrder: 220 }
+  - { sourceKey: infrastructure.network.ingress, targetKey: backend.api.rate-limiting, relationType: COMBINES_WITH, displayOrder: 230 }
+  - { sourceKey: infrastructure.kubernetes.stateful-storage, targetKey: infrastructure.recovery.backup, relationType: LEADS_TO, displayOrder: 240 }
+  - { sourceKey: infrastructure.delivery.iac, targetKey: infrastructure.deployment.strategy, relationType: PREREQUISITE, displayOrder: 250 }
+  - { sourceKey: architecture.service-boundary, targetKey: architecture.data-ownership, relationType: LEADS_TO, displayOrder: 260 }
+  - { sourceKey: architecture.data-ownership, targetKey: architecture.multitenancy, relationType: LEADS_TO, displayOrder: 270 }
+  - { sourceKey: architecture.communication-style, targetKey: architecture.contract-evolution, relationType: PREREQUISITE, displayOrder: 280 }
+  - { sourceKey: frontend.rendering.boundary, targetKey: frontend.error.boundary, relationType: LEADS_TO, displayOrder: 290 }
+  - { sourceKey: frontend.data.fetching, targetKey: frontend.realtime.transport, relationType: ALTERNATIVE, displayOrder: 300 }
+  - { sourceKey: backend.language.selection, targetKey: backend.runtime.execution-model, relationType: LEADS_TO, displayOrder: 310 }
+  - { sourceKey: backend.language.selection, targetKey: backend.database.engine-selection, relationType: LEADS_TO, displayOrder: 320 }
+  - { sourceKey: backend.runtime.execution-model, targetKey: backend.database.connection-pool, relationType: COMBINES_WITH, displayOrder: 330 }
+
+studyLinks:
+  - { seedKey: retrospective.session-auth, situationKey: backend.security.authentication-state, studySlug: spring-boot-backoffice-and-session-auth, relationType: RETROSPECT, note: "세션 쿠키·SameSite·CORS 경계를 실제 백오피스 인증에 적용한 회고", displayOrder: 10 }
+  - { seedKey: retrospective.cross-functional-bff, situationKey: architecture.api-entry, studySlug: backoffice-tf-cross-functional-collaboration, relationType: APPLIED, note: "협업 경계에서 BFF와 API 계약을 조정한 경험", displayOrder: 20 }
+  - { seedKey: retrospective.release-conventions, situationKey: infrastructure.deployment.strategy, studySlug: release-management-and-shared-dev-conventions, relationType: RETROSPECT, note: "릴리스 관리와 공통 개발 규약을 정비한 경험", displayOrder: 30 }
+  - { seedKey: retrospective.multiarch-build, situationKey: infrastructure.deployment.strategy, studySlug: docker-multiarch-build-platform-native-compile-stage, relationType: FAILED, note: "QEMU 병목을 겪고 플랫폼 네이티브 빌드로 교체한 회고", displayOrder: 40 }
+  - { seedKey: retrospective.spa-scraping, situationKey: frontend.rendering.boundary, studySlug: headless-browser-spa-job-posting-scraping, relationType: RETROSPECT, note: "SPA 렌더링 경계를 이해하고 브라우저 자동화로 수집한 회고", displayOrder: 50 }
+  - { seedKey: retrospective.ai-json, situationKey: backend.api.error-contract, studySlug: job-posting-ai-json-reliability, relationType: RETROSPECT, note: "외부 AI 응답의 JSON 계약과 실패 복구를 강화한 경험", displayOrder: 60 }
+  - { seedKey: retrospective.k8s-logging, situationKey: infrastructure.logging.collection, studySlug: k8s-ingress-crio-logging-architecture-refactoring, relationType: REPLACED, note: "파일 직접 기록을 STDOUT·플랫폼 수집 방식으로 전환한 회고", displayOrder: 70 }
+  - { seedKey: retrospective.grafana-prometheus, situationKey: infrastructure.observability.signals, studySlug: grafana-prometheus-spring-boot-dashboard-deep-dive, relationType: APPLIED, note: "Actuator 메트릭과 Grafana 대시보드를 연결한 경험", displayOrder: 80 }
+  - { seedKey: retrospective.exporters, situationKey: infrastructure.observability.signals, studySlug: rabbitmq-mysql-oracle-atp-exporter-setup, relationType: APPLIED, note: "서로 다른 시스템의 exporter를 구성한 경험", displayOrder: 90 }
+  - { seedKey: retrospective.pod-monitoring, situationKey: infrastructure.kubernetes.resources, studySlug: kubernetes-pod-level-monitoring-cadvisor-kube-state-metrics, relationType: DEEP_DIVES, note: "Pod 리소스 상태와 사용량 신호의 차이를 학습한 회고", displayOrder: 100 }
+  - { seedKey: retrospective.persistent-volume, situationKey: infrastructure.kubernetes.stateful-storage, studySlug: monitoring-stack-persistent-volume-troubleshooting, relationType: FAILED, note: "PVC·attachment type·fsGroup 장애를 해결한 회고", displayOrder: 110 }

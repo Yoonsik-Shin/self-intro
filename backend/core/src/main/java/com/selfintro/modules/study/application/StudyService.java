@@ -13,6 +13,7 @@ import com.selfintro.modules.study.domain.entity.StudyImage;
 import com.selfintro.modules.study.domain.entity.StudyRelation;
 import com.selfintro.modules.study.domain.entity.StudyTaxonomyCuration;
 import com.selfintro.modules.study.domain.entity.Tag;
+import com.selfintro.modules.study.domain.enums.StudySection;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.domain.repository.StudySearchCondition;
@@ -72,6 +73,7 @@ public class StudyService {
             List<Long> skillIds,
             List<Long> experienceIds,
             List<Long> experienceDetailIds,
+            StudySection section,
             int page,
             int size) {
         return search(
@@ -82,6 +84,7 @@ public class StudyService {
                 experienceIds,
                 experienceDetailIds,
                 StudyStatus.PUBLISHED,
+                section,
                 page,
                 size);
     }
@@ -94,6 +97,7 @@ public class StudyService {
             List<Long> experienceIds,
             List<Long> experienceDetailIds,
             StudyStatus status,
+            StudySection section,
             int page,
             int size) {
         return search(
@@ -104,6 +108,7 @@ public class StudyService {
                 experienceIds,
                 experienceDetailIds,
                 status,
+                section,
                 page,
                 size);
     }
@@ -116,6 +121,7 @@ public class StudyService {
             List<Long> experienceIds,
             List<Long> experienceDetailIds,
             StudyStatus status,
+            StudySection section,
             int page,
             int size) {
         int safeSize = Math.min(Math.max(size, 1), 100);
@@ -133,7 +139,8 @@ public class StudyService {
                                         skillIds,
                                         experienceIds,
                                         experienceDetailIds,
-                                        status),
+                                        status,
+                                        section),
                                 PageRequest.of(Math.max(page, 0), safeSize))
                         .map(this::toResponse);
         return StudyPageResponse.from(result);
@@ -165,7 +172,8 @@ public class StudyService {
                         curation ->
                                 StudyTaxonomyResponse.from(
                                         curation.getTaxonomyNode(),
-                                        totals.getOrDefault(curation.getTaxonomyNode().getId(), 0L)))
+                                        totals.getOrDefault(
+                                                curation.getTaxonomyNode().getId(), 0L)))
                 .toList();
     }
 
@@ -178,7 +186,13 @@ public class StudyService {
 
     @Transactional
     @CacheEvict(
-            value = {"bff:learning", "bff:introduction"},
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
             allEntries = true)
     public List<TaxonomyNodeResponse> replaceCuration(List<Long> taxonomyNodeIds) {
         curationRepository.deleteAll();
@@ -197,7 +211,13 @@ public class StudyService {
 
     @Transactional
     @CacheEvict(
-            value = {"bff:learning", "bff:introduction"},
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
             allEntries = true)
     public StudyResponse create(StudyRequest request) {
         String slug = uniqueSlug(request.slug(), request.title(), null);
@@ -212,6 +232,7 @@ public class StudyService {
                         request.status(),
                         request.learnedAt(),
                         publishedAt);
+        study.changeSection(request.section());
 
         List<String> removedImageKeys = applyAssociations(study, request);
         Study saved = studyRepository.save(study);
@@ -223,7 +244,13 @@ public class StudyService {
 
     @Transactional
     @CacheEvict(
-            value = {"bff:learning", "bff:introduction"},
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
             allEntries = true)
     public StudyResponse update(Long id, StudyRequest request) {
         Study study =
@@ -242,6 +269,7 @@ public class StudyService {
                 request.status(),
                 request.learnedAt(),
                 publishedAt);
+        study.changeSection(request.section());
         List<String> removedImageKeys = applyAssociations(study, request);
         applyRelations(study, request.relatedStudies());
         storageService.deleteAll(removedImageKeys);
@@ -251,7 +279,13 @@ public class StudyService {
 
     @Transactional
     @CacheEvict(
-            value = {"bff:learning", "bff:introduction"},
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
             allEntries = true)
     public void delete(Long id) {
         Study study =
@@ -264,6 +298,15 @@ public class StudyService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
     public List<StudyResponse> batchPublish(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
@@ -288,6 +331,15 @@ public class StudyService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
     public List<StudyResponse> batchUnpublish(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
@@ -309,6 +361,15 @@ public class StudyService {
     }
 
     @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
     public StudyResponse toggleStatus(Long id) {
         Study study =
                 studyRepository
@@ -379,7 +440,8 @@ public class StudyService {
                 studyRepository.countByTaxonomyNodeAndStatus(StudyStatus.PUBLISHED).stream()
                         .collect(
                                 Collectors.toMap(
-                                        StudyRepository.TaxonomyNodeCountProjection::getTaxonomyNodeId,
+                                        StudyRepository.TaxonomyNodeCountProjection
+                                                ::getTaxonomyNodeId,
                                         StudyRepository.TaxonomyNodeCountProjection::getCount));
         Map<Long, List<Long>> childrenByParentId = new HashMap<>();
         for (TaxonomyNode node : all) {

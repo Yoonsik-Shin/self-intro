@@ -7,6 +7,7 @@ import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.entity.StudyImage;
 import com.selfintro.modules.study.domain.entity.StudyRelation;
 import com.selfintro.modules.study.domain.enums.StudyRelationType;
+import com.selfintro.modules.study.domain.enums.StudySection;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.taxonomy.presentation.dto.TaxonomyNodeResponse;
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ public record StudyResponse(
         String summary,
         String contentMarkdown,
         StudyStatus status,
+        StudySection section,
         List<TaxonomyNodeResponse> taxonomyNodes,
         List<TagResponse> tags,
         List<SkillResponse> skills,
@@ -40,6 +42,7 @@ public record StudyResponse(
                 study.getSummary(),
                 study.getContentMarkdown(),
                 study.getStatus(),
+                study.getSection(),
                 study.getTaxonomyNodes().stream().map(TaxonomyNodeResponse::from).toList(),
                 study.getTags().stream().map(TagResponse::from).toList(),
                 study.getSkills().stream().map(SkillResponse::from).toList(),

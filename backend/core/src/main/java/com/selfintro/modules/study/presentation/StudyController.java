@@ -1,6 +1,7 @@
 package com.selfintro.modules.study.presentation;
 
 import com.selfintro.modules.study.application.StudyService;
+import com.selfintro.modules.study.domain.enums.StudySection;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.presentation.dto.StudyPageResponse;
 import com.selfintro.modules.study.presentation.dto.StudyRequest;
@@ -38,10 +39,19 @@ public class StudyController {
             @RequestParam(required = false) List<Long> skillIds,
             @RequestParam(required = false) List<Long> experienceIds,
             @RequestParam(required = false) List<Long> experienceDetailIds,
+            @RequestParam(required = false) StudySection section,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return studyService.searchPublished(
-                q, taxonomyNodeId, tags, skillIds, experienceIds, experienceDetailIds, page, size);
+                q,
+                taxonomyNodeId,
+                tags,
+                skillIds,
+                experienceIds,
+                experienceDetailIds,
+                section,
+                page,
+                size);
     }
 
     @GetMapping("/api/studies/{slug}")
@@ -68,6 +78,7 @@ public class StudyController {
             @RequestParam(required = false) List<Long> experienceIds,
             @RequestParam(required = false) List<Long> experienceDetailIds,
             @RequestParam(required = false) StudyStatus status,
+            @RequestParam(required = false) StudySection section,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         return studyService.searchAdmin(
@@ -78,6 +89,7 @@ public class StudyController {
                 experienceIds,
                 experienceDetailIds,
                 status,
+                section,
                 page,
                 size);
     }

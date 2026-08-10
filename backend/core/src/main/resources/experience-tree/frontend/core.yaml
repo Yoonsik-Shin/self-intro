@@ -1,0 +1,188 @@
+stableKey: frontend.rendering.boundary
+domain: FRONTEND
+topic: RENDERING
+title: "데이터 중심 UI를 서버에서 렌더링할 것인가 클라이언트에서 렌더링할 것인가"
+summary: "초기 응답·SEO·서버 비용과 상호작용·브라우저 API 요구를 비교한다."
+problem: "사용자가 빠르게 유효한 화면을 보면서도 필요한 상호작용을 제공해야 한다."
+contextMarkdown: "서버 컴포넌트와 클라이언트 컴포넌트는 경쟁 관계가 아니라 경계를 나누는 도구다."
+constraintsMarkdown: "- SEO와 초기 콘텐츠\n- 브라우저 API 사용\n- 상호작용 빈도\n- 서버 부하"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 10
+options:
+  - { stableKey: frontend.rendering.boundary.server, title: "서버 중심 렌더링", summary: "데이터 조회와 초기 마크업을 서버에서 처리한다.", mechanism: "서버에서 컴포넌트 결과를 생성해 전송한다.", applicableWhen: "초기 콘텐츠, SEO, 서버 데이터 접근이 중요할 때", avoidWhen: "브라우저 상태와 실시간 상호작용이 대부분일 때", advantages: "클라이언트 JavaScript와 데이터 왕복을 줄일 수 있다.", disadvantages: "서버 부하와 캐시 전략을 운영해야 한다.", operationalNotes: "동적 데이터와 캐시 경계를 명시한다.", displayOrder: 10, tradeoffs: [{ criterion: PERFORMANCE, level: CONTEXT_DEPENDENT, explanation: "초기 표시에는 유리하지만 서버 처리와 네트워크 조건에 의존한다.", displayOrder: 10 }] }
+  - { stableKey: frontend.rendering.boundary.client, title: "클라이언트 중심 렌더링", summary: "브라우저에서 데이터와 상태를 조합해 화면을 만든다.", mechanism: "JavaScript 실행 후 API를 호출하고 DOM을 갱신한다.", applicableWhen: "높은 상호작용성과 브라우저 API가 핵심일 때", avoidWhen: "초기 콘텐츠 노출과 낮은 JavaScript 비용이 중요할 때", advantages: "풍부한 로컬 상호작용을 구현하기 쉽다.", disadvantages: "초기 로딩과 번들·수화 비용이 커질 수 있다.", operationalNotes: "로딩·오류·빈 상태를 모두 설계한다.", displayOrder: 20, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: MEDIUM, explanation: "클라이언트 상태와 비동기 생명주기를 관리해야 한다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.rendering.boundary.all-client, classification: ANTI_PATTERN, reasonType: PERFORMANCE, title: "상호작용 여부와 관계없이 전체를 클라이언트로 전환", description: "서버에서 처리 가능한 콘텐츠까지 큰 클라이언트 경계에 포함한다.", failureCondition: "최상위 레이아웃부터 무조건 클라이언트 컴포넌트로 선언한다.", consequence: "번들·수화 비용과 초기 표시 지연이 증가한다.", correction: "상호작용이 필요한 가장 작은 경계만 클라이언트로 둔다.", severity: MEDIUM, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Server and Client Components", url: "https://nextjs.org/docs/app/getting-started/server-and-client-components", publisher: "Next.js", applicableVersion: "App Router current", accessedAt: 2026-08-09, note: "서버·클라이언트 컴포넌트 경계", displayOrder: 10 }
+---
+stableKey: frontend.state.ownership
+domain: FRONTEND
+topic: STATE
+title: "상태를 컴포넌트 로컬에 둘 것인가 상위·공유 계층으로 올릴 것인가"
+summary: "변경 범위와 단일 진실 공급원, 결합도 사이의 균형을 정한다."
+problem: "여러 화면이 같은 값을 다르게 보거나 불필요하게 함께 다시 렌더링되지 않아야 한다."
+contextMarkdown: "상태는 그것을 읽고 변경하는 가장 가까운 공통 소유자에 둔다."
+constraintsMarkdown: "- 소비 컴포넌트 범위\n- URL·서버 상태 여부\n- 변경 빈도\n- 보존 수명"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 20
+options:
+  - { stableKey: frontend.state.ownership.local, title: "로컬 상태", summary: "상태를 사용하는 컴포넌트 가까이에 둔다.", mechanism: "컴포넌트 상태와 제한된 props로 관리한다.", applicableWhen: "한 기능 내부에서만 쓰이고 수명이 짧을 때", avoidWhen: "멀리 떨어진 여러 소비자가 동일 값을 공유할 때", advantages: "의존 범위와 변경 영향을 작게 유지한다.", disadvantages: "공유가 시작되면 상태 동기화가 필요하다.", operationalNotes: "파생 가능한 값은 별도 상태로 저장하지 않는다.", displayOrder: 10, tradeoffs: [{ criterion: MAINTAINABILITY, level: HIGH, explanation: "상태의 소유자와 변경 경로가 가깝다.", displayOrder: 10 }] }
+  - { stableKey: frontend.state.ownership.shared, title: "상위·공유 상태", summary: "공통 조상이나 전용 저장소가 상태를 소유한다.", mechanism: "props, context 또는 외부 store로 단일 값을 배포한다.", applicableWhen: "여러 기능이 같은 값을 읽고 변경할 때", avoidWhen: "한 컴포넌트만 사용하는 임시 UI 상태일 때", advantages: "공유 소비자 사이의 불일치를 줄인다.", disadvantages: "구독 범위와 결합도가 커질 수 있다.", operationalNotes: "서버 상태는 전용 쿼리 캐시와 구분한다.", displayOrder: 20, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: MEDIUM, explanation: "갱신 규칙과 구독 최적화가 필요하다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.state.ownership.duplicated, classification: INVALID, reasonType: CORRECTNESS, title: "같은 의미의 상태를 여러 위치에 복제", description: "원본과 복사본을 각각 변경하면서 서로 달라진다.", failureCondition: "props에서 계산 가능한 값을 state에 복사하고 양쪽을 갱신한다.", consequence: "불가능한 상태와 화면 불일치가 발생한다.", correction: "원본 하나를 두고 나머지는 렌더링 중 파생한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Choosing the State Structure", url: "https://react.dev/learn/choosing-the-state-structure", publisher: "React", applicableVersion: "React current", accessedAt: 2026-08-09, note: "중복·모순 상태 방지 원칙", displayOrder: 10 }
+---
+stableKey: frontend.data.fetching
+domain: FRONTEND
+topic: DATA_FETCHING
+title: "데이터를 서버에서 조회할 것인가 클라이언트에서 조회할 것인가"
+summary: "보안·초기 응답·SEO와 실시간 갱신·사용자 상호작용 요구를 비교한다."
+problem: "데이터를 필요한 위치에서 안전하고 중복 없이 가져와야 한다."
+contextMarkdown: "초기 데이터는 서버에서, 사용자 상호작용에 따른 갱신은 클라이언트 쿼리에서 처리하는 혼합도 가능하다."
+constraintsMarkdown: "- 자격 증명 노출\n- SEO\n- 갱신 빈도\n- 사용자별 데이터"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 30
+options:
+  - { stableKey: frontend.data.fetching.server, title: "서버 데이터 조회", summary: "서버 렌더링 과정에서 데이터 소스에 접근한다.", mechanism: "서버 컴포넌트나 서버 계층에서 await 후 결과를 전달한다.", applicableWhen: "비밀 자격 증명, 초기 콘텐츠, DB 직접 접근이 필요할 때", avoidWhen: "짧은 간격의 사용자 주도 재조회가 핵심일 때", advantages: "비밀값과 내부 데이터 소스를 브라우저에 노출하지 않는다.", disadvantages: "서버 왕복과 캐시 무효화를 설계해야 한다.", operationalNotes: "요청 메모화와 지속 캐시를 구분한다.", displayOrder: 10, tradeoffs: [{ criterion: SECURITY, level: HIGH, explanation: "내부 자격 증명을 서버 경계에 유지할 수 있다.", displayOrder: 10 }] }
+  - { stableKey: frontend.data.fetching.client, title: "클라이언트 데이터 조회", summary: "화면이 마운트되거나 상호작용할 때 API를 호출한다.", mechanism: "쿼리 라이브러리가 로딩·캐시·재시도를 관리한다.", applicableWhen: "사용자별 실시간 갱신과 상호작용이 중요할 때", avoidWhen: "초기 HTML에 데이터가 반드시 포함되어야 할 때", advantages: "포커스 재검증과 낙관적 갱신을 제공하기 쉽다.", disadvantages: "로딩 깜빡임과 중복 요청을 통제해야 한다.", operationalNotes: "쿼리 키에 모든 입력 조건을 포함한다.", displayOrder: 20, tradeoffs: [{ criterion: PERFORMANCE, level: CONTEXT_DEPENDENT, explanation: "초기 요청은 늘지만 이후 상호작용 캐시는 유리할 수 있다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.data.fetching.secret-client, classification: INVALID, reasonType: SECURITY, title: "브라우저 번들에서 서버 비밀키 사용", description: "클라이언트 코드에 포함된 값은 사용자에게 전달된다.", failureCondition: "외부 서비스 비밀키를 공개 환경 변수나 번들에 넣는다.", consequence: "자격 증명 탈취와 무단 사용이 발생한다.", correction: "비밀키가 필요한 호출은 서버 API 경계 뒤로 이동한다.", severity: CRITICAL, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Fetching Data", url: "https://nextjs.org/docs/app/getting-started/fetching-data", publisher: "Next.js", applicableVersion: "App Router current", accessedAt: 2026-08-09, note: "서버 조회·스트리밍·요청 중복 제거", displayOrder: 10 }
+---
+stableKey: frontend.cache.revalidation
+domain: FRONTEND
+topic: CACHE
+title: "프론트 데이터 캐시를 시간으로 갱신할 것인가 변경 이벤트로 무효화할 것인가"
+summary: "구현 단순성, 최신성, 무효화 범위를 비교한다."
+problem: "빠른 응답을 유지하면서 변경된 데이터를 오래 노출하지 않아야 한다."
+contextMarkdown: "시간 기반과 이벤트 기반은 함께 사용할 수 있으며 최종 안전망 TTL을 둘 수 있다."
+constraintsMarkdown: "- 허용 가능한 stale 시간\n- 변경 이벤트 소유권\n- 캐시 키 범위\n- 실패 시 복구"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 40
+options:
+  - { stableKey: frontend.cache.revalidation.time, title: "시간 기반 재검증", summary: "정해진 시간이 지난 데이터를 다시 조회한다.", mechanism: "TTL 또는 cache life를 설정한다.", applicableWhen: "변경이 드물고 약간의 지연을 허용할 때", avoidWhen: "변경 직후 반드시 최신 상태를 보여야 할 때", advantages: "구현과 장애 복구가 단순하다.", disadvantages: "TTL 동안 오래된 데이터를 노출한다.", operationalNotes: "업무 최신성 기준으로 TTL을 정한다.", displayOrder: 10, tradeoffs: [{ criterion: CONSISTENCY, level: MEDIUM, explanation: "정해진 시간 동안 stale 상태를 허용한다.", displayOrder: 10 }] }
+  - { stableKey: frontend.cache.revalidation.event, title: "이벤트 기반 무효화", summary: "변경 성공 시 관련 태그·키를 즉시 제거한다.", mechanism: "mutation 이후 경로나 태그, 쿼리 키를 무효화한다.", applicableWhen: "변경 주체와 영향 범위를 정확히 알 수 있을 때", avoidWhen: "외부 변경 경로가 많아 이벤트를 빠뜨리기 쉬울 때", advantages: "변경 직후 최신 데이터를 제공할 수 있다.", disadvantages: "누락된 무효화 경로가 장기 stale을 만든다.", operationalNotes: "TTL을 안전망으로 함께 사용한다.", displayOrder: 20, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: HIGH, explanation: "모든 변경 경로와 캐시 의존성을 추적해야 한다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.cache.revalidation.missing-mutation, classification: ANTI_PATTERN, reasonType: CORRECTNESS, title: "조회 캐시만 만들고 변경 경로에서 무효화하지 않음", description: "mutation 성공 후에도 이전 조회 결과가 유지된다.", failureCondition: "캐시 소비자만 있고 변경 이벤트와 연결되지 않는다.", consequence: "사용자가 저장 성공 후에도 이전 값을 본다.", correction: "변경 유스케이스별 영향 키·태그를 명시하고 무효화 테스트를 둔다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Migrating to Cache Components", url: "https://nextjs.org/docs/app/guides/migrating-to-cache-components", publisher: "Next.js", applicableVersion: "Next.js current", accessedAt: 2026-08-09, note: "cacheLife와 갱신 경계", displayOrder: 10 }
+---
+stableKey: frontend.performance.lazy-loading
+domain: FRONTEND
+topic: PERFORMANCE
+title: "리소스를 즉시 로드할 것인가 필요할 때 지연 로드할 것인가"
+summary: "초기 표시 속도와 상호작용 지연·복잡도를 비교한다."
+problem: "초기 화면에 불필요한 코드와 미디어가 핵심 렌더링을 막지 않아야 한다."
+contextMarkdown: "첫 화면 핵심 자원은 즉시, 화면 밖·조건부 기능은 지연 로드하는 기준이 필요하다."
+constraintsMarkdown: "- 첫 화면 포함 여부\n- 리소스 크기\n- 사용 확률\n- 네트워크 상태"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 50
+options:
+  - { stableKey: frontend.performance.lazy-loading.eager, title: "즉시 로드", summary: "초기 요청에서 자원을 함께 가져온다.", mechanism: "정적 import와 기본 eager 로딩을 사용한다.", applicableWhen: "첫 화면과 즉시 상호작용에 필수일 때", avoidWhen: "크고 사용 빈도가 낮은 기능일 때", advantages: "사용 시 추가 지연과 레이아웃 전환이 적다.", disadvantages: "초기 전송량과 파싱 비용이 증가한다.", operationalNotes: "핵심 경로 자원만 포함한다.", displayOrder: 10, tradeoffs: [{ criterion: PERFORMANCE, level: CONTEXT_DEPENDENT, explanation: "초기 비용은 크지만 첫 사용 지연은 작다.", displayOrder: 10 }] }
+  - { stableKey: frontend.performance.lazy-loading.lazy, title: "지연 로드", summary: "화면 진입이나 상호작용 직전에 자원을 가져온다.", mechanism: "동적 import, loading 속성, 관찰자를 사용한다.", applicableWhen: "화면 밖 미디어나 선택적 대형 기능일 때", avoidWhen: "LCP 이미지나 즉시 필요한 핵심 제어일 때", advantages: "초기 핵심 경로와 전송량을 줄인다.", disadvantages: "첫 사용 지연과 로딩 상태가 추가된다.", operationalNotes: "placeholder와 실패 대체 UI를 제공한다.", displayOrder: 20, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: MEDIUM, explanation: "로딩 경계와 실패 처리가 추가된다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.performance.lazy-loading.lcp, classification: RISKY, reasonType: PERFORMANCE, title: "첫 화면 핵심 이미지까지 지연 로드", description: "가장 큰 콘텐츠가 늦게 요청된다.", failureCondition: "뷰포트 안 LCP 후보에 무조건 lazy를 적용한다.", consequence: "핵심 콘텐츠 표시 시간이 악화된다.", correction: "첫 화면 핵심 자원은 eager 또는 우선순위 로딩한다.", severity: MEDIUM, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Lazy loading", url: "https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Lazy_loading", publisher: "MDN Web Docs", applicableVersion: "Web platform current", accessedAt: 2026-08-09, note: "비핵심 리소스 지연 로딩 전략", displayOrder: 10 }
+---
+stableKey: frontend.component.api
+domain: FRONTEND
+topic: COMPONENT
+title: "컴포넌트 API를 많은 설정 props로 만들 것인가 조합 가능한 구조로 만들 것인가"
+summary: "사용 편의성과 확장성, 유효하지 않은 조합 가능성을 비교한다."
+problem: "재사용 컴포넌트가 다양한 요구를 수용하면서도 이해 가능한 계약을 유지해야 한다."
+contextMarkdown: "단순한 변형은 props가 적합하고 구조적 확장은 children과 합성 경계가 적합하다."
+constraintsMarkdown: "- 변형 개수\n- 레이아웃 자유도\n- 접근성 책임\n- API 안정성"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 60
+options:
+  - { stableKey: frontend.component.api.props, title: "설정 props API", summary: "옵션과 콜백을 명시적 props로 제공한다.", mechanism: "제한된 variant와 이벤트 계약을 정의한다.", applicableWhen: "허용하는 변형이 작고 일관된 UI가 중요할 때", avoidWhen: "내부 구조까지 소비자가 자유롭게 바꿔야 할 때", advantages: "발견 가능하고 사용법이 일정하다.", disadvantages: "불리언 조합이 늘면 유효하지 않은 상태가 생긴다.", operationalNotes: "상호 배타 옵션은 union 타입으로 제한한다.", displayOrder: 10, tradeoffs: [{ criterion: MAINTAINABILITY, level: CONTEXT_DEPENDENT, explanation: "작은 API는 명확하지만 옵션 폭증 시 악화된다.", displayOrder: 10 }] }
+  - { stableKey: frontend.component.api.composition, title: "합성 API", summary: "작은 하위 컴포넌트를 소비자가 조합한다.", mechanism: "children, slot, compound component로 구조를 연다.", applicableWhen: "구조 변형이 많고 재조합 가능성이 중요할 때", avoidWhen: "접근성 구조를 소비자가 쉽게 깨뜨릴 수 있을 때", advantages: "새 조합을 상위 컴포넌트 수정 없이 만들 수 있다.", disadvantages: "필수 구조와 상태 공유 계약이 복잡해질 수 있다.", operationalNotes: "잘못된 중첩을 개발 환경에서 검증한다.", displayOrder: 20, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: HIGH, explanation: "컨텍스트와 하위 구조 계약을 설계해야 한다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.component.api.boolean-explosion, classification: ANTI_PATTERN, reasonType: MAINTAINABILITY, title: "상호 배타 불리언 props 폭증", description: "서로 모순되는 조합을 타입이 허용한다.", failureCondition: "isPrimary, isSecondary, isDanger 같은 옵션을 동시에 받을 수 있다.", consequence: "우선순위가 숨겨지고 테스트 조합이 폭증한다.", correction: "하나의 variant union 또는 합성 API로 모델링한다.", severity: MEDIUM, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Passing Props to a Component", url: "https://react.dev/learn/passing-props-to-a-component", publisher: "React", applicableVersion: "React current", accessedAt: 2026-08-09, note: "props와 children을 통한 컴포넌트 구성", displayOrder: 10 }
+---
+stableKey: frontend.accessibility.interaction
+domain: FRONTEND
+topic: ACCESSIBILITY
+title: "상호작용을 네이티브 요소로 만들 것인가 커스텀 역할로 구현할 것인가"
+summary: "기본 키보드·의미론 지원과 커스텀 표현 자유도를 비교한다."
+problem: "마우스 없이도 모든 기능을 이해하고 조작할 수 있어야 한다."
+contextMarkdown: "button, a, input 같은 네이티브 요소는 키보드와 접근성 의미를 기본 제공한다."
+constraintsMarkdown: "- 키보드 조작\n- 포커스 순서\n- 스크린리더 의미\n- 디자인 요구"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 70
+options:
+  - { stableKey: frontend.accessibility.interaction.native, title: "네이티브 인터랙티브 요소", summary: "의도에 맞는 HTML 요소를 사용한다.", mechanism: "브라우저 기본 의미론과 키보드 동작을 활용한다.", applicableWhen: "버튼·링크·입력처럼 대응하는 요소가 있을 때", avoidWhen: "표준 요소로 표현할 수 없는 복합 위젯일 때", advantages: "키보드·포커스·의미론을 기본 제공한다.", disadvantages: "브라우저 기본 스타일을 조정해야 할 수 있다.", operationalNotes: "시각 스타일과 의미 요소를 분리하지 않는다.", displayOrder: 10, tradeoffs: [{ criterion: MAINTAINABILITY, level: HIGH, explanation: "직접 구현해야 할 접근성 동작이 적다.", displayOrder: 10 }] }
+  - { stableKey: frontend.accessibility.interaction.custom, title: "커스텀 위젯", summary: "복합 상호작용과 역할을 직접 구현한다.", mechanism: "ARIA 역할, 상태, 키보드 패턴, 포커스를 함께 관리한다.", applicableWhen: "표준 요소로 표현할 수 없는 복합 위젯일 때", avoidWhen: "단순 버튼이나 링크를 꾸미려는 목적일 때", advantages: "복잡한 제품 상호작용을 표현할 수 있다.", disadvantages: "키보드와 보조기술 계약 전체를 책임져야 한다.", operationalNotes: "WAI-ARIA 패턴과 실제 보조기술 테스트를 적용한다.", displayOrder: 20, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: HIGH, explanation: "포커스와 키보드 상태 기계를 직접 구현한다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.accessibility.interaction.clickable-div, classification: INVALID, reasonType: CORRECTNESS, title: "클릭 핸들러만 있는 div를 버튼처럼 사용", description: "키보드 포커스와 Enter·Space 동작이 제공되지 않는다.", failureCondition: "의미·tabIndex·키 이벤트 없이 onClick만 추가한다.", consequence: "키보드와 보조기술 사용자가 기능을 사용할 수 없다.", correction: "button을 사용하거나 완전한 키보드·ARIA 계약을 구현한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: STANDARD, title: "Accessibility Principles", url: "https://www.w3.org/WAI/fundamentals/accessibility-principles/", publisher: "W3C Web Accessibility Initiative", applicableVersion: "WCAG current", accessedAt: 2026-08-09, note: "키보드로 모든 기능을 사용할 수 있어야 한다는 원칙", displayOrder: 10 }
+---
+stableKey: frontend.list.identity
+domain: FRONTEND
+topic: RENDERING
+title: "동적 목록 항목의 identity를 배열 위치로 둘 것인가 안정된 키로 둘 것인가"
+summary: "구현 편의와 상태 보존 정확성을 비교한다."
+problem: "목록 삽입·삭제·정렬 시 각 항목의 로컬 상태가 다른 항목으로 이동하지 않아야 한다."
+contextMarkdown: "key는 렌더 사이에서 동일 항목을 식별하며 형제 범위에서 안정적이고 고유해야 한다."
+constraintsMarkdown: "- 목록 재정렬 여부\n- 항목 추가·삭제\n- 로컬 상태 보유\n- 영구 식별자 존재"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 80
+options:
+  - { stableKey: frontend.list.identity.index, title: "배열 index key", summary: "현재 배열 위치를 identity로 사용한다.", mechanism: "map의 두 번째 인자를 key로 지정한다.", applicableWhen: "정적이며 추가·삭제·재정렬되지 않는 표시 전용 목록", avoidWhen: "항목 순서나 구성 변경과 로컬 상태가 있을 때", advantages: "별도 ID가 없어도 즉시 사용할 수 있다.", disadvantages: "위치 변경 시 다른 항목으로 인식될 수 있다.", operationalNotes: "정적이라는 불변 조건을 주석보다 데이터 모델로 보장한다.", displayOrder: 10, tradeoffs: [{ criterion: CONSISTENCY, level: LOW, explanation: "동적 목록에서는 데이터와 UI identity의 일관성이 낮다.", displayOrder: 10 }] }
+  - { stableKey: frontend.list.identity.stable, title: "안정된 데이터 key", summary: "데이터의 영구 ID를 identity로 사용한다.", mechanism: "DB ID나 생성 시 고정한 키를 전달한다.", applicableWhen: "동적 목록과 항목별 상태가 있을 때", avoidWhen: "렌더할 때마다 임의 값을 새로 만드는 경우", advantages: "재정렬 후에도 항목 상태와 DOM을 정확히 대응한다.", disadvantages: "데이터 모델에 안정된 ID가 필요하다.", operationalNotes: "형제 목록 범위에서 고유성을 검증한다.", displayOrder: 20, tradeoffs: [{ criterion: MAINTAINABILITY, level: HIGH, explanation: "데이터 identity와 UI identity가 일치한다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.list.identity.random, classification: INVALID, reasonType: PERFORMANCE, title: "렌더마다 무작위 key 생성", description: "모든 항목이 매번 새 요소로 인식된다.", failureCondition: "key에 Math.random이나 현재 시간을 사용한다.", consequence: "DOM과 로컬 상태가 반복 폐기되고 입력이 손실될 수 있다.", correction: "데이터 생성 시 고정된 ID를 부여한다.", severity: HIGH, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "Rendering Lists", url: "https://react.dev/learn/rendering-lists", publisher: "React", applicableVersion: "React current", accessedAt: 2026-08-09, note: "목록 key의 안정성과 고유성", displayOrder: 10 }
+---
+stableKey: frontend.form.state
+domain: FRONTEND
+topic: FORM
+title: "폼 입력을 제어 컴포넌트로 관리할 것인가 DOM의 비제어 상태에 맡길 것인가"
+summary: "즉시 검증·동기화 요구와 렌더 비용·통합 단순성을 비교한다."
+problem: "입력값의 소유권과 검증 시점을 명확히 하면서 사용자 입력을 잃지 않아야 한다."
+contextMarkdown: "제어와 비제어는 폼 전체가 아니라 필드와 요구별로 선택할 수 있다."
+constraintsMarkdown: "- 입력 중 검증\n- 조건부 UI\n- 필드 수\n- 외부 위젯 통합"
+verificationStatus: VERIFIED
+contentVersion: 1
+verifiedAt: 2026-08-09
+nextReviewAt: 2027-02-09
+displayOrder: 90
+options:
+  - { stableKey: frontend.form.state.controlled, title: "제어 입력", summary: "React 상태가 현재 입력값을 소유한다.", mechanism: "value와 onChange를 함께 전달한다.", applicableWhen: "입력 중 검증·포맷·다른 UI 동기화가 필요할 때", avoidWhen: "수백 필드와 최소 상호작용으로 렌더 비용이 문제일 때", advantages: "화면 상태와 입력값을 한 흐름에서 제어한다.", disadvantages: "변경마다 상태 갱신과 렌더가 발생한다.", operationalNotes: "입력 상태 범위를 폼 가까이에 제한한다.", displayOrder: 10, tradeoffs: [{ criterion: IMPLEMENTATION_COMPLEXITY, level: MEDIUM, explanation: "모든 변경 핸들러와 상태를 명시한다.", displayOrder: 10 }] }
+  - { stableKey: frontend.form.state.uncontrolled, title: "비제어 입력", summary: "DOM이 값을 보유하고 제출 시 읽는다.", mechanism: "defaultValue와 ref 또는 FormData를 사용한다.", applicableWhen: "단순 제출 폼, 파일 입력, 외부 위젯 통합", avoidWhen: "입력값에 따라 즉시 UI가 달라질 때", advantages: "입력마다 React 상태를 갱신하지 않아도 된다.", disadvantages: "중간 값 기반 검증과 동기화가 어렵다.", operationalNotes: "초깃값 변경과 reset 동작을 명시적으로 시험한다.", displayOrder: 20, tradeoffs: [{ criterion: PERFORMANCE, level: HIGH, explanation: "입력 변경마다 상위 렌더를 요구하지 않는다.", displayOrder: 10 }] }
+warnings:
+  - { stableKey: frontend.form.state.mode-switch, classification: INVALID, reasonType: CORRECTNESS, title: "동일 입력을 제어·비제어 사이에서 전환", description: "value가 undefined와 문자열 사이를 오가며 소유권이 바뀐다.", failureCondition: "초기에는 value를 생략하고 이후 값을 전달한다.", consequence: "경고와 예상하지 못한 입력 초기화가 발생한다.", correction: "컴포넌트 수명 동안 한 제어 방식을 유지하고 초기값을 명시한다.", severity: MEDIUM, displayOrder: 10 }
+sources:
+  - { sourceType: OFFICIAL_DOCUMENTATION, title: "input", url: "https://react.dev/reference/react-dom/components/input", publisher: "React", applicableVersion: "React current", accessedAt: 2026-08-09, note: "제어·비제어 input 계약", displayOrder: 10 }

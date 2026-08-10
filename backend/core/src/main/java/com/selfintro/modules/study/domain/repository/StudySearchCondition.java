@@ -11,4 +11,5 @@ public record StudySearchCondition(
         List<Long> skillIds,
         List<Long> experienceIds,
         List<Long> experienceDetailIds,
-        StudyStatus status) {}
+        StudyStatus status,
+        StudySection section) {}

@@ -126,7 +126,7 @@ public class BffService {
     @Cacheable(value = "bff:learning", key = "'default'")
     public LearningResponse getLearning() {
         StudyPageResponse studies =
-                studyService.searchPublished(null, null, null, null, null, null, 0, 100);
+                studyService.searchPublished(null, null, null, null, null, null, null, 0, 100);
         return new LearningResponse(studies.content());
     }
 }
