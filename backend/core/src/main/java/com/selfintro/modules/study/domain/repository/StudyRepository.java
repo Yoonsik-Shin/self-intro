@@ -15,6 +15,11 @@ public interface StudyRepository extends JpaRepository<Study, Long>, StudyReposi
 
     Optional<Study> findBySlug(String slug);
 
+    Optional<Study> findByIdAndWorkspaceId(Long id, Long workspaceId);
+
+    @Query("select s.workspaceId as workspaceId, s.id as studyId from Study s")
+    List<StudySourceReference> findAllSourceReferences();
+
     List<Study> findAllByWorkspaceIdOrderByTitleAsc(Long workspaceId);
 
     List<Study> findAllByExperiences_IdOrderByTitleAsc(Long experienceId);
@@ -29,5 +34,11 @@ public interface StudyRepository extends JpaRepository<Study, Long>, StudyReposi
         Long getTaxonomyNodeId();
 
         Long getCount();
+    }
+
+    interface StudySourceReference {
+        Long getWorkspaceId();
+
+        Long getStudyId();
     }
 }
