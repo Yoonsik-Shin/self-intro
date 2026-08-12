@@ -30,6 +30,8 @@ TRUNCATE TABLE tag;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- 1. Profile Seeding
+-- 실제 이메일·전화번호는 source control에 넣지 않는다. Workspace Profile 관리 화면에서
+-- 저장한 뒤 public_email/public_phone 공개 여부를 별도로 선택한다.
 INSERT INTO profile (id, name, name_en, job_title, bio, career_summary, core_stack_summary, status_badge_text, github_url, email, phone, updated_at)
 VALUES (
   1,
@@ -41,8 +43,8 @@ VALUES (
   'Java / Node.js / Cloud',
   '실시간 아키텍처 및 콘텐츠 개선 중',
   'https://github.com/Yoonsik-Shin',
-  'aaa946@naver.com',
-  '010-5171-0994',
+  '',
+  '',
   NOW()
 );
 
@@ -124,9 +126,9 @@ INSERT INTO experience (id, type, title, period_start, period_end, summary, take
  1),
 
 (3, 'PROJECT', 'Azure 클라우드 로그 비용 진단 및 최적화 SaaS (LogDoctor) (기여도 70%)', '2026-03-01', '2026-06-30',
- 'Microsoft Azure LAW(Log Analytics Workspace) 요금 분석 및 비용 리스크를 진단하고 권장 진료 가이드를 발급하는 Microsoft Teams 전용 SaaS 솔루션입니다. 에이전트 기반 VM 연결 단절 탐지, 디버그 로그 폭증 추적, Azure OpenAI RAG 기반 맞춤 처방 제공, 로그 데이터 PII 마스킹 처리 등을 구축했습니다. (팀 프로젝트)',
- '쓰기 권한을 제외한 최소 읽기 전용 권한(18개) 진단 체계로 인프라 보안 위험을 차단하고, LLM을 결합하여 비용 최적화를 자동 진단·안내하는 파이프라인을 구축 및 실전 검증했습니다.',
- 'Azure Cloud 환경의 비용 최적화를 자동화하고 개발 생산성을 높이는 SaaS 솔루션 개발 전반을 담당하였습니다. 핵심 진단 엔진(4대 엔진, 11개 진단 수칙) 및 FastAPI 기반 비동기 Queue Worker 아키텍처를 단독 설계 및 구현하고, Cosmos DB와의 데이터 레이어를 연동하였습니다. 또한 Azure Functions 기반의 에이전트 구동 및 Teams Bot App 연동을 주도하였습니다.',
+ 'Azure Log Analytics의 비용 누수와 관측성 사각지대를 진단하는 Microsoft Teams 기반 멀티테넌트 SaaS입니다. 중앙 Provider와 고객 Azure 구독 내 Agent를 분리하고, KQL·Resource Graph를 활용한 4개 영역 11개 진단 규칙과 Azure OpenAI 기반 개선 가이드를 구현했습니다. (팀 프로젝트)',
+ '리소스 변경 권한을 주지 않는 것만으로는 충분하지 않으며, 로그 data action과 App Service 설정 조회처럼 민감도가 다른 읽기 권한을 데이터 경계와 함께 설계해야 함을 배웠습니다. 또한 장시간 Azure 진단을 비동기 상태 머신과 멱등 이벤트로 다루는 설계 경험을 쌓았습니다.',
+ 'Azure 로그 비용·관측성 진단 SaaS의 핵심 아키텍처와 진단 파이프라인 개발을 담당했습니다. FastAPI Provider, React/Fluent UI Teams Tab, 고객 구독에 배포되는 Durable Functions Agent를 분리했고, Entra ID OBO·App Role·사용자 정의 RBAC로 테넌트 인증과 진단 권한을 구성했습니다. Inspector Registry와 공통 스키마를 기반으로 Detect·Prevent·Filter·Retain 11개 규칙을 구현하고, Azure Storage Queue와 Cosmos DB를 이용해 진단 요청·증거 수집·리포트 집계·Teams 알림을 비동기로 연결했습니다.',
  2),
 
 (4, 'PROJECT', '음성 스트리밍 및 RAG 면접 관리 (기여도 100%)', '2025-12-01', '2026-03-31',
@@ -253,13 +255,9 @@ INSERT INTO experience_skill (experience_id, skill_id, list_order) VALUES
 (3, 34, 5),  -- Bicep
 (3, 33, 6),  -- IaC
 (3, 45, 7),  -- Azure Functions
-(3, 25, 8),  -- Nginx
-(3, 26, 9),  -- Docker Compose
-(3, 27, 10), -- Grafana
-(3, 28, 11), -- Loki
-(3, 29, 12), -- Alloy
-(3, 59, 13), -- KQL
-(3, 60, 14), -- Azure Log Analytics
+(3, 10, 8),  -- React
+(3, 59, 9),  -- KQL
+(3, 60, 10), -- Azure Log Analytics
 -- AI Interview (4)
 (4, 10, 0),  -- React
 (4, 15, 1),  -- Redis
@@ -377,24 +375,24 @@ INSERT INTO experience_detail (id, experience_id, content, display_order, situat
 
 -- LogDoctor (3) Details
 (11, 3, 'KQL과 리소스 메타데이터를 활용한 비용 및 배관 상태 자동 진단 구현', 0, 
- 'Azure 모니터링 환경에서 리소스들의 로그 및 비용을 자동으로 수집 및 감사할 수 있는 규칙 엔진이 필요했습니다. 특히, 환경변수나 Secret 등의 보안 민감 정보 수집을 배제한 채 순수 읽기 전용 권한만으로 정확한 리스크와 낭비 용량을 측정해야 했습니다.', 
+ 'Azure 리소스별 로그 연결 방식과 LAW 테이블이 달라 단일 쿼리로는 비용 누수와 관측성 사각지대를 일관되게 판정하기 어려웠습니다. 또한 진단 정확도를 높이면서도 민감한 로그 원문과 앱 설정의 전송 범위를 제한해야 했습니다.',
  '- BaseInspector 클래스를 설계하여 11개의 규칙을 플러그인 형태로 추가 가능한 구조 확립\n- 4대 진단 영역(Detect, Prevent, Filter, Retain) 정의 및 11개 규칙 인스펙터 구현\n- KQL(Kusto Query Language)과 Azure Resource Graph를 연동하여 최근 24시간 동안의 과금 로그(BilledSize), 테이블별 용량, Quota 정보 수집', 
- '- 디버그 로그 폭증, 고빈도 노이즈, PII 유출, 과보존 테이블 및 Quota 초과 위험을 실시간으로 감지하고 Markdown 기반의 맞춤 처방 제공\n- Azure Retail Prices API를 실시간 조회하여 리전별 로그 수집 단가를 바탕으로 정밀한 월간 예상 절감 비용 산출 가능'),
+ '- 앱·VM 관측성, 디버그·노이즈·과대 페이로드, PII 패턴, DCR 고용량 필터, 보존·예산 설정을 하나의 규칙 계약으로 진단\n- 조회 단계에서 민감 샘플을 마스킹하고 Provider에는 진단 증거와 집계 결과 중심으로 전송하는 데이터 경계 구성'),
 
 (12, 3, '비동기 Queue Worker 기반의 진단 리포트 수집 및 처리 파이프라인 설계', 1, 
  'Azure Subscription 전체 리소스를 스캔하고 LAW 쿼리를 병렬로 실행하는 과정은 Cold Start가 잦고 대기 시간이 길어, 동기식 API 호출로는 실시간 사용자 응답을 보장하기 어려웠습니다.', 
  '- FastAPI 백엔드 및 Azure Storage Queue를 활용하여 리포트 분석 상태를 비동기로 제어하는 Worker 구조 설계\n- Cosmos DB NoSQL 아키텍처를 도입하여 Tenants, Agents, Reports, Diagnoses, Insights 컬렉션을 낙관적 락(ETag)으로 관리\n- Lifespan 이벤트를 통해 DB 커넥션 풀 사전 로드(Pre-warming)를 적용하여 Cold Start 지연 단축', 
- '- 진단 요청 후 백그라운드 Worker에서 병렬 처리가 이루어져 대규모 구독 환경에서도 타임아웃 없이 안정적으로 리포트 생성 완료\n- 실시간 통계 재계산 및 리포트 완성에 따른 이벤트 발행 파이프라인 완비'),
+ '- 장시간 Azure 조회를 API 요청 수명주기와 분리하고, 진단 상태와 결과를 재조회할 수 있는 비동기 리포트 흐름 구축\n- ETag 충돌 재시도와 테넌트·리포트 식별자 기반 저장 규칙으로 집계 정합성 관리'),
 
 (13, 3, '권한 분리를 적용한 에이전트 구동 및 리전별 가격 API 동적 조회 구현', 2, 
- '보안 규격상 고객의 Azure 환경을 직접 수정하거나 크리덴셜 원문을 백엔드 서버에 저장할 수 없었으므로, 최소 읽기 전용 권한을 가진 에이전트와 위임형 SSO가 필수적이었습니다.', 
- '- Azure Functions 기반의 가벼운 에이전트 러너(client-back)를 분리 구축하고 18개 최소 읽기 전용 IAM 권한 매핑 설계\n- Nginx auth_request 계층과 HMAC 토큰을 활용한 보안 프록시 설계로 내부 툴들과의 SSO 연동 구현\n- Azure Retail Prices API를 호출하여 위치별 단가를 GB 단위로 캐싱(TTL 24시간) 처리', 
- '- 고객의 쓰기/삭제 권한 없이 완전 무마취 읽기 전용 진단 프로세스를 성공적으로 안착\n- 개인정보(PII) 등 민감 데이터가 게이트웨이 단계에서 즉시 마스킹되고 마스킹 유형 및 건수만 본 서버로 전송되도록 하드닝 구현'),
+ '고객 리소스 변경 권한은 제거하되 로그 조회 data action과 App Service 설정 열람 권한의 민감도를 별도로 다루고, 사용자·고객 에이전트·플랫폼 관리자의 인증 경계를 분리해야 했습니다.',
+ '- Azure Functions Agent를 고객 구독에 배포하고 Bicep으로 사용자 정의 RBAC·Storage Queue·OpenAI 역할을 구성\n- Teams SSO 토큰의 서명·audience를 검증하고 OBO로 Graph·Azure Management 권한을 교환\n- Agent callback에서 ClientAgent App Role, tenant ID, agent object ID 일치를 검증하여 테넌트 간 결과 오염 방지',
+ '- Provider와 Agent 사이에 변경 권한·진단 데이터·사용자 위임 권한의 경계를 나눈 멀티테넌트 보안 구조 구축\n- App Service 설정 전체를 읽을 수 있는 PRV-001 권한을 별도 보안 검토 대상으로 식별하고 절대적인 안전성 표현을 제거'),
 
 (14, 3, 'Microsoft Teams 챗봇을 통한 알림 발송 및 사용자 진단 대시보드 연동', 3, 
  '인프라 엔지니어들이 일일이 Azure Portal에 접속해 LAW 쿼리를 복사해 실행하는 번거로움을 제거하고, 매일 사용하는 협업 도구 안에서 간편하게 비용 현황을 확인해야 했습니다.', 
  '- Teams Tab 및 Bot manifest 설정을 연동하여 Teams 앱 내에서 진단 결과를 한눈에 보는 대시보드 구현\n- 에이전트 연결 상태 단절(15분 이상) 및 진단 완료 이벤트를 Teams Bot 알림으로 자동 전송\n- 비전문가 관리자도 손쉽게 따라 할 수 있는 맞춤형 약봉투(가이드)를 Teams 인터페이스 내에 Markdown 카드로 시각화', 
- '- 챗봇 기반의 1분 내 설치 연동 및 비동기 스캔 완료 통지 프로세스 구현으로 사용성 극대화\n- 배포 권한이 없는 실무자도 관리자에게 배포를 위임할 수 있는 ''배포 위임'' 워크플로우 지원'),
+ '- Teams 내에서 온보딩·관리자 배포 위임·진단 요청·리포트 조회·정기 스캔 설정을 하나의 흐름으로 연결\n- 에이전트 연결 이상과 진단 완료를 Teams 알림으로 전달해 Azure Portal 상시 확인 부담을 줄이는 UX 구성'),
 
 -- AI Interview (4) Details
 (15, 4, '음성 스트리밍 파이프라인 및 RAG 최적화 설계', 0, 
@@ -780,5 +778,69 @@ INSERT INTO study_experience_detail (study_id, experience_detail_id) VALUES
 (10, 14),
 (11, 11),
 (11, 12);
+
+-- 14. LogDoctor code-audit corrections
+-- The original study drafts predated the current runtime. Keep the persisted
+-- portfolio claims aligned with code and executable tests.
+UPDATE study
+SET summary = 'Azure Log Analytics의 최근 24시간 과금 데이터, Resource Graph Daily Cap, 공개 Retail Prices 단가를 결합해 비용 후보와 기본 포함 기간 초과 보존 비용을 진단한 프로젝트.',
+    content_markdown = '# Azure 로그 비용 및 보존 진단 (RET-001, RET-002)
+
+## 구현 근거
+- AppTraces, AppRequests, AppDependencies의 `_BilledSize`를 Application Insights component ID 기준으로 집계합니다.
+- Resource Graph의 `workspaceCapping.dailyQuotaGb`와 공개 Retail Prices 단가를 결합해 일일 비용 비율을 계산합니다.
+- 공개 소매 단가는 EA/MCA 실제 계약 단가와 다를 수 있으므로 확정 청구액이 아닌 후보 추정치로 표시합니다.
+- Application Insights 테이블은 기본 포함 90일, 일반 Analytics 로그는 31일을 기준으로 초과 보존 비용을 계산합니다.
+- 비용식은 `일평균 GB × 초과 보존일 × 단가 차이`이며 GB/month 단가에 30을 중복 곱하지 않습니다.
+
+## 설계 경계
+- 조직 정책 입력 없이 보안 로그 365일을 보편적 법적 의무로 단정하지 않습니다.
+- Basic/Auxiliary 대화형 기간은 30일 고정이므로 7일·14일 Basic 보존을 권고하지 않습니다.
+- Plan 전환 전 경보, 대시보드, KQL 기능과 실제 계약 단가를 별도로 검증해야 합니다.',
+    updated_at = NOW()
+WHERE id = 9;
+
+UPDATE study
+SET title = 'Azure 리소스 연결 해석과 관측성 진단 파이프라인 (DET-001 ~ DET-003)',
+    summary = 'Web App·Application Insights·Log Analytics 및 VM·AMA·DCR 연결을 명시적 메타데이터로 해석하고 텔레메트리 유입, HTTP 5xx 비율, P95 지연을 진단한 설계.',
+    content_markdown = '# Azure 관측성 진단 파이프라인
+
+## 구현 근거
+- Web App 설정의 Application Insights instrumentation key를 Resource Graph component와 연결하고, component의 workspace를 조회 대상으로 확정합니다.
+- AppRequests/AppTraces/AppExceptions의 `_ResourceId`는 Web App ID가 아니라 연결된 Application Insights component ID로 필터링합니다.
+- VM은 AMA extension, DCR association, destination LAW, Heartbeat 순으로 관측 배관을 검증합니다.
+- DET-003은 `ItemCount` 가중 HTTP 5xx 비율과 저장 표본의 P95 DurationMs를 계산하며 health/static/bot 요청을 제외합니다.
+
+## 신뢰도 개선
+- 연결·권한·조회 실패는 장애나 정상으로 오판하지 않고 `UNDIAGNOSED`로 분리합니다.
+- 저표본 1건 실패가 즉시 Critical이 되지 않도록 Critical 최소 요청 수를 적용합니다.
+- 여러 workspace 결과는 동일 규칙·리소스 기준으로 합쳐 중복 리포트를 방지합니다.',
+    updated_at = NOW()
+WHERE id = 10;
+
+UPDATE study
+SET summary = '운영 Verbose 로그, PII·자격 증명 노출 패턴, 에러 문맥, 반복 노이즈, 과대 페이로드와 DCR 고용량 필터 정책을 KQL로 진단하는 규칙 엔진.',
+    content_markdown = '# 로그 품질·민감정보·비용 진단 엔진
+
+## 구현 근거
+- PRV-001은 App Settings와 `SeverityLevel == 0`(Verbose) 유입을 교차 확인합니다. Information 로그를 Debug로 분류하지 않습니다.
+- FLT-001은 AppTraces에서 이메일, 전화번호, 주민번호, password/token/secret 패턴을 찾고 Provider로 전달하는 샘플을 조회 단계에서 마스킹합니다.
+- PRV-002는 반복 메시지 fingerprint와 실제 `_BilledSize`로 비용 후보를 계산합니다.
+- PRV-003은 50 KiB를 넘는 행의 초과분만 후보 절감량으로 계산합니다.
+- FLT-003은 DCR 목적지 stream의 Usage 볼륨이 1 GB/day 이상일 때 `where` 필터 부재를 경고하며 샘플링을 일률적으로 강제하지 않습니다.
+
+## 설계 경계
+- 조회 단계 마스킹은 원본 LAW 저장 전 마스킹을 보장하지 않습니다.
+- LLM은 결정론적 severity를 변경하거나 고객 DCR을 자동 배포하지 않고 설명과 수동 조치만 보강합니다.
+- LLM 실패 시에도 정적 규칙의 원 판정은 Provider로 전송됩니다.',
+    updated_at = NOW()
+WHERE id = 11;
+
+DELETE FROM study_skill WHERE study_id = 10;
+INSERT INTO study_skill (study_id, skill_id) VALUES
+(10, 3),  -- Python
+(10, 45), -- Azure Functions
+(10, 59), -- KQL
+(10, 60); -- Azure Log Analytics
 
 COMMIT;
