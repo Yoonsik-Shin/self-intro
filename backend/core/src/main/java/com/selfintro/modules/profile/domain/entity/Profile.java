@@ -11,6 +11,9 @@ public class Profile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
     @Column(nullable = false, length = 60)
     private String name;
 
@@ -35,8 +38,14 @@ public class Profile {
     @Column(nullable = false, length = 120)
     private String email;
 
+    @Column(name = "public_email", nullable = false)
+    private boolean publicEmail;
+
     @Column(nullable = false, length = 30)
     private String phone;
+
+    @Column(name = "public_phone", nullable = false)
+    private boolean publicPhone;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
@@ -46,6 +55,7 @@ public class Profile {
     }
 
     private Profile(
+            Long workspaceId,
             String name,
             String nameEn,
             String jobTitle,
@@ -54,7 +64,10 @@ public class Profile {
             String statusBadgeText,
             String githubUrl,
             String email,
-            String phone) {
+            String phone,
+            boolean publicEmail,
+            boolean publicPhone) {
+        this.workspaceId = workspaceId;
         this.name = name;
         this.nameEn = nameEn;
         this.jobTitle = jobTitle;
@@ -64,10 +77,13 @@ public class Profile {
         this.githubUrl = githubUrl;
         this.email = email;
         this.phone = phone;
+        this.publicEmail = publicEmail;
+        this.publicPhone = publicPhone;
         this.updatedAt = LocalDateTime.now();
     }
 
     public static Profile create(
+            Long workspaceId,
             String name,
             String nameEn,
             String jobTitle,
@@ -76,8 +92,11 @@ public class Profile {
             String statusBadgeText,
             String githubUrl,
             String email,
-            String phone) {
+            String phone,
+            boolean publicEmail,
+            boolean publicPhone) {
         return new Profile(
+                workspaceId,
                 name,
                 nameEn,
                 jobTitle,
@@ -86,7 +105,9 @@ public class Profile {
                 statusBadgeText,
                 githubUrl,
                 email,
-                phone);
+                phone,
+                publicEmail,
+                publicPhone);
     }
 
     public void update(
@@ -98,7 +119,9 @@ public class Profile {
             String statusBadgeText,
             String githubUrl,
             String email,
-            String phone) {
+            String phone,
+            boolean publicEmail,
+            boolean publicPhone) {
         this.name = name;
         this.nameEn = nameEn;
         this.jobTitle = jobTitle;
@@ -108,12 +131,18 @@ public class Profile {
         this.githubUrl = githubUrl;
         this.email = email;
         this.phone = phone;
+        this.publicEmail = publicEmail;
+        this.publicPhone = publicPhone;
         this.updatedAt = LocalDateTime.now();
     }
 
     // Standard Java Getters
     public Long getId() {
         return id;
+    }
+
+    public Long getWorkspaceId() {
+        return workspaceId;
     }
 
     public String getName() {
@@ -150,6 +179,14 @@ public class Profile {
 
     public String getPhone() {
         return phone;
+    }
+
+    public boolean isPublicEmail() {
+        return publicEmail;
+    }
+
+    public boolean isPublicPhone() {
+        return publicPhone;
     }
 
     public LocalDateTime getUpdatedAt() {

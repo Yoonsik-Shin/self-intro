@@ -9,4 +9,6 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
 
     @Query("SELECT p FROM Profile p ORDER BY p.id ASC LIMIT 1")
     Optional<Profile> findFirstProfile();
+
+    Optional<Profile> findByWorkspaceId(Long workspaceId);
 }

@@ -12,5 +12,7 @@ public record ProfileRequest(
         @NotBlank @Size(max = 120) String coreStackSummary,
         @NotBlank @Size(max = 160) String statusBadgeText,
         @NotBlank @Size(max = 255) String githubUrl,
-        @NotBlank @Email @Size(max = 120) String email,
-        @NotBlank @Size(max = 30) String phone) {}
+        @Email @Size(max = 120) String email,
+        @Size(max = 30) String phone,
+        boolean publicEmail,
+        boolean publicPhone) {}

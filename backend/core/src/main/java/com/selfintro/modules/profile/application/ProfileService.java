@@ -20,10 +20,16 @@ public class ProfileService {
         return profileRepository.findFirstProfile();
     }
 
+    public Optional<Profile> getProfile(Long workspaceId) {
+        return profileRepository.findByWorkspaceId(workspaceId);
+    }
+
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public Profile upsert(ProfileRequest request) {
-        Optional<Profile> existing = profileRepository.findFirstProfile();
+    public Profile upsert(Long workspaceId, ProfileRequest request) {
+        String email = request.email() == null ? "" : request.email().trim();
+        String phone = request.phone() == null ? "" : request.phone().trim();
+        Optional<Profile> existing = profileRepository.findByWorkspaceId(workspaceId);
         if (existing.isPresent()) {
             Profile profile = existing.get();
             profile.update(
@@ -34,12 +40,15 @@ public class ProfileService {
                     request.coreStackSummary(),
                     request.statusBadgeText(),
                     request.githubUrl(),
-                    request.email(),
-                    request.phone());
+                    email,
+                    phone,
+                    request.publicEmail(),
+                    request.publicPhone());
             return profileRepository.save(profile);
         } else {
             Profile profile =
                     Profile.create(
+                            workspaceId,
                             request.name(),
                             request.nameEn(),
                             request.jobTitle(),
@@ -47,8 +56,10 @@ public class ProfileService {
                             request.coreStackSummary(),
                             request.statusBadgeText(),
                             request.githubUrl(),
-                            request.email(),
-                            request.phone());
+                            email,
+                            phone,
+                            request.publicEmail(),
+                            request.publicPhone());
             return profileRepository.save(profile);
         }
     }
