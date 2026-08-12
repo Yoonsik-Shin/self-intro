@@ -3,20 +3,21 @@ package com.selfintro.jobposting.application;
 import com.selfintro.global.ai.ContextualChunker;
 import com.selfintro.global.ai.VectorEmbeddingService;
 import com.selfintro.vectorsearch.domain.entity.ExperienceVector;
-import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository;
 import com.selfintro.vectorsearch.domain.entity.JobPostingVector;
-import com.selfintro.vectorsearch.domain.repository.JobPostingVectorRepository;
 import com.selfintro.vectorsearch.domain.entity.StudyVector;
+import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository;
+import com.selfintro.vectorsearch.domain.repository.JobPostingVectorRepository;
 import com.selfintro.vectorsearch.domain.repository.StudyVectorRepository;
+import java.util.List;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 /**
- * 기존 MySQL 데이터(JobPosting, Experience, Study) ➔ Oracle 26ai Native VECTOR 고품질 일괄 배치 동기화 서비스
- * (2026 SOTA Contextual Retrieval + Recursive 512t/20% Overlap 적용)
+ * 기존 MySQL 데이터(JobPosting, Experience, Study) ➔ Oracle 26ai Native VECTOR 고품질 일괄 배치 동기화 서비스 (2026
+ * SOTA Contextual Retrieval + Recursive 512t/20% Overlap 적용)
  */
 @Slf4j
 @Service
@@ -30,12 +31,46 @@ public class VectorBatchSyncService {
     private final VectorEmbeddingService vectorEmbeddingService;
 
     /**
-     * 프로젝트 경험 텍스트 청킹 및 Oracle 26ai 배치 동기화.
-     * {@code content}는 이미 프롬프트/임베딩용으로 요약된 텍스트다({@code CareerProfileDigestBuilder.buildForExperience}).
+     * 프로젝트 경험 텍스트 청킹 및 Oracle 26ai 배치 동기화. {@code content}는 이미 프롬프트/임베딩용으로 요약된 텍스트다({@code
+     * CareerProfileDigestBuilder.buildForExperience}).
      */
     @Transactional("vectorTransactionManager")
+    public int syncExperienceVector(
+            Long workspaceId, Long experienceId, String title, String content) {
+        return syncExperienceVector(
+                workspaceId,
+                experienceId,
+                title,
+                content,
+                vectorEmbeddingService::embedToVectorString);
+    }
+
+    /**
+     * Workspace namespace가 없는 과거 호출은 다른 사용자의 vector를 덮어쓸 수 있으므로 실패시킨다.
+     */
+    @Deprecated(forRemoval = true)
     public int syncExperienceVector(Long experienceId, String title, String content) {
-        experienceVectorRepository.deleteByExperienceId(experienceId);
+        throw new IllegalStateException("Workspace 범위 없는 Experience vector 동기화는 지원하지 않습니다.");
+    }
+
+    @Transactional("vectorTransactionManager")
+    public int syncExperienceVectorStrictExternal(
+            Long workspaceId, Long experienceId, String title, String content) {
+        return syncExperienceVector(
+                workspaceId,
+                experienceId,
+                title,
+                content,
+                vectorEmbeddingService::embedToVectorStringStrictExternal);
+    }
+
+    private int syncExperienceVector(
+            Long workspaceId,
+            Long experienceId,
+            String title,
+            String content,
+            Function<String, String> embedder) {
+        experienceVectorRepository.deleteByWorkspaceIdAndExperienceId(workspaceId, experienceId);
 
         String contextualHeader = String.format("[도메인: 경력/프로젝트 | 제목: %s]", safe(title));
 
@@ -43,74 +78,125 @@ public class VectorBatchSyncService {
         int createdCount = 0;
 
         for (String chunk : chunks) {
-            String vectorStr = vectorEmbeddingService.embedToVectorString(chunk);
-            ExperienceVector expVector = ExperienceVector.builder()
-                    .experienceId(experienceId)
-                    .chunkContent(chunk)
-                    .embeddingVector(vectorStr)
-                    .build();
+            String vectorStr = embedder.apply(chunk);
+            ExperienceVector expVector =
+                    ExperienceVector.builder()
+                            .workspaceId(workspaceId)
+                            .experienceId(experienceId)
+                            .chunkContent(chunk)
+                            .embeddingVector(vectorStr)
+                            .build();
             experienceVectorRepository.save(expVector);
             createdCount++;
         }
 
-        log.info("경험 ID {} - Oracle 26ai 고품질 벡터 청크 {}건 동기화 완료", experienceId, createdCount);
+        log.debug("Experience vector namespace 동기화 완료 - chunk {}건", createdCount);
         return createdCount;
     }
 
-    /**
-     * 기술 스터디 마크다운 청킹 및 Oracle 26ai 배치 동기화
-     */
     @Transactional("vectorTransactionManager")
+    public int deleteExperienceVector(Long workspaceId, Long experienceId) {
+        int deleted =
+                experienceVectorRepository.deleteByWorkspaceIdAndExperienceId(
+                        workspaceId, experienceId);
+        log.debug("Experience vector namespace 삭제 완료 - chunk {}건", deleted);
+        return deleted;
+    }
+
+    /** 기술 스터디 마크다운 청킹 및 Oracle 26ai 배치 동기화 */
+    @Transactional("vectorTransactionManager")
+    public int syncStudyVector(
+            Long workspaceId, Long studyId, String title, String markdownContent) {
+        return syncStudyVector(
+                workspaceId,
+                studyId,
+                title,
+                markdownContent,
+                vectorEmbeddingService::embedToVectorString);
+    }
+
+    /**
+     * Workspace namespace가 없는 과거 호출은 다른 사용자의 vector를 덮어쓸 수 있으므로 실패시킨다.
+     */
+    @Deprecated(forRemoval = true)
     public int syncStudyVector(Long studyId, String title, String markdownContent) {
-        studyVectorRepository.deleteByStudyId(studyId);
+        throw new IllegalStateException("Workspace 범위 없는 Study vector 동기화는 지원하지 않습니다.");
+    }
+
+    @Transactional("vectorTransactionManager")
+    public int syncStudyVectorStrictExternal(
+            Long workspaceId, Long studyId, String title, String markdownContent) {
+        return syncStudyVector(
+                workspaceId,
+                studyId,
+                title,
+                markdownContent,
+                vectorEmbeddingService::embedToVectorStringStrictExternal);
+    }
+
+    private int syncStudyVector(
+            Long workspaceId,
+            Long studyId,
+            String title,
+            String markdownContent,
+            Function<String, String> embedder) {
+        studyVectorRepository.deleteByWorkspaceIdAndStudyId(workspaceId, studyId);
 
         String contextualHeader = String.format("[도메인: 기술 스터디 | 제목: %s]", safe(title));
 
-        List<String> chunks = contextualChunker.chunkTextWithContext(markdownContent, contextualHeader);
+        List<String> chunks =
+                contextualChunker.chunkTextWithContext(markdownContent, contextualHeader);
         int createdCount = 0;
 
         for (String chunk : chunks) {
-            String vectorStr = vectorEmbeddingService.embedToVectorString(chunk);
-            StudyVector studyVector = StudyVector.builder()
-                    .studyId(studyId)
-                    .chunkContent(chunk)
-                    .embeddingVector(vectorStr)
-                    .build();
+            String vectorStr = embedder.apply(chunk);
+            StudyVector studyVector =
+                    StudyVector.builder()
+                            .workspaceId(workspaceId)
+                            .studyId(studyId)
+                            .chunkContent(chunk)
+                            .embeddingVector(vectorStr)
+                            .build();
             studyVectorRepository.save(studyVector);
             createdCount++;
         }
 
-        log.info("스터디 ID {} - Oracle 26ai 고품질 벡터 청크 {}건 동기화 완료", studyId, createdCount);
+        log.debug("Study vector namespace 동기화 완료 - chunk {}건", createdCount);
         return createdCount;
     }
 
-    /**
-     * 채용공고 텍스트 청킹 및 Oracle 26ai 배치 동기화
-     */
     @Transactional("vectorTransactionManager")
-    public int syncJobPostingVector(Long jobPostingId, String title, String companyName, String rawText) {
+    public int deleteStudyVector(Long workspaceId, Long studyId) {
+        int deleted = studyVectorRepository.deleteByWorkspaceIdAndStudyId(workspaceId, studyId);
+        log.debug("Study vector namespace 삭제 완료 - chunk {}건", deleted);
+        return deleted;
+    }
+
+    /** 채용공고 텍스트 청킹 및 Oracle 26ai 배치 동기화 */
+    @Transactional("vectorTransactionManager")
+    public int syncJobPostingVector(
+            Long jobPostingId, String title, String companyName, String rawText) {
         jobPostingVectorRepository.deleteByJobPostingId(jobPostingId);
 
-        String contextualHeader = String.format(
-                "[도메인: 채용공고 | 회사명: %s | 공고제목: %s]",
-                safe(companyName), safe(title)
-        );
+        String contextualHeader =
+                String.format("[도메인: 채용공고 | 회사명: %s | 공고제목: %s]", safe(companyName), safe(title));
 
         List<String> chunks = contextualChunker.chunkTextWithContext(rawText, contextualHeader);
         int createdCount = 0;
 
         for (String chunk : chunks) {
             String vectorStr = vectorEmbeddingService.embedToVectorString(chunk);
-            JobPostingVector jpVector = JobPostingVector.builder()
-                    .jobPostingId(jobPostingId)
-                    .chunkContent(chunk)
-                    .embeddingVector(vectorStr)
-                    .build();
+            JobPostingVector jpVector =
+                    JobPostingVector.builder()
+                            .jobPostingId(jobPostingId)
+                            .chunkContent(chunk)
+                            .embeddingVector(vectorStr)
+                            .build();
             jobPostingVectorRepository.save(jpVector);
             createdCount++;
         }
 
-        log.info("채용공고 ID {} - Oracle 26ai 고품질 벡터 청크 {}건 동기화 완료", jobPostingId, createdCount);
+        log.debug("Job posting vector namespace 동기화 완료 - chunk {}건", createdCount);
         return createdCount;
     }
 

@@ -1,11 +1,11 @@
 package com.selfintro.vectorsearch.domain.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "experience_vector")
@@ -17,15 +17,16 @@ public class ExperienceVector {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
     @Column(name = "experience_id", nullable = false)
     private Long experienceId;
 
     @Column(name = "chunk_content", columnDefinition = "CLOB", nullable = false)
     private String chunkContent;
 
-    /**
-     * Oracle 26ai VECTOR 데이터 타입 (1536차원 임베딩 수치 배열 문자열)
-     */
+    /** Oracle 26ai VECTOR 데이터 타입 (1536차원 임베딩 수치 배열 문자열) */
     @Column(name = "embedding_vector", columnDefinition = "VECTOR", nullable = false)
     private String embeddingVector;
 
@@ -33,7 +34,9 @@ public class ExperienceVector {
     private LocalDateTime createdAt;
 
     @Builder
-    public ExperienceVector(Long experienceId, String chunkContent, String embeddingVector) {
+    public ExperienceVector(
+            Long workspaceId, Long experienceId, String chunkContent, String embeddingVector) {
+        this.workspaceId = workspaceId;
         this.experienceId = experienceId;
         this.chunkContent = chunkContent;
         this.embeddingVector = embeddingVector;
