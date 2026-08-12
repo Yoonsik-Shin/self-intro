@@ -19,6 +19,9 @@ public abstract class Experience {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
     @Column(name = "type", insertable = false, updatable = false)
     private String type;
 
@@ -133,6 +136,13 @@ public abstract class Experience {
 
     public void changeDisplayOrder(int displayOrder) {
         this.displayOrder = displayOrder;
+    }
+
+    public void assignWorkspace(Long workspaceId) {
+        if (this.workspaceId != null && !this.workspaceId.equals(workspaceId)) {
+            throw new IllegalStateException("경력 데이터의 Workspace는 변경할 수 없습니다.");
+        }
+        this.workspaceId = workspaceId;
     }
 
     private static List<ExperienceDetail> toEntities(List<ExperienceDetail.Draft> drafts) {
@@ -250,6 +260,10 @@ public abstract class Experience {
     // Getters
     public Long getId() {
         return id;
+    }
+
+    public Long getWorkspaceId() {
+        return workspaceId;
     }
 
     public String getType() {

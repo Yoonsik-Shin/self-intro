@@ -15,6 +15,8 @@ public interface StudyRepository extends JpaRepository<Study, Long>, StudyReposi
 
     Optional<Study> findBySlug(String slug);
 
+    List<Study> findAllByWorkspaceIdOrderByTitleAsc(Long workspaceId);
+
     List<Study> findAllByExperiences_IdOrderByTitleAsc(Long experienceId);
 
     @Query(

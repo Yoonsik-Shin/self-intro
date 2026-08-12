@@ -19,6 +19,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -31,7 +32,12 @@ import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Entity
-@Table(name = "study")
+@Table(
+        name = "study",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_study_workspace_slug",
+                        columnNames = {"workspace_id", "slug"}))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Study {
 
@@ -39,7 +45,10 @@ public class Study {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 160)
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
+    @Column(nullable = false, length = 160)
     private String slug;
 
     @Column(nullable = false, length = 160)
@@ -155,6 +164,10 @@ public class Study {
             LocalDate learnedAt,
             LocalDateTime publishedAt) {
         return new Study(slug, title, summary, contentMarkdown, status, learnedAt, publishedAt);
+    }
+
+    public void assignWorkspace(Long workspaceId) {
+        this.workspaceId = workspaceId;
     }
 
     public void update(
