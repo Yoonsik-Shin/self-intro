@@ -401,7 +401,11 @@ public class StudyService {
         rabbitTemplate.convertAndSend(
                 RabbitMqConfig.EXCHANGE_NAME,
                 RabbitMqConfig.ROUTING_KEY_STUDY_UPDATED,
-                new StudyUpdatedEvent(saved.getId(), saved.getTitle(), saved.getContentMarkdown()));
+                new StudyUpdatedEvent(
+                        saved.getWorkspaceId(),
+                        saved.getId(),
+                        saved.getTitle(),
+                        saved.getContentMarkdown()));
     }
 
     private TaxonomyNode findTaxonomyNode(Long id) {

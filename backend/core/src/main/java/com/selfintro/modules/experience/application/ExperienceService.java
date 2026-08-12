@@ -316,7 +316,8 @@ public class ExperienceService {
         rabbitTemplate.convertAndSend(
                 RabbitMqConfig.EXCHANGE_NAME,
                 RabbitMqConfig.ROUTING_KEY_EXPERIENCE_UPDATED,
-                new ExperienceUpdatedEvent(saved.getId(), saved.getTitle(), content));
+                new ExperienceUpdatedEvent(
+                        saved.getWorkspaceId(), saved.getId(), saved.getTitle(), content));
     }
 
     private List<ExperienceImage.Draft> toImageDrafts(List<ExperienceImageRequest> imageRequests) {
