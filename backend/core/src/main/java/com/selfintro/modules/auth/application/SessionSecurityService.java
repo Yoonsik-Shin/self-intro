@@ -42,6 +42,18 @@ public class SessionSecurityService {
     }
 
     public int logoutAll(String principalName, HttpServletRequest request) {
+        int deleted = revokeAll(principalName);
+        var currentSession = request.getSession(false);
+        if (currentSession != null) {
+            currentSession.invalidate();
+            if (deleted == 0) {
+                deleted = 1;
+            }
+        }
+        return deleted;
+    }
+
+    public int revokeAll(String principalName) {
         int deleted = 0;
         FindByIndexNameSessionRepository<? extends Session> repository =
                 sessionRepositoryProvider.getIfAvailable();
@@ -53,13 +65,6 @@ public class SessionSecurityService {
             }
         }
 
-        var currentSession = request.getSession(false);
-        if (currentSession != null) {
-            currentSession.invalidate();
-            if (deleted == 0) {
-                deleted = 1;
-            }
-        }
         return deleted;
     }
 }

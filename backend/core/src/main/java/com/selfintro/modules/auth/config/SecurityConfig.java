@@ -199,7 +199,9 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 HttpMethod.POST,
                                                 "/api/auth/registrations",
-                                                "/api/auth/email-verifications")
+                                                "/api/auth/email-verifications",
+                                                "/api/auth/password-resets",
+                                                "/api/auth/password-resets/confirm")
                                         .permitAll()
                                         .requestMatchers(
                                                 HttpMethod.POST, "/api/workspaces/onboarding")

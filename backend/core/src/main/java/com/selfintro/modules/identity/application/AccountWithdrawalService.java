@@ -5,6 +5,7 @@ import com.selfintro.modules.identity.domain.AppUser;
 import com.selfintro.modules.identity.domain.AppUserRepository;
 import com.selfintro.modules.identity.domain.EmailVerificationTokenRepository;
 import com.selfintro.modules.identity.domain.MembershipStatus;
+import com.selfintro.modules.identity.domain.PasswordResetTokenRepository;
 import com.selfintro.modules.identity.domain.UserPlatformRoleRepository;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.identity.domain.WorkspaceMemberRepository;
@@ -32,6 +33,7 @@ public class AccountWithdrawalService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceMembershipInvitationRepository invitationRepository;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final MfaRecoveryCodeRepository mfaRecoveryCodeRepository;
     private final UserPlatformRoleRepository userPlatformRoleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -76,6 +78,7 @@ public class AccountWithdrawalService {
                     .forEach(invitation -> invitation.redactRecipient(anonymizedRecipient, now));
         }
         emailVerificationTokenRepository.deleteAllByUserId(userId);
+        passwordResetTokenRepository.deleteAllByUserId(userId);
         mfaRecoveryCodeRepository.deleteAllByUserId(userId);
 
         String anonymizedLoginId =

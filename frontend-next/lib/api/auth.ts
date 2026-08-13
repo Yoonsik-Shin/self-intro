@@ -74,6 +74,20 @@ export const authApi = {
             body: JSON.stringify({ token }),
         });
     },
+    requestPasswordReset: async (email: string) => {
+        await request<void>('/api/auth/csrf');
+        return request<void>('/api/auth/password-resets', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        });
+    },
+    confirmPasswordReset: async (token: string, newPassword: string) => {
+        await request<void>('/api/auth/csrf');
+        return request<void>('/api/auth/password-resets/confirm', {
+            method: 'POST',
+            body: JSON.stringify({ token, newPassword }),
+        });
+    },
     createFirstWorkspace: (name: string) =>
         request<{ publicKey: string; slug: string; name: string; publicationStatus: 'PRIVATE' }>(
             '/api/workspaces/onboarding',

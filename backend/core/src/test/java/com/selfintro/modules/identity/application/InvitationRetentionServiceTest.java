@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.identity.domain.EmailVerificationTokenRepository;
+import com.selfintro.modules.identity.domain.PasswordResetTokenRepository;
 import com.selfintro.modules.identity.domain.RegistrationInvitationRepository;
 import com.selfintro.modules.identity.domain.WorkspaceMembershipInvitationRepository;
 import com.selfintro.modules.identity.domain.WorkspaceMembershipInvitationStatus;
@@ -25,6 +26,7 @@ class InvitationRetentionServiceTest {
 
     @Mock private RegistrationInvitationRepository registrationRepository;
     @Mock private EmailVerificationTokenRepository emailVerificationTokenRepository;
+    @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private WorkspaceMembershipInvitationRepository workspaceRepository;
 
     @Test
@@ -33,6 +35,7 @@ class InvitationRetentionServiceTest {
                 new InvitationRetentionService(
                         registrationRepository,
                         emailVerificationTokenRepository,
+                        passwordResetTokenRepository,
                         workspaceRepository);
         ReflectionTestUtils.setField(service, "closedFor", Duration.ofDays(30));
         ReflectionTestUtils.setField(service, "batchSize", 500);
@@ -44,6 +47,9 @@ class InvitationRetentionServiceTest {
         when(emailVerificationTokenRepository.findRetentionCandidateIds(
                         eq(cutoff), any(Pageable.class)))
                 .thenReturn(List.of(4L, 5L));
+        when(passwordResetTokenRepository.findRetentionCandidateIds(
+                        eq(cutoff), any(Pageable.class)))
+                .thenReturn(List.of(6L));
         when(workspaceRepository.findRetentionCandidateIds(
                         eq(cutoff),
                         eq(WorkspaceMembershipInvitationStatus.PENDING),
@@ -57,10 +63,12 @@ class InvitationRetentionServiceTest {
 
         assertThat(result.registrationDeleted()).isEqualTo(2);
         assertThat(result.emailVerificationDeleted()).isEqualTo(2);
+        assertThat(result.passwordResetDeleted()).isEqualTo(1);
         assertThat(result.workspaceDeleted()).isEqualTo(1);
-        assertThat(result.totalDeleted()).isEqualTo(5);
+        assertThat(result.totalDeleted()).isEqualTo(6);
         verify(registrationRepository).deleteAllByIdInBatch(List.of(1L, 2L));
         verify(emailVerificationTokenRepository).deleteAllByIdInBatch(List.of(4L, 5L));
+        verify(passwordResetTokenRepository).deleteAllByIdInBatch(List.of(6L));
         verify(workspaceRepository).deleteAllByIdInBatch(List.of(3L));
     }
 }

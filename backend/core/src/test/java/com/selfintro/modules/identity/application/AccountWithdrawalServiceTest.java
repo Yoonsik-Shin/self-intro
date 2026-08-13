@@ -13,6 +13,7 @@ import com.selfintro.modules.identity.domain.AppUser;
 import com.selfintro.modules.identity.domain.AppUserRepository;
 import com.selfintro.modules.identity.domain.EmailVerificationTokenRepository;
 import com.selfintro.modules.identity.domain.MembershipStatus;
+import com.selfintro.modules.identity.domain.PasswordResetTokenRepository;
 import com.selfintro.modules.identity.domain.UserPlatformRoleRepository;
 import com.selfintro.modules.identity.domain.Workspace;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
@@ -39,6 +40,7 @@ class AccountWithdrawalServiceTest {
     @Mock WorkspaceMemberRepository workspaceMemberRepository;
     @Mock WorkspaceMembershipInvitationRepository invitationRepository;
     @Mock EmailVerificationTokenRepository emailVerificationTokenRepository;
+    @Mock PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock MfaRecoveryCodeRepository mfaRecoveryCodeRepository;
     @Mock UserPlatformRoleRepository userPlatformRoleRepository;
     @Mock PasswordEncoder passwordEncoder;
@@ -54,6 +56,7 @@ class AccountWithdrawalServiceTest {
                         workspaceMemberRepository,
                         invitationRepository,
                         emailVerificationTokenRepository,
+                        passwordResetTokenRepository,
                         mfaRecoveryCodeRepository,
                         userPlatformRoleRepository,
                         passwordEncoder,
@@ -112,6 +115,7 @@ class AccountWithdrawalServiceTest {
                 .isEqualTo("withdrawn-user-2@invalid.local");
         assertThat(invitation.getStatus().name()).isEqualTo("REVOKED");
         verify(emailVerificationTokenRepository).deleteAllByUserId(2L);
+        verify(passwordResetTokenRepository).deleteAllByUserId(2L);
         verify(mfaRecoveryCodeRepository).deleteAllByUserId(2L);
         verify(securityAuditService)
                 .recordPlatformTargetAction("ACCOUNT_WITHDRAWN", 2L, "APP_USER", 2L);

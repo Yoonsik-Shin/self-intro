@@ -122,6 +122,13 @@ app:
       code: ${LOCAL_REGISTRATION_INVITATION_CODE:}
   workspace-invitation:
     accept-base-url: ${WORKSPACE_INVITATION_ACCEPT_BASE_URL:http://localhost:3000/workspace-invitations}
+  account-recovery:
+    email:
+      enabled: ${ACCOUNT_RECOVERY_EMAIL_ENABLED:false}
+      from: ${ACCOUNT_RECOVERY_EMAIL_FROM:no-reply@self-intro.local}
+    password-reset:
+      base-url: ${PASSWORD_RESET_BASE_URL:http://localhost:3000/password-reset}
+      token-valid-for: ${PASSWORD_RESET_TOKEN_VALID_FOR:30m}
   workspace-lifecycle:
     deletion-grace-period: ${WORKSPACE_DELETION_GRACE_PERIOD:30d}
   workspace-purge:
@@ -180,6 +187,9 @@ app:
       registration:
         max-attempts: ${AUTH_REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS:5}
         window: ${AUTH_REGISTRATION_RATE_LIMIT_WINDOW:10m}
+      password-reset:
+        max-attempts: ${AUTH_PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS:5}
+        window: ${AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW:10m}
   ai:
     base-url: ${NVIDIA_API_BASE_URL:https://integrate.api.nvidia.com}
     api-key: ${NVIDIA_API_KEY:}

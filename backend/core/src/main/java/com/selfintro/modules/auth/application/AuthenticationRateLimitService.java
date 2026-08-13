@@ -46,6 +46,12 @@ public class AuthenticationRateLimitService {
     @Value("${app.security.rate-limit.registration.window:10m}")
     private Duration registrationWindow;
 
+    @Value("${app.security.rate-limit.password-reset.max-attempts:5}")
+    private long passwordResetMaxAttempts;
+
+    @Value("${app.security.rate-limit.password-reset.window:10m}")
+    private Duration passwordResetWindow;
+
     public void requireLoginAllowance(String username, HttpServletRequest request) {
         requireAllowance("login", username, request, loginMaxAttempts, loginWindow);
     }
@@ -53,6 +59,11 @@ public class AuthenticationRateLimitService {
     public void requireRegistrationAllowance(String email, HttpServletRequest request) {
         requireAllowance(
                 "registration", email, request, registrationMaxAttempts, registrationWindow);
+    }
+
+    public void requirePasswordResetAllowance(String email, HttpServletRequest request) {
+        requireAllowance(
+                "password-reset", email, request, passwordResetMaxAttempts, passwordResetWindow);
     }
 
     private void requireAllowance(

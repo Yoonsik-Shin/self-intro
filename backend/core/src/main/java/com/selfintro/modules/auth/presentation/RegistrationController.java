@@ -2,7 +2,10 @@ package com.selfintro.modules.auth.presentation;
 
 import com.selfintro.modules.auth.application.AuthenticationRateLimitService;
 import com.selfintro.modules.auth.presentation.dto.EmailVerificationRequest;
+import com.selfintro.modules.auth.presentation.dto.PasswordResetConfirmRequest;
+import com.selfintro.modules.auth.presentation.dto.PasswordResetRequest;
 import com.selfintro.modules.auth.presentation.dto.RegistrationRequest;
+import com.selfintro.modules.identity.application.PasswordResetService;
 import com.selfintro.modules.identity.application.RegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class RegistrationController {
 
     private final RegistrationService registrationService;
+    private final PasswordResetService passwordResetService;
     private final AuthenticationRateLimitService authenticationRateLimitService;
 
     @GetMapping("/csrf")
@@ -45,6 +49,21 @@ public class RegistrationController {
     @PostMapping("/email-verifications")
     public ResponseEntity<Void> verifyEmail(@Valid @RequestBody EmailVerificationRequest request) {
         registrationService.verifyEmail(request.token());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/password-resets")
+    public ResponseEntity<Void> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request, HttpServletRequest httpRequest) {
+        authenticationRateLimitService.requirePasswordResetAllowance(request.email(), httpRequest);
+        passwordResetService.request(request.email());
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/password-resets/confirm")
+    public ResponseEntity<Void> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        passwordResetService.confirm(request.token(), request.newPassword());
         return ResponseEntity.noContent().build();
     }
 }

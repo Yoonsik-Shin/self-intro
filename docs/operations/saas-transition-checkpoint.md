@@ -120,7 +120,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 | 로컬 비공개 베타 기반 | 약 96% | 별도 사람이 수행하는 작성·발행·AI/PDF UX 확인 |
 | 핵심 Workspace 데이터 격리 | 약 98% | 레거시 호환 API 제거 시점 결정 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
-| 플랫폼 보안·운영 | 약 81% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP·rate limit |
+| 플랫폼 보안·운영 | 약 84% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP provider 승인 |
 | 릴리스 변경 세트 준비 | 약 97% | 검증 대상 96개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
 | 운영 가능한 공개 SaaS | 약 63% | 운영 provider·보안 self-service·복구·배포 rehearsal |
 

@@ -138,9 +138,17 @@ export default function LoginPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                                    비밀번호
-                                </label>
+                                <div className="mb-2 flex items-center justify-between">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                        비밀번호
+                                    </label>
+                                    <Link
+                                        href="/password-reset"
+                                        className="text-xs font-bold text-indigo-700 hover:text-indigo-900"
+                                    >
+                                        비밀번호를 잊으셨나요?
+                                    </Link>
+                                </div>
                                 <div className="relative">
                                     <input
                                         type={isPasswordVisible ? 'text' : 'password'}

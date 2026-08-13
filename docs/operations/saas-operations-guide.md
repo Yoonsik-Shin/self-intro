@@ -770,7 +770,25 @@ Workspace 생성만 명시적으로 예외 처리한다.
 
 닉네임·비밀번호·전체 세션 변경은 각각 `ACCOUNT_DISPLAY_NAME_CHANGED`, `ACCOUNT_PASSWORD_CHANGED`,
 `ACCOUNT_SESSIONS_REVOKED` 감사 이벤트만 기록하며 비밀번호나 변경 전후 닉네임 원문은 기록하지 않는다.
-이메일 변경과 비밀번호 분실 재설정은 확인 메일과 단기 토큰 회수 정책이 준비되기 전까지 제공하지 않는다.
+이메일 변경은 새 주소 확인과 충돌 회수 정책이 준비되기 전까지 제공하지 않는다.
+
+### 비밀번호 분실 재설정
+
+1. `/password-reset`에서 로그인 이메일을 제출하면 계정 존재 여부와 무관하게 같은 `202 Accepted` 안내를
+   반환한다. 요청 빈도는 이메일 식별자와 요청 IP별 rate limit으로 제한한다.
+2. 활성 계정이면 기존 재설정 token을 폐기하고 32바이트 난수 token을 발급한다. DB에는 SHA-256 hash만
+   저장하며 기본 유효시간은 30분이다. 메일 링크의 token은 query string이나 서버 로그가 아니라 URL
+   fragment로 전달한다.
+3. 발송 provider가 준비되지 않았으면 요청을 `503`으로 거부한다. 발송 중 오류가 나면 방금 만든 token을
+   즉시 폐기하고 `PASSWORD_RESET_DELIVERY_FAILED` 감사 이벤트만 남긴다.
+4. 확인 화면은 가입과 동일한 10~32자 비밀번호 정책을 적용한다. 유효한 token은 비관적 잠금으로 한 번만
+   소비하며, 기존 비밀번호 재사용은 거부한다.
+5. 완료하면 현재 세션을 포함한 모든 Redis 세션을 폐기하고 `PASSWORD_RESET_COMPLETED`를 기록한다.
+   비밀번호·token·이메일 원문은 감사 로그에 저장하지 않는다.
+
+로컬 Compose는 Mailpit SMTP를 사용한다. `PASSWORD_RESET_BASE_URL`,
+`PASSWORD_RESET_TOKEN_VALID_FOR`, `PASSWORD_RESET_MAIL_FROM`을 운영 provider와 공개 HTTPS 주소에 맞게
+주입해야 한다. 사용·만료 token은 초대 retention 스케줄에서 기본 30일 후 배치 삭제한다.
 
 1. 사용자는 계정 메뉴의 `계정 설정`에서 탈퇴 가능 상태를 확인한다.
 2. 활성 Workspace `OWNER`이면 소유권을 이전하거나 해당 Workspace를 먼저 폐쇄한다. 플랫폼 역할이
