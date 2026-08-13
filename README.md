@@ -1,5 +1,9 @@
 # 💻 YOONSIK SHIN — Portfolio & Study Archive
 
+> SaaS 전환 이후의 제품 기능, 사용자·Workspace 관계, 화면·권한, 구현 상태를 처음 확인하려면
+> [Self-Intro 제품 기능 지도](docs/product/feature-map.md)부터 읽습니다. 이 README의 일부 설명은
+> 단일 사용자 포트폴리오 시절의 호환 구조를 포함합니다.
+
 이 저장소는 개발자 **신윤식(YOONSIK SHIN)**의 개인 포트폴리오 웹 애플리케이션 및 학습 이력(프로젝트, 교육, 자격증)과 코딩테스트 문제 풀이 기록을 통합 관리하는 풀스택 아카이빙 플랫폼입니다.
 
 ---
@@ -15,17 +19,20 @@
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **Framework & Language**: `Next.js 16 (App Router)`, `React 19`, `TypeScript`
 - **Styling**: `Tailwind CSS`
 - **State Management & Data Fetching**: `Zustand`, `TanStack Query (React Query)`
 
 ### Backend
+
 - **Framework & Language**: `Java 21`, `Spring Boot 3.3`
 - **Database Access**: `Spring Data JPA`, `QueryDSL`
 - **Database Migrations**: `Flyway`
 - **Database**: `H2` (Local Dev) / `MySQL` (Production)
 
 ### Cloud & DevOps (GitOps)
+
 - **Infrastructure**: `OKE (Oracle Kubernetes Engine)`, `MySQL HeatWave Always Free`
 - **Registry**: `OCIR (Oracle Cloud Infrastructure Registry)`
 - **Continuous Integration (CI)**: `GitHub Actions`
@@ -38,6 +45,9 @@
 ## 📐 System Architecture
 
 이 프로젝트는 프론트엔드(Next.js)와 백엔드(Spring Boot) 모두 OKE 컨테이너 + GitOps(ArgoCD) 파이프라인으로 배포됩니다. Cloudflare는 DNS/CDN 프록시와 오리진 구간 TLS만 담당합니다.
+
+SaaS 전환 브랜치의 인증·Workspace·MFA·배포 및 장애 대응 절차는
+[SaaS 운영 가이드](docs/operations/saas-operations-guide.md)를 기준으로 합니다.
 
 ```mermaid
 flowchart TD
@@ -94,16 +104,19 @@ sequenceDiagram
 ## 💻 Local Setup
 
 ### Prerequisites
+
 - JDK 21
 - Node.js 20+
 
 ### 1. Backend Run
+
 ```bash
 cd backend
 # 로컬 개발 환경용 H2 인메모리 DB 및 초기 샘플 데이터 시드로 구동
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
-*백엔드 API는 `http://localhost:8080`에서 구동됩니다.*
+
+_백엔드 API는 `http://localhost:8080`에서 구동됩니다._
 
 #### NVIDIA NIM 핵심 역량 AI 활성화
 
@@ -119,12 +132,14 @@ NVIDIA_MODEL=nvidia/nemotron-3-super
 NVIDIA 호스팅 NIM API는 프로토타이핑 용도로 제공되므로, 운영 사용 전 현재 이용 약관과 한도를 확인해야 합니다.
 
 ### 2. Frontend Run
+
 ```bash
 cd frontend-next
 npm install
 npm run dev
 ```
-*프론트엔드 개발 서버는 `http://localhost:3000`에서 구동됩니다. `NEXT_PUBLIC_API_BASE_URL`로 백엔드 주소를 지정합니다(`.env.local`).*
+
+_프론트엔드 개발 서버는 `http://localhost:3000`에서 구동됩니다. `NEXT_PUBLIC_API_BASE_URL`로 백엔드 주소를 지정합니다(`.env.local`)._
 
 ---
 
