@@ -1,19 +1,13 @@
 'use client';
 
+import { ApiError } from './errors';
+export { ApiError } from './errors';
+
 // 브라우저 전용 fetch 래퍼. document.cookie(CSRF 토큰)를 읽으므로 서버 컴포넌트에서
 // import하면 런타임에 "document is not defined" 에러가 난다 — 공개 GET 페칭은
 // lib/api/server.ts를 사용할 것.
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
-
-export class ApiError extends Error {
-    status: number;
-
-    constructor(status: number, message: string) {
-        super(message);
-        this.status = status;
-    }
-}
 
 function getCsrfToken(): string | null {
     const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);

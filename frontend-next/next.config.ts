@@ -23,6 +23,35 @@ const nextConfig: NextConfig = {
     env: {
         NEXT_PUBLIC_BUILD_DATE: buildDate,
     },
+    webpack(config, { dev }) {
+        // Docker Desktop의 익명 .next 볼륨에서 webpack filesystem cache가 장기간
+        // 누적되지 않게 한다. 일반 로컬 개발과 production build의 cache는 유지한다.
+        if (dev && process.env.NEXT_DISABLE_WEBPACK_CACHE === 'true') {
+            config.cache = false;
+        }
+        return config;
+    },
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Strict-Transport-Security',
+                        value: 'max-age=31536000; includeSubDomains',
+                    },
+                    { key: 'X-Content-Type-Options', value: 'nosniff' },
+                    { key: 'X-Frame-Options', value: 'DENY' },
+                    // 가입 초대·이메일 확인 토큰이 외부 요청의 Referer로 전달되지 않게 한다.
+                    { key: 'Referrer-Policy', value: 'no-referrer' },
+                    {
+                        key: 'Permissions-Policy',
+                        value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
+                    },
+                ],
+            },
+        ];
+    },
 };
 
 export default nextConfig;

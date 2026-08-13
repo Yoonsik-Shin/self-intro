@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
+import { MfaEnrollment } from '@/components/admin/security/MfaEnrollment';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -10,6 +11,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const isChecking = useAuthStore((s) => s.isChecking);
     const checkSession = useAuthStore((s) => s.checkSession);
+    const me = useAuthStore((s) => s.me);
 
     useEffect(() => {
         checkSession();
@@ -17,12 +19,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     useEffect(() => {
         if (isChecking) return;
-        if (!isAuthenticated && pathname !== '/admin/login') {
-            router.replace('/admin/login');
-        } else if (isAuthenticated && pathname === '/admin/login') {
-            router.replace('/admin');
+        if (!isAuthenticated) {
+            router.replace('/login');
+        } else if (isAuthenticated && pathname === '/admin') {
+            const workspace = me?.workspaces?.[0];
+            if (workspace) {
+                const requestedNext = new URLSearchParams(window.location.search).get('next');
+                router.replace(
+                    requestedNext?.startsWith('/') && !requestedNext.startsWith('//')
+                        ? requestedNext
+                        : `/workspace/${encodeURIComponent(workspace.slug)}/manage`
+                );
+            } else if (me) {
+                router.replace('/onboarding/workspace');
+            }
         }
-    }, [isChecking, isAuthenticated, pathname, router]);
+    }, [isChecking, isAuthenticated, me, pathname, router]);
 
     if (isChecking) {
         return (
@@ -32,12 +44,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         );
     }
 
-    if (!isAuthenticated && pathname !== '/admin/login') {
+    if (!isAuthenticated) {
         return null;
     }
 
-    if (isAuthenticated && pathname === '/admin/login') {
+    if (isAuthenticated && pathname === '/admin') {
         return null;
+    }
+
+    if (isAuthenticated && me?.mfaEnrollmentRequired) {
+        return <MfaEnrollment />;
+    }
+
+    if (isAuthenticated && me?.mfaRecoveryReenrollmentAllowed) {
+        return <MfaEnrollment mode="recovery" />;
     }
 
     return <>{children}</>;

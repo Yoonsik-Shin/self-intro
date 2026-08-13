@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { ApiError } from './client';
+import { ApiError } from './errors';
 
 // 서버 컴포넌트 전용 GET 페칭. document.cookie 등 브라우저 API를 쓰지 않으므로
 // 인증이 필요 없는 공개 데이터(이력서/경력/블로그 상세)에만 사용한다.
