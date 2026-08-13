@@ -1,5 +1,6 @@
 package com.selfintro.modules.identity.application;
 
+import com.selfintro.modules.identity.domain.EmailChangeTokenRepository;
 import com.selfintro.modules.identity.domain.EmailVerificationTokenRepository;
 import com.selfintro.modules.identity.domain.PasswordResetTokenRepository;
 import com.selfintro.modules.identity.domain.RegistrationInvitationRepository;
@@ -24,6 +25,7 @@ public class InvitationRetentionService {
     private final RegistrationInvitationRepository registrationInvitationRepository;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailChangeTokenRepository emailChangeTokenRepository;
     private final WorkspaceMembershipInvitationRepository workspaceInvitationRepository;
 
     @Value("${app.invitation-retention.enabled:true}")
@@ -44,10 +46,11 @@ public class InvitationRetentionService {
         CleanupResult result = cleanup(LocalDateTime.now());
         if (result.totalDeleted() > 0) {
             log.info(
-                    "Invitation retention cleanup completed: registration={}, emailVerification={}, passwordReset={}, workspace={}",
+                    "Invitation retention cleanup completed: registration={}, emailVerification={}, passwordReset={}, emailChange={}, workspace={}",
                     result.registrationDeleted(),
                     result.emailVerificationDeleted(),
                     result.passwordResetDeleted(),
+                    result.emailChangeDeleted(),
                     result.workspaceDeleted());
         }
     }
@@ -64,6 +67,8 @@ public class InvitationRetentionService {
                 emailVerificationTokenRepository.findRetentionCandidateIds(cutoff, page);
         List<Long> passwordResetIds =
                 passwordResetTokenRepository.findRetentionCandidateIds(cutoff, page);
+        List<Long> emailChangeIds =
+                emailChangeTokenRepository.findRetentionCandidateIds(cutoff, page);
         List<Long> workspaceIds =
                 workspaceInvitationRepository.findRetentionCandidateIds(
                         cutoff,
@@ -75,11 +80,13 @@ public class InvitationRetentionService {
         registrationInvitationRepository.deleteAllByIdInBatch(registrationIds);
         emailVerificationTokenRepository.deleteAllByIdInBatch(emailVerificationIds);
         passwordResetTokenRepository.deleteAllByIdInBatch(passwordResetIds);
+        emailChangeTokenRepository.deleteAllByIdInBatch(emailChangeIds);
         workspaceInvitationRepository.deleteAllByIdInBatch(workspaceIds);
         return new CleanupResult(
                 registrationIds.size(),
                 emailVerificationIds.size(),
                 passwordResetIds.size(),
+                emailChangeIds.size(),
                 workspaceIds.size());
     }
 
@@ -87,11 +94,13 @@ public class InvitationRetentionService {
             int registrationDeleted,
             int emailVerificationDeleted,
             int passwordResetDeleted,
+            int emailChangeDeleted,
             int workspaceDeleted) {
         public int totalDeleted() {
             return registrationDeleted
                     + emailVerificationDeleted
                     + passwordResetDeleted
+                    + emailChangeDeleted
                     + workspaceDeleted;
         }
     }

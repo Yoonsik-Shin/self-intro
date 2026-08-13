@@ -7,6 +7,7 @@ import java.util.UUID;
 public record MeResponse(
         Long userId,
         String username,
+        String email,
         String nickname,
         boolean mfaEnabled,
         boolean mfaEnrollmentRequired,

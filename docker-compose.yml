@@ -90,6 +90,7 @@ services:
       - ACCOUNT_RECOVERY_EMAIL_ENABLED=true
       - ACCOUNT_RECOVERY_EMAIL_FROM=no-reply@self-intro.local
       - PASSWORD_RESET_BASE_URL=http://localhost:3000/password-reset
+      - EMAIL_CHANGE_BASE_URL=http://localhost:3000/account/email-change
       - PASSWORD_RESET_TOKEN_VALID_FOR=30m
       - REGISTRATION_INVITATION_SIGNUP_BASE_URL=http://localhost:3000/signup
       - REGISTRATION_TERMS_VERSION=${REGISTRATION_TERMS_VERSION:-2026-08-12-draft}

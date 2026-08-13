@@ -201,7 +201,8 @@ public class SecurityConfig {
                                                 "/api/auth/registrations",
                                                 "/api/auth/email-verifications",
                                                 "/api/auth/password-resets",
-                                                "/api/auth/password-resets/confirm")
+                                                "/api/auth/password-resets/confirm",
+                                                "/api/account/email-change/confirm")
                                         .permitAll()
                                         .requestMatchers(
                                                 HttpMethod.POST, "/api/workspaces/onboarding")
@@ -212,6 +213,17 @@ public class SecurityConfig {
                                                 "/api/auth/reauthenticate",
                                                 "/api/auth/sessions/logout-all",
                                                 "/api/auth/mfa/**")
+                                        .authenticated()
+                                        // 계정 자기관리 API는 플랫폼 운영 권한이 아니라 현재 로그인한
+                                        // 본인의 AppUserPrincipal로만 동작한다. 아래 전역 ADMIN 쓰기
+                                        // 경계보다 먼저 명시해 일반 사용자가 자기 계정을 관리하게 한다.
+                                        .requestMatchers(
+                                                HttpMethod.POST, "/api/account/email-change")
+                                        .authenticated()
+                                        .requestMatchers(HttpMethod.PUT, "/api/account/password")
+                                        .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.PATCH, "/api/account/display-name")
                                         .authenticated()
                                         // Support Access의 승인·거절·철회는 플랫폼 ADMIN 권한이 아니라
                                         // 대상 Workspace OWNER가 수행한다. 경로는 인증 사용자에게 통과시키고

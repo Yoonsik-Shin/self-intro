@@ -9,11 +9,13 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
+import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisIndexedHttpSession;
 
 @Configuration
 @ConditionalOnProperty(name = "spring.session.store-type", havingValue = "redis")
-@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 43200)
+// SessionSecurityService의 전체 기기 로그아웃과 동시 세션 제한은 principal 인덱스가 필요하다.
+// 단순 RedisSessionRepository는 이 인덱스를 만들지 않으므로 indexed 저장소를 명시한다.
+@EnableRedisIndexedHttpSession(maxInactiveIntervalInSeconds = 43200)
 public class RedisConfig {
 
     @Value("${spring.data.redis.host:localhost}")

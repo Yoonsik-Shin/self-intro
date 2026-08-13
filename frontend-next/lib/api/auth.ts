@@ -11,6 +11,7 @@ export type AuthWorkspace = {
 export type MeResponse = {
     userId: number;
     username: string;
+    email: string | null;
     nickname: string;
     mfaEnabled: boolean;
     mfaEnrollmentRequired: boolean;
@@ -32,7 +33,11 @@ export type AccountWithdrawalReadiness = {
     confirmationPhrase: string;
 };
 
-type LegacyCompatibleMeResponse = Omit<MeResponse, 'nickname' | 'platformRoles' | 'workspaces'> & {
+type LegacyCompatibleMeResponse = Omit<
+    MeResponse,
+    'email' | 'nickname' | 'platformRoles' | 'workspaces'
+> & {
+    email?: string | null;
     nickname?: string;
     platformRoles?: MeResponse['platformRoles'];
     workspaces?: MeResponse['workspaces'];
@@ -41,6 +46,7 @@ type LegacyCompatibleMeResponse = Omit<MeResponse, 'nickname' | 'platformRoles' 
 function normalizeMe(response: LegacyCompatibleMeResponse): MeResponse {
     return {
         ...response,
+        email: response.email ?? null,
         nickname: response.nickname ?? response.username,
         mfaEnabled: response.mfaEnabled ?? false,
         mfaEnrollmentRequired: response.mfaEnrollmentRequired ?? false,
@@ -148,6 +154,20 @@ export const authApi = {
         return request<void>('/api/account/password', {
             method: 'PUT',
             body: JSON.stringify({ currentPassword, newPassword }),
+        });
+    },
+    requestEmailChange: async (currentPassword: string, newEmail: string) => {
+        await request<void>('/api/auth/csrf');
+        return request<void>('/api/account/email-change', {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword, newEmail }),
+        });
+    },
+    confirmEmailChange: async (token: string) => {
+        await request<void>('/api/auth/csrf');
+        return request<{ email: string }>('/api/account/email-change/confirm', {
+            method: 'POST',
+            body: JSON.stringify({ token }),
         });
     },
     withdrawAccount: async (confirmation: string) => {

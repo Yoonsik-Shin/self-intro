@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.selfintro.modules.auth.domain.MfaRecoveryCodeRepository;
 import com.selfintro.modules.identity.domain.AppUser;
 import com.selfintro.modules.identity.domain.AppUserRepository;
+import com.selfintro.modules.identity.domain.EmailChangeTokenRepository;
 import com.selfintro.modules.identity.domain.EmailVerificationTokenRepository;
 import com.selfintro.modules.identity.domain.MembershipStatus;
 import com.selfintro.modules.identity.domain.PasswordResetTokenRepository;
@@ -41,6 +42,7 @@ class AccountWithdrawalServiceTest {
     @Mock WorkspaceMembershipInvitationRepository invitationRepository;
     @Mock EmailVerificationTokenRepository emailVerificationTokenRepository;
     @Mock PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock EmailChangeTokenRepository emailChangeTokenRepository;
     @Mock MfaRecoveryCodeRepository mfaRecoveryCodeRepository;
     @Mock UserPlatformRoleRepository userPlatformRoleRepository;
     @Mock PasswordEncoder passwordEncoder;
@@ -57,6 +59,7 @@ class AccountWithdrawalServiceTest {
                         invitationRepository,
                         emailVerificationTokenRepository,
                         passwordResetTokenRepository,
+                        emailChangeTokenRepository,
                         mfaRecoveryCodeRepository,
                         userPlatformRoleRepository,
                         passwordEncoder,

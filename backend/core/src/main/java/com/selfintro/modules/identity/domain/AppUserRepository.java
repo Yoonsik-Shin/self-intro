@@ -16,6 +16,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     boolean existsByEmailCanonical(String emailCanonical);
 
+    boolean existsByEmailCanonicalAndIdNot(String emailCanonical, Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select user from AppUser user where user.id = :userId")
     Optional<AppUser> findByIdForUpdate(@Param("userId") Long userId);

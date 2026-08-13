@@ -3,6 +3,7 @@ package com.selfintro.modules.identity.application;
 import com.selfintro.modules.auth.domain.MfaRecoveryCodeRepository;
 import com.selfintro.modules.identity.domain.AppUser;
 import com.selfintro.modules.identity.domain.AppUserRepository;
+import com.selfintro.modules.identity.domain.EmailChangeTokenRepository;
 import com.selfintro.modules.identity.domain.EmailVerificationTokenRepository;
 import com.selfintro.modules.identity.domain.MembershipStatus;
 import com.selfintro.modules.identity.domain.PasswordResetTokenRepository;
@@ -34,6 +35,7 @@ public class AccountWithdrawalService {
     private final WorkspaceMembershipInvitationRepository invitationRepository;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailChangeTokenRepository emailChangeTokenRepository;
     private final MfaRecoveryCodeRepository mfaRecoveryCodeRepository;
     private final UserPlatformRoleRepository userPlatformRoleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -79,6 +81,7 @@ public class AccountWithdrawalService {
         }
         emailVerificationTokenRepository.deleteAllByUserId(userId);
         passwordResetTokenRepository.deleteAllByUserId(userId);
+        emailChangeTokenRepository.deleteAllByUserId(userId);
         mfaRecoveryCodeRepository.deleteAllByUserId(userId);
 
         String anonymizedLoginId =

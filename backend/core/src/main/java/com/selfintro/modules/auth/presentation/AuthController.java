@@ -99,6 +99,7 @@ public class AuthController {
         return new MeResponse(
                 principal.userId(),
                 principal.getUsername(),
+                currentUser.getEmail(),
                 nickname,
                 principal.mfaEnabled(),
                 !principal.platformRoles().isEmpty() && !principal.mfaEnabled(),

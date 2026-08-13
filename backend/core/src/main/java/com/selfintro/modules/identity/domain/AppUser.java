@@ -135,6 +135,19 @@ public class AppUser {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void changeVerifiedEmail(String email, String emailCanonical, LocalDateTime verifiedAt) {
+        if (email == null
+                || email.isBlank()
+                || emailCanonical == null
+                || emailCanonical.isBlank()) {
+            throw new IllegalArgumentException("변경할 이메일이 필요합니다.");
+        }
+        this.email = email.trim();
+        this.emailCanonical = emailCanonical;
+        this.emailVerifiedAt = verifiedAt;
+        this.updatedAt = verifiedAt;
+    }
+
     public void withdraw(
             String anonymizedLoginId, String invalidatedPasswordHash, LocalDateTime now) {
         if (status == UserStatus.DELETED) {

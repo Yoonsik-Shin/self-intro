@@ -11,6 +11,7 @@ import {
     EyeOff,
     KeyRound,
     LogOut,
+    Mail,
     ShieldCheck,
     UserPen,
     UserRoundX,
@@ -43,6 +44,9 @@ export default function AccountSettingsPage() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showNewPasswordConfirmation, setShowNewPasswordConfirmation] = useState(false);
+    const [emailPassword, setEmailPassword] = useState('');
+    const [newEmail, setNewEmail] = useState('');
+    const [showEmailPassword, setShowEmailPassword] = useState(false);
 
     useEffect(() => {
         void checkSession();
@@ -122,6 +126,25 @@ export default function AccountSettingsPage() {
         }
     };
 
+    const requestEmailChange = async (event: FormEvent) => {
+        event.preventDefault();
+        setBusy(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            await authApi.requestEmailChange(emailPassword, newEmail);
+            setEmailPassword('');
+            setNewEmail('');
+            setSuccess(
+                '새 이메일로 확인 링크를 보냈습니다. 링크를 확인하기 전까지 기존 이메일로 로그인할 수 있습니다.'
+            );
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : '이메일 변경 요청에 실패했습니다.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const logoutAll = async () => {
         setBusy(true);
         setError(null);
@@ -190,7 +213,56 @@ export default function AccountSettingsPage() {
                                 {me.username}
                             </dd>
                         </div>
+                        <div>
+                            <dt className="font-bold text-slate-400">확인된 로그인 이메일</dt>
+                            <dd className="mt-1 break-all font-black text-slate-900">
+                                {me.email ?? '등록되지 않음'}
+                            </dd>
+                        </div>
                     </dl>
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <Mail className="mt-1 h-6 w-6 text-indigo-600" />
+                        <div>
+                            <h2 className="text-xl font-black text-slate-950">
+                                로그인 이메일 변경
+                            </h2>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                                새 주소로 보낸 링크를 확인해야 변경됩니다. 확인이 완료되면 보안을
+                                위해 모든 기기에서 로그아웃됩니다.
+                            </p>
+                        </div>
+                    </div>
+                    <form onSubmit={requestEmailChange} className="mt-5 space-y-3">
+                        <label className="block space-y-2 text-sm font-black text-slate-700">
+                            <span>새 로그인 이메일</span>
+                            <input
+                                type="email"
+                                value={newEmail}
+                                onChange={(event) => setNewEmail(event.target.value)}
+                                autoComplete="email"
+                                maxLength={255}
+                                required
+                                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900"
+                            />
+                        </label>
+                        <PasswordInput
+                            label="현재 비밀번호"
+                            value={emailPassword}
+                            onChange={setEmailPassword}
+                            visible={showEmailPassword}
+                            onToggle={() => setShowEmailPassword((value) => !value)}
+                            autoComplete="current-password"
+                        />
+                        <button
+                            disabled={busy || !newEmail.trim() || !emailPassword}
+                            className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
+                        >
+                            확인 메일 보내기
+                        </button>
+                    </form>
                 </section>
 
                 <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

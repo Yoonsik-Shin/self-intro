@@ -5,10 +5,14 @@ import com.selfintro.modules.auth.application.RecentReauthenticationPolicy;
 import com.selfintro.modules.auth.application.SessionSecurityService;
 import com.selfintro.modules.auth.presentation.dto.AccountDisplayNameRequest;
 import com.selfintro.modules.auth.presentation.dto.AccountDisplayNameResponse;
+import com.selfintro.modules.auth.presentation.dto.AccountEmailChangeConfirmRequest;
+import com.selfintro.modules.auth.presentation.dto.AccountEmailChangeRequest;
+import com.selfintro.modules.auth.presentation.dto.AccountEmailChangeResponse;
 import com.selfintro.modules.auth.presentation.dto.AccountPasswordChangeRequest;
 import com.selfintro.modules.auth.presentation.dto.AccountWithdrawalRequest;
 import com.selfintro.modules.identity.application.AccountSettingsService;
 import com.selfintro.modules.identity.application.AccountWithdrawalService;
+import com.selfintro.modules.identity.application.EmailChangeService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,6 +37,7 @@ public class AccountController {
     private final AccountSettingsService accountSettingsService;
     private final RecentReauthenticationPolicy recentReauthenticationPolicy;
     private final SessionSecurityService sessionSecurityService;
+    private final EmailChangeService emailChangeService;
 
     @PatchMapping("/display-name")
     public AccountDisplayNameResponse changeDisplayName(
@@ -52,6 +58,27 @@ public class AccountController {
                 principal.userId(), request.currentPassword(), request.newPassword());
         sessionSecurityService.logoutAll(principal.getUsername(), httpRequest);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/email-change")
+    public ResponseEntity<Void> requestEmailChange(
+            @Valid @RequestBody AccountEmailChangeRequest request, Authentication authentication) {
+        AppUserPrincipal principal = requirePrincipal(authentication);
+        emailChangeService.request(
+                principal.userId(), request.currentPassword(), request.newEmail());
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/email-change/confirm")
+    public AccountEmailChangeResponse confirmEmailChange(
+            @Valid @RequestBody AccountEmailChangeConfirmRequest request,
+            HttpServletRequest httpRequest) {
+        String email = emailChangeService.confirm(request.token());
+        var session = httpRequest.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        return new AccountEmailChangeResponse(email);
     }
 
     @GetMapping("/withdrawal-readiness")
