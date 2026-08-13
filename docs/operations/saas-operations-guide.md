@@ -749,7 +749,10 @@ Workspace 생성만 명시적으로 예외 처리한다.
 | 플랫폼 운영자         |        30분 |            2개 |
 
 로그인 시 세션 ID를 교체한다. 전체 기기 로그아웃은 Redis에서 동일 principal의 세션을 모두
-삭제하고 현재 세션도 무효화한다.
+삭제하고 현재 세션도 무효화한다. 이 기능과 비밀번호·이메일 변경 뒤 세션 폐기는 principal index가 있는
+`RedisIndexedSessionRepository`를 전제로 한다. Redis 설정을 plain session repository로 되돌리면
+`findByPrincipalName` 조회가 비어 세션 폐기와 최대 동시 세션 제한이 조용히 무력화되므로
+`@EnableRedisIndexedHttpSession`을 유지한다.
 
 ### 중요 작업 재인증
 
@@ -761,7 +764,7 @@ Workspace 생성만 명시적으로 예외 처리한다.
 기록한다. 계정 탈퇴는 후자의 명시적 재인증 시각만 인정하므로 로그인 직후라도 재확인 없이 탈퇴할 수
 없다. 화면에서만 재확인을 요구하지 말고 서버의 `requireExplicitRecent` 경계를 유지한다.
 
-### 계정 탈퇴 운영 절차
+### 계정 보안 self-service
 
 계정 설정에서는 Workspace 콘텐츠와 독립된 Account 닉네임을 2~40자 범위에서 변경할 수 있다. 현재
 비밀번호를 확인한 비밀번호 변경은 가입과 같은 10~32자·대소문자·숫자·특수문자·취약 비밀번호 차단
@@ -770,7 +773,24 @@ Workspace 생성만 명시적으로 예외 처리한다.
 
 닉네임·비밀번호·전체 세션 변경은 각각 `ACCOUNT_DISPLAY_NAME_CHANGED`, `ACCOUNT_PASSWORD_CHANGED`,
 `ACCOUNT_SESSIONS_REVOKED` 감사 이벤트만 기록하며 비밀번호나 변경 전후 닉네임 원문은 기록하지 않는다.
-이메일 변경은 새 주소 확인과 충돌 회수 정책이 준비되기 전까지 제공하지 않는다.
+
+### 로그인 이메일 변경
+
+1. 로그인된 사용자는 계정 설정에서 현재 비밀번호와 새 이메일을 제출한다. 기존 로그인 이메일과 같거나
+   다른 Account가 이미 사용하는 이메일이면 요청을 거부한다.
+2. 활성 Account이면 기존 미사용 변경 token을 폐기하고 새 token을 발급한다. DB에는 SHA-256 hash만
+   저장하며 기본 유효시간은 30분이다. 확인 링크는 query string이 아닌 URL fragment로 전달한다.
+3. 메일 발송에 실패하면 새 token을 즉시 폐기한다. 확인 전까지 Account의 로그인 이메일은 바꾸지 않으므로
+   기존 이메일 로그인이 계속 가능하다.
+4. 확인 시 token을 비관적 잠금으로 한 번만 소비하고 새 이메일 충돌을 다시 검사한 뒤 Account 이메일을
+   변경한다. 대기 중인 Workspace 초대는 새 이메일로 자동 이전하지 않는다.
+5. 성공하면 현재 요청을 포함한 동일 principal의 모든 Redis 세션을 폐기한다. 기존 이메일 로그인과 token
+   재사용은 실패하고 새 이메일로 다시 로그인해야 한다. 요청·완료·발송 실패 감사 이벤트에는 이메일과
+   token 원문을 저장하지 않는다.
+
+로컬 Compose는 Mailpit SMTP를 사용한다. `EMAIL_CHANGE_BASE_URL`, `EMAIL_CHANGE_TOKEN_VALID_FOR`,
+`EMAIL_CHANGE_MAIL_FROM`을 운영 provider와 공개 HTTPS 주소에 맞게 주입한다. 사용·만료 token은 초대
+retention 스케줄에서 기본 30일 후 배치 삭제한다.
 
 ### 비밀번호 분실 재설정
 
@@ -789,6 +809,8 @@ Workspace 생성만 명시적으로 예외 처리한다.
 로컬 Compose는 Mailpit SMTP를 사용한다. `PASSWORD_RESET_BASE_URL`,
 `PASSWORD_RESET_TOKEN_VALID_FOR`, `PASSWORD_RESET_MAIL_FROM`을 운영 provider와 공개 HTTPS 주소에 맞게
 주입해야 한다. 사용·만료 token은 초대 retention 스케줄에서 기본 30일 후 배치 삭제한다.
+
+### 계정 탈퇴 운영 절차
 
 1. 사용자는 계정 메뉴의 `계정 설정`에서 탈퇴 가능 상태를 확인한다.
 2. 활성 Workspace `OWNER`이면 소유권을 이전하거나 해당 Workspace를 먼저 폐쇄한다. 플랫폼 역할이
@@ -1471,6 +1493,12 @@ Workspace namespace와 Membership 경계를 벗어나지 못하는지 함께 검
   무효화하도록 수정했다. 반복 로컬 실행은 인증 rate-limit 테스트 키만 초기화하며 운영 URL에서는
   스크립트가 실행을 거부한다. `password-reset` 제한 사유도 감사 코드 규격에 맞는
   `PASSWORD_RESET`으로 정규화해 제한 도달 시 400이 아니라 계약된 429를 반환한다.
+- 2026-08-14 같은 Compose UAT를 로그인 이메일 변경까지 확장했다. 현재 비밀번호 확인, Mailpit fragment
+  token, DB SHA-256 hash-only 저장, 확인 전 기존 이메일 로그인 유지, 일회성 확인, 기존 두 세션 폐기,
+  기존 이메일 차단, 새 이메일 로그인과 요청·완료 감사 이벤트를 검증했다. 이 과정에서 plain Redis
+  session repository에는 principal index가 없어 전체 기기 로그아웃과 동시 세션 제한이 무력화되는 공통
+  결함을 발견했고 indexed repository로 교체했다. core·api·worker 전체 테스트, frontend ESLint·production
+  build와 8단계 Compose UAT가 통과했으며 운영 provider 호출과 운영 배포는 수행하지 않았다.
 - 2026-08-12 Workspace 관리 UI에 남아 있던 Experience·Study·Competency AI의 `/api/admin/**` 호출을
   slug 기반 canonical API로 교체했다. 서비스는 Skill overlay, Experience, ExperienceDetail, Study,
   Competency 후보를 모두 URL Workspace로 조회하며 다른 Workspace ID는 AI provider 호출 전에
@@ -2094,13 +2122,14 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   수행하지 않았다.
 - `docker compose build backend backend-worker frontend-next` 병렬 빌드가 통과했다. backend와 worker의
   BuildKit Gradle cache는 `sharing=locked`로 고정해 공유 journal lock timeout을 재발하지 않게 했다.
-- Compose MySQL의 최신 Flyway 이력은 V224~V228을 포함해 모두 `success=1`이고 backend health는 `UP`다.
+- Compose MySQL의 최신 Flyway 이력은 V224~V230을 포함해 모두 `success=1`이고 backend health는 `UP`다.
 - `scripts/e2e/workspace-isolation-compose.sh` 9단계가 Profile, 공개 revision·rollback, canonical slug,
   Study·Experience Tree, Skill·Competency, 공통 공고의 Workspace별 지원 상태, 최종 PDF key·template,
   핵심 프로젝트, 통계·후원, 초대·역할·소유권 이전·폐쇄와 Vector cleanup을 모두 통과했다. 공통 공고는
   실행별 고유 URL과 승인 증적을 가진 fixture를 생성하고 종료 시 삭제하므로 기존 운영 데이터에 의존하지 않는다.
 - `scripts/e2e/registration-onboarding-compose.sh`는 실제 Mailpit 확인 메일, 확인 전 로그인 차단, 일회용
-  확인 링크, 첫 비공개 Workspace, 발행 전 404, schema v3 첫 발행과 공개 화면 200을 통과했다.
+  확인 링크, 첫 비공개 Workspace, 발행 전 404, schema v3 첫 발행, 비밀번호 재설정과 로그인 이메일 변경의
+  hash-only 일회용 token·전체 세션 폐기, 공개 화면 200을 통과했다.
 - `scripts/e2e/account-withdrawal-compose.sh`는 두 로그인 세션, 최근 비밀번호 재인증, 탈퇴 뒤 전체 세션
   만료, 기존 자격 증명 재로그인 차단, DB 익명화와 감사 이벤트를 통과했다.
 - `scripts/e2e/support-access-compose.sh`는 SUPPORT MFA, OWNER 승인, 세 최소 진단 범위, 즉시 철회,
@@ -2143,7 +2172,7 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   저장되는 것을 확인했다. 해당 Workspace에는 공개 학습 자료가 없어 후보 0개·연결 자료 0개와 자료 추가
   안내가 표시되는 것도 확인했다. 집중 목표를 입력하는 추천·피드백 경로는 NVIDIA NIM 호출과 비용·운영
   Secret에 의존하므로 이번 로컬 사람 UAT에서는 실행하지 않았고 provider 계약 검증 항목으로 남긴다.
-- 검증 기준 HEAD `282b487`에서 frontend format·ESLint(error 0·warning 0)·TypeScript·production build와
+- 검증 기준 기능 HEAD `5f1b46a`에서 frontend ESLint(error 0·warning 0)·TypeScript·production build와
   backend Spotless·전체 test를 통과했다. 같은 실행 중 Compose 환경에서 가입·Mailpit 확인·첫 발행,
   Account 탈퇴·전체 세션 만료·익명화, Support Access 승인·최소 진단·철회, 두 사용자·두 Workspace의
   9단계 격리 E2E를 연속 재실행해 모두 통과했다. fixture는 각 스크립트의 cleanup으로 정리되며 운영 배포와
