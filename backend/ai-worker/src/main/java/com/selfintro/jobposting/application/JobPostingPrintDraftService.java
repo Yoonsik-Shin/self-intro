@@ -6,19 +6,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.selfintro.bff.application.BffService;
+import com.selfintro.bff.application.IntroductionChannel;
 import com.selfintro.bff.presentation.dto.IntroductionResponse;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.global.ai.PrintDraftStreamSupport;
+import com.selfintro.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
-import com.selfintro.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
-import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
+import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
@@ -44,6 +46,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -128,7 +131,7 @@ public class JobPostingPrintDraftService {
             }
             """;
 
-    private final JobPostingRepository jobPostingRepository;
+    private final WorkspaceJobApplicationRepository workspaceJobApplicationRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
     private final JobPostingSourceImageRepository sourceImageRepository;
@@ -144,26 +147,42 @@ public class JobPostingPrintDraftService {
     private Duration aiTimeout = Duration.ofSeconds(240);
 
     /**
-     * generate()를 그대로 감싸되 Cloudflare 엣지 타임아웃(524)을 피하기 위해 SSE로 응답한다 —
-     * 헤더가 즉시 나가므로 긴 AI 호출 중에도 요청이 끊기지 않는다(VectorBackfillOrchestrator와
-     * 동일한 문제, JobApplicationUrlParseService.parseStream과 동일한 해법).
+     * generate()를 그대로 감싸되 Cloudflare 엣지 타임아웃(524)을 피하기 위해 SSE로 응답한다 — 헤더가 즉시 나가므로 긴 AI 호출 중에도 요청이
+     * 끊기지 않는다(VectorBackfillOrchestrator와 동일한 문제, JobApplicationUrlParseService.parseStream과 동일한
+     * 해법).
      */
-    public SseEmitter generateStream(Long jobPostingId, String aiModel, String customModelName) {
-        SseEmitter emitter = printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "이력서 PDF 초안");
+    public SseEmitter generateStream(
+            Long workspaceId, Long jobPostingId, String aiModel, String customModelName) {
+        SseEmitter emitter =
+                printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "이력서 PDF 초안");
         Thread.ofVirtual()
                 .name("job-posting-print-draft-stream")
-                .start(() -> streamGenerate(jobPostingId, aiModel, customModelName, emitter));
+                .start(
+                        () ->
+                                streamGenerate(
+                                        workspaceId,
+                                        jobPostingId,
+                                        aiModel,
+                                        customModelName,
+                                        emitter));
         return emitter;
     }
 
-    private void streamGenerate(Long jobPostingId, String aiModel, String customModelName, SseEmitter emitter) {
+    private void streamGenerate(
+            Long workspaceId,
+            Long jobPostingId,
+            String aiModel,
+            String customModelName,
+            SseEmitter emitter) {
         try {
-            JobPostingPrintDraftResponse response = generate(jobPostingId, aiModel, customModelName);
+            JobPostingPrintDraftResponse response =
+                    generate(workspaceId, jobPostingId, aiModel, customModelName);
             printDraftStreamSupport.sendComplete(emitter, response);
         } catch (ResponseStatusException exception) {
             log.warn("AI PDF 초안 스트리밍 실패: {}", exception.getReason(), exception);
             printDraftStreamSupport.sendError(
-                    emitter, exception.getReason() == null ? "PDF 초안 생성에 실패했습니다." : exception.getReason());
+                    emitter,
+                    exception.getReason() == null ? "PDF 초안 생성에 실패했습니다." : exception.getReason());
         } catch (Exception exception) {
             log.warn("AI PDF 초안 스트리밍 중 예상하지 못한 오류", exception);
             printDraftStreamSupport.sendError(emitter, "PDF 초안 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -171,17 +190,20 @@ public class JobPostingPrintDraftService {
     }
 
     public SseEmitter reviseStream(
+            Long workspaceId,
             Long jobPostingId,
             Long templateId,
             String feedbackInstruction,
             String aiModel,
             String customModelName) {
-        SseEmitter emitter = printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "이력서 PDF 재생성");
+        SseEmitter emitter =
+                printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "이력서 PDF 재생성");
         Thread.ofVirtual()
                 .name("job-posting-print-draft-revise-stream")
                 .start(
                         () ->
                                 streamRevise(
+                                        workspaceId,
                                         jobPostingId,
                                         templateId,
                                         feedbackInstruction,
@@ -192,6 +214,7 @@ public class JobPostingPrintDraftService {
     }
 
     private void streamRevise(
+            Long workspaceId,
             Long jobPostingId,
             Long templateId,
             String feedbackInstruction,
@@ -200,26 +223,28 @@ public class JobPostingPrintDraftService {
             SseEmitter emitter) {
         try {
             JobPostingPrintDraftResponse response =
-                    revise(jobPostingId, templateId, feedbackInstruction, aiModel, customModelName);
+                    revise(
+                            workspaceId,
+                            jobPostingId,
+                            templateId,
+                            feedbackInstruction,
+                            aiModel,
+                            customModelName);
             printDraftStreamSupport.sendComplete(emitter, response);
         } catch (ResponseStatusException exception) {
             log.warn("AI PDF 재생성 스트리밍 실패: {}", exception.getReason(), exception);
             printDraftStreamSupport.sendError(
-                    emitter, exception.getReason() == null ? "PDF 재생성에 실패했습니다." : exception.getReason());
+                    emitter,
+                    exception.getReason() == null ? "PDF 재생성에 실패했습니다." : exception.getReason());
         } catch (Exception exception) {
             log.warn("AI PDF 재생성 스트리밍 중 예상하지 못한 오류", exception);
             printDraftStreamSupport.sendError(emitter, "PDF 재생성 중 오류가 발생했습니다. 다시 시도해주세요.");
         }
     }
 
-    public JobPostingPrintDraftResponse generate(Long jobPostingId, String aiModel, String customModelName) {
-        JobPosting postingEntity =
-                jobPostingRepository
-                        .findById(jobPostingId)
-                        .orElseThrow(
-                                () ->
-                                        new jakarta.persistence.EntityNotFoundException(
-                                                "존재하지 않는 채용 공고입니다: " + jobPostingId));
+    public JobPostingPrintDraftResponse generate(
+            Long workspaceId, Long jobPostingId, String aiModel, String customModelName) {
+        JobPosting postingEntity = requireApplication(workspaceId, jobPostingId).getJobPosting();
         JobPostingResponse posting =
                 JobPostingResponse.from(
                         postingEntity,
@@ -229,8 +254,10 @@ public class JobPostingPrintDraftService {
                                 postingEntity.getId()),
                         sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(
                                 postingEntity.getId()));
-        IntroductionResponse introduction = bffService.getIntroduction();
-        List<ExperienceResponse> relevantExperiences = filterRelevantExperiences(posting, introduction);
+        IntroductionResponse introduction =
+                bffService.getIntroduction(workspaceId, IntroductionChannel.RESUME);
+        List<ExperienceResponse> relevantExperiences =
+                filterRelevantExperiences(workspaceId, posting, introduction);
         String input = serializeInput(posting, introduction, relevantExperiences);
         String raw =
                 llmDispatcher.generateJson(
@@ -246,6 +273,7 @@ public class JobPostingPrintDraftService {
         String metadata = writeJson(buildMetadata(plan, artifacts));
         PrintTemplate template =
                 printTemplateService.createAiDraft(
+                        workspaceId,
                         jobPostingId,
                         posting.companyName(),
                         posting.positionTitle(),
@@ -279,18 +307,13 @@ public class JobPostingPrintDraftService {
     }
 
     private JobPostingPrintDraftResponse revise(
+            Long workspaceId,
             Long jobPostingId,
             Long templateId,
             String feedbackInstruction,
             String aiModel,
             String customModelName) {
-        JobPosting postingEntity =
-                jobPostingRepository
-                        .findById(jobPostingId)
-                        .orElseThrow(
-                                () ->
-                                        new jakarta.persistence.EntityNotFoundException(
-                                                "존재하지 않는 채용 공고입니다: " + jobPostingId));
+        JobPosting postingEntity = requireApplication(workspaceId, jobPostingId).getJobPosting();
         JobPostingResponse posting =
                 JobPostingResponse.from(
                         postingEntity,
@@ -300,9 +323,14 @@ public class JobPostingPrintDraftService {
                                 postingEntity.getId()),
                         sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(
                                 postingEntity.getId()));
-        IntroductionResponse introduction = bffService.getIntroduction();
-        List<ExperienceResponse> relevantExperiences = filterRelevantExperiences(posting, introduction);
-        PrintTemplate current = printTemplateService.getOrThrow(templateId);
+        IntroductionResponse introduction =
+                bffService.getIntroduction(workspaceId, IntroductionChannel.RESUME);
+        List<ExperienceResponse> relevantExperiences =
+                filterRelevantExperiences(workspaceId, posting, introduction);
+        PrintTemplate current = printTemplateService.getOrThrow(workspaceId, templateId);
+        if (!jobPostingId.equals(current.getJobPostingId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "PDF 초안을 찾을 수 없습니다.");
+        }
         String input =
                 serializeRevisionInput(
                         posting, introduction, relevantExperiences, current, feedbackInstruction);
@@ -320,6 +348,7 @@ public class JobPostingPrintDraftService {
         String metadata = writeJson(buildMetadata(plan, artifacts));
         PrintTemplate template =
                 printTemplateService.applyAiRevision(
+                        workspaceId,
                         templateId,
                         writeJson(artifacts.excludedIds()),
                         SECTION_ORDER,
@@ -327,8 +356,7 @@ public class JobPostingPrintDraftService {
                         writeJson(artifacts.contentOverrides()),
                         metadata);
 
-        String strategySummary =
-                text(plan, "strategySummary", "피드백을 반영해 초안을 다시 구성했습니다.", 1000);
+        String strategySummary = text(plan, "strategySummary", "피드백을 반영해 초안을 다시 구성했습니다.", 1000);
         String modelLabel = llmDispatcher.resolveLabel(aiModel, customModelName);
         LocalDateTime now = LocalDateTime.now();
         if (AiJsonSupport.hasText(feedbackInstruction)) {
@@ -341,7 +369,11 @@ public class JobPostingPrintDraftService {
         }
         printTemplateRevisionRepository.save(
                 PrintTemplateRevision.create(
-                        templateId, PrintTemplateRevision.SENDER_AI, strategySummary, modelLabel, now));
+                        templateId,
+                        PrintTemplateRevision.SENDER_AI,
+                        strategySummary,
+                        modelLabel,
+                        now));
 
         return new JobPostingPrintDraftResponse(
                 template.getId(),
@@ -373,13 +405,17 @@ public class JobPostingPrintDraftService {
         currentDraft.set("excludedIds", readJsonOrEmptyArray(current.getExcludedIds()));
         currentDraft.set("contentOverrides", readJsonOrEmptyObject(current.getContentOverrides()));
         input.set("currentDraft", currentDraft);
-        input.put("feedbackInstruction", feedbackInstruction == null ? "" : feedbackInstruction.trim());
+        input.put(
+                "feedbackInstruction",
+                feedbackInstruction == null ? "" : feedbackInstruction.trim());
         return writeJson(input);
     }
 
     private JsonNode readJsonOrEmptyArray(String raw) {
         try {
-            return raw == null || raw.isBlank() ? objectMapper.createArrayNode() : objectMapper.readTree(raw);
+            return raw == null || raw.isBlank()
+                    ? objectMapper.createArrayNode()
+                    : objectMapper.readTree(raw);
         } catch (JsonProcessingException exception) {
             return objectMapper.createArrayNode();
         }
@@ -387,14 +423,18 @@ public class JobPostingPrintDraftService {
 
     private JsonNode readJsonOrEmptyObject(String raw) {
         try {
-            return raw == null || raw.isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(raw);
+            return raw == null || raw.isBlank()
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.readTree(raw);
         } catch (JsonProcessingException exception) {
             return objectMapper.createObjectNode();
         }
     }
 
     private String serializeInput(
-            JobPostingResponse posting, IntroductionResponse introduction, List<ExperienceResponse> experiences) {
+            JobPostingResponse posting,
+            IntroductionResponse introduction,
+            List<ExperienceResponse> experiences) {
         ObjectNode input = objectMapper.createObjectNode();
         input.set("jobPosting", objectMapper.valueToTree(posting));
         input.set("profile", objectMapper.valueToTree(introduction.profile()));
@@ -406,22 +446,28 @@ public class JobPostingPrintDraftService {
     }
 
     /**
-     * 프로필 전체(경력/프로젝트)를 통째로 넣는 대신, 채용공고 요건과 하이브리드 검색으로 관련도 높은 프로젝트만 AI 선택 후보로 좁힌다. 회사 경력
-     * 레코드 자체(type != PROJECT)와 고정 노출 대상인 core project는 관련도와 무관하게 항상 후보에 남긴다 — AI가 실제로 제거하는 건
-     * 프로젝트/세부 성과뿐이라는 시스템 프롬프트 규칙과 같은 맥락이다. 벡터 인덱스가 비어 있으면 필터링 없이 전체를 그대로 넘긴다.
+     * 프로필 전체(경력/프로젝트)를 통째로 넣는 대신, 채용공고 요건과 하이브리드 검색으로 관련도 높은 프로젝트만 AI 선택 후보로 좁힌다. 회사 경력 레코드 자체(type
+     * != PROJECT)와 고정 노출 대상인 core project는 관련도와 무관하게 항상 후보에 남긴다 — AI가 실제로 제거하는 건 프로젝트/세부 성과뿐이라는 시스템
+     * 프롬프트 규칙과 같은 맥락이다. 벡터 인덱스가 비어 있으면 필터링 없이 전체를 그대로 넘긴다.
      */
     private List<ExperienceResponse> filterRelevantExperiences(
-            JobPostingResponse posting, IntroductionResponse intro) {
-        String queryText = JobPostingRetrievalQueryText.build(
-                posting.positionTitle(), posting.jobDescription(), posting.requiredQualifications(), posting.preferredQualifications());
-        RelevantMatches matches = relevantProfileDigestService.search(queryText, new TopK(PROJECT_RELEVANCE_TOP_K, 0));
+            Long workspaceId, JobPostingResponse posting, IntroductionResponse intro) {
+        String queryText =
+                JobPostingRetrievalQueryText.build(
+                        posting.positionTitle(),
+                        posting.jobDescription(),
+                        posting.requiredQualifications(),
+                        posting.preferredQualifications());
+        RelevantMatches matches =
+                relevantProfileDigestService.search(
+                        workspaceId, queryText, new TopK(PROJECT_RELEVANCE_TOP_K, 0));
         if (matches.isEmpty()) {
             return intro.experiences();
         }
 
         Set<Long> relevantIds =
                 matches.experiences().stream()
-                        .map(match -> match.item().getExperienceId())
+                        .map(match -> match.item().experienceId())
                         .collect(Collectors.toCollection(LinkedHashSet::new));
         Set<Long> coreProjectIds = new HashSet<>();
         intro.coreProjects().forEach(project -> coreProjectIds.add(project.id()));
@@ -435,7 +481,19 @@ public class JobPostingPrintDraftService {
                 .toList();
     }
 
-    private DraftArtifacts assemble(JsonNode plan, IntroductionResponse intro, List<ExperienceResponse> experiencesToConsider) {
+    private WorkspaceJobApplication requireApplication(Long workspaceId, Long jobPostingId) {
+        return workspaceJobApplicationRepository
+                .findByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
+                .orElseThrow(
+                        () ->
+                                new jakarta.persistence.EntityNotFoundException(
+                                        "Workspace 지원 건을 찾을 수 없습니다: " + jobPostingId));
+    }
+
+    private DraftArtifacts assemble(
+            JsonNode plan,
+            IntroductionResponse intro,
+            List<ExperienceResponse> experiencesToConsider) {
         Map<Long, ExperienceResponse> experiences = new HashMap<>();
         Map<Long, ExperienceDetailResponse> details = new HashMap<>();
         for (ExperienceResponse experience : experiencesToConsider) {
