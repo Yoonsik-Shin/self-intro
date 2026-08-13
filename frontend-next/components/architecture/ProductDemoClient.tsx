@@ -17,6 +17,7 @@ import {
     Home,
     LayoutDashboard,
     LockKeyhole,
+    Menu,
     Plus,
     Printer,
     RefreshCw,
@@ -112,6 +113,7 @@ export function ProductDemoClient() {
     const [activeTab, setActiveTab] = useState<DemoTab>('OVERVIEW');
     const [demo, setDemo] = useState<DemoState>(initialState);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isPreviewOpen, setIsPreviewOpen] = useState(true);
     const [saved, setSaved] = useState(false);
 
@@ -130,6 +132,7 @@ export function ProductDemoClient() {
     const selectTab = (tab: DemoTab) => {
         setActiveTab(tab);
         setSaved(false);
+        setIsMobileMenuOpen(false);
     };
 
     const handleSave = () => {
@@ -165,12 +168,26 @@ export function ProductDemoClient() {
                 <div className="flex shrink-0 items-center gap-2">
                     <button
                         type="button"
+                        onClick={() => {
+                            setIsSidebarCollapsed(false);
+                            setIsMobileMenuOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 lg:hidden"
+                        aria-label="워크스페이스 메뉴 열기"
+                        title="워크스페이스 메뉴 열기"
+                    >
+                        <Menu className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => setIsPreviewOpen((open) => !open)}
                         className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
                             isPreviewOpen
                                 ? 'border-slate-900 bg-slate-900 text-white'
                                 : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
+                        aria-label={isPreviewOpen ? '미리보기 닫기' : '미리보기 열기'}
+                        title={isPreviewOpen ? '미리보기 닫기' : '미리보기 열기'}
                     >
                         <Eye className="h-3.5 w-3.5" />
                         <span className="hidden md:inline">미리보기</span>
@@ -179,6 +196,8 @@ export function ProductDemoClient() {
                         type="button"
                         onClick={reset}
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                        aria-label="데모 초기화"
+                        title="데모 초기화"
                     >
                         <RotateCcw className="h-3.5 w-3.5" />
                         <span className="hidden md:inline">초기화</span>
@@ -186,6 +205,8 @@ export function ProductDemoClient() {
                     <Link
                         href="/#admin-demo"
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                        aria-label="데모 종료"
+                        title="데모 종료"
                     >
                         <Home className="h-3.5 w-3.5" />
                         <span className="hidden md:inline">데모 종료</span>
@@ -200,27 +221,49 @@ export function ProductDemoClient() {
             </div>
 
             <div className="flex items-start">
+                {isMobileMenuOpen && (
+                    <button
+                        type="button"
+                        className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[1px] lg:hidden"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        aria-label="워크스페이스 메뉴 닫기"
+                    />
+                )}
                 <div className="min-w-0 flex-1">
                     <div
-                        className="grid w-full gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 sm:px-6 lg:px-8"
-                        style={{
-                            gridTemplateColumns: isSidebarCollapsed
-                                ? '64px minmax(0, 1fr)'
-                                : '240px minmax(0, 1fr)',
-                        }}
+                        className={`grid w-full grid-cols-1 gap-6 px-4 py-6 transition-[grid-template-columns] duration-300 sm:px-6 lg:px-8 ${
+                            isSidebarCollapsed
+                                ? 'lg:grid-cols-[64px_minmax(0,1fr)]'
+                                : 'lg:grid-cols-[240px_minmax(0,1fr)]'
+                        }`}
                     >
                         <aside
-                            className={`relative min-w-0 transition-all duration-300 lg:sticky lg:top-24 lg:self-start ${
+                            className={`fixed inset-y-0 left-0 z-50 w-[min(84vw,280px)] min-w-0 overflow-y-auto bg-white px-4 py-5 shadow-2xl transition-transform duration-300 lg:sticky lg:top-24 lg:z-auto lg:block lg:w-auto lg:translate-x-0 lg:self-start lg:overflow-visible lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none ${
+                                isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                            } ${
                                 isSidebarCollapsed
                                     ? 'rounded-2xl border border-slate-200 bg-white px-2 py-3 shadow-sm'
                                     : ''
                             }`}
                         >
+                            <div className="mb-4 flex items-center justify-between lg:hidden">
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                    워크스페이스 메뉴
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500"
+                                    aria-label="워크스페이스 메뉴 닫기"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
                                 title={isSidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'}
-                                className={`z-20 flex items-center justify-center text-slate-400 transition hover:text-slate-900 ${
+                                className={`z-20 hidden items-center justify-center text-slate-400 transition hover:text-slate-900 lg:flex ${
                                     isSidebarCollapsed
                                         ? 'relative mx-auto mb-3 h-8 w-8'
                                         : 'absolute -right-4 top-1 h-10 w-8'
