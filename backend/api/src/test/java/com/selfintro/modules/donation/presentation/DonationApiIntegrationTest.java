@@ -47,6 +47,12 @@ class DonationApiIntegrationTest {
     }
 
     @Test
+    void workspaceUserCannotReadPlatformDonationHistory() throws Exception {
+        mockMvc.perform(get("/api/admin/donations").with(user("workspace-owner").roles("USER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void settingsUpdateRequiresAdmin() throws Exception {
         mockMvc.perform(
                         put("/api/admin/donations/settings")
