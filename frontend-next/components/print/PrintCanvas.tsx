@@ -2255,7 +2255,9 @@ export function PrintCanvas({
                         <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                             <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                                 <Briefcase className="h-4 w-4 text-slate-900" />
-                                직장 경력 (총 {careerSummary})
+                                {careerSummary.trim()
+                                    ? `직장 경력 (총 ${careerSummary})`
+                                    : '직장 경력'}
                             </h2>
                         </div>
                     </div>

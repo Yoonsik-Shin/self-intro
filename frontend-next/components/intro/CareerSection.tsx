@@ -109,7 +109,7 @@ export function CareerSection({
                     <h2 className="resume-section-title mb-4 flex items-center justify-between gap-2 border-b border-slate-100 pb-3 font-black text-slate-900">
                         <span className="flex items-center gap-2">
                             <Briefcase className="h-5 w-5 text-slate-900" />
-                            직장 경력 (총 {careerSummary})
+                            {careerSummary.trim() ? `직장 경력 (총 ${careerSummary})` : '직장 경력'}
                         </span>
                         {(expandableDetailIds.length > 0 || expandableProjectIds.length > 0) && (
                             <button
