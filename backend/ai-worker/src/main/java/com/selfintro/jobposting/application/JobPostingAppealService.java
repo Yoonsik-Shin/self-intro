@@ -1,10 +1,11 @@
 package com.selfintro.jobposting.application;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
-import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
+import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
@@ -20,23 +21,28 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class JobPostingAppealService {
 
-    private final JobPostingRepository jobPostingRepository;
+    private final WorkspaceJobApplicationRepository applicationRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
     private final JobPostingSourceImageRepository sourceImageRepository;
     private final CareerAppealAnalyzer careerAppealAnalyzer;
-    private final JobMatchingService jobMatchingService;
 
     @Transactional
-    public JobPostingResponse analyzeAppeal(Long id, String aiModel, String customModelName) {
-        JobPosting posting =
-                jobPostingRepository
-                        .findById(id)
-                        .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + id));
-
+    public JobPostingResponse analyzeAppeal(
+            Long workspaceId, Long jobPostingId, String aiModel, String customModelName) {
+        WorkspaceJobApplication application =
+                applicationRepository
+                        .findByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
+                        .orElseThrow(
+                                () ->
+                                        new EntityNotFoundException(
+                                                "Workspace job application not found: "
+                                                        + jobPostingId));
+        JobPosting posting = application.getJobPosting();
         LocalDateTime now = LocalDateTime.now();
         String analysis =
                 careerAppealAnalyzer.analyze(
+                        workspaceId,
                         posting.getCompanyName(),
                         posting.getPositionTitle(),
                         posting.getJobDescription(),
@@ -44,18 +50,10 @@ public class JobPostingAppealService {
                         posting.getPreferredQualifications(),
                         aiModel,
                         customModelName);
-
-        posting.applyAppealAnalysis(analysis, now);
-
-        if (posting.getMatchScore() == null) {
-            JobMatchingService.MatchResult match =
-                    jobMatchingService.evaluate(
-                            posting.getPositionTitle(), posting.getRequiredSkillsRaw());
-            posting.applyMatch(match.score(), match.reason(), now);
-        }
-
+        application.applyAppealAnalysis(analysis, now);
         return JobPostingResponse.from(
                 posting,
+                application,
                 sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
                         posting.getId()),
                 positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),

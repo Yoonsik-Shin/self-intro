@@ -50,9 +50,12 @@ public class CareerAppealAnalyzer {
             String preferredQualifications,
             String aiModel,
             String customModelName) {
-        String queryText = JobPostingRetrievalQueryText.build(
-                title, jobDescription, requiredQualifications, preferredQualifications);
-        String profileDigest = relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+        String queryText =
+                JobPostingRetrievalQueryText.build(
+                        title, jobDescription, requiredQualifications, preferredQualifications);
+        String profileDigest =
+                relevantProfileDigestService.buildDigest(
+                        queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
         String userPrompt =
                 buildUserPrompt(
                         companyName,
@@ -61,12 +64,41 @@ public class CareerAppealAnalyzer {
                         requiredQualifications,
                         preferredQualifications,
                         profileDigest);
-        String analysis = llmDispatcher.generate(APPEAL_PROMPT, userPrompt, aiModel, customModelName);
+        String analysis =
+                llmDispatcher.generate(APPEAL_PROMPT, userPrompt, aiModel, customModelName);
         // 이 모델은 이 프롬프트처럼 순수 텍스트(비-JSON)를 길게 생성할 때 종종 실제 줄바꿈 대신
         // 문자 그대로의 "\n"을 뱉는다 — JSON 모드로 학습된 습관이 새어나오는 것으로 보인다.
         // JSON 응답은 Jackson이 이스케이프를 정상적으로 풀어주지만, 이 경로는 raw 텍스트라 직접
         // 풀어줘야 마크다운 구조(문단 구분, 개별 포인트 줄바꿈)가 깨지지 않는다.
         return analysis.replace("\\n", "\n");
+    }
+
+    public String analyze(
+            Long workspaceId,
+            String companyName,
+            String title,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String aiModel,
+            String customModelName) {
+        String queryText =
+                JobPostingRetrievalQueryText.build(
+                        title, jobDescription, requiredQualifications, preferredQualifications);
+        String profileDigest =
+                relevantProfileDigestService.buildDigest(
+                        workspaceId, queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+        String userPrompt =
+                buildUserPrompt(
+                        companyName,
+                        title,
+                        jobDescription,
+                        requiredQualifications,
+                        preferredQualifications,
+                        profileDigest);
+        return llmDispatcher
+                .generate(APPEAL_PROMPT, userPrompt, aiModel, customModelName)
+                .replace("\\n", "\n");
     }
 
     private String buildUserPrompt(
