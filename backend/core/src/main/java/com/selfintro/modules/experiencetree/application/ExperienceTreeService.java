@@ -38,6 +38,15 @@ public class ExperienceTreeService {
             key =
                     "(#domain == null ? 'ALL' : #domain.name()) + ':' + (#query == null ? '' : #query)")
     public ExperienceTreeResponse.Index index(DecisionDomain domain, String query) {
+        return index(null, domain, query);
+    }
+
+    @Cacheable(
+            value = "experience-tree:index",
+            key =
+                    "#workspaceId + ':' + (#domain == null ? 'ALL' : #domain.name()) + ':' + (#query == null ? '' : #query)")
+    public ExperienceTreeResponse.Index index(
+            Long workspaceId, DecisionDomain domain, String query) {
         List<DecisionSituation> situations =
                 domain == null
                         ? situationRepository
@@ -46,19 +55,24 @@ public class ExperienceTreeService {
                         : situationRepository
                                 .findAllByDomainAndVerificationStatusOrderByDisplayOrderAsc(
                                         domain, VerificationStatus.VERIFIED);
-        return buildIndex(situations, query);
+        return buildIndex(situations, query, workspaceId);
     }
 
     public ExperienceTreeResponse.Index adminIndex(DecisionDomain domain, String query) {
+        return adminIndex(null, domain, query);
+    }
+
+    public ExperienceTreeResponse.Index adminIndex(
+            Long workspaceId, DecisionDomain domain, String query) {
         List<DecisionSituation> situations =
                 domain == null
                         ? situationRepository.findAllByOrderByDomainAscDisplayOrderAsc()
                         : situationRepository.findAllByDomainOrderByDisplayOrderAsc(domain);
-        return buildIndex(situations, query);
+        return buildIndex(situations, query, workspaceId);
     }
 
     private ExperienceTreeResponse.Index buildIndex(
-            List<DecisionSituation> situations, String query) {
+            List<DecisionSituation> situations, String query, Long workspaceId) {
         String normalized =
                 StringUtils.hasText(query) ? query.trim().toLowerCase(Locale.ROOT) : null;
         List<ExperienceTreeResponse.SituationSummary> summaries =
@@ -75,7 +89,7 @@ public class ExperienceTreeService {
                                                 || value.getTopic()
                                                         .toLowerCase(Locale.ROOT)
                                                         .contains(normalized))
-                        .map(this::toSummary)
+                        .map(value -> toSummary(value, workspaceId))
                         .toList();
         Set<String> visibleKeys =
                 summaries.stream()
@@ -96,6 +110,11 @@ public class ExperienceTreeService {
 
     @Cacheable(value = "experience-tree:detail", key = "#stableKey")
     public ExperienceTreeResponse.Detail detail(String stableKey) {
+        return detail(null, stableKey);
+    }
+
+    @Cacheable(value = "experience-tree:detail", key = "#workspaceId + ':' + #stableKey")
+    public ExperienceTreeResponse.Detail detail(Long workspaceId, String stableKey) {
         DecisionSituation situation =
                 situationRepository
                         .findByStableKey(stableKey)
@@ -107,21 +126,30 @@ public class ExperienceTreeService {
                                 () ->
                                         new EntityNotFoundException(
                                                 "Situation not found: " + stableKey));
-        return toDetail(situation, false);
+        return toDetail(situation, false, workspaceId);
     }
 
     public ExperienceTreeResponse.Detail adminDetail(String stableKey) {
-        return toDetail(requiredSituation(stableKey), true);
+        return adminDetail(null, stableKey);
     }
 
-    @Cacheable(value = "experience-tree:studies", key = "#stableKey + ':' + #admin")
-    public List<ExperienceTreeResponse.StudyLink> studies(String stableKey, boolean admin) {
+    public ExperienceTreeResponse.Detail adminDetail(Long workspaceId, String stableKey) {
+        return toDetail(requiredSituation(stableKey), true, workspaceId);
+    }
+
+    @Cacheable(
+            value = "experience-tree:studies",
+            key = "#workspaceId + ':' + #stableKey + ':' + #admin")
+    public List<ExperienceTreeResponse.StudyLink> studies(
+            Long workspaceId, String stableKey, boolean admin) {
         DecisionSituation situation = requiredSituation(stableKey);
         if (!admin && situation.getVerificationStatus() != VerificationStatus.VERIFIED) {
             throw new EntityNotFoundException("Situation not found: " + stableKey);
         }
+        if (workspaceId == null) return List.of();
         return studyLinkRepository
-                .findAllBySituationIdOrderByDisplayOrderAsc(situation.getId())
+                .findAllByWorkspaceIdAndSituationIdOrderByDisplayOrderAsc(
+                        workspaceId, situation.getId())
                 .stream()
                 .filter(link -> admin || link.getStudy().getStatus() == StudyStatus.PUBLISHED)
                 .map(ExperienceTreeResponse.StudyLink::from)
@@ -132,12 +160,13 @@ public class ExperienceTreeService {
     @CacheEvict(
             value = {"experience-tree:index", "experience-tree:detail", "experience-tree:studies"},
             allEntries = true)
-    public ExperienceTreeResponse.StudyLink createLink(DecisionStudyLinkRequest request) {
+    public ExperienceTreeResponse.StudyLink createLink(
+            Long workspaceId, DecisionStudyLinkRequest request) {
         DecisionSituation situation = requiredSituation(request.situationKey());
         DecisionOption option = resolveOption(situation, request.optionKey());
         Study study =
                 studyRepository
-                        .findById(request.studyId())
+                        .findByIdAndWorkspaceId(request.studyId(), workspaceId)
                         .orElseThrow(
                                 () ->
                                         new EntityNotFoundException(
@@ -145,6 +174,7 @@ public class ExperienceTreeService {
         validateRetrospectRelation(study, request.relationType());
         DecisionStudyLink link =
                 DecisionStudyLink.create(
+                        workspaceId,
                         situation,
                         option,
                         study,
@@ -158,10 +188,11 @@ public class ExperienceTreeService {
     @CacheEvict(
             value = {"experience-tree:index", "experience-tree:detail", "experience-tree:studies"},
             allEntries = true)
-    public ExperienceTreeResponse.StudyLink updateLink(Long id, DecisionStudyLinkRequest request) {
+    public ExperienceTreeResponse.StudyLink updateLink(
+            Long workspaceId, Long id, DecisionStudyLinkRequest request) {
         DecisionStudyLink link =
                 studyLinkRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(
                                 () ->
                                         new EntityNotFoundException(
@@ -181,10 +212,10 @@ public class ExperienceTreeService {
     @CacheEvict(
             value = {"experience-tree:index", "experience-tree:detail", "experience-tree:studies"},
             allEntries = true)
-    public void deleteLink(Long id) {
+    public void deleteLink(Long workspaceId, Long id) {
         DecisionStudyLink link =
                 studyLinkRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(
                                 () ->
                                         new EntityNotFoundException(
@@ -193,21 +224,25 @@ public class ExperienceTreeService {
         studyLinkRepository.delete(link);
     }
 
-    private ExperienceTreeResponse.SituationSummary toSummary(DecisionSituation value) {
+    private ExperienceTreeResponse.SituationSummary toSummary(
+            DecisionSituation value, Long workspaceId) {
         List<DecisionOption> options =
                 optionRepository.findAllBySituationIdOrderByDisplayOrderAsc(value.getId());
         int warningCount =
                 warningRepository.findAllBySituationIdOrderByDisplayOrderAsc(value.getId()).size();
         int studyCount =
-                (int)
-                        studyLinkRepository
-                                .findAllBySituationIdOrderByDisplayOrderAsc(value.getId())
-                                .stream()
-                                .filter(
-                                        link ->
-                                                link.getStudy().getStatus()
-                                                        == StudyStatus.PUBLISHED)
-                                .count();
+                workspaceId == null
+                        ? 0
+                        : (int)
+                                studyLinkRepository
+                                        .findAllByWorkspaceIdAndSituationIdOrderByDisplayOrderAsc(
+                                                workspaceId, value.getId())
+                                        .stream()
+                                        .filter(
+                                                link ->
+                                                        link.getStudy().getStatus()
+                                                                == StudyStatus.PUBLISHED)
+                                        .count();
         return new ExperienceTreeResponse.SituationSummary(
                 value.getStableKey(),
                 value.getParent() == null ? null : value.getParent().getStableKey(),
@@ -224,7 +259,8 @@ public class ExperienceTreeService {
                 value.getDisplayOrder());
     }
 
-    private ExperienceTreeResponse.Detail toDetail(DecisionSituation situation, boolean admin) {
+    private ExperienceTreeResponse.Detail toDetail(
+            DecisionSituation situation, boolean admin, Long workspaceId) {
         List<DecisionOption> options =
                 optionRepository.findAllBySituationIdOrderByDisplayOrderAsc(situation.getId());
         List<DecisionTradeoff> tradeoffs =
@@ -279,7 +315,7 @@ public class ExperienceTreeService {
                                                         .equals(situation.getId()))
                         .map(ExperienceTreeResponse.SituationRelation::from)
                         .toList(),
-                studies(situation.getStableKey(), admin));
+                studies(workspaceId, situation.getStableKey(), admin));
     }
 
     private DecisionSituation requiredSituation(String stableKey) {

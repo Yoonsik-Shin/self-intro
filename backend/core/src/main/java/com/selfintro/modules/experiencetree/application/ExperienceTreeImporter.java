@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.selfintro.modules.experiencetree.domain.entity.*;
 import com.selfintro.modules.experiencetree.domain.repository.*;
+import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.io.IOException;
@@ -38,6 +39,7 @@ public class ExperienceTreeImporter {
     private final DecisionSituationRelationRepository relationRepository;
     private final DecisionStudyLinkRepository studyLinkRepository;
     private final StudyRepository studyRepository;
+    private final PublicWorkspaceResolver publicWorkspaceResolver;
     private final CacheManager cacheManager;
     private final JdbcTemplate jdbcTemplate;
 
@@ -426,6 +428,13 @@ public class ExperienceTreeImporter {
 
     private void syncStudyLinks(
             ExperienceTreeTopologyDocument topology, Map<String, DecisionSituation> situations) {
+        Optional<Long> publicWorkspaceId =
+                publicWorkspaceResolver.findDefaultPublicWorkspace().map(value -> value.getId());
+        if (publicWorkspaceId.isEmpty()) {
+            log.info("공개 bootstrap Workspace가 없어 Experience Tree 기본 Study 연결을 건너뜁니다.");
+            return;
+        }
+        Long workspaceId = publicWorkspaceId.get();
         Set<String> desiredSeedKeys = new HashSet<>();
         for (ExperienceTreeTopologyDocument.StudyLinkDocument draft : safe(topology.studyLinks())) {
             DecisionSituation situation =
@@ -445,7 +454,8 @@ public class ExperienceTreeImporter {
                             "study link option이 상황에 속하지 않습니다: " + draft.seedKey());
                 }
             }
-            Optional<Study> studyCandidate = studyRepository.findBySlug(draft.studySlug());
+            Optional<Study> studyCandidate =
+                    studyRepository.findByWorkspaceIdAndSlug(workspaceId, draft.studySlug());
             if (studyCandidate.isEmpty()) {
                 log.warn(
                         "Experience Tree 초기 연결 Study를 찾지 못해 건너뜁니다: seedKey={}, slug={}",
@@ -458,11 +468,12 @@ public class ExperienceTreeImporter {
             DecisionOption resolvedOption = option;
             DecisionStudyLink link =
                     studyLinkRepository
-                            .findBySeedKey(draft.seedKey())
+                            .findByWorkspaceIdAndSeedKey(workspaceId, draft.seedKey())
                             .orElseGet(
                                     () ->
                                             studyLinkRepository
-                                                    .findBySituationIdAndOptionScopeKeyAndStudyIdAndRelationType(
+                                                    .findByWorkspaceIdAndSituationIdAndOptionScopeKeyAndStudyIdAndRelationType(
+                                                            workspaceId,
                                                             situation.getId(),
                                                             resolvedOption == null
                                                                     ? "__SITUATION__"
@@ -472,6 +483,7 @@ public class ExperienceTreeImporter {
                                                     .orElseGet(
                                                             () ->
                                                                     DecisionStudyLink.createCatalog(
+                                                                            workspaceId,
                                                                             draft.seedKey(),
                                                                             situation,
                                                                             resolvedOption,
@@ -480,6 +492,7 @@ public class ExperienceTreeImporter {
                                                                             text(draft.note()),
                                                                             draft.displayOrder())));
             link.updateCatalog(
+                    workspaceId,
                     draft.seedKey(),
                     situation,
                     option,
@@ -489,7 +502,7 @@ public class ExperienceTreeImporter {
                     draft.displayOrder());
             studyLinkRepository.save(link);
         }
-        studyLinkRepository.findAllByManagedByCatalogTrue().stream()
+        studyLinkRepository.findAllByWorkspaceIdAndManagedByCatalogTrue(workspaceId).stream()
                 .filter(link -> !desiredSeedKeys.contains(link.getSeedKey()))
                 .forEach(studyLinkRepository::delete);
     }

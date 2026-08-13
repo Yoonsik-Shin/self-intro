@@ -17,6 +17,9 @@ public class DecisionStudyLink {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "situation_id", nullable = false)
     private DecisionSituation situation;
@@ -52,6 +55,7 @@ public class DecisionStudyLink {
     private LocalDateTime createdAt;
 
     public static DecisionStudyLink create(
+            Long workspaceId,
             DecisionSituation situation,
             DecisionOption option,
             Study study,
@@ -59,6 +63,7 @@ public class DecisionStudyLink {
             String note,
             int displayOrder) {
         DecisionStudyLink value = new DecisionStudyLink();
+        value.workspaceId = workspaceId;
         value.situation = situation;
         value.option = option;
         value.optionScopeKey = scopeKey(option);
@@ -73,6 +78,7 @@ public class DecisionStudyLink {
     }
 
     public static DecisionStudyLink createCatalog(
+            Long workspaceId,
             String seedKey,
             DecisionSituation situation,
             DecisionOption option,
@@ -81,7 +87,7 @@ public class DecisionStudyLink {
             String note,
             int displayOrder) {
         DecisionStudyLink value =
-                create(situation, option, study, relationType, note, displayOrder);
+                create(workspaceId, situation, option, study, relationType, note, displayOrder);
         value.managedByCatalog = true;
         value.seedKey = seedKey;
         return value;
@@ -100,6 +106,7 @@ public class DecisionStudyLink {
     }
 
     public void updateCatalog(
+            Long workspaceId,
             String seedKey,
             DecisionSituation situation,
             DecisionOption option,
@@ -107,6 +114,7 @@ public class DecisionStudyLink {
             DecisionStudyRelationType relationType,
             String note,
             int displayOrder) {
+        this.workspaceId = workspaceId;
         this.situation = situation;
         this.option = option;
         this.optionScopeKey = scopeKey(option);

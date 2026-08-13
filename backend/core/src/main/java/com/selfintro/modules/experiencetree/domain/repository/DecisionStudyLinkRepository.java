@@ -7,19 +7,25 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DecisionStudyLinkRepository extends JpaRepository<DecisionStudyLink, Long> {
-    List<DecisionStudyLink> findAllBySituationIdOrderByDisplayOrderAsc(Long situationId);
+    List<DecisionStudyLink> findAllByWorkspaceIdAndSituationIdOrderByDisplayOrderAsc(
+            Long workspaceId, Long situationId);
 
-    List<DecisionStudyLink> findAllByStudyIdOrderByDisplayOrderAsc(Long studyId);
+    List<DecisionStudyLink> findAllByWorkspaceIdAndStudyIdOrderByDisplayOrderAsc(
+            Long workspaceId, Long studyId);
 
     List<DecisionStudyLink> findAllByOptionId(Long optionId);
 
-    List<DecisionStudyLink> findAllByManagedByCatalogTrue();
+    List<DecisionStudyLink> findAllByWorkspaceIdAndManagedByCatalogTrue(Long workspaceId);
 
-    Optional<DecisionStudyLink> findBySeedKey(String seedKey);
+    Optional<DecisionStudyLink> findByWorkspaceIdAndSeedKey(Long workspaceId, String seedKey);
 
-    Optional<DecisionStudyLink> findBySituationIdAndOptionScopeKeyAndStudyIdAndRelationType(
-            Long situationId,
-            String optionScopeKey,
-            Long studyId,
-            DecisionStudyRelationType relationType);
+    Optional<DecisionStudyLink> findByIdAndWorkspaceId(Long id, Long workspaceId);
+
+    Optional<DecisionStudyLink>
+            findByWorkspaceIdAndSituationIdAndOptionScopeKeyAndStudyIdAndRelationType(
+                    Long workspaceId,
+                    Long situationId,
+                    String optionScopeKey,
+                    Long studyId,
+                    DecisionStudyRelationType relationType);
 }
