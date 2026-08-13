@@ -3,19 +3,11 @@ package com.selfintro.modules.storage.application;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.Delete;
-import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
-import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 @Service
 public class StorageService {
@@ -23,82 +15,66 @@ public class StorageService {
     private static final Set<String> ALLOWED_CONTENT_TYPES =
             Set.of("image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf");
 
-    private final S3Client s3Client;
-    private final S3Presigner s3Presigner;
-    private final String bucket;
+    private final ObjectStoragePort objectStoragePort;
     private final long presignedUploadTtlSeconds;
-    private final String publicBaseUrl;
 
     public StorageService(
-            S3Client s3Client,
-            S3Presigner s3Presigner,
-            @Value("${app.storage.bucket}") String bucket,
+            ObjectStoragePort objectStoragePort,
             @Value("${app.storage.presigned-upload-ttl-seconds:300}")
-                    long presignedUploadTtlSeconds,
-            @Value("${app.storage.public-base-url}") String publicBaseUrl) {
-        this.s3Client = s3Client;
-        this.s3Presigner = s3Presigner;
-        this.bucket = bucket;
+                    long presignedUploadTtlSeconds) {
+        this.objectStoragePort = objectStoragePort;
         this.presignedUploadTtlSeconds = presignedUploadTtlSeconds;
-        this.publicBaseUrl = publicBaseUrl;
     }
 
-    public PresignedUpload presignUpload(ImageScope scope, String fileName, String contentType) {
+    public PresignedUpload presignUpload(
+            Long workspaceId, ImageScope scope, String fileName, String contentType) {
+        if (workspaceId == null || workspaceId <= 0) {
+            throw new IllegalArgumentException("유효한 Workspace가 필요합니다.");
+        }
         if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new IllegalArgumentException("허용되지 않는 이미지 형식입니다: " + contentType);
         }
 
-        String objectKey = buildObjectKey(scope, extractExtension(fileName, contentType));
+        String objectKey =
+                buildObjectKey(workspaceId, scope, extractExtension(fileName, contentType));
 
-        PutObjectRequest putObjectRequest =
-                PutObjectRequest.builder()
-                        .bucket(bucket)
-                        .key(objectKey)
-                        .contentType(contentType)
-                        .build();
-
-        PresignedPutObjectRequest presigned =
-                s3Presigner.presignPutObject(
-                        builder ->
-                                builder.signatureDuration(
-                                                Duration.ofSeconds(presignedUploadTtlSeconds))
-                                        .putObjectRequest(putObjectRequest));
-
-        return new PresignedUpload(objectKey, presigned.url().toString(), toPublicUrl(objectKey));
+        ObjectStoragePort.PresignedObject presigned =
+                objectStoragePort.presignPut(
+                        objectKey, contentType, Duration.ofSeconds(presignedUploadTtlSeconds));
+        return new PresignedUpload(objectKey, presigned.uploadUrl(), presigned.publicUrl());
     }
 
     public void delete(String objectKey) {
-        s3Client.deleteObject(builder -> builder.bucket(bucket).key(objectKey));
+        objectStoragePort.delete(objectKey);
     }
 
     public void deleteAll(Collection<String> objectKeys) {
-        if (objectKeys == null || objectKeys.isEmpty()) {
-            return;
-        }
-        List<ObjectIdentifier> identifiers =
-                objectKeys.stream()
-                        .filter(key -> key != null && !key.isBlank())
-                        .map(key -> ObjectIdentifier.builder().key(key).build())
-                        .toList();
-
-        if (identifiers.isEmpty()) {
-            return;
-        }
-
-        Delete delete = Delete.builder().objects(identifiers).build();
-        DeleteObjectsRequest deleteObjectsRequest =
-                DeleteObjectsRequest.builder().bucket(bucket).delete(delete).build();
-        s3Client.deleteObjects(deleteObjectsRequest);
+        objectStoragePort.deleteAll(objectKeys);
     }
 
     public String toPublicUrl(String objectKey) {
-        return publicBaseUrl + "/" + objectKey;
+        return objectStoragePort.publicUrl(objectKey);
     }
 
-    private String buildObjectKey(ImageScope scope, String extension) {
+    public void requireOwnedObjectKey(Long workspaceId, String objectKey) {
+        String expectedPrefix = "workspaces/" + workspaceId + "/";
+        if (objectKey == null || !objectKey.startsWith(expectedPrefix)) {
+            throw new IllegalArgumentException("Workspace 소유 파일이 아닙니다.");
+        }
+    }
+
+    public void requireOwnedObjectKey(Long workspaceId, ImageScope scope, String objectKey) {
+        String expectedPrefix = "workspaces/" + workspaceId + "/" + scope.prefix() + "/";
+        if (objectKey == null || !objectKey.startsWith(expectedPrefix)) {
+            throw new IllegalArgumentException("Workspace의 허용된 파일 영역이 아닙니다.");
+        }
+    }
+
+    private String buildObjectKey(Long workspaceId, ImageScope scope, String extension) {
         LocalDate now = LocalDate.now();
-        return "%s/%04d/%02d/%s%s"
+        return "workspaces/%d/%s/%04d/%02d/%s%s"
                 .formatted(
+                        workspaceId,
                         scope.prefix(),
                         now.getYear(),
                         now.getMonthValue(),

@@ -6,7 +6,8 @@ public enum ImageScope {
     STUDY_MARKDOWN("study/markdown"),
     PRINT_TEMPLATE_FINAL_PDF("print-template/final-pdf"),
     PORTFOLIO_ARCHITECTURE("portfolio/architecture"),
-    JOB_POSTING_SCREENSHOT("job-posting/screenshot");
+    JOB_POSTING_SCREENSHOT("job-posting/screenshot"),
+    WORKSPACE_JOB_POSTING_SCREENSHOT_TEMP("job-posting/screenshot-temp");
 
     private final String prefix;
 
