@@ -4,9 +4,9 @@
 - 상태 갱신일: 2026-08-14
 - SaaS 루트 브랜치: `docs/saas-product-guides`
 - 상태 갱신 브랜치: `fix/saas-recovery-build-baseline`
-- 기준 기능 HEAD: `5f1b46a`
+- 기준 기능 HEAD: `89eb499`
 - 운영 상태: **미배포**
-- 목적: 104개로 분리·커밋된 SaaS 전환 변경의 검증 기준과 다음 순서를 고정한다.
+- 목적: 106개로 분리·커밋된 SaaS 전환 변경의 검증 기준과 다음 순서를 고정한다.
 
 이 문서는 구현 완료를 선언하는 문서가 아니다. 제품 기능의 소유권과 상태는
 [제품 기능 지도](../product/feature-map.md), 설계 결정은
@@ -17,8 +17,8 @@
 ## 1. Source control 상태
 
 최초 점검에서는 `scripts/inventory-saas-changes.sh`가 펼친 717개 경로가 working tree에 있었다. 이후
-기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-14 검증 기능 HEAD `5f1b46a`는
-`main`보다 104개 commit 앞서며 누적 변경은 811개 파일이다. 기능 커밋 직후 working tree는 clean이다. 아직 `main`에
+기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-14 검증 기능 HEAD `89eb499`는
+`main`보다 106개 commit 앞서며 누적 변경은 813개 파일이다. 기능 커밋 직후 working tree는 clean이다. 아직 `main`에
 merge·push·배포하지 않았으므로 다음 원칙을 지킨다.
 
 1. 기존 변경을 대량 포맷·되돌리기·삭제하지 않는다.
@@ -98,7 +98,9 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 - 로그인 이메일 변경도 현재 비밀번호 확인, hash-only·30분·일회성 token, 확인 전 기존 이메일 유지,
   확인 뒤 전체 세션 폐기, 기존 이메일 차단, 새 이메일 로그인과 감사 이벤트까지 같은 Compose UAT에서
   통과했다. 세션 전체 폐기와 최대 동시 세션 제한에 필요한 Redis principal index를 보장하도록 indexed
-  session repository를 사용한다.
+  session repository를 사용한다. indexed repository가 누락된 환경은 로그인 시 fail-closed하며,
+  Redis를 사용하지 않는 테스트 profile만 명시적으로 이 검사를 해제한다. 실제 Redis·Mailpit Compose에서
+  가입부터 이메일 변경, 비밀번호 재설정, 전체 세션 폐기까지 8단계 회귀를 다시 통과했다.
 - Finder 휴지통 복원 뒤 `frontend-next` bind mount에 붙은 macOS 확장 속성으로 `/app` 읽기가 `EPERM`으로
   실패한 상태를 복구했다. 확인된 `com.apple.macl`·`com.apple.provenance`만 제거하고 프런트를 재시작해
   Next.js `Ready`와 직접 route 200을 확인했다. 이어 frontend format·TypeScript·production build,
@@ -128,7 +130,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 | 핵심 Workspace 데이터 격리 | 약 98% | 레거시 호환 API 제거 시점 결정 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
 | 플랫폼 보안·운영 | 약 90% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP provider 승인 |
-| 릴리스 변경 세트 준비 | 약 97% | 검증 대상 104개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
+| 릴리스 변경 세트 준비 | 약 97% | 검증 대상 106개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
 | 운영 가능한 공개 SaaS | 약 70% | 운영 provider·MFA 복구·배포 rehearsal |
 
 비율은 코드 줄 수가 아니라 보안·격리·복구·운영 차단 조건을 기준으로 한 준비도다.
@@ -149,7 +151,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 12. Vector 고아·누락 source-of-truth reconciliation — **완료, 17/17·70/70 및 고아·누락 0 확인**
 13. Workspace Skill 실제 관리 화면 500 회귀 수정 — **완료, Compose API 200 확인**
 14. 운영자·별도 베타 계정의 로컬 사용자 인수 테스트 — **SMTP·가입·온보딩·첫 발행·탈퇴·지원 접근 자동 UAT 완료, 사람의 UX 확인 필요**
-15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 검증 대상 104개 commit**
+15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 검증 대상 106개 commit**
 16. 운영 backup 보존·OCI provider 복구·격리 Worker reconciliation rehearsal 뒤 실행 flag 검토
 
 계정 보안 self-service는 닉네임 변경, 현재 비밀번호를 확인하는 비밀번호 변경, 전체 기기 로그아웃까지
@@ -158,7 +160,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 회수, 완료 뒤 전체 세션 폐기와 감사 이벤트까지 구현했다. 모든 MFA 수단 분실 시 운영 복구는 외부 신원
 확인 절차와 보존 계약이 필요한 다음 보안 단계로 남는다.
 
-안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 104개 commit으로
+안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 106개 commit으로
 분리했다. Identity·Access,
 Workspace 콘텐츠, Job·AI·Vector의 하위 경계·정적 review·targeted/full/Compose gate를 완료했다. 가입,
 MFA, session 회전, Membership, slug, lifecycle, 공개 revision, 지원 결과, StudyPlan, vector namespace,
