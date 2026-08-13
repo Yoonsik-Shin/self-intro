@@ -1,26 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
     BookOpen,
     Briefcase,
+    ChevronDown,
+    ChevronRight,
     Eye,
     GitBranch,
     Heart,
     Home,
+    LogIn,
+    LogOut,
     Menu,
     Printer,
+    ShieldCheck,
     Terminal,
+    User,
+    UserPlus,
     X,
 } from 'lucide-react';
 import { donationApi, visitorApi } from '@/lib/api';
 import { usePrintStore } from '@/store/usePrintStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { DonationModal } from '@/components/donation/DonationModal';
 
-const pages = [
+type NavPage = {
+    href: string;
+    label: string;
+    shortLabel: string;
+    icon: typeof Home;
+    exact?: boolean;
+};
+
+const legacyPages: NavPage[] = [
     { href: '/', label: '메인페이지', shortLabel: '메인', icon: Home },
     { href: '/experience', label: '경험', shortLabel: '경험', icon: Briefcase },
     { href: '/study', label: '공부 정리', shortLabel: '공부 정리', icon: BookOpen },
@@ -32,22 +48,76 @@ const pages = [
     },
     {
         href: '/architecture',
-        label: '시스템 아키텍처',
-        shortLabel: '시스템 아키텍처',
+        label: 'Self-Intro 플랫폼',
+        shortLabel: 'Self-Intro 플랫폼',
         icon: Terminal,
     },
 ];
 
-function isActivePage(pathname: string, href: string): boolean {
+function isActivePage(pathname: string, href: string, exact = false): boolean {
+    if (exact) return pathname.replace(/\/$/, '') === href.replace(/\/$/, '');
     if (href === '/') return pathname === '/';
-    if (href === '/experience') return pathname.startsWith('/experience');
+    if (href === '/experience')
+        return pathname === '/experience' || pathname.startsWith('/experience/');
     return pathname.startsWith(href);
 }
 
 export function SiteHeader() {
     const pathname = usePathname();
+    const workspaceMatch = pathname.match(/^\/workspace\/([^/]+)(?:\/|$)/);
+    const workspaceSlug = workspaceMatch?.[1] ? decodeURIComponent(workspaceMatch[1]) : undefined;
+    const workspaceBase = workspaceSlug ? `/workspace/${workspaceSlug}` : null;
+    const isWorkspacePublicArea =
+        workspaceBase !== null && !pathname.includes('/admin') && !pathname.includes('/manage');
+    const isLegacyPortfolioArea =
+        pathname.startsWith('/experience') ||
+        pathname.startsWith('/study') ||
+        pathname.startsWith('/experience-tree');
+    const isPlatformArea = !isWorkspacePublicArea && !isLegacyPortfolioArea;
+    const pages: NavPage[] = isWorkspacePublicArea
+        ? [
+              {
+                  href: workspaceBase!,
+                  label: '프로필',
+                  shortLabel: '프로필',
+                  icon: User,
+                  exact: true,
+              },
+              {
+                  href: `${workspaceBase!}/experience`,
+                  label: '경험',
+                  shortLabel: '경험',
+                  icon: Briefcase,
+                  exact: false,
+              },
+              {
+                  href: `${workspaceBase!}/study`,
+                  label: '학습',
+                  shortLabel: '학습',
+                  icon: BookOpen,
+                  exact: false,
+              },
+          ]
+        : isLegacyPortfolioArea
+          ? legacyPages
+          : [
+                { href: '/', label: 'Self-Intro 플랫폼', shortLabel: '플랫폼', icon: Terminal },
+                {
+                    href: '/architecture/demo',
+                    label: '워크스페이스 체험',
+                    shortLabel: '워크스페이스 체험',
+                    icon: Eye,
+                },
+            ];
     const [isPageMenuOpen, setIsPageMenuOpen] = useState(false);
+    const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+    const accountMenuRef = useRef<HTMLDivElement>(null);
     const [isDonationOpen, setDonationOpen] = useState(false);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const isCheckingSession = useAuthStore((state) => state.isChecking);
+    const checkSession = useAuthStore((state) => state.checkSession);
+    const logout = useAuthStore((state) => state.logout);
+    const me = useAuthStore((state) => state.me);
     const [isPreviewMode] = useState(() => {
         if (typeof window !== 'undefined') {
             return new URLSearchParams(window.location.search).get('preview') === '1';
@@ -56,33 +126,78 @@ export function SiteHeader() {
     });
     const setPrintModalOpen = usePrintStore((s) => s.setPrintModalOpen);
 
+    useEffect(() => {
+        if ((isPlatformArea || isWorkspacePublicArea) && isCheckingSession) {
+            void checkSession();
+        }
+    }, [checkSession, isCheckingSession, isPlatformArea, isWorkspacePublicArea]);
+
+    useEffect(() => {
+        if (!isAccountMenuOpen) return;
+
+        const closeOnOutsideClick = (event: MouseEvent) => {
+            if (!accountMenuRef.current?.contains(event.target as Node)) {
+                setIsAccountMenuOpen(false);
+            }
+        };
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setIsAccountMenuOpen(false);
+        };
+
+        document.addEventListener('mousedown', closeOnOutsideClick);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.removeEventListener('mousedown', closeOnOutsideClick);
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [isAccountMenuOpen]);
+
+    const currentWorkspace = me?.workspaces[0];
+    const workspaceActionHref = currentWorkspace
+        ? `/workspace/${encodeURIComponent(currentWorkspace.slug)}/manage`
+        : '/onboarding/workspace';
+    const workspaceActionLabel = currentWorkspace ? '내 워크스페이스' : '워크스페이스 만들기';
+    const isPlatformOperator = Boolean(
+        me?.platformRoles.includes('PLATFORM_OWNER') ||
+        me?.platformRoles.includes('PLATFORM_OPERATOR')
+    );
+    const workspaceMembership = workspaceSlug
+        ? me?.workspaces.find((workspace) => workspace.slug === workspaceSlug)
+        : undefined;
+    const canManageCurrentWorkspace = Boolean(
+        workspaceMembership && ['OWNER', 'ADMIN', 'EDITOR'].includes(workspaceMembership.role)
+    );
+
     const { data: donationConfig } = useQuery({
         queryKey: ['donationConfig'],
         queryFn: donationApi.config,
-        enabled: !isPreviewMode,
+        enabled: !isPreviewMode && (isWorkspacePublicArea || isLegacyPortfolioArea),
     });
     const isDonationEnabled = donationConfig?.enabled === true;
 
     // 관리자 라이브 프리뷰(iframe) 안에서는 방문 기록을 남기지 않는다 — 실제 방문자 통계를 왜곡하지 않기 위함.
     const { data: visitorSummary } = useQuery({
-        queryKey: ['visitor', 'record'],
-        queryFn: visitorApi.record,
-        enabled: !isPreviewMode,
+        queryKey: ['visitor', 'record', workspaceSlug ?? 'platform'],
+        queryFn: () =>
+            workspaceSlug ? visitorApi.workspaceRecord(workspaceSlug) : visitorApi.record(),
+        enabled: !isPreviewMode && (isWorkspacePublicArea || isLegacyPortfolioArea),
         staleTime: Infinity,
         retry: false,
         refetchOnWindowFocus: false,
     });
 
-    const isIntro = pathname === '/';
+    const isIntro = workspaceBase !== null && pathname.replace(/\/$/, '') === workspaceBase;
 
     return (
         <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 py-2 shadow-sm backdrop-blur-xl print:hidden">
             <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
                 <div className="flex min-w-0 items-center gap-6">
                     <Link
-                        href="/"
+                        href={workspaceBase ?? '/'}
                         className="flex shrink-0 items-center text-left focus:outline-none hover:opacity-90 transition"
-                        title="소개 페이지로 이동"
+                        title={
+                            isWorkspacePublicArea ? 'Workspace 홈으로 이동' : '제품 메인으로 이동'
+                        }
                     >
                         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-slate-900 to-slate-950 text-sm font-black text-white shadow-md shadow-slate-800/20">
                             YS
@@ -91,11 +206,11 @@ export function SiteHeader() {
 
                     <nav
                         aria-label="페이지 네비게이션"
-                        className="hidden min-w-0 items-center gap-5 overflow-x-auto scrollbar-none min-[900px]:flex"
+                        className="hidden min-w-0 items-center gap-3 overflow-x-auto scrollbar-none sm:flex lg:gap-5"
                     >
                         {pages.map((page) => {
                             const Icon = page.icon;
-                            const isActive = isActivePage(pathname, page.href);
+                            const isActive = isActivePage(pathname, page.href, page.exact);
                             return (
                                 <Link
                                     key={page.href}
@@ -108,7 +223,9 @@ export function SiteHeader() {
                                     title={page.label}
                                 >
                                     <Icon className="h-4 w-4" />
-                                    <span>{page.shortLabel}</span>
+                                    <span className="hidden min-[1100px]:inline">
+                                        {page.shortLabel}
+                                    </span>
                                 </Link>
                             );
                         })}
@@ -116,6 +233,50 @@ export function SiteHeader() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
+                    {isWorkspacePublicArea &&
+                        !isCheckingSession &&
+                        isAuthenticated &&
+                        canManageCurrentWorkspace && (
+                            <Link
+                                href={`${workspaceBase}/manage`}
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-slate-950 px-2.5 text-sm font-black text-white shadow-sm shadow-slate-800/20 transition hover:bg-slate-800"
+                                title="Workspace 관리"
+                            >
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                                <span className="hidden min-[1100px]:inline">Workspace 관리</span>
+                            </Link>
+                        )}
+                    {isPlatformArea &&
+                        !isCheckingSession &&
+                        isAuthenticated &&
+                        isPlatformOperator && (
+                            <Link
+                                href="/ops"
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
+                                title="플랫폼 운영"
+                            >
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                                <span className="hidden min-[1100px]:inline">플랫폼 운영</span>
+                            </Link>
+                        )}
+                    {isPlatformArea && !isCheckingSession && !isAuthenticated && (
+                        <>
+                            <Link
+                                href="/login"
+                                className="hidden h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
+                            >
+                                <LogIn className="h-3.5 w-3.5" />
+                                로그인
+                            </Link>
+                            <Link
+                                href="/signup"
+                                className="hidden h-9 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 text-sm font-black text-white shadow-sm shadow-indigo-500/20 transition hover:bg-indigo-700 sm:inline-flex"
+                            >
+                                <UserPlus className="h-3.5 w-3.5" />
+                                초대받아 가입하기
+                            </Link>
+                        </>
+                    )}
                     {visitorSummary && (
                         <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-500 sm:px-2.5">
                             <Eye className="h-3.5 w-3.5" />
@@ -148,9 +309,153 @@ export function SiteHeader() {
                             <span>PDF 인쇄</span>
                         </button>
                     )}
+                    {!isCheckingSession && isAuthenticated && (
+                        <div className="relative hidden sm:block" ref={accountMenuRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsAccountMenuOpen((open) => !open)}
+                                className={`flex h-9 items-center gap-1 rounded-lg border p-1 text-left transition ${
+                                    isAccountMenuOpen
+                                        ? 'border-slate-900 bg-slate-900 text-white'
+                                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300'
+                                }`}
+                                title="계정과 내 Workspace 확인"
+                                aria-haspopup="menu"
+                                aria-expanded={isAccountMenuOpen}
+                            >
+                                <span
+                                    className={`grid h-7 w-7 place-items-center rounded-md text-[10px] font-black ${
+                                        isAccountMenuOpen
+                                            ? 'bg-white/15 text-white'
+                                            : 'bg-slate-900 text-white'
+                                    }`}
+                                >
+                                    {(me?.nickname || me?.username || '?')
+                                        .slice(0, 1)
+                                        .toUpperCase()}
+                                </span>
+                                <span className="hidden max-w-28 truncate px-1 text-xs font-black min-[1250px]:block">
+                                    {me?.nickname || me?.username}
+                                </span>
+                                <ChevronDown
+                                    className={`mr-1 h-3.5 w-3.5 transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`}
+                                />
+                            </button>
+
+                            {isAccountMenuOpen && (
+                                <section
+                                    role="menu"
+                                    className="absolute right-0 top-full z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-white shadow-2xl shadow-slate-950/30 ring-1 ring-black/5"
+                                >
+                                    <div className="border-b border-slate-800 p-4">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                            현재 로그인 계정
+                                        </p>
+                                        <p className="mt-2 truncate text-sm font-black text-white">
+                                            {me?.nickname || '이름 없음'}
+                                        </p>
+                                        <p className="mt-0.5 break-all text-xs text-slate-300">
+                                            {me?.username}
+                                        </p>
+                                    </div>
+
+                                    <div className="border-b border-slate-800 p-3">
+                                        <p className="px-1 pb-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                            내 Workspace
+                                        </p>
+                                        <div className="max-h-64 space-y-1 overflow-y-auto">
+                                            {me?.workspaces.length ? (
+                                                me.workspaces.map((workspace) => {
+                                                    const canManage = [
+                                                        'OWNER',
+                                                        'ADMIN',
+                                                        'EDITOR',
+                                                    ].includes(workspace.role);
+                                                    const href = canManage
+                                                        ? `/workspace/${encodeURIComponent(workspace.slug)}/manage`
+                                                        : `/workspace/${encodeURIComponent(workspace.slug)}`;
+                                                    const isCurrent =
+                                                        workspace.slug === workspaceSlug;
+                                                    return (
+                                                        <Link
+                                                            key={workspace.workspaceId}
+                                                            href={href}
+                                                            role="menuitem"
+                                                            onClick={() =>
+                                                                setIsAccountMenuOpen(false)
+                                                            }
+                                                            className="group flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400/70 hover:bg-slate-800 hover:shadow-lg focus-visible:border-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/40"
+                                                        >
+                                                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-700 bg-slate-950 text-slate-300 transition group-hover:border-indigo-400/50 group-hover:text-indigo-200">
+                                                                <Briefcase className="h-4 w-4" />
+                                                            </span>
+                                                            <span className="min-w-0 flex-1">
+                                                                <span className="block break-words text-sm font-black leading-snug text-white">
+                                                                    {workspace.name}
+                                                                </span>
+                                                                <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-bold text-slate-400">
+                                                                    <span>{workspace.role}</span>
+                                                                    <span aria-hidden="true">
+                                                                        ·
+                                                                    </span>
+                                                                    <span className="text-indigo-200">
+                                                                        {isCurrent
+                                                                            ? '현재 열람 중'
+                                                                            : canManage
+                                                                              ? '관리 화면 열기'
+                                                                              : '공개 페이지 열기'}
+                                                                    </span>
+                                                                </span>
+                                                            </span>
+                                                            <span className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-400 transition group-hover:bg-indigo-400/15 group-hover:text-indigo-200">
+                                                                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                                            </span>
+                                                        </Link>
+                                                    );
+                                                })
+                                            ) : (
+                                                <Link
+                                                    href="/onboarding/workspace"
+                                                    role="menuitem"
+                                                    onClick={() => setIsAccountMenuOpen(false)}
+                                                    className="group flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm font-black text-white transition hover:border-indigo-400/70 hover:bg-slate-800"
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        <Briefcase className="h-4 w-4" />첫
+                                                        Workspace 만들기
+                                                    </span>
+                                                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <Link
+                                        href="/account"
+                                        role="menuitem"
+                                        onClick={() => setIsAccountMenuOpen(false)}
+                                        className="flex w-full items-center justify-center gap-2 border-b border-slate-800 px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                                    >
+                                        <User className="h-4 w-4" />
+                                        계정 설정
+                                    </Link>
+
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => void logout()}
+                                        className="flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-black text-red-400 transition hover:bg-red-950/50 hover:text-red-300"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        로그아웃
+                                    </button>
+                                </section>
+                            )}
+                        </div>
+                    )}
                     <button
                         onClick={() => setIsPageMenuOpen((open) => !open)}
-                        className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 min-[900px]:hidden"
+                        className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 sm:hidden"
                         title="페이지 메뉴"
                         aria-label="페이지 메뉴"
                         aria-expanded={isPageMenuOpen}
@@ -161,14 +466,14 @@ export function SiteHeader() {
             </div>
 
             {isPageMenuOpen && (
-                <div className="absolute left-0 right-0 top-full z-40 border-b border-slate-200/80 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-xl min-[900px]:hidden">
+                <div className="absolute left-0 right-0 top-full z-40 max-h-[calc(100vh-4rem)] overflow-y-auto border-b border-slate-200/80 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-xl sm:hidden">
                     <nav
                         aria-label="모바일 페이지 네비게이션"
                         className="mx-auto flex max-w-[1500px] flex-col gap-1"
                     >
                         {pages.map((page) => {
                             const Icon = page.icon;
-                            const isActive = isActivePage(pathname, page.href);
+                            const isActive = isActivePage(pathname, page.href, page.exact);
                             return (
                                 <Link
                                     key={page.href}
@@ -185,6 +490,155 @@ export function SiteHeader() {
                                 </Link>
                             );
                         })}
+                        {isWorkspacePublicArea &&
+                            !isCheckingSession &&
+                            isAuthenticated &&
+                            canManageCurrentWorkspace && (
+                                <div className="mt-1 border-t border-slate-100 pt-3">
+                                    <Link
+                                        href={`${workspaceBase}/manage`}
+                                        onClick={() => setIsPageMenuOpen(false)}
+                                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 py-2.5 text-sm font-black text-white"
+                                    >
+                                        <ShieldCheck className="h-4 w-4" />
+                                        Workspace 관리
+                                    </Link>
+                                </div>
+                            )}
+                        {isPlatformArea && (
+                            <div className="mt-1 grid gap-2 border-t border-slate-100 pt-3">
+                                {isCheckingSession ? (
+                                    <div className="h-10 animate-pulse rounded-lg bg-slate-100" />
+                                ) : isAuthenticated ? (
+                                    <>
+                                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left">
+                                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                로그인 계정
+                                            </p>
+                                            <p className="mt-1 truncate text-sm font-black text-slate-900">
+                                                {me?.nickname || me?.username}
+                                            </p>
+                                            <p className="truncate text-xs text-slate-500">
+                                                {me?.username}
+                                            </p>
+                                        </div>
+                                        {isPlatformOperator && (
+                                            <Link
+                                                href="/ops"
+                                                onClick={() => setIsPageMenuOpen(false)}
+                                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-black text-slate-700"
+                                            >
+                                                <ShieldCheck className="h-4 w-4" />
+                                                플랫폼 운영
+                                            </Link>
+                                        )}
+                                        <Link
+                                            href={workspaceActionHref}
+                                            onClick={() => setIsPageMenuOpen(false)}
+                                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 py-2.5 text-sm font-black text-white"
+                                        >
+                                            <Briefcase className="h-4 w-4" />
+                                            {workspaceActionLabel}
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsPageMenuOpen(false);
+                                                void logout();
+                                            }}
+                                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-black text-red-700"
+                                        >
+                                            <LogOut className="h-4 w-4" />
+                                            로그아웃
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Link
+                                            href="/login"
+                                            onClick={() => setIsPageMenuOpen(false)}
+                                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-black text-slate-700"
+                                        >
+                                            <LogIn className="h-4 w-4" />
+                                            로그인
+                                        </Link>
+                                        <Link
+                                            href="/signup"
+                                            onClick={() => setIsPageMenuOpen(false)}
+                                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2.5 text-sm font-black text-white"
+                                        >
+                                            <UserPlus className="h-4 w-4" />
+                                            초대받아 가입하기
+                                        </Link>
+                                        <p className="text-center text-[11px] font-semibold text-slate-400">
+                                            현재 초대받은 사용자만 가입할 수 있습니다.
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {!isPlatformArea && !isCheckingSession && isAuthenticated && (
+                            <div className="mt-1 grid gap-2 border-t border-slate-100 pt-3">
+                                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left">
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                        로그인 계정
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-black text-slate-900">
+                                        {me?.nickname || me?.username}
+                                    </p>
+                                    <p className="truncate text-xs text-slate-500">
+                                        {me?.username}
+                                    </p>
+                                </div>
+                                <div className="grid gap-1 rounded-lg border border-slate-200 bg-white p-2">
+                                    <p className="px-1 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                        내 Workspace
+                                    </p>
+                                    {me?.workspaces.map((workspace) => {
+                                        const canManage = ['OWNER', 'ADMIN', 'EDITOR'].includes(
+                                            workspace.role
+                                        );
+                                        return (
+                                            <Link
+                                                key={workspace.workspaceId}
+                                                href={
+                                                    canManage
+                                                        ? `/workspace/${encodeURIComponent(workspace.slug)}/manage`
+                                                        : `/workspace/${encodeURIComponent(workspace.slug)}`
+                                                }
+                                                onClick={() => setIsPageMenuOpen(false)}
+                                                className="group flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-black text-slate-800 transition hover:border-slate-400 hover:bg-white hover:shadow-sm"
+                                            >
+                                                <span className="truncate">{workspace.name}</span>
+                                                <span className="flex shrink-0 items-center gap-1 text-[10px] text-slate-400 group-hover:text-slate-700">
+                                                    {workspace.role}
+                                                    <ChevronRight className="h-3.5 w-3.5" />
+                                                </span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                                <Link
+                                    href="/account"
+                                    onClick={() => setIsPageMenuOpen(false)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-black text-slate-700"
+                                >
+                                    <User className="h-4 w-4" />
+                                    계정 설정
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsPageMenuOpen(false);
+                                        void logout();
+                                    }}
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-black text-red-700"
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                    로그아웃
+                                </button>
+                            </div>
+                        )}
                         {isIntro && (
                             <button
                                 onClick={() => {

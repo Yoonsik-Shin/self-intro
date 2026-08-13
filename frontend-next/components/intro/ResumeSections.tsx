@@ -12,9 +12,10 @@ import { CredentialsSection } from './CredentialsSection';
 
 type Props = {
     introData: IntroductionResponse;
+    workspaceSlug?: string;
 };
 
-export function ResumeSections({ introData }: Props) {
+export function ResumeSections({ introData, workspaceSlug }: Props) {
     const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
     const [expandedDetailIds, setExpandedDetailIds] = useState<number[]>([]);
     const [expandedProjectIds, setExpandedProjectIds] = useState<number[]>([]);
@@ -62,11 +63,17 @@ export function ResumeSections({ introData }: Props) {
                 experiences={introData.experiences}
                 milestones={milestones}
                 onSelectMilestone={setSelectedMilestoneId}
+                workspaceSlug={workspaceSlug}
             />
             <CompetenciesSection
                 competencies={introData.competencies}
                 milestones={milestones}
                 onSelectMilestone={setSelectedMilestoneId}
+                studyBasePath={
+                    workspaceSlug
+                        ? `/workspace/${encodeURIComponent(workspaceSlug)}/study`
+                        : '/study'
+                }
             />
             <CareerSection
                 careerCards={careerCards}
@@ -78,6 +85,12 @@ export function ResumeSections({ introData }: Props) {
                 onToggleProject={toggleProject}
                 onSetExpandedProjectIds={setExpandedProjectIds}
                 onNavigateRelatedExperience={navigateToRelatedExperience}
+                experienceBasePath={
+                    workspaceSlug
+                        ? `/workspace/${encodeURIComponent(workspaceSlug)}/experience`
+                        : '/experience'
+                }
+                workspaceSlug={workspaceSlug}
             />
             {/* 원본은 DOM 순서상 credentials가 projects보다 먼저 오지만 CSS order-1/order-2로
           화면에서는 projects를 먼저 보여준다(부모가 flex 컨테이너였기 때문). 여기서는 그 순서를
@@ -90,10 +103,17 @@ export function ResumeSections({ introData }: Props) {
                 onToggleDetail={toggleDetail}
                 onSetExpandedDetailIds={setExpandedDetailIds}
                 onNavigateRelatedExperience={navigateToRelatedExperience}
+                experienceBasePath={
+                    workspaceSlug
+                        ? `/workspace/${encodeURIComponent(workspaceSlug)}/experience`
+                        : '/experience'
+                }
+                workspaceSlug={workspaceSlug}
             />
             <CredentialsSection
                 educationExperiences={educationExperiences}
                 certificateExperiences={certificateExperiences}
+                workspaceSlug={workspaceSlug}
             />
         </div>
     );

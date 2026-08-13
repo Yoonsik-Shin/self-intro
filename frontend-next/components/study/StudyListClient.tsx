@@ -28,6 +28,7 @@ type Props = {
     initialTotalElements?: number;
     initialTotalPages?: number;
     taxonomyNodes: StudyTaxonomyNode[];
+    workspaceSlug?: string;
 };
 
 type RecentlyViewedItem = {
@@ -42,6 +43,7 @@ export function StudyListClient({
     initialTotalElements,
     initialTotalPages,
     taxonomyNodes,
+    workspaceSlug,
 }: Props) {
     const router = useRouter();
     const pathname = usePathname();
@@ -57,6 +59,8 @@ export function StudyListClient({
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
+            // 브라우저 URL의 선택 필터를 hydration 이후 클라이언트 상태로 복원한다.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIdFilters({
                 skillIdNum: params.get('skillId') ? Number(params.get('skillId')) : undefined,
                 experienceIdNum: params.get('experienceId')
@@ -87,6 +91,8 @@ export function StudyListClient({
             const raw = localStorage.getItem('recently_viewed_studies');
             if (raw) {
                 const parsed = JSON.parse(raw);
+                // localStorage는 외부 브라우저 저장소이므로 mount 시 한 번 복원한다.
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 if (Array.isArray(parsed)) setRecentlyViewed(parsed);
             }
         } catch {
@@ -137,7 +143,7 @@ export function StudyListClient({
             experienceDetailIdNum,
         ],
         queryFn: ({ pageParam = 0 }) =>
-            studyApi.list({
+            (workspaceSlug ? studyApi.workspaceList.bind(null, workspaceSlug) : studyApi.list)({
                 q: search || undefined,
                 taxonomyNodeId: activeTaxonomyNodeId ?? undefined,
                 section: activeSection ?? undefined,
@@ -314,7 +320,7 @@ export function StudyListClient({
                         studies.map((study) => (
                             <Link
                                 key={study.id}
-                                href={`/study/${encodeURIComponent(study.slug)}`}
+                                href={`${workspaceSlug ? `/workspace/${encodeURIComponent(workspaceSlug)}` : ''}/study/${encodeURIComponent(study.slug)}`}
                                 className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8"
                             >
                                 <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -466,7 +472,7 @@ export function StudyListClient({
                                 ).map((item) => (
                                     <div key={item.slug} className="flex items-start gap-1.5">
                                         <Link
-                                            href={`/study/${encodeURIComponent(item.slug)}`}
+                                            href={`${workspaceSlug ? `/workspace/${encodeURIComponent(workspaceSlug)}` : ''}/study/${encodeURIComponent(item.slug)}`}
                                             className="flex min-w-0 flex-1 items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
                                             title={item.title}
                                         >
@@ -516,7 +522,7 @@ export function StudyListClient({
                                 {recentStudies.map((study) => (
                                     <Link
                                         key={study.id}
-                                        href={`/study/${encodeURIComponent(study.slug)}`}
+                                        href={`${workspaceSlug ? `/workspace/${encodeURIComponent(workspaceSlug)}` : ''}/study/${encodeURIComponent(study.slug)}`}
                                         className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                         title={study.title}
                                     >

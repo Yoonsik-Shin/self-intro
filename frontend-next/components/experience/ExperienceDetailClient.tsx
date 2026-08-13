@@ -19,6 +19,9 @@ import {
     Github,
     Sparkles,
     Image as ImageIcon,
+    Target,
+    Wrench,
+    TrendingUp,
 } from 'lucide-react';
 import { SidebarSection } from '@/components/common/SidebarSection';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
@@ -38,6 +41,9 @@ type Props = {
     subProjects?: Experience[];
     relatedStudies: Study[];
     parentCareer?: Experience;
+    focusDetail?: boolean;
+    experienceBasePath?: string;
+    studyBasePath?: string;
 };
 
 export function ExperienceDetailClient({
@@ -46,6 +52,9 @@ export function ExperienceDetailClient({
     subProjects = [],
     relatedStudies,
     parentCareer,
+    focusDetail = false,
+    experienceBasePath = '/experience',
+    studyBasePath = '/study',
 }: Props) {
     const router = useRouter();
     const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
@@ -106,6 +115,42 @@ export function ExperienceDetailClient({
     const siblingDetails = experience.details.filter(
         (d) => d.id !== detail.id && d.visible !== false
     );
+    const listedDetails = focusDetail ? siblingDetails : experience.details;
+    const hasDeepDive =
+        focusDetail &&
+        detail.id > 0 &&
+        Boolean(detail.situation || detail.task || detail.actionDetail || detail.outcome);
+
+    const deepDiveSections = [
+        {
+            label: '배경과 문제',
+            value: detail.situation,
+            icon: Briefcase,
+            tone: 'border-amber-200 bg-amber-50/60 text-amber-950',
+            iconTone: 'bg-amber-100 text-amber-700',
+        },
+        {
+            label: '해결 목표와 판단 기준',
+            value: detail.task,
+            icon: Target,
+            tone: 'border-blue-200 bg-blue-50/60 text-blue-950',
+            iconTone: 'bg-blue-100 text-blue-700',
+        },
+        {
+            label: '설계와 구현',
+            value: detail.actionDetail,
+            icon: Wrench,
+            tone: 'border-indigo-200 bg-indigo-50/60 text-indigo-950',
+            iconTone: 'bg-indigo-100 text-indigo-700',
+        },
+        {
+            label: '운영 결과',
+            value: detail.outcome,
+            icon: TrendingUp,
+            tone: 'border-emerald-200 bg-emerald-50/60 text-emerald-950',
+            iconTone: 'bg-emerald-100 text-emerald-700',
+        },
+    ].filter((section) => Boolean(section.value));
 
     return (
         <div className="space-y-4">
@@ -132,7 +177,7 @@ export function ExperienceDetailClient({
                         <div className="mb-6 border-b border-slate-100 pb-6">
                             {parentCareer && (
                                 <Link
-                                    href={`/experience/${parentCareer.id}`}
+                                    href={`${experienceBasePath}/${parentCareer.id}`}
                                     className="group/parent mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-blue-600"
                                 >
                                     <Briefcase className="h-3.5 w-3.5" />
@@ -254,15 +299,74 @@ export function ExperienceDetailClient({
                             )}
                         </div>
 
+                        {hasDeepDive && (
+                            <section className="mb-10 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/50 p-5 sm:p-7">
+                                <div className="border-b border-slate-200 pb-4">
+                                    <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
+                                        Case Study
+                                    </p>
+                                    <h2 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+                                        {detail.content}
+                                    </h2>
+                                    {detail.narrative && (
+                                        <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600 sm:text-base">
+                                            {detail.narrative}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="grid gap-4 lg:grid-cols-2">
+                                    {deepDiveSections.map((section) => {
+                                        const Icon = section.icon;
+                                        return (
+                                            <div
+                                                key={section.label}
+                                                className={`rounded-xl border p-4 sm:p-5 ${section.tone}`}
+                                            >
+                                                <h3 className="mb-3 flex items-center gap-2 text-sm font-black">
+                                                    <span
+                                                        className={`grid h-8 w-8 place-items-center rounded-lg ${section.iconTone}`}
+                                                    >
+                                                        <Icon className="h-4 w-4" />
+                                                    </span>
+                                                    {section.label}
+                                                </h3>
+                                                <div className="markdown-body text-sm leading-relaxed text-slate-700">
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[
+                                                            remarkGfm,
+                                                            remarkBreaks,
+                                                            remarkMath,
+                                                            remarkKoreanEmphasis,
+                                                            remarkDisableIndentedCode,
+                                                            remarkCalloutToggle,
+                                                            remarkGithubAlerts,
+                                                        ]}
+                                                        rehypePlugins={[rehypeRaw, rehypeKatex]}
+                                                        components={markdownComponents}
+                                                    >
+                                                        {section.value ?? ''}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        )}
+
                         {/* Top-Level Experience Details List */}
-                        {experience.details && experience.details.length > 0 && (
+                        {listedDetails.length > 0 && (
                             <div className="space-y-6 pt-2">
                                 <h3 className="text-base font-black tracking-tight text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
-                                    <span>📌</span> 주요 세부 성과 및 구현 경험 (
-                                    {experience.details.length}개)
+                                    <span>📌</span>{' '}
+                                    {focusDetail
+                                        ? '같은 이력의 다른 성과'
+                                        : '주요 세부 성과 및 구현 경험'}{' '}
+                                    ({listedDetails.length}개)
                                 </h3>
                                 <div className="divide-y divide-slate-100 space-y-6">
-                                    {experience.details.map((d, index) => {
+                                    {listedDetails.map((d, index) => {
                                         const detailText =
                                             d.narrative ||
                                             [d.situation, d.actionDetail, d.outcome]
@@ -341,7 +445,7 @@ export function ExperienceDetailClient({
                                                                                 •
                                                                             </span>
                                                                             <Link
-                                                                                href={`/study/${encodeURIComponent(s.slug)}`}
+                                                                                href={`${studyBasePath}/${encodeURIComponent(s.slug)}`}
                                                                                 className="font-semibold text-slate-700 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 transition"
                                                                             >
                                                                                 <span>
@@ -382,7 +486,7 @@ export function ExperienceDetailClient({
                                                     </span>
                                                     <h4 className="text-lg font-black text-slate-900 mt-0.5">
                                                         <Link
-                                                            href={`/experience/${proj.id}`}
+                                                            href={`${experienceBasePath}/${proj.id}`}
                                                             className="group/subproj inline-flex items-center gap-1.5 transition hover:text-blue-600 hover:underline"
                                                         >
                                                             <span>{proj.title}</span>
@@ -430,7 +534,7 @@ export function ExperienceDetailClient({
                                                                         •{' '}
                                                                         {d.id > 0 ? (
                                                                             <Link
-                                                                                href={`/experience/${proj.id}/experience-detail/${d.id}`}
+                                                                                href={`${experienceBasePath}/${proj.id}/experience-detail/${d.id}`}
                                                                                 className="hover:text-blue-600 hover:underline"
                                                                             >
                                                                                 {d.content}
@@ -499,7 +603,7 @@ export function ExperienceDetailClient({
                                                                                                 •
                                                                                             </span>
                                                                                             <Link
-                                                                                                href={`/study/${encodeURIComponent(s.slug)}`}
+                                                                                                href={`${studyBasePath}/${encodeURIComponent(s.slug)}`}
                                                                                                 className="font-semibold text-slate-700 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 transition"
                                                                                             >
                                                                                                 <span>
@@ -633,7 +737,7 @@ export function ExperienceDetailClient({
                                             {relatedStudies.map((study) => (
                                                 <Link
                                                     key={study.id}
-                                                    href={`/study/${encodeURIComponent(study.slug)}`}
+                                                    href={`${studyBasePath}/${encodeURIComponent(study.slug)}`}
                                                     className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                                 >
                                                     <span className="mt-0.5 shrink-0 font-bold text-slate-400 group-hover:text-blue-600">
@@ -659,7 +763,7 @@ export function ExperienceDetailClient({
                                             {siblingDetails.map((sibling) => (
                                                 <Link
                                                     key={sibling.id}
-                                                    href={`/experience/${experience.id}/experience-detail/${sibling.id}`}
+                                                    href={`${experienceBasePath}/${experience.id}/experience-detail/${sibling.id}`}
                                                     className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                                     title={sibling.content}
                                                 >

@@ -24,6 +24,7 @@ import {
 
 type Props = {
     experiences: Experience[];
+    basePath?: string;
 };
 
 type RecentlyViewedExperienceItem = {
@@ -79,7 +80,7 @@ function writeRecentlyViewed(items: RecentlyViewedExperienceItem[]) {
     window.dispatchEvent(new Event(RECENTLY_VIEWED_CHANGED_EVENT));
 }
 
-export function ExperienceListClient({ experiences }: Props) {
+export function ExperienceListClient({ experiences, basePath = '/experience' }: Props) {
     const [selectedTypes, setSelectedTypes] = useState<ExperienceTypeFilter[]>(['ALL']);
     const [selectedYears, setSelectedYears] = useState<number[]>([]);
     const [selectedExperienceIds, setSelectedExperienceIds] = useState<number[]>([]);
@@ -254,7 +255,7 @@ export function ExperienceListClient({ experiences }: Props) {
                         </div>
                     ) : (
                         filtered.map((experience) => {
-                            const targetUrl = `/experience/${experience.id}`;
+                            const targetUrl = `${basePath}/${experience.id}`;
 
                             return (
                                 <Link
@@ -366,7 +367,7 @@ export function ExperienceListClient({ experiences }: Props) {
                                 ).map((item) => (
                                     <div key={item.id} className="flex items-start gap-1.5">
                                         <Link
-                                            href={`/experience/${item.experienceId}/experience-detail/${item.id}`}
+                                            href={`${basePath}/${item.experienceId}/experience-detail/${item.id}`}
                                             className="flex min-w-0 flex-1 items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
                                             title={item.content || item.title}
                                         >
@@ -423,7 +424,7 @@ export function ExperienceListClient({ experiences }: Props) {
                                     return (
                                         <Link
                                             key={exp.id}
-                                            href={`/experience/${exp.id}/experience-detail/${targetDetailId}`}
+                                            href={`${basePath}/${exp.id}/experience-detail/${targetDetailId}`}
                                             className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                             title={exp.title}
                                         >

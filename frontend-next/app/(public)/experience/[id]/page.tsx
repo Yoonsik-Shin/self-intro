@@ -10,7 +10,7 @@ type Props = {
     params: Promise<{ id: string }>;
 };
 
-export async function findExperienceById(idParam: string): Promise<{
+async function findExperienceById(idParam: string): Promise<{
     experience: Experience;
     detail: ExperienceDetail;
     subProjects: Experience[];

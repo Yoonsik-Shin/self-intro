@@ -36,9 +36,10 @@ import { extractToc } from '@/lib/toc';
 
 type Props = {
     study: Study;
+    basePath?: string;
 };
 
-export function StudyDetailClient({ study }: Props) {
+export function StudyDetailClient({ study, basePath = '/study' }: Props) {
     const router = useRouter();
     const { data: allTaxonomyNodes } = useQuery({
         queryKey: ['taxonomyNodesPublic'],
@@ -392,7 +393,7 @@ export function StudyDetailClient({ study }: Props) {
                                             {study.relatedStudies.map((related) => (
                                                 <Link
                                                     key={`${related.id}-${related.type}`}
-                                                    href={`/study/${encodeURIComponent(related.slug)}`}
+                                                    href={`${basePath}/${encodeURIComponent(related.slug)}`}
                                                     className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
                                                 >
                                                     <span className="shrink-0 font-bold text-slate-400 group-hover:text-blue-600">

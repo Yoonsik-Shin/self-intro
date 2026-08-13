@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { buildSkillBadgeUrl, resolveSkillBadge } from './skillBadges';
 
 type SkillBadgeIconProps = {
@@ -17,9 +17,9 @@ export function SkillBadgeIcon({
     className = 'h-5 w-5',
 }: SkillBadgeIconProps) {
     const badge = resolveSkillBadge(name, badgeKey, badgeColor);
-    const [loadFailed, setLoadFailed] = useState(false);
-
-    useEffect(() => setLoadFailed(false), [badge?.key, badge?.color]);
+    const badgeIdentity = badge ? `${badge.key}:${badge.color}` : null;
+    const [failedBadgeIdentity, setFailedBadgeIdentity] = useState<string | null>(null);
+    const loadFailed = badgeIdentity !== null && failedBadgeIdentity === badgeIdentity;
 
     if (badgeKey === 'none') return null;
 
@@ -46,7 +46,7 @@ export function SkillBadgeIcon({
                 loading="lazy"
                 referrerPolicy="no-referrer"
                 className="h-full w-full object-contain"
-                onError={() => setLoadFailed(true)}
+                onError={() => setFailedBadgeIdentity(badgeIdentity)}
             />
         </span>
     );

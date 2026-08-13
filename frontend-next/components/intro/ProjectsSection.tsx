@@ -37,6 +37,8 @@ type Props = {
     onToggleDetail: (id: number) => void;
     onSetExpandedDetailIds: (ids: number[]) => void;
     onNavigateRelatedExperience: (experience: RelatedExperience) => void;
+    experienceBasePath?: string;
+    workspaceSlug?: string;
 };
 
 export function ProjectsSection({
@@ -47,6 +49,8 @@ export function ProjectsSection({
     onToggleDetail,
     onSetExpandedDetailIds,
     onNavigateRelatedExperience,
+    experienceBasePath = '/experience',
+    workspaceSlug,
 }: Props) {
     const areAllDetailsExpanded = (details: ExperienceDetail[]) => {
         const ids = getExpandableDetailIds(details);
@@ -123,7 +127,7 @@ export function ProjectsSection({
                                         </span>
                                         <h3 className="resume-item-title mt-1.5 font-black text-slate-800">
                                             <Link
-                                                href={`/experience/${m.experienceId ?? m.id}`}
+                                                href={`${experienceBasePath}/${m.experienceId ?? m.id}`}
                                                 onClick={(e) => e.stopPropagation()}
                                                 className="group/title inline-flex items-center gap-1.5 transition hover:text-blue-600 hover:underline"
                                             >
@@ -258,7 +262,7 @@ export function ProjectsSection({
                                                                 </span>
                                                                 {detail.id > 0 && (
                                                                     <Link
-                                                                        href={`/experience/${m.id}/experience-detail/${detail.id}`}
+                                                                        href={`${experienceBasePath}/${m.id}/experience-detail/${detail.id}`}
                                                                         onClick={(event) =>
                                                                             event.stopPropagation()
                                                                         }
@@ -309,6 +313,9 @@ export function ProjectsSection({
                                                                                 experienceDetailId={
                                                                                     detail.id
                                                                                 }
+                                                                                workspaceSlug={
+                                                                                    workspaceSlug
+                                                                                }
                                                                             />
                                                                         )}
                                                                     </div>
@@ -324,6 +331,7 @@ export function ProjectsSection({
                                     {m.experienceId && (
                                         <RelatedExperienceLinks
                                             experienceId={m.experienceId}
+                                            workspaceSlug={workspaceSlug}
                                             onNavigate={onNavigateRelatedExperience}
                                         />
                                     )}

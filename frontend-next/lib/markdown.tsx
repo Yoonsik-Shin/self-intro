@@ -558,7 +558,12 @@ export const remarkGithubAlerts: Plugin<[], Root> = () => {
  */
 export const remarkSourceLine = () => {
     return (tree: unknown) => {
-        const visit = (node: any) => {
+        type SourceLineNode = {
+            position?: { start?: { line?: number } };
+            data?: { hProperties?: Record<string, unknown> };
+            children?: SourceLineNode[];
+        };
+        const visit = (node: SourceLineNode) => {
             if (!node) return;
             if (node.position?.start?.line) {
                 node.data = node.data || {};
@@ -569,7 +574,7 @@ export const remarkSourceLine = () => {
                 node.children.forEach(visit);
             }
         };
-        visit(tree);
+        visit(tree as SourceLineNode);
     };
 };
 
@@ -625,7 +630,7 @@ export const remarkUnindentListLines: Plugin<[], Root> = () => {
             }
         };
 
-        visit(tree as Parent);
+        visit(tree);
     };
 };
 

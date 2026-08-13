@@ -9,6 +9,7 @@ import { ResumeSections } from './ResumeSections';
 
 type Props = {
     introData: IntroductionResponse;
+    workspaceSlug?: string;
 };
 
 const mainSections: SectionNavItem[] = [
@@ -24,7 +25,7 @@ const mainSections: SectionNavItem[] = [
 // sessionStorage(admin-preview-intro-override / admin-preview-nav)를 통해 저장 전 초안과
 // 이동할 섹션을 전달한다. 일반 방문자에게는 이 override가 전혀 동작하지 않으므로 서버에서
 // 렌더링된 SEO용 HTML(initial introData)에는 영향이 없다.
-export function IntroPageClient({ introData: initialIntroData }: Props) {
+export function IntroPageClient({ introData: initialIntroData, workspaceSlug }: Props) {
     const [introData, setIntroData] = useState(initialIntroData);
     const [isSectionNavCollapsed, setIsSectionNavCollapsed] = useState(false);
 
@@ -124,20 +125,24 @@ export function IntroPageClient({ introData: initialIntroData }: Props) {
                                         >
                                             <Github className="h-4 w-4" />
                                         </a>
-                                        <a
-                                            href={`mailto:${profile.email}`}
-                                            className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                                            title="이메일 보내기"
-                                        >
-                                            <Mail className="h-4 w-4" />
-                                        </a>
-                                        <a
-                                            href={`tel:${profile.phone}`}
-                                            className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                                            title="전화 걸기"
-                                        >
-                                            <Phone className="h-4 w-4" />
-                                        </a>
+                                        {profile.email && (
+                                            <a
+                                                href={`mailto:${profile.email}`}
+                                                className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                                title="이메일 보내기"
+                                            >
+                                                <Mail className="h-4 w-4" />
+                                            </a>
+                                        )}
+                                        {profile.phone && (
+                                            <a
+                                                href={`tel:${profile.phone}`}
+                                                className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                                title="전화 걸기"
+                                            >
+                                                <Phone className="h-4 w-4" />
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -150,7 +155,7 @@ export function IntroPageClient({ introData: initialIntroData }: Props) {
                         </div>
                     </div>
 
-                    <ResumeSections introData={introData} />
+                    <ResumeSections introData={introData} workspaceSlug={workspaceSlug} />
                 </div>
 
                 <SectionNavSidebar

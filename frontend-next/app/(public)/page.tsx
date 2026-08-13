@@ -1,31 +1,31 @@
 import type { Metadata } from 'next';
 import { serverGet } from '@/lib/api/server';
-import type { IntroductionResponse } from '@/lib/api/types';
-import { IntroPageClient } from '@/components/intro/IntroPageClient';
+import type { ArchitectureLayer, ArchitectureOverview } from '@/lib/api/types';
+import { ArchitecturePageClient } from '@/components/architecture/ArchitecturePageClient';
 
-// 프로필/경력/역량은 관리자 CRUD로 계속 바뀌므로 빌드 타임 정적 생성 대신 요청마다 서버 렌더링한다.
 export const dynamic = 'force-dynamic';
 
-async function getIntroduction(): Promise<IntroductionResponse> {
-    return serverGet<IntroductionResponse>('/api/bff/introduction');
+const DEFAULT_HEADING = 'Self-Intro 경력 관리 플랫폼';
+const DEFAULT_SUBHEADING =
+    '경력과 근거를 구조화하고, 핵심 역량과 지원별 이력서·공개 프로필로 연결하는 경력 관리 워크스페이스입니다.';
+
+async function getOverview(): Promise<ArchitectureOverview | null> {
+    try {
+        return await serverGet<ArchitectureOverview>('/api/architecture/overview');
+    } catch {
+        return null;
+    }
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-    const { profile } = await getIntroduction();
-    if (!profile) return { title: 'Yoonsik Shin' };
-
-    const title = `${profile.name} · ${profile.jobTitle}`;
-    const description = profile.bio;
-
-    return {
-        title,
-        description,
-        openGraph: { title, description, type: 'profile' },
-        twitter: { card: 'summary_large_image', title, description },
-    };
+async function getLayers(): Promise<ArchitectureLayer[]> {
+    return serverGet<ArchitectureLayer[]>('/api/architecture/layers');
 }
 
-export default async function HomePage() {
-    const introData = await getIntroduction();
-    return <IntroPageClient introData={introData} />;
+export function generateMetadata(): Metadata {
+    return { title: DEFAULT_HEADING, description: DEFAULT_SUBHEADING };
+}
+
+export default async function ProductHomePage() {
+    const [overview, layers] = await Promise.all([getOverview(), getLayers()]);
+    return <ArchitecturePageClient overview={overview} layers={layers} />;
 }

@@ -25,9 +25,16 @@ type Props = {
     experiences: Experience[];
     milestones: Milestone[];
     onSelectMilestone: (id: string) => void;
+    workspaceSlug?: string;
 };
 
-export function SkillsSection({ skills, experiences, milestones, onSelectMilestone }: Props) {
+export function SkillsSection({
+    skills,
+    experiences,
+    milestones,
+    onSelectMilestone,
+    workspaceSlug,
+}: Props) {
     const [selectedSkillId, setSelectedSkillId] = useState<number | null>(null);
     const groups = useMemo(() => groupCoreSkills(skills), [skills]);
     const selectedSkill = useMemo(
@@ -226,7 +233,10 @@ export function SkillsSection({ skills, experiences, milestones, onSelectMilesto
                                 )}
                             </div>
                             {selectedSkill.id > 0 && (
-                                <RelatedStudyNotes skillId={selectedSkill.id} />
+                                <RelatedStudyNotes
+                                    skillId={selectedSkill.id}
+                                    workspaceSlug={workspaceSlug}
+                                />
                             )}
                         </div>
                     )}

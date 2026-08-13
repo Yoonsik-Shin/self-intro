@@ -6,13 +6,17 @@ import type { RelatedExperience } from '@/lib/api/types';
 
 type Props = {
     experienceId: number;
+    workspaceSlug?: string;
     onNavigate: (experience: RelatedExperience) => void;
 };
 
-export function RelatedExperienceLinks({ experienceId, onNavigate }: Props) {
+export function RelatedExperienceLinks({ experienceId, workspaceSlug, onNavigate }: Props) {
     const { data = [] } = useQuery({
-        queryKey: ['experiences', 'related', experienceId],
-        queryFn: () => connectionApi.relatedExperiences(experienceId),
+        queryKey: ['experiences', 'related', workspaceSlug ?? 'default', experienceId],
+        queryFn: () =>
+            workspaceSlug
+                ? connectionApi.workspaceRelatedExperiences(workspaceSlug, experienceId)
+                : connectionApi.relatedExperiences(experienceId),
         enabled: experienceId > 0,
     });
 

@@ -52,6 +52,8 @@ type Props = {
     onToggleProject: (id: number) => void;
     onSetExpandedProjectIds: (ids: number[]) => void;
     onNavigateRelatedExperience: (experience: RelatedExperience) => void;
+    experienceBasePath?: string;
+    workspaceSlug?: string;
 };
 
 export function CareerSection({
@@ -64,6 +66,8 @@ export function CareerSection({
     onToggleProject,
     onSetExpandedProjectIds,
     onNavigateRelatedExperience,
+    experienceBasePath = '/experience',
+    workspaceSlug,
 }: Props) {
     const expandableDetailIds = useMemo(
         () =>
@@ -127,7 +131,7 @@ export function CareerSection({
                         </span>
                         <p className="resume-item-title mt-2 font-black text-slate-800">
                             <Link
-                                href={`/experience/${career.id}`}
+                                href={`${experienceBasePath}/${career.id}`}
                                 className="group/company inline-flex items-center gap-1.5 transition hover:text-blue-600 hover:underline"
                             >
                                 <span>
@@ -333,7 +337,7 @@ export function CareerSection({
                                                                             </span>
                                                                             {detail.id > 0 && (
                                                                                 <Link
-                                                                                    href={`/experience/${project.id}/experience-detail/${detail.id}`}
+                                                                                    href={`${experienceBasePath}/${project.id}/experience-detail/${detail.id}`}
                                                                                     onClick={(e) =>
                                                                                         e.stopPropagation()
                                                                                     }
@@ -381,6 +385,9 @@ export function CareerSection({
                                                                                             <RelatedStudyNotes
                                                                                                 experienceDetailId={
                                                                                                     detail.id
+                                                                                                }
+                                                                                                workspaceSlug={
+                                                                                                    workspaceSlug
                                                                                                 }
                                                                                             />
                                                                                         )}
@@ -433,7 +440,7 @@ export function CareerSection({
                                                 </span>
                                                 {detail.id > 0 && (
                                                     <Link
-                                                        href={`/experience/${career.id}/experience-detail/${detail.id}`}
+                                                        href={`${experienceBasePath}/${career.id}/experience-detail/${detail.id}`}
                                                         onClick={(e) => e.stopPropagation()}
                                                         className={`resume-meta shrink-0 whitespace-nowrap font-bold text-slate-800 transition-opacity duration-200 hover:text-slate-950 hover:underline ${isExpanded ? 'visible opacity-100' : 'invisible opacity-0'}`}
                                                     >
@@ -460,6 +467,7 @@ export function CareerSection({
                                                         {detail.id > 0 && (
                                                             <RelatedStudyNotes
                                                                 experienceDetailId={detail.id}
+                                                                workspaceSlug={workspaceSlug}
                                                             />
                                                         )}
                                                     </div>
@@ -473,6 +481,7 @@ export function CareerSection({
                         {career.id > 0 && (
                             <RelatedExperienceLinks
                                 experienceId={career.id}
+                                workspaceSlug={workspaceSlug}
                                 onNavigate={onNavigateRelatedExperience}
                             />
                         )}

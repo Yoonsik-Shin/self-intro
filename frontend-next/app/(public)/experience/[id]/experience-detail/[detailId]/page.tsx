@@ -10,7 +10,7 @@ type Props = {
     params: Promise<{ id: string; detailId: string }>;
 };
 
-export async function findExperienceAndDetail(
+async function findExperienceAndDetail(
     experienceIdParam: string,
     detailIdParam: string
 ): Promise<{
@@ -114,6 +114,7 @@ export default async function ExperienceDetailPage({ params }: Props) {
                 subProjects={subProjects}
                 relatedStudies={relatedStudies}
                 parentCareer={parentCareer}
+                focusDetail
             />
         </div>
     );

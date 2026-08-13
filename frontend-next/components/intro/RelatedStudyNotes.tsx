@@ -9,26 +9,35 @@ type Props = {
     skillId?: number;
     experienceId?: number;
     experienceDetailId?: number;
+    workspaceSlug?: string;
 };
 
 const VISIBLE_LIMIT = 5;
 
-export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }: Props) {
+export function RelatedStudyNotes({
+    skillId,
+    experienceId,
+    experienceDetailId,
+    workspaceSlug,
+}: Props) {
     const relationKey = skillId
         ? `skill-${skillId}`
         : experienceDetailId
           ? `detail-${experienceDetailId}`
           : `experience-${experienceId}`;
+    const searchParams = {
+        skillIds: skillId ? [skillId] : undefined,
+        experienceIds: experienceId ? [experienceId] : undefined,
+        experienceDetailIds: experienceDetailId ? [experienceDetailId] : undefined,
+        size: 100,
+    };
 
     const { data: relatedPage } = useQuery({
-        queryKey: ['studies', 'byExperience', relationKey],
+        queryKey: ['studies', workspaceSlug ?? 'legacy-public', 'byExperience', relationKey],
         queryFn: () =>
-            studyApi.list({
-                skillIds: skillId ? [skillId] : undefined,
-                experienceIds: experienceId ? [experienceId] : undefined,
-                experienceDetailIds: experienceDetailId ? [experienceDetailId] : undefined,
-                size: 100,
-            }),
+            workspaceSlug
+                ? studyApi.workspaceList(workspaceSlug, searchParams)
+                : studyApi.list(searchParams),
         enabled: Boolean(skillId || experienceId || experienceDetailId),
     });
     const relatedStudies = relatedPage?.content ?? [];
@@ -37,11 +46,14 @@ export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }:
 
     const visibleStudies = relatedStudies.slice(0, VISIBLE_LIMIT);
     const remainingCount = relatedStudies.length - visibleStudies.length;
+    const studyBasePath = workspaceSlug
+        ? `/workspace/${encodeURIComponent(workspaceSlug)}/study`
+        : '/study';
     const moreHref = skillId
-        ? `/study?skillId=${skillId}`
+        ? `${studyBasePath}?skillId=${skillId}`
         : experienceDetailId
-          ? `/study?experienceDetailId=${experienceDetailId}`
-          : `/study?experienceId=${experienceId}`;
+          ? `${studyBasePath}?experienceDetailId=${experienceDetailId}`
+          : `${studyBasePath}?experienceId=${experienceId}`;
 
     return (
         <div className="mt-3 border-t border-slate-100 pt-2.5 print:hidden">
@@ -53,7 +65,7 @@ export function RelatedStudyNotes({ skillId, experienceId, experienceDetailId }:
                 {visibleStudies.map((study) => (
                     <Link
                         key={study.id}
-                        href={`/study/${encodeURIComponent(study.slug)}`}
+                        href={`${studyBasePath}/${encodeURIComponent(study.slug)}`}
                         onClick={(event) => event.stopPropagation()}
                         className="group flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-left text-blue-600 transition-all hover:bg-blue-50/70 hover:text-blue-800"
                     >

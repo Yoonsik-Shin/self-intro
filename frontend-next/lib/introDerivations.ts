@@ -7,22 +7,28 @@ export type SkillGroup = {
     skills: Skill[];
 };
 
+export type SkillOutputGroup = SkillGroup['value'];
+
+/** 과거 데이터의 WORK 값까지 현재 출력 그룹으로 안전하게 정규화한다. */
+export function getSkillOutputGroup(skill: Skill): SkillOutputGroup {
+    if (skill.usageType === 'WORK' || skill.usageType === 'WORK_EXPERIENCE') return 'CORE';
+    return 'PROJECT_LEARNING';
+}
+
 export function groupSkillsByUsage(skills: Skill[]): SkillGroup[] {
     return [
         {
             value: 'CORE',
             label: '핵심 기술 스택',
             skills: skills
-                .filter((skill) => skill.usageType === 'WORK_EXPERIENCE')
+                .filter((skill) => getSkillOutputGroup(skill) === 'CORE')
                 .sort((a, b) => a.displayOrder - b.displayOrder),
         },
         {
             value: 'PROJECT_LEARNING',
             label: '프로젝트/학습',
             skills: skills
-                .filter(
-                    (skill) => skill.usageType === 'PROJECT_USE' || skill.usageType === 'LEARNING'
-                )
+                .filter((skill) => getSkillOutputGroup(skill) === 'PROJECT_LEARNING')
                 .sort((a, b) => a.displayOrder - b.displayOrder),
         },
     ];
@@ -60,7 +66,7 @@ export function buildCareerCards(experiences: Experience[]): CareerCard[] {
             department: exp.department ?? '',
             role: exp.role ?? '',
             summary: exp.summary ?? '',
-            details: (exp.details ?? []).filter((d) => d.visible !== false),
+            details: exp.details ?? [],
             projects: workProjects.filter((project) => project.careerId === exp.id),
         }));
 }
@@ -91,7 +97,9 @@ export function buildMilestones(introData: IntroductionResponse): Milestone[] {
               )
             : undefined;
 
-        const visibleDetails = (exp.details ?? []).filter((d) => d.visible !== false);
+        // 공개 페이지와 출력 관리 API가 각자 선택을 마친 projection을 반환한다.
+        // 원본의 legacy visible 값으로 출력 항목을 다시 거르지 않는다.
+        const visibleDetails = exp.details ?? [];
 
         return {
             id: exp.slug ?? exp.id.toString(),

@@ -1,6 +1,5 @@
 import { SiteHeader } from '@/components/nav/SiteHeader';
 import { PreviewModeBanner } from '@/components/nav/PreviewModeBanner';
-import { GlobalPrintModal } from '@/components/print/GlobalPrintModal';
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -8,7 +7,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <SiteHeader />
             <PreviewModeBanner />
             {children}
-            <GlobalPrintModal />
         </main>
     );
 }

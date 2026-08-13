@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export function PreviewModeBanner() {
-    const [isPreviewMode, setIsPreviewMode] = useState(false);
-
-    useEffect(() => {
-        setIsPreviewMode(new URLSearchParams(window.location.search).get('preview') === '1');
-    }, []);
+    const searchParams = useSearchParams();
+    const isPreviewMode = searchParams.get('preview') === '1';
 
     if (!isPreviewMode) return null;
 

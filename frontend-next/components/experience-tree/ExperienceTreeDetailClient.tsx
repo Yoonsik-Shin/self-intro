@@ -52,9 +52,13 @@ const LEVEL_STYLE = {
 export function ExperienceTreeDetailClient({
     detail,
     index,
+    basePath = '/experience-tree',
+    studyBasePath = '/study',
 }: {
     detail: ExperienceTreeDetail;
     index: ExperienceTreeIndex;
+    basePath?: string;
+    studyBasePath?: string;
 }) {
     const router = useRouter();
     const breadcrumb = categoryBreadcrumb(detail);
@@ -231,7 +235,7 @@ export function ExperienceTreeDetailClient({
                                 return (
                                     <Link
                                         key={`${relation.sourceKey}-${relation.targetKey}-${relation.relationType}`}
-                                        href={`/experience-tree/${encodeURIComponent(key)}`}
+                                        href={`${basePath}/${encodeURIComponent(key)}`}
                                         className="rounded-xl border border-slate-200 p-4 hover:border-blue-300 hover:bg-blue-50"
                                     >
                                         <p className="text-xs font-black text-blue-600">
@@ -282,7 +286,7 @@ export function ExperienceTreeDetailClient({
                                     detail.studies.map((study) => (
                                         <Link
                                             key={study.linkId}
-                                            href={`/study/${study.slug}`}
+                                            href={`${studyBasePath}/${study.slug}`}
                                             className="block rounded-xl border border-slate-200 p-4 hover:border-blue-300 hover:bg-blue-50"
                                         >
                                             <p className="text-xs font-black text-blue-600">
@@ -318,7 +322,7 @@ export function ExperienceTreeDetailClient({
                         ))}
                     </nav>
                     <Link
-                        href="/experience-tree"
+                        href={basePath}
                         className="mt-4 block rounded-xl bg-slate-900 px-3 py-2.5 text-center text-xs font-bold text-white"
                     >
                         전체 온톨로지 보기

@@ -16,9 +16,14 @@ const cardStyle =
 type Props = {
     educationExperiences: Experience[];
     certificateExperiences: Experience[];
+    workspaceSlug?: string;
 };
 
-export function CredentialsSection({ educationExperiences, certificateExperiences }: Props) {
+export function CredentialsSection({
+    educationExperiences,
+    certificateExperiences,
+    workspaceSlug,
+}: Props) {
     const academicList = useMemo(
         () => educationExperiences.filter((e) => credentialKindLabel(e) === '학력'),
         [educationExperiences]
@@ -115,6 +120,7 @@ export function CredentialsSection({ educationExperiences, certificateExperience
                                                     )}
                                                     <RelatedStudyNotes
                                                         experienceId={education.id}
+                                                        workspaceSlug={workspaceSlug}
                                                     />
                                                 </article>
                                             );
@@ -167,7 +173,10 @@ export function CredentialsSection({ educationExperiences, certificateExperience
                                                         ))}
                                                     </div>
                                                 )}
-                                                <RelatedStudyNotes experienceId={education.id} />
+                                                <RelatedStudyNotes
+                                                    experienceId={education.id}
+                                                    workspaceSlug={workspaceSlug}
+                                                />
                                             </article>
                                         ))}
                                     </div>
@@ -230,7 +239,10 @@ export function CredentialsSection({ educationExperiences, certificateExperience
                                                 ))}
                                             </div>
                                         )}
-                                        <RelatedStudyNotes experienceId={certificate.id} />
+                                        <RelatedStudyNotes
+                                            experienceId={certificate.id}
+                                            workspaceSlug={workspaceSlug}
+                                        />
                                     </article>
                                 ))}
                             </div>

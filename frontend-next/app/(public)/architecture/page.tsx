@@ -5,9 +5,9 @@ import { ArchitecturePageClient } from '@/components/architecture/ArchitecturePa
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_HEADING = '시스템 아키텍처 (Self-Intro Architecture)';
+const DEFAULT_HEADING = 'Self-Intro 경력 관리 플랫폼';
 const DEFAULT_SUBHEADING =
-    '이 포트폴리오 웹앱의 도메인 모듈 구조, DB 데이터 관리 방식, 그리고 Cloudflare·오라클 Free Tier 기반 배포 인프라까지 담은 설계 명세입니다.';
+    '경력과 근거를 구조화하고, 핵심 역량과 지원별 이력서·공개 프로필로 연결하는 경력 관리 워크스페이스입니다.';
 
 async function getOverview(): Promise<ArchitectureOverview | null> {
     try {
@@ -21,11 +21,10 @@ async function getLayers(): Promise<ArchitectureLayer[]> {
     return serverGet<ArchitectureLayer[]>('/api/architecture/layers');
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-    const overview = await getOverview();
+export function generateMetadata(): Metadata {
     return {
-        title: overview?.heading ?? DEFAULT_HEADING,
-        description: overview?.subheading ?? DEFAULT_SUBHEADING,
+        title: DEFAULT_HEADING,
+        description: DEFAULT_SUBHEADING,
     };
 }
 

@@ -11,9 +11,15 @@ type Props = {
     competencies: Competency[];
     milestones: Milestone[];
     onSelectMilestone: (id: string) => void;
+    studyBasePath?: string;
 };
 
-export function CompetenciesSection({ competencies, milestones, onSelectMilestone }: Props) {
+export function CompetenciesSection({
+    competencies,
+    milestones,
+    onSelectMilestone,
+    studyBasePath = '/study',
+}: Props) {
     const [expandedIds, setExpandedIds] = useState<number[]>([]);
 
     const ordered = competencies.filter((c) => c.visible);
@@ -146,7 +152,7 @@ export function CompetenciesSection({ competencies, milestones, onSelectMileston
                                                 {competency.relatedStudies.map((study) => (
                                                     <Link
                                                         key={`study-${study.id}`}
-                                                        href={`/study/${encodeURIComponent(study.slug)}`}
+                                                        href={`${studyBasePath}/${encodeURIComponent(study.slug)}`}
                                                         className="font-bold text-blue-700 hover:underline"
                                                     >
                                                         {study.title}

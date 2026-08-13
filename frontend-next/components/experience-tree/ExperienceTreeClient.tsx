@@ -83,12 +83,14 @@ export function ExperienceTreeClient({
     initialDomain = 'ALL',
     initialSearch = '',
     initialSituation,
+    basePath = '/experience-tree',
 }: {
     initialIndex: ExperienceTreeIndex;
     initialView?: ViewMode;
     initialDomain?: DecisionDomain | 'ALL';
     initialSearch?: string;
     initialSituation?: string;
+    basePath?: string;
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -125,7 +127,7 @@ export function ExperienceTreeClient({
 
     const openDetail = (key: string) => {
         setSelectedKey(key);
-        router.push(`/experience-tree/${encodeURIComponent(key)}`);
+        router.push(`${basePath}/${encodeURIComponent(key)}`);
     };
 
     return (
