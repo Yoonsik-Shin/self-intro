@@ -1,7 +1,7 @@
 # Self-Intro SaaS 운영 가이드
 
-- 최종 갱신: 2026-08-12
-- 대상 브랜치: `feat/saas-security-foundation`
+- 최종 갱신: 2026-08-14
+- 검증 브랜치: `fix/saas-recovery-build-baseline`
 - 제품 기능 진입점: [제품 기능 지도](../product/feature-map.md)
 - 설계 기준: [ADR-001](../adr/ADR-001-saas-security-multitenancy.md)
 - 가입 기준안: [ADR-002](../adr/ADR-002-registration-and-workspace-onboarding.md)
@@ -11,6 +11,7 @@
 - Job·AI·Vector 격리: [Job·AI·Vector 안정화 계획](jobs-ai-vector-stabilization-plan.md)
 - Backup·복구 정책과 실행 gate: [Disaster recovery policy](disaster-recovery-policy.md)
 - 전환 작업 체크포인트: [SaaS 전환 작업 체크포인트](saas-transition-checkpoint.md)
+- DB 테이블 소유권·정리 기준: [Database table inventory](database-table-inventory.md)
 - 운영 배포 상태: **미배포**
 
 이 문서는 현재 구현된 동작, 로컬 검증 방법, 운영 반영 전 준비사항을 운영자 관점에서 설명한다.
@@ -2206,8 +2207,8 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   동기화 스크립트 구문 검사 통과다.
 - 복구가 필요하면 애플리케이션 쓰기를 먼저 중단하고 V231 적용 전 전체 백업으로 DB를 복원한다. 삭제된
   빈 테이블만 임의로 재생성해 Flyway 이력과 실제 schema를 어긋나게 만들지 않는다.
-- 이 정리는 로컬 Docker Compose에만 적용하며 stage·commit·운영 배포하지 않는다. 운영 적용은 별도
-  승인과 운영 DB 사전 카운트·백업 확인 뒤 수행한다.
+- 이 정리는 로컬 Docker Compose에서 검증하고 migration과 문서를 독립 커밋으로 보존했다. 운영에는
+  배포하지 않았으며, 운영 적용은 별도 승인과 운영 DB 사전 카운트·백업 확인 뒤 수행한다.
 - 2026-08-14 로컬 검증에서 V230 기준 세 테이블이 모두 0행임을 확인하고
   `/private/tmp/self-intro-v231-before-20260814.sql`에 `--no-tablespaces --single-transaction` 전체 백업을
   생성했다. backend 이미지를 재빌드·재생성한 뒤 Flyway V231 `success=1`, 전체 테이블 116개→113개,

@@ -1,11 +1,12 @@
 # Self-Intro 제품 기능 지도
 
-- 최종 갱신: 2026-08-12
-- 대상 브랜치: `feat/saas-security-foundation`
+- 최종 갱신: 2026-08-14
+- 검증 브랜치: `fix/saas-recovery-build-baseline`
 - 문서 역할: 제품 구조와 구현 상태를 이해하기 위한 **첫 진입점**
 - 설계 결정 source of truth: [ADR-001](../adr/ADR-001-saas-security-multitenancy.md), [ADR-002](../adr/ADR-002-registration-and-workspace-onboarding.md), [ADR-003](../adr/ADR-003-public-page-composition-and-domain-taxonomy.md)
 - 실제 운영 절차·검증 상태: [SaaS 운영 가이드](../operations/saas-operations-guide.md)
 - 현재 작업 트리·준비도 기준: [SaaS 전환 작업 체크포인트](../operations/saas-transition-checkpoint.md)
+- DB 소유권·보존 기준: [Database table inventory](../operations/database-table-inventory.md)
 
 이 문서는 Self-Intro의 기능을 사용자, 데이터 소유권, 화면, 권한 기준으로 한 번에 찾을 수 있도록
 정리한다. 설계 이유는 ADR, 실행 방법은 운영·베타 가이드, 실제 구현 여부는 이 문서의 상태표와 코드·
