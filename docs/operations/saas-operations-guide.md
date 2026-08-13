@@ -752,7 +752,11 @@ Workspace 생성만 명시적으로 예외 처리한다.
 삭제하고 현재 세션도 무효화한다. 이 기능과 비밀번호·이메일 변경 뒤 세션 폐기는 principal index가 있는
 `RedisIndexedSessionRepository`를 전제로 한다. Redis 설정을 plain session repository로 되돌리면
 `findByPrincipalName` 조회가 비어 세션 폐기와 최대 동시 세션 제한이 조용히 무력화되므로
-`@EnableRedisIndexedHttpSession`을 유지한다.
+`@EnableRedisIndexedHttpSession`을 유지한다. indexed repository bean이 없으면 로그인과 세션 폐기 작업은
+보안 정책을 건너뛰지 않고 실패한다. `SessionSecurityServiceTest`는 repository 누락 시 fail-closed,
+일반 사용자 5개·플랫폼 운영자 2개 제한, 동일 principal 전체 세션 폐기를 직접 검증한다.
+Redis를 의도적으로 제외한 MockMvc `test` profile에서만
+`app.security.session.principal-index-required=false`를 사용하며, 운영 profile에는 설정하지 않는다.
 
 ### 중요 작업 재인증
 

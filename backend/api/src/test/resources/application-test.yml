@@ -7,6 +7,11 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 app:
+  security:
+    session:
+      # MockMvc 통합 테스트는 Redis를 제외한다. fail-closed 계약과 동시 세션 제한은 core 단위 테스트와
+      # 실제 Redis를 쓰는 Compose E2E에서 별도로 검증한다.
+      principal-index-required: false
   ai:
     # 코드에는 기본값을 두지 않기로 했지만(운영은 환경변수로만 관리), 통합 테스트가 환경변수 없이도
     # 항상 재현 가능하게 돌아가도록 테스트 프로필에서만 값을 고정한다.

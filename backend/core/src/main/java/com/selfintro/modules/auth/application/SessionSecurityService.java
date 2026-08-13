@@ -22,9 +22,11 @@ public class SessionSecurityService {
     @Value("${app.security.session.platform-max-concurrent:2}")
     private int platformMaxConcurrent;
 
+    @Value("${app.security.session.principal-index-required:true}")
+    private boolean principalIndexRequired;
+
     public void prepareForLogin(AppUserPrincipal principal) {
-        FindByIndexNameSessionRepository<? extends Session> repository =
-                sessionRepositoryProvider.getIfAvailable();
+        FindByIndexNameSessionRepository<? extends Session> repository = repositoryOrNull();
         if (repository == null) {
             return;
         }
@@ -55,16 +57,26 @@ public class SessionSecurityService {
 
     public int revokeAll(String principalName) {
         int deleted = 0;
-        FindByIndexNameSessionRepository<? extends Session> repository =
-                sessionRepositoryProvider.getIfAvailable();
-        if (repository != null) {
-            Map<String, ? extends Session> sessions = repository.findByPrincipalName(principalName);
-            for (String sessionId : sessions.keySet()) {
-                repository.deleteById(sessionId);
-                deleted++;
-            }
+        FindByIndexNameSessionRepository<? extends Session> repository = repositoryOrNull();
+        if (repository == null) {
+            return 0;
+        }
+        Map<String, ? extends Session> sessions = repository.findByPrincipalName(principalName);
+        for (String sessionId : sessions.keySet()) {
+            repository.deleteById(sessionId);
+            deleted++;
         }
 
         return deleted;
+    }
+
+    private FindByIndexNameSessionRepository<? extends Session> repositoryOrNull() {
+        FindByIndexNameSessionRepository<? extends Session> repository =
+                sessionRepositoryProvider.getIfAvailable();
+        if (repository == null && principalIndexRequired) {
+            throw new IllegalStateException(
+                    "Principal-indexed session repository is required for session security");
+        }
+        return repository;
     }
 }
