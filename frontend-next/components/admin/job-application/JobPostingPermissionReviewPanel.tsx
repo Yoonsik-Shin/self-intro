@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/lib/api/errors';
 import type {
     JobCatalogPermissionBasis,
@@ -23,6 +23,10 @@ export function JobPostingPermissionReviewPanel({
     posting: JobCatalogPermissionPosting;
 }) {
     const queryClient = useQueryClient();
+    const { data: reviewEvents = [], isLoading: isReviewEventsLoading } = useQuery({
+        queryKey: ['jobPostingPermissionReviewEvents', posting.id],
+        queryFn: () => jobCatalogPermissionApi.reviewEvents(posting.id),
+    });
     const [draft, setDraft] = useState<JobCatalogPermissionReviewRequest>({
         reviewStatus: posting.permissionReviewStatus,
         permissionBasis: posting.permissionBasis,
@@ -45,6 +49,9 @@ export function JobPostingPermissionReviewPanel({
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['jobPostings'] });
             queryClient.invalidateQueries({ queryKey: ['workspaceJobPostingCatalog'] });
+            queryClient.invalidateQueries({
+                queryKey: ['jobPostingPermissionReviewEvents', posting.id],
+            });
         },
         onError: (error) =>
             alert(
@@ -171,6 +178,20 @@ export function JobPostingPermissionReviewPanel({
                     />
                 </label>
                 <label className="grid gap-1 text-[11px] font-bold text-slate-600">
+                    철회 연락처
+                    <input
+                        className={inputClass}
+                        value={draft.revocationContact ?? ''}
+                        onChange={(event) =>
+                            setDraft((current) => ({
+                                ...current,
+                                revocationContact: event.target.value,
+                            }))
+                        }
+                        placeholder="철회 요청을 받을 이메일·채널"
+                    />
+                </label>
+                <label className="grid gap-1 text-[11px] font-bold text-slate-600">
                     만료 시각
                     <input
                         type="datetime-local"
@@ -208,6 +229,47 @@ export function JobPostingPermissionReviewPanel({
                 >
                     증빙 확인 후 승인
                 </button>
+            </div>
+
+            <div className="mt-5 border-t border-slate-200 pt-4">
+                <h4 className="text-xs font-black text-slate-900">변경 불가 심사 이력</h4>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    승인·격리·거절 시점의 근거와 담당자를 스냅샷으로 보존합니다.
+                </p>
+                {isReviewEventsLoading ? (
+                    <p className="mt-3 text-xs font-bold text-slate-400">
+                        이력을 불러오는 중입니다.
+                    </p>
+                ) : reviewEvents.length === 0 ? (
+                    <p className="mt-3 text-xs font-bold text-slate-400">
+                        아직 저장된 심사 이력이 없습니다.
+                    </p>
+                ) : (
+                    <ol className="mt-3 space-y-2">
+                        {reviewEvents.map((event) => (
+                            <li
+                                key={event.id}
+                                className="rounded-lg border border-slate-200 bg-white p-3 text-xs"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <strong className="text-slate-800">
+                                        {event.reviewStatus} ·{' '}
+                                        {PERMISSION_BASIS_LABELS[event.permissionBasis]}
+                                    </strong>
+                                    <time className="text-[11px] text-slate-400">
+                                        {new Date(event.reviewedAt).toLocaleString('ko-KR')}
+                                    </time>
+                                </div>
+                                <p className="mt-1 text-[11px] text-slate-500">
+                                    담당자 #{event.reviewedByUserId}
+                                    {event.evidenceReference
+                                        ? ` · 증빙 ${event.evidenceReference}`
+                                        : ' · 증빙 참조 없음'}
+                                </p>
+                            </li>
+                        ))}
+                    </ol>
+                )}
             </div>
         </section>
     );

@@ -40,6 +40,21 @@ export type JobCatalogPermissionReviewRequest = {
     expiresAt?: string | null;
 };
 
+export type JobCatalogPermissionReviewEvent = {
+    id: number;
+    reviewStatus: JobCatalogPermissionReviewStatus;
+    permissionBasis: JobCatalogPermissionBasis;
+    evidenceReference: string | null;
+    grantorName: string | null;
+    grantorAuthority: string | null;
+    permissionScopeNote: string | null;
+    termsVersion: string | null;
+    revocationContact: string | null;
+    expiresAt: string | null;
+    reviewedByUserId: number;
+    reviewedAt: string;
+};
+
 export const jobCatalogPermissionApi = {
     list: () => request<JobCatalogPermissionPosting[]>('/api/admin/job-postings'),
     review: (id: number, payload: JobCatalogPermissionReviewRequest) =>
@@ -47,4 +62,8 @@ export const jobCatalogPermissionApi = {
             method: 'PUT',
             body: JSON.stringify(payload),
         }),
+    reviewEvents: (id: number) =>
+        request<JobCatalogPermissionReviewEvent[]>(
+            `/api/admin/job-postings/${id}/permission-review-events`
+        ),
 };
