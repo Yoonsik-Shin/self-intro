@@ -9,8 +9,7 @@ public interface PortfolioCaseStudyRevisionRepository
         extends JpaRepository<PortfolioCaseStudyRevision, Long> {
     List<PortfolioCaseStudyRevision> findAllByCaseStudyIdOrderByVersionDesc(Long caseStudyId);
 
-    Optional<PortfolioCaseStudyRevision> findByCaseStudyIdAndVersion(
-            Long caseStudyId, int version);
+    Optional<PortfolioCaseStudyRevision> findByCaseStudyIdAndVersion(Long caseStudyId, int version);
 
     long countByCaseStudyId(Long caseStudyId);
 }

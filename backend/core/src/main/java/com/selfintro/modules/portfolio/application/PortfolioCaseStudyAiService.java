@@ -35,8 +35,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 포트폴리오 케이스스터디 본문을 "사실 추출 → 초안 작성" 2단계로 생성한다. {@link
- * com.selfintro.modules.experience.application.ExperienceAiService}와 동일한 구조 — 근거 없는 사실은 버리고,
- * 각 사실에 experienceDetailId/studyId 근거를 강제해 환각을 막는다.
+ * com.selfintro.modules.experience.application.ExperienceAiService}와 동일한 구조 — 근거 없는 사실은 버리고, 각 사실에
+ * experienceDetailId/studyId 근거를 강제해 환각을 막는다.
  */
 @Slf4j
 @Service
@@ -85,13 +85,19 @@ public class PortfolioCaseStudyAiService {
     private final ObjectMapper objectMapper;
     private final AtomicBoolean generating = new AtomicBoolean(false);
 
-    public PortfolioCaseStudyContent generate(Long caseStudyId, PortfolioCaseStudyGenerateRequest request) {
+    public PortfolioCaseStudyContent generate(
+            Long caseStudyId, PortfolioCaseStudyGenerateRequest request) {
+        return generate(null, caseStudyId, request);
+    }
+
+    public PortfolioCaseStudyContent generate(
+            Long workspaceId, Long caseStudyId, PortfolioCaseStudyGenerateRequest request) {
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 포트폴리오 AI 초안을 생성하고 있습니다.");
         }
         try {
-            return run(prepare(resolveExperienceId(caseStudyId), request), null);
+            return run(prepare(resolveExperienceId(workspaceId, caseStudyId), request), null);
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 오케스트레이션 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
@@ -101,13 +107,18 @@ public class PortfolioCaseStudyAiService {
     }
 
     public SseEmitter generateStream(Long caseStudyId, PortfolioCaseStudyGenerateRequest request) {
+        return generateStream(null, caseStudyId, request);
+    }
+
+    public SseEmitter generateStream(
+            Long workspaceId, Long caseStudyId, PortfolioCaseStudyGenerateRequest request) {
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 포트폴리오 AI 초안을 생성하고 있습니다.");
         }
         PreparedGeneration prepared;
         try {
-            prepared = prepare(resolveExperienceId(caseStudyId), request);
+            prepared = prepare(resolveExperienceId(workspaceId, caseStudyId), request);
         } catch (RuntimeException exception) {
             generating.set(false);
             throw exception;
@@ -119,20 +130,24 @@ public class PortfolioCaseStudyAiService {
 
     private SseEmitter createSseEmitter(long timeoutMillis) {
         SseEmitter emitter = new SseEmitter(timeoutMillis);
-        emitter.onTimeout(() -> {
-            log.info("포트폴리오 AI SSE 스트림 타임아웃 발생");
-            emitter.complete();
-        });
-        emitter.onError(ex -> {
-            log.debug("포트폴리오 AI SSE 스트림 에러: {}", ex.getMessage());
-        });
+        emitter.onTimeout(
+                () -> {
+                    log.info("포트폴리오 AI SSE 스트림 타임아웃 발생");
+                    emitter.complete();
+                });
+        emitter.onError(
+                ex -> {
+                    log.debug("포트폴리오 AI SSE 스트림 에러: {}", ex.getMessage());
+                });
         return emitter;
     }
 
-    private Long resolveExperienceId(Long caseStudyId) {
+    private Long resolveExperienceId(Long workspaceId, Long caseStudyId) {
         PortfolioCaseStudy caseStudy =
-                portfolioCaseStudyRepository
-                        .findById(caseStudyId)
+                (workspaceId == null
+                                ? portfolioCaseStudyRepository.findById(caseStudyId)
+                                : portfolioCaseStudyRepository.findByIdAndWorkspaceId(
+                                        caseStudyId, workspaceId))
                         .orElseThrow(
                                 () ->
                                         new ResponseStatusException(
@@ -203,16 +218,20 @@ public class PortfolioCaseStudyAiService {
                         ? nvidiaNimClient.generate(WRITER_PROMPT, writerInput)
                         : nvidiaNimClient.generateStreaming(
                                 WRITER_PROMPT, writerInput, token -> sink.token(2, token));
-        PortfolioCaseStudyContent content = parseJson(writerRaw, PortfolioCaseStudyContent.class, "초안 작성");
+        PortfolioCaseStudyContent content =
+                parseJson(writerRaw, PortfolioCaseStudyContent.class, "초안 작성");
         return normalize(content, prepared);
     }
 
-    private PreparedGeneration prepare(Long experienceId, PortfolioCaseStudyGenerateRequest request) {
+    private PreparedGeneration prepare(
+            Long experienceId, PortfolioCaseStudyGenerateRequest request) {
         Experience experience =
                 experienceRepository
                         .findById(experienceId)
                         .orElseThrow(
-                                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 프로젝트입니다."));
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND, "존재하지 않는 프로젝트입니다."));
 
         List<Skill> skills =
                 request.skillIds() == null || request.skillIds().isEmpty()
@@ -241,22 +260,29 @@ public class PortfolioCaseStudyAiService {
                         studies.stream().map(StudyFact::from).toList());
 
         Set<Long> allowedDetailIds =
-                details.stream().map(ExperienceDetail::getId).collect(java.util.stream.Collectors.toSet());
+                details.stream()
+                        .map(ExperienceDetail::getId)
+                        .collect(java.util.stream.Collectors.toSet());
         Set<Long> allowedStudyIds =
                 studies.stream().map(Study::getId).collect(java.util.stream.Collectors.toSet());
 
         return new PreparedGeneration(
-                extractionContext, blankToNull(request.instruction()), allowedDetailIds, allowedStudyIds);
+                extractionContext,
+                blankToNull(request.instruction()),
+                allowedDetailIds,
+                allowedStudyIds);
     }
 
     private <T> List<T> validateSubset(List<T> found, List<Long> requestedIds, String label) {
         if (found.size() != requestedIds.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 " + label + " ID가 포함되어 있습니다.");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "존재하지 않는 " + label + " ID가 포함되어 있습니다.");
         }
         return found;
     }
 
-    private List<Fact> normalizeExtraction(ExtractionResponse response, PreparedGeneration prepared) {
+    private List<Fact> normalizeExtraction(
+            ExtractionResponse response, PreparedGeneration prepared) {
         List<Fact> facts =
                 safe(response.facts()).stream()
                         .limit(20)
@@ -265,9 +291,11 @@ public class PortfolioCaseStudyAiService {
                                 fact ->
                                         (fact.experienceDetailId() == null
                                                         || prepared.allowedDetailIds()
-                                                                .contains(fact.experienceDetailId()))
+                                                                .contains(
+                                                                        fact.experienceDetailId()))
                                                 && (fact.studyId() == null
-                                                        || prepared.allowedStudyIds().contains(fact.studyId())))
+                                                        || prepared.allowedStudyIds()
+                                                                .contains(fact.studyId())))
                         .map(
                                 fact ->
                                         new Fact(
@@ -277,15 +305,19 @@ public class PortfolioCaseStudyAiService {
                                                 limit(fact.text(), 500)))
                         .toList();
         if (facts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "1단계 사실관계 정리에서 충분한 근거를 찾지 못했습니다.");
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, "1단계 사실관계 정리에서 충분한 근거를 찾지 못했습니다.");
         }
         return facts;
     }
 
     private PortfolioCaseStudyContent normalize(
             PortfolioCaseStudyContent content, PreparedGeneration prepared) {
-        if (!hasText(content.summary()) || !hasText(content.problem()) || !hasText(content.solution())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "2단계 초안 작성에서 적합한 결과를 만들지 못했습니다.");
+        if (!hasText(content.summary())
+                || !hasText(content.problem())
+                || !hasText(content.solution())) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, "2단계 초안 작성에서 적합한 결과를 만들지 못했습니다.");
         }
         List<PortfolioCaseStudyContent.Tradeoff> tradeoffs =
                 safe(content.tradeoffs()).stream()
@@ -309,7 +341,8 @@ public class PortfolioCaseStudyAiService {
                                         .filter(m -> m != null && hasText(m.label()))
                                         .map(
                                                 m ->
-                                                        new PortfolioCaseStudyContent.Outcome.Metric(
+                                                        new PortfolioCaseStudyContent.Outcome
+                                                                .Metric(
                                                                 limit(m.label(), 100),
                                                                 limit(m.before(), 100),
                                                                 limit(m.after(), 100)))
@@ -345,7 +378,8 @@ public class PortfolioCaseStudyAiService {
                 sourceDetailIds);
     }
 
-    private <T> T parseJson(String raw, Class<T> type, String stage) throws JsonProcessingException {
+    private <T> T parseJson(String raw, Class<T> type, String stage)
+            throws JsonProcessingException {
         return com.selfintro.global.ai.AiJsonSupport.parseJson(objectMapper, raw, type, stage);
     }
 
@@ -353,7 +387,9 @@ public class PortfolioCaseStudyAiService {
         try {
             emitter.send(
                     SseEmitter.event()
-                            .data(objectMapper.writeValueAsString(payload), MediaType.APPLICATION_JSON));
+                            .data(
+                                    objectMapper.writeValueAsString(payload),
+                                    MediaType.APPLICATION_JSON));
         } catch (IOException exception) {
             throw new UncheckedIOException("SSE 이벤트 전송에 실패했습니다.", exception);
         }
@@ -411,7 +447,12 @@ public class PortfolioCaseStudyAiService {
     }
 
     private record ExperienceDetailFact(
-            Long id, String content, String situation, String task, String actionDetail, String outcome) {
+            Long id,
+            String content,
+            String situation,
+            String task,
+            String actionDetail,
+            String outcome) {
         static ExperienceDetailFact from(ExperienceDetail value) {
             return new ExperienceDetailFact(
                     value.getId(),

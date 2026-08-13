@@ -6,17 +6,20 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PortfolioCaseStudyRepository extends JpaRepository<PortfolioCaseStudy, Long> {
-    boolean existsBySlug(String slug);
+    boolean existsByWorkspaceIdAndSlug(Long workspaceId, String slug);
 
-    boolean existsBySlugAndIdNot(String slug, Long id);
+    boolean existsByWorkspaceIdAndSlugAndIdNot(Long workspaceId, String slug, Long id);
 
-    Optional<PortfolioCaseStudy> findBySlug(String slug);
+    Optional<PortfolioCaseStudy> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
-    Optional<PortfolioCaseStudy> findBySlugAndStatus(String slug, String status);
+    Optional<PortfolioCaseStudy> findByWorkspaceIdAndSlugAndStatus(
+            Long workspaceId, String slug, String status);
 
-    List<PortfolioCaseStudy> findAllByOrderByUpdatedAtDesc();
+    List<PortfolioCaseStudy> findAllByWorkspaceIdOrderByUpdatedAtDesc(Long workspaceId);
 
-    List<PortfolioCaseStudy> findAllByStatusOrderByUpdatedAtDesc(String status);
+    List<PortfolioCaseStudy> findAllByWorkspaceIdAndStatusOrderByUpdatedAtDesc(
+            Long workspaceId, String status);
 
-    List<PortfolioCaseStudy> findAllByExperienceIdOrderByCreatedAtDesc(Long experienceId);
+    List<PortfolioCaseStudy> findAllByWorkspaceIdAndExperienceIdOrderByCreatedAtDesc(
+            Long workspaceId, Long experienceId);
 }

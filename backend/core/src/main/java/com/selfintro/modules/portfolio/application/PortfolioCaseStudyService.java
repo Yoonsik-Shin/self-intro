@@ -2,6 +2,7 @@ package com.selfintro.modules.portfolio.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfintro.modules.experience.domain.repository.ExperienceDetailRepository;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudy;
 import com.selfintro.modules.portfolio.domain.entity.PortfolioCaseStudyRevision;
@@ -15,6 +16,7 @@ import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyPublic
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyResponse;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioCaseStudyRevisionResponse;
 import com.selfintro.modules.storage.application.StorageService;
+import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,42 +32,50 @@ public class PortfolioCaseStudyService {
     private final PortfolioCaseStudyRepository caseStudyRepository;
     private final PortfolioCaseStudyRevisionRepository revisionRepository;
     private final ExperienceRepository experienceRepository;
+    private final ExperienceDetailRepository experienceDetailRepository;
+    private final StudyRepository studyRepository;
     private final PortfolioCaseStudyMarkdownRenderer markdownRenderer;
     private final StorageService storageService;
     private final ObjectMapper objectMapper;
 
-    public List<PortfolioCaseStudyResponse> list() {
-        return caseStudyRepository.findAllByOrderByUpdatedAtDesc().stream()
+    public List<PortfolioCaseStudyResponse> list(Long workspaceId) {
+        return caseStudyRepository.findAllByWorkspaceIdOrderByUpdatedAtDesc(workspaceId).stream()
                 .map(PortfolioCaseStudyResponse::from)
                 .toList();
     }
 
-    public PortfolioCaseStudyDetailResponse get(Long id) {
-        PortfolioCaseStudy caseStudy = findOrThrow(id);
+    public PortfolioCaseStudyDetailResponse get(Long workspaceId, Long id) {
+        PortfolioCaseStudy caseStudy = findOrThrow(workspaceId, id);
         List<PortfolioCaseStudyRevisionResponse> revisions =
                 revisionRepository.findAllByCaseStudyIdOrderByVersionDesc(id).stream()
                         .map(this::toRevisionResponse)
                         .toList();
-        return new PortfolioCaseStudyDetailResponse(PortfolioCaseStudyResponse.from(caseStudy), revisions);
+        return new PortfolioCaseStudyDetailResponse(
+                PortfolioCaseStudyResponse.from(caseStudy), revisions);
     }
 
     @Transactional
-    public PortfolioCaseStudyResponse create(PortfolioCaseStudyCreateRequest request) {
-        if (!experienceRepository.existsById(request.experienceId())) {
+    public PortfolioCaseStudyResponse create(
+            Long workspaceId, PortfolioCaseStudyCreateRequest request) {
+        if (experienceRepository
+                .findByIdAndWorkspaceId(request.experienceId(), workspaceId)
+                .isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 프로젝트입니다.");
         }
-        if (caseStudyRepository.existsBySlug(request.slug())) {
+        if (caseStudyRepository.existsByWorkspaceIdAndSlug(workspaceId, request.slug())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 중인 slug입니다.");
         }
         PortfolioCaseStudy caseStudy =
-                PortfolioCaseStudy.create(request.experienceId(), request.slug(), request.title());
+                PortfolioCaseStudy.create(
+                        workspaceId, request.experienceId(), request.slug(), request.title());
         return PortfolioCaseStudyResponse.from(caseStudyRepository.save(caseStudy));
     }
 
     @Transactional
-    public PortfolioCaseStudyResponse rename(Long id, String slug, String title) {
-        PortfolioCaseStudy caseStudy = findOrThrow(id);
-        if (!caseStudy.getSlug().equals(slug) && caseStudyRepository.existsBySlugAndIdNot(slug, id)) {
+    public PortfolioCaseStudyResponse rename(Long workspaceId, Long id, String slug, String title) {
+        PortfolioCaseStudy caseStudy = findOrThrow(workspaceId, id);
+        if (!caseStudy.getSlug().equals(slug)
+                && caseStudyRepository.existsByWorkspaceIdAndSlugAndIdNot(workspaceId, slug, id)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 중인 slug입니다.");
         }
         caseStudy.rename(slug, title);
@@ -73,17 +83,15 @@ public class PortfolioCaseStudyService {
     }
 
     @Transactional
-    public void delete(Long id) {
-        if (!caseStudyRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 케이스스터디입니다.");
-        }
-        caseStudyRepository.deleteById(id);
+    public void delete(Long workspaceId, Long id) {
+        caseStudyRepository.delete(findOrThrow(workspaceId, id));
     }
 
     @Transactional
     public PortfolioCaseStudyRevisionResponse saveRevision(
-            Long caseStudyId, PortfolioCaseStudyContent content, String source) {
-        PortfolioCaseStudy caseStudy = findOrThrow(caseStudyId);
+            Long workspaceId, Long caseStudyId, PortfolioCaseStudyContent content, String source) {
+        PortfolioCaseStudy caseStudy = findOrThrow(workspaceId, caseStudyId);
+        validateContentReferences(workspaceId, caseStudy, content);
         int nextVersion = (int) revisionRepository.countByCaseStudyId(caseStudyId) + 1;
         String contentJson = writeJson(content);
         String renderedMarkdown = markdownRenderer.render(caseStudy.getTitle(), content);
@@ -94,8 +102,8 @@ public class PortfolioCaseStudyService {
     }
 
     @Transactional
-    public PortfolioCaseStudyResponse publish(Long caseStudyId, Long revisionId) {
-        PortfolioCaseStudy caseStudy = findOrThrow(caseStudyId);
+    public PortfolioCaseStudyResponse publish(Long workspaceId, Long caseStudyId, Long revisionId) {
+        PortfolioCaseStudy caseStudy = findOrThrow(workspaceId, caseStudyId);
         PortfolioCaseStudyRevision revision =
                 revisionRepository
                         .findById(revisionId)
@@ -109,14 +117,14 @@ public class PortfolioCaseStudyService {
     }
 
     @Transactional
-    public PortfolioCaseStudyResponse unpublish(Long caseStudyId) {
-        PortfolioCaseStudy caseStudy = findOrThrow(caseStudyId);
+    public PortfolioCaseStudyResponse unpublish(Long workspaceId, Long caseStudyId) {
+        PortfolioCaseStudy caseStudy = findOrThrow(workspaceId, caseStudyId);
         caseStudy.backToDraft();
         return PortfolioCaseStudyResponse.from(caseStudy);
     }
 
-    public List<PortfolioCaseStudyPublicSummaryResponse> listPublished() {
-        return publishedWithContent().stream()
+    public List<PortfolioCaseStudyPublicSummaryResponse> listPublished(Long workspaceId) {
+        return publishedWithContent(workspaceId).stream()
                 .map(
                         entry ->
                                 new PortfolioCaseStudyPublicSummaryResponse(
@@ -129,8 +137,9 @@ public class PortfolioCaseStudyService {
     }
 
     /** 특정 Study를 근거로 인용한 발행된 케이스스터디 목록 — Study 상세 페이지의 역참조 표시용. */
-    public List<PortfolioCaseStudyPublicSummaryResponse> listPublishedByStudyId(Long studyId) {
-        return publishedWithContent().stream()
+    public List<PortfolioCaseStudyPublicSummaryResponse> listPublishedByStudyId(
+            Long workspaceId, Long studyId) {
+        return publishedWithContent(workspaceId).stream()
                 .filter(entry -> entry.content().sourceStudyIds().contains(studyId))
                 .map(
                         entry ->
@@ -143,11 +152,13 @@ public class PortfolioCaseStudyService {
                 .toList();
     }
 
-    private record PublishedEntry(PortfolioCaseStudy caseStudy, PortfolioCaseStudyContent content) {}
+    private record PublishedEntry(
+            PortfolioCaseStudy caseStudy, PortfolioCaseStudyContent content) {}
 
-    private List<PublishedEntry> publishedWithContent() {
+    private List<PublishedEntry> publishedWithContent(Long workspaceId) {
         return caseStudyRepository
-                .findAllByStatusOrderByUpdatedAtDesc(PortfolioCaseStudy.STATUS_PUBLISHED)
+                .findAllByWorkspaceIdAndStatusOrderByUpdatedAtDesc(
+                        workspaceId, PortfolioCaseStudy.STATUS_PUBLISHED)
                 .stream()
                 .filter(caseStudy -> caseStudy.getPublishedRevisionId() != null)
                 .map(
@@ -167,10 +178,11 @@ public class PortfolioCaseStudyService {
                 .toList();
     }
 
-    public PortfolioCaseStudyPublicResponse getPublishedBySlug(String slug) {
+    public PortfolioCaseStudyPublicResponse getPublishedBySlug(Long workspaceId, String slug) {
         PortfolioCaseStudy caseStudy =
                 caseStudyRepository
-                        .findBySlugAndStatus(slug, PortfolioCaseStudy.STATUS_PUBLISHED)
+                        .findByWorkspaceIdAndSlugAndStatus(
+                                workspaceId, slug, PortfolioCaseStudy.STATUS_PUBLISHED)
                         .orElseThrow(
                                 () ->
                                         new ResponseStatusException(
@@ -184,7 +196,8 @@ public class PortfolioCaseStudyService {
                         .orElseThrow(
                                 () ->
                                         new ResponseStatusException(
-                                                HttpStatus.INTERNAL_SERVER_ERROR, "발행된 리비전을 찾지 못했습니다."));
+                                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                                "발행된 리비전을 찾지 못했습니다."));
         return new PortfolioCaseStudyPublicResponse(
                 caseStudy.getId(),
                 caseStudy.getSlug(),
@@ -195,14 +208,54 @@ public class PortfolioCaseStudyService {
                 caseStudy.getUpdatedAt());
     }
 
-    private PortfolioCaseStudy findOrThrow(Long id) {
+    public PortfolioCaseStudy findOrThrow(Long workspaceId, Long id) {
         return caseStudyRepository
-                .findById(id)
+                .findByIdAndWorkspaceId(id, workspaceId)
                 .orElseThrow(
-                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 케이스스터디입니다."));
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "존재하지 않는 케이스스터디입니다."));
     }
 
-    private PortfolioCaseStudyRevisionResponse toRevisionResponse(PortfolioCaseStudyRevision revision) {
+    private void validateContentReferences(
+            Long workspaceId, PortfolioCaseStudy caseStudy, PortfolioCaseStudyContent content) {
+        List<Long> studyIds =
+                content.sourceStudyIds() == null ? List.of() : content.sourceStudyIds();
+        if (studyIds.stream()
+                .anyMatch(
+                        id -> studyRepository.findByIdAndWorkspaceId(id, workspaceId).isEmpty())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "다른 Workspace의 Study는 참조할 수 없습니다.");
+        }
+        List<Long> detailIds =
+                content.sourceExperienceDetailIds() == null
+                        ? List.of()
+                        : content.sourceExperienceDetailIds();
+        if (detailIds.stream()
+                .anyMatch(
+                        id ->
+                                experienceDetailRepository
+                                        .findByIdAndExperience_WorkspaceId(id, workspaceId)
+                                        .filter(
+                                                detail ->
+                                                        detail.getExperience()
+                                                                .getId()
+                                                                .equals(
+                                                                        caseStudy
+                                                                                .getExperienceId()))
+                                        .isEmpty())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "케이스스터디 프로젝트에 속하지 않은 상세 근거입니다.");
+        }
+        if (content.architecture() != null && content.architecture().imageObjectKeys() != null) {
+            content.architecture()
+                    .imageObjectKeys()
+                    .forEach(key -> storageService.requireOwnedObjectKey(workspaceId, key));
+        }
+    }
+
+    private PortfolioCaseStudyRevisionResponse toRevisionResponse(
+            PortfolioCaseStudyRevision revision) {
         return new PortfolioCaseStudyRevisionResponse(
                 revision.getId(),
                 revision.getCaseStudyId(),
@@ -216,28 +269,31 @@ public class PortfolioCaseStudyService {
     private PortfolioCaseStudyContent readContent(PortfolioCaseStudyRevision revision) {
         PortfolioCaseStudyContent content;
         try {
-            content = objectMapper.readValue(revision.getContentJson(), PortfolioCaseStudyContent.class);
+            content =
+                    objectMapper.readValue(
+                            revision.getContentJson(), PortfolioCaseStudyContent.class);
         } catch (JsonProcessingException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "저장된 케이스스터디 본문을 읽지 못했습니다.", exception);
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR, "저장된 케이스스터디 본문을 읽지 못했습니다.", exception);
         }
         return withResolvedImageUrls(content);
     }
 
     /**
-     * content_json에는 objectKey만 저장되어 있으므로 응답을 만들 때만 공개 URL로 해석해 채우고, 스키마
-     * 확장 전에 저장된 리비전(구버전 content_json)에 없는 필드는 null 대신 빈 값으로 채워 프론트가
-     * null 체크 없이 바로 .map() 등을 쓸 수 있게 한다.
+     * content_json에는 objectKey만 저장되어 있으므로 응답을 만들 때만 공개 URL로 해석해 채우고, 스키마 확장 전에 저장된 리비전(구버전
+     * content_json)에 없는 필드는 null 대신 빈 값으로 채워 프론트가 null 체크 없이 바로 .map() 등을 쓸 수 있게 한다.
      */
     private PortfolioCaseStudyContent withResolvedImageUrls(PortfolioCaseStudyContent content) {
         List<String> imageObjectKeys =
                 content.architecture() == null || content.architecture().imageObjectKeys() == null
                         ? List.of()
                         : content.architecture().imageObjectKeys();
-        List<String> imageUrls =
-                imageObjectKeys.stream().map(storageService::toPublicUrl).toList();
+        List<String> imageUrls = imageObjectKeys.stream().map(storageService::toPublicUrl).toList();
         PortfolioCaseStudyContent.Architecture resolved =
                 new PortfolioCaseStudyContent.Architecture(
-                        content.architecture() == null ? null : content.architecture().mermaidSource(),
+                        content.architecture() == null
+                                ? null
+                                : content.architecture().mermaidSource(),
                         imageObjectKeys,
                         imageUrls);
         PortfolioCaseStudyContent.Outcome outcome =

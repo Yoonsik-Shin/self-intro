@@ -25,6 +25,9 @@ public class PortfolioCaseStudy {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
     @Column(name = "experience_id", nullable = false)
     private Long experienceId;
 
@@ -46,8 +49,10 @@ public class PortfolioCaseStudy {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static PortfolioCaseStudy create(Long experienceId, String slug, String title) {
+    public static PortfolioCaseStudy create(
+            Long workspaceId, Long experienceId, String slug, String title) {
         PortfolioCaseStudy caseStudy = new PortfolioCaseStudy();
+        caseStudy.workspaceId = workspaceId;
         caseStudy.experienceId = experienceId;
         caseStudy.slug = slug;
         caseStudy.title = title;

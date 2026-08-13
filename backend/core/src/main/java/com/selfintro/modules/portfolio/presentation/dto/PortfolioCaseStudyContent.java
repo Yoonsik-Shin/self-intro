@@ -24,9 +24,9 @@ public record PortfolioCaseStudyContent(
     }
 
     /**
-     * {@code imageUrls}는 저장/AI 생성 시점에는 비어있고, {@code PortfolioCaseStudyService}가 응답을
-     * 만들 때만 {@code imageObjectKeys}를 공개 URL로 해석해 채워 넣는다 — content_json에는 절대
-     * 저장하지 않는다(스토리지 설정이 바뀌어도 저장된 데이터가 오염되지 않게 하기 위함).
+     * {@code imageUrls}는 저장/AI 생성 시점에는 비어있고, {@code PortfolioCaseStudyService}가 응답을 만들 때만 {@code
+     * imageObjectKeys}를 공개 URL로 해석해 채워 넣는다 — content_json에는 절대 저장하지 않는다(스토리지 설정이 바뀌어도 저장된 데이터가 오염되지
+     * 않게 하기 위함).
      */
     public record Architecture(
             String mermaidSource, List<String> imageObjectKeys, List<String> imageUrls) {}

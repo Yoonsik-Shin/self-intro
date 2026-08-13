@@ -7,9 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * {@link PortfolioCaseStudyContent}를 마크다운으로 조립한다. {@code
- * GapProjectDocumentService.renderMarkdown} 패턴 그대로 — 프론트 마크다운 렌더러(mermaid 코드펜스, 이미지 문법)가
- * 이미 처리하는 문법만 사용해 별도 렌더링 코드를 추가하지 않는다.
+ * {@link PortfolioCaseStudyContent}를 마크다운으로 조립한다. {@code GapProjectDocumentService.renderMarkdown}
+ * 패턴 그대로 — 프론트 마크다운 렌더러(mermaid 코드펜스, 이미지 문법)가 이미 처리하는 문법만 사용해 별도 렌더링 코드를 추가하지 않는다.
  */
 @Component
 @RequiredArgsConstructor
@@ -53,9 +52,9 @@ public class PortfolioCaseStudyMarkdownRenderer {
             }
             if (content.outcome().metrics() != null && !content.outcome().metrics().isEmpty()) {
                 markdown.append("| 지표 | 이전 | 이후 |\n|---|---|---|\n");
-                for (PortfolioCaseStudyContent.Outcome.Metric metric : content.outcome().metrics()) {
-                    markdown
-                            .append("| ")
+                for (PortfolioCaseStudyContent.Outcome.Metric metric :
+                        content.outcome().metrics()) {
+                    markdown.append("| ")
                             .append(metric.label())
                             .append(" | ")
                             .append(nullToDash(metric.before()))
@@ -75,15 +74,13 @@ public class PortfolioCaseStudyMarkdownRenderer {
             if (hasMermaid || hasImages) {
                 markdown.append("## 아키텍처\n\n");
                 if (hasMermaid) {
-                    markdown
-                            .append("```mermaid\n")
+                    markdown.append("```mermaid\n")
                             .append(content.architecture().mermaidSource().trim())
                             .append("\n```\n\n");
                 }
                 if (hasImages) {
                     for (String objectKey : content.architecture().imageObjectKeys()) {
-                        markdown
-                                .append("![아키텍처 이미지](")
+                        markdown.append("![아키텍처 이미지](")
                                 .append(storageService.toPublicUrl(objectKey))
                                 .append(")\n\n");
                     }
