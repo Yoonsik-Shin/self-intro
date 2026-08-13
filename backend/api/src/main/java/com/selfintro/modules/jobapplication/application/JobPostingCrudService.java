@@ -9,12 +9,15 @@ import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingStatusEvent;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPermissionReviewEventRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingStatusEventRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingPermissionReviewEventResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingPermissionReviewRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingSettingRequest;
@@ -34,8 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * job_posting의 순수 CRUD/상태 관리만 담당한다. URL 파싱·크롤링·AI 매칭이 필요한 부분(수집/재수집/재매칭/백필 등)은
- * ai-worker의 {@code JobPostingService}가 그대로 맡는다 — 2026-08 job-posting CRUD/AI 분리 작업으로 쪼갠 절반이다.
+ * job_posting의 순수 CRUD/상태 관리만 담당한다. URL 파싱·크롤링·AI 매칭이 필요한 부분(수집/재수집/재매칭/백필 등)은 ai-worker의 {@code
+ * JobPostingService}가 그대로 맡는다 — 2026-08 job-posting CRUD/AI 분리 작업으로 쪼갠 절반이다.
  */
 @Service
 @RequiredArgsConstructor
@@ -48,10 +51,12 @@ public class JobPostingCrudService {
     private final JobPostingSourceImageRepository sourceImageRepository;
     private final JobPostingStatusEventRepository statusEventRepository;
     private final JobPostingSettingRepository settingRepository;
+    private final JobPostingPermissionReviewEventRepository permissionReviewEventRepository;
 
     public List<JobPostingResponse> list() {
         List<JobPosting> postings =
-                jobPostingRepository.findByStatusNotOrderByCreatedAtDesc(JobPostingStatus.EXPIRED);
+                jobPostingRepository.findByOwnerWorkspaceIdIsNullAndStatusNotOrderByCreatedAtDesc(
+                        JobPostingStatus.EXPIRED);
         List<Long> ids = postings.stream().map(JobPosting::getId).toList();
         java.util.Map<Long, List<JobPostingSourceUrl>> sourceUrlsByPostingId =
                 sourceUrlRepository.findByJobPostingIdInOrderByPrimaryDescCreatedAtAsc(ids).stream()
@@ -78,6 +83,36 @@ public class JobPostingCrudService {
 
     public JobPostingResponse get(Long id) {
         return toResponse(findOrThrow(id));
+    }
+
+    @Transactional
+    public JobPostingResponse reviewSharingPermission(
+            Long id, Long reviewerUserId, JobPostingPermissionReviewRequest request) {
+        JobPosting posting = findOrThrow(id);
+        LocalDateTime now = LocalDateTime.now();
+        posting.reviewSharingPermission(
+                request.reviewStatus(),
+                request.permissionBasis(),
+                request.evidenceReference(),
+                request.grantorName(),
+                request.grantorAuthority(),
+                request.permissionScopeNote(),
+                request.termsVersion(),
+                request.revocationContact(),
+                request.expiresAt(),
+                reviewerUserId,
+                now);
+        permissionReviewEventRepository.save(
+                com.selfintro.modules.jobposting.domain.entity.JobPostingPermissionReviewEvent
+                        .snapshot(posting));
+        return toResponse(posting);
+    }
+
+    public List<JobPostingPermissionReviewEventResponse> permissionReviewEvents(Long id) {
+        findOrThrow(id);
+        return permissionReviewEventRepository.findByJobPostingIdOrderByReviewedAtDesc(id).stream()
+                .map(JobPostingPermissionReviewEventResponse::from)
+                .toList();
     }
 
     private JobPostingResponse toResponse(JobPosting posting) {
@@ -126,7 +161,8 @@ public class JobPostingCrudService {
     @Transactional
     public JobPostingResponse create(JobPostingRequest request) {
         if (AiJsonSupport.hasText(request.postingUrl())
-                && sourceUrlRepository.existsByUrl(request.postingUrl())) {
+                && sourceUrlRepository.existsByScopeKeyAndUrl(
+                        JobPosting.PLATFORM_SCOPE, request.postingUrl())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 URL의 공고입니다.");
         }
         LocalDateTime now = LocalDateTime.now();
@@ -173,7 +209,9 @@ public class JobPostingCrudService {
         String previousUrl = posting.getPostingUrl();
         String newUrl = request.postingUrl();
         boolean urlChanged = !java.util.Objects.equals(previousUrl, newUrl);
-        if (urlChanged && AiJsonSupport.hasText(newUrl) && sourceUrlRepository.existsByUrl(newUrl)) {
+        if (urlChanged
+                && AiJsonSupport.hasText(newUrl)
+                && sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, newUrl)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 URL의 공고입니다.");
         }
         posting.update(
@@ -337,7 +375,7 @@ public class JobPostingCrudService {
 
     private JobPosting findOrThrow(Long id) {
         return jobPostingRepository
-                .findById(id)
+                .findByIdAndOwnerWorkspaceIdIsNull(id)
                 .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + id));
     }
 }

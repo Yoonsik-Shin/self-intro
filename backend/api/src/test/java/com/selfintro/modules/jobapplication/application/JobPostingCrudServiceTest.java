@@ -7,16 +7,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingPermissionReviewEvent;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingStatusEvent;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionBasis;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionReviewStatus;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingPermissionReviewEventRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingStatusEventRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingPermissionReviewRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingSettingRequest;
@@ -45,6 +50,7 @@ class JobPostingCrudServiceTest {
     @Mock private JobPostingSourceImageRepository sourceImageRepository;
     @Mock private JobPostingStatusEventRepository statusEventRepository;
     @Mock private JobPostingSettingRepository settingRepository;
+    @Mock private JobPostingPermissionReviewEventRepository permissionReviewEventRepository;
 
     private JobPostingCrudService jobPostingService;
 
@@ -57,7 +63,8 @@ class JobPostingCrudServiceTest {
                         positionChoiceRepository,
                         sourceImageRepository,
                         statusEventRepository,
-                        settingRepository);
+                        settingRepository,
+                        permissionReviewEventRepository);
     }
 
     private JobPosting newCandidate() {
@@ -114,7 +121,8 @@ class JobPostingCrudServiceTest {
     @Test
     void updateOverwritesEditableFieldsWithoutTouchingStatus() {
         JobPosting candidate = newCandidate();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
         JobPostingRequest request =
                 new JobPostingRequest(
                         "수정된 회사",
@@ -149,7 +157,8 @@ class JobPostingCrudServiceTest {
     @Test
     void updateMemoUpdatesMemoSuccessfully() {
         JobPosting candidate = newCandidate();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
 
         JobPostingResponse response = jobPostingService.updateMemo(1L, "새로운 상세 메모 작성");
 
@@ -159,7 +168,8 @@ class JobPostingCrudServiceTest {
     @Test
     void saveMovesNewCandidateToSavedStatus() {
         JobPosting candidate = newCandidate();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
 
         jobPostingService.save(1L);
 
@@ -170,7 +180,8 @@ class JobPostingCrudServiceTest {
     void unsaveMovesSavedCandidateBackToNewStatus() {
         JobPosting candidate = newCandidate();
         candidate.save(LocalDateTime.now());
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
 
         jobPostingService.unsave(1L);
 
@@ -180,7 +191,8 @@ class JobPostingCrudServiceTest {
     @Test
     void applyTransitionsCandidateToAppliedStatusInPlace() {
         JobPosting candidate = newCandidate();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
 
         JobPostingResponse response = jobPostingService.apply(1L);
 
@@ -193,7 +205,8 @@ class JobPostingCrudServiceTest {
     void unapplyRevertsAppliedPostingBackToNewStatusAndClearsAppliedAt() {
         JobPosting posting = newCandidate();
         posting.apply(LocalDate.now(), LocalDateTime.now());
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(posting));
 
         JobPostingResponse response = jobPostingService.unapply(1L);
 
@@ -206,7 +219,8 @@ class JobPostingCrudServiceTest {
     void undismissMovesDismissedCandidateBackToNewStatus() {
         JobPosting candidate = newCandidate();
         candidate.dismiss(LocalDateTime.now());
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
 
         jobPostingService.undismiss(1L);
 
@@ -215,7 +229,8 @@ class JobPostingCrudServiceTest {
 
     @Test
     void dismissThrowsWhenPostingDoesNotExist() {
-        when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(99L))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobPostingService.dismiss(99L))
                 .isInstanceOf(EntityNotFoundException.class);
@@ -224,11 +239,67 @@ class JobPostingCrudServiceTest {
     @Test
     void deleteRemovesPosting() {
         JobPosting candidate = newCandidate();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
 
         jobPostingService.delete(1L);
 
         verify(jobPostingRepository).delete(candidate);
+    }
+
+    @Test
+    void reviewSharingPermissionStoresImmutableReviewSnapshot() {
+        JobPosting candidate = newCandidate();
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
+        JobPostingPermissionReviewRequest request =
+                new JobPostingPermissionReviewRequest(
+                        JobPostingPermissionReviewStatus.APPROVED,
+                        JobPostingPermissionBasis.WRITTEN_LICENSE,
+                        "object://permission-evidence/job-1/license.pdf",
+                        "테스트 회사 채용 담당자",
+                        "채용 공고 재사용 허가 권한 확인",
+                        "비공개 베타 회원 대상 저장·검색·원본 링크 재노출",
+                        "license-2026-08",
+                        "legal@example.com",
+                        LocalDateTime.now().plusMonths(6));
+
+        JobPostingResponse response =
+                jobPostingService.reviewSharingPermission(1L, 42L, request);
+
+        assertThat(response.permissionReviewStatus())
+                .isEqualTo(JobPostingPermissionReviewStatus.APPROVED);
+        assertThat(response.permissionBasis()).isEqualTo(JobPostingPermissionBasis.WRITTEN_LICENSE);
+        ArgumentCaptor<JobPostingPermissionReviewEvent> eventCaptor =
+                ArgumentCaptor.forClass(JobPostingPermissionReviewEvent.class);
+        verify(permissionReviewEventRepository).save(eventCaptor.capture());
+        JobPostingPermissionReviewEvent event = eventCaptor.getValue();
+        assertThat(event.getJobPostingId()).isEqualTo(1L);
+        assertThat(event.getReviewStatus()).isEqualTo(JobPostingPermissionReviewStatus.APPROVED);
+        assertThat(event.getPermissionBasis()).isEqualTo(JobPostingPermissionBasis.WRITTEN_LICENSE);
+        assertThat(event.getReviewedByUserId()).isEqualTo(42L);
+        assertThat(event.getEvidenceReference())
+                .isEqualTo("object://permission-evidence/job-1/license.pdf");
+    }
+
+    @Test
+    void permissionReviewRejectsWorkspaceOwnedPosting() {
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(99L))
+                .thenReturn(Optional.empty());
+        JobPostingPermissionReviewRequest request =
+                new JobPostingPermissionReviewRequest(
+                        JobPostingPermissionReviewStatus.REJECTED,
+                        JobPostingPermissionBasis.UNKNOWN,
+                        null,
+                        null,
+                        null,
+                        "재노출 권한 근거 없음",
+                        null,
+                        null,
+                        null);
+
+        assertThatThrownBy(() -> jobPostingService.reviewSharingPermission(99L, 42L, request))
+                .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
@@ -277,7 +348,8 @@ class JobPostingCrudServiceTest {
     @Test
     void changeStatusUpdatesStatusAndAppendsHistoryEvent() {
         JobPosting application = newApplication();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(application));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(application));
 
         JobPostingResponse response =
                 jobPostingService.changeStatus(1L, JobPostingStatus.CODING_TEST, "서류 통과");
@@ -293,7 +365,8 @@ class JobPostingCrudServiceTest {
 
     @Test
     void changeStatusThrowsWhenPostingDoesNotExist() {
-        when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(99L))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobPostingService.changeStatus(99L, JobPostingStatus.OFFER, null))
                 .isInstanceOf(EntityNotFoundException.class);
@@ -302,7 +375,8 @@ class JobPostingCrudServiceTest {
     @Test
     void statusEventsReturnsHistoryOrderedByChangedAt() {
         JobPosting application = newApplication();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(application));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(application));
         JobPostingStatusEvent appliedEvent =
                 JobPostingStatusEvent.of(
                         1L,
@@ -321,7 +395,8 @@ class JobPostingCrudServiceTest {
     @Test
     void deleteStatusEventDeletesEventAndUpdatesPostingStatusToLatestRemaining() {
         JobPosting application = newApplication();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(application));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(application));
 
         JobPostingStatusEvent event1 =
                 JobPostingStatusEvent.of(
@@ -387,7 +462,19 @@ class JobPostingCrudServiceTest {
     void updateSettingsRejectsInvalidCronExpression() {
         JobPostingSettingRequest request =
                 new JobPostingSettingRequest(
-                        true, "Java Spring", 30, "rc", "101000", "84", "10", true, 3, "not a cron", null, null, null);
+                        true,
+                        "Java Spring",
+                        30,
+                        "rc",
+                        "101000",
+                        "84",
+                        "10",
+                        true,
+                        3,
+                        "not a cron",
+                        null,
+                        null,
+                        null);
 
         assertThatThrownBy(() -> jobPostingService.updateSettings(request))
                 .isInstanceOf(ResponseStatusException.class);
