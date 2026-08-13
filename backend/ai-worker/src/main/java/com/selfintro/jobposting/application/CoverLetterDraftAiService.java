@@ -4,8 +4,10 @@ import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterRevision;
+import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
+import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterItemRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingCoverLetterRevisionRepository;
-import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
+import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
@@ -45,64 +47,92 @@ public class CoverLetterDraftAiService {
     private static final int EXPERIENCE_TOP_K = 6;
     private static final int STUDY_TOP_K = 4;
 
-    private final JobPostingRepository jobPostingRepository;
+    private final WorkspaceJobApplicationRepository applicationRepository;
+    private final JobPostingCoverLetterItemRepository itemRepository;
     private final RelevantProfileDigestService relevantProfileDigestService;
     private final LlmDispatcher llmDispatcher;
     private final JobPostingCoverLetterRevisionRepository revisionRepository;
 
     @Transactional
-    public JobPostingCoverLetterDraftResponse generateDraft(Long jobPostingId, JobPostingCoverLetterDraftRequest request) {
-        JobPosting posting = jobPostingRepository.findById(jobPostingId)
-                .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + jobPostingId));
+    public JobPostingCoverLetterDraftResponse generateDraft(
+            Long workspaceId, Long jobPostingId, JobPostingCoverLetterDraftRequest request) {
+        WorkspaceJobApplication application = findApplication(workspaceId, jobPostingId);
+        JobPosting posting = application.getJobPosting();
+        validateItemOwnership(application.getId(), request.coverLetterItemId());
 
-        String profileDigest = buildRelevantProfileDigest(posting);
+        String profileDigest = buildRelevantProfileDigest(workspaceId, posting);
         boolean hasFeedback = AiJsonSupport.hasText(request.feedbackInstruction());
         String systemPrompt = hasFeedback ? REVISION_SYSTEM_PROMPT : DRAFT_SYSTEM_PROMPT;
         String userPrompt = buildUserPrompt(posting, profileDigest, request);
 
-        String rawDraft = llmDispatcher.generate(systemPrompt, userPrompt, request.aiModel(), request.customModelName());
+        String rawDraft =
+                llmDispatcher.generate(
+                        systemPrompt, userPrompt, request.aiModel(), request.customModelName());
         if (rawDraft == null || rawDraft.isBlank()) {
             throw new IllegalStateException("AI 모델이 빈 응답을 반환했습니다.");
         }
         String draftAnswer = rawDraft.replace("\\n", "\n").trim();
-        String modelLabel = llmDispatcher.resolveLabel(request.aiModel(), request.customModelName());
+        String modelLabel =
+                llmDispatcher.resolveLabel(request.aiModel(), request.customModelName());
 
         // 히스토리 저장 (coverLetterItemId가 존재하는 경우)
         if (request.coverLetterItemId() != null && request.coverLetterItemId() > 0) {
             LocalDateTime now = LocalDateTime.now();
             if (hasFeedback) {
-                revisionRepository.save(JobPostingCoverLetterRevision.create(
-                        request.coverLetterItemId(), "USER", request.feedbackInstruction().trim(), now));
+                revisionRepository.save(
+                        JobPostingCoverLetterRevision.create(
+                                request.coverLetterItemId(),
+                                "USER",
+                                request.feedbackInstruction().trim(),
+                                now));
             }
-            revisionRepository.save(JobPostingCoverLetterRevision.create(
-                    request.coverLetterItemId(), "AI", draftAnswer, modelLabel, now));
+            revisionRepository.save(
+                    JobPostingCoverLetterRevision.create(
+                            request.coverLetterItemId(), "AI", draftAnswer, modelLabel, now));
         }
 
         return new JobPostingCoverLetterDraftResponse(
-                request.question(),
-                draftAnswer,
-                request.characterLimit()
-        );
+                request.question(), draftAnswer, request.characterLimit());
     }
 
     /**
-     * 프로필 전체를 덤프하는 대신, 채용공고 요건과 하이브리드 검색(벡터+키워드)으로 가장 관련도 높은
-     * 경험/스터디 청크만 골라 프롬프트에 넣는다. 벡터 인덱스가 아직 비어 있는 경우(백필 전 등)에는
-     * {@link RelevantProfileDigestService}가 내부적으로 전체 덤프로 폴백한다.
+     * 프로필 전체를 덤프하는 대신, 채용공고 요건과 하이브리드 검색(벡터+키워드)으로 가장 관련도 높은 경험/스터디 청크만 골라 프롬프트에 넣는다. 벡터 인덱스가 아직 비어
+     * 있는 경우(백필 전 등)에는 {@link RelevantProfileDigestService}가 내부적으로 전체 덤프로 폴백한다.
      */
-    private String buildRelevantProfileDigest(JobPosting posting) {
-        String queryText = JobPostingRetrievalQueryText.build(
-                posting.getPositionTitle(),
-                posting.getJobDescription(),
-                posting.getRequiredQualifications(),
-                posting.getPreferredQualifications());
-        return relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+    private String buildRelevantProfileDigest(Long workspaceId, JobPosting posting) {
+        String queryText =
+                JobPostingRetrievalQueryText.build(
+                        posting.getPositionTitle(),
+                        posting.getJobDescription(),
+                        posting.getRequiredQualifications(),
+                        posting.getPreferredQualifications());
+        return relevantProfileDigestService.buildDigest(
+                workspaceId, queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+    }
+
+    private WorkspaceJobApplication findApplication(Long workspaceId, Long jobPostingId) {
+        return applicationRepository
+                .findByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
+                .orElseThrow(
+                        () ->
+                                new EntityNotFoundException(
+                                        "Workspace job application not found: " + jobPostingId));
+    }
+
+    private void validateItemOwnership(Long applicationId, Long itemId) {
+        if (itemId == null || itemId <= 0) {
+            return;
+        }
+        itemRepository
+                .findByIdAndWorkspaceJobApplicationId(itemId, applicationId)
+                .orElseThrow(
+                        () ->
+                                new EntityNotFoundException(
+                                        "Cover letter item not found: " + itemId));
     }
 
     private String buildUserPrompt(
-            JobPosting posting,
-            String profileDigest,
-            JobPostingCoverLetterDraftRequest request) {
+            JobPosting posting, String profileDigest, JobPostingCoverLetterDraftRequest request) {
         StringBuilder sb = new StringBuilder();
         sb.append("## 지원자 프로필 (경력/프로젝트/공부/역량)\n").append(profileDigest).append("\n\n");
         sb.append("## 지원 대상 채용 공고\n");
@@ -134,8 +164,10 @@ public class CoverLetterDraftAiService {
         if (characterLimit != null && characterLimit > 0) {
             int minChars = Math.max(100, characterLimit - 100);
             int maxChars = Math.max(minChars + 10, characterLimit - 50);
-            sb.append(String.format("\n글자 수 제한: 공백 포함 최대로 %d자 제한입니다. 분량을 철저히 준수하여 공백 포함 약 %d자 ~ %d자 사이로 작성해 주세요.\n",
-                    characterLimit, minChars, maxChars));
+            sb.append(
+                    String.format(
+                            "\n글자 수 제한: 공백 포함 최대로 %d자 제한입니다. 분량을 철저히 준수하여 공백 포함 약 %d자 ~ %d자 사이로 작성해 주세요.\n",
+                            characterLimit, minChars, maxChars));
         } else {
             sb.append("\n글자 수 제한: 별도 제한이 없으므로 공백 포함 약 500자 ~ 700자 내외로 작성해 주세요.\n");
         }
@@ -143,4 +175,3 @@ public class CoverLetterDraftAiService {
         return sb.toString();
     }
 }
-
