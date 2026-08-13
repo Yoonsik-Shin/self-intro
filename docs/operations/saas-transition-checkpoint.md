@@ -17,8 +17,8 @@
 ## 1. Source control 상태
 
 최초 점검에서는 `scripts/inventory-saas-changes.sh`가 펼친 717개 경로가 working tree에 있었다. 이후
-기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-13 현재 검증 HEAD는 `main`보다
-96개 commit 앞서며 누적 변경은 772개 파일이다. 상태 갱신 직전 working tree는 clean이다. 아직 `main`에
+기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-13 검증 대상 HEAD `282b487`는
+`main`보다 96개 commit 앞서며 누적 변경은 774개 파일이다. 상태 갱신 직전 working tree는 clean이다. 아직 `main`에
 merge·push·배포하지 않았으므로 다음 원칙을 지킨다.
 
 1. 기존 변경을 대량 포맷·되돌리기·삭제하지 않는다.
@@ -121,7 +121,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 | 핵심 Workspace 데이터 격리 | 약 98% | 레거시 호환 API 제거 시점 결정 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
 | 플랫폼 보안·운영 | 약 78% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP·rate limit |
-| 릴리스 변경 세트 준비 | 약 97% | 96개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
+| 릴리스 변경 세트 준비 | 약 97% | 검증 대상 96개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
 | 운영 가능한 공개 SaaS | 약 63% | 운영 provider·보안 self-service·복구·배포 rehearsal |
 
 비율은 코드 줄 수가 아니라 보안·격리·복구·운영 차단 조건을 기준으로 한 준비도다.
@@ -142,7 +142,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 12. Vector 고아·누락 source-of-truth reconciliation — **완료, 17/17·70/70 및 고아·누락 0 확인**
 13. Workspace Skill 실제 관리 화면 500 회귀 수정 — **완료, Compose API 200 확인**
 14. 운영자·별도 베타 계정의 로컬 사용자 인수 테스트 — **SMTP·가입·온보딩·첫 발행·탈퇴·지원 접근 자동 UAT 완료, 사람의 UX 확인 필요**
-15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 현재 96개 commit**
+15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 검증 대상 96개 commit**
 16. 운영 backup 보존·OCI provider 복구·격리 Worker reconciliation rehearsal 뒤 실행 flag 검토
 
 안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 96개 commit으로
