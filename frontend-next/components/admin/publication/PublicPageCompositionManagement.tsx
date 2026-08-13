@@ -264,38 +264,66 @@ function ExperienceEditor({
     draft: PublicExperienceDraft;
     onChange: (draft: PublicExperienceDraft) => void;
 }) {
+    const updateExperienceVisibility = (experienceId: number, enabled: boolean) => {
+        onChange({
+            ...draft,
+            experiences: draft.experiences.map((value) =>
+                value.id === experienceId
+                    ? {
+                          ...value,
+                          enabled,
+                          showOnTimeline: enabled ? value.showOnTimeline : false,
+                      }
+                    : value
+            ),
+            placements: enabled
+                ? draft.placements
+                : draft.placements.map((value) =>
+                      value.experienceId === experienceId ? { ...value, enabled: false } : value
+                  ),
+        });
+    };
+
     return (
         <div className="space-y-6">
             <SectionCard title="공개 경험·타임라인">
+                <p className="pb-4 text-sm font-medium leading-6 text-slate-500">
+                    타임라인이나 대표 프로젝트 노출을 켜면 해당 경험도 함께 공개됩니다. 경험 공개를
+                    끄면 연결된 하위 노출도 함께 해제됩니다.
+                </p>
                 {draft.experiences.map((item, index) => (
                     <div key={item.id} className="py-4">
                         <ToggleRow
                             label={item.title}
                             checked={item.enabled}
-                            detail={item.showOnTimeline ? '타임라인 노출' : '타임라인 숨김'}
-                            onChange={(enabled) =>
-                                onChange({
-                                    ...draft,
-                                    experiences: draft.experiences.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
-                                    ),
-                                })
+                            detail={
+                                !item.enabled
+                                    ? '공개 제외'
+                                    : item.showOnTimeline
+                                      ? '공개 · 타임라인 노출'
+                                      : '공개 · 타임라인 숨김'
                             }
+                            onChange={(enabled) => updateExperienceVisibility(item.id, enabled)}
                         />
                         <label className="ml-4 flex items-center gap-2 text-xs font-bold text-slate-600">
                             <input
                                 type="checkbox"
                                 checked={item.showOnTimeline}
-                                onChange={(event) =>
+                                onChange={(event) => {
+                                    const showOnTimeline = event.target.checked;
                                     onChange({
                                         ...draft,
                                         experiences: draft.experiences.map((value, itemIndex) =>
                                             itemIndex === index
-                                                ? { ...value, showOnTimeline: event.target.checked }
+                                                ? {
+                                                      ...value,
+                                                      enabled: showOnTimeline || value.enabled,
+                                                      showOnTimeline,
+                                                  }
                                                 : value
                                         ),
-                                    })
-                                }
+                                    });
+                                }}
                             />
                             공개 타임라인에 표시
                         </label>
@@ -357,6 +385,13 @@ function ExperienceEditor({
                             onChange={(enabled) =>
                                 onChange({
                                     ...draft,
+                                    experiences: enabled
+                                        ? draft.experiences.map((value) =>
+                                              value.id === item.experienceId
+                                                  ? { ...value, enabled: true }
+                                                  : value
+                                          )
+                                        : draft.experiences,
                                     placements: draft.placements.map((value, itemIndex) =>
                                         itemIndex === index ? { ...value, enabled } : value
                                     ),
