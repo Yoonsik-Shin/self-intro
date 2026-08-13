@@ -9,11 +9,15 @@ import org.springframework.data.repository.query.Param;
 public interface TaxonomyNodeRepository extends JpaRepository<TaxonomyNode, Long> {
     List<TaxonomyNode> findAllByOrderByDisplayOrderAsc();
 
+    List<TaxonomyNode> findAllBySchemeScopeTypeAndSchemeStatusAndStatusOrderByDisplayOrderAscIdAsc(
+            com.selfintro.modules.taxonomy.domain.entity.TaxonomySchemeScope scopeType,
+            com.selfintro.modules.taxonomy.domain.entity.TaxonomySchemeStatus schemeStatus,
+            com.selfintro.modules.taxonomy.domain.entity.TaxonomySchemeStatus nodeStatus);
+
     boolean existsByParentId(Long parentId);
 
     @Query(
-            value =
-                    "select exists(select 1 from study_taxonomy_node where taxonomy_node_id = :id)",
+            value = "select exists(select 1 from study_taxonomy_node where taxonomy_node_id = :id)",
             nativeQuery = true)
     boolean existsInStudyAttachments(@Param("id") Long id);
 

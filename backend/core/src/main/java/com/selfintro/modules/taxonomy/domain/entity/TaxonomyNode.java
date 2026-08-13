@@ -2,6 +2,8 @@ package com.selfintro.modules.taxonomy.domain.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,11 +25,25 @@ public class TaxonomyNode {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 60)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "scheme_id", nullable = false)
+    private TaxonomyScheme scheme;
+
+    @Column(nullable = false, length = 60)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 80)
+    @Column(nullable = false, length = 80)
     private String slug;
+
+    @Column(name = "stable_key", nullable = false, length = 80)
+    private String stableKey;
+
+    @Column(length = 500)
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TaxonomySchemeStatus status;
 
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
@@ -36,15 +52,28 @@ public class TaxonomyNode {
     @JoinColumn(name = "parent_id")
     private TaxonomyNode parent;
 
-    private TaxonomyNode(String name, String slug, int displayOrder, TaxonomyNode parent) {
+    private TaxonomyNode(
+            TaxonomyScheme scheme,
+            String name,
+            String slug,
+            int displayOrder,
+            TaxonomyNode parent) {
+        this.scheme = scheme;
         this.name = name;
         this.slug = slug;
+        this.stableKey = slug;
+        this.status = TaxonomySchemeStatus.ACTIVE;
         this.displayOrder = displayOrder;
         this.parent = parent;
     }
 
-    public static TaxonomyNode create(String name, String slug, int displayOrder, TaxonomyNode parent) {
-        return new TaxonomyNode(name, slug, displayOrder, parent);
+    public static TaxonomyNode create(
+            TaxonomyScheme scheme,
+            String name,
+            String slug,
+            int displayOrder,
+            TaxonomyNode parent) {
+        return new TaxonomyNode(scheme, name, slug, displayOrder, parent);
     }
 
     public void update(String name, String slug, int displayOrder, TaxonomyNode parent) {
