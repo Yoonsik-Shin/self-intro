@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package com.selfintro.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.selfintro.grpc.workspacevector";
+option java_outer_classname = "WorkspaceVectorPurgeProto";
+
+// Read-only internal contract. Destructive vector deletion is intentionally not exposed over
+// gRPC until purge execution authorization, mTLS, and worker orchestration are implemented.
+service WorkspaceVectorInventoryGrpcService {
+  rpc InspectWorkspaceVectors (WorkspaceVectorInventoryRequest)
+      returns (WorkspaceVectorInventoryResponse);
+}
+
+message WorkspaceVectorInventoryRequest {
+  int64 workspace_id = 1;
+}
+
+message WorkspaceVectorInventoryResponse {
+  int64 experience_vector_count = 1;
+  int64 study_vector_count = 2;
+}
