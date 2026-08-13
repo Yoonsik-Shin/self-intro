@@ -1,6 +1,7 @@
 package com.selfintro.studyplan.application;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
+import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedCheckQuestion;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedItem;
@@ -48,21 +49,23 @@ public class StudyPlanService {
     private final StudyPlanAiService studyPlanAiService;
     private final StudyPlanRetrievalService studyPlanRetrievalService;
 
-    public List<StudyPlanSummaryResponse> list() {
-        return studyPlanRepository.findAllByOrderByCreatedAtDesc().stream()
+    public List<StudyPlanSummaryResponse> list(Long workspaceId) {
+        return studyPlanRepository.findAllByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
                 .map(StudyPlanSummaryResponse::from)
                 .toList();
     }
 
-    public StudyPlanResponse get(Long id) {
-        return StudyPlanResponse.from(findOrThrow(id));
+    public StudyPlanResponse get(Long workspaceId, Long id) {
+        return StudyPlanResponse.from(findOrThrow(workspaceId, id));
     }
 
     @Transactional
-    public StudyPlanResponse create(int weeklyAvailableMinutes, String focusGoal) {
+    public StudyPlanResponse create(
+            Long workspaceId, int weeklyAvailableMinutes, String focusGoal) {
         LocalDateTime now = LocalDateTime.now();
-        StudyPlan plan = StudyPlan.create(weeklyAvailableMinutes, focusGoal, now);
-        List<CollectedCandidate> collected = studyPlanRetrievalService.collectInitial(focusGoal);
+        StudyPlan plan = StudyPlan.create(workspaceId, weeklyAvailableMinutes, focusGoal, now);
+        List<CollectedCandidate> collected =
+                studyPlanRetrievalService.collectInitial(workspaceId, focusGoal);
         plan.replaceCandidates(toCandidateEntities(plan, collected, Map.of()), now);
         plan.addMessage(
                 StudyPlanMessageRole.USER,
@@ -74,8 +77,9 @@ public class StudyPlanService {
     }
 
     @Transactional
-    public StudyPlanResponse sendMessage(Long id, String content, String aiModel, String customModelName) {
-        StudyPlan plan = findOrThrow(id);
+    public StudyPlanResponse sendMessage(
+            Long workspaceId, Long id, String content, String aiModel, String customModelName) {
+        StudyPlan plan = findOrThrow(workspaceId, id);
         LocalDateTime now = LocalDateTime.now();
 
         if (plan.isCollecting()) {
@@ -91,7 +95,7 @@ public class StudyPlanService {
                                             StudyPlanCandidate::getLearningResourceId,
                                             StudyPlanCandidate::isSelected));
             List<CollectedCandidate> adjusted =
-                    studyPlanRetrievalService.adjust(currentResources, content);
+                    studyPlanRetrievalService.adjust(workspaceId, currentResources, content);
             plan.replaceCandidates(toCandidateEntities(plan, adjusted, priorSelection), now);
             plan.addMessage(StudyPlanMessageRole.USER, content, now);
             plan.addMessage(
@@ -107,7 +111,8 @@ public class StudyPlanService {
         }
 
         Map<Long, CompletionState> snapshot = snapshotCompletion(plan);
-        GeneratedPlan generated = studyPlanAiService.regenerate(plan, content, aiModel, customModelName);
+        GeneratedPlan generated =
+                studyPlanAiService.regenerate(workspaceId, plan, content, aiModel, customModelName);
         applyGeneratedPlan(plan, generated, snapshot, now);
         plan.addMessage(StudyPlanMessageRole.USER, content, now);
         plan.addMessage(StudyPlanMessageRole.ASSISTANT, generated.assistantReply(), now);
@@ -117,8 +122,9 @@ public class StudyPlanService {
 
     /** COLLECTING 단계에서 확정된 후보로 최초 Stage/Item을 만들고 DRAFT로 전환한다. */
     @Transactional
-    public StudyPlanResponse generatePlan(Long id, String aiModel, String customModelName) {
-        StudyPlan plan = findOrThrow(id);
+    public StudyPlanResponse generatePlan(
+            Long workspaceId, Long id, String aiModel, String customModelName) {
+        StudyPlan plan = findOrThrow(workspaceId, id);
         if (!plan.isCollecting()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 계획이 생성된 상태입니다.");
         }
@@ -127,9 +133,23 @@ public class StudyPlanService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택된 학습 자료 후보가 없습니다.");
         }
         LocalDateTime now = LocalDateTime.now();
+        Map<Long, LearningResourcePriorityTier> priorityByResourceId = new LinkedHashMap<>();
+        plan.getCandidates().stream()
+                .filter(StudyPlanCandidate::isSelected)
+                .forEach(
+                        candidate ->
+                                priorityByResourceId.put(
+                                        candidate.getLearningResourceId(),
+                                        candidate.getPriorityTier()));
         GeneratedPlan generated =
                 studyPlanAiService.generateInitial(
-                        selected, plan.getWeeklyAvailableMinutes(), plan.getFocusGoal(), aiModel, customModelName);
+                        workspaceId,
+                        selected,
+                        priorityByResourceId,
+                        plan.getWeeklyAvailableMinutes(),
+                        plan.getFocusGoal(),
+                        aiModel,
+                        customModelName);
         applyGeneratedPlan(plan, generated, Map.of(), now);
         plan.markGenerated(now);
         plan.addMessage(StudyPlanMessageRole.USER, "이 자료들로 계획을 생성해주세요.", now);
@@ -139,22 +159,22 @@ public class StudyPlanService {
     }
 
     @Transactional
-    public StudyPlanResponse confirm(Long id) {
-        StudyPlan plan = findOrThrow(id);
+    public StudyPlanResponse confirm(Long workspaceId, Long id) {
+        StudyPlan plan = findOrThrow(workspaceId, id);
         plan.confirm(LocalDateTime.now());
         return StudyPlanResponse.from(plan);
     }
 
     @Transactional
-    public StudyPlanResponse unconfirm(Long id) {
-        StudyPlan plan = findOrThrow(id);
+    public StudyPlanResponse unconfirm(Long workspaceId, Long id) {
+        StudyPlan plan = findOrThrow(workspaceId, id);
         plan.unconfirm(LocalDateTime.now());
         return StudyPlanResponse.from(plan);
     }
 
     @Transactional
-    public StudyPlanResponse toggleCompleted(Long planId, Long itemId) {
-        StudyPlan plan = findOrThrow(planId);
+    public StudyPlanResponse toggleCompleted(Long workspaceId, Long planId, Long itemId) {
+        StudyPlan plan = findOrThrow(workspaceId, planId);
         StudyPlanItem item = findItemOrThrow(plan, itemId);
         LocalDateTime now = LocalDateTime.now();
         item.markCompleted(!item.isCompleted(), now);
@@ -162,8 +182,8 @@ public class StudyPlanService {
     }
 
     @Transactional
-    public StudyPlanResponse toggleUnderstanding(Long planId, Long itemId) {
-        StudyPlan plan = findOrThrow(planId);
+    public StudyPlanResponse toggleUnderstanding(Long workspaceId, Long planId, Long itemId) {
+        StudyPlan plan = findOrThrow(workspaceId, planId);
         StudyPlanItem item = findItemOrThrow(plan, itemId);
         LocalDateTime now = LocalDateTime.now();
         item.markUnderstandingChecked(!item.isUnderstandingChecked(), now);
@@ -171,14 +191,15 @@ public class StudyPlanService {
     }
 
     @Transactional
-    public void delete(Long id) {
-        studyPlanRepository.delete(findOrThrow(id));
+    public void delete(Long workspaceId, Long id) {
+        studyPlanRepository.delete(findOrThrow(workspaceId, id));
     }
 
     /** 후보 하나의 체크박스를 켜고 끈다 — AI를 거치지 않는, 목록엔 남기되 계획 생성 포함 여부만 바꾸는 조작. */
     @Transactional
-    public StudyPlanResponse toggleCandidateSelected(Long planId, Long resourceId) {
-        StudyPlan plan = findOrThrow(planId);
+    public StudyPlanResponse toggleCandidateSelected(
+            Long workspaceId, Long planId, Long resourceId) {
+        StudyPlan plan = findOrThrow(workspaceId, planId);
         StudyPlanCandidate candidate = findCandidateOrThrow(plan, resourceId);
         candidate.setSelected(!candidate.isSelected());
         return StudyPlanResponse.from(plan);
@@ -186,8 +207,9 @@ public class StudyPlanService {
 
     /** 카테고리 전체를 한 번에 선택/해제한다. */
     @Transactional
-    public StudyPlanResponse setCategorySelected(Long planId, String category, boolean selected) {
-        StudyPlan plan = findOrThrow(planId);
+    public StudyPlanResponse setCategorySelected(
+            Long workspaceId, Long planId, String category, boolean selected) {
+        StudyPlan plan = findOrThrow(workspaceId, planId);
         plan.getCandidates().stream()
                 .filter(
                         c ->
@@ -204,8 +226,10 @@ public class StudyPlanService {
                 .orElseThrow(EntityNotFoundException::new);
     }
 
-    private StudyPlan findOrThrow(Long id) {
-        return studyPlanRepository.findById(id).orElseThrow(EntityNotFoundException::new);
+    private StudyPlan findOrThrow(Long workspaceId, Long id) {
+        return studyPlanRepository
+                .findByIdAndWorkspaceId(id, workspaceId)
+                .orElseThrow(EntityNotFoundException::new);
     }
 
     private StudyPlanItem findItemOrThrow(StudyPlan plan, Long itemId) {
@@ -235,7 +259,8 @@ public class StudyPlanService {
                                         plan,
                                         c.resource(),
                                         priorSelection.getOrDefault(c.resource().getId(), true),
-                                        c.familiar()))
+                                        c.familiar(),
+                                        c.priorityTier()))
                 .toList();
     }
 

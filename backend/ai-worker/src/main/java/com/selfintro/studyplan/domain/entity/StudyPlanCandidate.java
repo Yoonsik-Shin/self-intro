@@ -1,8 +1,11 @@
 package com.selfintro.studyplan.domain.entity;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
+import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -42,23 +45,31 @@ public class StudyPlanCandidate {
     @Column(nullable = false)
     private boolean familiar;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority_tier", length = 10)
+    private LearningResourcePriorityTier priorityTier;
+
     private StudyPlanCandidate(
             StudyPlan studyPlan,
             LearningResource learningResource,
             boolean selected,
-            boolean familiar) {
+            boolean familiar,
+            LearningResourcePriorityTier priorityTier) {
         this.studyPlan = studyPlan;
         this.learningResource = learningResource;
         this.selected = selected;
         this.familiar = familiar;
+        this.priorityTier = priorityTier;
     }
 
     public static StudyPlanCandidate create(
             StudyPlan studyPlan,
             LearningResource learningResource,
             boolean selected,
-            boolean familiar) {
-        return new StudyPlanCandidate(studyPlan, learningResource, selected, familiar);
+            boolean familiar,
+            LearningResourcePriorityTier priorityTier) {
+        return new StudyPlanCandidate(
+                studyPlan, learningResource, selected, familiar, priorityTier);
     }
 
     public Long getLearningResourceId() {

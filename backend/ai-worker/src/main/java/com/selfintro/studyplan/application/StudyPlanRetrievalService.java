@@ -4,11 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.modules.learningresource.application.LearningResourceService;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
-import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
-import com.selfintro.modules.learningresource.presentation.dto.LearningResourceResponse;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.learningresource.domain.entity.WorkspaceLearningResource;
+import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
+import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
+import com.selfintro.modules.learningresource.domain.repository.WorkspaceLearningResourceRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,8 +24,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 채팅으로 학습 목표를 좁혀서 계획 생성에 쓸 소수의 학습 자료 후보를 모은다. 검색 자체는 기존 {@link
- * LearningResourceService#searchAdmin}(제목/요약/본문/태그 키워드 검색, 이미 구현돼 있음)을 그대로 재사용하고, AI는 "어떤 키워드로
- * 검색할지"와 "피드백을 반영해 뭘 빼고 더할지"만 짧게 판단한다 — 응답이 작아서 {@link StudyPlanAiService}에서 겪은 토큰/타임아웃 문제와 무관하다.
+ * Workspace에 저장된 학습 자료만 검색하고, AI는 "어떤 키워드로 검색할지"와 "피드백을 반영해 뭘 빼고 더할지"만 짧게 판단한다. 공통
+ * 카탈로그에는 접근하되 다른 Workspace의 상태·메모·선택 결과는 절대 후보에 섞지 않는다.
  */
 @Slf4j
 @Service
@@ -54,29 +55,35 @@ public class StudyPlanRetrievalService {
             {"removeResourceIds":[],"additionalKeywords":[]}
             """;
 
-    private final LearningResourceService learningResourceService;
-    private final LearningResourceRepository learningResourceRepository;
-    private final SkillRepository skillRepository;
+    private final WorkspaceLearningResourceRepository workspaceLearningResourceRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
 
     /** 검색으로 찾은 학습 자료 하나와, 내 스킬과 겹쳐서 "이미 아는 개념"으로 표시할지. */
-    public record CollectedCandidate(LearningResource resource, boolean familiar) {}
+    public record CollectedCandidate(
+            LearningResource resource,
+            boolean familiar,
+            LearningResourcePriorityTier priorityTier) {}
 
     /**
      * 최초 생성 폼의 목표 텍스트로부터 후보를 모은다. 목표가 있으면 키워드 검색으로 좁히고, 없으면 체크박스로 사람이 직접 고를 수 있도록 우선순위 상관없이 폭넓게
      * 가져온다(자격 있는 자료 전체, 상한만 넉넉히 둠).
      */
-    public List<CollectedCandidate> collectInitial(String focusGoal) {
+    public List<CollectedCandidate> collectInitial(Long workspaceId, String focusGoal) {
         List<String> keywords = extractKeywords(focusGoal);
         List<LearningResource> found =
-                keywords.isEmpty() ? List.of() : searchByKeywords(keywords, DEFAULT_LIMIT);
-        List<LearningResource> pool = found.isEmpty() ? fallbackBroadPool(BROAD_POOL_LIMIT) : found;
-        return annotateFamiliarity(pool);
+                keywords.isEmpty()
+                        ? List.of()
+                        : searchByKeywords(workspaceId, keywords, DEFAULT_LIMIT);
+        List<LearningResource> pool =
+                found.isEmpty() ? fallbackBroadPool(workspaceId, BROAD_POOL_LIMIT) : found;
+        return annotateFamiliarity(workspaceId, pool);
     }
 
     /** 대화형 피드백을 반영해 현재 후보 목록을 add/remove로 조정한다. */
-    public List<CollectedCandidate> adjust(List<LearningResource> current, String feedback) {
+    public List<CollectedCandidate> adjust(
+            Long workspaceId, List<LearningResource> current, String feedback) {
         Map<Long, LearningResource> byId = new LinkedHashMap<>();
         current.forEach(r -> byId.put(r.getId(), r));
 
@@ -96,16 +103,22 @@ public class StudyPlanRetrievalService {
         }
         for (LearningResource added :
                 searchByKeywords(
-                        AiJsonSupport.safe(response.additionalKeywords()), DEFAULT_LIMIT)) {
+                        workspaceId,
+                        AiJsonSupport.safe(response.additionalKeywords()),
+                        DEFAULT_LIMIT)) {
             byId.putIfAbsent(added.getId(), added);
         }
-        return annotateFamiliarity(new ArrayList<>(byId.values()));
+        return annotateFamiliarity(workspaceId, new ArrayList<>(byId.values()));
     }
 
     /** 내 스킬 이름이 자료의 제목/카테고리에 부분 포함되면(대소문자 무시) "이미 아는 개념"으로 표시한다. */
-    private List<CollectedCandidate> annotateFamiliarity(List<LearningResource> resources) {
+    private List<CollectedCandidate> annotateFamiliarity(
+            Long workspaceId, List<LearningResource> resources) {
         Set<String> myKeywords =
-                skillRepository.findAllSkillNames().stream()
+                workspaceSkillRepository
+                        .findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId)
+                        .stream()
+                        .map(workspaceSkill -> workspaceSkill.getSkill().getName())
                         .filter(AiJsonSupport::hasText)
                         .map(String::toLowerCase)
                         .collect(Collectors.toSet());
@@ -116,7 +129,13 @@ public class StudyPlanRetrievalService {
                                     (resource.getTitle() + " " + categoryLabel(resource))
                                             .toLowerCase();
                             boolean familiar = myKeywords.stream().anyMatch(haystack::contains);
-                            return new CollectedCandidate(resource, familiar);
+                            LearningResourcePriorityTier priorityTier =
+                                    workspaceLearningResourceRepository
+                                            .findByWorkspaceIdAndLearningResourceId(
+                                                    workspaceId, resource.getId())
+                                            .map(WorkspaceLearningResource::getPriorityTier)
+                                            .orElse(null);
+                            return new CollectedCandidate(resource, familiar, priorityTier);
                         })
                 .toList();
     }
@@ -136,36 +155,57 @@ public class StudyPlanRetrievalService {
         }
     }
 
-    private List<LearningResource> searchByKeywords(List<String> keywords, int limit) {
+    private List<LearningResource> searchByKeywords(
+            Long workspaceId, List<String> keywords, int limit) {
         Map<Long, LearningResource> byId = new LinkedHashMap<>();
-        for (String keyword : keywords) {
-            if (byId.size() >= limit) break;
-            if (!AiJsonSupport.hasText(keyword)) continue;
-            List<Long> ids =
-                    learningResourceService
-                            .searchAdmin(keyword, null, null, null, null, null, null, 0, limit)
-                            .content()
-                            .stream()
-                            .map(LearningResourceResponse::id)
-                            .toList();
-            if (ids.isEmpty()) continue;
-            for (LearningResource resource : learningResourceRepository.findAllById(ids)) {
-                byId.putIfAbsent(resource.getId(), resource);
+        List<WorkspaceLearningResource> overlays = eligibleOverlays(workspaceId);
+        for (WorkspaceLearningResource overlay : overlays) {
+            String haystack = searchableText(overlay);
+            for (String keyword : keywords) {
+                if (!AiJsonSupport.hasText(keyword)) continue;
+                if (haystack.contains(keyword.trim().toLowerCase())) {
+                    LearningResource resource = overlay.getLearningResource();
+                    byId.putIfAbsent(resource.getId(), resource);
+                    break;
+                }
             }
+            if (byId.size() >= limit) break;
         }
         return byId.values().stream().limit(limit).toList();
     }
 
     /** 목표가 없거나 키워드 검색이 비어 있을 때, 우선순위 무관하게 폭넓게 가져와 체크박스로 사람이 직접 고르게 한다. */
-    private List<LearningResource> fallbackBroadPool(int limit) {
-        List<Long> ids =
-                learningResourceService
-                        .searchAdmin(null, null, null, null, null, null, null, 0, limit)
-                        .content()
-                        .stream()
-                        .map(LearningResourceResponse::id)
-                        .toList();
-        return ids.isEmpty() ? List.of() : learningResourceRepository.findAllById(ids);
+    private List<LearningResource> fallbackBroadPool(Long workspaceId, int limit) {
+        return eligibleOverlays(workspaceId).stream()
+                .limit(limit)
+                .map(WorkspaceLearningResource::getLearningResource)
+                .toList();
+    }
+
+    private List<WorkspaceLearningResource> eligibleOverlays(Long workspaceId) {
+        return workspaceLearningResourceRepository
+                .findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(workspaceId)
+                .stream()
+                .filter(overlay -> overlay.getStatus() != LearningResourceStatus.COMPLETED)
+                .toList();
+    }
+
+    private String searchableText(WorkspaceLearningResource overlay) {
+        LearningResource resource = overlay.getLearningResource();
+        StringBuilder text =
+                new StringBuilder(resource.getTitle())
+                        .append(' ')
+                        .append(valueOrEmpty(overlay.getPersonalSummary()))
+                        .append(' ')
+                        .append(valueOrEmpty(overlay.getPersonalNoteMarkdown()));
+        resource.getTaxonomyNodes().forEach(node -> text.append(' ').append(node.getName()));
+        resource.getSkills().forEach(skill -> text.append(' ').append(skill.getName()));
+        overlay.getTags().forEach(tag -> text.append(' ').append(tag.getName()));
+        return text.toString().toLowerCase();
+    }
+
+    private String valueOrEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private String buildAdjustPrompt(List<LearningResource> current, String feedback) {

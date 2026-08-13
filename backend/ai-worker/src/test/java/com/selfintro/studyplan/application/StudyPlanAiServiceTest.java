@@ -15,12 +15,13 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourcePrior
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedItem;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedPlan;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedStage;
-import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class StudyPlanAiServiceTest {
+
+    private static final Long WORKSPACE_ID = 9L;
 
     @Mock private RelevantProfileDigestService relevantProfileDigestService;
     @Mock private LlmDispatcher llmDispatcher;
@@ -83,7 +86,16 @@ class StudyPlanAiServiceTest {
                         "notes":null,"checkQuestions":[]}]}]}
                         """);
 
-        assertThatThrownBy(() -> service.generateInitial(List.of(resource), 300, null, null, null))
+        assertThatThrownBy(
+                        () ->
+                                service.generateInitial(
+                                        WORKSPACE_ID,
+                                        List.of(resource),
+                                        Map.of(1L, LearningResourcePriorityTier.P1),
+                                        300,
+                                        null,
+                                        null,
+                                        null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -96,7 +108,10 @@ class StudyPlanAiServiceTest {
         when(llmDispatcher.generateJson(anyString(), anyString(), any(), any(), anyInt(), any()))
                 .thenReturn("이건 JSON이 아닙니다");
 
-        assertThatThrownBy(() -> service.generateInitial(List.of(), 300, null, null, null))
+        assertThatThrownBy(
+                        () ->
+                                service.generateInitial(
+                                        WORKSPACE_ID, List.of(), Map.of(), 300, null, null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -125,7 +140,19 @@ class StudyPlanAiServiceTest {
                         ]}
                         """);
 
-        GeneratedPlan plan = service.generateInitial(List.of(before, after), 300, null, null, null);
+        GeneratedPlan plan =
+                service.generateInitial(
+                        WORKSPACE_ID,
+                        List.of(before, after),
+                        Map.of(
+                                1L,
+                                LearningResourcePriorityTier.P1,
+                                2L,
+                                LearningResourcePriorityTier.P1),
+                        300,
+                        null,
+                        null,
+                        null);
 
         int beforeStageIndex = stageIndexOf(plan, 1L);
         int afterStageIndex = stageIndexOf(plan, 2L);
@@ -146,7 +173,19 @@ class StudyPlanAiServiceTest {
                         ]}
                         """);
 
-        GeneratedPlan plan = service.generateInitial(List.of(a, b), 300, null, null, null);
+        GeneratedPlan plan =
+                service.generateInitial(
+                        WORKSPACE_ID,
+                        List.of(a, b),
+                        Map.of(
+                                1L,
+                                LearningResourcePriorityTier.P1,
+                                2L,
+                                LearningResourcePriorityTier.P1),
+                        300,
+                        null,
+                        null,
+                        null);
 
         assertThat(plan.stages()).hasSize(2);
         assertThat(plan.stages()).allSatisfy(stage -> assertThat(stage.stageOrder()).isEqualTo(1));

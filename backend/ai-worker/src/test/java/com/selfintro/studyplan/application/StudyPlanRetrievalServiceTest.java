@@ -1,27 +1,23 @@
 package com.selfintro.studyplan.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.modules.learningresource.application.LearningResourceService;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
+import com.selfintro.modules.learningresource.domain.entity.WorkspaceLearningResource;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
-import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
-import com.selfintro.modules.learningresource.presentation.dto.LearningResourcePageResponse;
-import com.selfintro.modules.learningresource.presentation.dto.LearningResourceResponse;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
-import com.selfintro.studyplan.application.StudyPlanRetrievalService.CollectedCandidate;
+import com.selfintro.modules.learningresource.domain.repository.WorkspaceLearningResourceRepository;
+import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.entity.WorkspaceSkill;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
+import com.selfintro.studyplan.application.StudyPlanRetrievalService.CollectedCandidate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,9 +29,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class StudyPlanRetrievalServiceTest {
 
-    @Mock private LearningResourceService learningResourceService;
-    @Mock private LearningResourceRepository learningResourceRepository;
-    @Mock private SkillRepository skillRepository;
+    private static final Long WORKSPACE_ID = 9L;
+
+    @Mock private WorkspaceLearningResourceRepository workspaceLearningResourceRepository;
+    @Mock private WorkspaceSkillRepository workspaceSkillRepository;
     @Mock private NvidiaNimClient nvidiaNimClient;
 
     private StudyPlanRetrievalService service;
@@ -45,9 +42,8 @@ class StudyPlanRetrievalServiceTest {
     void setUp() throws Exception {
         service =
                 new StudyPlanRetrievalService(
-                        learningResourceService,
-                        learningResourceRepository,
-                        skillRepository,
+                        workspaceLearningResourceRepository,
+                        workspaceSkillRepository,
                         nvidiaNimClient,
                         new ObjectMapper());
         var constructor = TaxonomyNode.class.getDeclaredConstructor();
@@ -56,7 +52,12 @@ class StudyPlanRetrievalServiceTest {
         ReflectionTestUtils.setField(taxonomyNode, "id", 1L);
         ReflectionTestUtils.setField(taxonomyNode, "name", "백엔드");
         ReflectionTestUtils.setField(taxonomyNode, "slug", "backend");
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("스프링"));
+        Skill skill = Skill.create("스프링", "백엔드", "ADVANCED", true, 0);
+        WorkspaceSkill workspaceSkill =
+                WorkspaceSkill.create(
+                        WORKSPACE_ID, skill, "ADVANCED", null, null, "LEARNING", true, 0);
+        when(workspaceSkillRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(WORKSPACE_ID))
+                .thenReturn(List.of(workspaceSkill));
     }
 
     private LearningResource newResource(long id, String title) {
@@ -79,10 +80,15 @@ class StudyPlanRetrievalServiceTest {
         return resource;
     }
 
-    private LearningResourcePageResponse pageOf(LearningResource... resources) {
-        List<LearningResourceResponse> content =
-                List.of(resources).stream().map(LearningResourceResponse::from).toList();
-        return new LearningResourcePageResponse(content, 0, 40, content.size(), 1);
+    private WorkspaceLearningResource overlayOf(LearningResource resource) {
+        return WorkspaceLearningResource.create(
+                WORKSPACE_ID,
+                resource,
+                LearningResourceStatus.WISHLIST,
+                LearningResourcePriorityTier.P1,
+                0,
+                null,
+                null);
     }
 
     private List<LearningResource> resourcesOf(List<CollectedCandidate> collected) {
@@ -94,13 +100,11 @@ class StudyPlanRetrievalServiceTest {
         LearningResource resource = newResource(5L, "스프링 부트 강의");
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn("{\"keywords\":[\"스프링\"]}");
-        when(learningResourceService.searchAdmin(
-                        eq("스프링"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
-                        eq(0), anyInt()))
-                .thenReturn(pageOf(resource));
-        when(learningResourceRepository.findAllById(List.of(5L))).thenReturn(List.of(resource));
+        when(workspaceLearningResourceRepository.findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(
+                        WORKSPACE_ID))
+                .thenReturn(List.of(overlayOf(resource)));
 
-        List<CollectedCandidate> result = service.collectInitial("백엔드 심화 학습");
+        List<CollectedCandidate> result = service.collectInitial(WORKSPACE_ID, "백엔드 심화 학습");
 
         assertThat(resourcesOf(result)).containsExactly(resource);
         assertThat(result.get(0).familiar()).isTrue();
@@ -109,13 +113,11 @@ class StudyPlanRetrievalServiceTest {
     @Test
     void collectInitialFallsBackToBroadPoolWhenNoFocusGoal() {
         LearningResource resource = newResource(7L, "아무 자료");
-        when(learningResourceService.searchAdmin(
-                        isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0),
-                        anyInt()))
-                .thenReturn(pageOf(resource));
-        when(learningResourceRepository.findAllById(List.of(7L))).thenReturn(List.of(resource));
+        when(workspaceLearningResourceRepository.findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(
+                        WORKSPACE_ID))
+                .thenReturn(List.of(overlayOf(resource)));
 
-        List<CollectedCandidate> result = service.collectInitial(null);
+        List<CollectedCandidate> result = service.collectInitial(WORKSPACE_ID, null);
 
         assertThat(resourcesOf(result)).containsExactly(resource);
         verify(nvidiaNimClient, org.mockito.Mockito.never()).generate(anyString(), anyString());
@@ -128,7 +130,8 @@ class StudyPlanRetrievalServiceTest {
         when(nvidiaNimClient.generate(anyString(), anyString()))
                 .thenReturn("{\"removeResourceIds\":[20],\"additionalKeywords\":[]}");
 
-        List<CollectedCandidate> result = service.adjust(List.of(keep, remove), "프론트엔드는 빼줘");
+        List<CollectedCandidate> result =
+                service.adjust(WORKSPACE_ID, List.of(keep, remove), "프론트엔드는 빼줘");
 
         assertThat(resourcesOf(result)).containsExactly(keep);
     }
@@ -138,13 +141,12 @@ class StudyPlanRetrievalServiceTest {
         LearningResource current = newResource(10L, "자바 기초");
         LearningResource added = newResource(30L, "책 - 클린 코드");
         when(nvidiaNimClient.generate(anyString(), anyString()))
-                .thenReturn("{\"removeResourceIds\":[],\"additionalKeywords\":[\"클린코드\"]}");
-        when(learningResourceService.searchAdmin(
-                        eq("클린코드"), any(), any(), any(), any(), any(), any(), eq(0), anyInt()))
-                .thenReturn(pageOf(added));
-        when(learningResourceRepository.findAllById(List.of(30L))).thenReturn(List.of(added));
+                .thenReturn("{\"removeResourceIds\":[],\"additionalKeywords\":[\"클린 코드\"]}");
+        when(workspaceLearningResourceRepository.findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(
+                        WORKSPACE_ID))
+                .thenReturn(List.of(overlayOf(added)));
 
-        List<CollectedCandidate> result = service.adjust(List.of(current), "책도 넣어줘");
+        List<CollectedCandidate> result = service.adjust(WORKSPACE_ID, List.of(current), "책도 넣어줘");
 
         assertThat(resourcesOf(result)).containsExactlyInAnyOrder(current, added);
     }

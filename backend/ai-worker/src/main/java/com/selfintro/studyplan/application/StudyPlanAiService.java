@@ -6,8 +6,8 @@ import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
+import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
-import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.studyplan.domain.entity.StudyPlan;
 import com.selfintro.studyplan.domain.entity.StudyPlanItem;
 import com.selfintro.studyplan.domain.entity.StudyPlanMessage;
@@ -93,19 +93,36 @@ detailed thinking off
     private final ObjectMapper objectMapper;
 
     public GeneratedPlan generateInitial(
+            Long workspaceId,
             Collection<LearningResource> confirmedCandidates,
+            Map<Long, LearningResourcePriorityTier> priorityByResourceId,
             int weeklyAvailableMinutes,
             String focusGoal,
             String aiModel,
             String customModelName) {
-        CandidateSet candidates = loadCandidates(confirmedCandidates);
-        String userPrompt = buildInitialUserPrompt(candidates, weeklyAvailableMinutes, focusGoal);
+        CandidateSet candidates = loadCandidates(confirmedCandidates, priorityByResourceId);
+        String userPrompt =
+                buildInitialUserPrompt(workspaceId, candidates, weeklyAvailableMinutes, focusGoal);
         return callAndValidate(userPrompt, candidates, aiModel, customModelName);
     }
 
-    public GeneratedPlan regenerate(StudyPlan plan, String feedbackContent, String aiModel, String customModelName) {
-        CandidateSet candidates = loadCandidates(plan.getSelectedResources());
-        String userPrompt = buildRegenerateUserPrompt(candidates, plan, feedbackContent);
+    public GeneratedPlan regenerate(
+            Long workspaceId,
+            StudyPlan plan,
+            String feedbackContent,
+            String aiModel,
+            String customModelName) {
+        Map<Long, LearningResourcePriorityTier> priorityByResourceId = new LinkedHashMap<>();
+        plan.getCandidates().stream()
+                .filter(candidate -> candidate.isSelected())
+                .forEach(
+                        candidate ->
+                                priorityByResourceId.put(
+                                        candidate.getLearningResourceId(),
+                                        candidate.getPriorityTier()));
+        CandidateSet candidates = loadCandidates(plan.getSelectedResources(), priorityByResourceId);
+        String userPrompt =
+                buildRegenerateUserPrompt(workspaceId, candidates, plan, feedbackContent);
         return callAndValidate(userPrompt, candidates, aiModel, customModelName);
     }
 
@@ -113,7 +130,12 @@ detailed thinking off
             String userPrompt, CandidateSet candidates, String aiModel, String customModelName) {
         String raw =
                 llmDispatcher.generateJson(
-                        SYSTEM_PROMPT, userPrompt, aiModel, customModelName, MAX_OUTPUT_TOKENS, Duration.ofSeconds(180));
+                        SYSTEM_PROMPT,
+                        userPrompt,
+                        aiModel,
+                        customModelName,
+                        MAX_OUTPUT_TOKENS,
+                        Duration.ofSeconds(180));
         StudyPlanAiResponse response;
         try {
             response =
@@ -134,10 +156,11 @@ detailed thinking off
     // 후보 정리 + 선후관계 제약 계산 (후보 자체는 이미 StudyPlanRetrievalService가 좁혀온 것)
     // ---------------------------------------------------------------------
 
-    private CandidateSet loadCandidates(Collection<LearningResource> confirmedCandidates) {
+    private CandidateSet loadCandidates(
+            Collection<LearningResource> confirmedCandidates,
+            Map<Long, LearningResourcePriorityTier> priorityByResourceId) {
         Map<Long, LearningResource> eligible = new LinkedHashMap<>();
         for (LearningResource resource : confirmedCandidates) {
-            if (resource.getStatus() == LearningResourceStatus.COMPLETED) continue;
             if (resource.getDurationMinutes() == null) continue;
             eligible.put(resource.getId(), resource);
         }
@@ -154,9 +177,11 @@ detailed thinking off
                                                         eligibleDepth.get(r.getId()))
                                         .thenComparing(
                                                 r ->
-                                                        r.getPriorityTier() == null
+                                                        priorityByResourceId.get(r.getId()) == null
                                                                 ? 99
-                                                                : r.getPriorityTier().ordinal())
+                                                                : priorityByResourceId
+                                                                        .get(r.getId())
+                                                                        .ordinal())
                                         .thenComparing(LearningResource::getId))
                         .limit(MAX_CANDIDATES)
                         .collect(
@@ -168,7 +193,7 @@ detailed thinking off
 
         List<PrerequisitePair> pairs = collectPrerequisitePairs(byId.values(), byId.keySet());
         Map<Long, Integer> depth = computeDepth(byId.keySet(), pairs);
-        return new CandidateSet(byId, pairs, depth);
+        return new CandidateSet(byId, priorityByResourceId, pairs, depth);
     }
 
     private List<PrerequisitePair> collectPrerequisitePairs(
@@ -230,9 +255,12 @@ detailed thinking off
     // ---------------------------------------------------------------------
 
     private String buildInitialUserPrompt(
-            CandidateSet candidates, int weeklyAvailableMinutes, String focusGoal) {
+            Long workspaceId,
+            CandidateSet candidates,
+            int weeklyAvailableMinutes,
+            String focusGoal) {
         StringBuilder sb = new StringBuilder();
-        appendProfile(sb, candidates, focusGoal);
+        appendProfile(workspaceId, sb, candidates, focusGoal);
         appendCandidates(sb, candidates);
         appendPrerequisites(sb, candidates);
         appendUserInput(sb, weeklyAvailableMinutes, focusGoal);
@@ -240,9 +268,9 @@ detailed thinking off
     }
 
     private String buildRegenerateUserPrompt(
-            CandidateSet candidates, StudyPlan plan, String feedbackContent) {
+            Long workspaceId, CandidateSet candidates, StudyPlan plan, String feedbackContent) {
         StringBuilder sb = new StringBuilder();
-        appendProfile(sb, candidates, plan.getFocusGoal());
+        appendProfile(workspaceId, sb, candidates, plan.getFocusGoal());
         appendCandidates(sb, candidates);
         appendPrerequisites(sb, candidates);
         appendUserInput(sb, plan.getWeeklyAvailableMinutes(), plan.getFocusGoal());
@@ -256,12 +284,15 @@ detailed thinking off
     }
 
     /**
-     * 학습 후보 선택 자체(이미 {@link StudyPlanRetrievalService}가 확정)에 관여하지 않는 보조 배경 정보라, 목표/후보 제목을
-     * 쿼리로 삼아 관련 경험/스터디만 골라 넣는다. 벡터 인덱스가 비어 있으면 전체 덤프로 폴백한다.
+     * 학습 후보 선택 자체(이미 {@link StudyPlanRetrievalService}가 확정)에 관여하지 않는 보조 배경 정보라, 목표/후보 제목을 쿼리로 삼아 관련
+     * 경험/스터디만 골라 넣는다. 벡터 인덱스가 비어 있으면 전체 덤프로 폴백한다.
      */
-    private void appendProfile(StringBuilder sb, CandidateSet candidates, String focusGoal) {
+    private void appendProfile(
+            Long workspaceId, StringBuilder sb, CandidateSet candidates, String focusGoal) {
         String queryText = buildProfileQueryText(candidates, focusGoal);
-        String profileDigest = relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+        String profileDigest =
+                relevantProfileDigestService.buildDigest(
+                        workspaceId, queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
         sb.append("## 지원자 프로필\n").append(profileDigest).append("\n\n");
     }
 
@@ -270,7 +301,10 @@ detailed thinking off
         if (AiJsonSupport.hasText(focusGoal)) {
             query.append(focusGoal).append(" ");
         }
-        candidates.byId().values().forEach(resource -> query.append(resource.getTitle()).append(" "));
+        candidates
+                .byId()
+                .values()
+                .forEach(resource -> query.append(resource.getTitle()).append(" "));
         return query.toString();
     }
 
@@ -282,9 +316,13 @@ detailed thinking off
                                         (LearningResource r) -> candidates.depth().get(r.getId()))
                                 .thenComparing(
                                         r ->
-                                                r.getPriorityTier() == null
+                                                candidates.priorityByResourceId().get(r.getId())
+                                                                == null
                                                         ? 99
-                                                        : r.getPriorityTier().ordinal())
+                                                        : candidates
+                                                                .priorityByResourceId()
+                                                                .get(r.getId())
+                                                                .ordinal())
                                 .thenComparing(LearningResource::getId))
                 .forEach(
                         r ->
@@ -297,7 +335,7 @@ detailed thinking off
                                         .append(" 유형=")
                                         .append(r.getResourceType())
                                         .append(" 우선순위=")
-                                        .append(r.getPriorityTier())
+                                        .append(candidates.priorityByResourceId().get(r.getId()))
                                         .append(" 소요시간=")
                                         .append(r.getDurationMinutes())
                                         .append("분 참고깊이=")
@@ -498,6 +536,7 @@ detailed thinking off
 
     private record CandidateSet(
             Map<Long, LearningResource> byId,
+            Map<Long, LearningResourcePriorityTier> priorityByResourceId,
             List<PrerequisitePair> prerequisitePairs,
             Map<Long, Integer> depth) {}
 

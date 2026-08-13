@@ -13,6 +13,7 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourcePrior
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
+import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedCheckQuestion;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedItem;
 import com.selfintro.studyplan.application.StudyPlanAiService.GeneratedPlan;
@@ -25,7 +26,6 @@ import com.selfintro.studyplan.domain.entity.StudyPlanStage;
 import com.selfintro.studyplan.domain.repository.StudyPlanRepository;
 import com.selfintro.studyplan.presentation.dto.StudyPlanItemResponse;
 import com.selfintro.studyplan.presentation.dto.StudyPlanResponse;
-import com.selfintro.modules.taxonomy.domain.entity.TaxonomyNode;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +40,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class StudyPlanServiceTest {
+
+    private static final Long WORKSPACE_ID = 9L;
 
     @Mock private StudyPlanRepository studyPlanRepository;
     @Mock private LearningResourceRepository learningResourceRepository;
@@ -66,7 +68,9 @@ class StudyPlanServiceTest {
     }
 
     private List<CollectedCandidate> toCollected(List<LearningResource> resources) {
-        return resources.stream().map(r -> new CollectedCandidate(r, false)).toList();
+        return resources.stream()
+                .map(r -> new CollectedCandidate(r, false, LearningResourcePriorityTier.P1))
+                .toList();
     }
 
     private LearningResource newResource(long id, String title) {
@@ -96,18 +100,23 @@ class StudyPlanServiceTest {
     private StudyPlan createAndRegister(
             List<LearningResource> candidates, GeneratedPlan generated) {
         ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
-        when(studyPlanRetrievalService.collectInitial("목표")).thenReturn(toCollected(candidates));
+        when(studyPlanRetrievalService.collectInitial(WORKSPACE_ID, "목표"))
+                .thenReturn(toCollected(candidates));
         when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.create(300, "목표");
+        service.create(WORKSPACE_ID, 300, "목표");
 
         StudyPlan saved = captor.getValue();
         ReflectionTestUtils.setField(saved, "id", 1L);
-        lenient().when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
+        lenient()
+                .when(studyPlanRepository.findByIdAndWorkspaceId(1L, WORKSPACE_ID))
+                .thenReturn(Optional.of(saved));
 
-        when(studyPlanAiService.generateInitial(any(), eq(300), eq("목표"), any(), any())).thenReturn(generated);
+        when(studyPlanAiService.generateInitial(
+                        eq(WORKSPACE_ID), any(), any(), eq(300), eq("목표"), any(), any()))
+                .thenReturn(generated);
         when(learningResourceRepository.findAllById(any())).thenReturn(candidates);
-        service.generatePlan(1L, null, null);
+        service.generatePlan(WORKSPACE_ID, 1L, null, null);
 
         // 실제 JPA라면 저장 시 id가 채번되지만, 이 테스트는 repository를 mock했으므로 직접 채번을
         // 흉내낸다 — toggle 계열 테스트가 item id로 조회할 수 있어야 하기 때문.
@@ -126,12 +135,14 @@ class StudyPlanServiceTest {
 
     private StudyPlan createCollectingPlan(List<LearningResource> resources) {
         ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
-        when(studyPlanRetrievalService.collectInitial("목표")).thenReturn(toCollected(resources));
+        when(studyPlanRetrievalService.collectInitial(WORKSPACE_ID, "목표"))
+                .thenReturn(toCollected(resources));
         when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
-        service.create(300, "목표");
+        service.create(WORKSPACE_ID, 300, "목표");
         StudyPlan saved = captor.getValue();
         ReflectionTestUtils.setField(saved, "id", 1L);
-        when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
+        when(studyPlanRepository.findByIdAndWorkspaceId(1L, WORKSPACE_ID))
+                .thenReturn(Optional.of(saved));
         return saved;
     }
 
@@ -142,6 +153,42 @@ class StudyPlanServiceTest {
                 .map(StudyPlanItemResponse::id)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    @Test
+    void cannotReadPlanThroughAnotherWorkspaceBoundary() {
+        when(studyPlanRepository.findByIdAndWorkspaceId(1L, 77L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.get(77L, 1L))
+                .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
+
+        verify(studyPlanRepository).findByIdAndWorkspaceId(1L, 77L);
+    }
+
+    @Test
+    void cannotMutateCandidateThroughAnotherWorkspaceBoundary() {
+        when(studyPlanRepository.findByIdAndWorkspaceId(1L, 77L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.toggleCandidateSelected(77L, 1L, 10L))
+                .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
+    }
+
+    @Test
+    void cannotMutateItemThroughAnotherWorkspaceBoundary() {
+        when(studyPlanRepository.findByIdAndWorkspaceId(1L, 77L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.toggleCompleted(77L, 1L, 100L))
+                .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
+        assertThatThrownBy(() -> service.toggleUnderstanding(77L, 1L, 100L))
+                .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
+    }
+
+    @Test
+    void cannotDeletePlanThroughAnotherWorkspaceBoundary() {
+        when(studyPlanRepository.findByIdAndWorkspaceId(1L, 77L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.delete(77L, 1L))
+                .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
     }
 
     @Test
@@ -194,9 +241,9 @@ class StudyPlanServiceTest {
                                                         20L, null, 60, null, List.of())))));
         createAndRegister(List.of(resourceA, resourceB), initial);
 
-        StudyPlanResponse afterGenerate = service.get(1L);
+        StudyPlanResponse afterGenerate = service.get(WORKSPACE_ID, 1L);
         Long itemAId = itemIdOf(afterGenerate, 10L);
-        service.toggleCompleted(1L, itemAId);
+        service.toggleCompleted(WORKSPACE_ID, 1L, itemAId);
 
         GeneratedPlan regenerated =
                 new GeneratedPlan(
@@ -208,10 +255,11 @@ class StudyPlanServiceTest {
                                         List.of(
                                                 new GeneratedItem(
                                                         10L, null, 60, null, List.of())))));
-        when(studyPlanAiService.regenerate(any(), eq("스프링은 빼주세요"), any(), any())).thenReturn(regenerated);
+        when(studyPlanAiService.regenerate(eq(WORKSPACE_ID), any(), eq("스프링은 빼주세요"), any(), any()))
+                .thenReturn(regenerated);
         when(learningResourceRepository.findAllById(any())).thenReturn(List.of(resourceA));
 
-        StudyPlanResponse response = service.sendMessage(1L, "스프링은 빼주세요", null, null);
+        StudyPlanResponse response = service.sendMessage(WORKSPACE_ID, 1L, "스프링은 빼주세요", null, null);
 
         assertThat(response.stages()).hasSize(1);
         List<StudyPlanItemResponse> items = response.stages().get(0).items();
@@ -224,19 +272,21 @@ class StudyPlanServiceTest {
     void sendMessageDuringCollectingAdjustsCandidatesInstead() {
         LearningResource resourceA = newResource(10L, "자바 기초");
         LearningResource resourceB = newResource(20L, "프론트엔드 자료");
-        when(studyPlanRetrievalService.collectInitial("목표"))
+        when(studyPlanRetrievalService.collectInitial(WORKSPACE_ID, "목표"))
                 .thenReturn(toCollected(List.of(resourceA, resourceB)));
         ArgumentCaptor<StudyPlan> captor = ArgumentCaptor.forClass(StudyPlan.class);
         when(studyPlanRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
-        service.create(300, "목표");
+        service.create(WORKSPACE_ID, 300, "목표");
         StudyPlan saved = captor.getValue();
         ReflectionTestUtils.setField(saved, "id", 1L);
-        when(studyPlanRepository.findById(1L)).thenReturn(Optional.of(saved));
+        when(studyPlanRepository.findByIdAndWorkspaceId(1L, WORKSPACE_ID))
+                .thenReturn(Optional.of(saved));
 
-        when(studyPlanRetrievalService.adjust(List.of(resourceA, resourceB), "프론트엔드는 빼줘"))
+        when(studyPlanRetrievalService.adjust(
+                        WORKSPACE_ID, List.of(resourceA, resourceB), "프론트엔드는 빼줘"))
                 .thenReturn(toCollected(List.of(resourceA)));
 
-        StudyPlanResponse response = service.sendMessage(1L, "프론트엔드는 빼줘", null, null);
+        StudyPlanResponse response = service.sendMessage(WORKSPACE_ID, 1L, "프론트엔드는 빼줘", null, null);
 
         assertThat(response.status().name()).isEqualTo("COLLECTING");
         assertThat(response.candidates()).hasSize(1);
@@ -249,10 +299,10 @@ class StudyPlanServiceTest {
         LearningResource resource = newResource(10L, "자바 기초");
         createCollectingPlan(List.of(resource));
 
-        StudyPlanResponse response = service.toggleCandidateSelected(1L, 10L);
+        StudyPlanResponse response = service.toggleCandidateSelected(WORKSPACE_ID, 1L, 10L);
         assertThat(response.candidates().get(0).selected()).isFalse();
 
-        StudyPlanResponse toggledBack = service.toggleCandidateSelected(1L, 10L);
+        StudyPlanResponse toggledBack = service.toggleCandidateSelected(WORKSPACE_ID, 1L, 10L);
         assertThat(toggledBack.candidates().get(0).selected()).isTrue();
     }
 
@@ -262,7 +312,7 @@ class StudyPlanServiceTest {
         LearningResource resourceB = newResource(20L, "스프링 기초");
         createCollectingPlan(List.of(resourceA, resourceB));
 
-        StudyPlanResponse response = service.setCategorySelected(1L, "백엔드", false);
+        StudyPlanResponse response = service.setCategorySelected(WORKSPACE_ID, 1L, "백엔드", false);
 
         assertThat(response.candidates()).allSatisfy(c -> assertThat(c.selected()).isFalse());
     }
@@ -272,7 +322,7 @@ class StudyPlanServiceTest {
         LearningResource resourceA = newResource(10L, "자바 기초");
         LearningResource resourceB = newResource(20L, "스프링 기초");
         createCollectingPlan(List.of(resourceA, resourceB));
-        service.toggleCandidateSelected(1L, 20L);
+        service.toggleCandidateSelected(WORKSPACE_ID, 1L, 20L);
 
         GeneratedPlan generated =
                 new GeneratedPlan(
@@ -284,13 +334,28 @@ class StudyPlanServiceTest {
                                         List.of(
                                                 new GeneratedItem(
                                                         10L, null, 60, null, List.of())))));
-        when(studyPlanAiService.generateInitial(eq(List.of(resourceA)), eq(300), eq("목표"), any(), any()))
+        when(studyPlanAiService.generateInitial(
+                        eq(WORKSPACE_ID),
+                        eq(List.of(resourceA)),
+                        any(),
+                        eq(300),
+                        eq("목표"),
+                        any(),
+                        any()))
                 .thenReturn(generated);
         when(learningResourceRepository.findAllById(any())).thenReturn(List.of(resourceA));
 
-        service.generatePlan(1L, null, null);
+        service.generatePlan(WORKSPACE_ID, 1L, null, null);
 
-        verify(studyPlanAiService).generateInitial(eq(List.of(resourceA)), eq(300), eq("목표"), any(), any());
+        verify(studyPlanAiService)
+                .generateInitial(
+                        eq(WORKSPACE_ID),
+                        eq(List.of(resourceA)),
+                        any(),
+                        eq(300),
+                        eq("목표"),
+                        any(),
+                        any());
     }
 
     @Test
@@ -308,7 +373,7 @@ class StudyPlanServiceTest {
                                                         10L, null, 60, null, List.of())))));
         createAndRegister(List.of(resource), generated);
 
-        assertThatThrownBy(() -> service.generatePlan(1L, null, null))
+        assertThatThrownBy(() -> service.generatePlan(WORKSPACE_ID, 1L, null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -329,9 +394,9 @@ class StudyPlanServiceTest {
                                                 new GeneratedItem(
                                                         null, "복습", 30, null, List.of())))));
         createAndRegister(List.of(newResource(99L, "더미 자료")), generated);
-        service.confirm(1L);
+        service.confirm(WORKSPACE_ID, 1L);
 
-        assertThatThrownBy(() -> service.sendMessage(1L, "피드백", null, null))
+        assertThatThrownBy(() -> service.sendMessage(WORKSPACE_ID, 1L, "피드백", null, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(
                         e ->
@@ -353,14 +418,14 @@ class StudyPlanServiceTest {
                                                 new GeneratedItem(
                                                         10L, null, 60, null, List.of())))));
         createAndRegister(List.of(resource), generated);
-        Long itemId = itemIdOf(service.get(1L), 10L);
+        Long itemId = itemIdOf(service.get(WORKSPACE_ID, 1L), 10L);
 
-        StudyPlanResponse response = service.toggleUnderstanding(1L, itemId);
+        StudyPlanResponse response = service.toggleUnderstanding(WORKSPACE_ID, 1L, itemId);
 
         StudyPlanItemResponse item = response.stages().get(0).items().get(0);
         assertThat(item.understandingChecked()).isTrue();
 
-        StudyPlanResponse toggledBack = service.toggleUnderstanding(1L, itemId);
+        StudyPlanResponse toggledBack = service.toggleUnderstanding(WORKSPACE_ID, 1L, itemId);
         assertThat(toggledBack.stages().get(0).items().get(0).understandingChecked()).isFalse();
     }
 }

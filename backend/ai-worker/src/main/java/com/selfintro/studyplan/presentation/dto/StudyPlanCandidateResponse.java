@@ -26,7 +26,7 @@ public record StudyPlanCandidateResponse(
                                 .map(node -> node.getName())
                                 .collect(Collectors.joining(", ")),
                 resource.getResourceType(),
-                resource.getPriorityTier(),
+                candidate.getPriorityTier(),
                 resource.getDurationMinutes(),
                 candidate.isSelected(),
                 candidate.isFamiliar());

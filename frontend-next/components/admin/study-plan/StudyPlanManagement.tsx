@@ -26,7 +26,7 @@ import { AiModelUsageBadge } from '@/components/admin/AiModelUsageBadge';
 import { useSlideDrawer } from '@/lib/hooks/useSlideDrawer';
 import { LearningResourceDetailPanel } from '@/components/admin/learning-resource/LearningResourceDetailPanel';
 
-export function StudyPlanManagement() {
+export function StudyPlanManagement({ workspaceSlug }: { workspaceSlug: string }) {
     const queryClient = useQueryClient();
     const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
     const aiModel = useAiModelStore((s) => s.modelKey);
@@ -50,8 +50,8 @@ export function StudyPlanManagement() {
     const [drawerResourceId, setDrawerResourceId] = useState<number | null>(null);
 
     const { data: summaries } = useQuery({
-        queryKey: ['studyPlans'],
-        queryFn: () => studyPlanApi.list(),
+        queryKey: ['studyPlans', workspaceSlug],
+        queryFn: () => studyPlanApi.list(workspaceSlug),
     });
 
     const effectiveSelectedId =
@@ -62,19 +62,19 @@ export function StudyPlanManagement() {
             : selectedId;
 
     const { data: plan, isLoading: isPlanLoading } = useQuery({
-        queryKey: ['studyPlan', effectiveSelectedId],
-        queryFn: () => studyPlanApi.get(effectiveSelectedId as number),
+        queryKey: ['studyPlan', workspaceSlug, effectiveSelectedId],
+        queryFn: () => studyPlanApi.get(workspaceSlug, effectiveSelectedId as number),
         enabled: effectiveSelectedId != null,
     });
 
     const setPlanCache = (updated: StudyPlan) => {
-        queryClient.setQueryData(['studyPlan', updated.id], updated);
-        queryClient.invalidateQueries({ queryKey: ['studyPlans'] });
+        queryClient.setQueryData(['studyPlan', workspaceSlug, updated.id], updated);
+        queryClient.invalidateQueries({ queryKey: ['studyPlans', workspaceSlug] });
     };
 
     const createMutation = useMutation({
         mutationFn: () =>
-            studyPlanApi.create({
+            studyPlanApi.create(workspaceSlug, {
                 weeklyAvailableMinutes,
                 focusGoal: focusGoal.trim() || undefined,
             }),
@@ -89,6 +89,7 @@ export function StudyPlanManagement() {
     const sendMessageMutation = useMutation({
         mutationFn: (content: string) =>
             studyPlanApi.sendMessage(
+                workspaceSlug,
                 effectiveSelectedId as number,
                 content,
                 aiModel,
@@ -104,6 +105,7 @@ export function StudyPlanManagement() {
     const generateMutation = useMutation({
         mutationFn: () =>
             studyPlanApi.generate(
+                workspaceSlug,
                 effectiveSelectedId as number,
                 aiModel,
                 aiCustomModelName || undefined
@@ -113,41 +115,50 @@ export function StudyPlanManagement() {
     });
 
     const confirmMutation = useMutation({
-        mutationFn: () => studyPlanApi.confirm(effectiveSelectedId as number),
+        mutationFn: () => studyPlanApi.confirm(workspaceSlug, effectiveSelectedId as number),
         onSuccess: setPlanCache,
         onError: (error) => alertError(error, '계획 확정에 실패했습니다.'),
     });
 
     const unconfirmMutation = useMutation({
-        mutationFn: () => studyPlanApi.unconfirm(effectiveSelectedId as number),
+        mutationFn: () => studyPlanApi.unconfirm(workspaceSlug, effectiveSelectedId as number),
         onSuccess: setPlanCache,
         onError: (error) => alertError(error, '잠금 해제에 실패했습니다.'),
     });
 
     const toggleCompletedMutation = useMutation({
         mutationFn: (itemId: number) =>
-            studyPlanApi.toggleCompleted(effectiveSelectedId as number, itemId),
+            studyPlanApi.toggleCompleted(workspaceSlug, effectiveSelectedId as number, itemId),
         onSuccess: setPlanCache,
         onError: (error) => alertError(error, '완료 체크에 실패했습니다.'),
     });
 
     const toggleUnderstandingMutation = useMutation({
         mutationFn: (itemId: number) =>
-            studyPlanApi.toggleUnderstanding(effectiveSelectedId as number, itemId),
+            studyPlanApi.toggleUnderstanding(workspaceSlug, effectiveSelectedId as number, itemId),
         onSuccess: setPlanCache,
         onError: (error) => alertError(error, '이해도 점검 체크에 실패했습니다.'),
     });
 
     const toggleCandidateMutation = useMutation({
         mutationFn: (resourceId: number) =>
-            studyPlanApi.toggleCandidateSelected(effectiveSelectedId as number, resourceId),
+            studyPlanApi.toggleCandidateSelected(
+                workspaceSlug,
+                effectiveSelectedId as number,
+                resourceId
+            ),
         onSuccess: setPlanCache,
         onError: (error) => alertError(error, '후보 선택 변경에 실패했습니다.'),
     });
 
     const setCategorySelectedMutation = useMutation({
         mutationFn: ({ category, selected }: { category: string; selected: boolean }) =>
-            studyPlanApi.setCategorySelected(effectiveSelectedId as number, category, selected),
+            studyPlanApi.setCategorySelected(
+                workspaceSlug,
+                effectiveSelectedId as number,
+                category,
+                selected
+            ),
         onSuccess: setPlanCache,
         onError: (error) => alertError(error, '카테고리 일괄 선택에 실패했습니다.'),
     });
@@ -208,8 +219,8 @@ export function StudyPlanManagement() {
     const closeDrawer = () => setDrawerResourceId(null);
     const drawerAnim = useSlideDrawer(drawerResourceId !== null);
     const { data: drawerResource } = useQuery({
-        queryKey: ['learningResource', drawerResourceId],
-        queryFn: () => learningResourceApi.get(drawerResourceId as number),
+        queryKey: ['learningResource', workspaceSlug, drawerResourceId],
+        queryFn: () => learningResourceApi.workspaceGet(workspaceSlug, drawerResourceId as number),
         enabled: drawerResourceId != null,
     });
     const notEditableHere = () => alert('자료 수정/삭제는 "학습 자료 관리" 화면에서 해주세요.');

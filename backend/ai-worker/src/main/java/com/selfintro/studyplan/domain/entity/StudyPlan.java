@@ -35,6 +35,9 @@ public class StudyPlan {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private StudyPlanStatus status;
@@ -67,7 +70,9 @@ public class StudyPlan {
     @OrderBy("id ASC")
     private List<StudyPlanCandidate> candidates = new ArrayList<>();
 
-    private StudyPlan(int weeklyAvailableMinutes, String focusGoal, LocalDateTime now) {
+    private StudyPlan(
+            Long workspaceId, int weeklyAvailableMinutes, String focusGoal, LocalDateTime now) {
+        this.workspaceId = workspaceId;
         this.status = StudyPlanStatus.COLLECTING;
         this.weeklyAvailableMinutes = weeklyAvailableMinutes;
         this.focusGoal = focusGoal;
@@ -76,8 +81,8 @@ public class StudyPlan {
     }
 
     public static StudyPlan create(
-            int weeklyAvailableMinutes, String focusGoal, LocalDateTime now) {
-        return new StudyPlan(weeklyAvailableMinutes, focusGoal, now);
+            Long workspaceId, int weeklyAvailableMinutes, String focusGoal, LocalDateTime now) {
+        return new StudyPlan(workspaceId, weeklyAvailableMinutes, focusGoal, now);
     }
 
     public void replaceCandidates(List<StudyPlanCandidate> newCandidates, LocalDateTime now) {
