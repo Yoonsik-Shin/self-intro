@@ -466,16 +466,24 @@ cookie·token·Secret 원문을 출력하지 않으며, 임시 파일이 꼭 필
   확인한 뒤 새 TOTP를 검증해야만 기존 암호화 secret과 복구 코드 묶음을 한 트랜잭션에서 교체하는
   MFA 재등록 흐름. 완료 시 모든 세션을 무효화하며 중간 단계에서는 기존 MFA를 해제하지 않는다.
 
-배포 전 미완료:
+운영 배포 차단 조건:
 
-- JobPosting 벡터 기반 개인 추천 endpoint와 Workspace 결과 snapshot·삭제 전파(현재 수동 재매칭
-  경계는 완료했으나 catalog vector 검색은 아직 서비스 경로에서 사용하지 않음)
-- 온톨로지의 Experience·회고 연결을 추가할 경우 동일한 Workspace overlay·복합 FK 규칙 적용
-- 플랫폼 기본 PrintTemplate catalog와 Workspace 복사본 모델, 채용공고 연결의 Workspace overlay
-- Competency 벡터 재활성화 및 AI 입력 전체의 Workspace 격리 테스트
 - 운영 private bucket 프로비저닝·기존 최종 PDF 이관, 악성 파일 검사, 삭제 전파 검증
-- Support Access의 Compose migration 및 운영자·Workspace OWNER 2계정 UAT와 감사 로그 확인은
-  `scripts/e2e/support-access-compose.sh`로 완료했다. 운영 반영 전에는 사람의 화면 UX 확인만 남는다.
 - 모든 인증 수단과 복구 코드를 함께 잃은 계정의 별도 신원 확인·운영 복구 절차 및 운영
   `MFA_ENCRYPTION_KEY` SealedSecret
 - 운영 백업/복구 rehearsal
+- 운영 SMTP·비밀번호 유출 blocklist provider, 가입·Workspace 초대 보존기간과 cleanup 지표·실패 알림
+- 실명 인증 provider와 암호화·접근 감사·보존·삭제 정책
+
+비공개 베타 이후 제품 결정:
+
+- JobPosting catalog vector를 개인 추천에 실제 사용할 경우 후보 범위·거리 임계값·Workspace 결과
+  snapshot·삭제 전파 계약과 E2E를 먼저 확정한다. 현재 수동 재매칭 경계는 완료했으며, 비공개 베타에서는
+  catalog vector 추천을 출시 범위에 넣지 않는다.
+- 온톨로지의 Experience·회고 연결은 기능을 추가할 때 동일한 Workspace overlay·복합 FK 규칙을 적용한다.
+- 플랫폼 기본 PrintTemplate catalog와 Workspace 복사본 모델은 유료 템플릿 정책을 정한 뒤 별도 설계한다.
+  현재 Workspace PrintTemplate canonical API와 일반 사용자 UI는 구현 완료 상태다.
+- Competency vector는 다시 활성화할 때 Workspace vector schema·cache 검증을 추가한다. 현재 Competency AI
+  입력의 Workspace 격리는 구현·검증 완료 상태다.
+- 역할로 잠긴 `/api/admin/**` 호환 endpoint와 canonical Workspace API가 없는 레거시 도메인의 비공개
+  베타 이후 유지·이관·제거 시점을 결정한다.
