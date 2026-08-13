@@ -8,6 +8,7 @@ import {
     GripVertical,
     ListChecks,
     Lock,
+    Plus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
@@ -41,17 +42,48 @@ type PrintPreviewNavProps = {
     open: boolean;
     onRequestToggle: () => void;
     onToggle: (id: string) => void;
-    onReorder: (draggedId: string, targetId: string) => void;
+    onReorder: (draggedId: string, targetId: string, position?: DropPosition) => void;
     onReorderItem: (
         scopeId: string,
         siblingIds: string[],
         draggedId: string,
-        targetId: string
+        targetId: string,
+        position?: DropPosition
     ) => void;
     onNavigate: (id: string) => void;
     onToggleAll?: () => void;
     excludedCount?: number;
+    onAddCustomSection?: () => void;
 };
+
+type DropPosition = 'before' | 'after';
+
+function positionFromPointer(clientY: number, element: HTMLElement): DropPosition {
+    const bounds = element.getBoundingClientRect();
+    return clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+}
+
+function positionFromOrder(sourceId: string, targetId: string, orderedIds: string[]): DropPosition {
+    return orderedIds.indexOf(sourceId) < orderedIds.indexOf(targetId) ? 'after' : 'before';
+}
+
+function DropIndicator({ depth = 0 }: { depth?: number }) {
+    return (
+        <div
+            aria-hidden="true"
+            className="pointer-events-none relative z-20 h-0 px-1"
+            style={{ marginLeft: depth * 14 }}
+        >
+            <div className="absolute inset-x-1 top-0 flex -translate-y-1/2 items-center gap-2">
+                <span className="h-0.5 flex-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.75)]" />
+                <span className="shrink-0 rounded-full border border-blue-300 bg-blue-600 px-2 py-0.5 text-[9px] font-black text-white shadow-lg">
+                    여기에 배치
+                </span>
+                <span className="h-0.5 flex-1 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.75)]" />
+            </div>
+        </div>
+    );
+}
 
 const touchItemKey = (scopeId: string, itemId: string, siblingIds: string[]) =>
     JSON.stringify([scopeId, itemId, siblingIds]);
@@ -119,6 +151,7 @@ function NavTreeNode({
     onNavigate,
     draggedId,
     dragOverId,
+    dragOverPosition,
     onDragStateChange,
     touchDragHandleProps,
     touchDropTargetProps,
@@ -135,12 +168,18 @@ function NavTreeNode({
         scopeId: string,
         siblingIds: string[],
         draggedId: string,
-        targetId: string
+        targetId: string,
+        position?: DropPosition
     ) => void;
     onNavigate: (id: string) => void;
     draggedId: string | null;
     dragOverId: string | null;
-    onDragStateChange: (draggedId: string | null, dragOverId: string | null) => void;
+    dragOverPosition: DropPosition | null;
+    onDragStateChange: (
+        draggedId: string | null,
+        dragOverId: string | null,
+        position: DropPosition | null
+    ) => void;
     touchDragHandleProps: (sourceId: string) => HTMLAttributes<HTMLElement>;
     touchDropTargetProps: (targetId: string) => HTMLAttributes<HTMLElement>;
 }) {
@@ -155,31 +194,50 @@ function NavTreeNode({
 
     return (
         <div>
+            {isOverThis && dragOverPosition === 'before' && <DropIndicator depth={depth} />}
             <div
                 {...touchDropTargetProps(itemTouchKey)}
                 draggable
                 onDragStart={(e) => {
                     e.stopPropagation();
                     e.dataTransfer.setData('text/plain', item.id);
-                    onDragStateChange(item.id, null);
+                    onDragStateChange(item.id, null, null);
                 }}
-                onDragEnd={() => onDragStateChange(null, null)}
+                onDragEnd={() => onDragStateChange(null, null, null)}
                 onDragOver={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (draggedId && draggedId !== item.id) onDragStateChange(draggedId, item.id);
+                    if (draggedId && draggedId !== item.id) {
+                        onDragStateChange(
+                            draggedId,
+                            item.id,
+                            positionFromPointer(e.clientY, e.currentTarget)
+                        );
+                    }
                 }}
                 onDragLeave={(e) => {
                     e.stopPropagation();
-                    if (dragOverId === item.id) onDragStateChange(draggedId, null);
+                    if (
+                        dragOverId === item.id &&
+                        !e.currentTarget.contains(e.relatedTarget as Node | null)
+                    ) {
+                        onDragStateChange(draggedId, null, null);
+                    }
                 }}
                 onDrop={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     const fromId = e.dataTransfer.getData('text/plain') || draggedId;
-                    if (fromId && fromId !== item.id)
-                        onReorderItem(scopeId, siblingIds, fromId, item.id);
-                    onDragStateChange(null, null);
+                    if (fromId && fromId !== item.id) {
+                        onReorderItem(
+                            scopeId,
+                            siblingIds,
+                            fromId,
+                            item.id,
+                            dragOverPosition ?? positionFromPointer(e.clientY, e.currentTarget)
+                        );
+                    }
+                    onDragStateChange(null, null, null);
                 }}
                 onClick={() => onNavigate(item.id)}
                 style={{ paddingLeft: 6 + depth * 14 }}
@@ -239,6 +297,7 @@ function NavTreeNode({
                             onNavigate={onNavigate}
                             draggedId={draggedId}
                             dragOverId={dragOverId}
+                            dragOverPosition={dragOverPosition}
                             onDragStateChange={onDragStateChange}
                             touchDragHandleProps={touchDragHandleProps}
                             touchDropTargetProps={touchDropTargetProps}
@@ -246,6 +305,7 @@ function NavTreeNode({
                     ))}
                 </div>
             )}
+            {isOverThis && dragOverPosition === 'after' && <DropIndicator depth={depth} />}
         </div>
     );
 }
@@ -274,11 +334,14 @@ export function PrintPreviewNav({
     onNavigate,
     onToggleAll,
     excludedCount = 0,
+    onAddCustomSection,
 }: PrintPreviewNavProps) {
     const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
     const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
+    const [sectionDropPosition, setSectionDropPosition] = useState<DropPosition | null>(null);
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
     const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+    const [itemDropPosition, setItemDropPosition] = useState<DropPosition | null>(null);
     const [collapsedIds, setCollapsedIds] = useState<string[]>(() => [
         ...itemGroups.map((g) => g.sectionId),
         ...itemGroups.flatMap((g) => collectIdsWithChildren(g.items)),
@@ -286,13 +349,36 @@ export function PrintPreviewNav({
 
     const touchSectionDrag = useTouchDrag({
         onDragStart: (id) => setDraggedSectionId(id),
-        onDragOver: (_, targetId) => setDragOverSectionId(targetId),
+        onDragOver: (sourceId, targetId) => {
+            const nextTargetId = targetId && targetId !== sourceId ? targetId : null;
+            setDragOverSectionId(nextTargetId);
+            setSectionDropPosition(
+                nextTargetId
+                    ? positionFromOrder(
+                          sourceId,
+                          nextTargetId,
+                          sections.map((s) => s.id)
+                      )
+                    : null
+            );
+        },
         onDrop: (sourceId, targetId) => {
-            if (sourceId !== targetId) onReorder(sourceId, targetId);
+            if (sourceId !== targetId) {
+                onReorder(
+                    sourceId,
+                    targetId,
+                    positionFromOrder(
+                        sourceId,
+                        targetId,
+                        sections.map((s) => s.id)
+                    )
+                );
+            }
         },
         onDragEnd: () => {
             setDraggedSectionId(null);
             setDragOverSectionId(null);
+            setSectionDropPosition(null);
         },
     });
     const touchItemDrag = useTouchDrag({
@@ -300,21 +386,35 @@ export function PrintPreviewNav({
             const parsed = parseTouchItemKey(key);
             if (parsed) setDraggedItemId(parsed[1]);
         },
-        onDragOver: (_, targetKey) => {
+        onDragOver: (sourceKey, targetKey) => {
             const parsed = targetKey ? parseTouchItemKey(targetKey) : null;
-            setDragOverItemId(parsed?.[1] ?? null);
+            const source = parseTouchItemKey(sourceKey);
+            const nextTarget = source && parsed && source[1] !== parsed[1] ? parsed : null;
+            setDragOverItemId(nextTarget?.[1] ?? null);
+            setItemDropPosition(
+                source && nextTarget && source[0] === nextTarget[0]
+                    ? positionFromOrder(source[1], nextTarget[1], source[2])
+                    : null
+            );
         },
         onDrop: (sourceKey, targetKey) => {
             const source = parseTouchItemKey(sourceKey);
             const target = parseTouchItemKey(targetKey);
             if (!source || !target || source[0] !== target[0] || source[1] === target[1]) return;
             if (source[2].includes(target[1])) {
-                onReorderItem(source[0], source[2], source[1], target[1]);
+                onReorderItem(
+                    source[0],
+                    source[2],
+                    source[1],
+                    target[1],
+                    positionFromOrder(source[1], target[1], source[2])
+                );
             }
         },
         onDragEnd: () => {
             setDraggedItemId(null);
             setDragOverItemId(null);
+            setItemDropPosition(null);
         },
     });
 
@@ -411,117 +511,161 @@ export function PrintPreviewNav({
                     const itemIds = items.map((it) => it.id);
 
                     return (
-                        <div
-                            key={sec.id}
-                            {...touchSectionDrag.dropTargetProps(sec.id)}
-                            draggable={!isLocked}
-                            onDragStart={(e) => {
-                                if (isLocked) return;
-                                e.dataTransfer.setData('text/plain', sec.id);
-                                setDraggedSectionId(sec.id);
-                            }}
-                            onDragEnd={() => {
-                                setDraggedSectionId(null);
-                                setDragOverSectionId(null);
-                            }}
-                            onDragOver={(e) => {
-                                e.preventDefault();
-                                if (draggedSectionId && draggedSectionId !== sec.id)
-                                    setDragOverSectionId(sec.id);
-                            }}
-                            onDragLeave={() => {
-                                if (dragOverSectionId === sec.id) setDragOverSectionId(null);
-                            }}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                const fromId =
-                                    e.dataTransfer.getData('text/plain') || draggedSectionId;
-                                if (fromId && fromId !== sec.id) onReorder(fromId, sec.id);
-                                setDraggedSectionId(null);
-                                setDragOverSectionId(null);
-                            }}
-                            className={`group rounded-xl border transition ${
-                                excluded
-                                    ? 'border-slate-800/80 bg-slate-950/40 opacity-60'
-                                    : 'border-slate-800 bg-slate-800/60 hover:border-slate-700'
-                            } ${isDraggingThis ? 'opacity-30' : ''} ${isOverThis ? 'border-blue-500 ring-2 ring-blue-500/20' : ''}`}
-                        >
+                        <div key={sec.id} className="relative">
+                            {isOverThis && sectionDropPosition === 'before' && <DropIndicator />}
                             <div
-                                onClick={() => onNavigate(sec.id)}
-                                className="flex items-center gap-1.5 px-2.5 py-2 cursor-pointer"
+                                {...(!isLocked ? touchSectionDrag.dropTargetProps(sec.id) : {})}
+                                draggable={!isLocked}
+                                onDragStart={(e) => {
+                                    if (isLocked) return;
+                                    e.dataTransfer.setData('text/plain', sec.id);
+                                    setDraggedSectionId(sec.id);
+                                }}
+                                onDragEnd={() => {
+                                    setDraggedSectionId(null);
+                                    setDragOverSectionId(null);
+                                    setSectionDropPosition(null);
+                                }}
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    if (
+                                        !isLocked &&
+                                        draggedSectionId &&
+                                        draggedSectionId !== sec.id
+                                    ) {
+                                        setDragOverSectionId(sec.id);
+                                        setSectionDropPosition(
+                                            positionFromPointer(e.clientY, e.currentTarget)
+                                        );
+                                    }
+                                }}
+                                onDragLeave={(e) => {
+                                    if (
+                                        dragOverSectionId === sec.id &&
+                                        !e.currentTarget.contains(e.relatedTarget as Node | null)
+                                    ) {
+                                        setDragOverSectionId(null);
+                                        setSectionDropPosition(null);
+                                    }
+                                }}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    const fromId =
+                                        e.dataTransfer.getData('text/plain') || draggedSectionId;
+                                    if (fromId && fromId !== sec.id) {
+                                        onReorder(
+                                            fromId,
+                                            sec.id,
+                                            sectionDropPosition ??
+                                                positionFromPointer(e.clientY, e.currentTarget)
+                                        );
+                                    }
+                                    setDraggedSectionId(null);
+                                    setDragOverSectionId(null);
+                                    setSectionDropPosition(null);
+                                }}
+                                className={`group rounded-xl border transition ${
+                                    excluded
+                                        ? 'border-slate-800/80 bg-slate-950/40 opacity-60'
+                                        : 'border-slate-800 bg-slate-800/60 hover:border-slate-700'
+                                } ${isDraggingThis ? 'opacity-30' : ''} ${isOverThis ? 'border-blue-500 ring-2 ring-blue-500/20' : ''}`}
                             >
-                                {!isLocked && (
-                                    <span
-                                        {...touchSectionDrag.dragHandleProps(sec.id)}
-                                        onClick={(event) => event.stopPropagation()}
-                                        className="grid h-6 w-4 shrink-0 touch-none place-items-center text-slate-500 group-hover:text-slate-300 cursor-grab active:cursor-grabbing"
-                                        title="드래그 또는 터치하여 순서 변경"
-                                    >
-                                        <GripVertical className="h-3.5 w-3.5" />
-                                    </span>
-                                )}
-                                <sec.icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                <span
-                                    className={`flex-1 truncate text-xs font-bold ${excluded ? 'text-slate-400 line-through' : 'text-white'}`}
+                                <div
+                                    onClick={() => onNavigate(sec.id)}
+                                    className="flex items-center gap-1.5 px-2.5 py-2 cursor-pointer"
                                 >
-                                    {sec.label}
-                                </span>
-                                {hasItems && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleCollapsed(sec.id);
-                                        }}
-                                        className="shrink-0 p-1 text-slate-400 hover:text-white"
-                                        title={isCollapsed ? '하위 항목 펼치기' : '하위 항목 접기'}
+                                    {!isLocked && (
+                                        <span
+                                            {...touchSectionDrag.dragHandleProps(sec.id)}
+                                            onClick={(event) => event.stopPropagation()}
+                                            className="grid h-6 w-4 shrink-0 touch-none place-items-center text-slate-500 group-hover:text-slate-300 cursor-grab active:cursor-grabbing"
+                                            title="드래그 또는 터치하여 순서 변경"
+                                        >
+                                            <GripVertical className="h-3.5 w-3.5" />
+                                        </span>
+                                    )}
+                                    <sec.icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                    <span
+                                        className={`flex-1 truncate text-xs font-bold ${excluded ? 'text-slate-400 line-through' : 'text-white'}`}
                                     >
-                                        {isCollapsed ? (
-                                            <ChevronRight className="h-3.5 w-3.5" />
-                                        ) : (
-                                            <ChevronDown className="h-3.5 w-3.5" />
-                                        )}
-                                    </button>
-                                )}
-                                {isLocked ? (
-                                    <span title="고정 섹션">
-                                        <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                                        {sec.label}
                                     </span>
-                                ) : (
-                                    <ToggleSwitch on={!excluded} onClick={() => onToggle(sec.id)} />
+                                    {hasItems && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleCollapsed(sec.id);
+                                            }}
+                                            className="shrink-0 p-1 text-slate-400 hover:text-white"
+                                            title={
+                                                isCollapsed ? '하위 항목 펼치기' : '하위 항목 접기'
+                                            }
+                                        >
+                                            {isCollapsed ? (
+                                                <ChevronRight className="h-3.5 w-3.5" />
+                                            ) : (
+                                                <ChevronDown className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+                                    )}
+                                    {isLocked ? (
+                                        <span title="고정 섹션">
+                                            <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                                        </span>
+                                    ) : (
+                                        <ToggleSwitch
+                                            on={!excluded}
+                                            onClick={() => onToggle(sec.id)}
+                                        />
+                                    )}
+                                </div>
+
+                                {hasItems && !isCollapsed && group && (
+                                    <div className="border-t border-slate-800/80 px-2 py-1 space-y-0.5 bg-slate-950/30">
+                                        {items.map((item) => (
+                                            <NavTreeNode
+                                                key={item.id}
+                                                item={item}
+                                                depth={0}
+                                                scopeId={group.scopeId}
+                                                siblingIds={itemIds}
+                                                excludedIds={excludedIds}
+                                                collapsedIds={collapsedIds}
+                                                onToggleCollapse={toggleCollapsed}
+                                                onToggle={onToggle}
+                                                onReorderItem={onReorderItem}
+                                                onNavigate={onNavigate}
+                                                draggedId={draggedItemId}
+                                                dragOverId={dragOverItemId}
+                                                dragOverPosition={itemDropPosition}
+                                                onDragStateChange={(d, o, position) => {
+                                                    setDraggedItemId(d);
+                                                    setDragOverItemId(o);
+                                                    setItemDropPosition(position);
+                                                }}
+                                                touchDragHandleProps={touchItemDrag.dragHandleProps}
+                                                touchDropTargetProps={touchItemDrag.dropTargetProps}
+                                            />
+                                        ))}
+                                    </div>
                                 )}
                             </div>
-
-                            {hasItems && !isCollapsed && group && (
-                                <div className="border-t border-slate-800/80 px-2 py-1 space-y-0.5 bg-slate-950/30">
-                                    {items.map((item) => (
-                                        <NavTreeNode
-                                            key={item.id}
-                                            item={item}
-                                            depth={0}
-                                            scopeId={group.scopeId}
-                                            siblingIds={itemIds}
-                                            excludedIds={excludedIds}
-                                            collapsedIds={collapsedIds}
-                                            onToggleCollapse={toggleCollapsed}
-                                            onToggle={onToggle}
-                                            onReorderItem={onReorderItem}
-                                            onNavigate={onNavigate}
-                                            draggedId={draggedItemId}
-                                            dragOverId={dragOverItemId}
-                                            onDragStateChange={(d, o) => {
-                                                setDraggedItemId(d);
-                                                setDragOverItemId(o);
-                                            }}
-                                            touchDragHandleProps={touchItemDrag.dragHandleProps}
-                                            touchDropTargetProps={touchItemDrag.dropTargetProps}
-                                        />
-                                    ))}
-                                </div>
-                            )}
+                            {isOverThis && sectionDropPosition === 'after' && <DropIndicator />}
                         </div>
                     );
                 })}
+
+                {onAddCustomSection && (
+                    <button
+                        type="button"
+                        onClick={onAddCustomSection}
+                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-400/50 bg-blue-500/10 px-3 py-2.5 text-xs font-black text-blue-200 transition hover:border-blue-300 hover:bg-blue-500/20 hover:text-white"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                        사용자 정의 섹션 추가
+                    </button>
+                )}
             </div>
         </div>
     );

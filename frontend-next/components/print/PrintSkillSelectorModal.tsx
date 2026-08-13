@@ -1,65 +1,78 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search, X, Check, Plus, Cpu, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
-import type { Skill } from '@/lib/api/types';
-import { groupCoreSkills } from '@/lib/introDerivations';
+import { ArrowLeftRight, Check, Cpu, Plus, RotateCcw, Search, X } from 'lucide-react';
+import type { PrintTemplateContentOverrides, Skill } from '@/lib/api/types';
+import { getSkillOutputGroup, type SkillOutputGroup } from '@/lib/introDerivations';
 
 type Props = {
-    allSkills: Skill[];
+    workspaceSkills: Skill[];
+    catalogSkills: Skill[];
     selectedSkillIds?: number[] | null;
+    skillGroupOverrides?: PrintTemplateContentOverrides['skillGroupOverrides'];
+    addingCatalogSkillId?: number | null;
     onToggleSkill: (skillId: number) => void;
-    onSelectAllInGroup: (skillIds: number[]) => void;
-    onDeselectAllInGroup: (skillIds: number[]) => void;
-    onResetToAll: () => void;
+    onMoveSkill: (skillId: number, group: SkillOutputGroup) => void;
+    onAddCatalogSkill: (skill: Skill, group: SkillOutputGroup) => Promise<void>;
+    onResetToDefault: () => void;
     onClose: () => void;
 };
 
+const GROUPS: Array<{ value: SkillOutputGroup; label: string; description: string }> = [
+    {
+        value: 'CORE',
+        label: '핵심 기술',
+        description: '직무의 중심이 되는 실무 기술',
+    },
+    {
+        value: 'PROJECT_LEARNING',
+        label: '프로젝트·학습',
+        description: '프로젝트에서 활용했거나 학습 중인 기술',
+    },
+];
+
+type SelectorView = 'SELECTED' | 'CATALOG';
+
 export function PrintSkillSelectorModal({
-    allSkills,
+    workspaceSkills,
+    catalogSkills,
     selectedSkillIds,
+    skillGroupOverrides,
+    addingCatalogSkillId = null,
     onToggleSkill,
-    onSelectAllInGroup,
-    onDeselectAllInGroup,
-    onResetToAll,
+    onMoveSkill,
+    onAddCatalogSkill,
+    onResetToDefault,
     onClose,
 }: Props) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [showAllDbSkills, setShowAllDbSkills] = useState(false);
-
-    const coreGroups = useMemo(() => groupCoreSkills(allSkills), [allSkills]);
-    const coreSkillIds = useMemo(
-        () => new Set(coreGroups.flatMap((g) => g.skills).map((s) => s.id)),
-        [coreGroups]
+    const [activeView, setActiveView] = useState<SelectorView>('SELECTED');
+    const selectedSet = useMemo(
+        () =>
+            new Set(
+                selectedSkillIds ??
+                    workspaceSkills.filter((skill) => skill.isCore).map((skill) => skill.id)
+            ),
+        [selectedSkillIds, workspaceSkills]
     );
-
-    const nonCoreSkills = useMemo(
-        () => allSkills.filter((s) => !coreSkillIds.has(s.id)),
-        [allSkills, coreSkillIds]
-    );
-
-    // Currently selected skill ID set (if selectedSkillIds is undefined or null, core skills are selected by default)
-    const isAllSelectedByDefault = !selectedSkillIds;
-    const selectedSet = useMemo(() => {
-        if (isAllSelectedByDefault) {
-            return new Set(allSkills.filter((s) => s.isCore).map((s) => s.id));
-        }
-        return new Set(selectedSkillIds);
-    }, [isAllSelectedByDefault, allSkills, selectedSkillIds]);
-
-    const totalSelectedCount = selectedSet.size;
-
-    const queryTrimmed = searchQuery.trim().toLowerCase();
-
-    // When search query is active, search across ALL 60 DB skills!
+    const outputGroup = (skill: Skill): SkillOutputGroup =>
+        skillGroupOverrides?.[String(skill.id)] ?? getSkillOutputGroup(skill);
+    const query = searchQuery.trim().toLocaleLowerCase();
     const searchResults = useMemo(() => {
-        if (!queryTrimmed) return [];
-        return allSkills.filter(
-            (s) =>
-                s.name.toLowerCase().includes(queryTrimmed) ||
-                (s.category && s.category.toLowerCase().includes(queryTrimmed))
+        if (!query) return catalogSkills;
+        return catalogSkills.filter(
+            (skill) =>
+                skill.name.toLocaleLowerCase().includes(query) ||
+                skill.category.toLocaleLowerCase().includes(query)
         );
-    }, [allSkills, queryTrimmed]);
+    }, [catalogSkills, query]);
+    const unselectedWorkspaceSkills = workspaceSkills.filter((skill) => !selectedSet.has(skill.id));
+    const includeWorkspaceSkill = (skill: Skill, group: SkillOutputGroup) => {
+        onMoveSkill(skill.id, group);
+        if (!selectedSet.has(skill.id)) {
+            onToggleSkill(skill.id);
+        }
+    };
 
     return (
         <div
@@ -67,322 +80,330 @@ export function PrintSkillSelectorModal({
             onClick={onClose}
         >
             <div
-                className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150"
-                onClick={(e) => e.stopPropagation()}
+                className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
             >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-6 py-4">
-                    <div className="flex items-center gap-2.5">
-                        <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-white shadow-sm">
+                <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-6 py-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
                             <Cpu className="h-5 w-5" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <h3 className="text-base font-black text-slate-900">
-                                DB 기술 스택 선택 및 관리
+                                출력 기술 스택 구성
                             </h3>
                             <p className="text-xs font-semibold text-slate-500">
-                                템플릿 인쇄물에 노출할 기술 스택을 선택하세요. ({totalSelectedCount}
-                                개 선택됨 / DB 전체 {allSkills.length}개)
+                                {selectedSet.size}개 노출 · Workspace 원본 {workspaceSkills.length}
+                                개 · 공용 카탈로그 {catalogSkills.length}개
                             </p>
                         </div>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition cursor-pointer"
+                        className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                        aria-label="기술 스택 구성 닫기"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-5 w-5" />
                     </button>
-                </div>
+                </header>
 
-                {/* Filter and Global Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white px-6 py-3">
-                    <div className="relative flex-1 min-w-[200px]">
-                        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="DB 60개 전체 기술스택 검색 (예: FastAPI, PostgreSQL, Vitest...)"
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                <div className="border-b border-slate-100 px-6 py-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div
+                            className="flex rounded-xl bg-slate-100 p-1"
+                            role="tablist"
+                            aria-label="기술 스택 구성 화면"
+                        >
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={activeView === 'SELECTED'}
+                                onClick={() => setActiveView('SELECTED')}
+                                className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeView === 'SELECTED' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+                            >
+                                선택된 기술 {selectedSet.size}
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={activeView === 'CATALOG'}
+                                onClick={() => setActiveView('CATALOG')}
+                                className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeView === 'CATALOG' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+                            >
+                                카탈로그에서 추가 {catalogSkills.length}
+                            </button>
+                        </div>
+                        <div className="flex-1" />
+                        <button
+                            type="button"
+                            onClick={onResetToDefault}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+                        >
+                            <RotateCcw className="h-4 w-4" /> 원본 기본값으로 초기화
+                        </button>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onResetToAll}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs cursor-pointer"
-                        title="기본 핵심 기술 스택 포함 상태로 초기화"
-                    >
-                        <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
-                        <span>기본 상태로 초기화</span>
-                    </button>
+                    {activeView === 'CATALOG' && (
+                        <div className="relative mt-3">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                placeholder={`공용 카탈로그 ${catalogSkills.length}개 검색 (예: TypeScript)`}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm font-bold text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* Search Results Mode */}
-                    {queryTrimmed !== '' ? (
-                        <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/30 p-4">
-                            <div className="flex items-center justify-between border-b border-blue-200/80 pb-2">
-                                <h4 className="text-xs font-black text-blue-950 flex items-center gap-2">
-                                    <Search className="h-3.5 w-3.5 text-blue-600" />
-                                    <span>&apos;{searchQuery}&apos; DB 전체 검색 결과</span>
-                                </h4>
-                                <span className="rounded bg-blue-200/80 px-2 py-0.5 text-[10px] font-bold text-blue-900">
-                                    {searchResults.length}개 검색됨
+                <main className="flex-1 space-y-5 overflow-y-auto p-6">
+                    {activeView === 'CATALOG' ? (
+                        <section className="rounded-2xl border border-blue-200 bg-blue-50/30 p-4">
+                            <div className="mb-3 flex items-center justify-between border-b border-blue-100 pb-3">
+                                <div>
+                                    <h4 className="text-sm font-black text-slate-900">
+                                        {query ? '공용 카탈로그 검색 결과' : '공용 기술 카탈로그'}
+                                    </h4>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Workspace에 없는 기술은 원본에 먼저 추가한 뒤 현재 템플릿에
+                                        배치합니다.
+                                    </p>
+                                </div>
+                                <span className="rounded-lg bg-blue-100 px-2 py-1 text-xs font-bold text-blue-800">
+                                    {searchResults.length}개
                                 </span>
                             </div>
-
                             {searchResults.length === 0 ? (
-                                <p className="py-6 text-center text-xs font-bold text-slate-400">
-                                    검색어와 일치하는 DB 기술 스택이 없습니다.
+                                <p className="py-8 text-center text-sm font-bold text-slate-400">
+                                    일치하는 기술이 없습니다.
                                 </p>
                             ) : (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    {searchResults.map((skill) => {
-                                        const isSelected = selectedSet.has(skill.id);
+                                <div className="space-y-2">
+                                    {searchResults.map((catalogSkill) => {
+                                        const workspaceSkill = workspaceSkills.find(
+                                            (skill) => skill.id === catalogSkill.id
+                                        );
+                                        const isSelected = workspaceSkill
+                                            ? selectedSet.has(workspaceSkill.id)
+                                            : false;
                                         return (
-                                            <button
-                                                type="button"
-                                                key={skill.id}
-                                                onClick={() => onToggleSkill(skill.id)}
-                                                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition cursor-pointer ${
-                                                    isSelected
-                                                        ? 'border-blue-500 bg-blue-50 text-blue-950 shadow-xs ring-2 ring-blue-400/40 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-900'
-                                                        : 'border-dashed border-slate-300 bg-white text-slate-400 line-through opacity-70 hover:border-blue-400 hover:text-blue-600 hover:opacity-100'
-                                                }`}
-                                                title={
-                                                    isSelected
-                                                        ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
-                                                        : `'${skill.name}' 템플릿에 포함하기 (클릭)`
-                                                }
+                                            <div
+                                                key={catalogSkill.id}
+                                                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3"
                                             >
-                                                <span>{skill.name}</span>
-                                                {skill.skillVersion && (
-                                                    <span
-                                                        className={`rounded px-1 py-0.2 text-[9px] font-bold ${
-                                                            isSelected
-                                                                ? 'bg-blue-200/80 text-blue-800'
-                                                                : 'bg-slate-200 text-slate-400'
-                                                        }`}
-                                                    >
-                                                        v{skill.skillVersion}
-                                                    </span>
+                                                <div className="min-w-[150px] flex-1">
+                                                    <p className="text-sm font-black text-slate-900">
+                                                        {catalogSkill.name}
+                                                    </p>
+                                                    <p className="text-[11px] font-semibold text-slate-400">
+                                                        {catalogSkill.category}
+                                                    </p>
+                                                </div>
+                                                {workspaceSkill ? (
+                                                    <>
+                                                        <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                                                            원본에 있음
+                                                        </span>
+                                                        {isSelected ? (
+                                                            <>
+                                                                <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700">
+                                                                    {GROUPS.find(
+                                                                        (group) =>
+                                                                            group.value ===
+                                                                            outputGroup(
+                                                                                workspaceSkill
+                                                                            )
+                                                                    )?.label ?? '출력 중'}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        onMoveSkill(
+                                                                            workspaceSkill.id,
+                                                                            outputGroup(
+                                                                                workspaceSkill
+                                                                            ) === 'CORE'
+                                                                                ? 'PROJECT_LEARNING'
+                                                                                : 'CORE'
+                                                                        )
+                                                                    }
+                                                                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+                                                                >
+                                                                    영역 이동
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        onToggleSkill(
+                                                                            workspaceSkill.id
+                                                                        )
+                                                                    }
+                                                                    className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
+                                                                >
+                                                                    출력 제외
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            GROUPS.map((group) => (
+                                                                <button
+                                                                    type="button"
+                                                                    key={group.value}
+                                                                    onClick={() =>
+                                                                        includeWorkspaceSkill(
+                                                                            workspaceSkill,
+                                                                            group.value
+                                                                        )
+                                                                    }
+                                                                    className="rounded-lg border border-blue-200 px-2.5 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+                                                                >
+                                                                    {group.label}에 포함
+                                                                </button>
+                                                            ))
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    GROUPS.map((group) => (
+                                                        <button
+                                                            type="button"
+                                                            key={group.value}
+                                                            disabled={
+                                                                addingCatalogSkillId ===
+                                                                catalogSkill.id
+                                                            }
+                                                            onClick={() =>
+                                                                void onAddCatalogSkill(
+                                                                    catalogSkill,
+                                                                    group.value
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-50 disabled:cursor-wait disabled:opacity-50"
+                                                        >
+                                                            <Plus className="h-3.5 w-3.5" />{' '}
+                                                            {group.label}에 추가
+                                                        </button>
+                                                    ))
                                                 )}
-                                                <span
-                                                    className={`grid h-4 w-4 place-items-center rounded-full text-[9px] font-black ${
-                                                        isSelected
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-slate-200 text-slate-500'
-                                                    }`}
-                                                >
-                                                    {isSelected ? (
-                                                        <Check className="h-2.5 w-2.5" />
-                                                    ) : (
-                                                        <Plus className="h-2.5 w-2.5" />
-                                                    )}
-                                                </span>
-                                            </button>
+                                            </div>
                                         );
                                     })}
                                 </div>
                             )}
-                        </div>
+                        </section>
                     ) : (
-                        /* Default Core Groups Mode */
                         <>
-                            {coreGroups.map((group) => {
-                                const groupSkillIds = group.skills.map((s) => s.id);
-                                const groupSelectedCount = group.skills.filter((s) =>
-                                    selectedSet.has(s.id)
-                                ).length;
-                                const isAllGroupSelected =
-                                    groupSelectedCount === group.skills.length;
-
-                                return (
-                                    <div
-                                        key={group.value}
-                                        className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/40 p-4"
-                                    >
-                                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="h-3 w-1 rounded-full bg-blue-600" />
-                                                <h4 className="text-xs font-black text-slate-900">
-                                                    {group.label}
-                                                </h4>
-                                                <span className="rounded bg-slate-200/80 px-1.5 py-0.2 text-[10px] font-bold text-slate-600">
-                                                    {groupSelectedCount} / {group.skills.length}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        onSelectAllInGroup(groupSkillIds)
-                                                    }
-                                                    disabled={isAllGroupSelected}
-                                                    className="rounded px-2 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-50 disabled:opacity-40 transition cursor-pointer"
-                                                >
-                                                    그룹 전체 선택
-                                                </button>
-                                                <span className="text-slate-300 text-[10px]">
-                                                    |
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        onDeselectAllInGroup(groupSkillIds)
-                                                    }
-                                                    disabled={groupSelectedCount === 0}
-                                                    className="rounded px-2 py-0.5 text-[10px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition cursor-pointer"
-                                                >
-                                                    그룹 전체 제외
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-2 pt-1">
-                                            {group.skills.map((skill) => {
-                                                const isSelected = selectedSet.has(skill.id);
-                                                return (
-                                                    <button
-                                                        type="button"
-                                                        key={skill.id}
-                                                        onClick={() => onToggleSkill(skill.id)}
-                                                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition cursor-pointer ${
-                                                            isSelected
-                                                                ? 'border-blue-500 bg-blue-50 text-blue-950 shadow-xs ring-2 ring-blue-400/40 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-900'
-                                                                : 'border-dashed border-slate-300 bg-white text-slate-400 line-through opacity-70 hover:border-blue-400 hover:text-blue-600 hover:opacity-100'
-                                                        }`}
-                                                        title={
-                                                            isSelected
-                                                                ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
-                                                                : `'${skill.name}' 템플릿에 포함하기 (클릭)`
-                                                        }
-                                                    >
-                                                        <span>{skill.name}</span>
-                                                        {skill.skillVersion && (
-                                                            <span
-                                                                className={`rounded px-1 py-0.2 text-[9px] font-bold ${
-                                                                    isSelected
-                                                                        ? 'bg-blue-200/80 text-blue-800'
-                                                                        : 'bg-slate-200 text-slate-400'
-                                                                }`}
-                                                            >
-                                                                v{skill.skillVersion}
-                                                            </span>
-                                                        )}
-                                                        <span
-                                                            className={`grid h-4 w-4 place-items-center rounded-full text-[9px] font-black ${
-                                                                isSelected
-                                                                    ? 'bg-blue-600 text-white'
-                                                                    : 'bg-slate-200 text-slate-500'
-                                                            }`}
-                                                        >
-                                                            {isSelected ? (
-                                                                <Check className="h-2.5 w-2.5" />
-                                                            ) : (
-                                                                <Plus className="h-2.5 w-2.5" />
-                                                            )}
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            {/* Additional DB Skills Toggle Section */}
-                            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllDbSkills(!showAllDbSkills)}
-                                    className="flex w-full items-center justify-between text-xs font-black text-slate-700 hover:text-blue-600 transition cursor-pointer"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <Cpu className="h-4 w-4 text-blue-600" />
-                                        <span>
-                                            기타 DB 기술 스택 ({nonCoreSkills.length}개){' '}
-                                            {showAllDbSkills ? '접기' : '전체 펼쳐보기'}
-                                        </span>
-                                    </span>
-                                    {showAllDbSkills ? (
-                                        <ChevronUp className="h-4 w-4 text-slate-500" />
-                                    ) : (
-                                        <ChevronDown className="h-4 w-4 text-slate-500" />
-                                    )}
-                                </button>
-
-                                {showAllDbSkills && (
-                                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
-                                        {nonCoreSkills.map((skill) => {
-                                            const isSelected = selectedSet.has(skill.id);
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    key={skill.id}
-                                                    onClick={() => onToggleSkill(skill.id)}
-                                                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition cursor-pointer ${
-                                                        isSelected
-                                                            ? 'border-blue-500 bg-blue-50 text-blue-950 shadow-xs ring-2 ring-blue-400/40 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-900'
-                                                            : 'border-dashed border-slate-300 bg-white text-slate-400 line-through opacity-70 hover:border-blue-400 hover:text-blue-600 hover:opacity-100'
-                                                    }`}
-                                                    title={
-                                                        isSelected
-                                                            ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
-                                                            : `'${skill.name}' 템플릿에 포함하기 (클릭)`
-                                                    }
-                                                >
-                                                    <span>{skill.name}</span>
-                                                    {skill.skillVersion && (
-                                                        <span
-                                                            className={`rounded px-1 py-0.2 text-[9px] font-bold ${
-                                                                isSelected
-                                                                    ? 'bg-blue-200/80 text-blue-800'
-                                                                    : 'bg-slate-200 text-slate-400'
-                                                            }`}
-                                                        >
-                                                            v{skill.skillVersion}
-                                                        </span>
-                                                    )}
-                                                    <span
-                                                        className={`grid h-4 w-4 place-items-center rounded-full text-[9px] font-black ${
-                                                            isSelected
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-slate-200 text-slate-500'
-                                                        }`}
-                                                    >
-                                                        {isSelected ? (
-                                                            <Check className="h-2.5 w-2.5" />
-                                                        ) : (
-                                                            <Plus className="h-2.5 w-2.5" />
-                                                        )}
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {GROUPS.map((group) => {
+                                    const skills = workspaceSkills.filter(
+                                        (skill) =>
+                                            selectedSet.has(skill.id) &&
+                                            outputGroup(skill) === group.value
+                                    );
+                                    const otherGroup = GROUPS.find(
+                                        (candidate) => candidate.value !== group.value
+                                    )!;
+                                    return (
+                                        <section
+                                            key={group.value}
+                                            className="min-h-44 rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+                                        >
+                                            <div className="mb-3 border-b border-slate-200 pb-3">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="text-sm font-black text-slate-900">
+                                                        {group.label}
+                                                    </h4>
+                                                    <span className="rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-600">
+                                                        {skills.length}개
                                                     </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                                </div>
+                                                <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                                                    {group.description}
+                                                </p>
+                                            </div>
+                                            {skills.length === 0 ? (
+                                                <p className="py-6 text-center text-xs font-bold text-slate-400">
+                                                    배치된 기술이 없습니다.
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {skills.map((skill) => (
+                                                        <div
+                                                            key={skill.id}
+                                                            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5"
+                                                        >
+                                                            <span className="min-w-0 flex-1 truncate text-xs font-black text-slate-800">
+                                                                {skill.name}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    onMoveSkill(
+                                                                        skill.id,
+                                                                        otherGroup.value
+                                                                    )
+                                                                }
+                                                                className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:bg-slate-200"
+                                                                title={`${otherGroup.label}으로 이동`}
+                                                            >
+                                                                <ArrowLeftRight className="h-3 w-3" />{' '}
+                                                                이동
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    onToggleSkill(skill.id)
+                                                                }
+                                                                className="rounded-md px-2 py-1 text-[10px] font-bold text-rose-600 transition hover:bg-rose-50"
+                                                            >
+                                                                제외
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </section>
+                                    );
+                                })}
                             </div>
+
+                            {unselectedWorkspaceSkills.length > 0 && (
+                                <section className="rounded-2xl border border-slate-200 p-4">
+                                    <h4 className="text-sm font-black text-slate-900">
+                                        Workspace 원본의 미노출 기술
+                                    </h4>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        클릭하면 원본의 활용 구분에 맞는 위치로 추가됩니다.
+                                    </p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {unselectedWorkspaceSkills.map((skill) => (
+                                            <button
+                                                type="button"
+                                                key={skill.id}
+                                                onClick={() => onToggleSkill(skill.id)}
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700"
+                                            >
+                                                <Plus className="h-3.5 w-3.5" /> {skill.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
                         </>
                     )}
-                </div>
+                </main>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/80 px-6 py-3.5">
+                <footer className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 px-6 py-3.5">
                     <p className="text-xs font-semibold text-slate-500">
-                        * 상단 검색창에서 DB의 60개 전체 기술 스택을 자유롭게 검색하여 추가할 수
-                        있습니다.
+                        <Check className="mr-1 inline h-3.5 w-3.5 text-emerald-600" /> 배치 변경은
+                        현재 출력 템플릿에만 적용됩니다.
                     </p>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-bold text-white hover:bg-slate-800 transition shadow-sm cursor-pointer"
+                        className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
                     >
-                        선택 완료
+                        구성 완료
                     </button>
-                </div>
+                </footer>
             </div>
         </div>
     );

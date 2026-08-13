@@ -441,7 +441,8 @@ export function PortfolioPrintCanvas({
                 if (!atomId) return;
                 const target = el.querySelector<HTMLElement>('[data-print-el]') || el;
                 const height = target.offsetHeight;
-                if (height > 0) newHeights.set(atomId, height);
+                // 조건부 렌더링으로 비어 있는 atom도 0px 실측값을 유지한다.
+                newHeights.set(atomId, Math.max(0, height));
             });
             const previous = usePortfolioPrintStore.getState().atomHeights;
             const changed =

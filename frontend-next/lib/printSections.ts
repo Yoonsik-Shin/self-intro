@@ -15,7 +15,7 @@ export const printableSections: PrintSection[] = [
     { id: 'career', label: '직장 경력', icon: Briefcase },
     { id: 'projects', label: '핵심 프로젝트', icon: Briefcase },
     { id: 'credentials', label: '학력·교육 및 자격증', icon: GraduationCap },
-    { id: 'cover-letter', label: '사전질문 · 추가 항목', icon: MessageSquareText },
+    { id: 'cover-letter', label: '지원 공고 문항', icon: MessageSquareText },
 ];
 
 /** 프로필은 인쇄 프리뷰에서 제외/이동이 불가능하게 고정된다 */

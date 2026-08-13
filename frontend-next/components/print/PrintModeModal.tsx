@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { printTemplateApi } from '@/lib/api';
 import type { PrintTemplate, PrintTemplateContentOverrides } from '@/lib/api/types';
+import { parseStoredPrintLayout, type OutputLayout } from '@/lib/printLayoutModel';
 import {
     removeLocal,
     renameLocal,
@@ -27,6 +28,7 @@ type PrintSettings = {
     sectionOrder: string[];
     sectionGaps: Record<string, number>;
     forcedPageOverrides?: Record<string, number>;
+    outputLayout?: OutputLayout;
     itemOrderOverrides?: Record<string, string[]>;
     contentOverrides?: PrintTemplateContentOverrides;
     lineHeight?: number;
@@ -34,6 +36,7 @@ type PrintSettings = {
 };
 
 type PrintModeModalProps = {
+    workspaceSlug: string;
     open: boolean;
     onClose: () => void;
     onManual: () => void;
@@ -43,7 +46,13 @@ type PrintModeModalProps = {
 /** PDF 인쇄 버튼 클릭 시 나타나는 모드 선택 모달.
  *  Step 1 (MAIN): "직접 조정하기" vs "저장된 템플릿 선택하기" 선택
  *  Step 2 (TEMPLATE_LIST): 저장된 템플릿 목록 (서버 템플릿 + 내 브라우저 로컬 저장) */
-export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: PrintModeModalProps) {
+export function PrintModeModal({
+    workspaceSlug,
+    open,
+    onClose,
+    onManual,
+    onApplyTemplate,
+}: PrintModeModalProps) {
     const [step, setStep] = useState<'MAIN' | 'TEMPLATE_LIST'>('MAIN');
     const [prevOpen, setPrevOpen] = useState(open);
 
@@ -55,8 +64,8 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
     }
 
     const { data: serverTemplates = [] } = useQuery({
-        queryKey: ['printTemplates'],
-        queryFn: printTemplateApi.list,
+        queryKey: ['printTemplates', workspaceSlug, 'public'],
+        queryFn: () => printTemplateApi.workspacePublicList(workspaceSlug),
         staleTime: 5 * 60 * 1000,
     });
 
@@ -75,26 +84,11 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
     };
 
     const handleSelectServer = (t: PrintTemplate) => {
-        const rawGaps = (t.sectionGaps || {}) as Record<string, unknown>;
-        const { __forcedPageOverrides, __itemOrderOverrides, ...pureGaps } = rawGaps as Record<
-            string,
-            number
-        > & {
-            __forcedPageOverrides?: unknown;
-            __itemOrderOverrides?: unknown;
-        };
+        const layoutSettings = parseStoredPrintLayout(t.sectionGaps);
         onApplyTemplate({
             excludedIds: t.excludedIds || [],
             sectionOrder: t.sectionOrder || [],
-            sectionGaps: pureGaps || {},
-            forcedPageOverrides:
-                __forcedPageOverrides && typeof __forcedPageOverrides === 'object'
-                    ? (__forcedPageOverrides as Record<string, number>)
-                    : {},
-            itemOrderOverrides:
-                __itemOrderOverrides && typeof __itemOrderOverrides === 'object'
-                    ? (__itemOrderOverrides as Record<string, string[]>)
-                    : {},
+            ...layoutSettings,
             contentOverrides: t.contentOverrides || {},
             lineHeight: t.lineHeight,
             selectedTemplate: t,
@@ -107,8 +101,9 @@ export function PrintModeModal({ open, onClose, onManual, onApplyTemplate }: Pri
             sectionOrder: s.sectionOrder || [],
             sectionGaps: s.sectionGaps || {},
             forcedPageOverrides: s.forcedPageOverrides || {},
+            outputLayout: s.outputLayout,
             itemOrderOverrides: s.itemOrderOverrides || {},
-            contentOverrides: {},
+            contentOverrides: s.contentOverrides || {},
         });
     };
 

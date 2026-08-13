@@ -8,6 +8,8 @@ import {
     useRef,
     useState,
     type CSSProperties,
+    type DragEvent,
+    type PointerEvent as ReactPointerEvent,
 } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,6 +20,7 @@ import {
     Cpu,
     FolderGit2,
     GraduationCap,
+    GripVertical,
     MessageSquareText,
     MoveVertical,
     Pin,
@@ -26,14 +29,16 @@ import {
     Settings,
     Plus,
     RotateCcw,
+    Trash2,
     X,
 } from 'lucide-react';
-import { jobPostingApi, printTemplateApi } from '@/lib/api';
+import { jobPostingApi, printTemplateApi, skillApi } from '@/lib/api';
 import type {
     IntroductionResponse,
     JobPostingCoverLetterItem,
     PrintTemplate,
     PrintTemplateContentOverrides,
+    Skill,
 } from '@/lib/api/types';
 import { AiRevisionChat } from '@/components/shared/AiRevisionChat';
 import {
@@ -42,16 +47,28 @@ import {
     buildOrderedCredentials,
     groupCoreSkills,
     groupSkillsByUsage,
+    type SkillOutputGroup,
 } from '@/lib/introDerivations';
 import { credentialKindLabel, formatCredentialPeriod, graduationStatusLabel } from '@/lib/format';
 import { resumeMarkdownComponents } from '@/lib/markdown';
-import { partitionAtomsIntoPages, type PrintAtomItem } from '@/lib/pdfLayoutEngine';
+import {
+    A4_HEIGHT_MM,
+    MM_TO_PX,
+    partitionAtomsIntoPages,
+    type PrintAtomItem,
+} from '@/lib/pdfLayoutEngine';
 import {
     printableSections,
     LOCKED_PRINT_SECTION_ID,
     reorderablePrintSections,
 } from '@/lib/printSections';
 import { generateUniqueLocalName, getLocalSaves, saveLocal } from '@/lib/printTemplateLocal';
+import {
+    getOutputPageAt,
+    ensureOutputLayoutPageCount,
+    parseStoredPrintLayout,
+    type OutputRegion,
+} from '@/lib/printLayoutModel';
 import {
     applyPrintTemplateContent,
     getPrintContentFingerprint,
@@ -65,6 +82,84 @@ import { PrintEyeButton } from './PrintEyeButton';
 import { PrintModeModal } from './PrintModeModal';
 import { SaveServerTemplateModal } from './SaveServerTemplateModal';
 import { PrintSkillSelectorModal } from './PrintSkillSelectorModal';
+
+const PRINT_HISTORY_LIMIT = 100;
+type DocumentSettingsTab = 'paper' | 'typography' | 'composition' | 'view' | 'template';
+type CustomPrintSection = NonNullable<PrintTemplateContentOverrides['customSections']>[number];
+
+type PrintEditorSnapshot = {
+    excludedIds: string[];
+    sectionOrder: string[];
+    sectionGaps: Record<string, number>;
+    lineHeight: number;
+    forcedPageOverrides: Record<string, number>;
+    outputLayout: ReturnType<typeof usePrintStore.getState>['outputLayout'];
+    itemOrderOverrides: Record<string, string[]>;
+    contentOverrides: PrintTemplateContentOverrides;
+    coverLetterOverrides: Record<number, { question?: string; answer?: string }>;
+    coverLetterSectionTitle: string;
+    addedCoverLetterItems: JobPostingCoverLetterItem[];
+};
+
+function clonePrintEditorSnapshot(snapshot: PrintEditorSnapshot): PrintEditorSnapshot {
+    return JSON.parse(JSON.stringify(snapshot)) as PrintEditorSnapshot;
+}
+
+function getFirstChangedPath(previous: unknown, next: unknown, prefix = ''): string | null {
+    if (Object.is(previous, next)) return null;
+    if (
+        previous === null ||
+        next === null ||
+        typeof previous !== 'object' ||
+        typeof next !== 'object'
+    ) {
+        return prefix || 'value';
+    }
+    const previousRecord = previous as Record<string, unknown>;
+    const nextRecord = next as Record<string, unknown>;
+    const keys = new Set([...Object.keys(previousRecord), ...Object.keys(nextRecord)]);
+    for (const key of keys) {
+        const changedPath = getFirstChangedPath(
+            previousRecord[key],
+            nextRecord[key],
+            prefix ? `${prefix}.${key}` : key
+        );
+        if (changedPath) return changedPath;
+    }
+    return null;
+}
+
+function getHistoryMergeKey(
+    previous: PrintEditorSnapshot,
+    next: PrintEditorSnapshot
+): string | null {
+    const changedKeys = (Object.keys(next) as Array<keyof PrintEditorSnapshot>).filter(
+        (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key])
+    );
+    if (changedKeys.length !== 1) return null;
+    const [changedKey] = changedKeys;
+    if (changedKey === 'outputLayout') {
+        const previousWithoutMargins = {
+            ...previous.outputLayout,
+            pageMargins: next.outputLayout.pageMargins,
+        };
+        if (JSON.stringify(previousWithoutMargins) === JSON.stringify(next.outputLayout)) {
+            return 'pageMargins';
+        }
+    }
+    if (changedKey === 'lineHeight' || changedKey === 'coverLetterSectionTitle') {
+        return changedKey;
+    }
+    if (
+        changedKey === 'outputLayout' ||
+        changedKey === 'contentOverrides' ||
+        changedKey === 'coverLetterOverrides'
+    ) {
+        const path = getFirstChangedPath(previous[changedKey], next[changedKey]);
+        return path ? `${changedKey}:${path}` : null;
+    }
+    return null;
+}
 
 function InlineEditableText({
     value,
@@ -105,7 +200,20 @@ function InlineEditableText({
     );
 }
 
+const EMPLOYMENT_TYPE_LABELS: Record<string, string> = {
+    FULL_TIME: '정규직',
+    PART_TIME: '파트타임',
+    CONTRACT: '계약직',
+    INTERN: '인턴',
+    FREELANCE: '프리랜서',
+};
+
+function getEmploymentTypeLabel(employmentType: string) {
+    return EMPLOYMENT_TYPE_LABELS[employmentType] ?? employmentType;
+}
+
 type Props = {
+    workspaceSlug: string;
     introData: IntroductionResponse;
     onExit: () => void;
     adminMode?: boolean;
@@ -193,6 +301,7 @@ function applyOrder<T>(
 }
 
 export function PrintCanvas({
+    workspaceSlug,
     introData,
     onExit,
     adminMode = false,
@@ -204,7 +313,6 @@ export function PrintCanvas({
     const queryClient = useQueryClient();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const printLayoutFrozenRef = useRef(false);
-    const dragRef = useRef<{ kind: 'section'; id: string } | null>(null);
     const [inlineEditMode, setInlineEditMode] = useState(false);
     const [modeModalOpen, setModeModalOpen] = useState(
         () => !store.printModeResolved && !initialTemplate
@@ -216,6 +324,25 @@ export function PrintCanvas({
     });
     const [aiChatOpen, setAiChatOpen] = useState(false);
     const [isRevising, setIsRevising] = useState(false);
+    const [draggedCanvasAtomId, setDraggedCanvasAtomId] = useState<string | null>(null);
+    const [dragOverRegion, setDragOverRegion] = useState<{
+        pageIndex: number;
+        regionId: string;
+    } | null>(null);
+    const [dragOverAtom, setDragOverAtom] = useState<{
+        pageIndex: number;
+        atomId: string;
+        side: 'left' | 'right';
+    } | null>(null);
+    const [marginSettingsOpen, setMarginSettingsOpen] = useState(false);
+    const [documentSettingsTab, setDocumentSettingsTab] = useState<DocumentSettingsTab>('paper');
+    const [documentSettingsWidth, setDocumentSettingsWidth] = useState(288);
+    const documentSettingsResizeRef = useRef<{
+        pointerId: number;
+        startX: number;
+        width: number;
+    } | null>(null);
+    const [overflowRegionKeys, setOverflowRegionKeys] = useState<string[]>([]);
     const reviseAbortControllerRef = useRef<AbortController | null>(null);
 
     // jobPostingId prop은 /print?jobPostingId=로 직접 열었을 때만 채워진다 — 공고 상세
@@ -224,8 +351,8 @@ export function PrintCanvas({
     const effectiveJobPostingId = jobPostingId ?? activeTemplate?.jobPostingId ?? null;
     const canRevise = Boolean(effectiveJobPostingId && activeTemplate?.id);
     const { data: revisions = [], isLoading: isRevisionsLoading } = useQuery({
-        queryKey: ['printTemplateRevisions', activeTemplate?.id],
-        queryFn: () => printTemplateApi.revisions(activeTemplate!.id),
+        queryKey: ['printTemplateRevisions', workspaceSlug, activeTemplate?.id],
+        queryFn: () => printTemplateApi.workspaceRevisions(workspaceSlug, activeTemplate!.id),
         enabled: aiChatOpen && canRevise,
     });
 
@@ -247,7 +374,8 @@ export function PrintCanvas({
         const controller = new AbortController();
         reviseAbortControllerRef.current = controller;
         try {
-            await jobPostingApi.reviseAiPrintDraftStream(
+            await jobPostingApi.workspaceReviseAiPrintDraftStream(
+                workspaceSlug,
                 effectiveJobPostingId,
                 activeTemplate.id,
                 feedbackInstruction ?? '',
@@ -259,16 +387,15 @@ export function PrintCanvas({
                     queryClient.invalidateQueries({
                         queryKey: ['printTemplateRevisions', activeTemplate.id],
                     });
-                    const refreshed = effectiveJobPostingId
-                        ? await printTemplateApi.listByJobPosting(effectiveJobPostingId)
-                        : [];
+                    const refreshed = await printTemplateApi.workspaceAdminList(workspaceSlug);
                     const updated = refreshed.find((t) => t.id === event.response.templateId);
                     if (updated) {
                         setActiveTemplate(updated);
+                        const layoutSettings = parseStoredPrintLayout(updated.sectionGaps);
                         store.applyTemplate({
                             excludedIds: updated.excludedIds,
                             sectionOrder: updated.sectionOrder,
-                            sectionGaps: updated.sectionGaps,
+                            ...layoutSettings,
                             lineHeight: updated.lineHeight,
                         });
                         setContentOverrides(updated.contentOverrides ?? {});
@@ -313,6 +440,7 @@ export function PrintCanvas({
         value,
         baseValue,
         multiline = false,
+        fullWidth = true,
         textClassName = '',
         placeholder = '',
         onChange,
@@ -320,6 +448,7 @@ export function PrintCanvas({
         value: string;
         baseValue: string;
         multiline?: boolean;
+        fullWidth?: boolean;
         textClassName?: string;
         placeholder?: string;
         onChange: (newValue: string | undefined) => void;
@@ -328,12 +457,18 @@ export function PrintCanvas({
 
         if (!inlineEditMode) {
             return (
-                <span className={`inline-block w-full max-w-full ${textClassName}`}>{value}</span>
+                <span
+                    className={`inline-block max-w-full ${fullWidth ? 'w-full' : 'w-auto'} ${textClassName}`}
+                >
+                    {value}
+                </span>
             );
         }
 
         return (
-            <span className={`group/edit relative inline-block w-full max-w-full ${textClassName}`}>
+            <span
+                className={`group/edit relative inline-block max-w-full ${fullWidth ? 'w-full' : 'w-auto'} ${textClassName}`}
+            >
                 {/* 편집기 자체가 높이를 만들면 textarea의 UA line box/scrollHeight 때문에
                     일반 문구와 atom 높이가 달라져 페이지 재배치가 발생한다. 동일 문구의
                     숨은 미러가 원래 레이아웃을 유지하고 textarea는 그 위에 겹친다. */}
@@ -415,15 +550,178 @@ export function PrintCanvas({
     const [coverLetterOverrides, setCoverLetterOverrides] = useState<
         Record<number, { question?: string; answer?: string }>
     >({});
-    // 인쇄 캔버스 가변 추가 항목 섹션 제목 (기본값: '사전질문 · 추가 항목')
-    const [coverLetterSectionTitle, setCoverLetterSectionTitle] =
-        useState<string>('사전질문 · 추가 항목');
+    // 지원 공고에서 불러온 문항을 위한 레거시 제목. 새로 만드는 내용은
+    // contentOverrides.customSections에 독립된 사용자 정의 섹션으로 저장한다.
+    const [coverLetterSectionTitle, setCoverLetterSectionTitle] = useState<string>('지원 문항');
 
-    // 인쇄 캔버스에서만 즉석으로 추가한 사전질문/가변 항목. 음수 id로 서버 항목과 구분하며,
+    // 인쇄 캔버스에서만 즉석으로 추가한 지원 문항. 음수 id로 서버 항목과 구분하며,
     // "자소서" 탭의 실제 데이터에는 저장되지 않는다(인쇄 결과에만 반영).
     const [addedCoverLetterItems, setAddedCoverLetterItems] = useState<JobPostingCoverLetterItem[]>(
         []
     );
+    const historyPastRef = useRef<PrintEditorSnapshot[]>([]);
+    const historyFutureRef = useRef<PrintEditorSnapshot[]>([]);
+    const historyCurrentRef = useRef<PrintEditorSnapshot | null>(null);
+    const historyCurrentSignatureRef = useRef('');
+    const historyMergeRef = useRef<{ key: string | null }>({ key: null });
+    const historyMergeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [historyAvailability, setHistoryAvailability] = useState({
+        canUndo: false,
+        canRedo: false,
+    });
+
+    const refreshHistoryAvailability = () =>
+        setHistoryAvailability({
+            canUndo: historyPastRef.current.length > 0,
+            canRedo: historyFutureRef.current.length > 0,
+        });
+
+    const applyHistorySnapshot = (snapshot: PrintEditorSnapshot) => {
+        const restored = clonePrintEditorSnapshot(snapshot);
+        historyCurrentRef.current = restored;
+        historyCurrentSignatureRef.current = JSON.stringify(restored);
+        store.applyTemplate(restored);
+        setContentOverrides(restored.contentOverrides);
+        setCoverLetterOverrides(restored.coverLetterOverrides);
+        setCoverLetterSectionTitle(restored.coverLetterSectionTitle);
+        setAddedCoverLetterItems(restored.addedCoverLetterItems);
+    };
+
+    const handleUndo = () => {
+        const previous = historyPastRef.current.pop();
+        const current = historyCurrentRef.current;
+        if (!previous || !current) return;
+        historyFutureRef.current.push(clonePrintEditorSnapshot(current));
+        applyHistorySnapshot(previous);
+        historyMergeRef.current = { key: null };
+        if (historyMergeTimerRef.current) clearTimeout(historyMergeTimerRef.current);
+        refreshHistoryAvailability();
+    };
+
+    const handleRedo = () => {
+        const next = historyFutureRef.current.pop();
+        const current = historyCurrentRef.current;
+        if (!next || !current) return;
+        historyPastRef.current.push(clonePrintEditorSnapshot(current));
+        applyHistorySnapshot(next);
+        historyMergeRef.current = { key: null };
+        if (historyMergeTimerRef.current) clearTimeout(historyMergeTimerRef.current);
+        refreshHistoryAvailability();
+    };
+
+    useEffect(() => {
+        const snapshot = clonePrintEditorSnapshot({
+            excludedIds: store.printExcludedIds,
+            sectionOrder: store.printSectionOrder,
+            sectionGaps: store.sectionGaps,
+            lineHeight: store.lineHeight,
+            forcedPageOverrides: store.forcedPageOverrides,
+            outputLayout: store.outputLayout,
+            itemOrderOverrides: store.itemOrderOverrides,
+            contentOverrides,
+            coverLetterOverrides,
+            coverLetterSectionTitle,
+            addedCoverLetterItems,
+        });
+        const signature = JSON.stringify(snapshot);
+        if (signature === historyCurrentSignatureRef.current) return;
+
+        const current = historyCurrentRef.current;
+        if (current) {
+            const mergeKey = getHistoryMergeKey(current, snapshot);
+            const shouldMerge = mergeKey !== null && historyMergeRef.current.key === mergeKey;
+            if (!shouldMerge) {
+                historyPastRef.current.push(clonePrintEditorSnapshot(current));
+                if (historyPastRef.current.length > PRINT_HISTORY_LIMIT) {
+                    historyPastRef.current.shift();
+                }
+            }
+            historyMergeRef.current = { key: mergeKey };
+            if (historyMergeTimerRef.current) clearTimeout(historyMergeTimerRef.current);
+            if (mergeKey) {
+                historyMergeTimerRef.current = setTimeout(() => {
+                    historyMergeRef.current = { key: null };
+                    historyMergeTimerRef.current = null;
+                }, 700);
+            }
+            historyFutureRef.current = [];
+        }
+        historyCurrentRef.current = snapshot;
+        historyCurrentSignatureRef.current = signature;
+        refreshHistoryAvailability();
+    }, [
+        store.printExcludedIds,
+        store.printSectionOrder,
+        store.sectionGaps,
+        store.lineHeight,
+        store.forcedPageOverrides,
+        store.outputLayout,
+        store.itemOrderOverrides,
+        contentOverrides,
+        coverLetterOverrides,
+        coverLetterSectionTitle,
+        addedCoverLetterItems,
+    ]);
+
+    useEffect(
+        () => () => {
+            if (historyMergeTimerRef.current) clearTimeout(historyMergeTimerRef.current);
+        },
+        []
+    );
+
+    useEffect(() => {
+        const handleHistoryShortcut = (event: KeyboardEvent) => {
+            if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+            const target = event.target;
+            if (
+                target instanceof HTMLElement &&
+                (target.isContentEditable ||
+                    target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.tagName === 'SELECT')
+            ) {
+                return;
+            }
+            const key = event.key.toLowerCase();
+            if (key === 'z' && event.shiftKey) {
+                event.preventDefault();
+                handleRedo();
+            } else if (key === 'z') {
+                event.preventDefault();
+                handleUndo();
+            } else if (key === 'y' && event.ctrlKey) {
+                event.preventDefault();
+                handleRedo();
+            }
+        };
+        window.addEventListener('keydown', handleHistoryShortcut);
+        return () => window.removeEventListener('keydown', handleHistoryShortcut);
+    });
+
+    const handleDocumentSettingsResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (event.button !== 0) return;
+        documentSettingsResizeRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            width: documentSettingsWidth,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const handleDocumentSettingsResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+        const drag = documentSettingsResizeRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        setDocumentSettingsWidth(
+            Math.min(420, Math.max(240, drag.width + event.clientX - drag.startX))
+        );
+    };
+
+    const handleDocumentSettingsResizeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (documentSettingsResizeRef.current?.pointerId !== event.pointerId) return;
+        documentSettingsResizeRef.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    };
     const addCoverLetterItem = () => {
         const newId = -Date.now();
         setAddedCoverLetterItems((current) => [
@@ -450,6 +748,87 @@ export function PrintCanvas({
     };
     const removeAddedCoverLetterItem = (itemId: number) => {
         setAddedCoverLetterItems((current) => current.filter((i) => i.id !== itemId));
+    };
+
+    const addCustomSection = () => {
+        const sectionId = crypto.randomUUID();
+        const itemId = crypto.randomUUID();
+        setInlineEditMode(true);
+        setContentOverrides((current) => ({
+            ...current,
+            customSections: [
+                ...(current.customSections ?? []),
+                {
+                    id: sectionId,
+                    title: `추가 섹션 ${(current.customSections?.length ?? 0) + 1}`,
+                    items: [{ id: itemId, title: '', content: '' }],
+                },
+            ],
+        }));
+        store.setSectionOrder([...store.printSectionOrder, `custom-section:${sectionId}`]);
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document
+                    .getElementById(`custom-section:${sectionId}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
+    };
+
+    const updateCustomSection = (
+        sectionId: string,
+        updater: (section: CustomPrintSection) => CustomPrintSection
+    ) => {
+        setContentOverrides((current) => ({
+            ...current,
+            customSections: (current.customSections ?? []).map((section) =>
+                section.id === sectionId ? updater(section) : section
+            ),
+        }));
+    };
+
+    const removeCustomSection = (sectionId: string) => {
+        setContentOverrides((current) => ({
+            ...current,
+            customSections: (current.customSections ?? []).filter(
+                (section) => section.id !== sectionId
+            ),
+        }));
+        const printSectionId = `custom-section:${sectionId}`;
+        store.setSectionOrder(store.printSectionOrder.filter((id) => id !== printSectionId));
+        store.setExcludedIds(
+            store.printExcludedIds.filter(
+                (id) => id !== printSectionId && !id.startsWith(`${printSectionId}:`)
+            )
+        );
+    };
+
+    const addCustomSectionItem = (sectionId: string) => {
+        updateCustomSection(sectionId, (section) => ({
+            ...section,
+            items: [...section.items, { id: crypto.randomUUID(), title: '', content: '' }],
+        }));
+    };
+
+    const updateCustomSectionItem = (
+        sectionId: string,
+        itemId: string,
+        field: 'title' | 'content',
+        value: string | undefined
+    ) => {
+        updateCustomSection(sectionId, (section) => ({
+            ...section,
+            items: section.items.map((item) =>
+                item.id === itemId ? { ...item, [field]: value ?? '' } : item
+            ),
+        }));
+    };
+
+    const removeCustomSectionItem = (sectionId: string, itemId: string) => {
+        updateCustomSection(sectionId, (section) => ({
+            ...section,
+            items: section.items.filter((item) => item.id !== itemId),
+        }));
     };
 
     const setCoverLetterOverride = (
@@ -508,6 +887,12 @@ export function PrintCanvas({
     };
 
     const [skillSelectorModalOpen, setSkillSelectorModalOpen] = useState(false);
+    const [addingCatalogSkillId, setAddingCatalogSkillId] = useState<number | null>(null);
+    const { data: catalogSkills = [] } = useQuery({
+        queryKey: ['skill-catalog'],
+        queryFn: skillApi.catalog,
+        enabled: adminMode && skillSelectorModalOpen,
+    });
 
     const toggleSkillSelection = (skillId: number) => {
         setContentOverrides((current) => {
@@ -532,46 +917,75 @@ export function PrintCanvas({
         });
     };
 
-    const selectAllSkillsInGroup = (skillIds: number[]) => {
+    const moveSkillToGroup = (skillId: number, group: SkillOutputGroup) => {
         setContentOverrides((current) => {
-            const defaultCoreSkillIds = introData.skills.filter((s) => s.isCore).map((s) => s.id);
-            const currentSelected = current.selectedSkillIds ?? defaultCoreSkillIds;
-            const set = new Set([...currentSelected, ...skillIds]);
-            const nextSelected = Array.from(set);
-
-            const isDefaultState =
-                defaultCoreSkillIds.length === nextSelected.length &&
-                defaultCoreSkillIds.every((id) => nextSelected.includes(id));
-
             return {
                 ...current,
-                selectedSkillIds: isDefaultState ? undefined : nextSelected,
+                skillGroupOverrides: {
+                    ...(current.skillGroupOverrides ?? {}),
+                    [String(skillId)]: group,
+                },
             };
         });
     };
 
-    const deselectAllSkillsInGroup = (skillIds: number[]) => {
-        setContentOverrides((current) => {
-            const defaultCoreSkillIds = introData.skills.filter((s) => s.isCore).map((s) => s.id);
-            const currentSelected = current.selectedSkillIds ?? defaultCoreSkillIds;
-            const deselectSet = new Set(skillIds);
-            const nextSelected = currentSelected.filter((id) => !deselectSet.has(id));
-
-            const isDefaultState =
-                defaultCoreSkillIds.length === nextSelected.length &&
-                defaultCoreSkillIds.every((id) => nextSelected.includes(id));
-
-            return {
-                ...current,
-                selectedSkillIds: isDefaultState ? undefined : nextSelected,
-            };
-        });
+    const addCatalogSkillToWorkspace = async (skill: Skill, group: SkillOutputGroup) => {
+        setAddingCatalogSkillId(skill.id);
+        try {
+            await skillApi.workspaceCreate(workspaceSlug, {
+                name: skill.name,
+                category: skill.category,
+                skillLevel: '',
+                skillVersion: '',
+                comment: '',
+                usageType: group === 'CORE' ? 'WORK_EXPERIENCE' : 'PROJECT_USE',
+                badgeKey: skill.badgeKey,
+                badgeColor: skill.badgeColor,
+                isCore: group === 'CORE',
+                displayOrder:
+                    Math.max(
+                        0,
+                        ...introData.skills.map((workspaceSkill) => workspaceSkill.displayOrder)
+                    ) + 1,
+            });
+            setContentOverrides((current) => {
+                const defaultCoreSkillIds = introData.skills
+                    .filter((workspaceSkill) => workspaceSkill.isCore)
+                    .map((workspaceSkill) => workspaceSkill.id);
+                const selected = new Set(current.selectedSkillIds ?? defaultCoreSkillIds);
+                selected.add(skill.id);
+                return {
+                    ...current,
+                    selectedSkillIds: Array.from(selected),
+                    skillGroupOverrides: {
+                        ...(current.skillGroupOverrides ?? {}),
+                        [String(skill.id)]: group,
+                    },
+                };
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['workspace', workspaceSlug, 'output-source'],
+            });
+            await queryClient.refetchQueries({
+                queryKey: ['workspace', workspaceSlug, 'output-source'],
+            });
+            await queryClient.invalidateQueries({ queryKey: ['skills', workspaceSlug] });
+        } catch (error) {
+            alert(
+                error instanceof Error
+                    ? error.message
+                    : 'Workspace 원본에 기술을 추가하지 못했습니다.'
+            );
+        } finally {
+            setAddingCatalogSkillId(null);
+        }
     };
 
-    const resetSkillsToAll = () => {
+    const resetSkillsToDefault = () => {
         setContentOverrides((current) => ({
             ...current,
             selectedSkillIds: undefined,
+            skillGroupOverrides: undefined,
         }));
     };
 
@@ -584,6 +998,16 @@ export function PrintCanvas({
         const selectedIds = new Set(contentOverrides.selectedSkillIds ?? defaultCoreSkillIds);
         return groupSkillsByUsage(resolvedIntroData.skills.filter((s) => selectedIds.has(s.id)));
     }, [resolvedIntroData, contentOverrides.selectedSkillIds]);
+    const orderedSkillGroups = useMemo(
+        () =>
+            applyOrder(
+                groupedCoreSkills,
+                'group:skills',
+                (group) => `skills-group:${group.value}`,
+                store.itemOrderOverrides
+            ),
+        [groupedCoreSkills, store.itemOrderOverrides]
+    );
     const orderedCareerCards = useMemo(() => {
         const companies = applyOrder(
             buildCareerCards(resolvedIntroData.experiences),
@@ -612,7 +1036,7 @@ export function PrintCanvas({
     const orderedCompetencies = useMemo(
         () =>
             applyOrder(
-                resolvedIntroData.competencies.filter((c) => c.visible),
+                resolvedIntroData.competencies,
                 'group:competencies',
                 (c) => `competency:${c.id}`,
                 store.itemOrderOverrides
@@ -658,23 +1082,32 @@ export function PrintCanvas({
             store.itemOrderOverrides
         );
     }, [coverLetterItems, addedCoverLetterItems, coverLetterOverrides, store.itemOrderOverrides]);
+    const orderedCustomSections = useMemo(
+        () =>
+            applyOrder(
+                contentOverrides.customSections ?? [],
+                'group:custom-sections',
+                (section) => `custom-section:${section.id}`,
+                store.itemOrderOverrides
+            ).map((section) => ({
+                ...section,
+                items: applyOrder(
+                    section.items,
+                    `custom-section:${section.id}`,
+                    (item) => `custom-section-item:${section.id}:${item.id}`,
+                    store.itemOrderOverrides
+                ),
+            })),
+        [contentOverrides.customSections, store.itemOrderOverrides]
+    );
 
     useEffect(() => {
         if (!sanitizedInitialTemplate) return;
-        const rawGaps = sanitizedInitialTemplate.sectionGaps as Record<string, unknown>;
-        const { __forcedPageOverrides, __itemOrderOverrides, ...pureGaps } = rawGaps;
+        const layoutSettings = parseStoredPrintLayout(sanitizedInitialTemplate.sectionGaps);
         store.applyTemplate({
             excludedIds: sanitizedInitialTemplate.excludedIds,
             sectionOrder: sanitizedInitialTemplate.sectionOrder,
-            sectionGaps: pureGaps as Record<string, number>,
-            forcedPageOverrides:
-                __forcedPageOverrides && typeof __forcedPageOverrides === 'object'
-                    ? (__forcedPageOverrides as Record<string, number>)
-                    : {},
-            itemOrderOverrides:
-                __itemOrderOverrides && typeof __itemOrderOverrides === 'object'
-                    ? (__itemOrderOverrides as Record<string, string[]>)
-                    : {},
+            ...layoutSettings,
         });
         // 초기 템플릿은 이 컴포넌트가 마운트될 때 한 번만 적용한다.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -722,9 +1155,29 @@ export function PrintCanvas({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const orderedReorderableSections = store.printSectionOrder
-        .map((id) => reorderablePrintSections.find((s) => s.id === id))
-        .filter((s): s is (typeof reorderablePrintSections)[number] => Boolean(s));
+    const customPrintableSections = useMemo(
+        () =>
+            orderedCustomSections.map((section) => ({
+                id: `custom-section:${section.id}`,
+                label: section.title || '제목 없는 사용자 정의 섹션',
+                icon: MessageSquareText,
+            })),
+        [orderedCustomSections]
+    );
+    const allReorderableSections = useMemo(
+        () => [...reorderablePrintSections, ...customPrintableSections],
+        [customPrintableSections]
+    );
+    const orderedReorderableSections = [
+        ...store.printSectionOrder
+            .map((id) => allReorderableSections.find((section) => section.id === id))
+            .filter((section): section is (typeof allReorderableSections)[number] =>
+                Boolean(section)
+            ),
+        ...allReorderableSections.filter(
+            (section) => !store.printSectionOrder.includes(section.id)
+        ),
+    ];
     const lockedPrintSection = printableSections.find((s) => s.id === LOCKED_PRINT_SECTION_ID)!;
     const orderedPrintableSections = [lockedPrintSection, ...orderedReorderableSections];
     const orderedSectionIdsKey = orderedPrintableSections.map((s) => s.id).join(',');
@@ -747,7 +1200,7 @@ export function PrintCanvas({
                     sectionId: 'skills',
                     isHeader: true,
                 });
-                groupedCoreSkills.forEach((group) => {
+                orderedSkillGroups.forEach((group) => {
                     const groupId = `skills-group:${group.value}`;
                     if (!store.printExcludedIds.includes(groupId)) {
                         atoms.push({
@@ -865,26 +1318,49 @@ export function PrintCanvas({
                     }
                 });
             } else if (section.id === 'cover-letter') {
-                // 항목이 하나도 없어도 관리자 편집 모드에서는 헤더(질문 추가 버튼)는 보여준다.
-                // 그래야 첫 질문을 추가할 진입점이 생긴다. 공개/인쇄 시점엔 완전히 숨긴다.
-                if (orderedCoverLetterItems.length === 0 && !(adminMode && inlineEditMode)) {
-                    return;
+                if (orderedCoverLetterItems.length > 0) {
+                    atoms.push({
+                        id: 'cover-letter-header',
+                        type: 'cover-letter-header',
+                        sectionId: 'cover-letter',
+                        isHeader: true,
+                    });
+                    orderedCoverLetterItems.forEach((item) => {
+                        const id = `cover-letter-item:${item.id}`;
+                        if (!store.printExcludedIds.includes(id)) {
+                            atoms.push({
+                                id,
+                                type: 'cover-letter-item',
+                                sectionId: 'cover-letter',
+                                dataId: item.id,
+                                title: item.question,
+                            });
+                        }
+                    });
                 }
+            } else if (section.id.startsWith('custom-section:')) {
+                const customSectionId = section.id.replace('custom-section:', '');
+                const customSection = orderedCustomSections.find(
+                    (entry) => entry.id === customSectionId
+                );
+                if (!customSection) return;
                 atoms.push({
-                    id: 'cover-letter-header',
-                    type: 'cover-letter-header',
-                    sectionId: 'cover-letter',
+                    id: section.id,
+                    type: 'custom-section-header',
+                    sectionId: section.id,
+                    dataId: customSection.id,
+                    title: customSection.title,
                     isHeader: true,
                 });
-                orderedCoverLetterItems.forEach((item) => {
-                    const id = `cover-letter-item:${item.id}`;
-                    if (!store.printExcludedIds.includes(id)) {
+                customSection.items.forEach((item) => {
+                    const itemId = `custom-section-item:${customSection.id}:${item.id}`;
+                    if (!store.printExcludedIds.includes(itemId)) {
                         atoms.push({
-                            id,
-                            type: 'cover-letter-item',
-                            sectionId: 'cover-letter',
-                            dataId: item.id,
-                            title: item.question,
+                            id: itemId,
+                            type: 'custom-section-item',
+                            sectionId: section.id,
+                            dataId: `${customSection.id}:${item.id}`,
+                            title: item.title,
                         });
                     }
                 });
@@ -895,15 +1371,25 @@ export function PrintCanvas({
     }, [
         store.printExcludedIds,
         orderedSectionIdsKey,
-        groupedCoreSkills,
+        orderedSkillGroups,
         orderedCompetencies,
         orderedCareerCards,
         orderedCredentialExperiences,
         orderedMilestones,
         orderedCoverLetterItems,
-        adminMode,
-        inlineEditMode,
+        orderedCustomSections,
     ]);
+
+    const pageContentHeightPx = useMemo(
+        () =>
+            Math.round(
+                (A4_HEIGHT_MM -
+                    store.outputLayout.pageMargins.top -
+                    store.outputLayout.pageMargins.bottom) *
+                    MM_TO_PX
+            ),
+        [store.outputLayout.pageMargins.bottom, store.outputLayout.pageMargins.top]
+    );
 
     const pageLayers = useMemo(
         () =>
@@ -911,10 +1397,24 @@ export function PrintCanvas({
                 printableAtoms,
                 store.atomHeights,
                 store.sectionGaps,
-                store.forcedPageOverrides
+                store.forcedPageOverrides,
+                pageContentHeightPx,
+                store.outputLayout.pages.map((page) => page.id)
             ),
-        [printableAtoms, store.atomHeights, store.sectionGaps, store.forcedPageOverrides]
+        [
+            printableAtoms,
+            store.atomHeights,
+            store.sectionGaps,
+            store.forcedPageOverrides,
+            store.outputLayout.pages,
+            pageContentHeightPx,
+        ]
     );
+
+    useEffect(() => {
+        if (store.outputLayout.pages.length >= pageLayers.length) return;
+        store.setOutputLayout(ensureOutputLayoutPageCount(store.outputLayout, pageLayers.length));
+    }, [pageLayers.length, store]);
 
     useLayoutEffect(() => {
         const canvas = canvasRef.current;
@@ -930,21 +1430,43 @@ export function PrintCanvas({
 
             const elements = Array.from(canvas.querySelectorAll<HTMLElement>('[data-atom-id]'));
             const newHeights = new Map<string, number>();
+            const previousHeights = usePrintStore.getState().atomHeights;
             elements.forEach((el) => {
                 const atomId = el.dataset.atomId;
                 if (!atomId) return;
+
+                // 2열은 1열 paginator가 이미 정한 페이지 안에서만 배치한다. 좁아진 열에서
+                // 다시 잰 높이를 1열 합계에 넣으면 페이지 수가 왕복하는 순환이 생기므로,
+                // 2열 페이지의 atom은 전환 직전 1열 실측값을 페이지 분할 기준으로 유지한다.
+                const pageLayoutMode =
+                    el.closest<HTMLElement>('[data-layout-mode]')?.dataset.layoutMode;
+                const previousHeight = previousHeights.get(atomId);
+                if (pageLayoutMode !== 'SINGLE_COLUMN' && previousHeight !== undefined) {
+                    newHeights.set(atomId, previousHeight);
+                    return;
+                }
 
                 const target =
                     el.querySelector<HTMLElement>('[data-print-el]') ||
                     (el.firstElementChild as HTMLElement | null) ||
                     el;
-                const height =
+                const computedStyle = window.getComputedStyle(target);
+                const marginTop = Number.parseFloat(computedStyle.marginTop) || 0;
+                const marginBottom = Number.parseFloat(computedStyle.marginBottom) || 0;
+                // offsetHeight는 콘텐츠·padding·border까지만 포함하고 바깥 margin은
+                // 제외한다. 섹션 헤더의 mt-6, mb-2 등이 누적되면 엔진의 합계는 A4
+                // 안이라고 판단하지만 실제 DOM은 하단 경계를 넘어간다. flex page
+                // 안에서 각 atom이 차지하는 외부 여백까지 실측 높이에 포함한다.
+                const renderedHeight =
                     target.offsetHeight ||
                     Math.round(target.getBoundingClientRect().height / (store.zoom || 1));
-                if (height > 0) newHeights.set(atomId, height);
+                const height = renderedHeight + marginTop + marginBottom;
+                // 내용이 없는 조건부 atom의 0px도 레이아웃 엔진에 전달한다. 생략하면
+                // 엔진이 큰 추정 높이로 되돌아가 빈 페이지 공간을 만들 수 있다.
+                newHeights.set(atomId, Math.max(0, height));
             });
 
-            const previous = usePrintStore.getState().atomHeights;
+            const previous = previousHeights;
             const changed =
                 previous.size !== newHeights.size ||
                 Array.from(newHeights).some(([id, height]) => {
@@ -980,6 +1502,29 @@ export function PrintCanvas({
         // pageLayers가 바뀌면 새 페이지 부모 아래에 마운트된 atom들을 다시 관찰한다.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pageLayers, printableAtoms, store.sectionGaps, store.zoom, contentOverrides]);
+
+    useLayoutEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        let frame = window.requestAnimationFrame(() => {
+            frame = 0;
+            const next = Array.from(
+                canvas.querySelectorAll<HTMLElement>('[data-output-region-key]')
+            )
+                .filter((region) => region.scrollHeight > region.clientHeight + 2)
+                .map((region) => region.dataset.outputRegionKey)
+                .filter((key): key is string => Boolean(key))
+                .sort();
+            setOverflowRegionKeys((current) =>
+                current.length === next.length && current.every((key, index) => key === next[index])
+                    ? current
+                    : next
+            );
+        });
+        return () => {
+            if (frame) window.cancelAnimationFrame(frame);
+        };
+    }, [pageLayers, store.outputLayout, store.atomHeights, store.zoom, contentOverrides]);
 
     const atomPageMap = useMemo(() => {
         const map = new Map<string, number>();
@@ -1046,13 +1591,28 @@ export function PrintCanvas({
         if (atomId === 'career-header' || atomId === 'career') return '경력 사항';
         if (atomId === 'credentials-header' || atomId === 'credentials') return '학력 / 자격증';
         if (atomId === 'projects-header' || atomId === 'projects') return '프로젝트 목록';
-        if (atomId === 'cover-letter-header' || atomId === 'cover-letter') return '사전질문';
+        if (atomId === 'cover-letter-header' || atomId === 'cover-letter') return '지원 문항';
+
+        if (atomId.startsWith('custom-section:')) {
+            const sectionId = atomId.replace('custom-section:', '');
+            return (
+                contentOverrides.customSections?.find((section) => section.id === sectionId)
+                    ?.title || '사용자 정의 섹션'
+            );
+        }
+        if (atomId.startsWith('custom-section-item:')) {
+            const [, sectionId, itemId] = atomId.split(':');
+            const item = contentOverrides.customSections
+                ?.find((section) => section.id === sectionId)
+                ?.items.find((entry) => entry.id === itemId);
+            return item?.title || '사용자 정의 항목';
+        }
 
         if (atomId.startsWith('cover-letter-item:')) {
             const itemId = atomId.replace('cover-letter-item:', '');
             const item = orderedCoverLetterItems.find((c) => String(c.id) === itemId);
             if (item?.question) return `'${item.question}'`;
-            return '사전질문 항목';
+            return '지원 문항 항목';
         }
         if (atomId.startsWith('competency:')) {
             const compId = atomId.replace('competency:', '');
@@ -1457,7 +2017,7 @@ export function PrintCanvas({
                                         e.stopPropagation();
                                         setSkillSelectorModalOpen(true);
                                     }}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-xs hover:bg-blue-700 transition cursor-pointer print:hidden"
+                                    className="absolute bottom-1 right-0 z-10 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-xs hover:bg-blue-700 transition cursor-pointer print:hidden"
                                     title="DB 전체 기술 스택 선택 및 관리 모달 열기"
                                 >
                                     <Settings className="h-3.5 w-3.5" />
@@ -1533,43 +2093,60 @@ export function PrintCanvas({
                                         }
 
                                         return (
-                                            <span
-                                                key={skill.id}
-                                                className="inline-flex items-center print:hidden"
-                                            >
-                                                {separator}
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        toggleSkillSelection(skill.id);
-                                                    }}
-                                                    className={`inline-flex items-center gap-0.5 text-[10px] font-bold transition cursor-pointer ${
-                                                        isSelected
-                                                            ? 'text-slate-900 hover:text-rose-600'
-                                                            : 'text-slate-400 line-through opacity-70 hover:text-blue-600'
-                                                    }`}
-                                                    title={
-                                                        isSelected
-                                                            ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
-                                                            : `'${skill.name}' 템플릿에 포함하기 (클릭)`
-                                                    }
-                                                >
-                                                    <span>{skill.name}</span>
-                                                    {skill.skillVersion && (
+                                            <Fragment key={skill.id}>
+                                                <span className="inline-flex items-center print:hidden">
+                                                    {separator}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            toggleSkillSelection(skill.id);
+                                                        }}
+                                                        className={`inline-flex items-center gap-0.5 text-[10px] font-bold transition cursor-pointer ${
+                                                            isSelected
+                                                                ? 'text-slate-900 hover:text-rose-600'
+                                                                : 'text-slate-400 line-through opacity-70 hover:text-blue-600'
+                                                        }`}
+                                                        title={
+                                                            isSelected
+                                                                ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
+                                                                : `'${skill.name}' 템플릿에 포함하기 (클릭)`
+                                                        }
+                                                    >
+                                                        <span>{skill.name}</span>
+                                                        {skill.skillVersion && (
+                                                            <span
+                                                                className={
+                                                                    isSelected
+                                                                        ? 'text-[8px] font-bold text-slate-400'
+                                                                        : 'text-[8px] font-bold text-slate-300'
+                                                                }
+                                                            >
+                                                                v{skill.skillVersion}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                </span>
+                                                <span className="hidden items-center print:inline-flex">
+                                                    {idx > 0 && (
                                                         <span
-                                                            className={
-                                                                isSelected
-                                                                    ? 'text-[8px] font-bold text-slate-400'
-                                                                    : 'text-[8px] font-bold text-slate-300'
-                                                            }
+                                                            aria-hidden
+                                                            className="mx-1.5 text-slate-300 font-normal"
                                                         >
-                                                            v{skill.skillVersion}
+                                                            ·
                                                         </span>
                                                     )}
-                                                </button>
-                                            </span>
+                                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-800">
+                                                        {skill.name}
+                                                        {skill.skillVersion && (
+                                                            <span className="text-[8px] font-bold text-slate-400">
+                                                                v{skill.skillVersion}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </span>
+                                            </Fragment>
                                         );
                                     })}
                                 </div>
@@ -1697,33 +2274,42 @@ export function PrintCanvas({
                         {renderItemGap(itemId, 'career')}
                         <div
                             data-print-el
-                            className="border-b border-slate-100 py-3.5 w-full relative"
+                            className="resume-career-company border-b border-slate-100 py-2.5 w-full relative"
                         >
                             {renderItemControls(itemId)}
-                            <span className="resume-print-plain resume-meta inline-flex rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-bold text-slate-950 text-xs">
-                                {career.period}
-                            </span>
-                            <p className="resume-item-title mt-1.5 font-black text-slate-800 text-sm">
-                                {renderInlineText({
-                                    value: career.companyName,
-                                    baseValue: origCompanyName,
-                                    textClassName: 'font-black text-slate-800 text-sm',
-                                    placeholder: '회사명을 입력하세요',
-                                    onChange: (val) =>
-                                        setExperienceOverride(
-                                            career.id,
-                                            'title',
-                                            val,
-                                            origCompanyName
-                                        ),
-                                })}{' '}
-                                ({career.employmentType})
-                            </p>
-                            <p className="resume-meta font-semibold text-slate-500 text-xs">
-                                {career.department} / {career.role}
-                            </p>
+                            <div className="resume-career-company-header flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <div className="resume-item-title flex min-w-0 flex-1 items-baseline gap-1.5 font-black text-slate-800 text-sm">
+                                    {renderInlineText({
+                                        value: career.companyName,
+                                        baseValue: origCompanyName,
+                                        fullWidth: false,
+                                        textClassName: 'min-w-0 font-black text-slate-800 text-sm',
+                                        placeholder: '회사명을 입력하세요',
+                                        onChange: (val) =>
+                                            setExperienceOverride(
+                                                career.id,
+                                                'title',
+                                                val,
+                                                origCompanyName
+                                            ),
+                                    })}
+                                    {career.employmentType && (
+                                        <span className="resume-meta shrink-0 whitespace-nowrap text-[10px] font-bold text-slate-500">
+                                            {getEmploymentTypeLabel(career.employmentType)}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="resume-career-period resume-print-plain resume-meta shrink-0 whitespace-nowrap text-[10px] font-bold text-slate-500">
+                                    {career.period}
+                                </span>
+                            </div>
+                            {(career.department || career.role) && (
+                                <p className="resume-meta mt-0.5 font-semibold text-slate-500 text-xs">
+                                    {[career.department, career.role].filter(Boolean).join(' · ')}
+                                </p>
+                            )}
                             {career.summary && (
-                                <div className="resume-body mt-2 text-xs pdf-body-text text-slate-600">
+                                <div className="resume-body mt-1 text-xs pdf-body-text text-slate-600">
                                     {renderInlineText({
                                         value: career.summary ?? '',
                                         baseValue: origSummary,
@@ -1844,7 +2430,6 @@ export function PrintCanvas({
                 const detail = p?.details?.find((d) => d.id === atom.dataId);
                 if (!detail || !p) return null;
                 const itemId = `career-detail:${detail.id}`;
-                const isFirst = p.details[0]?.id === detail.id;
 
                 const origDetail = introData.experiences
                     .flatMap((e) => e.details)
@@ -1862,17 +2447,9 @@ export function PrintCanvas({
                         {renderItemGap(itemId, 'career')}
                         <div
                             data-print-el
-                            className="py-2 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
+                            className="py-1.5 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
                         >
                             {renderItemControls(itemId)}
-                            {isFirst && (
-                                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
-                                    <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
-                                        <Briefcase className="h-3 w-3 text-slate-500" />
-                                        상세 경험
-                                    </h4>
-                                </div>
-                            )}
                             <div className="flex items-start gap-1 font-semibold text-slate-700 text-xs">
                                 <span className="shrink-0">•</span>
                                 {renderInlineText({
@@ -2001,9 +2578,9 @@ export function PrintCanvas({
                             className={`w-full relative flex flex-col ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}
                         >
                             {renderItemControls(itemId)}
-                            <div className="flex items-baseline justify-between gap-2">
+                            <div className="resume-project-heading flex items-baseline justify-between gap-2">
                                 <h3 className="font-black text-slate-900 text-xs">{m.title}</h3>
-                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                <span className="resume-project-period text-[10px] text-slate-400 font-mono shrink-0">
                                     {m.period}
                                 </span>
                             </div>
@@ -2039,7 +2616,6 @@ export function PrintCanvas({
                 const detail = m?.details?.find((d) => d.id === atom.dataId);
                 if (!detail || !m) return null;
                 const itemId = `project-detail:${detail.id}`;
-                const isFirst = m.details[0]?.id === detail.id;
 
                 const origDetail = introData.experiences
                     .flatMap((e) => e.details)
@@ -2057,17 +2633,9 @@ export function PrintCanvas({
                         {renderItemGap(itemId, 'projects')}
                         <div
                             data-print-el
-                            className="py-2 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
+                            className="py-1.5 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
                         >
                             {renderItemControls(itemId)}
-                            {isFirst && (
-                                <div className="resume-detail-header flex items-center gap-1.5 pb-1.5 border-b border-slate-100 mb-2">
-                                    <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700 text-[10px]">
-                                        <Briefcase className="h-3 w-3 text-slate-500" />
-                                        상세 경험
-                                    </h4>
-                                </div>
-                            )}
                             <div className="flex items-start gap-1 font-bold text-slate-900 text-xs">
                                 <span className="shrink-0">•</span>
                                 {renderInlineText({
@@ -2106,24 +2674,22 @@ export function PrintCanvas({
                                 {inlineEditMode ? (
                                     renderInlineText({
                                         value: coverLetterSectionTitle,
-                                        baseValue: '사전질문 · 추가 항목',
+                                        baseValue: '지원 문항',
                                         textClassName:
                                             'font-black text-slate-900 text-sm sm:text-base',
                                         placeholder: '섹션 제목 입력 (예: 사전질문, 추가 항목)',
                                         onChange: (val) =>
-                                            setCoverLetterSectionTitle(
-                                                val ?? '사전질문 · 추가 항목'
-                                            ),
+                                            setCoverLetterSectionTitle(val ?? '지원 문항'),
                                     })
                                 ) : (
-                                    <span>{coverLetterSectionTitle || '사전질문 · 추가 항목'}</span>
+                                    <span>{coverLetterSectionTitle || '지원 문항'}</span>
                                 )}
                             </h2>
                             {inlineEditMode && (
                                 <button
                                     type="button"
                                     onClick={addCoverLetterItem}
-                                    className="print:hidden flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
+                                    className="absolute bottom-1 right-0 z-10 print:hidden flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
                                 >
                                     <Plus className="h-3 w-3" />
                                     항목 추가
@@ -2213,6 +2779,105 @@ export function PrintCanvas({
                 );
             }
 
+            case 'custom-section-header': {
+                const section = contentOverrides.customSections?.find(
+                    (entry) => entry.id === atom.dataId
+                );
+                if (!section) return null;
+                const sectionId = `custom-section:${section.id}`;
+                return (
+                    <div
+                        id={sectionId}
+                        data-print-el
+                        className="mt-6 flex w-full flex-col pt-2 font-black text-slate-900 relative"
+                    >
+                        {renderSectionGap(sectionId)}
+                        {renderSectionControls(sectionId)}
+                        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                            <MessageSquareText className="h-4 w-4 shrink-0 text-slate-900" />
+                            <div className="min-w-0 flex-1">
+                                {renderInlineText({
+                                    value: section.title,
+                                    baseValue: section.title,
+                                    textClassName: 'font-black text-slate-900 text-sm sm:text-base',
+                                    placeholder: '섹션 제목을 입력하세요',
+                                    onChange: (value) =>
+                                        updateCustomSection(section.id, (current) => ({
+                                            ...current,
+                                            title: value ?? '',
+                                        })),
+                                })}
+                            </div>
+                            {inlineEditMode && (
+                                <div className="print:hidden flex shrink-0 items-center gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => addCustomSectionItem(section.id)}
+                                        className="inline-flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
+                                    >
+                                        <Plus className="h-3 w-3" /> 항목 추가
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeCustomSection(section.id)}
+                                        className="rounded bg-rose-500 px-2 py-1 text-[10px] font-bold text-white hover:bg-rose-600"
+                                    >
+                                        섹션 삭제
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            case 'custom-section-item': {
+                const [sectionId, itemId] = String(atom.dataId).split(':');
+                const section = contentOverrides.customSections?.find(
+                    (entry) => entry.id === sectionId
+                );
+                const item = section?.items.find((entry) => entry.id === itemId);
+                if (!section || !item) return null;
+                const atomId = `custom-section-item:${sectionId}:${itemId}`;
+                return (
+                    <div
+                        data-print-el
+                        className="relative w-full border-b border-slate-100 py-2.5 last:border-b-0"
+                    >
+                        {renderItemGap(atomId, 'cover-letter')}
+                        {renderItemControls(atomId)}
+                        {inlineEditMode && (
+                            <button
+                                type="button"
+                                onClick={() => removeCustomSectionItem(sectionId, itemId)}
+                                className="print:hidden absolute right-8 top-2 z-20 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white hover:bg-rose-600"
+                            >
+                                삭제
+                            </button>
+                        )}
+                        {renderInlineText({
+                            value: item.title,
+                            baseValue: item.title,
+                            textClassName: 'font-bold text-slate-900 text-xs',
+                            placeholder: '항목 제목을 입력하세요',
+                            onChange: (value) =>
+                                updateCustomSectionItem(sectionId, itemId, 'title', value),
+                        })}
+                        <div className="mt-1 text-[12px] text-slate-600">
+                            {renderInlineText({
+                                value: item.content,
+                                baseValue: item.content,
+                                multiline: true,
+                                textClassName: 'text-[12px] pdf-body-text text-slate-600',
+                                placeholder: '항목 내용을 입력하세요',
+                                onChange: (value) =>
+                                    updateCustomSectionItem(sectionId, itemId, 'content', value),
+                            })}
+                        </div>
+                    </div>
+                );
+            }
+
             default:
                 return null;
         }
@@ -2285,8 +2950,41 @@ export function PrintCanvas({
 
     const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
 
+    const handleSaveLocalTemplate = () => {
+        const defaultName = generateUniqueLocalName('내 맞춤 인쇄 설정');
+        const memo = window.prompt('현재 인쇄 설정에 대한 설명/메모를 입력하세요:', defaultName);
+        if (memo === null) return;
+        const trimmed = memo.trim() || defaultName;
+        const existingSaves = getLocalSaves();
+        if (existingSaves.some((save) => save.memo.trim() === trimmed)) {
+            const confirmed = window.confirm(
+                `'${trimmed}' 이름의 인쇄 설정이 이미 존재합니다.\n\n기존 설정을 덮어쓰시겠습니까?`
+            );
+            if (!confirmed) return;
+        }
+        saveLocal({
+            memo: trimmed,
+            excludedIds: store.printExcludedIds,
+            sectionOrder: store.printSectionOrder,
+            sectionGaps: store.sectionGaps,
+            forcedPageOverrides: store.forcedPageOverrides,
+            outputLayout: store.outputLayout,
+            itemOrderOverrides: store.itemOrderOverrides,
+            contentOverrides,
+        });
+        alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
+    };
+
     const navItemGroups = useMemo(
         () => [
+            {
+                sectionId: 'skills',
+                scopeId: 'group:skills',
+                items: orderedSkillGroups.map((group) => ({
+                    id: `skills-group:${group.value}`,
+                    label: group.label,
+                })),
+            },
             {
                 sectionId: 'competencies',
                 scopeId: 'group:competencies',
@@ -2334,9 +3032,306 @@ export function PrintCanvas({
                     })),
                 })),
             },
+            {
+                sectionId: 'cover-letter',
+                scopeId: 'group:cover-letter',
+                items: orderedCoverLetterItems.map((item) => ({
+                    id: `cover-letter-item:${item.id}`,
+                    label: item.question || '제목 없는 지원 문항',
+                })),
+            },
+            ...orderedCustomSections.map((section) => ({
+                sectionId: `custom-section:${section.id}`,
+                scopeId: `custom-section:${section.id}`,
+                items: section.items.map((item) => ({
+                    id: `custom-section-item:${section.id}:${item.id}`,
+                    label: item.title || '제목 없는 항목',
+                })),
+            })),
         ],
-        [orderedCompetencies, orderedCareerCards, orderedCredentialExperiences, orderedMilestones]
+        [
+            orderedSkillGroups,
+            orderedCompetencies,
+            orderedCareerCards,
+            orderedCredentialExperiences,
+            orderedMilestones,
+            orderedCoverLetterItems,
+            orderedCustomSections,
+        ]
     );
+
+    const placementByAtomId = useMemo(
+        () =>
+            new Map(
+                store.outputLayout.placements.map((placement) => [placement.atomId, placement])
+            ),
+        [store.outputLayout.placements]
+    );
+    const placeAtomBeside = (
+        pageIndex: number,
+        draggedAtomId: string,
+        targetAtomId: string,
+        side: 'left' | 'right'
+    ) => {
+        if (draggedAtomId === targetAtomId) return;
+        const pageLayer = pageLayers[pageIndex];
+        if (!pageLayer) return;
+        const { rows } = getOutputPageAt(store.outputLayout, pageIndex);
+        const validAtomIds = new Set(pageLayer.items.map((atom) => atom.id));
+        const firstRegionId = rows[0]?.regions[0]?.id;
+        const atomsByRegionId = new Map<string, string[]>();
+        pageLayer.items.forEach((atom) => {
+            const placement = placementByAtomId.get(atom.id);
+            const regionId =
+                placement &&
+                rows.some(({ regions }) => regions.some((r) => r.id === placement.regionId))
+                    ? placement.regionId
+                    : firstRegionId;
+            if (!regionId) return;
+            atomsByRegionId.set(regionId, [...(atomsByRegionId.get(regionId) ?? []), atom.id]);
+        });
+        atomsByRegionId.forEach((atomIds) =>
+            atomIds.sort((left, right) => {
+                const leftOrder = placementByAtomId.get(left)?.order;
+                const rightOrder = placementByAtomId.get(right)?.order;
+                if (leftOrder === undefined || rightOrder === undefined) return 0;
+                return leftOrder - rightOrder;
+            })
+        );
+
+        const draggedIds = getAssociatedAtomIds(draggedAtomId).filter((id) => validAtomIds.has(id));
+        const draggedSet = new Set(draggedIds);
+        const targetIds = new Set(
+            getAssociatedAtomIds(targetAtomId).filter(
+                (id) => validAtomIds.has(id) && !draggedSet.has(id)
+            )
+        );
+        if (draggedIds.length === 0 || targetIds.size === 0) return;
+
+        const composition = rows
+            .map(({ regions }) =>
+                regions
+                    .map((region) =>
+                        (atomsByRegionId.get(region.id) ?? []).filter((id) => !draggedSet.has(id))
+                    )
+                    .filter((column) => column.length > 0)
+            )
+            .filter((row) => row.length > 0);
+        const rowIndex = composition.findIndex((row) =>
+            row.some((column) => column.some((id) => targetIds.has(id)))
+        );
+        if (rowIndex < 0) return;
+        const columnIndex = composition[rowIndex].findIndex((column) =>
+            column.some((id) => targetIds.has(id))
+        );
+        if (columnIndex < 0) return;
+
+        const targetRow = composition[rowIndex];
+        if (targetRow.length === 1) {
+            const targetColumn = targetRow[0];
+            const targetIndexes = targetColumn.flatMap((id, index) =>
+                targetIds.has(id) ? [index] : []
+            );
+            const start = Math.min(...targetIndexes);
+            const end = Math.max(...targetIndexes);
+            const before = targetColumn.slice(0, start);
+            const targetUnit = targetColumn.slice(start, end + 1);
+            const after = targetColumn.slice(end + 1);
+            const replacement = [
+                ...(before.length > 0 ? [[before]] : []),
+                [
+                    side === 'left' ? draggedIds : targetUnit,
+                    side === 'left' ? targetUnit : draggedIds,
+                ],
+                ...(after.length > 0 ? [[after]] : []),
+            ];
+            composition.splice(rowIndex, 1, ...replacement);
+        } else if (targetRow.length < 3) {
+            targetRow.splice(side === 'left' ? columnIndex : columnIndex + 1, 0, draggedIds);
+        } else {
+            return;
+        }
+        store.replacePageComposition(pageIndex, composition);
+    };
+
+    const renderCanvasAtom = (atom: PrintAtomItem, draggable: boolean, pageIndex: number) => (
+        <div
+            key={atom.id}
+            data-atom-id={atom.id}
+            draggable={draggable && atom.id !== 'intro-profile' && !inlineEditMode}
+            onDragStart={(event: DragEvent<HTMLDivElement>) => {
+                if (!draggable || atom.id === 'intro-profile' || inlineEditMode) {
+                    event.preventDefault();
+                    return;
+                }
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', atom.id);
+                const dragPreview = document.createElement('canvas');
+                dragPreview.width = 220;
+                dragPreview.height = 40;
+                const context = dragPreview.getContext('2d');
+                if (context) {
+                    context.fillStyle = '#0f172a';
+                    context.beginPath();
+                    context.roundRect(0, 0, 220, 40, 10);
+                    context.fill();
+                    context.fillStyle = '#ffffff';
+                    context.font = '700 13px sans-serif';
+                    context.fillText('블록 이동 중', 16, 25);
+                }
+                event.dataTransfer.setDragImage(dragPreview, 18, 20);
+                setDraggedCanvasAtomId(atom.id);
+            }}
+            onDragEnd={() => {
+                setDraggedCanvasAtomId(null);
+                setDragOverRegion(null);
+                setDragOverAtom(null);
+            }}
+            className={`group/atom relative w-full min-w-0 ${
+                draggable && atom.id !== 'intro-profile' && !inlineEditMode
+                    ? 'cursor-grab active:cursor-grabbing'
+                    : ''
+            }`}
+            title={
+                draggable && atom.id !== 'intro-profile' && !inlineEditMode
+                    ? '항목을 끌어 왼쪽 또는 오른쪽 열로 옮길 수 있습니다.'
+                    : undefined
+            }
+        >
+            {draggable &&
+                atom.id !== 'intro-profile' &&
+                !inlineEditMode &&
+                !store.hidePrintGuides && (
+                    <span className="pointer-events-none absolute -left-4 top-1 z-20 hidden h-5 w-4 items-center justify-center rounded bg-slate-900/85 text-white shadow-sm group-hover/atom:flex print:hidden">
+                        <GripVertical className="h-3 w-3" />
+                    </span>
+                )}
+            {draggable &&
+                atom.id !== 'intro-profile' &&
+                !inlineEditMode &&
+                draggedCanvasAtomId &&
+                draggedCanvasAtomId !== atom.id && (
+                    <>
+                        {(['left', 'right'] as const).map((side) => {
+                            const active =
+                                dragOverAtom?.pageIndex === pageIndex &&
+                                dragOverAtom.atomId === atom.id &&
+                                dragOverAtom.side === side;
+                            return (
+                                <div
+                                    key={side}
+                                    className={`absolute inset-y-0 z-40 w-[22%] min-w-10 max-w-20 print:hidden ${side === 'left' ? '-left-2' : '-right-2'}`}
+                                    onDragEnter={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        setDragOverAtom({ pageIndex, atomId: atom.id, side });
+                                    }}
+                                    onDragOver={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        event.dataTransfer.dropEffect = 'move';
+                                        setDragOverAtom({ pageIndex, atomId: atom.id, side });
+                                    }}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        const draggedId =
+                                            draggedCanvasAtomId ||
+                                            event.dataTransfer.getData('text/plain');
+                                        if (draggedId)
+                                            placeAtomBeside(pageIndex, draggedId, atom.id, side);
+                                        setDraggedCanvasAtomId(null);
+                                        setDragOverRegion(null);
+                                        setDragOverAtom(null);
+                                    }}
+                                >
+                                    {active && (
+                                        <span
+                                            className={`pointer-events-none absolute inset-y-1 flex w-1 items-center rounded-full bg-blue-600 shadow-[0_0_0_4px_rgba(59,130,246,0.18)] ${side === 'left' ? 'left-0' : 'right-0'}`}
+                                        >
+                                            <span
+                                                className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-blue-600 px-2 py-1 text-[9px] font-black text-white shadow-lg ${side === 'left' ? 'left-2' : 'right-2'}`}
+                                            >
+                                                {side === 'left' ? '왼쪽에 배치' : '오른쪽에 배치'}
+                                            </span>
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </>
+                )}
+            {renderAtomContent(atom)}
+        </div>
+    );
+
+    const renderOutputRegion = (
+        pageIndex: number,
+        region: OutputRegion,
+        columnIndex: number,
+        atoms: PrintAtomItem[]
+    ) => {
+        const isOver =
+            dragOverRegion?.pageIndex === pageIndex && dragOverRegion.regionId === region.id;
+        const regionKey = `${pageIndex}:${region.id}`;
+        const isOverflowing = overflowRegionKeys.includes(regionKey);
+        const label = `${columnIndex + 1}번째 열`;
+
+        return (
+            <div
+                key={region.id}
+                data-output-region-key={regionKey}
+                className={`relative h-full min-w-0 ${!store.hidePrintGuides ? 'min-h-[24mm]' : ''}`}
+                onDragEnter={(event) => {
+                    if (!draggedCanvasAtomId) return;
+                    event.preventDefault();
+                    setDragOverRegion({ pageIndex, regionId: region.id });
+                }}
+                onDragOver={(event) => {
+                    if (!draggedCanvasAtomId) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    setDragOverRegion({ pageIndex, regionId: region.id });
+                }}
+                onDrop={(event) => {
+                    event.preventDefault();
+                    const atomId = draggedCanvasAtomId || event.dataTransfer.getData('text/plain');
+                    if (atomId) {
+                        store.placeAtomsInRegionById(getAssociatedAtomIds(atomId), region.id);
+                    }
+                    setDraggedCanvasAtomId(null);
+                    setDragOverRegion(null);
+                }}
+            >
+                {!store.hidePrintGuides && (
+                    <div
+                        aria-hidden="true"
+                        className={`pointer-events-none absolute inset-0 z-10 rounded-md border-2 border-dashed transition print:hidden ${
+                            isOverflowing
+                                ? 'border-rose-500 bg-rose-50/20'
+                                : isOver
+                                  ? 'border-blue-500 bg-blue-100/35 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.16)]'
+                                  : 'border-slate-300/70'
+                        }`}
+                    >
+                        {isOver && (
+                            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-950 px-3 py-1 text-[10px] font-black text-white shadow-xl">
+                                {label}에 배치
+                            </span>
+                        )}
+                        {isOverflowing && (
+                            <span className="absolute bottom-1 right-1 rounded bg-rose-600 px-2 py-1 text-[9px] font-black text-white shadow">
+                                열 높이 초과
+                            </span>
+                        )}
+                    </div>
+                )}
+                <div className="relative z-0 flex min-w-0 flex-col">
+                    {atoms.map((atom) => renderCanvasAtom(atom, true, pageIndex))}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <>
@@ -2346,33 +3341,8 @@ export function PrintCanvas({
                     totalPages={pageLayers.length}
                     navOpen={store.navPanelOpen}
                     activeTemplateName={activeTemplateName}
-                    onToggleAll={store.toggleAllExcluded}
                     onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
-                    onSaveLocal={() => {
-                        const defaultName = generateUniqueLocalName('내 맞춤 인쇄 설정');
-                        const memo = window.prompt(
-                            '현재 인쇄 설정에 대한 설명/메모를 입력하세요:',
-                            defaultName
-                        );
-                        if (memo === null) return;
-                        const trimmed = memo.trim() || defaultName;
-                        const existingSaves = getLocalSaves();
-                        if (existingSaves.some((s) => s.memo.trim() === trimmed)) {
-                            const confirmed = window.confirm(
-                                `'${trimmed}' 이름의 인쇄 설정이 이미 존재합니다.\n\n기존 설정을 덮어쓰시겠습니까?`
-                            );
-                            if (!confirmed) return;
-                        }
-                        saveLocal({
-                            memo: trimmed,
-                            excludedIds: store.printExcludedIds,
-                            sectionOrder: store.printSectionOrder,
-                            sectionGaps: store.sectionGaps,
-                            forcedPageOverrides: store.forcedPageOverrides,
-                            itemOrderOverrides: store.itemOrderOverrides,
-                        });
-                        alert(`'${trimmed}' 인쇄 설정이 성공적으로 저장되었습니다.`);
-                    }}
+                    onSaveLocal={handleSaveLocalTemplate}
                     onSaveServer={adminMode ? () => setSaveTemplateModalOpen(true) : undefined}
                     onOpenTemplateModal={() => setModeModalOpen(true)}
                     onPrint={handlePrintConfirm}
@@ -2388,20 +3358,322 @@ export function PrintCanvas({
                     onToggleInlineEditMode={() => setInlineEditMode(!inlineEditMode)}
                     aiChatOpen={aiChatOpen}
                     onToggleAiChat={canRevise ? () => setAiChatOpen((v) => !v) : undefined}
+                    canUndo={historyAvailability.canUndo}
+                    canRedo={historyAvailability.canRedo}
+                    onUndo={handleUndo}
+                    onRedo={handleRedo}
+                    marginSettingsOpen={marginSettingsOpen}
+                    onToggleMarginSettings={() => setMarginSettingsOpen((open) => !open)}
+                    integratedDocumentSettings
                 />
 
                 {inlineEditMode && (
-                    <div className="bg-slate-950 border-b border-blue-500/40 px-4 py-2 text-xs font-bold text-blue-200 flex items-center justify-center gap-2 shadow-md print:hidden shrink-0 z-40">
-                        <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
-                        <span>
-                            ✍️ 인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리 텍스트를
-                            클릭하여 맞춤 문구를 직접 수정하세요. 상단 &apos;템플릿으로 저장&apos;
-                            클릭 시 함께 저장됩니다.
-                        </span>
+                    <div className="bg-slate-950 border-b border-blue-500/40 px-4 py-2 text-xs font-bold text-blue-200 flex items-center justify-center gap-3 shadow-md print:hidden shrink-0 z-40">
+                        <div className="flex min-w-0 items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                            <span>
+                                ✍️ 인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리 텍스트를
+                                클릭하여 맞춤 문구를 직접 수정하세요. 상단 &apos;템플릿으로
+                                저장&apos; 클릭 시 함께 저장됩니다.
+                            </span>
+                        </div>
                     </div>
                 )}
 
                 <div className="flex-1 min-h-0 flex">
+                    {marginSettingsOpen && (
+                        <aside
+                            className="relative shrink-0 overflow-y-auto border-r border-slate-700 bg-slate-950 text-white shadow-2xl print:hidden"
+                            style={{ width: documentSettingsWidth }}
+                            aria-label="문서 설정"
+                        >
+                            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950 px-4 py-3">
+                                <div>
+                                    <p className="text-sm font-black">문서 설정</p>
+                                    <p className="mt-0.5 text-[10px] font-bold text-slate-400">
+                                        현재 템플릿의 모든 페이지에 적용
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setMarginSettingsOpen(false)}
+                                    className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    aria-label="문서 설정 닫기"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            <nav
+                                className="grid grid-cols-3 gap-1 border-b border-slate-800 p-2"
+                                aria-label="문서 설정 분류"
+                            >
+                                {(
+                                    [
+                                        ['paper', '용지'],
+                                        ['typography', '글꼴·간격'],
+                                        ['composition', '구성'],
+                                        ['view', '보기'],
+                                        ['template', '템플릿'],
+                                    ] as const
+                                ).map(([tab, label]) => (
+                                    <button
+                                        key={tab}
+                                        type="button"
+                                        onClick={() => setDocumentSettingsTab(tab)}
+                                        aria-pressed={documentSettingsTab === tab}
+                                        className={`h-8 rounded-md px-2 text-[10px] font-black transition ${
+                                            documentSettingsTab === tab
+                                                ? 'bg-blue-600 text-white'
+                                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </nav>
+                            <div className="space-y-5 p-4">
+                                {documentSettingsTab === 'paper' && (
+                                    <section>
+                                        <div className="mb-3 flex items-center justify-between">
+                                            <div>
+                                                <h2 className="text-xs font-black">페이지 여백</h2>
+                                                <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                                                    위·오른쪽·아래·왼쪽 순서로 A4 공통 여백을
+                                                    설정합니다.
+                                                </p>
+                                            </div>
+                                            <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-black text-slate-300">
+                                                mm
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {(
+                                                [
+                                                    ['top', '위'],
+                                                    ['right', '오른쪽'],
+                                                    ['bottom', '아래'],
+                                                    ['left', '왼쪽'],
+                                                ] as const
+                                            ).map(([side, label]) => (
+                                                <label
+                                                    key={side}
+                                                    className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-[10px] font-bold text-slate-300"
+                                                >
+                                                    {label}
+                                                    <input
+                                                        type="number"
+                                                        min={5}
+                                                        max={30}
+                                                        step={1}
+                                                        value={store.outputLayout.pageMargins[side]}
+                                                        onChange={(event) =>
+                                                            store.setPageMargins({
+                                                                [side]: Number(event.target.value),
+                                                            })
+                                                        }
+                                                        className="mt-1 block h-9 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm font-black text-white outline-none focus:border-blue-400"
+                                                    />
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                store.setPageMargins({
+                                                    top: 12,
+                                                    right: 14,
+                                                    bottom: 12,
+                                                    left: 14,
+                                                })
+                                            }
+                                            className="mt-3 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                        >
+                                            기본 여백으로 초기화
+                                        </button>
+                                    </section>
+                                )}
+                                {documentSettingsTab === 'paper' && (
+                                    <section className="border-t border-slate-800 pt-4">
+                                        <h2 className="text-xs font-black">페이지 구성</h2>
+                                        <dl className="mt-3 space-y-2 text-[10px]">
+                                            <div className="flex justify-between gap-3">
+                                                <dt className="text-slate-400">용지</dt>
+                                                <dd className="font-black text-slate-200">A4</dd>
+                                            </div>
+                                            <div className="flex justify-between gap-3">
+                                                <dt className="text-slate-400">현재 페이지</dt>
+                                                <dd className="font-black text-slate-200">
+                                                    {pageLayers.length}페이지
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                    </section>
+                                )}
+                                {documentSettingsTab === 'typography' && (
+                                    <section>
+                                        <h2 className="text-xs font-black">타이포그래피</h2>
+                                        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                                            모든 페이지 본문에 적용되는 읽기 간격입니다.
+                                        </p>
+                                        <label className="mt-4 block rounded-xl border border-slate-800 bg-slate-900 p-3">
+                                            <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
+                                                본문 줄 간격
+                                                <strong className="text-blue-300">
+                                                    {store.lineHeight.toFixed(2)}
+                                                </strong>
+                                            </span>
+                                            <input
+                                                type="range"
+                                                min={1}
+                                                max={2.2}
+                                                step={0.025}
+                                                value={store.lineHeight}
+                                                onChange={(event) =>
+                                                    store.setLineHeight(Number(event.target.value))
+                                                }
+                                                className="mt-3 h-1 w-full cursor-pointer accent-blue-500"
+                                            />
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => store.setLineHeight(1.625)}
+                                            className="mt-3 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                        >
+                                            기본 줄 간격으로 초기화
+                                        </button>
+                                    </section>
+                                )}
+                                {documentSettingsTab === 'composition' && (
+                                    <section>
+                                        <h2 className="text-xs font-black">문서 구성</h2>
+                                        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                                            섹션 노출, 순서와 세부 항목 배치를 관리합니다.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                store.setNavPanelOpen(!store.navPanelOpen)
+                                            }
+                                            aria-pressed={store.navPanelOpen}
+                                            className={`mt-4 flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
+                                                store.navPanelOpen
+                                                    ? 'border-blue-400 bg-blue-600/20 text-white'
+                                                    : 'border-slate-800 bg-slate-900 text-slate-200 hover:border-slate-600'
+                                            }`}
+                                        >
+                                            <span>
+                                                <strong className="block text-xs">
+                                                    구성 관리 패널
+                                                </strong>
+                                                <span className="mt-1 block text-[10px] text-slate-400">
+                                                    {store.printExcludedIds.length}개 제외 · 드래그
+                                                    순서 편집
+                                                </span>
+                                            </span>
+                                            <Settings className="h-4 w-4 shrink-0" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={store.toggleAllExcluded}
+                                            className="mt-2 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                        >
+                                            {store.printExcludedIds.length > 0
+                                                ? '모든 섹션 다시 포함'
+                                                : '편집 가능한 섹션 모두 제외'}
+                                        </button>
+                                    </section>
+                                )}
+                                {documentSettingsTab === 'view' && (
+                                    <section>
+                                        <h2 className="text-xs font-black">편집 화면 보기</h2>
+                                        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                                            화면에서만 바뀌며 실제 인쇄 결과에는 영향을 주지
+                                            않습니다.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={store.toggleHidePrintGuides}
+                                            aria-pressed={!store.hidePrintGuides}
+                                            className="mt-4 flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-3 text-left text-slate-200 transition hover:border-slate-600"
+                                        >
+                                            <span>
+                                                <strong className="block text-xs">
+                                                    편집 가이드
+                                                </strong>
+                                                <span className="mt-1 block text-[10px] text-slate-400">
+                                                    여백선·열 경계·배치 도구
+                                                </span>
+                                            </span>
+                                            <span
+                                                className={`rounded-full px-2 py-1 text-[9px] font-black ${
+                                                    store.hidePrintGuides
+                                                        ? 'bg-slate-800 text-slate-400'
+                                                        : 'bg-emerald-500/20 text-emerald-300'
+                                                }`}
+                                            >
+                                                {store.hidePrintGuides ? '숨김' : '표시'}
+                                            </span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleZoomFit}
+                                            className="mt-2 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                        >
+                                            화면에 페이지 맞춤
+                                        </button>
+                                    </section>
+                                )}
+                                {documentSettingsTab === 'template' && (
+                                    <section>
+                                        <h2 className="text-xs font-black">템플릿</h2>
+                                        <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-3">
+                                            <span className="text-[9px] font-black text-slate-500">
+                                                현재 적용 중
+                                            </span>
+                                            <strong className="mt-1 block truncate text-xs text-white">
+                                                {activeTemplateName || '기본 이력서'}
+                                            </strong>
+                                        </div>
+                                        <div className="mt-3 space-y-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setModeModalOpen(true)}
+                                                className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-100 transition hover:border-blue-400"
+                                            >
+                                                다른 템플릿 불러오기
+                                            </button>
+                                            {adminMode && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSaveTemplateModalOpen(true)}
+                                                    className="h-10 w-full rounded-lg bg-blue-600 text-[10px] font-black text-white transition hover:bg-blue-500"
+                                                >
+                                                    Workspace 템플릿으로 저장
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveLocalTemplate}
+                                                className="h-10 w-full rounded-lg border border-amber-500/50 bg-amber-500/10 text-[10px] font-black text-amber-300 transition hover:bg-amber-500/20"
+                                            >
+                                                브라우저에 임시 저장
+                                            </button>
+                                        </div>
+                                    </section>
+                                )}
+                            </div>
+                            <div
+                                role="separator"
+                                aria-orientation="vertical"
+                                aria-label="문서 설정 패널 너비 조절"
+                                onPointerDown={handleDocumentSettingsResizeStart}
+                                onPointerMove={handleDocumentSettingsResizeMove}
+                                onPointerUp={handleDocumentSettingsResizeEnd}
+                                onPointerCancel={handleDocumentSettingsResizeEnd}
+                                className="absolute inset-y-0 right-0 w-1.5 cursor-col-resize touch-none bg-transparent transition hover:bg-blue-500/70"
+                            />
+                        </aside>
+                    )}
                     <div
                         ref={canvasRef}
                         className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
@@ -2415,24 +3687,181 @@ export function PrintCanvas({
                                 } as CSSProperties
                             }
                         >
-                            {pageLayers.map((page, pageIdx) => (
-                                <PdfPageLayer
-                                    key={pageIdx}
-                                    pageIndex={pageIdx}
-                                    totalPages={pageLayers.length}
-                                    hideGuides={store.hidePrintGuides}
-                                >
-                                    {page.items.map((atom) => (
-                                        <div
-                                            key={atom.id}
-                                            data-atom-id={atom.id}
-                                            className="relative w-full"
-                                        >
-                                            {renderAtomContent(atom)}
+                            {pageLayers.map((page, pageIdx) => {
+                                const { page: outputPage, rows } = getOutputPageAt(
+                                    store.outputLayout,
+                                    pageIdx
+                                );
+                                const pageRegionIds = new Set(
+                                    rows.flatMap(({ regions }) =>
+                                        regions.map((region) => region.id)
+                                    )
+                                );
+                                const firstRegionId = rows[0]?.regions[0]?.id;
+                                const atomsByRegionId = new Map<string, PrintAtomItem[]>();
+                                page.items.forEach((atom) => {
+                                    const placement = placementByAtomId.get(atom.id);
+                                    const regionId =
+                                        placement && pageRegionIds.has(placement.regionId)
+                                            ? placement.regionId
+                                            : firstRegionId;
+                                    if (!regionId) return;
+                                    atomsByRegionId.set(regionId, [
+                                        ...(atomsByRegionId.get(regionId) ?? []),
+                                        atom,
+                                    ]);
+                                });
+                                atomsByRegionId.forEach((atoms) =>
+                                    atoms.sort((left, right) => {
+                                        const leftOrder = placementByAtomId.get(left.id)?.order;
+                                        const rightOrder = placementByAtomId.get(right.id)?.order;
+                                        if (leftOrder === undefined || rightOrder === undefined)
+                                            return 0;
+                                        return leftOrder - rightOrder;
+                                    })
+                                );
+                                const populatedRows = rows.filter(({ regions }) =>
+                                    regions.some(
+                                        (region) =>
+                                            (atomsByRegionId.get(region.id)?.length ?? 0) > 0
+                                    )
+                                );
+                                const renderedRows =
+                                    populatedRows.length > 0 ? populatedRows : rows.slice(0, 1);
+
+                                return (
+                                    <PdfPageLayer
+                                        key={page.pageId}
+                                        pageId={page.pageId}
+                                        pageIndex={pageIdx}
+                                        totalPages={pageLayers.length}
+                                        hideGuides={store.hidePrintGuides}
+                                        showFrameLabel={false}
+                                        orientation={outputPage.orientation}
+                                        margins={store.outputLayout.pageMargins}
+                                    >
+                                        {!store.hidePrintGuides && (
+                                            <div className="pointer-events-none absolute -top-7 left-0 z-40 flex h-7 items-center gap-2 rounded-t-md bg-slate-950 px-3 shadow-md print:hidden">
+                                                <span className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
+                                                <span className="whitespace-nowrap text-[10px] font-black text-white">
+                                                    {pageIdx + 1}페이지 · A4{' '}
+                                                    {outputPage.orientation === 'landscape'
+                                                        ? '가로'
+                                                        : '세로'}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        <div className="flex w-full min-w-0 flex-col">
+                                            {renderedRows.map(({ row, regions }) => (
+                                                <div
+                                                    key={row.id}
+                                                    data-output-row={row.id}
+                                                    data-layout-mode={row.layoutMode}
+                                                    className="group/output-row relative grid min-w-0 items-start"
+                                                    style={{
+                                                        gridTemplateColumns: regions
+                                                            .map(
+                                                                (region) =>
+                                                                    `${region.widthFraction}fr`
+                                                            )
+                                                            .join(' '),
+                                                        columnGap: `${row.gapMm}mm`,
+                                                    }}
+                                                >
+                                                    {!store.hidePrintGuides && (
+                                                        <div className="absolute right-0 top-0 z-30 hidden -translate-y-full items-center gap-1 rounded-t-md bg-slate-950 px-1.5 py-1 shadow-xl group-hover/output-row:flex print:hidden">
+                                                            {regions.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        store.setRowColumnCount(
+                                                                            row.id,
+                                                                            1
+                                                                        )
+                                                                    }
+                                                                    className="h-5 rounded px-1.5 text-[9px] font-black text-slate-300 hover:bg-slate-800 hover:text-white"
+                                                                    title="이 행의 블록을 다시 세로 한 줄로 합칩니다."
+                                                                >
+                                                                    한 줄로 합치기
+                                                                </button>
+                                                            )}
+                                                            {regions.length === 2 && (
+                                                                <label className="flex items-center gap-1 px-1 text-[8px] font-bold text-slate-300">
+                                                                    폭
+                                                                    <input
+                                                                        type="range"
+                                                                        min={20}
+                                                                        max={80}
+                                                                        value={Math.round(
+                                                                            (regions[0]
+                                                                                .widthFraction /
+                                                                                (regions[0]
+                                                                                    .widthFraction +
+                                                                                    regions[1]
+                                                                                        .widthFraction)) *
+                                                                                100
+                                                                        )}
+                                                                        onChange={(event) =>
+                                                                            store.resizeRegionPair(
+                                                                                regions[0].id,
+                                                                                regions[1].id,
+                                                                                Number(
+                                                                                    event.target
+                                                                                        .value
+                                                                                ) / 100
+                                                                            )
+                                                                        }
+                                                                        className="w-16 accent-blue-500"
+                                                                    />
+                                                                </label>
+                                                            )}
+                                                            <label className="flex items-center gap-1 px-1 text-[8px] font-bold text-slate-300">
+                                                                간격
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={20}
+                                                                    value={row.gapMm}
+                                                                    onChange={(event) =>
+                                                                        store.setRowGap(
+                                                                            row.id,
+                                                                            Number(
+                                                                                event.target.value
+                                                                            )
+                                                                        )
+                                                                    }
+                                                                    className="h-5 w-10 rounded border border-slate-600 bg-slate-900 px-1 text-white"
+                                                                />
+                                                            </label>
+                                                            {renderedRows.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        store.removeRow(row.id)
+                                                                    }
+                                                                    className="inline-flex h-5 w-5 items-center justify-center rounded text-rose-300 hover:bg-rose-500/20"
+                                                                    title="행 삭제 — 항목은 첫 행으로 이동"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {regions.map((region, columnIndex) =>
+                                                        renderOutputRegion(
+                                                            pageIdx,
+                                                            region,
+                                                            columnIndex,
+                                                            atomsByRegionId.get(region.id) ?? []
+                                                        )
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </PdfPageLayer>
-                            ))}
+                                    </PdfPageLayer>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -2460,6 +3889,7 @@ export function PrintCanvas({
                             }}
                             onToggleAll={store.toggleAllExcluded}
                             excludedCount={store.printExcludedIds.length}
+                            onAddCustomSection={addCustomSection}
                         />
                     </div>
 
@@ -2492,6 +3922,7 @@ export function PrintCanvas({
             </div>
 
             <PrintModeModal
+                workspaceSlug={workspaceSlug}
                 open={modeModalOpen}
                 onClose={() => setModeModalOpen(false)}
                 onManual={() => {
@@ -2514,6 +3945,7 @@ export function PrintCanvas({
             />
 
             <SaveServerTemplateModal
+                workspaceSlug={workspaceSlug}
                 key={`${activeTemplate?.id ?? 'new'}-${saveTemplateModalOpen ? 'open' : 'closed'}`}
                 open={saveTemplateModalOpen}
                 onClose={() => setSaveTemplateModalOpen(false)}
@@ -2522,6 +3954,7 @@ export function PrintCanvas({
                     sectionOrder: store.printSectionOrder,
                     sectionGaps: store.sectionGaps,
                     forcedPageOverrides: store.forcedPageOverrides,
+                    outputLayout: store.outputLayout,
                     itemOrderOverrides: store.itemOrderOverrides,
                     targetRole: activeTemplate?.targetRole ?? 'GENERAL',
                     contentOverrides,
@@ -2534,12 +3967,15 @@ export function PrintCanvas({
 
             {skillSelectorModalOpen && (
                 <PrintSkillSelectorModal
-                    allSkills={introData.skills}
+                    workspaceSkills={introData.skills}
+                    catalogSkills={catalogSkills}
                     selectedSkillIds={contentOverrides.selectedSkillIds}
+                    skillGroupOverrides={contentOverrides.skillGroupOverrides}
+                    addingCatalogSkillId={addingCatalogSkillId}
                     onToggleSkill={toggleSkillSelection}
-                    onSelectAllInGroup={selectAllSkillsInGroup}
-                    onDeselectAllInGroup={deselectAllSkillsInGroup}
-                    onResetToAll={resetSkillsToAll}
+                    onMoveSkill={moveSkillToGroup}
+                    onAddCatalogSkill={addCatalogSkillToWorkspace}
+                    onResetToDefault={resetSkillsToDefault}
                     onClose={() => setSkillSelectorModalOpen(false)}
                 />
             )}

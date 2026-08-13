@@ -9,8 +9,10 @@ import type {
     PrintTemplateContentOverrides,
     PrintTemplateRequest,
 } from '@/lib/api/types';
+import { serializeStoredPrintLayout, type OutputLayout } from '@/lib/printLayoutModel';
 
 type SaveServerTemplateModalProps = {
+    workspaceSlug: string;
     open: boolean;
     onClose: () => void;
     currentSettings: {
@@ -18,6 +20,7 @@ type SaveServerTemplateModalProps = {
         sectionOrder: string[];
         sectionGaps: Record<string, number>;
         forcedPageOverrides?: Record<string, number>;
+        outputLayout: OutputLayout;
         itemOrderOverrides?: Record<string, string[]>;
         targetRole: string;
         contentOverrides: PrintTemplateContentOverrides;
@@ -32,6 +35,7 @@ type SaveServerTemplateModalProps = {
 
 /** 인쇄 프리뷰 화면에서 현재 조정한 설정을 서버 DB 템플릿으로 저장하는 모달 */
 export function SaveServerTemplateModal({
+    workspaceSlug,
     open,
     onClose,
     currentSettings,
@@ -47,8 +51,8 @@ export function SaveServerTemplateModal({
     );
 
     const { data: jobPostings = [] } = useQuery({
-        queryKey: ['jobPostings', 'for-print-template-link'],
-        queryFn: jobPostingApi.list,
+        queryKey: ['jobPostings', workspaceSlug, 'for-print-template-link'],
+        queryFn: () => jobPostingApi.workspaceList(workspaceSlug),
         enabled: open,
     });
 
@@ -61,7 +65,8 @@ export function SaveServerTemplateModal({
             : '';
 
     const createMutation = useMutation({
-        mutationFn: (payload: PrintTemplateRequest) => printTemplateApi.create(payload),
+        mutationFn: (payload: PrintTemplateRequest) =>
+            printTemplateApi.workspaceCreate(workspaceSlug, payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['printTemplates'] });
             alert('템플릿이 저장되었습니다.');
@@ -72,7 +77,7 @@ export function SaveServerTemplateModal({
 
     const updateMutation = useMutation({
         mutationFn: ({ id, payload }: { id: number; payload: PrintTemplateRequest }) =>
-            printTemplateApi.update(id, payload),
+            printTemplateApi.workspaceUpdate(workspaceSlug, id, payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['printTemplates'] });
             alert('템플릿이 수정되었습니다.');
@@ -95,15 +100,18 @@ export function SaveServerTemplateModal({
             name: finalName,
             excludedIds: JSON.stringify(currentSettings.excludedIds),
             sectionOrder: JSON.stringify(currentSettings.sectionOrder),
-            sectionGaps: JSON.stringify({
-                ...currentSettings.sectionGaps,
-                __forcedPageOverrides: currentSettings.forcedPageOverrides ?? {},
-                __itemOrderOverrides: currentSettings.itemOrderOverrides ?? {},
-            }),
+            sectionGaps: JSON.stringify(
+                serializeStoredPrintLayout({
+                    sectionGaps: currentSettings.sectionGaps,
+                    forcedPageOverrides: currentSettings.forcedPageOverrides ?? {},
+                    itemOrderOverrides: currentSettings.itemOrderOverrides ?? {},
+                    outputLayout: currentSettings.outputLayout,
+                })
+            ),
             targetRole: currentSettings.targetRole,
             contentOverrides: JSON.stringify(currentSettings.contentOverrides),
             baseContentFingerprint: currentSettings.baseContentFingerprint,
-            schemaVersion: 2,
+            schemaVersion: 3,
             visible,
             displayOrder: editingTemplate?.displayOrder ?? 1,
             jobPostingId,
@@ -211,6 +219,10 @@ export function SaveServerTemplateModal({
                         <div>
                             • 섹션 간격 조정: {Object.keys(currentSettings.sectionGaps).length}개
                             설정됨
+                        </div>
+                        <div>
+                            • 페이지 배치: {currentSettings.outputLayout.pages.length}개 페이지 ·{' '}
+                            {currentSettings.outputLayout.placements.length}개 고정 항목
                         </div>
                     </div>
 

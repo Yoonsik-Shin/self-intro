@@ -25,9 +25,17 @@ export function applyPrintTemplateContent(
     overrides: PrintTemplateContentOverrides = {}
 ): IntroductionResponse {
     const selectedSkillIds = overrides.selectedSkillIds;
-    const skills = Array.isArray(selectedSkillIds)
+    const selectedSkills = Array.isArray(selectedSkillIds)
         ? source.skills.filter((skill) => selectedSkillIds.includes(skill.id))
         : source.skills;
+    const skills = selectedSkills.map((skill) => {
+        const group = overrides.skillGroupOverrides?.[String(skill.id)];
+        if (!group) return skill;
+        return {
+            ...skill,
+            usageType: group === 'CORE' ? 'WORK_EXPERIENCE' : 'PROJECT_USE',
+        };
+    });
 
     return {
         ...source,
@@ -114,7 +122,19 @@ export function countContentOverrides(overrides: PrintTemplateContentOverrides):
         0
     );
     const skillCount = Array.isArray(overrides.selectedSkillIds) ? 1 : 0;
-    return profileCount + experienceCount + detailCount + skillCount;
+    const skillGroupCount = Object.keys(overrides.skillGroupOverrides ?? {}).length;
+    const customSectionCount = (overrides.customSections ?? []).reduce(
+        (count, section) => count + 1 + section.items.length,
+        0
+    );
+    return (
+        profileCount +
+        experienceCount +
+        detailCount +
+        skillCount +
+        skillGroupCount +
+        customSectionCount
+    );
 }
 
 /**
@@ -141,12 +161,40 @@ export function sanitizePrintTemplateOverrides(
     const cleanedSelectedSkillIds = Array.isArray(overrides.selectedSkillIds)
         ? overrides.selectedSkillIds.filter((skillId) => validSkillIds.has(skillId))
         : undefined;
+    const cleanedSkillGroupOverrides = Object.fromEntries(
+        Object.entries(overrides.skillGroupOverrides ?? {}).filter(
+            ([skillId, group]) =>
+                validSkillIds.has(Number(skillId)) &&
+                (group === 'CORE' || group === 'PROJECT_LEARNING')
+        )
+    ) as PrintTemplateContentOverrides['skillGroupOverrides'];
+    const cleanedCustomSections = (overrides.customSections ?? [])
+        .filter(
+            (section) =>
+                section && typeof section.id === 'string' && typeof section.title === 'string'
+        )
+        .map((section) => ({
+            id: section.id,
+            title: section.title,
+            items: (section.items ?? []).filter(
+                (item) =>
+                    item &&
+                    typeof item.id === 'string' &&
+                    typeof item.title === 'string' &&
+                    typeof item.content === 'string'
+            ),
+        }));
 
     return {
         ...overrides,
         experiences: Object.keys(cleanedExperiences).length > 0 ? cleanedExperiences : undefined,
         details: Object.keys(cleanedDetails).length > 0 ? cleanedDetails : undefined,
         selectedSkillIds: cleanedSelectedSkillIds,
+        skillGroupOverrides:
+            Object.keys(cleanedSkillGroupOverrides ?? {}).length > 0
+                ? cleanedSkillGroupOverrides
+                : undefined,
+        customSections: cleanedCustomSections.length > 0 ? cleanedCustomSections : undefined,
     };
 }
 

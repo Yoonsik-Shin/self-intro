@@ -1,5 +1,27 @@
 import { create } from 'zustand';
 import { reorderablePrintSections, LOCKED_PRINT_SECTION_ID } from '@/lib/printSections';
+import {
+    clearAtomPlacements,
+    createDefaultOutputLayout,
+    createOutputLayoutFromLegacy,
+    forceAtomsToPage,
+    addOutputRow,
+    placeAtomsInOutputRegion,
+    placeAtomsInOutputRegionById,
+    removeOutputRow,
+    replaceOutputPageComposition,
+    resizeOutputRegionPair,
+    normalizeOutputLayout,
+    outputLayoutToForcedPageOverrides,
+    setOutputPageMargins,
+    setOutputPageLayoutMode,
+    setOutputRowColumnCount,
+    setOutputRowGap,
+    type OutputLayout,
+    type OutputLayoutMode,
+    type OutputPageMargins,
+    type OutputRegionKind,
+} from '@/lib/printLayoutModel';
 
 type DragPosition = 'before' | 'after' | null;
 
@@ -13,6 +35,7 @@ type PrintState = {
     sectionGaps: Record<string, number>;
     lineHeight: number;
     forcedPageOverrides: Record<string, number>;
+    outputLayout: OutputLayout;
     itemOrderOverrides: Record<string, string[]>;
     hidePrintGuides: boolean;
     navPanelOpen: boolean;
@@ -44,6 +67,17 @@ type PrintState = {
     forcePage: (ids: string[], pageIndex: number) => void;
     clearForcedPage: (ids: string[]) => void;
     setForcedPageOverrides: (overrides: Record<string, number>) => void;
+    setOutputLayout: (layout: OutputLayout) => void;
+    setPageLayoutMode: (pageIndex: number, mode: OutputLayoutMode) => void;
+    placeAtomsInRegion: (ids: string[], pageIndex: number, regionKind: OutputRegionKind) => void;
+    placeAtomsInRegionById: (ids: string[], regionId: string) => void;
+    setPageMargins: (margins: Partial<OutputPageMargins>) => void;
+    addRow: (pageIndex: number, columnCount: number) => void;
+    setRowColumnCount: (rowId: string, columnCount: number) => void;
+    removeRow: (rowId: string) => void;
+    setRowGap: (rowId: string, gapMm: number) => void;
+    resizeRegionPair: (leftRegionId: string, rightRegionId: string, leftShare: number) => void;
+    replacePageComposition: (pageIndex: number, composition: string[][][]) => void;
     setHidePrintGuides: (value: boolean) => void;
     toggleHidePrintGuides: () => void;
     setNavPanelOpen: (open: boolean) => void;
@@ -57,6 +91,7 @@ type PrintState = {
         sectionOrder: string[];
         sectionGaps: Record<string, number>;
         forcedPageOverrides?: Record<string, number>;
+        outputLayout?: OutputLayout;
         itemOrderOverrides?: Record<string, string[]>;
         lineHeight?: number;
     }) => void;
@@ -78,6 +113,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     sectionGaps: {},
     lineHeight: DEFAULT_LINE_HEIGHT,
     forcedPageOverrides: {},
+    outputLayout: createDefaultOutputLayout(),
     itemOrderOverrides: {},
     hidePrintGuides: readHidePrintGuides(),
     navPanelOpen: false,
@@ -114,10 +150,15 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     setExcludedIds: (ids) => set({ printExcludedIds: ids }),
 
     toggleAllExcluded: () => {
-        const { printExcludedIds } = get();
+        const { printExcludedIds, printSectionOrder } = get();
+        const sectionIds = Array.from(
+            new Set([
+                ...reorderablePrintSections.map((section) => section.id),
+                ...printSectionOrder.filter((id) => id !== LOCKED_PRINT_SECTION_ID),
+            ])
+        );
         set({
-            printExcludedIds:
-                printExcludedIds.length > 0 ? [] : reorderablePrintSections.map((s) => s.id),
+            printExcludedIds: printExcludedIds.length > 0 ? [] : sectionIds,
         });
     },
 
@@ -163,23 +204,121 @@ export const usePrintStore = create<PrintState>((set, get) => ({
 
     forcePage: (ids, pageIndex) =>
         set((state) => {
-            const next = { ...state.forcedPageOverrides };
-            ids.forEach((id) => {
-                if (id !== 'intro-profile') {
-                    next[id] = pageIndex;
-                }
-            });
-            return { forcedPageOverrides: next };
+            const movableIds = ids.filter((id) => id !== 'intro-profile');
+            const outputLayout = forceAtomsToPage(state.outputLayout, movableIds, pageIndex);
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
         }),
 
     clearForcedPage: (ids) =>
         set((state) => {
-            const next = { ...state.forcedPageOverrides };
-            ids.forEach((id) => delete next[id]);
-            return { forcedPageOverrides: next };
+            const outputLayout = clearAtomPlacements(state.outputLayout, ids);
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
         }),
 
-    setForcedPageOverrides: (overrides) => set({ forcedPageOverrides: overrides }),
+    setForcedPageOverrides: (overrides) => {
+        const outputLayout = createOutputLayoutFromLegacy(overrides);
+        set({ forcedPageOverrides: overrides, outputLayout });
+    },
+
+    setOutputLayout: (value) => {
+        const outputLayout = normalizeOutputLayout(value);
+        set({
+            outputLayout,
+            forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+        });
+    },
+
+    setPageLayoutMode: (pageIndex, mode) =>
+        set((state) => {
+            const outputLayout = setOutputPageLayoutMode(state.outputLayout, pageIndex, mode);
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    placeAtomsInRegion: (ids, pageIndex, regionKind) =>
+        set((state) => {
+            const movableIds = ids.filter((id) => id !== 'intro-profile');
+            const outputLayout = placeAtomsInOutputRegion(
+                state.outputLayout,
+                movableIds,
+                pageIndex,
+                regionKind
+            );
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    placeAtomsInRegionById: (ids, regionId) =>
+        set((state) => {
+            const movableIds = ids.filter((id) => id !== 'intro-profile');
+            const outputLayout = placeAtomsInOutputRegionById(
+                state.outputLayout,
+                movableIds,
+                regionId
+            );
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    setPageMargins: (margins) =>
+        set((state) => ({ outputLayout: setOutputPageMargins(state.outputLayout, margins) })),
+
+    addRow: (pageIndex, columnCount) =>
+        set((state) => ({
+            outputLayout: addOutputRow(state.outputLayout, pageIndex, columnCount),
+        })),
+
+    setRowColumnCount: (rowId, columnCount) =>
+        set((state) => ({
+            outputLayout: setOutputRowColumnCount(state.outputLayout, rowId, columnCount),
+        })),
+
+    removeRow: (rowId) =>
+        set((state) => {
+            const outputLayout = removeOutputRow(state.outputLayout, rowId);
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    setRowGap: (rowId, gapMm) =>
+        set((state) => ({ outputLayout: setOutputRowGap(state.outputLayout, rowId, gapMm) })),
+
+    resizeRegionPair: (leftRegionId, rightRegionId, leftShare) =>
+        set((state) => ({
+            outputLayout: resizeOutputRegionPair(
+                state.outputLayout,
+                leftRegionId,
+                rightRegionId,
+                leftShare
+            ),
+        })),
+
+    replacePageComposition: (pageIndex, composition) =>
+        set((state) => {
+            const outputLayout = replaceOutputPageComposition(
+                state.outputLayout,
+                pageIndex,
+                composition
+            );
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
 
     setHidePrintGuides: (value) => {
         try {
@@ -213,14 +352,16 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             sectionGaps: {},
             lineHeight: DEFAULT_LINE_HEIGHT,
             forcedPageOverrides: {},
+            outputLayout: createDefaultOutputLayout(),
             itemOrderOverrides: {},
             printPending: false,
             printModeResolved: true,
         }),
 
     applyTemplate: (settings) => {
-        const allIds = reorderablePrintSections.map((s) => s.id);
         const orderList = settings.sectionOrder || [];
+        const customIds = orderList.filter((id) => id.startsWith('custom-section:'));
+        const allIds = [...reorderablePrintSections.map((s) => s.id), ...customIds];
         const merged = [
             ...orderList.filter((id) => allIds.includes(id)),
             ...allIds.filter((id) => !orderList.includes(id)),
@@ -228,13 +369,17 @@ export const usePrintStore = create<PrintState>((set, get) => ({
 
         const overrides = { ...(settings.forcedPageOverrides || {}) };
         delete overrides['intro-profile'];
+        const outputLayout = settings.outputLayout
+            ? normalizeOutputLayout(settings.outputLayout)
+            : createOutputLayoutFromLegacy(overrides);
 
         set({
             printExcludedIds: settings.excludedIds || [],
             printSectionOrder: merged,
             sectionGaps: settings.sectionGaps || {},
             lineHeight: settings.lineHeight ?? DEFAULT_LINE_HEIGHT,
-            forcedPageOverrides: overrides,
+            forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            outputLayout,
             itemOrderOverrides: settings.itemOrderOverrides || {},
             printPending: false,
             printModeResolved: true,

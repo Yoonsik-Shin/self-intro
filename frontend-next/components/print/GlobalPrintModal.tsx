@@ -5,8 +5,8 @@ import { usePrintStore } from '@/store/usePrintStore';
 import { PrintModeModal } from './PrintModeModal';
 
 /** 헤더의 "PDF 인쇄" 버튼에서 즉시 띄우는 모달. 현재 페이지를 벗어나지 않고 뜨며,
- *  사용자가 모드를 선택한 뒤에야 /print로 이동한다 (원본이 페이지 이동 없이 팝업만 띄우던 것과 동일한 체감을 위함). */
-export function GlobalPrintModal() {
+ *  사용자가 모드를 선택한 뒤에야 Workspace 인쇄 route로 이동한다. */
+export function GlobalPrintModal({ workspaceSlug }: { workspaceSlug: string }) {
     const router = useRouter();
     const open = usePrintStore((s) => s.printModalOpen);
     const setPrintModalOpen = usePrintStore((s) => s.setPrintModalOpen);
@@ -20,13 +20,14 @@ export function GlobalPrintModal() {
             onManual={() => {
                 resetManual();
                 setPrintModalOpen(false);
-                router.push('/print');
+                router.push(`/workspace/${encodeURIComponent(workspaceSlug)}/print`);
             }}
             onApplyTemplate={(settings) => {
                 applyTemplate(settings);
                 setPrintModalOpen(false);
-                router.push('/print');
+                router.push(`/workspace/${encodeURIComponent(workspaceSlug)}/print`);
             }}
+            workspaceSlug={workspaceSlug}
         />
     );
 }

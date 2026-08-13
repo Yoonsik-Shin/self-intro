@@ -68,6 +68,8 @@ export type AtomType =
     | 'project-skills'
     | 'cover-letter-header'
     | 'cover-letter-item'
+    | 'custom-section-header'
+    | 'custom-section-item'
     | 'portfolio-header'
     | 'portfolio-problem'
     | 'portfolio-thought'
@@ -91,6 +93,8 @@ export interface PrintAtomItem {
 }
 
 export interface PageLayerData {
+    /** 저장된 OutputPage가 있으면 그 안정적인 ID, 아직 저장 전 자동 페이지면 auto-page-N. */
+    pageId: string;
     pageIndex: number;
     items: PrintAtomItem[];
     heightUsedPx: number;
@@ -136,6 +140,10 @@ function getAtomEstimatedHeight(atom: PrintAtomItem): number {
             return 45;
         case 'cover-letter-item':
             return 160;
+        case 'custom-section-header':
+            return 45;
+        case 'custom-section-item':
+            return 120;
         case 'portfolio-header':
             return 160;
         case 'portfolio-problem':
@@ -171,22 +179,26 @@ export function partitionAtomsIntoPages(
     itemHeights: Map<string, number>,
     sectionGaps: Record<string, number> = {},
     forcedPageOverrides: Record<string, number> = {},
-    contentHeightPx: number = CONTENT_HEIGHT_PX
+    contentHeightPx: number = CONTENT_HEIGHT_PX,
+    stablePageIds: string[] = []
 ): PageLayerData[] {
+    const pageIdAt = (pageIndex: number) =>
+        stablePageIds[pageIndex] ?? `auto-page-${pageIndex + 1}`;
     if (atoms.length === 0) {
-        return [{ pageIndex: 0, items: [], heightUsedPx: 0 }];
+        return [{ pageId: pageIdAt(0), pageIndex: 0, items: [], heightUsedPx: 0 }];
     }
 
     const pages: PageLayerData[] = [];
     let currentPageItems: PrintAtomItem[] = [];
     let currentHeight = 0;
-    // 자동 분할에는 20px 안전 여유를 둔다. forcedPageOverrides는 사용자가
-    // 페이지를 명시적으로 지정한 값이므로 자동/물리 경계보다 우선한다.
+    // 자동 분할에는 20px 안전 여유를 둔다. 수동 강제 배치는 사용자가 빈 공간을
+    // 직접 활용하기 위해 자동 판단을 명시적으로 덮어쓰는 기능이므로 별도로 우선한다.
     const maxContentHeight = contentHeightPx - 20;
 
     const startNewPage = () => {
         if (currentPageItems.length > 0) {
             pages.push({
+                pageId: pageIdAt(pages.length),
                 pageIndex: pages.length,
                 items: currentPageItems,
                 heightUsedPx: currentHeight,
@@ -198,22 +210,26 @@ export function partitionAtomsIntoPages(
 
     for (let i = 0; i < atoms.length; i++) {
         const atom = atoms[i];
-        const measuredHeight = itemHeights.get(atom.id) || getAtomEstimatedHeight(atom);
+        // 0px도 유효한 실측값이다. 조건부 렌더링으로 내용이 없는 atom을 `||`로
+        // fallback 처리하면 화면에는 없는데 계산상으로만 수십~수백 px를 차지한다.
+        const measuredHeight = itemHeights.get(atom.id) ?? getAtomEstimatedHeight(atom);
         const customGap =
             sectionGaps[atom.id] ?? (atom.isHeader ? sectionGaps[atom.sectionId] : undefined) ?? 0;
-        const defaultGap = currentPageItems.length > 0 ? 8 : 0;
-        const gap = customGap !== 0 ? customGap : defaultGap;
+        // 각 atom 컴포넌트가 자신의 padding/margin을 실제 DOM 높이에 이미 포함한다.
+        // 여기서 항목마다 별도 기본 간격까지 더하면 화면에는 없는 높이가 누적되어,
+        // 항목 수가 많은 이력서에서 다음 섹션이 통째로 넘어가고 페이지 하단이 크게 빈다.
+        // 레이아웃 엔진은 측정 높이와 사용자가 명시한 간격만 합산한다.
+        const gap = customGap;
 
         const itemTotalHeight = measuredHeight + gap;
 
         const forcedPage = forcedPageOverrides[atom.id];
 
-        // 순차 패킹이 이미 다음 페이지로 넘어간 뒤에도 지정한 페이지에 직접 배치한다.
-        // 강제 배치를 용량 검사로 거부하면 override는 남고 atom만 원래 페이지에
-        // 머물러 UI 상태와 실제 레이아웃이 달라진다.
+        // 순차 패킹이 이미 다음 페이지로 넘어간 뒤에도 사용자가 지정한 페이지에
+        // 직접 배치한다. 이 명시적 override가 없을 때만 아래의 자동 경계를 적용한다.
         if (forcedPage !== undefined && forcedPage >= 0 && forcedPage < pages.length) {
             const targetPage = pages[forcedPage];
-            const targetGap = customGap !== 0 ? customGap : targetPage.items.length > 0 ? 8 : 0;
+            const targetGap = customGap;
             const targetItemTotalHeight = measuredHeight + targetGap;
 
             targetPage.items.push(atom);
@@ -221,9 +237,6 @@ export function partitionAtomsIntoPages(
             continue;
         }
 
-        // 현재 atom 자체에 지정된 강제 배치만 자동 분할을 막는다. 뒤쪽 atom의
-        // override 때문에 앞선 모든 atom의 분할까지 막으면, 그 항목들이 페이지
-        // 공간을 먼저 소진해 정작 강제 항목이 다음 페이지로 밀릴 수 있다.
         const isForcedCurrentPage = forcedPage !== undefined && forcedPage === pages.length;
 
         // If an item is a header (e.g., 'career-header'), check if the NEXT item fits on this page too.
@@ -231,12 +244,12 @@ export function partitionAtomsIntoPages(
         let pushHeaderToNextPage = false;
         if (!isForcedCurrentPage && atom.isHeader && i + 1 < atoms.length) {
             const nextAtom = atoms[i + 1];
-            const nextHeight = itemHeights.get(nextAtom.id) || getAtomEstimatedHeight(nextAtom);
+            const nextHeight = itemHeights.get(nextAtom.id) ?? getAtomEstimatedHeight(nextAtom);
             const nextCustomGap =
                 sectionGaps[nextAtom.id] ??
                 (nextAtom.isHeader ? sectionGaps[nextAtom.sectionId] : undefined) ??
                 0;
-            const nextGap = nextCustomGap !== 0 ? nextCustomGap : 6;
+            const nextGap = nextCustomGap;
 
             if (
                 currentHeight + itemTotalHeight + nextHeight + nextGap > maxContentHeight &&
@@ -260,11 +273,14 @@ export function partitionAtomsIntoPages(
 
     if (currentPageItems.length > 0) {
         pages.push({
+            pageId: pageIdAt(pages.length),
             pageIndex: pages.length,
             items: currentPageItems,
             heightUsedPx: currentHeight,
         });
     }
 
-    return pages.length > 0 ? pages : [{ pageIndex: 0, items: [], heightUsedPx: 0 }];
+    return pages.length > 0
+        ? pages
+        : [{ pageId: pageIdAt(0), pageIndex: 0, items: [], heightUsedPx: 0 }];
 }

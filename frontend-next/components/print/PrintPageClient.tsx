@@ -7,34 +7,84 @@ import { jobPostingApi, printTemplateApi } from '@/lib/api';
 import { PrintCanvas } from './PrintCanvas';
 
 export function PrintPageClient({
+    workspaceSlug,
     introData,
     adminMode,
     templateId,
     jobPostingId,
 }: {
-    introData: IntroductionResponse;
+    workspaceSlug: string;
+    introData: IntroductionResponse | null;
     adminMode: boolean;
     templateId: number | null;
     jobPostingId: number | null;
 }) {
     const router = useRouter();
-    const { data: templates = [], isLoading } = useQuery({
-        queryKey: ['printTemplates', adminMode ? 'admin' : 'public', 'print-page'],
-        queryFn: adminMode ? printTemplateApi.adminList : printTemplateApi.list,
-        enabled: templateId != null,
+    const {
+        data: outputSource,
+        error: outputSourceError,
+        isError: isOutputSourceError,
+        isLoading: isOutputSourceLoading,
+    } = useQuery({
+        queryKey: ['workspace', workspaceSlug, 'output-source'],
+        queryFn: () => printTemplateApi.workspaceOutputSource(workspaceSlug),
+        enabled: adminMode,
+        // 원본 관리 화면에서 저장한 직후 이동해도 이전의 빈 projection을 재사용하지 않는다.
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
-    const initialTemplate = templateId == null ? null : templates.find((t) => t.id === templateId);
+    const resolvedIntroData = adminMode ? (outputSource ?? null) : introData;
+    const shouldLoadTemplates = templateId != null || !adminMode;
+    const { data: templates = [], isLoading } = useQuery({
+        queryKey: ['printTemplates', workspaceSlug, adminMode ? 'admin' : 'public', 'print-page'],
+        queryFn: () =>
+            adminMode
+                ? printTemplateApi.workspaceAdminList(workspaceSlug)
+                : printTemplateApi.workspacePublicList(workspaceSlug),
+        enabled: shouldLoadTemplates,
+    });
+    const defaultTemplate = adminMode
+        ? null
+        : (templates.find((template) => template.targetRole === 'BACKEND_GENERAL') ?? null);
+    const initialTemplate =
+        templateId == null
+            ? defaultTemplate
+            : (templates.find((template) => template.id === templateId) ?? null);
 
     const { data: coverLetterItems = [] } = useQuery({
-        queryKey: ['jobPostingCoverLetterItems', jobPostingId],
-        queryFn: () => jobPostingApi.coverLetterItems(jobPostingId as number),
+        queryKey: ['jobPostingCoverLetterItems', workspaceSlug, jobPostingId],
+        queryFn: () =>
+            jobPostingApi.workspaceCoverLetterItems(workspaceSlug, jobPostingId as number),
         enabled: adminMode && jobPostingId != null,
     });
 
-    if (templateId != null && isLoading) {
+    if ((shouldLoadTemplates && isLoading) || (adminMode && isOutputSourceLoading)) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-900 text-sm font-bold text-slate-300">
                 템플릿을 불러오는 중입니다.
+            </div>
+        );
+    }
+
+    if (adminMode && isOutputSourceError) {
+        return (
+            <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-900 px-6 text-center">
+                <p className="text-sm font-bold text-rose-300">출력 원본을 불러오지 못했습니다.</p>
+                <p className="max-w-xl text-xs text-slate-400">
+                    {outputSourceError instanceof Error
+                        ? outputSourceError.message
+                        : '로그인 상태와 Workspace 접근 권한을 확인해 주세요.'}
+                </p>
+            </div>
+        );
+    }
+
+    if (!resolvedIntroData?.profile) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-slate-900 text-sm font-bold text-rose-300">
+                {adminMode
+                    ? '먼저 프로필 원본을 저장해 주세요.'
+                    : '프로필 정보를 불러올 수 없습니다.'}
             </div>
         );
     }
@@ -50,12 +100,19 @@ export function PrintPageClient({
     return (
         <PrintCanvas
             key={initialTemplate?.id ?? 'manual'}
-            introData={introData}
+            workspaceSlug={workspaceSlug}
+            introData={resolvedIntroData}
             adminMode={adminMode}
             initialTemplate={initialTemplate}
             coverLetterItems={coverLetterItems}
             jobPostingId={jobPostingId}
-            onExit={() => router.push(adminMode ? '/admin' : '/')}
+            onExit={() =>
+                router.push(
+                    adminMode
+                        ? `/workspace/${encodeURIComponent(workspaceSlug)}/manage?tab=PRINT_TEMPLATES`
+                        : `/workspace/${encodeURIComponent(workspaceSlug)}`
+                )
+            }
         />
     );
 }

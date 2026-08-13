@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react';
+import type { OutputLayout } from '@/lib/printLayoutModel';
+import type { PrintTemplateContentOverrides } from '@/lib/api/types';
 
 export type LocalPrintSave = {
     id: string;
@@ -7,7 +9,9 @@ export type LocalPrintSave = {
     sectionOrder: string[];
     sectionGaps: Record<string, number>;
     forcedPageOverrides?: Record<string, number>;
+    outputLayout?: OutputLayout;
     itemOrderOverrides?: Record<string, string[]>;
+    contentOverrides?: PrintTemplateContentOverrides;
     baseContentFingerprint?: string;
     savedAt: string; // ISO timestamp
 };
