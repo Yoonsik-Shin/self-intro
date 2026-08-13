@@ -7,7 +7,9 @@ import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
 import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
+import com.selfintro.modules.skill.domain.entity.WorkspaceSkill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
@@ -26,6 +28,7 @@ public class CompetencyService {
 
     private final CompetencyRepository competencyRepository;
     private final SkillRepository skillRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final ExperienceRepository experienceRepository;
     private final StudyRepository studyRepository;
 
@@ -41,6 +44,33 @@ public class CompetencyService {
                 .toList();
     }
 
+    public List<CompetencyResponse> getAll(Long workspaceId) {
+        return competencyRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId).stream()
+                .map(competency -> CompetencyResponse.from(competency, false))
+                .toList();
+    }
+
+    public List<CompetencyResponse> getVisible(Long workspaceId) {
+        return competencyRepository
+                .findAllByWorkspaceIdAndVisibleTrueOrderByDisplayOrderAsc(workspaceId)
+                .stream()
+                .map(competency -> CompetencyResponse.from(competency, true))
+                .toList();
+    }
+
+    public List<CompetencyResponse> getForPublication(Long workspaceId, List<Long> orderedIds) {
+        Map<Long, Competency> selected =
+                competencyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, orderedIds).stream()
+                        .collect(Collectors.toMap(Competency::getId, Function.identity()));
+        if (selected.size() != orderedIds.stream().distinct().count()) {
+            throw new IllegalArgumentException("다른 Workspace의 핵심 역량이 포함되어 있습니다.");
+        }
+        return orderedIds.stream()
+                .map(selected::get)
+                .map(competency -> CompetencyResponse.from(competency, true))
+                .toList();
+    }
+
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
     public CompetencyResponse create(CompetencyRequest request) {
@@ -52,6 +82,21 @@ public class CompetencyService {
                         request.displayOrder(),
                         request.visible());
         replaceLinks(competency, request);
+        return CompetencyResponse.from(competencyRepository.save(competency), false);
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
+    public CompetencyResponse create(Long workspaceId, CompetencyRequest request) {
+        validate(request);
+        Competency competency =
+                Competency.create(
+                        workspaceId,
+                        request.title(),
+                        request.summary(),
+                        request.displayOrder(),
+                        false);
+        replaceLinks(workspaceId, competency, request);
         return CompetencyResponse.from(competencyRepository.save(competency), false);
     }
 
@@ -72,11 +117,31 @@ public class CompetencyService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
+    public CompetencyResponse update(Long workspaceId, Long id, CompetencyRequest request) {
+        validate(request);
+        Competency competency = requireOwned(workspaceId, id);
+        competency.update(
+                request.title(), request.summary(), request.displayOrder(), competency.isVisible());
+        competency.clearLinks();
+        competencyRepository.flush();
+        replaceLinks(workspaceId, competency, request);
+        competencyRepository.flush();
+        return CompetencyResponse.from(competency, false);
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!competencyRepository.existsById(id)) {
             throw new IllegalArgumentException("존재하지 않는 핵심 역량입니다.");
         }
         competencyRepository.deleteById(id);
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
+    public void delete(Long workspaceId, Long id) {
+        competencyRepository.delete(requireOwned(workspaceId, id));
     }
 
     @Transactional
@@ -92,11 +157,34 @@ public class CompetencyService {
     }
 
     @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
+    public List<CompetencyResponse> batchChangeVisibility(
+            Long workspaceId, List<Long> ids, boolean visible) {
+        List<Competency> competencies =
+                competencyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, ids);
+        requireCompleteSelection(ids, competencies);
+        competencies.forEach(competency -> competency.changeVisibility(visible));
+        competencyRepository.flush();
+        return competencies.stream()
+                .map(competency -> CompetencyResponse.from(competency, false))
+                .toList();
+    }
+
+    @Transactional
     public CompetencyResponse toggleVisibility(Long id) {
         Competency competency =
                 competencyRepository
                         .findById(id)
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 핵심 역량입니다."));
+        competency.changeVisibility(!competency.isVisible());
+        competencyRepository.flush();
+        return CompetencyResponse.from(competency, false);
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
+    public CompetencyResponse toggleVisibility(Long workspaceId, Long id) {
+        Competency competency = requireOwned(workspaceId, id);
         competency.changeVisibility(!competency.isVisible());
         competencyRepository.flush();
         return CompetencyResponse.from(competency, false);
@@ -117,6 +205,21 @@ public class CompetencyService {
         }
         competencyRepository.flush();
         return getAll();
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:introduction", allEntries = true)
+    public List<CompetencyResponse> reorder(Long workspaceId, List<Long> orderedIds) {
+        List<Competency> list =
+                competencyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, orderedIds);
+        requireCompleteSelection(orderedIds, list);
+        Map<Long, Competency> byId =
+                list.stream().collect(Collectors.toMap(Competency::getId, Function.identity()));
+        for (int i = 0; i < orderedIds.size(); i++) {
+            byId.get(orderedIds.get(i)).changeDisplayOrder(i + 1);
+        }
+        competencyRepository.flush();
+        return getAll(workspaceId);
     }
 
     private void validate(CompetencyRequest request) {
@@ -180,5 +283,68 @@ public class CompetencyService {
         competency.replaceSkills(skills);
         competency.replaceEvidences(evidences);
         competency.replaceStudies(studies);
+    }
+
+    private void replaceLinks(Long workspaceId, Competency competency, CompetencyRequest request) {
+        List<WorkspaceSkill> workspaceSkills =
+                workspaceSkillRepository.findAllByWorkspaceIdAndSkill_IdIn(
+                        workspaceId, request.skillIds());
+        if (workspaceSkills.size() != request.skillIds().stream().distinct().count()) {
+            throw new IllegalArgumentException("현재 Workspace에 추가되지 않은 기술이 포함되어 있습니다.");
+        }
+        List<Skill> skills = workspaceSkills.stream().map(WorkspaceSkill::getSkill).toList();
+
+        List<Long> experienceIds =
+                request.evidences().stream()
+                        .map(CompetencyRequest.EvidenceRequest::experienceId)
+                        .toList();
+        List<Experience> experiences =
+                experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, experienceIds);
+        Map<Long, Experience> experienceById =
+                experiences.stream()
+                        .collect(Collectors.toMap(Experience::getId, Function.identity()));
+        if (experienceById.size() != experienceIds.stream().distinct().count()) {
+            throw new IllegalArgumentException("다른 Workspace의 경력/프로젝트가 포함되어 있습니다.");
+        }
+
+        List<Competency.EvidenceDraft> evidences =
+                request.evidences().stream()
+                        .map(
+                                item -> {
+                                    Experience experience = experienceById.get(item.experienceId());
+                                    if (!"CAREER".equals(experience.getType())
+                                            && !"PROJECT".equals(experience.getType())) {
+                                        throw new IllegalArgumentException(
+                                                "핵심 역량 근거에는 경력 또는 프로젝트만 연결할 수 있습니다.");
+                                    }
+                                    return new Competency.EvidenceDraft(
+                                            experience,
+                                            item.evidenceSummary(),
+                                            item.primary(),
+                                            item.displayOrder());
+                                })
+                        .toList();
+
+        List<Study> studies =
+                studyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, request.studyIds());
+        if (studies.size() != request.studyIds().stream().distinct().count()) {
+            throw new IllegalArgumentException("다른 Workspace의 Study가 포함되어 있습니다.");
+        }
+
+        competency.replaceSkills(skills);
+        competency.replaceEvidences(evidences);
+        competency.replaceStudies(studies);
+    }
+
+    private Competency requireOwned(Long workspaceId, Long id) {
+        return competencyRepository
+                .findByIdAndWorkspaceId(id, workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 핵심 역량입니다."));
+    }
+
+    private void requireCompleteSelection(List<Long> ids, List<Competency> competencies) {
+        if (competencies.size() != ids.stream().distinct().count()) {
+            throw new IllegalArgumentException("다른 Workspace의 핵심 역량이 포함되어 있습니다.");
+        }
     }
 }

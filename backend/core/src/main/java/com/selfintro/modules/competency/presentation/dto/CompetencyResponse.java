@@ -39,7 +39,7 @@ public record CompetencyResponse(
                 competency.getDisplayOrder(),
                 competency.isVisible(),
                 competency.getSkillLinks().stream()
-                        .map(link -> SkillResponse.from(link.getSkill()))
+                        .map(link -> SkillResponse.fromCatalog(link.getSkill()))
                         .toList(),
                 evidences,
                 studies);

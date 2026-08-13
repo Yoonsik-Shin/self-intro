@@ -23,6 +23,9 @@ public class Competency {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
     @Column(nullable = false, length = 120)
     private String title;
 
@@ -68,6 +71,13 @@ public class Competency {
     public static Competency create(
             String title, String summary, int displayOrder, boolean visible) {
         return new Competency(title, summary, displayOrder, visible);
+    }
+
+    public static Competency create(
+            Long workspaceId, String title, String summary, int displayOrder, boolean visible) {
+        Competency competency = new Competency(title, summary, displayOrder, visible);
+        competency.workspaceId = workspaceId;
+        return competency;
     }
 
     public void update(String title, String summary, int displayOrder, boolean visible) {

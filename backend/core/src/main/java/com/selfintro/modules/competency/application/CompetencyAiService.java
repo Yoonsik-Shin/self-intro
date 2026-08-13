@@ -20,6 +20,7 @@ import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.io.IOException;
@@ -70,6 +71,7 @@ public class CompetencyAiService {
 
     private final CompetencyRepository competencyRepository;
     private final SkillRepository skillRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final ExperienceRepository experienceRepository;
     private final StudyRepository studyRepository;
     private final NvidiaNimClient nvidiaNimClient;
@@ -79,12 +81,14 @@ public class CompetencyAiService {
     public CompetencyAiService(
             CompetencyRepository competencyRepository,
             SkillRepository skillRepository,
+            WorkspaceSkillRepository workspaceSkillRepository,
             ExperienceRepository experienceRepository,
             StudyRepository studyRepository,
             NvidiaNimClient nvidiaNimClient,
             ObjectMapper objectMapper) {
         this.competencyRepository = competencyRepository;
         this.skillRepository = skillRepository;
+        this.workspaceSkillRepository = workspaceSkillRepository;
         this.experienceRepository = experienceRepository;
         this.studyRepository = studyRepository;
         this.nvidiaNimClient = nvidiaNimClient;
@@ -92,12 +96,17 @@ public class CompetencyAiService {
     }
 
     public CompetencySuggestionResponse suggest(CompetencySuggestionRequest request) {
+        return suggest(null, request);
+    }
+
+    public CompetencySuggestionResponse suggest(
+            Long workspaceId, CompetencySuggestionRequest request) {
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 핵심 역량 AI 초안을 생성하고 있습니다.");
         }
         try {
-            return run(prepare(request), null);
+            return run(prepare(workspaceId, request), null);
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 오케스트레이션 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
@@ -107,13 +116,17 @@ public class CompetencyAiService {
     }
 
     public SseEmitter suggestStream(CompetencySuggestionRequest request) {
+        return suggestStream(null, request);
+    }
+
+    public SseEmitter suggestStream(Long workspaceId, CompetencySuggestionRequest request) {
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 핵심 역량 AI 초안을 생성하고 있습니다.");
         }
         PreparedGeneration prepared;
         try {
-            prepared = prepare(request);
+            prepared = prepare(workspaceId, request);
         } catch (RuntimeException exception) {
             generating.set(false);
             throw exception;
@@ -127,13 +140,15 @@ public class CompetencyAiService {
 
     private SseEmitter createSseEmitter(long timeoutMillis) {
         SseEmitter emitter = new SseEmitter(timeoutMillis);
-        emitter.onTimeout(() -> {
-            log.info("핵심 역량 AI SSE 스트림 타임아웃 발생");
-            emitter.complete();
-        });
-        emitter.onError(ex -> {
-            log.debug("핵심 역량 AI SSE 스트림 에러: {}", ex.getMessage());
-        });
+        emitter.onTimeout(
+                () -> {
+                    log.info("핵심 역량 AI SSE 스트림 타임아웃 발생");
+                    emitter.complete();
+                });
+        emitter.onError(
+                ex -> {
+                    log.debug("핵심 역량 AI SSE 스트림 에러: {}", ex.getMessage());
+                });
         return emitter;
     }
 
@@ -241,38 +256,76 @@ public class CompetencyAiService {
                         .collect(toLinkedSet()));
     }
 
-    private PreparedGeneration prepare(CompetencySuggestionRequest request) {
+    private PreparedGeneration prepare(Long workspaceId, CompetencySuggestionRequest request) {
         List<Skill> skills =
                 fetchAndValidate(
                         request.skillIds(),
-                        skillRepository::findAllById,
-                        skillRepository::findAllByOrderByDisplayOrderAsc,
+                        ids ->
+                                workspaceId == null
+                                        ? skillRepository.findAllById(ids)
+                                        : workspaceSkillRepository
+                                                .findAllByWorkspaceIdAndSkill_IdIn(workspaceId, ids)
+                                                .stream()
+                                                .map(item -> item.getSkill())
+                                                .toList(),
+                        () ->
+                                workspaceId == null
+                                        ? skillRepository.findAllByOrderByDisplayOrderAsc()
+                                        : workspaceSkillRepository
+                                                .findAllByWorkspaceIdOrderByDisplayOrderAsc(
+                                                        workspaceId)
+                                                .stream()
+                                                .map(item -> item.getSkill())
+                                                .toList(),
                         Skill::getId,
                         "기술");
         List<Experience> experiences =
                 fetchAndValidate(
                         request.experienceIds(),
-                        experienceRepository::findAllById,
+                        ids ->
+                                workspaceId == null
+                                        ? experienceRepository.findAllById(ids)
+                                        : experienceRepository.findAllByWorkspaceIdAndIdIn(
+                                                workspaceId, ids),
                         () ->
-                                experienceRepository.findAllByOrderByDisplayOrderAsc().stream()
-                                        .filter(
-                                                item ->
-                                                        "CAREER".equals(item.getType())
-                                                                || "PROJECT".equals(item.getType()))
-                                        .toList(),
+                                (workspaceId == null
+                                                ? experienceRepository
+                                                        .findAllByOrderByDisplayOrderAsc()
+                                                : experienceRepository
+                                                        .findAllByWorkspaceIdOrderByDisplayOrderAsc(
+                                                                workspaceId))
+                                        .stream()
+                                                .filter(
+                                                        item ->
+                                                                "CAREER".equals(item.getType())
+                                                                        || "PROJECT"
+                                                                                .equals(
+                                                                                        item
+                                                                                                .getType()))
+                                                .toList(),
                         Experience::getId,
                         "경력/프로젝트");
         List<Study> studies =
                 fetchAndValidate(
                         request.studyIds(),
-                        studyRepository::findAllById,
-                        studyRepository::findAll,
+                        ids ->
+                                workspaceId == null
+                                        ? studyRepository.findAllById(ids)
+                                        : studyRepository.findAllByWorkspaceIdAndIdIn(
+                                                workspaceId, ids),
+                        () ->
+                                workspaceId == null
+                                        ? studyRepository.findAll()
+                                        : studyRepository.findAllByWorkspaceIdOrderByTitleAsc(
+                                                workspaceId),
                         Study::getId,
                         "Study");
         List<ExistingCompetency> existingCompetencies =
-                competencyRepository.findAllByOrderByDisplayOrderAsc().stream()
-                        .map(ExistingCompetency::from)
-                        .toList();
+                (workspaceId == null
+                                ? competencyRepository.findAllByOrderByDisplayOrderAsc()
+                                : competencyRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(
+                                        workspaceId))
+                        .stream().map(ExistingCompetency::from).toList();
 
         ExtractionContext extractionContext =
                 new ExtractionContext(

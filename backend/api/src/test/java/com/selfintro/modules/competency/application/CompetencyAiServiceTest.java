@@ -1,10 +1,12 @@
 package com.selfintro.modules.competency.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +17,7 @@ import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
@@ -30,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CompetencyAiServiceTest {
     @Mock CompetencyRepository competencyRepository;
     @Mock SkillRepository skillRepository;
+    @Mock WorkspaceSkillRepository workspaceSkillRepository;
     @Mock ExperienceRepository experienceRepository;
     @Mock StudyRepository studyRepository;
     @Mock NvidiaNimClient nvidiaNimClient;
@@ -42,6 +46,7 @@ class CompetencyAiServiceTest {
                 new CompetencyAiService(
                         competencyRepository,
                         skillRepository,
+                        workspaceSkillRepository,
                         experienceRepository,
                         studyRepository,
                         nvidiaNimClient,
@@ -121,5 +126,22 @@ class CompetencyAiServiceTest {
         assertThat(userPrompt.getAllValues().get(1))
                 .contains("evidenceGroups", "실제 프로젝트에서 검증된 근거")
                 .doesNotContain("포트폴리오 프로젝트");
+    }
+
+    @Test
+    void workspaceGenerationRejectsExperienceOutsideWorkspaceBeforeCallingProvider() {
+        when(workspaceSkillRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(7L))
+                .thenReturn(List.of());
+        when(experienceRepository.findAllByWorkspaceIdAndIdIn(7L, List.of(99L)))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(
+                        () ->
+                                service.suggest(
+                                        7L,
+                                        new CompetencySuggestionRequest(
+                                                "", "", "", List.of(), List.of(99L), List.of())))
+                .hasMessageContaining("존재하지 않는 경력/프로젝트 ID");
+        verifyNoInteractions(nvidiaNimClient);
     }
 }

@@ -3,6 +3,7 @@ package com.selfintro.modules.competency.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.selfintro.modules.competency.domain.entity.Competency;
@@ -10,6 +11,7 @@ import com.selfintro.modules.competency.domain.repository.CompetencyRepository;
 import com.selfintro.modules.competency.presentation.dto.CompetencyRequest;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CompetencyServiceTest {
     @Mock CompetencyRepository competencyRepository;
     @Mock SkillRepository skillRepository;
+    @Mock WorkspaceSkillRepository workspaceSkillRepository;
     @Mock ExperienceRepository experienceRepository;
     @Mock StudyRepository studyRepository;
 
@@ -33,6 +36,7 @@ class CompetencyServiceTest {
                 new CompetencyService(
                         competencyRepository,
                         skillRepository,
+                        workspaceSkillRepository,
                         experienceRepository,
                         studyRepository);
     }
@@ -70,6 +74,26 @@ class CompetencyServiceTest {
         assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("대표 실무 근거");
+    }
+
+    @Test
+    void rejectsCatalogSkillMissingFromWorkspaceOverlay() {
+        when(workspaceSkillRepository.findAllByWorkspaceIdAndSkill_IdIn(10L, List.of(31L)))
+                .thenReturn(List.of());
+        CompetencyRequest request =
+                new CompetencyRequest(
+                        "격리된 역량",
+                        "Workspace가 선택한 기술만 연결합니다.",
+                        1,
+                        true,
+                        List.of(31L),
+                        List.of(),
+                        List.of());
+
+        assertThatThrownBy(() -> service.create(10L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("현재 Workspace에 추가되지 않은 기술");
+        verifyNoInteractions(competencyRepository);
     }
 
     @Test
