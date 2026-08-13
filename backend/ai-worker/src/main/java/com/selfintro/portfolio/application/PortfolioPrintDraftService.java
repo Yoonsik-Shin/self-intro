@@ -106,18 +106,29 @@ public class PortfolioPrintDraftService {
     private final ObjectMapper objectMapper;
 
     public SseEmitter generateStream(
-            Long caseStudyId, String orientation, String aiModel, String customModelName) {
-        SseEmitter emitter = printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "포트폴리오 PDF 초안");
+            Long workspaceId,
+            Long caseStudyId,
+            String orientation,
+            String aiModel,
+            String customModelName) {
+        SseEmitter emitter =
+                printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "포트폴리오 PDF 초안");
         Thread.ofVirtual()
                 .name("portfolio-print-draft-stream")
                 .start(
                         () ->
                                 streamGenerate(
-                                        caseStudyId, orientation, aiModel, customModelName, emitter));
+                                        workspaceId,
+                                        caseStudyId,
+                                        orientation,
+                                        aiModel,
+                                        customModelName,
+                                        emitter));
         return emitter;
     }
 
     private void streamGenerate(
+            Long workspaceId,
             Long caseStudyId,
             String orientation,
             String aiModel,
@@ -125,7 +136,7 @@ public class PortfolioPrintDraftService {
             SseEmitter emitter) {
         try {
             PortfolioPrintDraftResponse response =
-                    generate(caseStudyId, orientation, aiModel, customModelName);
+                    generate(workspaceId, caseStudyId, orientation, aiModel, customModelName);
             printDraftStreamSupport.sendComplete(emitter, response);
         } catch (ResponseStatusException exception) {
             log.warn("AI 포트폴리오 PDF 초안 스트리밍 실패: {}", exception.getReason(), exception);
@@ -139,17 +150,20 @@ public class PortfolioPrintDraftService {
     }
 
     public SseEmitter reviseStream(
+            Long workspaceId,
             Long caseStudyId,
             Long templateId,
             String feedbackInstruction,
             String aiModel,
             String customModelName) {
-        SseEmitter emitter = printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "포트폴리오 PDF 재생성");
+        SseEmitter emitter =
+                printDraftStreamSupport.createEmitter(STREAM_TIMEOUT_MILLIS, "포트폴리오 PDF 재생성");
         Thread.ofVirtual()
                 .name("portfolio-print-draft-revise-stream")
                 .start(
                         () ->
                                 streamRevise(
+                                        workspaceId,
                                         caseStudyId,
                                         templateId,
                                         feedbackInstruction,
@@ -160,6 +174,7 @@ public class PortfolioPrintDraftService {
     }
 
     private void streamRevise(
+            Long workspaceId,
             Long caseStudyId,
             Long templateId,
             String feedbackInstruction,
@@ -168,12 +183,19 @@ public class PortfolioPrintDraftService {
             SseEmitter emitter) {
         try {
             PortfolioPrintDraftResponse response =
-                    revise(caseStudyId, templateId, feedbackInstruction, aiModel, customModelName);
+                    revise(
+                            workspaceId,
+                            caseStudyId,
+                            templateId,
+                            feedbackInstruction,
+                            aiModel,
+                            customModelName);
             printDraftStreamSupport.sendComplete(emitter, response);
         } catch (ResponseStatusException exception) {
             log.warn("AI 포트폴리오 PDF 재생성 스트리밍 실패: {}", exception.getReason(), exception);
             printDraftStreamSupport.sendError(
-                    emitter, exception.getReason() == null ? "PDF 재생성에 실패했습니다." : exception.getReason());
+                    emitter,
+                    exception.getReason() == null ? "PDF 재생성에 실패했습니다." : exception.getReason());
         } catch (Exception exception) {
             log.warn("AI 포트폴리오 PDF 재생성 스트리밍 중 예상하지 못한 오류", exception);
             printDraftStreamSupport.sendError(emitter, "PDF 재생성 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -181,20 +203,30 @@ public class PortfolioPrintDraftService {
     }
 
     private PortfolioPrintDraftResponse generate(
-            Long caseStudyId, String orientation, String aiModel, String customModelName) {
-        PortfolioCaseStudy caseStudy = getPublishedCaseStudy(caseStudyId);
+            Long workspaceId,
+            Long caseStudyId,
+            String orientation,
+            String aiModel,
+            String customModelName) {
+        PortfolioCaseStudy caseStudy = getPublishedCaseStudy(workspaceId, caseStudyId);
         PortfolioCaseStudyContent content = loadPublishedContent(caseStudy);
 
         String input = writeJson(content);
         String raw =
                 llmDispatcher.generateJson(
-                        SYSTEM_PROMPT, input, aiModel, customModelName, AI_MAX_OUTPUT_TOKENS, AI_TIMEOUT);
+                        SYSTEM_PROMPT,
+                        input,
+                        aiModel,
+                        customModelName,
+                        AI_MAX_OUTPUT_TOKENS,
+                        AI_TIMEOUT);
         JsonNode plan = parseJson(raw);
 
         DraftArtifacts artifacts = assemble(plan, content);
         String metadata = writeJson(buildMetadata(plan, artifacts));
         PrintTemplate template =
                 printTemplateService.createPortfolioAiDraft(
+                        workspaceId,
                         caseStudyId,
                         caseStudy.getTitle(),
                         orientation,
@@ -226,14 +258,18 @@ public class PortfolioPrintDraftService {
     }
 
     private PortfolioPrintDraftResponse revise(
+            Long workspaceId,
             Long caseStudyId,
             Long templateId,
             String feedbackInstruction,
             String aiModel,
             String customModelName) {
-        PortfolioCaseStudy caseStudy = getPublishedCaseStudy(caseStudyId);
+        PortfolioCaseStudy caseStudy = getPublishedCaseStudy(workspaceId, caseStudyId);
         PortfolioCaseStudyContent content = loadPublishedContent(caseStudy);
-        PrintTemplate current = printTemplateService.getOrThrow(templateId);
+        PrintTemplate current = printTemplateService.getOrThrow(workspaceId, templateId);
+        if (!caseStudyId.equals(current.getPortfolioCaseStudyId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "PDF 초안을 찾을 수 없습니다.");
+        }
 
         String input = serializeRevisionInput(content, current, feedbackInstruction);
         String raw =
@@ -250,6 +286,7 @@ public class PortfolioPrintDraftService {
         String metadata = writeJson(buildMetadata(plan, artifacts));
         PrintTemplate template =
                 printTemplateService.applyAiRevision(
+                        workspaceId,
                         templateId,
                         writeJson(artifacts.excludedIds()),
                         SECTION_ORDER,
@@ -271,7 +308,11 @@ public class PortfolioPrintDraftService {
         }
         printTemplateRevisionRepository.save(
                 PrintTemplateRevision.create(
-                        templateId, PrintTemplateRevision.SENDER_AI, strategySummary, modelLabel, now));
+                        templateId,
+                        PrintTemplateRevision.SENDER_AI,
+                        strategySummary,
+                        modelLabel,
+                        now));
 
         return new PortfolioPrintDraftResponse(
                 template.getId(),
@@ -283,10 +324,10 @@ public class PortfolioPrintDraftService {
                 strings(plan.path("warnings")));
     }
 
-    private PortfolioCaseStudy getPublishedCaseStudy(Long caseStudyId) {
+    private PortfolioCaseStudy getPublishedCaseStudy(Long workspaceId, Long caseStudyId) {
         PortfolioCaseStudy caseStudy =
                 caseStudyRepository
-                        .findById(caseStudyId)
+                        .findByIdAndWorkspaceId(caseStudyId, workspaceId)
                         .orElseThrow(
                                 () ->
                                         new EntityNotFoundException(
@@ -324,7 +365,9 @@ public class PortfolioPrintDraftService {
         currentDraft.set("excludedIds", readJsonOrEmptyArray(current.getExcludedIds()));
         currentDraft.set("contentOverrides", readJsonOrEmptyObject(current.getContentOverrides()));
         input.set("currentDraft", currentDraft);
-        input.put("feedbackInstruction", feedbackInstruction == null ? "" : feedbackInstruction.trim());
+        input.put(
+                "feedbackInstruction",
+                feedbackInstruction == null ? "" : feedbackInstruction.trim());
         return writeJson(input);
     }
 
@@ -340,9 +383,12 @@ public class PortfolioPrintDraftService {
                         && AiJsonSupport.hasText(content.architecture().mermaidSource());
         boolean hasArchitecture = hasMermaid || imageCount > 0;
 
-        Set<Integer> includedTradeoffs = validIndexes(plan.path("includedTradeoffIndexes"), tradeoffCount);
-        if (includedTradeoffs.isEmpty() && tradeoffCount > 0) includedTradeoffs = allIndexes(tradeoffCount);
-        Set<Integer> includedMetrics = validIndexes(plan.path("includedMetricIndexes"), metricCount);
+        Set<Integer> includedTradeoffs =
+                validIndexes(plan.path("includedTradeoffIndexes"), tradeoffCount);
+        if (includedTradeoffs.isEmpty() && tradeoffCount > 0)
+            includedTradeoffs = allIndexes(tradeoffCount);
+        Set<Integer> includedMetrics =
+                validIndexes(plan.path("includedMetricIndexes"), metricCount);
         if (includedMetrics.isEmpty() && metricCount > 0) includedMetrics = allIndexes(metricCount);
         JsonNode includeArchitectureNode = plan.path("includeArchitecture");
         boolean includeArchitecture =
@@ -375,7 +421,9 @@ public class PortfolioPrintDraftService {
         payload.set("narrative", narrative);
 
         int includedCount =
-                includedTradeoffs.size() + includedMetrics.size() + (includeArchitecture && hasArchitecture ? 1 : 0);
+                includedTradeoffs.size()
+                        + includedMetrics.size()
+                        + (includeArchitecture && hasArchitecture ? 1 : 0);
         return new DraftArtifacts(List.copyOf(excluded), payload, includedCount);
     }
 
@@ -473,7 +521,9 @@ public class PortfolioPrintDraftService {
 
     private JsonNode readJsonOrEmptyArray(String raw) {
         try {
-            return raw == null || raw.isBlank() ? objectMapper.createArrayNode() : objectMapper.readTree(raw);
+            return raw == null || raw.isBlank()
+                    ? objectMapper.createArrayNode()
+                    : objectMapper.readTree(raw);
         } catch (JsonProcessingException exception) {
             return objectMapper.createArrayNode();
         }
@@ -481,7 +531,9 @@ public class PortfolioPrintDraftService {
 
     private JsonNode readJsonOrEmptyObject(String raw) {
         try {
-            return raw == null || raw.isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(raw);
+            return raw == null || raw.isBlank()
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.readTree(raw);
         } catch (JsonProcessingException exception) {
             return objectMapper.createObjectNode();
         }

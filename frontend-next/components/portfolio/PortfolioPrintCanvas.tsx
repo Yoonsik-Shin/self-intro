@@ -45,6 +45,8 @@ type PortfolioContentOverridesPayload = {
 };
 
 type Props = {
+    workspaceSlug: string;
+    enablePlatformAi?: boolean;
     caseStudy: Pick<PortfolioCaseStudy, 'id' | 'title'>;
     content: PortfolioCaseStudyContent;
     onExit: () => void;
@@ -122,6 +124,8 @@ function triggerPrint(orientation: PageOrientation) {
 }
 
 export function PortfolioPrintCanvas({
+    workspaceSlug,
+    enablePlatformAi = false,
     caseStudy,
     content,
     onExit,
@@ -141,10 +145,10 @@ export function PortfolioPrintCanvas({
     // 이미 저장된 배치(대개 AI 초안)를 편집 중일 때만 대화형 재생성이 가능하다 — 아직
     // 저장된 적 없는 방향(initialLayout=null)에는 다듬을 대상 자체가 없다.
     const templateId = initialLayout?.id ?? null;
-    const canRevise = Boolean(templateId);
+    const canRevise = Boolean(enablePlatformAi && templateId);
     const { data: revisions = [], isLoading: isRevisionsLoading } = useQuery({
-        queryKey: ['printTemplateRevisions', templateId],
-        queryFn: () => printTemplateApi.revisions(templateId!),
+        queryKey: ['workspace', workspaceSlug, 'printTemplateRevisions', templateId],
+        queryFn: () => printTemplateApi.workspaceRevisions(workspaceSlug, templateId!),
         enabled: aiChatOpen && canRevise,
     });
 
@@ -167,6 +171,7 @@ export function PortfolioPrintCanvas({
         reviseAbortControllerRef.current = controller;
         try {
             await portfolioPrintDraftApi.reviseStream(
+                workspaceSlug,
                 caseStudy.id,
                 templateId,
                 feedbackInstruction ?? '',
@@ -176,9 +181,17 @@ export function PortfolioPrintCanvas({
                         return;
                     }
                     queryClient.invalidateQueries({
-                        queryKey: ['printTemplateRevisions', templateId],
+                        queryKey: [
+                            'workspace',
+                            workspaceSlug,
+                            'printTemplateRevisions',
+                            templateId,
+                        ],
                     });
-                    const refreshed = await printTemplateApi.listByPortfolioCaseStudy(caseStudy.id);
+                    const refreshed = await printTemplateApi.workspaceListByPortfolioCaseStudy(
+                        workspaceSlug,
+                        caseStudy.id
+                    );
                     const updated = refreshed.find((t) => t.id === event.response.templateId);
                     if (updated) {
                         const payload = updated.contentOverrides as

@@ -22,6 +22,7 @@ function aiModelQuery(aiModel?: string, customModelName?: string): string {
 
 export const portfolioPrintDraftApi = {
     generateStream: (
+        workspaceSlug: string,
         caseStudyId: number,
         orientation: 'PORTRAIT' | 'LANDSCAPE',
         onEvent: (event: PortfolioPrintDraftStreamEvent) => void,
@@ -30,12 +31,13 @@ export const portfolioPrintDraftApi = {
         customModelName?: string
     ) =>
         requestEventStream<PortfolioPrintDraftStreamEvent>(
-            `/api/worker/portfolio/case-studies/${caseStudyId}/print-draft/stream${draftQuery(orientation, aiModel, customModelName)}`,
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${caseStudyId}/print-draft/stream${draftQuery(orientation, aiModel, customModelName)}`,
             {},
             onEvent,
             signal
         ),
     reviseStream: (
+        workspaceSlug: string,
         caseStudyId: number,
         templateId: number,
         feedbackInstruction: string,
@@ -45,7 +47,7 @@ export const portfolioPrintDraftApi = {
         customModelName?: string
     ) =>
         requestEventStream<PortfolioPrintDraftStreamEvent>(
-            `/api/worker/portfolio/case-studies/${caseStudyId}/print-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${caseStudyId}/print-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
             { feedbackInstruction },
             onEvent,
             signal

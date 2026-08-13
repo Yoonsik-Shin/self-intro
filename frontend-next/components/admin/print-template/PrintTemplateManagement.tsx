@@ -20,10 +20,10 @@ import {
     FolderGit2,
     Sparkles,
     Loader2,
+    History,
 } from 'lucide-react';
 import {
     ApiError,
-    bffApi,
     printTemplateApi,
     jobPostingApi,
     portfolioApi,
@@ -75,7 +75,13 @@ const PRIVATE_TABS: { key: PrivateTab; label: string; icon: typeof User }[] = [
  * 목록에서는 공개 여부와 순서를 관리한다.
  * 템플릿 문구 편집 및 레이아웃 조정은 /print 관리자 미리보기에서 WYSIWYG으로 통합 관리한다.
  */
-export function PrintTemplateManagement() {
+export function PrintTemplateManagement({
+    workspaceSlug,
+    enablePlatformAi,
+}: {
+    workspaceSlug: string;
+    enablePlatformAi: boolean;
+}) {
     const queryClient = useQueryClient();
     const [privateTab, setPrivateTab] = useState<PrivateTab>('general');
     const localSaves = useLocalPrintSaves();
@@ -86,25 +92,54 @@ export function PrintTemplateManagement() {
     >(null);
     const [latestPortfolioDraft, setLatestPortfolioDraft] =
         useState<PortfolioPrintDraftResponse | null>(null);
+    const [revisionTemplate, setRevisionTemplate] = useState<PrintTemplate | null>(null);
     const aiModel = useAiModelStore((state) => state.modelKey);
     const aiCustomModelName = useAiModelStore((state) => state.customModelName);
 
     const { data: templates = [], isLoading } = useQuery({
-        queryKey: ['printTemplates', 'admin'],
-        queryFn: printTemplateApi.adminList,
+        queryKey: ['workspace', workspaceSlug, 'printTemplates', 'admin'],
+        queryFn: () => printTemplateApi.workspaceAdminList(workspaceSlug),
+    });
+    const { data: configurationRevisions = [] } = useQuery({
+        queryKey: ['workspace', workspaceSlug, 'printTemplates', revisionTemplate?.id, 'revisions'],
+        queryFn: () =>
+            printTemplateApi.workspaceRevisions(workspaceSlug, revisionTemplate?.id as number),
+        enabled: revisionTemplate !== null,
+    });
+    const rollbackMutation = useMutation({
+        mutationFn: ({ templateId, revisionId }: { templateId: number; revisionId: number }) =>
+            printTemplateApi.workspaceRollbackRevision(workspaceSlug, templateId, revisionId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['workspace', workspaceSlug, 'printTemplates'],
+            });
+            queryClient.invalidateQueries({
+                queryKey: [
+                    'workspace',
+                    workspaceSlug,
+                    'printTemplates',
+                    revisionTemplate?.id,
+                    'revisions',
+                ],
+            });
+        },
     });
     const { data: caseStudies = [] } = useQuery({
-        queryKey: ['portfolio-case-studies'],
-        queryFn: portfolioApi.list,
+        queryKey: ['workspace', workspaceSlug, 'portfolio-case-studies'],
+        queryFn: () => portfolioApi.workspaceList(workspaceSlug),
     });
     const { data: portfolioTemplates = [] } = useQuery({
-        queryKey: ['printTemplates', 'portfolio', selectedCaseStudyId],
-        queryFn: () => printTemplateApi.listByPortfolioCaseStudy(selectedCaseStudyId as number),
+        queryKey: ['workspace', workspaceSlug, 'printTemplates', 'portfolio', selectedCaseStudyId],
+        queryFn: () =>
+            printTemplateApi.workspaceListByPortfolioCaseStudy(
+                workspaceSlug,
+                selectedCaseStudyId as number
+            ),
         enabled: selectedCaseStudyId !== null,
     });
     const { data: caseStudyDetail } = useQuery({
-        queryKey: ['portfolio-case-study', selectedCaseStudyId],
-        queryFn: () => portfolioApi.detail(selectedCaseStudyId as number),
+        queryKey: ['workspace', workspaceSlug, 'portfolio-case-study', selectedCaseStudyId],
+        queryFn: () => portfolioApi.workspaceDetail(workspaceSlug, selectedCaseStudyId as number),
         enabled: selectedCaseStudyId !== null,
     });
     const portfolioContent = caseStudyDetail?.revisions[0]?.content ?? PORTFOLIO_EMPTY_CONTENT;
@@ -139,25 +174,37 @@ export function PrintTemplateManagement() {
                 lineHeight: settings.lineHeight,
             };
             return existing
-                ? printTemplateApi.updatePortfolio(
+                ? printTemplateApi.workspaceUpdatePortfolio(
+                      workspaceSlug,
                       selectedCaseStudyId as number,
                       existing.id,
                       payload
                   )
-                : printTemplateApi.createPortfolio(selectedCaseStudyId as number, payload);
+                : printTemplateApi.workspaceCreatePortfolio(
+                      workspaceSlug,
+                      selectedCaseStudyId as number,
+                      payload
+                  );
         },
         onSuccess: () => {
             queryClient.invalidateQueries({
-                queryKey: ['printTemplates', 'portfolio', selectedCaseStudyId],
+                queryKey: [
+                    'workspace',
+                    workspaceSlug,
+                    'printTemplates',
+                    'portfolio',
+                    selectedCaseStudyId,
+                ],
             });
             setOpenOrientation(null);
         },
     });
     async function generatePortfolioDraft(orientation: 'PORTRAIT' | 'LANDSCAPE') {
-        if (selectedCaseStudyId === null) return;
+        if (!enablePlatformAi || selectedCaseStudyId === null) return;
         setGeneratingOrientation(orientation);
         try {
             await portfolioPrintDraftApi.generateStream(
+                workspaceSlug,
                 selectedCaseStudyId,
                 orientation,
                 (event) => {
@@ -167,7 +214,13 @@ export function PrintTemplateManagement() {
                     }
                     setLatestPortfolioDraft(event.response);
                     queryClient.invalidateQueries({
-                        queryKey: ['printTemplates', 'portfolio', selectedCaseStudyId],
+                        queryKey: [
+                            'workspace',
+                            workspaceSlug,
+                            'printTemplates',
+                            'portfolio',
+                            selectedCaseStudyId,
+                        ],
                     });
                 },
                 undefined,
@@ -186,12 +239,12 @@ export function PrintTemplateManagement() {
     }
 
     const { data: introData } = useQuery({
-        queryKey: ['introduction', 'print-template-editor'],
-        queryFn: bffApi.getIntroduction,
+        queryKey: ['workspace', workspaceSlug, 'introduction', 'print-template-editor'],
+        queryFn: () => printTemplateApi.workspaceOutputSource(workspaceSlug),
     });
     const { data: jobPostings = [] } = useQuery({
-        queryKey: ['jobPostings', 'admin', 'print-template-editor'],
-        queryFn: jobPostingApi.list,
+        queryKey: ['workspace', workspaceSlug, 'jobApplications', 'print-template-editor'],
+        queryFn: () => jobPostingApi.workspaceList(workspaceSlug),
     });
     const currentFingerprint = introData ? getPrintContentFingerprint(introData) : null;
     const jobPostingLabelById = new Map(
@@ -219,14 +272,20 @@ export function PrintTemplateManagement() {
             payload,
         }: {
             id: number;
-            payload: Parameters<typeof printTemplateApi.update>[1];
-        }) => printTemplateApi.update(id, payload),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['printTemplates'] }),
+            payload: Parameters<typeof printTemplateApi.workspaceUpdate>[2];
+        }) => printTemplateApi.workspaceUpdate(workspaceSlug, id, payload),
+        onSuccess: () =>
+            queryClient.invalidateQueries({
+                queryKey: ['workspace', workspaceSlug, 'printTemplates'],
+            }),
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => printTemplateApi.remove(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['printTemplates'] }),
+        mutationFn: (id: number) => printTemplateApi.workspaceRemove(workspaceSlug, id),
+        onSuccess: () =>
+            queryClient.invalidateQueries({
+                queryKey: ['workspace', workspaceSlug, 'printTemplates'],
+            }),
     });
 
     const handleDelete = (t: PrintTemplate) => {
@@ -425,7 +484,7 @@ export function PrintTemplateManagement() {
                                             </button>
                                         )}
                                         <a
-                                            href={`/print?admin=1&templateId=${t.id}`}
+                                            href={`/workspace/${encodeURIComponent(workspaceSlug)}/print?admin=1&templateId=${t.id}`}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition"
@@ -434,6 +493,14 @@ export function PrintTemplateManagement() {
                                             <Edit2 className="h-3.5 w-3.5 text-blue-400" />
                                             템플릿 편집 & 미리보기
                                         </a>
+                                        <button
+                                            onClick={() => setRevisionTemplate(t)}
+                                            className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                                            title="저장된 출력 구성 revision 보기"
+                                        >
+                                            <History className="h-3.5 w-3.5" />
+                                            변경 이력
+                                        </button>
                                         <button
                                             onClick={() => handleDelete(t)}
                                             className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition"
@@ -519,7 +586,7 @@ export function PrintTemplateManagement() {
                     </p>
                 </div>
                 <a
-                    href="/print?admin=1"
+                    href={`/workspace/${encodeURIComponent(workspaceSlug)}/print?admin=1`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
@@ -528,6 +595,75 @@ export function PrintTemplateManagement() {
                     <Plus className="h-4 w-4" /> 새 이력서 템플릿 만들기
                 </a>
             </div>
+            {revisionTemplate && (
+                <section className="rounded-2xl border border-slate-300 bg-slate-50 p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <h3 className="text-base font-black text-slate-900">
+                                {revisionTemplate.name} · 출력 구성 revision
+                            </h3>
+                            <p className="mt-1 text-xs font-medium text-slate-500">
+                                항목 포함·제외, 문구, 순서와 레이아웃을 저장할 때마다 복구 지점이
+                                생성됩니다.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setRevisionTemplate(null)}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-600"
+                        >
+                            닫기
+                        </button>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                        {configurationRevisions
+                            .filter((revision) => revision.senderType === 'SNAPSHOT')
+                            .slice()
+                            .reverse()
+                            .map((revision, index) => (
+                                <div
+                                    key={revision.id}
+                                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
+                                >
+                                    <div>
+                                        <div className="text-sm font-bold text-slate-800">
+                                            {index === 0 ? '현재 저장본' : `이전 저장본 ${index}`}
+                                        </div>
+                                        <div className="mt-0.5 text-xs text-slate-500">
+                                            {new Date(revision.createdAt).toLocaleString('ko-KR')}
+                                        </div>
+                                    </div>
+                                    {index > 0 && (
+                                        <button
+                                            disabled={rollbackMutation.isPending}
+                                            onClick={() => {
+                                                if (
+                                                    confirm(
+                                                        '이 출력 구성을 선택한 저장본으로 복원하시겠습니까? 현재 상태도 새 revision으로 보존됩니다.'
+                                                    )
+                                                ) {
+                                                    rollbackMutation.mutate({
+                                                        templateId: revisionTemplate.id,
+                                                        revisionId: revision.id,
+                                                    });
+                                                }
+                                            }}
+                                            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                                        >
+                                            이 버전으로 복원
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        {!configurationRevisions.some(
+                            (revision) => revision.senderType === 'SNAPSHOT'
+                        ) && (
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm font-medium text-slate-500">
+                                다음 저장부터 출력 구성 revision이 기록됩니다.
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3">
@@ -632,7 +768,8 @@ export function PrintTemplateManagement() {
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        {caseStudyDetail?.caseStudy.publishedRevisionId ? (
+                                        {enablePlatformAi &&
+                                        caseStudyDetail?.caseStudy.publishedRevisionId ? (
                                             <button
                                                 type="button"
                                                 disabled={generatingOrientation !== null}
@@ -649,14 +786,14 @@ export function PrintTemplateManagement() {
                                                     ? '초안 구성 중...'
                                                     : 'AI 포트폴리오 초안'}
                                             </button>
-                                        ) : (
+                                        ) : enablePlatformAi ? (
                                             <span
                                                 className="text-[11px] font-semibold text-slate-400"
                                                 title="발행된 케이스스터디만 AI 초안을 생성할 수 있습니다."
                                             >
                                                 미발행
                                             </span>
-                                        )}
+                                        ) : null}
                                         <button
                                             onClick={() => setOpenOrientation(orientation)}
                                             className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition"
@@ -670,7 +807,7 @@ export function PrintTemplateManagement() {
                         })}
                     </div>
                 )}
-                {caseStudyDetail?.caseStudy.publishedRevisionId && (
+                {enablePlatformAi && caseStudyDetail?.caseStudy.publishedRevisionId && (
                     <div className="border-t border-slate-100 px-5 py-2">
                         <AiModelUsageBadge />
                     </div>
@@ -693,6 +830,8 @@ export function PrintTemplateManagement() {
 
             {openOrientation !== null && selectedCaseStudyId !== null && caseStudyDetail && (
                 <PortfolioPrintCanvas
+                    workspaceSlug={workspaceSlug}
+                    enablePlatformAi={enablePlatformAi}
                     caseStudy={caseStudyDetail.caseStudy}
                     content={portfolioContent}
                     adminMode
