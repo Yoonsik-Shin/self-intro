@@ -2215,3 +2215,16 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   세 제거 대상과 임시 검사 프로시저 부재, backend `healthy`를 확인했다. 두 동기화 스크립트의 `bash -n`도
   통과했다. 별도 임시 DB에 `study_entry` 1행을 넣은 실패 경로에서는 `SQLSTATE 45000`으로 중단되고
   1행과 세 테이블이 모두 보존되는 것도 확인한 뒤 임시 DB를 삭제했다. 운영 DB에는 적용하지 않았다.
+
+### 15.11 2026-08-14 운영 배포 실패와 전체 애플리케이션 롤백
+
+- 기능 기준 commit `1809638`의 API·Worker·Frontend 이미지는 CI 빌드와 registry push에 성공했다.
+- 운영 API와 Worker는 Flyway V188 검증 실패로 기동하지 못했다. 운영 `experience_detail`에는 V188이
+  전제로 둔 일부 식별자가 존재하지 않아 연관 테이블 INSERT가 외래 키 제약을 위반했다.
+- API와 Worker를 직전 정상 이미지 `f33390a`로 되돌린 뒤 health 및 공개 introduction 응답 HTTP 200을
+  확인했다.
+- Frontend도 기능 버전 불일치를 남기지 않도록 직전 정상 이미지 `203ac86`으로 되돌린다. Argo CD에서
+  Frontend·Backend가 같은 롤백 Git revision에 Synced·Healthy인지, 실제 Deployment 이미지가 위 태그와
+  일치하는지 확인한다.
+- V188 실패 이력을 임의로 성공 처리하거나 운영 데이터를 보정하지 않는다. 운영 데이터 차이를 허용하는
+  migration 수정과 별도 검증을 마치기 전까지 `1809638` 계열 이미지는 다시 배포하지 않는다.
