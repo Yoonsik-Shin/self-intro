@@ -13,9 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * 지원자의 경력/프로젝트/학습(공부) 경험과 핵심역량을 AI 프롬프트에 넣기 좋은 텍스트로 요약한다.
- */
+/** 지원자의 경력/프로젝트/학습(공부) 경험과 핵심역량을 AI 프롬프트에 넣기 좋은 텍스트로 요약한다. */
 @Component
 @RequiredArgsConstructor
 public class CareerProfileDigestBuilder {
@@ -35,15 +33,14 @@ public class CareerProfileDigestBuilder {
         competencyRepository.findAllByVisibleTrueOrderByDisplayOrderAsc().stream()
                 .forEach(competency -> appendCompetency(sb, competency));
 
-        studyRepository.findAll().stream()
-                .forEach(study -> appendStudy(sb, study));
+        studyRepository.findAll().stream().forEach(study -> appendStudy(sb, study));
 
         return AiJsonSupport.limit(sb.toString(), DEFAULT_MAX_LENGTH);
     }
 
     /**
-     * 핵심역량만 프롬프트용 텍스트로 요약한다. 데이터량이 작아 검색으로 거르지 않고 항상 전체를 사용한다
-     * (자소서 초안 생성에서 경험/스터디는 벡터 검색 결과로 대체하지만 핵심역량은 그대로 유지).
+     * 핵심역량만 프롬프트용 텍스트로 요약한다. 데이터량이 작아 검색으로 거르지 않고 항상 전체를 사용한다 (자소서 초안 생성에서 경험/스터디는 벡터 검색 결과로 대체하지만
+     * 핵심역량은 그대로 유지).
      */
     public String buildCompetencyDigest() {
         StringBuilder sb = new StringBuilder();
@@ -52,9 +49,7 @@ public class CareerProfileDigestBuilder {
         return sb.toString();
     }
 
-    /**
-     * 경험 하나만 프롬프트/임베딩용 텍스트로 요약한다. 벡터 동기화(청킹 대상 텍스트 생성)에서 재사용된다.
-     */
+    /** 경험 하나만 프롬프트/임베딩용 텍스트로 요약한다. 벡터 동기화(청킹 대상 텍스트 생성)에서 재사용된다. */
     public String buildForExperience(Experience experience) {
         StringBuilder sb = new StringBuilder();
         appendExperience(sb, experience);
@@ -122,4 +117,3 @@ public class CareerProfileDigestBuilder {
         sb.append("\n");
     }
 }
-

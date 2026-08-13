@@ -1,8 +1,9 @@
 package com.selfintro.bff.presentation;
 
 import com.selfintro.bff.application.BffService;
+import com.selfintro.bff.application.IntroductionChannel;
 import com.selfintro.bff.presentation.dto.IntroductionResponse;
-import com.selfintro.bff.presentation.dto.LearningResponse;
+import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,14 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class BffController {
 
     private final BffService bffService;
+    private final PublicWorkspaceResolver publicWorkspaceResolver;
 
-    @GetMapping("/introduction")
-    public ResponseEntity<IntroductionResponse> getIntroduction() {
-        return ResponseEntity.ok(bffService.getIntroduction());
-    }
-
-    @GetMapping("/learning")
-    public ResponseEntity<LearningResponse> getLearning() {
-        return ResponseEntity.ok(bffService.getLearning());
+    @GetMapping("/workspaces/{workspaceSlug}/introduction")
+    public ResponseEntity<IntroductionResponse> getWorkspaceIntroduction(
+            @org.springframework.web.bind.annotation.PathVariable String workspaceSlug,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "WEB")
+                    IntroductionChannel channel) {
+        Long workspaceId = publicWorkspaceResolver.requireBySlug(workspaceSlug).getId();
+        return ResponseEntity.ok(bffService.getIntroduction(workspaceId, channel));
     }
 }
