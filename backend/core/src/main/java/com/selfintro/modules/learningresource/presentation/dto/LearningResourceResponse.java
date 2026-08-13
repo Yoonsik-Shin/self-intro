@@ -2,6 +2,7 @@ package com.selfintro.modules.learningresource.presentation.dto;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
+import com.selfintro.modules.learningresource.domain.entity.WorkspaceLearningResource;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
@@ -53,6 +54,30 @@ public record LearningResourceResponse(
                 resource.getRelations().stream().map(RelatedResourceResponse::from).toList(),
                 resource.getCreatedAt(),
                 resource.getUpdatedAt());
+    }
+
+    public static LearningResourceResponse from(
+            LearningResource resource, WorkspaceLearningResource workspaceResource) {
+        return new LearningResourceResponse(
+                resource.getId(),
+                resource.getSlug(),
+                resource.getTitle(),
+                resource.getResourceType(),
+                resource.getProvider(),
+                resource.getUrl(),
+                resource.getInstructorOrAuthor(),
+                resource.getDurationMinutes(),
+                workspaceResource.getStatus(),
+                workspaceResource.getPriorityTier(),
+                workspaceResource.getDisplayOrder(),
+                resource.getTaxonomyNodes().stream().map(TaxonomyNodeResponse::from).toList(),
+                workspaceResource.getPersonalSummary(),
+                workspaceResource.getPersonalNoteMarkdown(),
+                workspaceResource.getTags().stream().map(TagResponse::from).toList(),
+                resource.getSkills().stream().map(SkillResponse::from).toList(),
+                resource.getRelations().stream().map(RelatedResourceResponse::from).toList(),
+                workspaceResource.getCreatedAt(),
+                workspaceResource.getUpdatedAt());
     }
 
     public record TagResponse(Long id, String name, String slug) {

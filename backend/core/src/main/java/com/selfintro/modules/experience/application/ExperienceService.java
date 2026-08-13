@@ -2,6 +2,7 @@ package com.selfintro.modules.experience.application;
 
 import com.selfintro.global.ai.CareerProfileDigestBuilder;
 import com.selfintro.global.config.RabbitMqConfig;
+import com.selfintro.global.messaging.AfterCommitRabbitEventPublisher;
 import com.selfintro.modules.experience.domain.entity.*;
 import com.selfintro.modules.experience.domain.enums.*;
 import com.selfintro.modules.experience.domain.repository.*;
@@ -11,7 +12,7 @@ import com.selfintro.modules.experience.presentation.dto.ExperienceImageRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
 import com.selfintro.modules.skill.domain.entity.Skill;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.repository.TagRepository;
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.hibernate.Hibernate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,14 +42,18 @@ public class ExperienceService {
 
     private final ExperienceRepository experienceRepository;
     private final ProjectRepository projectRepository;
-    private final SkillRepository skillRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final TagRepository tagRepository;
     private final StorageService storageService;
     private final CareerProfileDigestBuilder careerProfileDigestBuilder;
-    private final RabbitTemplate rabbitTemplate;
+    private final AfterCommitRabbitEventPublisher eventPublisher;
 
     public List<Experience> getAllExperiences() {
         return experienceRepository.findAllByOrderByDisplayOrderAsc();
+    }
+
+    public List<Experience> getAllExperiences(Long workspaceId) {
+        return experienceRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId);
     }
 
     public List<ExperienceResponse> listAll() {
@@ -57,16 +62,25 @@ public class ExperienceService {
                 .toList();
     }
 
+    public List<ExperienceResponse> listAll(Long workspaceId) {
+        return getAllExperiences(workspaceId).stream().map(this::toResponse).toList();
+    }
+
+    public List<ExperienceResponse> listPublic() {
+        return listAll().stream().map(ExperienceResponse::forPublicWeb).toList();
+    }
+
     public ExperienceResponse toResponse(Experience experience) {
-        return ExperienceResponse.from(experience, storageService::toPublicUrl);
+        Experience concrete = (Experience) Hibernate.unproxy(experience);
+        return ExperienceResponse.from(concrete, storageService::toPublicUrl);
     }
 
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public ExperienceResponse toggleTimeline(Long id) {
+    public ExperienceResponse toggleTimeline(Long workspaceId, Long id) {
         Experience experience =
                 experienceRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id));
         experience.changeShowOnTimeline(!experience.isShowOnTimeline());
         experienceRepository.flush();
@@ -75,19 +89,24 @@ public class ExperienceService {
 
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public List<ExperienceResponse> batchChangeTimeline(List<Long> ids, boolean showOnTimeline) {
-        List<Experience> list = experienceRepository.findAllById(ids);
+    public List<ExperienceResponse> batchChangeTimeline(
+            Long workspaceId, List<Long> ids, boolean showOnTimeline) {
+        List<Experience> list = experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, ids);
+        if (list.size() != ids.stream().distinct().count()) {
+            throw new IllegalArgumentException("다른 Workspace의 이력 항목이 포함되어 있습니다.");
+        }
         for (Experience experience : list) {
             experience.changeShowOnTimeline(showOnTimeline);
         }
         experienceRepository.flush();
-        return getAllExperiences().stream().map(this::toResponse).toList();
+        return getAllExperiences(workspaceId).stream().map(this::toResponse).toList();
     }
 
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public List<ExperienceResponse> reorder(List<Long> orderedIds) {
-        List<Experience> list = experienceRepository.findAllById(orderedIds);
+    public List<ExperienceResponse> reorder(Long workspaceId, List<Long> orderedIds) {
+        List<Experience> list =
+                experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, orderedIds);
         Map<Long, Experience> map =
                 list.stream().collect(Collectors.toMap(Experience::getId, Function.identity()));
         for (int i = 0; i < orderedIds.size(); i++) {
@@ -99,18 +118,16 @@ public class ExperienceService {
             experience.changeDisplayOrder(i + 1);
         }
         experienceRepository.flush();
-        return getAllExperiences().stream().map(this::toResponse).toList();
+        return getAllExperiences(workspaceId).stream().map(this::toResponse).toList();
     }
 
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public ExperienceResponse create(ExperienceRequest request) {
-        List<Skill> skills =
-                request.skillIds() != null
-                        ? skillRepository.findAllById(request.skillIds())
-                        : List.of();
+    public ExperienceResponse create(Long workspaceId, ExperienceRequest request) {
+        List<Skill> skills = resolveWorkspaceSkills(workspaceId, request.skillIds());
 
-        List<ExperienceDetail.Draft> details = toDetailDrafts(request.details());
+        List<ExperienceDetail.Draft> details =
+                toDetailDrafts(workspaceId, request.details(), Map.of());
 
         Experience exp;
         switch (request.type().toUpperCase()) {
@@ -125,8 +142,8 @@ public class ExperienceService {
                                     request.displayOrder(),
                                     details,
                                     skills,
-                                    request.showOnTimeline(),
-                                    request.timelineLabel(),
+                                    false,
+                                    null,
                                     request.companyName(),
                                     request.employmentType(),
                                     request.department(),
@@ -142,13 +159,14 @@ public class ExperienceService {
                                     request.displayOrder(),
                                     details,
                                     skills,
-                                    request.showOnTimeline(),
-                                    request.timelineLabel(),
+                                    false,
+                                    null,
                                     request.slug(),
                                     request.role(),
                                     request.contributionRate(),
                                     normalizeOptionalText(request.repositoryUrl()),
                                     resolveCareer(
+                                            workspaceId,
                                             request.careerId(),
                                             request.periodStart(),
                                             request.periodEnd()));
@@ -163,8 +181,8 @@ public class ExperienceService {
                                     request.displayOrder(),
                                     details,
                                     skills,
-                                    request.showOnTimeline(),
-                                    request.timelineLabel(),
+                                    false,
+                                    null,
                                     request.institutionName(),
                                     request.educationType(),
                                     request.degree(),
@@ -182,33 +200,36 @@ public class ExperienceService {
                                     request.displayOrder(),
                                     details,
                                     skills,
-                                    request.showOnTimeline(),
-                                    request.timelineLabel(),
+                                    false,
+                                    null,
                                     request.issuer());
             default -> throw new IllegalArgumentException("지원하지 않는 이력서 서브타입입니다: " + request.type());
         }
 
+        exp.assignWorkspace(workspaceId);
+        validateOwnedImageKeys(workspaceId, request.images());
         exp.reconcileImages(toImageDrafts(request.images()));
         Experience saved = experienceRepository.save(exp);
-        saved.replaceTags(resolveTags(request.tagNames()));
+        saved.replaceTags(resolveTags(workspaceId, request.tagNames()));
         publishVectorSyncEvent(saved);
         return toResponse(saved);
     }
 
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public ExperienceResponse update(Long id, ExperienceRequest request) {
+    public ExperienceResponse update(Long workspaceId, Long id, ExperienceRequest request) {
         Experience exp =
                 experienceRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력서 항목입니다."));
 
-        List<Skill> skills =
-                request.skillIds() != null
-                        ? skillRepository.findAllById(request.skillIds())
-                        : List.of();
+        List<Skill> skills = resolveWorkspaceSkills(workspaceId, request.skillIds());
 
-        List<ExperienceDetail.Draft> details = toDetailDrafts(request.details());
+        Map<Long, ExperienceDetail> existingDetails =
+                exp.getDetails().stream()
+                        .collect(Collectors.toMap(ExperienceDetail::getId, Function.identity()));
+        List<ExperienceDetail.Draft> details =
+                toDetailDrafts(workspaceId, request.details(), existingDetails);
 
         if (exp instanceof Career career && "CAREER".equalsIgnoreCase(request.type())) {
             career.update(
@@ -220,8 +241,8 @@ public class ExperienceService {
                     request.displayOrder(),
                     details,
                     skills,
-                    request.showOnTimeline(),
-                    request.timelineLabel(),
+                    exp.isShowOnTimeline(),
+                    exp.getTimelineLabel(),
                     request.companyName(),
                     request.employmentType(),
                     request.department(),
@@ -236,13 +257,17 @@ public class ExperienceService {
                     request.displayOrder(),
                     details,
                     skills,
-                    request.showOnTimeline(),
-                    request.timelineLabel(),
+                    exp.isShowOnTimeline(),
+                    exp.getTimelineLabel(),
                     request.slug(),
                     request.role(),
                     request.contributionRate(),
                     normalizeOptionalText(request.repositoryUrl()),
-                    resolveCareer(request.careerId(), request.periodStart(), request.periodEnd()));
+                    resolveCareer(
+                            workspaceId,
+                            request.careerId(),
+                            request.periodStart(),
+                            request.periodEnd()));
         } else if (exp instanceof Education edu && "EDUCATION".equalsIgnoreCase(request.type())) {
             edu.update(
                     request.title(),
@@ -253,8 +278,8 @@ public class ExperienceService {
                     request.displayOrder(),
                     details,
                     skills,
-                    request.showOnTimeline(),
-                    request.timelineLabel(),
+                    exp.isShowOnTimeline(),
+                    exp.getTimelineLabel(),
                     request.institutionName(),
                     request.educationType(),
                     request.degree(),
@@ -272,8 +297,8 @@ public class ExperienceService {
                     request.displayOrder(),
                     details,
                     skills,
-                    request.showOnTimeline(),
-                    request.timelineLabel(),
+                    exp.isShowOnTimeline(),
+                    exp.getTimelineLabel(),
                     request.issuer());
         } else {
             // 서브타입이 달라지는 경우 기존 항목을 삭제하고 새로 생성 (이미지도 함께 정리)
@@ -281,11 +306,13 @@ public class ExperienceService {
                     exp.getImages().stream().map(ExperienceImage::getObjectKey).toList();
             experienceRepository.delete(exp);
             storageService.deleteAll(orphanedImageKeys);
-            return create(request);
+            publishVectorDeleteEvent(workspaceId, id);
+            return create(workspaceId, request);
         }
 
-        exp.replaceTags(resolveTags(request.tagNames()));
+        exp.replaceTags(resolveTags(workspaceId, request.tagNames()));
 
+        validateOwnedImageKeys(workspaceId, request.images());
         List<ExperienceImage.Draft> imageDrafts = toImageDrafts(request.images());
         List<String> removedImageKeys = exp.imageObjectKeysNotIn(imageDrafts);
         exp.reconcileImages(imageDrafts);
@@ -297,10 +324,10 @@ public class ExperienceService {
 
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public void delete(Long id) {
+    public void delete(Long workspaceId, Long id) {
         Experience exp =
                 experienceRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력서 항목입니다."));
         if (exp instanceof Career && projectRepository.existsByCareerId(id)) {
             throw new IllegalArgumentException("연결된 직장 프로젝트를 먼저 다른 경력으로 옮기거나 삭제해주세요.");
@@ -309,15 +336,23 @@ public class ExperienceService {
                 exp.getImages().stream().map(ExperienceImage::getObjectKey).toList();
         experienceRepository.delete(exp);
         storageService.deleteAll(objectKeys);
+        publishVectorDeleteEvent(workspaceId, id);
     }
 
     private void publishVectorSyncEvent(Experience saved) {
         String content = careerProfileDigestBuilder.buildForExperience(saved);
-        rabbitTemplate.convertAndSend(
+        eventPublisher.publish(
                 RabbitMqConfig.EXCHANGE_NAME,
                 RabbitMqConfig.ROUTING_KEY_EXPERIENCE_UPDATED,
                 new ExperienceUpdatedEvent(
                         saved.getWorkspaceId(), saved.getId(), saved.getTitle(), content));
+    }
+
+    private void publishVectorDeleteEvent(Long workspaceId, Long experienceId) {
+        eventPublisher.publish(
+                RabbitMqConfig.EXCHANGE_NAME,
+                RabbitMqConfig.ROUTING_KEY_EXPERIENCE_UPDATED,
+                ExperienceUpdatedEvent.deleted(workspaceId, experienceId));
     }
 
     private List<ExperienceImage.Draft> toImageDrafts(List<ExperienceImageRequest> imageRequests) {
@@ -339,13 +374,16 @@ public class ExperienceService {
     }
 
     private Career resolveCareer(
-            Long careerId, java.time.LocalDate projectStart, java.time.LocalDate projectEnd) {
+            Long workspaceId,
+            Long careerId,
+            java.time.LocalDate projectStart,
+            java.time.LocalDate projectEnd) {
         if (careerId == null) {
             return null;
         }
         Experience experience =
                 experienceRepository
-                        .findById(careerId)
+                        .findByIdAndWorkspaceId(careerId, workspaceId)
                         .orElseThrow(() -> new IllegalArgumentException("연결할 직장 경력을 찾을 수 없습니다."));
         if (!(experience instanceof Career career)) {
             throw new IllegalArgumentException("프로젝트는 직장 경력(CAREER)에만 연결할 수 있습니다.");
@@ -363,7 +401,20 @@ public class ExperienceService {
         return career;
     }
 
-    private List<Tag> resolveTags(List<String> tagNames) {
+    private void validateOwnedImageKeys(
+            Long workspaceId, List<ExperienceImageRequest> imageRequests) {
+        if (imageRequests == null) {
+            return;
+        }
+        imageRequests.stream()
+                .filter(image -> image.id() == null)
+                .forEach(
+                        image ->
+                                storageService.requireOwnedObjectKey(
+                                        workspaceId, image.objectKey()));
+    }
+
+    private List<Tag> resolveTags(Long workspaceId, List<String> tagNames) {
         if (tagNames == null) {
             return List.of();
         }
@@ -377,23 +428,26 @@ public class ExperienceService {
         for (String name : normalizedNames) {
             result.add(
                     tagRepository
-                            .findByNameIgnoreCase(name)
+                            .findByWorkspaceIdAndNameIgnoreCase(workspaceId, name)
                             .orElseGet(
                                     () ->
                                             tagRepository.save(
-                                                    Tag.create(name, uniqueTagSlug(name)))));
+                                                    Tag.create(
+                                                            workspaceId,
+                                                            name,
+                                                            uniqueTagSlug(workspaceId, name)))));
         }
         return result;
     }
 
-    private String uniqueTagSlug(String name) {
+    private String uniqueTagSlug(Long workspaceId, String name) {
         String base = slugify(name);
         if (!StringUtils.hasText(base)) {
             base = "tag";
         }
         String candidate = base;
         int suffix = 2;
-        while (tagRepository.existsBySlug(candidate)) {
+        while (tagRepository.existsByWorkspaceIdAndSlug(workspaceId, candidate)) {
             candidate = base + "-" + suffix++;
         }
         return candidate;
@@ -408,7 +462,9 @@ public class ExperienceService {
     }
 
     private List<ExperienceDetail.Draft> toDetailDrafts(
-            List<ExperienceDetailRequest> detailRequests) {
+            Long workspaceId,
+            List<ExperienceDetailRequest> detailRequests,
+            Map<Long, ExperienceDetail> existingDetails) {
         if (detailRequests == null) {
             return List.of();
         }
@@ -418,8 +474,13 @@ public class ExperienceService {
                             ExperienceDetailRequest dr = detailRequests.get(i);
                             List<Skill> detailSkills =
                                     dr.skillIds() != null
-                                            ? skillRepository.findAllById(dr.skillIds())
+                                            ? resolveWorkspaceSkills(workspaceId, dr.skillIds())
                                             : List.of();
+                            ExperienceDetail existing =
+                                    dr.id() == null ? null : existingDetails.get(dr.id());
+                            boolean publicVisible = existing != null && existing.isPublicVisible();
+                            boolean resumeAvailable =
+                                    existing != null && existing.isResumeAvailable();
                             return new ExperienceDetail.Draft(
                                     dr.id(),
                                     dr.content(),
@@ -428,10 +489,25 @@ public class ExperienceService {
                                     dr.actionDetail(),
                                     dr.outcome(),
                                     dr.narrative(),
-                                    dr.visible() != null ? dr.visible() : true,
+                                    publicVisible,
+                                    resumeAvailable,
                                     i,
                                     detailSkills);
                         })
                 .toList();
+    }
+
+    private List<Skill> resolveWorkspaceSkills(Long workspaceId, List<Long> requestedIds) {
+        Set<Long> ids = requestedIds == null ? Set.of() : new LinkedHashSet<>(requestedIds);
+        List<Skill> skills =
+                workspaceSkillRepository
+                        .findAllByWorkspaceIdAndSkill_IdIn(workspaceId, ids)
+                        .stream()
+                        .map(workspaceSkill -> workspaceSkill.getSkill())
+                        .toList();
+        if (skills.size() != ids.size()) {
+            throw new IllegalArgumentException("다른 Workspace의 기술 스택이 포함되어 있습니다.");
+        }
+        return skills;
     }
 }

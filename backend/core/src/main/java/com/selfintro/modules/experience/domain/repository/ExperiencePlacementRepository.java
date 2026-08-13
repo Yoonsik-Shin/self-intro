@@ -13,4 +13,14 @@ public interface ExperiencePlacementRepository extends JpaRepository<ExperienceP
             ExperiencePlacementType placementType);
 
     void deleteAllByPlacementType(ExperiencePlacementType placementType);
+
+    List<ExperiencePlacement> findAllByExperienceWorkspaceIdAndPlacementTypeOrderByDisplayOrderAsc(
+            Long workspaceId, ExperiencePlacementType placementType);
+
+    List<ExperiencePlacement>
+            findAllByExperienceWorkspaceIdAndPlacementTypeAndEnabledTrueOrderByDisplayOrderAsc(
+                    Long workspaceId, ExperiencePlacementType placementType);
+
+    void deleteAllByExperienceWorkspaceIdAndPlacementType(
+            Long workspaceId, ExperiencePlacementType placementType);
 }

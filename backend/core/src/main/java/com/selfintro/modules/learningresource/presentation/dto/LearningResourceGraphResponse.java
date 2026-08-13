@@ -2,6 +2,7 @@ package com.selfintro.modules.learningresource.presentation.dto;
 
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
+import com.selfintro.modules.learningresource.domain.entity.WorkspaceLearningResource;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceRelationType;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
@@ -27,6 +28,18 @@ public record LearningResourceGraphResponse(List<NodeResponse> nodes, List<EdgeR
                     resource.getResourceType(),
                     resource.getStatus(),
                     resource.getPriorityTier(),
+                    resource.getDurationMinutes());
+        }
+
+        public static NodeResponse from(WorkspaceLearningResource workspaceResource) {
+            LearningResource resource = workspaceResource.getLearningResource();
+            return new NodeResponse(
+                    resource.getId(),
+                    resource.getTitle(),
+                    resource.getTaxonomyNodes().stream().map(TaxonomyNodeResponse::from).toList(),
+                    resource.getResourceType(),
+                    workspaceResource.getStatus(),
+                    workspaceResource.getPriorityTier(),
                     resource.getDurationMinutes());
         }
     }

@@ -34,8 +34,12 @@ public class ExperienceConnectionService {
     private final ExperienceRelationRepository experienceRelationRepository;
 
     public ExperienceConnections getExperienceConnections(Long experienceId) {
-        Experience experience = requireExperience(experienceId);
-        List<Study> studies = studyRepository.findAll();
+        return getExperienceConnections(null, experienceId);
+    }
+
+    public ExperienceConnections getExperienceConnections(Long workspaceId, Long experienceId) {
+        Experience experience = requireExperience(workspaceId, experienceId);
+        List<Study> studies = studies(workspaceId);
         List<Long> studyIds =
                 studies.stream()
                         .filter(study -> containsId(study.getExperiences(), experienceId))
@@ -61,12 +65,15 @@ public class ExperienceConnectionService {
                 experienceRelationRepository
                         .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId)
                         .stream()
+                        .filter(
+                                relation ->
+                                        workspaceId == null
+                                                || workspaceId.equals(
+                                                        otherExperience(relation, experienceId)
+                                                                .getWorkspaceId()))
                         .map(
                                 relation -> {
-                                    Experience other =
-                                            relation.getSource().getId().equals(experienceId)
-                                                    ? relation.getTarget()
-                                                    : relation.getSource();
+                                    Experience other = otherExperience(relation, experienceId);
                                     return new RelatedExperienceRequest(
                                             other.getId(), relation.getType());
                                 })
@@ -80,33 +87,33 @@ public class ExperienceConnectionService {
             allEntries = true)
     public ExperienceConnections updateExperienceConnections(
             Long experienceId, ExperienceConnections request) {
-        Experience experience = requireExperience(experienceId);
+        return updateExperienceConnections(null, experienceId, request);
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {"bff:introduction", "bff:learning"},
+            allEntries = true)
+    public ExperienceConnections updateExperienceConnections(
+            Long workspaceId, Long experienceId, ExperienceConnections request) {
+        Experience experience = requireExperience(workspaceId, experienceId);
         Set<Long> studyIds = ids(request.studyIds());
-        validateIds("Study", studyIds, studyRepository.findAllById(studyIds).size());
+        validateIds("Study", studyIds, findStudies(workspaceId, studyIds).size());
 
         Map<Long, Set<Long>> detailStudyIds = new LinkedHashMap<>();
         for (DetailStudies detailConnection : safe(request.detailStudies())) {
-            ExperienceDetail detail =
-                    experienceDetailRepository
-                            .findById(detailConnection.detailId())
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalArgumentException(
-                                                    "존재하지 않는 이력 상세 항목입니다: "
-                                                            + detailConnection.detailId()));
+            ExperienceDetail detail = requireDetail(workspaceId, detailConnection.detailId());
             if (detail.getExperience() == null
                     || !experienceId.equals(detail.getExperience().getId())) {
                 throw new IllegalArgumentException("다른 이력의 상세 항목은 연결할 수 없습니다.");
             }
             Set<Long> connectedStudyIds = ids(detailConnection.studyIds());
             validateIds(
-                    "Study",
-                    connectedStudyIds,
-                    studyRepository.findAllById(connectedStudyIds).size());
+                    "Study", connectedStudyIds, findStudies(workspaceId, connectedStudyIds).size());
             detailStudyIds.put(detail.getId(), connectedStudyIds);
         }
 
-        List<Study> studies = studyRepository.findAll();
+        List<Study> studies = studies(workspaceId);
         studies.forEach(
                 study -> study.setExperienceLinked(experience, studyIds.contains(study.getId())));
         for (ExperienceDetail detail : experience.getDetails()) {
@@ -126,9 +133,7 @@ public class ExperienceConnectionService {
             throw new IllegalArgumentException("이력은 자기 자신과 연결할 수 없습니다.");
         }
         validateIds(
-                "Related experience",
-                targetIds,
-                experienceRepository.findAllById(targetIds).size());
+                "Related experience", targetIds, findExperiences(workspaceId, targetIds).size());
 
         List<ExperienceRelation> existingRelations =
                 experienceRelationRepository.findBySourceIdOrTargetIdOrderByDisplayOrderAsc(
@@ -160,18 +165,23 @@ public class ExperienceConnectionService {
         int order = 0;
         for (RelatedExperienceRequest related : relatedRequests) {
             if (!existingByOtherId.containsKey(related.experienceId())) {
-                Experience target = requireExperience(related.experienceId());
+                Experience target = requireExperience(workspaceId, related.experienceId());
                 toCreate.add(ExperienceRelation.create(experience, target, related.type(), order));
             }
             order++;
         }
         experienceRelationRepository.saveAll(toCreate);
 
-        return getExperienceConnections(experienceId);
+        return getExperienceConnections(workspaceId, experienceId);
     }
 
     public List<RelatedExperienceResponse> getRelatedExperiences(Long experienceId) {
-        requireExperience(experienceId);
+        return getRelatedExperiences(null, experienceId);
+    }
+
+    public List<RelatedExperienceResponse> getRelatedExperiences(
+            Long workspaceId, Long experienceId) {
+        requireExperience(workspaceId, experienceId);
         Map<Long, RelatedExperienceResponse> unique = new LinkedHashMap<>();
         experienceRelationRepository
                 .findBySourceIdOrTargetIdOrderByDisplayOrderAsc(experienceId, experienceId)
@@ -181,6 +191,10 @@ public class ExperienceConnectionService {
                                     relation.getSource().getId().equals(experienceId)
                                             ? relation.getTarget()
                                             : relation.getSource();
+                            if (workspaceId != null
+                                    && !workspaceId.equals(other.getWorkspaceId())) {
+                                return;
+                            }
                             unique.putIfAbsent(
                                     other.getId(),
                                     RelatedExperienceResponse.from(other, relation.getType()));
@@ -189,9 +203,59 @@ public class ExperienceConnectionService {
     }
 
     private Experience requireExperience(Long id) {
+        return requireExperience(null, id);
+    }
+
+    private Experience requireExperience(Long workspaceId, Long id) {
+        if (workspaceId != null) {
+            return experienceRepository
+                    .findByIdAndWorkspaceId(id, workspaceId)
+                    .orElseThrow(
+                            () ->
+                                    new IllegalArgumentException(
+                                            "Workspace에서 이력 항목을 찾을 수 없습니다: " + id));
+        }
         return experienceRepository
                 .findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력 항목입니다: " + id));
+    }
+
+    private ExperienceDetail requireDetail(Long workspaceId, Long id) {
+        if (workspaceId != null) {
+            return experienceDetailRepository
+                    .findByIdAndExperience_WorkspaceId(id, workspaceId)
+                    .orElseThrow(
+                            () ->
+                                    new IllegalArgumentException(
+                                            "Workspace에서 이력 상세 항목을 찾을 수 없습니다: " + id));
+        }
+        return experienceDetailRepository
+                .findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이력 상세 항목입니다: " + id));
+    }
+
+    private List<Study> studies(Long workspaceId) {
+        return workspaceId == null
+                ? studyRepository.findAll()
+                : studyRepository.findAllByWorkspaceIdOrderByTitleAsc(workspaceId);
+    }
+
+    private List<Study> findStudies(Long workspaceId, Set<Long> ids) {
+        return workspaceId == null
+                ? studyRepository.findAllById(ids)
+                : studyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, ids);
+    }
+
+    private List<Experience> findExperiences(Long workspaceId, Set<Long> ids) {
+        return workspaceId == null
+                ? experienceRepository.findAllById(ids)
+                : experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, ids);
+    }
+
+    private Experience otherExperience(ExperienceRelation relation, Long experienceId) {
+        return relation.getSource().getId().equals(experienceId)
+                ? relation.getTarget()
+                : relation.getSource();
     }
 
     private Set<Long> ids(List<Long> values) {

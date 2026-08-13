@@ -83,6 +83,61 @@ class ExperiencePlacementServiceTest {
                 .hasMessageContaining("프로젝트만");
     }
 
+    @Test
+    void replacesOnlyPlacementsOwnedByTheRequestedWorkspace() {
+        Long workspaceId = 22L;
+        Experience project = mockExperience(10L, "PROJECT");
+        when(experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, Set.of(10L)))
+                .thenReturn(List.of(project));
+        when(placementRepository.saveAll(anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response =
+                service.replaceAll(
+                        workspaceId,
+                        ExperiencePlacementType.CORE_PROJECT,
+                        List.of(new ExperiencePlacementRequest(10L, 0, true)));
+
+        assertThat(response).extracting(item -> item.experienceId()).containsExactly(10L);
+        verify(placementRepository)
+                .deleteAllByExperienceWorkspaceIdAndPlacementType(
+                        workspaceId, ExperiencePlacementType.CORE_PROJECT);
+        verify(placementRepository, never()).deleteAllByPlacementType(any());
+    }
+
+    @Test
+    void rejectsAProjectOwnedByAnotherWorkspaceWithoutDeletingExistingPlacements() {
+        Long workspaceId = 22L;
+        when(experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, Set.of(91L)))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(
+                        () ->
+                                service.replaceAll(
+                                        workspaceId,
+                                        ExperiencePlacementType.CORE_PROJECT,
+                                        List.of(new ExperiencePlacementRequest(91L, 0, true))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("존재하지 않는");
+
+        verify(placementRepository, never())
+                .deleteAllByExperienceWorkspaceIdAndPlacementType(anyLong(), any());
+        verify(placementRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void detailMappingCarriesThePlacementExperienceForCompositeForeignKeys() {
+        Experience project = mock(Experience.class);
+        when(project.getId()).thenReturn(10L);
+        ExperiencePlacement placement =
+                ExperiencePlacement.create(project, ExperiencePlacementType.CORE_PROJECT, 0, true);
+        ExperienceDetail detail = mock(ExperienceDetail.class);
+
+        ExperiencePlacementDetail mapping = ExperiencePlacementDetail.create(placement, detail, 0);
+
+        assertThat(mapping.getExperienceId()).isEqualTo(10L);
+    }
+
     private Experience mockExperience(Long id, String type) {
         Experience experience = mock(Experience.class);
         when(experience.getId()).thenReturn(id);

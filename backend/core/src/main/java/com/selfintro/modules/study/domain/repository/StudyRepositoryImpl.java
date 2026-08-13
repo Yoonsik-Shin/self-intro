@@ -21,6 +21,9 @@ public class StudyRepositoryImpl implements StudyRepositoryCustom {
     @Override
     public Page<Study> search(StudySearchCondition condition, Pageable pageable) {
         BooleanBuilder where = new BooleanBuilder();
+        if (condition.workspaceId() != null) {
+            where.and(study.workspaceId.eq(condition.workspaceId()));
+        }
         where.and(keywordContains(condition.keyword()));
         if (condition.taxonomyNodeIds() != null && !condition.taxonomyNodeIds().isEmpty()) {
             where.and(study.taxonomyNodes.any().id.in(condition.taxonomyNodeIds()));

@@ -3,6 +3,8 @@ package com.selfintro.modules.experience.presentation;
 import com.selfintro.modules.experience.application.ExperienceConnectionService;
 import com.selfintro.modules.experience.presentation.dto.ExperienceConnections;
 import com.selfintro.modules.experience.presentation.dto.RelatedExperienceResponse;
+import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
+import com.selfintro.modules.identity.publication.application.WorkspacePublishedContentService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ExperienceConnectionController {
 
     private final ExperienceConnectionService connectionService;
+    private final PublicWorkspaceResolver publicWorkspaceResolver;
+    private final WorkspacePublishedContentService publishedContentService;
 
     @GetMapping("/admin/experiences/{id}/connections")
     public ExperienceConnections getExperienceConnections(@PathVariable Long id) {
@@ -33,6 +37,14 @@ public class ExperienceConnectionController {
 
     @GetMapping("/experiences/{id}/related")
     public List<RelatedExperienceResponse> getRelatedExperiences(@PathVariable Long id) {
-        return connectionService.getRelatedExperiences(id);
+        Long workspaceId = publicWorkspaceResolver.requireDefaultPublicWorkspace().getId();
+        return publishedContentService.relatedExperiences(workspaceId, id);
+    }
+
+    @GetMapping("/workspaces/{workspaceSlug}/experiences/{id}/related")
+    public List<RelatedExperienceResponse> getWorkspaceRelatedExperiences(
+            @PathVariable String workspaceSlug, @PathVariable Long id) {
+        Long workspaceId = publicWorkspaceResolver.requireBySlug(workspaceSlug).getId();
+        return publishedContentService.relatedExperiences(workspaceId, id);
     }
 }

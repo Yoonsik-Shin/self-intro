@@ -15,6 +15,7 @@ import com.selfintro.modules.experience.domain.repository.ExperienceDetailReposi
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.presentation.dto.StudySuggestionRequest;
@@ -64,6 +65,7 @@ public class StudyAiService {
     private static final long STREAM_TIMEOUT_MILLIS = 300_000L;
 
     private final SkillRepository skillRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final ExperienceRepository experienceRepository;
     private final ExperienceDetailRepository experienceDetailRepository;
     private final StudyRepository studyRepository;
@@ -73,12 +75,14 @@ public class StudyAiService {
 
     public StudyAiService(
             SkillRepository skillRepository,
+            WorkspaceSkillRepository workspaceSkillRepository,
             ExperienceRepository experienceRepository,
             ExperienceDetailRepository experienceDetailRepository,
             StudyRepository studyRepository,
             NvidiaNimClient nvidiaNimClient,
             ObjectMapper objectMapper) {
         this.skillRepository = skillRepository;
+        this.workspaceSkillRepository = workspaceSkillRepository;
         this.experienceRepository = experienceRepository;
         this.experienceDetailRepository = experienceDetailRepository;
         this.studyRepository = studyRepository;
@@ -87,12 +91,16 @@ public class StudyAiService {
     }
 
     public StudySuggestionResponse suggest(StudySuggestionRequest request) {
+        return suggest(null, request);
+    }
+
+    public StudySuggestionResponse suggest(Long workspaceId, StudySuggestionRequest request) {
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 공부 정리 AI 초안을 생성하고 있습니다.");
         }
         try {
-            return run(prepare(request), null);
+            return run(prepare(workspaceId, request), null);
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY, "AI 오케스트레이션 응답을 처리하지 못했습니다. 다시 시도해주세요.", exception);
@@ -102,13 +110,17 @@ public class StudyAiService {
     }
 
     public SseEmitter suggestStream(StudySuggestionRequest request) {
+        return suggestStream(null, request);
+    }
+
+    public SseEmitter suggestStream(Long workspaceId, StudySuggestionRequest request) {
         if (!generating.compareAndSet(false, true)) {
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS, "이미 공부 정리 AI 초안을 생성하고 있습니다.");
         }
         PreparedGeneration prepared;
         try {
-            prepared = prepare(request);
+            prepared = prepare(workspaceId, request);
         } catch (RuntimeException exception) {
             generating.set(false);
             throw exception;
@@ -122,13 +134,15 @@ public class StudyAiService {
 
     private SseEmitter createSseEmitter(long timeoutMillis) {
         SseEmitter emitter = new SseEmitter(timeoutMillis);
-        emitter.onTimeout(() -> {
-            log.info("학습 정리 AI SSE 스트림 타임아웃 발생");
-            emitter.complete();
-        });
-        emitter.onError(ex -> {
-            log.debug("학습 정리 AI SSE 스트림 에러: {}", ex.getMessage());
-        });
+        emitter.onTimeout(
+                () -> {
+                    log.info("학습 정리 AI SSE 스트림 타임아웃 발생");
+                    emitter.complete();
+                });
+        emitter.onError(
+                ex -> {
+                    log.debug("학습 정리 AI SSE 스트림 에러: {}", ex.getMessage());
+                });
         return emitter;
     }
 
@@ -206,39 +220,70 @@ public class StudyAiService {
         return normalizeSuggestions(parsed);
     }
 
-    private PreparedGeneration prepare(StudySuggestionRequest request) {
+    private PreparedGeneration prepare(Long workspaceId, StudySuggestionRequest request) {
         List<Skill> skills =
                 request.skillIds() != null && !request.skillIds().isEmpty()
                         ? fetchAndValidate(
-                                skillRepository.findAllById(request.skillIds()),
+                                workspaceId == null
+                                        ? skillRepository.findAllById(request.skillIds())
+                                        : workspaceSkillRepository
+                                                .findAllByWorkspaceIdAndSkill_IdIn(
+                                                        workspaceId, request.skillIds())
+                                                .stream()
+                                                .map(item -> item.getSkill())
+                                                .toList(),
                                 request.skillIds(),
                                 "기술")
-                        : skillRepository.findAllByOrderByDisplayOrderAsc();
+                        : workspaceId == null
+                                ? skillRepository.findAllByOrderByDisplayOrderAsc()
+                                : workspaceSkillRepository
+                                        .findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId)
+                                        .stream()
+                                        .map(item -> item.getSkill())
+                                        .toList();
 
         List<Experience> experiences =
                 request.experienceIds() != null && !request.experienceIds().isEmpty()
                         ? fetchAndValidate(
-                                experienceRepository.findAllById(request.experienceIds()),
+                                workspaceId == null
+                                        ? experienceRepository.findAllById(request.experienceIds())
+                                        : experienceRepository.findAllByWorkspaceIdAndIdIn(
+                                                workspaceId, request.experienceIds()),
                                 request.experienceIds(),
                                 "경력/프로젝트")
-                        : experienceRepository.findAllByOrderByDisplayOrderAsc();
+                        : workspaceId == null
+                                ? experienceRepository.findAllByOrderByDisplayOrderAsc()
+                                : experienceRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(
+                                        workspaceId);
 
         List<ExperienceDetail> experienceDetails =
                 request.experienceDetailIds() != null && !request.experienceDetailIds().isEmpty()
                         ? fetchAndValidate(
-                                experienceDetailRepository.findAllById(
-                                        request.experienceDetailIds()),
+                                workspaceId == null
+                                        ? experienceDetailRepository.findAllById(
+                                                request.experienceDetailIds())
+                                        : experienceDetailRepository
+                                                .findAllByExperience_WorkspaceIdAndIdIn(
+                                                        workspaceId, request.experienceDetailIds()),
                                 request.experienceDetailIds(),
                                 "경력 상세")
-                        : experienceDetailRepository.findAll();
+                        : workspaceId == null
+                                ? experienceDetailRepository.findAll()
+                                : experienceDetailRepository.findAllByExperience_WorkspaceId(
+                                        workspaceId);
 
         List<Study> relatedStudies =
                 request.relatedStudyIds() != null && !request.relatedStudyIds().isEmpty()
                         ? fetchAndValidate(
-                                studyRepository.findAllById(request.relatedStudyIds()),
+                                workspaceId == null
+                                        ? studyRepository.findAllById(request.relatedStudyIds())
+                                        : studyRepository.findAllByWorkspaceIdAndIdIn(
+                                                workspaceId, request.relatedStudyIds()),
                                 request.relatedStudyIds(),
                                 "관련 Study")
-                        : studyRepository.findAll();
+                        : workspaceId == null
+                                ? studyRepository.findAll()
+                                : studyRepository.findAllByWorkspaceIdOrderByTitleAsc(workspaceId);
 
         ExtractionContext extractionContext =
                 new ExtractionContext(

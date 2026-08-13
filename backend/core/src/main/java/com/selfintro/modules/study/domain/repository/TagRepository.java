@@ -7,11 +7,11 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TagRepository extends JpaRepository<Tag, Long> {
-    Optional<Tag> findByNameIgnoreCase(String name);
+    Optional<Tag> findByWorkspaceIdAndNameIgnoreCase(Long workspaceId, String name);
 
-    boolean existsBySlug(String slug);
+    boolean existsByWorkspaceIdAndSlug(Long workspaceId, String slug);
 
-    List<Tag> findAllByOrderByNameAsc();
+    List<Tag> findAllByWorkspaceIdOrderByNameAsc(Long workspaceId);
 
-    List<Tag> findByNameIn(Collection<String> names);
+    List<Tag> findAllByWorkspaceIdAndNameIn(Long workspaceId, Collection<String> names);
 }

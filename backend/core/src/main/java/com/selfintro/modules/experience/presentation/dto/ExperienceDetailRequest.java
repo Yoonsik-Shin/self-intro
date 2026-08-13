@@ -13,4 +13,6 @@ public record ExperienceDetailRequest(
         String outcome,
         String narrative,
         Boolean visible,
+        Boolean publicVisible,
+        Boolean resumeAvailable,
         List<Long> skillIds) {}

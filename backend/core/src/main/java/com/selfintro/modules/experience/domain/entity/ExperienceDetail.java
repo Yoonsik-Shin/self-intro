@@ -39,6 +39,12 @@ public class ExperienceDetail {
     @Column(nullable = false)
     private boolean visible = true;
 
+    @Column(name = "public_visible", nullable = false)
+    private boolean publicVisible = true;
+
+    @Column(name = "resume_available", nullable = false)
+    private boolean resumeAvailable = true;
+
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
@@ -62,7 +68,8 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
-            boolean visible,
+            boolean publicVisible,
+            boolean resumeAvailable,
             int displayOrder,
             List<Skill> skills) {
         this.id = id;
@@ -72,7 +79,9 @@ public class ExperienceDetail {
         this.actionDetail = actionDetail;
         this.outcome = outcome;
         this.narrative = narrative;
-        this.visible = visible;
+        this.visible = publicVisible;
+        this.publicVisible = publicVisible;
+        this.resumeAvailable = resumeAvailable;
         this.displayOrder = displayOrder;
         this.skills = skills != null ? skills : new ArrayList<>();
     }
@@ -84,7 +93,8 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
-            boolean visible,
+            boolean publicVisible,
+            boolean resumeAvailable,
             int displayOrder,
             List<Skill> skills) {
         return new ExperienceDetail(
@@ -95,7 +105,8 @@ public class ExperienceDetail {
                 actionDetail,
                 outcome,
                 narrative,
-                visible,
+                publicVisible,
+                resumeAvailable,
                 displayOrder,
                 skills);
     }
@@ -114,7 +125,8 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
-            boolean visible,
+            boolean publicVisible,
+            boolean resumeAvailable,
             int displayOrder,
             List<Skill> skills) {}
 
@@ -125,7 +137,8 @@ public class ExperienceDetail {
             String actionDetail,
             String outcome,
             String narrative,
-            boolean visible,
+            boolean publicVisible,
+            boolean resumeAvailable,
             int displayOrder,
             List<Skill> skills) {
         this.content = content;
@@ -134,7 +147,9 @@ public class ExperienceDetail {
         this.actionDetail = actionDetail;
         this.outcome = outcome;
         this.narrative = narrative;
-        this.visible = visible;
+        this.visible = publicVisible;
+        this.publicVisible = publicVisible;
+        this.resumeAvailable = resumeAvailable;
         this.displayOrder = displayOrder;
 
         this.skills.clear();
@@ -187,7 +202,15 @@ public class ExperienceDetail {
     }
 
     public boolean isVisible() {
-        return visible;
+        return publicVisible;
+    }
+
+    public boolean isPublicVisible() {
+        return publicVisible;
+    }
+
+    public boolean isResumeAvailable() {
+        return resumeAvailable;
     }
 
     public int getDisplayOrder() {

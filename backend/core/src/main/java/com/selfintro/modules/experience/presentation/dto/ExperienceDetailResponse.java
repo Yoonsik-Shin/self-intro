@@ -13,6 +13,8 @@ public record ExperienceDetailResponse(
         String outcome,
         String narrative,
         boolean visible,
+        boolean publicVisible,
+        boolean resumeAvailable,
         int displayOrder,
         List<SkillResponse> skills) {
     public static ExperienceDetailResponse from(ExperienceDetail detail) {
@@ -24,8 +26,26 @@ public record ExperienceDetailResponse(
                 detail.getActionDetail(),
                 detail.getOutcome(),
                 detail.getNarrative(),
-                detail.isVisible(),
+                detail.isPublicVisible(),
+                detail.isPublicVisible(),
+                detail.isResumeAvailable(),
                 detail.getDisplayOrder(),
-                detail.getSkills().stream().map(SkillResponse::from).toList());
+                detail.getSkills().stream().map(SkillResponse::fromCatalog).toList());
+    }
+
+    public ExperienceDetailResponse shown() {
+        return new ExperienceDetailResponse(
+                id,
+                content,
+                situation,
+                task,
+                actionDetail,
+                outcome,
+                narrative,
+                true,
+                publicVisible,
+                resumeAvailable,
+                displayOrder,
+                skills);
     }
 }

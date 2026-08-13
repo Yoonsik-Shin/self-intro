@@ -1,10 +1,12 @@
 package com.selfintro.modules.study.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +16,7 @@ import com.selfintro.modules.experience.domain.repository.ExperienceDetailReposi
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import com.selfintro.modules.study.presentation.dto.StudySuggestionRequest;
 import java.util.List;
@@ -26,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class StudyAiServiceTest {
     @Mock private SkillRepository skillRepository;
+    @Mock private WorkspaceSkillRepository workspaceSkillRepository;
     @Mock private ExperienceRepository experienceRepository;
     @Mock private ExperienceDetailRepository experienceDetailRepository;
     @Mock private StudyRepository studyRepository;
@@ -41,6 +45,7 @@ class StudyAiServiceTest {
     private StudyAiService newService() {
         return new StudyAiService(
                 skillRepository,
+                workspaceSkillRepository,
                 experienceRepository,
                 experienceDetailRepository,
                 studyRepository,
@@ -97,5 +102,15 @@ class StudyAiServiceTest {
         assertThat(suggestion.title()).isEqualTo("Kafka 이벤트 파이프라인 정리");
         assertThat(suggestion.tagNames()).containsExactly("Kafka", "이벤트드리븐");
         assertThat(suggestion.contentMarkdown()).contains("배경");
+    }
+
+    @Test
+    void workspaceGenerationRejectsSkillOutsideWorkspaceBeforeCallingProvider() {
+        when(workspaceSkillRepository.findAllByWorkspaceIdAndSkill_IdIn(7L, List.of(10L)))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.suggest(7L, sampleRequest()))
+                .hasMessageContaining("존재하지 않는 기술 항목");
+        verifyNoInteractions(nvidiaNimClient);
     }
 }

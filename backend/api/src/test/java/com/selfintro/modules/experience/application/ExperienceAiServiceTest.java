@@ -1,8 +1,10 @@
 package com.selfintro.modules.experience.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +13,7 @@ import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ExperienceAiServiceTest {
     @Mock SkillRepository skillRepository;
+    @Mock WorkspaceSkillRepository workspaceSkillRepository;
     @Mock ExperienceRepository experienceRepository;
     @Mock StudyRepository studyRepository;
     @Mock NvidiaNimClient nvidiaNimClient;
@@ -33,6 +37,7 @@ class ExperienceAiServiceTest {
         service =
                 new ExperienceAiService(
                         skillRepository,
+                        workspaceSkillRepository,
                         experienceRepository,
                         studyRepository,
                         nvidiaNimClient,
@@ -77,5 +82,31 @@ class ExperienceAiServiceTest {
         assertThat(suggestion.summary()).contains("Redis");
         assertThat(suggestion.details()).hasSize(1);
         assertThat(suggestion.details().getFirst().skillIds()).containsExactly(10L);
+    }
+
+    @Test
+    void workspaceGenerationRejectsRelatedExperienceOutsideWorkspaceBeforeCallingProvider() {
+        when(workspaceSkillRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(7L))
+                .thenReturn(List.of());
+        when(studyRepository.findAllByWorkspaceIdOrderByTitleAsc(7L)).thenReturn(List.of());
+        when(experienceRepository.findAllByWorkspaceIdAndIdIn(7L, List.of(99L)))
+                .thenReturn(List.of());
+        ExperienceSuggestionRequest request =
+                new ExperienceSuggestionRequest(
+                        "",
+                        "PROJECT",
+                        "",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(),
+                        List.of(),
+                        List.of(99L));
+
+        assertThatThrownBy(() -> service.suggest(7L, request))
+                .hasMessageContaining("존재하지 않는 관련 경력 ID");
+        verifyNoInteractions(nvidiaNimClient);
     }
 }

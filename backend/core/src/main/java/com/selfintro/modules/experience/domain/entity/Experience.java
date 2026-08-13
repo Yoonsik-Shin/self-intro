@@ -159,7 +159,8 @@ public abstract class Experience {
                                         d.actionDetail(),
                                         d.outcome(),
                                         d.narrative(),
-                                        d.visible(),
+                                        d.publicVisible(),
+                                        d.resumeAvailable(),
                                         d.displayOrder(),
                                         d.skills()))
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -192,7 +193,8 @@ public abstract class Experience {
                                                 d.actionDetail(),
                                                 d.outcome(),
                                                 d.narrative(),
-                                                d.visible(),
+                                                d.publicVisible(),
+                                                d.resumeAvailable(),
                                                 d.displayOrder(),
                                                 d.skills()));
             } else {
@@ -204,7 +206,8 @@ public abstract class Experience {
                                 d.actionDetail(),
                                 d.outcome(),
                                 d.narrative(),
-                                d.visible(),
+                                d.publicVisible(),
+                                d.resumeAvailable(),
                                 d.displayOrder(),
                                 d.skills()));
             }

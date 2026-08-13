@@ -1,12 +1,14 @@
 package com.selfintro.modules.study.application;
 
 import com.selfintro.global.config.RabbitMqConfig;
+import com.selfintro.global.messaging.AfterCommitRabbitEventPublisher;
 import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
 import com.selfintro.modules.experience.domain.repository.ExperienceDetailRepository;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
+import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import com.selfintro.modules.skill.domain.entity.Skill;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.entity.StudyImage;
@@ -43,7 +45,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -60,11 +61,12 @@ public class StudyService {
     private final TaxonomyNodeRepository taxonomyNodeRepository;
     private final StudyTaxonomyCurationRepository curationRepository;
     private final TagRepository tagRepository;
-    private final SkillRepository skillRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final ExperienceRepository experienceRepository;
     private final ExperienceDetailRepository experienceDetailRepository;
     private final StorageService storageService;
-    private final RabbitTemplate rabbitTemplate;
+    private final AfterCommitRabbitEventPublisher eventPublisher;
+    private final PublicWorkspaceResolver publicWorkspaceResolver;
 
     public StudyPageResponse searchPublished(
             String keyword,
@@ -76,7 +78,33 @@ public class StudyService {
             StudySection section,
             int page,
             int size) {
+        Long workspaceId = publicWorkspaceResolver.requireDefaultPublicWorkspace().getId();
+        return searchPublished(
+                workspaceId,
+                keyword,
+                taxonomyNodeId,
+                tags,
+                skillIds,
+                experienceIds,
+                experienceDetailIds,
+                section,
+                page,
+                size);
+    }
+
+    public StudyPageResponse searchPublished(
+            Long workspaceId,
+            String keyword,
+            Long taxonomyNodeId,
+            List<String> tags,
+            List<Long> skillIds,
+            List<Long> experienceIds,
+            List<Long> experienceDetailIds,
+            StudySection section,
+            int page,
+            int size) {
         return search(
+                workspaceId,
                 keyword,
                 taxonomyNodeId,
                 tags,
@@ -100,7 +128,34 @@ public class StudyService {
             StudySection section,
             int page,
             int size) {
+        return searchAdmin(
+                publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(),
+                keyword,
+                taxonomyNodeId,
+                tags,
+                skillIds,
+                experienceIds,
+                experienceDetailIds,
+                status,
+                section,
+                page,
+                size);
+    }
+
+    public StudyPageResponse searchAdmin(
+            Long workspaceId,
+            String keyword,
+            Long taxonomyNodeId,
+            List<String> tags,
+            List<Long> skillIds,
+            List<Long> experienceIds,
+            List<Long> experienceDetailIds,
+            StudyStatus status,
+            StudySection section,
+            int page,
+            int size) {
         return search(
+                workspaceId,
                 keyword,
                 taxonomyNodeId,
                 tags,
@@ -114,6 +169,7 @@ public class StudyService {
     }
 
     private StudyPageResponse search(
+            Long workspaceId,
             String keyword,
             Long taxonomyNodeId,
             List<String> tags,
@@ -133,6 +189,7 @@ public class StudyService {
                 studyRepository
                         .search(
                                 new StudySearchCondition(
+                                        workspaceId,
                                         keyword,
                                         taxonomyNodeIds,
                                         tags,
@@ -147,12 +204,47 @@ public class StudyService {
     }
 
     public StudyResponse findPublishedBySlug(String slug) {
+        return findPublishedBySlug(
+                publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), slug);
+    }
+
+    public StudyResponse findPublishedBySlug(Long workspaceId, String slug) {
         Study study =
                 studyRepository
-                        .findBySlug(slug)
+                        .findByWorkspaceIdAndSlug(workspaceId, slug)
                         .filter(value -> value.getStatus() == StudyStatus.PUBLISHED)
                         .orElseThrow(() -> new EntityNotFoundException("Study not found: " + slug));
         return toResponse(study);
+    }
+
+    public List<StudyResponse> getPublishedForPublication(Long workspaceId) {
+        return studyRepository.findAllByWorkspaceIdOrderByTitleAsc(workspaceId).stream()
+                .filter(study -> study.getStatus() == StudyStatus.PUBLISHED)
+                .sorted(
+                        java.util.Comparator.comparing(
+                                        Study::getLearnedAt,
+                                        java.util.Comparator.nullsLast(
+                                                java.util.Comparator.reverseOrder()))
+                                .thenComparing(Study::getId, java.util.Comparator.reverseOrder()))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<StudyResponse> getForPublication(
+            Long workspaceId, List<Long> orderedIds, java.util.Set<Long> taxonomyIds) {
+        List<Long> distinctIds = orderedIds.stream().distinct().toList();
+        Map<Long, Study> selected =
+                studyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, distinctIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(Study::getId, study -> study));
+        if (selected.size() != distinctIds.size()) {
+            throw new IllegalArgumentException("다른 Workspace의 Study가 포함되어 있습니다.");
+        }
+        java.util.Set<Long> selectedIds = java.util.Set.copyOf(distinctIds);
+        return distinctIds.stream()
+                .map(selected::get)
+                .map(this::toResponse)
+                .map(response -> response.forPublication(selectedIds, taxonomyIds))
+                .toList();
     }
 
     private StudyResponse toResponse(Study study) {
@@ -160,14 +252,22 @@ public class StudyService {
     }
 
     public List<StudyResponse.TagResponse> findTags() {
-        return tagRepository.findAllByOrderByNameAsc().stream()
+        return findTags(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId());
+    }
+
+    public List<StudyResponse.TagResponse> findTags(Long workspaceId) {
+        return tagRepository.findAllByWorkspaceIdOrderByNameAsc(workspaceId).stream()
                 .map(StudyResponse.TagResponse::from)
                 .toList();
     }
 
     public List<StudyTaxonomyResponse> findPublicTaxonomy() {
-        Map<Long, Long> totals = rolledUpPublishedCounts();
-        return curationRepository.findAllByOrderByDisplayOrderAsc().stream()
+        return findPublicTaxonomy(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId());
+    }
+
+    public List<StudyTaxonomyResponse> findPublicTaxonomy(Long workspaceId) {
+        Map<Long, Long> totals = rolledUpPublishedCounts(workspaceId);
+        return curationRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId).stream()
                 .map(
                         curation ->
                                 StudyTaxonomyResponse.from(
@@ -178,8 +278,8 @@ public class StudyService {
     }
 
     @Transactional
-    public List<TaxonomyNodeResponse> findCuration() {
-        return curationRepository.findAllByOrderByDisplayOrderAsc().stream()
+    public List<TaxonomyNodeResponse> findCuration(Long workspaceId) {
+        return curationRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId).stream()
                 .map(curation -> TaxonomyNodeResponse.from(curation.getTaxonomyNode()))
                 .toList();
     }
@@ -194,15 +294,16 @@ public class StudyService {
                 "experience-tree:studies"
             },
             allEntries = true)
-    public List<TaxonomyNodeResponse> replaceCuration(List<Long> taxonomyNodeIds) {
-        curationRepository.deleteAll();
+    public List<TaxonomyNodeResponse> replaceCuration(
+            Long workspaceId, List<Long> taxonomyNodeIds) {
+        curationRepository.deleteAllByWorkspaceId(workspaceId);
         if (taxonomyNodeIds == null || taxonomyNodeIds.isEmpty()) {
             return List.of();
         }
         List<StudyTaxonomyCuration> curations = new ArrayList<>();
         for (int i = 0; i < taxonomyNodeIds.size(); i++) {
             TaxonomyNode node = findTaxonomyNode(taxonomyNodeIds.get(i));
-            curations.add(StudyTaxonomyCuration.create(node, i));
+            curations.add(StudyTaxonomyCuration.create(workspaceId, node, i));
         }
         return curationRepository.saveAll(curations).stream()
                 .map(curation -> TaxonomyNodeResponse.from(curation.getTaxonomyNode()))
@@ -220,7 +321,21 @@ public class StudyService {
             },
             allEntries = true)
     public StudyResponse create(StudyRequest request) {
-        String slug = uniqueSlug(request.slug(), request.title(), null);
+        return create(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), request);
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
+    public StudyResponse create(Long workspaceId, StudyRequest request) {
+        String slug = uniqueSlug(workspaceId, request.slug(), request.title(), null);
         LocalDateTime publishedAt =
                 resolvePublishedAt(request.status(), request.publishedAt(), null);
         Study study =
@@ -232,6 +347,7 @@ public class StudyService {
                         request.status(),
                         request.learnedAt(),
                         publishedAt);
+        study.assignWorkspace(workspaceId);
         study.changeSection(request.section());
 
         List<String> removedImageKeys = applyAssociations(study, request);
@@ -253,11 +369,25 @@ public class StudyService {
             },
             allEntries = true)
     public StudyResponse update(Long id, StudyRequest request) {
+        return update(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), id, request);
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
+    public StudyResponse update(Long workspaceId, Long id, StudyRequest request) {
         Study study =
                 studyRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
-        String slug = uniqueSlug(request.slug(), request.title(), id);
+        String slug = uniqueSlug(workspaceId, request.slug(), request.title(), id);
         LocalDateTime publishedAt =
                 resolvePublishedAt(request.status(), request.publishedAt(), study.getPublishedAt());
 
@@ -288,13 +418,28 @@ public class StudyService {
             },
             allEntries = true)
     public void delete(Long id) {
+        delete(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), id);
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
+    public void delete(Long workspaceId, Long id) {
         Study study =
                 studyRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
         List<String> objectKeys = study.getImages().stream().map(StudyImage::getObjectKey).toList();
         studyRepository.delete(study);
         storageService.deleteAll(objectKeys);
+        publishVectorDeleteEvent(workspaceId, id);
     }
 
     @Transactional
@@ -308,10 +453,24 @@ public class StudyService {
             },
             allEntries = true)
     public List<StudyResponse> batchPublish(List<Long> ids) {
+        return batchPublish(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), ids);
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
+    public List<StudyResponse> batchPublish(Long workspaceId, List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
-        List<Study> studies = studyRepository.findAllById(ids);
+        List<Study> studies = requireWorkspaceStudies(workspaceId, ids);
         LocalDateTime now = LocalDateTime.now();
         for (Study study : studies) {
             if (study.getStatus() != StudyStatus.PUBLISHED) {
@@ -341,10 +500,24 @@ public class StudyService {
             },
             allEntries = true)
     public List<StudyResponse> batchUnpublish(List<Long> ids) {
+        return batchUnpublish(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), ids);
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
+    public List<StudyResponse> batchUnpublish(Long workspaceId, List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
-        List<Study> studies = studyRepository.findAllById(ids);
+        List<Study> studies = requireWorkspaceStudies(workspaceId, ids);
         for (Study study : studies) {
             if (study.getStatus() != StudyStatus.DRAFT) {
                 study.update(
@@ -371,9 +544,23 @@ public class StudyService {
             },
             allEntries = true)
     public StudyResponse toggleStatus(Long id) {
+        return toggleStatus(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), id);
+    }
+
+    @Transactional
+    @CacheEvict(
+            value = {
+                "bff:learning",
+                "bff:introduction",
+                "experience-tree:index",
+                "experience-tree:detail",
+                "experience-tree:studies"
+            },
+            allEntries = true)
+    public StudyResponse toggleStatus(Long workspaceId, Long id) {
         Study study =
                 studyRepository
-                        .findById(id)
+                        .findByIdAndWorkspaceId(id, workspaceId)
                         .orElseThrow(() -> new EntityNotFoundException("Study not found: " + id));
         StudyStatus newStatus =
                 study.getStatus() == StudyStatus.PUBLISHED
@@ -397,8 +584,17 @@ public class StudyService {
         return toResponse(study);
     }
 
+    private List<Study> requireWorkspaceStudies(Long workspaceId, List<Long> ids) {
+        Set<Long> distinctIds = new LinkedHashSet<>(ids);
+        List<Study> studies = studyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, distinctIds);
+        if (studies.size() != distinctIds.size()) {
+            throw new EntityNotFoundException("Study not found in workspace");
+        }
+        return studies;
+    }
+
     private void publishVectorSyncEvent(Study saved) {
-        rabbitTemplate.convertAndSend(
+        eventPublisher.publish(
                 RabbitMqConfig.EXCHANGE_NAME,
                 RabbitMqConfig.ROUTING_KEY_STUDY_UPDATED,
                 new StudyUpdatedEvent(
@@ -406,6 +602,13 @@ public class StudyService {
                         saved.getId(),
                         saved.getTitle(),
                         saved.getContentMarkdown()));
+    }
+
+    private void publishVectorDeleteEvent(Long workspaceId, Long studyId) {
+        eventPublisher.publish(
+                RabbitMqConfig.EXCHANGE_NAME,
+                RabbitMqConfig.ROUTING_KEY_STUDY_UPDATED,
+                StudyUpdatedEvent.deleted(workspaceId, studyId));
     }
 
     private TaxonomyNode findTaxonomyNode(Long id) {
@@ -438,10 +641,12 @@ public class StudyService {
     }
 
     /** 노드별 직접 attach + 하위 노드 attach 전부를 합산한 PUBLISHED count. */
-    private Map<Long, Long> rolledUpPublishedCounts() {
+    private Map<Long, Long> rolledUpPublishedCounts(Long workspaceId) {
         List<TaxonomyNode> all = taxonomyNodeRepository.findAll();
         Map<Long, Long> direct =
-                studyRepository.countByTaxonomyNodeAndStatus(StudyStatus.PUBLISHED).stream()
+                studyRepository
+                        .countByTaxonomyNodeAndStatus(workspaceId, StudyStatus.PUBLISHED)
+                        .stream()
                         .collect(
                                 Collectors.toMap(
                                         StudyRepository.TaxonomyNodeCountProjection
@@ -479,28 +684,43 @@ public class StudyService {
     }
 
     private List<String> applyAssociations(Study study, StudyRequest request) {
-        study.replaceTaxonomyNodes(
-                request.taxonomyNodeIds() == null
-                        ? List.of()
-                        : taxonomyNodeRepository.findAllById(request.taxonomyNodeIds()));
-        study.replaceTags(resolveTags(request.tagNames()));
+        Long workspaceId = study.getWorkspaceId();
+        Set<Long> taxonomyIds = ids(request.taxonomyNodeIds());
+        List<TaxonomyNode> taxonomyNodes = taxonomyNodeRepository.findAllById(taxonomyIds);
+        requireExactSelection("Taxonomy node", taxonomyIds, taxonomyNodes.size());
+        study.replaceTaxonomyNodes(taxonomyNodes);
+        study.replaceTags(resolveTags(workspaceId, request.tagNames()));
+
+        Set<Long> skillIds = ids(request.skillIds());
         List<Skill> skills =
-                request.skillIds() == null
-                        ? List.of()
-                        : skillRepository.findAllById(request.skillIds());
+                workspaceSkillRepository
+                        .findAllByWorkspaceIdAndSkill_IdIn(workspaceId, skillIds)
+                        .stream()
+                        .map(workspaceSkill -> workspaceSkill.getSkill())
+                        .toList();
+        requireExactSelection("Workspace skill", skillIds, skills.size());
+
+        Set<Long> experienceIds = ids(request.experienceIds());
         List<Experience> experiences =
-                request.experienceIds() == null
-                        ? List.of()
-                        : experienceRepository.findAllById(request.experienceIds());
+                experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, experienceIds);
+        requireExactSelection("Experience", experienceIds, experiences.size());
+
+        Set<Long> detailIds = ids(request.experienceDetailIds());
         List<ExperienceDetail> experienceDetails =
-                request.experienceDetailIds() == null
-                        ? List.of()
-                        : experienceDetailRepository.findAllById(request.experienceDetailIds());
+                experienceDetailRepository.findAllByExperience_WorkspaceIdAndIdIn(
+                        workspaceId, detailIds);
+        requireExactSelection("Experience detail", detailIds, experienceDetails.size());
         study.replaceSkills(skills);
         study.replaceExperiences(experiences);
         study.replaceExperienceDetails(experienceDetails);
 
         List<StudyImage.Draft> imageDrafts = toImageDrafts(request.images());
+        imageDrafts.stream()
+                .filter(draft -> draft.id() == null)
+                .forEach(
+                        draft ->
+                                storageService.requireOwnedObjectKey(
+                                        workspaceId, draft.objectKey()));
         List<String> removedImageKeys = study.imageObjectKeysNotIn(imageDrafts);
         study.reconcileImages(imageDrafts);
         return removedImageKeys;
@@ -520,7 +740,7 @@ public class StudyService {
                 .toList();
     }
 
-    private List<Tag> resolveTags(List<String> tagNames) {
+    private List<Tag> resolveTags(Long workspaceId, List<String> tagNames) {
         if (tagNames == null) {
             return List.of();
         }
@@ -534,11 +754,14 @@ public class StudyService {
         for (String name : normalizedNames) {
             result.add(
                     tagRepository
-                            .findByNameIgnoreCase(name)
+                            .findByWorkspaceIdAndNameIgnoreCase(workspaceId, name)
                             .orElseGet(
                                     () ->
                                             tagRepository.save(
-                                                    Tag.create(name, uniqueTagSlug(name)))));
+                                                    Tag.create(
+                                                            workspaceId,
+                                                            name,
+                                                            uniqueTagSlug(workspaceId, name)))));
         }
         return result;
     }
@@ -553,7 +776,7 @@ public class StudyService {
             StudyRelationRequest request = requests.get(i);
             Study target =
                     studyRepository
-                            .findById(request.studyId())
+                            .findByIdAndWorkspaceId(request.studyId(), source.getWorkspaceId())
                             .orElseThrow(
                                     () ->
                                             new EntityNotFoundException(
@@ -567,7 +790,7 @@ public class StudyService {
         source.replaceRelations(relations);
     }
 
-    private String uniqueSlug(String requested, String title, Long currentId) {
+    private String uniqueSlug(Long workspaceId, String requested, String title, Long currentId) {
         String base = slugify(StringUtils.hasText(requested) ? requested : title);
         if (!StringUtils.hasText(base)) {
             base = "study";
@@ -575,24 +798,35 @@ public class StudyService {
         String candidate = base;
         int suffix = 2;
         while (currentId == null
-                ? studyRepository.existsBySlug(candidate)
-                : studyRepository.existsBySlugAndIdNot(candidate, currentId)) {
+                ? studyRepository.existsByWorkspaceIdAndSlug(workspaceId, candidate)
+                : studyRepository.existsByWorkspaceIdAndSlugAndIdNot(
+                        workspaceId, candidate, currentId)) {
             candidate = base + "-" + suffix++;
         }
         return candidate;
     }
 
-    private String uniqueTagSlug(String name) {
+    private String uniqueTagSlug(Long workspaceId, String name) {
         String base = slugify(name);
         if (!StringUtils.hasText(base)) {
             base = "tag";
         }
         String candidate = base;
         int suffix = 2;
-        while (tagRepository.existsBySlug(candidate)) {
+        while (tagRepository.existsByWorkspaceIdAndSlug(workspaceId, candidate)) {
             candidate = base + "-" + suffix++;
         }
         return candidate;
+    }
+
+    private Set<Long> ids(List<Long> values) {
+        return values == null ? Set.of() : new LinkedHashSet<>(values);
+    }
+
+    private void requireExactSelection(String label, Set<Long> ids, int foundCount) {
+        if (ids.size() != foundCount) {
+            throw new EntityNotFoundException(label + " not found in workspace");
+        }
     }
 
     private String slugify(String value) {

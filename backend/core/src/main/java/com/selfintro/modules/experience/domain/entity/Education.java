@@ -63,7 +63,8 @@ public class Education extends Experience {
                 showOnTimeline,
                 timelineLabel);
         this.institutionName = institutionName;
-        this.educationType = (educationType != null && !educationType.isBlank()) ? educationType : "ACADEMIC";
+        this.educationType =
+                (educationType != null && !educationType.isBlank()) ? educationType : "ACADEMIC";
         this.degree = degree;
         this.major = major;
         this.gpa = gpa;
@@ -164,7 +165,8 @@ public class Education extends Experience {
                 showOnTimeline,
                 timelineLabel);
         this.institutionName = institutionName;
-        this.educationType = (educationType != null && !educationType.isBlank()) ? educationType : "ACADEMIC";
+        this.educationType =
+                (educationType != null && !educationType.isBlank()) ? educationType : "ACADEMIC";
         this.degree = degree;
         this.major = major;
         this.gpa = gpa;

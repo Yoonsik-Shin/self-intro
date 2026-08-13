@@ -10,11 +10,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface StudyRepository extends JpaRepository<Study, Long>, StudyRepositoryCustom {
-    boolean existsBySlug(String slug);
+    boolean existsByWorkspaceIdAndSlug(Long workspaceId, String slug);
 
-    boolean existsBySlugAndIdNot(String slug, Long id);
+    boolean existsByWorkspaceIdAndSlugAndIdNot(Long workspaceId, String slug, Long id);
 
     Optional<Study> findBySlug(String slug);
+
+    Optional<Study> findByWorkspaceIdAndSlug(Long workspaceId, String slug);
 
     Optional<Study> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
@@ -31,9 +33,10 @@ public interface StudyRepository extends JpaRepository<Study, Long>, StudyReposi
 
     @Query(
             "select tn.id as taxonomyNodeId, count(s) as count from Study s "
-                    + "join s.taxonomyNodes tn where s.status = :status group by tn.id")
+                    + "join s.taxonomyNodes tn where s.workspaceId = :workspaceId "
+                    + "and s.status = :status group by tn.id")
     List<TaxonomyNodeCountProjection> countByTaxonomyNodeAndStatus(
-            @Param("status") StudyStatus status);
+            @Param("workspaceId") Long workspaceId, @Param("status") StudyStatus status);
 
     interface TaxonomyNodeCountProjection {
         Long getTaxonomyNodeId();

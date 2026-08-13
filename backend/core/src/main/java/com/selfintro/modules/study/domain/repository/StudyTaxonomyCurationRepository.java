@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StudyTaxonomyCurationRepository
         extends JpaRepository<StudyTaxonomyCuration, Long> {
-    List<StudyTaxonomyCuration> findAllByOrderByDisplayOrderAsc();
+    List<StudyTaxonomyCuration> findAllByWorkspaceIdOrderByDisplayOrderAsc(Long workspaceId);
+
+    void deleteAllByWorkspaceId(Long workspaceId);
 }

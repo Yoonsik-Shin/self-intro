@@ -1,17 +1,21 @@
 package com.selfintro.modules.learningresource.application;
 
+import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import com.selfintro.modules.learningresource.domain.entity.LearningResource;
 import com.selfintro.modules.learningresource.domain.entity.LearningResourceRelation;
+import com.selfintro.modules.learningresource.domain.entity.WorkspaceLearningResource;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
-import com.selfintro.modules.learningresource.domain.repository.LearningResourceSearchCondition;
+import com.selfintro.modules.learningresource.domain.repository.WorkspaceLearningResourceRepository;
+import com.selfintro.modules.learningresource.presentation.dto.LearningResourceCatalogResponse;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceGraphResponse;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourcePageResponse;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceRelationRequest;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceRequest;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceResponse;
+import com.selfintro.modules.learningresource.presentation.dto.WorkspaceLearningResourceRequest;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.study.domain.entity.Tag;
@@ -31,6 +35,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,9 +47,11 @@ import org.springframework.util.StringUtils;
 public class LearningResourceService {
 
     private final LearningResourceRepository learningResourceRepository;
+    private final WorkspaceLearningResourceRepository workspaceLearningResourceRepository;
     private final TaxonomyNodeRepository taxonomyNodeRepository;
     private final TagRepository tagRepository;
     private final SkillRepository skillRepository;
+    private final PublicWorkspaceResolver publicWorkspaceResolver;
 
     public LearningResourcePageResponse searchAdmin(
             String keyword,
@@ -56,42 +63,127 @@ public class LearningResourceService {
             LearningResourcePriorityTier priorityTier,
             int page,
             int size) {
-        int safeSize = Math.min(Math.max(size, 1), 1000);
-        List<Long> taxonomyNodeIds =
-                taxonomyNodeId == null
-                        ? null
-                        : new ArrayList<>(resolveWithDescendants(taxonomyNodeId));
-        Page<LearningResourceResponse> result =
-                learningResourceRepository
-                        .search(
-                                new LearningResourceSearchCondition(
-                                        keyword,
-                                        taxonomyNodeIds,
-                                        tags,
-                                        skillIds,
-                                        resourceType,
-                                        status,
-                                        priorityTier),
-                                PageRequest.of(Math.max(page, 0), safeSize))
-                        .map(LearningResourceResponse::from);
-        return LearningResourcePageResponse.from(result);
+        return searchWorkspace(
+                publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(),
+                keyword,
+                taxonomyNodeId,
+                tags,
+                skillIds,
+                resourceType,
+                status,
+                priorityTier,
+                page,
+                size);
     }
 
     public LearningResourceResponse get(Long id) {
-        return learningResourceRepository
-                .findById(id)
-                .map(LearningResourceResponse::from)
-                .orElseThrow(
-                        () -> new EntityNotFoundException("Learning resource not found: " + id));
+        return getWorkspace(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(), id);
     }
 
     public LearningResourceGraphResponse findGraph() {
-        List<LearningResource> resources = learningResourceRepository.findAll();
+        return findWorkspaceGraph(publicWorkspaceResolver.requireDefaultPublicWorkspace().getId());
+    }
+
+    public LearningResourcePageResponse searchWorkspace(
+            Long workspaceId,
+            String keyword,
+            Long taxonomyNodeId,
+            List<String> tags,
+            List<Long> skillIds,
+            LearningResourceType resourceType,
+            LearningResourceStatus status,
+            LearningResourcePriorityTier priorityTier,
+            int page,
+            int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 1000);
+        Set<Long> taxonomyNodeIds =
+                taxonomyNodeId == null ? Set.of() : resolveWithDescendants(taxonomyNodeId);
+        List<WorkspaceLearningResource> filtered =
+                workspaceLearningResourceRepository
+                        .findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(workspaceId)
+                        .stream()
+                        .filter(
+                                overlay ->
+                                        matches(
+                                                overlay,
+                                                keyword,
+                                                taxonomyNodeIds,
+                                                tags,
+                                                skillIds,
+                                                resourceType,
+                                                status,
+                                                priorityTier))
+                        .toList();
+        int start = Math.min(safePage * safeSize, filtered.size());
+        int end = Math.min(start + safeSize, filtered.size());
+        Page<LearningResourceResponse> result =
+                new PageImpl<>(
+                        filtered.subList(start, end).stream()
+                                .map(
+                                        overlay ->
+                                                LearningResourceResponse.from(
+                                                        overlay.getLearningResource(), overlay))
+                                .toList(),
+                        PageRequest.of(safePage, safeSize),
+                        filtered.size());
+        return LearningResourcePageResponse.from(result);
+    }
+
+    public LearningResourceResponse getWorkspace(Long workspaceId, Long resourceId) {
+        WorkspaceLearningResource overlay = findWorkspaceOverlay(workspaceId, resourceId);
+        return LearningResourceResponse.from(overlay.getLearningResource(), overlay);
+    }
+
+    public List<LearningResourceCatalogResponse> listCatalog(Long workspaceId, String keyword) {
+        Set<Long> savedIds =
+                workspaceLearningResourceRepository
+                        .findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(workspaceId)
+                        .stream()
+                        .map(overlay -> overlay.getLearningResource().getId())
+                        .collect(java.util.stream.Collectors.toSet());
+        String normalizedKeyword =
+                StringUtils.hasText(keyword) ? keyword.trim().toLowerCase(Locale.ROOT) : null;
+        return learningResourceRepository.findAll().stream()
+                .filter(
+                        resource ->
+                                normalizedKeyword == null
+                                        || contains(resource.getTitle(), normalizedKeyword)
+                                        || contains(resource.getProvider(), normalizedKeyword)
+                                        || contains(
+                                                resource.getInstructorOrAuthor(), normalizedKeyword)
+                                        || resource.getSkills().stream()
+                                                .anyMatch(
+                                                        skill ->
+                                                                contains(
+                                                                        skill.getName(),
+                                                                        normalizedKeyword)))
+                .sorted(
+                        java.util.Comparator.comparing(LearningResource::getTitle)
+                                .thenComparing(LearningResource::getId))
+                .map(
+                        resource ->
+                                LearningResourceCatalogResponse.from(
+                                        resource, savedIds.contains(resource.getId())))
+                .toList();
+    }
+
+    public LearningResourceGraphResponse findWorkspaceGraph(Long workspaceId) {
+        List<WorkspaceLearningResource> overlays =
+                workspaceLearningResourceRepository
+                        .findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(workspaceId);
         List<LearningResourceGraphResponse.NodeResponse> nodes =
-                resources.stream().map(LearningResourceGraphResponse.NodeResponse::from).toList();
+                overlays.stream().map(LearningResourceGraphResponse.NodeResponse::from).toList();
+        Set<Long> visibleResourceIds =
+                overlays.stream()
+                        .map(overlay -> overlay.getLearningResource().getId())
+                        .collect(java.util.stream.Collectors.toSet());
         List<LearningResourceGraphResponse.EdgeResponse> edges =
-                resources.stream()
-                        .flatMap(resource -> resource.getRelations().stream())
+                overlays.stream()
+                        .flatMap(overlay -> overlay.getLearningResource().getRelations().stream())
+                        .filter(
+                                relation ->
+                                        visibleResourceIds.contains(relation.getTarget().getId()))
                         .map(LearningResourceGraphResponse.EdgeResponse::from)
                         .toList();
         return new LearningResourceGraphResponse(nodes, edges);
@@ -119,7 +211,17 @@ public class LearningResourceService {
         applyAssociations(resource, request);
         LearningResource saved = learningResourceRepository.save(resource);
         applyRelations(saved, request.relatedResources());
-        return LearningResourceResponse.from(saved);
+        WorkspaceLearningResource overlay =
+                createOverlay(
+                        publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(),
+                        saved,
+                        request.status(),
+                        request.priorityTier(),
+                        request.displayOrder(),
+                        request.summary(),
+                        request.detailMarkdown(),
+                        request.tagNames());
+        return LearningResourceResponse.from(saved, overlay);
     }
 
     @Transactional
@@ -149,7 +251,17 @@ public class LearningResourceService {
                 request.detailMarkdown());
         applyAssociations(resource, request);
         applyRelations(resource, request.relatedResources());
-        return LearningResourceResponse.from(resource);
+        WorkspaceLearningResource overlay =
+                upsertOverlay(
+                        publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(),
+                        resource,
+                        request.status(),
+                        request.priorityTier(),
+                        request.displayOrder(),
+                        request.summary(),
+                        request.detailMarkdown(),
+                        request.tagNames());
+        return LearningResourceResponse.from(resource, overlay);
     }
 
     @Transactional
@@ -162,6 +274,7 @@ public class LearningResourceService {
                                 () ->
                                         new EntityNotFoundException(
                                                 "Learning resource not found: " + id));
+        workspaceLearningResourceRepository.deleteAllByLearningResourceId(id);
         learningResourceRepository.delete(resource);
     }
 
@@ -176,7 +289,190 @@ public class LearningResourceService {
                                         new EntityNotFoundException(
                                                 "Learning resource not found: " + id));
         resource.updateStatus(status);
-        return LearningResourceResponse.from(resource);
+        Long workspaceId = publicWorkspaceResolver.requireDefaultPublicWorkspace().getId();
+        WorkspaceLearningResource overlay = findWorkspaceOverlay(workspaceId, id);
+        overlay.updateStatus(status);
+        return LearningResourceResponse.from(resource, overlay);
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
+    public LearningResourceResponse addToWorkspace(
+            Long workspaceId, Long resourceId, WorkspaceLearningResourceRequest request) {
+        if (workspaceLearningResourceRepository.existsByWorkspaceIdAndLearningResourceId(
+                workspaceId, resourceId)) {
+            throw new IllegalArgumentException("Learning resource is already saved in Workspace.");
+        }
+        LearningResource resource = findResource(resourceId);
+        WorkspaceLearningResource overlay =
+                createOverlay(
+                        workspaceId,
+                        resource,
+                        request.status(),
+                        request.priorityTier(),
+                        request.displayOrder(),
+                        request.summary(),
+                        request.detailMarkdown(),
+                        request.tagNames());
+        return LearningResourceResponse.from(resource, overlay);
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
+    public LearningResourceResponse updateWorkspace(
+            Long workspaceId, Long resourceId, WorkspaceLearningResourceRequest request) {
+        WorkspaceLearningResource overlay = findWorkspaceOverlay(workspaceId, resourceId);
+        overlay.update(
+                request.status(),
+                request.priorityTier(),
+                request.displayOrder(),
+                blankToNull(request.summary()),
+                request.detailMarkdown());
+        overlay.replaceTags(resolveTags(workspaceId, request.tagNames()));
+        return LearningResourceResponse.from(overlay.getLearningResource(), overlay);
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
+    public LearningResourceResponse updateWorkspaceStatus(
+            Long workspaceId, Long resourceId, LearningResourceStatus status) {
+        WorkspaceLearningResource overlay = findWorkspaceOverlay(workspaceId, resourceId);
+        overlay.updateStatus(status);
+        return LearningResourceResponse.from(overlay.getLearningResource(), overlay);
+    }
+
+    @Transactional
+    @CacheEvict(value = "bff:learning", allEntries = true)
+    public void removeFromWorkspace(Long workspaceId, Long resourceId) {
+        workspaceLearningResourceRepository.delete(findWorkspaceOverlay(workspaceId, resourceId));
+    }
+
+    private WorkspaceLearningResource createOverlay(
+            Long workspaceId,
+            LearningResource resource,
+            LearningResourceStatus status,
+            LearningResourcePriorityTier priorityTier,
+            int displayOrder,
+            String summary,
+            String detailMarkdown,
+            List<String> tagNames) {
+        WorkspaceLearningResource overlay =
+                WorkspaceLearningResource.create(
+                        workspaceId,
+                        resource,
+                        status,
+                        priorityTier,
+                        displayOrder,
+                        blankToNull(summary),
+                        detailMarkdown);
+        overlay.replaceTags(resolveTags(workspaceId, tagNames));
+        return workspaceLearningResourceRepository.save(overlay);
+    }
+
+    private WorkspaceLearningResource upsertOverlay(
+            Long workspaceId,
+            LearningResource resource,
+            LearningResourceStatus status,
+            LearningResourcePriorityTier priorityTier,
+            int displayOrder,
+            String summary,
+            String detailMarkdown,
+            List<String> tagNames) {
+        return workspaceLearningResourceRepository
+                .findByWorkspaceIdAndLearningResourceId(workspaceId, resource.getId())
+                .map(
+                        overlay -> {
+                            overlay.update(
+                                    status,
+                                    priorityTier,
+                                    displayOrder,
+                                    blankToNull(summary),
+                                    detailMarkdown);
+                            overlay.replaceTags(resolveTags(workspaceId, tagNames));
+                            return overlay;
+                        })
+                .orElseGet(
+                        () ->
+                                createOverlay(
+                                        workspaceId,
+                                        resource,
+                                        status,
+                                        priorityTier,
+                                        displayOrder,
+                                        summary,
+                                        detailMarkdown,
+                                        tagNames));
+    }
+
+    private WorkspaceLearningResource findWorkspaceOverlay(Long workspaceId, Long resourceId) {
+        return workspaceLearningResourceRepository
+                .findByWorkspaceIdAndLearningResourceId(workspaceId, resourceId)
+                .orElseThrow(
+                        () ->
+                                new EntityNotFoundException(
+                                        "Workspace learning resource not found: " + resourceId));
+    }
+
+    private LearningResource findResource(Long resourceId) {
+        return learningResourceRepository
+                .findById(resourceId)
+                .orElseThrow(
+                        () ->
+                                new EntityNotFoundException(
+                                        "Learning resource not found: " + resourceId));
+    }
+
+    private boolean matches(
+            WorkspaceLearningResource overlay,
+            String keyword,
+            Set<Long> taxonomyNodeIds,
+            List<String> tags,
+            List<Long> skillIds,
+            LearningResourceType resourceType,
+            LearningResourceStatus status,
+            LearningResourcePriorityTier priorityTier) {
+        LearningResource resource = overlay.getLearningResource();
+        if (resourceType != null && resource.getResourceType() != resourceType) {
+            return false;
+        }
+        if (status != null && overlay.getStatus() != status) {
+            return false;
+        }
+        if (priorityTier != null && overlay.getPriorityTier() != priorityTier) {
+            return false;
+        }
+        if (!taxonomyNodeIds.isEmpty()
+                && resource.getTaxonomyNodes().stream()
+                        .noneMatch(node -> taxonomyNodeIds.contains(node.getId()))) {
+            return false;
+        }
+        if (tags != null
+                && !tags.isEmpty()
+                && overlay.getTags().stream().noneMatch(tag -> tags.contains(tag.getSlug()))) {
+            return false;
+        }
+        if (skillIds != null
+                && !skillIds.isEmpty()
+                && resource.getSkills().stream()
+                        .noneMatch(skill -> skillIds.contains(skill.getId()))) {
+            return false;
+        }
+        if (!StringUtils.hasText(keyword)) {
+            return true;
+        }
+        String value = keyword.trim().toLowerCase(Locale.ROOT);
+        return contains(resource.getTitle(), value)
+                || contains(resource.getProvider(), value)
+                || contains(resource.getInstructorOrAuthor(), value)
+                || contains(overlay.getPersonalSummary(), value)
+                || contains(overlay.getPersonalNoteMarkdown(), value)
+                || overlay.getTags().stream().anyMatch(tag -> contains(tag.getName(), value))
+                || resource.getSkills().stream()
+                        .anyMatch(skill -> contains(skill.getName(), value));
+    }
+
+    private boolean contains(String source, String lowerCaseNeedle) {
+        return source != null && source.toLowerCase(Locale.ROOT).contains(lowerCaseNeedle);
     }
 
     /** 선택한 노드 + 그 하위 전부의 id 집합. 트리 규모가 작아 in-memory로 계산한다. */
@@ -207,7 +503,10 @@ public class LearningResourceService {
                 request.taxonomyNodeIds() == null
                         ? List.of()
                         : taxonomyNodeRepository.findAllById(request.taxonomyNodeIds()));
-        resource.replaceTags(resolveTags(request.tagNames()));
+        resource.replaceTags(
+                resolveTags(
+                        publicWorkspaceResolver.requireDefaultPublicWorkspace().getId(),
+                        request.tagNames()));
         List<Skill> skills =
                 request.skillIds() == null
                         ? List.of()
@@ -215,7 +514,7 @@ public class LearningResourceService {
         resource.replaceSkills(skills);
     }
 
-    private List<Tag> resolveTags(List<String> tagNames) {
+    private List<Tag> resolveTags(Long workspaceId, List<String> tagNames) {
         if (tagNames == null) {
             return List.of();
         }
@@ -229,11 +528,14 @@ public class LearningResourceService {
         for (String name : normalizedNames) {
             result.add(
                     tagRepository
-                            .findByNameIgnoreCase(name)
+                            .findByWorkspaceIdAndNameIgnoreCase(workspaceId, name)
                             .orElseGet(
                                     () ->
                                             tagRepository.save(
-                                                    Tag.create(name, uniqueTagSlug(name)))));
+                                                    Tag.create(
+                                                            workspaceId,
+                                                            name,
+                                                            uniqueTagSlug(workspaceId, name)))));
         }
         return result;
     }
@@ -279,14 +581,14 @@ public class LearningResourceService {
         return candidate;
     }
 
-    private String uniqueTagSlug(String name) {
+    private String uniqueTagSlug(Long workspaceId, String name) {
         String base = slugify(name);
         if (!StringUtils.hasText(base)) {
             base = "tag";
         }
         String candidate = base;
         int suffix = 2;
-        while (tagRepository.existsBySlug(candidate)) {
+        while (tagRepository.existsByWorkspaceIdAndSlug(workspaceId, candidate)) {
             candidate = base + "-" + suffix++;
         }
         return candidate;

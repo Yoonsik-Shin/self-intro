@@ -21,6 +21,9 @@ public class ExperiencePlacementDetail {
     @JoinColumn(name = "placement_id", nullable = false)
     private ExperiencePlacement placement;
 
+    @Column(name = "experience_id", nullable = false, updatable = false)
+    private Long experienceId;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "experience_detail_id", nullable = false)
     private ExperienceDetail detail;
@@ -36,6 +39,7 @@ public class ExperiencePlacementDetail {
     private ExperiencePlacementDetail(
             ExperiencePlacement placement, ExperienceDetail detail, int displayOrder) {
         this.placement = placement;
+        this.experienceId = placement.getExperience().getId();
         this.detail = detail;
         this.displayOrder = displayOrder;
     }
@@ -56,6 +60,10 @@ public class ExperiencePlacementDetail {
 
     public ExperiencePlacement getPlacement() {
         return placement;
+    }
+
+    public Long getExperienceId() {
+        return experienceId;
     }
 
     public ExperienceDetail getDetail() {

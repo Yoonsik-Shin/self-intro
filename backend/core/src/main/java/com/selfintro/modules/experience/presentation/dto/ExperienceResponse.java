@@ -83,12 +83,102 @@ public record ExperienceResponse(
                 issuer);
     }
 
+    public ExperienceResponse withPublicationSettings(
+            List<Long> detailIds,
+            int publicationDisplayOrder,
+            boolean publicationShowOnTimeline,
+            String publicationTimelineLabel) {
+        Set<Long> selectedIds = new HashSet<>(detailIds);
+        return new ExperienceResponse(
+                id,
+                type,
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                publicationDisplayOrder,
+                publicationShowOnTimeline,
+                publicationTimelineLabel,
+                details.stream()
+                        .filter(detail -> selectedIds.contains(detail.id()))
+                        .map(ExperienceDetailResponse::shown)
+                        .toList(),
+                skills,
+                tags,
+                images,
+                companyName,
+                employmentType,
+                department,
+                role,
+                slug,
+                contributionRate,
+                repositoryUrl,
+                careerId,
+                institutionName,
+                educationType,
+                degree,
+                major,
+                gpa,
+                graduationStatus,
+                issuer);
+    }
+
+    public ExperienceResponse forPublicWeb() {
+        return withDetails(
+                details.stream()
+                        .filter(ExperienceDetailResponse::publicVisible)
+                        .map(ExperienceDetailResponse::shown)
+                        .toList());
+    }
+
+    public ExperienceResponse forResume() {
+        return withDetails(
+                details.stream()
+                        .filter(ExperienceDetailResponse::resumeAvailable)
+                        .map(ExperienceDetailResponse::shown)
+                        .toList());
+    }
+
+    private ExperienceResponse withDetails(List<ExperienceDetailResponse> selectedDetails) {
+        return new ExperienceResponse(
+                id,
+                type,
+                title,
+                periodStart,
+                periodEnd,
+                summary,
+                takeaway,
+                displayOrder,
+                showOnTimeline,
+                timelineLabel,
+                selectedDetails,
+                skills,
+                tags,
+                images,
+                companyName,
+                employmentType,
+                department,
+                role,
+                slug,
+                contributionRate,
+                repositoryUrl,
+                careerId,
+                institutionName,
+                educationType,
+                degree,
+                major,
+                gpa,
+                graduationStatus,
+                issuer);
+    }
+
     public static ExperienceResponse from(
             Experience exp, Function<String, String> imageUrlResolver) {
         List<ExperienceDetailResponse> detailResponses =
                 exp.getDetails().stream().map(ExperienceDetailResponse::from).toList();
         List<SkillResponse> skillResponses =
-                exp.getSkills().stream().map(SkillResponse::from).toList();
+                exp.getSkills().stream().map(SkillResponse::fromCatalog).toList();
         List<TagResponse> tagResponses = exp.getTags().stream().map(TagResponse::from).toList();
         List<ImageResponse> imageResponses =
                 exp.getImages().stream()

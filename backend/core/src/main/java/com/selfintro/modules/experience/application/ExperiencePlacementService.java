@@ -32,9 +32,32 @@ public class ExperiencePlacementService {
                 .toList();
     }
 
+    public List<ExperiencePlacementResponse> getAll(
+            Long workspaceId, ExperiencePlacementType placementType) {
+        return placementRepository
+                .findAllByExperienceWorkspaceIdAndPlacementTypeOrderByDisplayOrderAsc(
+                        workspaceId, placementType)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     public List<SelectedExperience> getEnabledSelections(ExperiencePlacementType placementType) {
         return placementRepository
                 .findAllByPlacementTypeAndEnabledTrueOrderByDisplayOrderAsc(placementType)
+                .stream()
+                .map(
+                        placement ->
+                                new SelectedExperience(
+                                        placement.getExperience(), getSelectedDetailIds(placement)))
+                .toList();
+    }
+
+    public List<SelectedExperience> getEnabledSelections(
+            Long workspaceId, ExperiencePlacementType placementType) {
+        return placementRepository
+                .findAllByExperienceWorkspaceIdAndPlacementTypeAndEnabledTrueOrderByDisplayOrderAsc(
+                        workspaceId, placementType)
                 .stream()
                 .map(
                         placement ->
@@ -60,29 +83,57 @@ public class ExperiencePlacementService {
         if (experiences.size() != uniqueIds.size()) {
             throw new IllegalArgumentException("존재하지 않는 이력이 포함되어 있습니다.");
         }
-
-        for (Experience experience : experiences.values()) {
-            if (!"PROJECT".equals(experience.getType())) {
-                throw new IllegalArgumentException("프로젝트만 핵심 프로젝트로 편성할 수 있습니다.");
-            }
-        }
-
-        Map<Long, List<Long>> selectedDetailIds =
-                safeRequests.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        ExperiencePlacementRequest::experienceId,
-                                        request ->
-                                                validateAndNormalizeDetailIds(
-                                                        experiences.get(request.experienceId()),
-                                                        request.detailIds())));
+        validateProjects(experiences.values());
+        Map<Long, List<Long>> selectedDetailIds = selectedDetailIds(safeRequests, experiences);
 
         placementRepository.deleteAllByPlacementType(placementType);
         placementRepository.flush();
+        List<ExperiencePlacement> saved =
+                savePlacements(placementType, safeRequests, experiences, selectedDetailIds);
+        return toResponses(saved, selectedDetailIds);
+    }
+
+    @Transactional
+    public List<ExperiencePlacementResponse> replaceAll(
+            Long workspaceId,
+            ExperiencePlacementType placementType,
+            List<ExperiencePlacementRequest> requests) {
+        List<ExperiencePlacementRequest> safeRequests = requests == null ? List.of() : requests;
+        Set<Long> uniqueIds = new HashSet<>();
+        for (ExperiencePlacementRequest request : safeRequests) {
+            if (!uniqueIds.add(request.experienceId())) {
+                throw new IllegalArgumentException("동일한 이력을 핵심 프로젝트에 중복 등록할 수 없습니다.");
+            }
+        }
+
+        Map<Long, Experience> experiences =
+                experienceRepository.findAllByWorkspaceIdAndIdIn(workspaceId, uniqueIds).stream()
+                        .collect(Collectors.toMap(Experience::getId, Function.identity()));
+        if (experiences.size() != uniqueIds.size()) {
+            throw new IllegalArgumentException("존재하지 않는 이력이 포함되어 있습니다.");
+        }
+
+        validateProjects(experiences.values());
+        Map<Long, List<Long>> selectedDetailIds = selectedDetailIds(safeRequests, experiences);
+
+        placementRepository.deleteAllByExperienceWorkspaceIdAndPlacementType(
+                workspaceId, placementType);
+        placementRepository.flush();
 
         List<ExperiencePlacement> saved =
+                savePlacements(placementType, safeRequests, experiences, selectedDetailIds);
+
+        return toResponses(saved, selectedDetailIds);
+    }
+
+    private List<ExperiencePlacement> savePlacements(
+            ExperiencePlacementType placementType,
+            List<ExperiencePlacementRequest> requests,
+            Map<Long, Experience> experiences,
+            Map<Long, List<Long>> selectedDetailIds) {
+        List<ExperiencePlacement> saved =
                 placementRepository.saveAll(
-                        safeRequests.stream()
+                        requests.stream()
                                 .map(
                                         request ->
                                                 ExperiencePlacement.create(
@@ -101,7 +152,7 @@ public class ExperiencePlacementService {
                                         Function.identity()));
 
         List<ExperiencePlacementDetail> detailMappings =
-                safeRequests.stream()
+                requests.stream()
                         .flatMap(
                                 request -> {
                                     Experience experience = experiences.get(request.experienceId());
@@ -126,7 +177,11 @@ public class ExperiencePlacementService {
                                 })
                         .toList();
         placementDetailRepository.saveAll(detailMappings);
+        return saved;
+    }
 
+    private List<ExperiencePlacementResponse> toResponses(
+            List<ExperiencePlacement> saved, Map<Long, List<Long>> selectedDetailIds) {
         return saved.stream()
                 .sorted(java.util.Comparator.comparingInt(ExperiencePlacement::getDisplayOrder))
                 .map(
@@ -135,6 +190,26 @@ public class ExperiencePlacementService {
                                         placement,
                                         selectedDetailIds.get(placement.getExperience().getId())))
                 .toList();
+    }
+
+    private void validateProjects(java.util.Collection<Experience> experiences) {
+        for (Experience experience : experiences) {
+            if (!"PROJECT".equals(experience.getType())) {
+                throw new IllegalArgumentException("프로젝트만 핵심 프로젝트로 편성할 수 있습니다.");
+            }
+        }
+    }
+
+    private Map<Long, List<Long>> selectedDetailIds(
+            List<ExperiencePlacementRequest> requests, Map<Long, Experience> experiences) {
+        return requests.stream()
+                .collect(
+                        Collectors.toMap(
+                                ExperiencePlacementRequest::experienceId,
+                                request ->
+                                        validateAndNormalizeDetailIds(
+                                                experiences.get(request.experienceId()),
+                                                request.detailIds())));
     }
 
     private List<Long> validateAndNormalizeDetailIds(

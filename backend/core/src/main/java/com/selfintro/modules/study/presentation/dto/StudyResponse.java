@@ -13,6 +13,7 @@ import com.selfintro.modules.taxonomy.presentation.dto.TaxonomyNodeResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 public record StudyResponse(
@@ -58,6 +59,32 @@ public record StudyResponse(
                 study.getPublishedAt(),
                 study.getCreatedAt(),
                 study.getUpdatedAt());
+    }
+
+    public StudyResponse forPublication(Set<Long> selectedStudyIds, Set<Long> selectedTaxonomyIds) {
+        return new StudyResponse(
+                id,
+                slug,
+                title,
+                summary,
+                contentMarkdown,
+                status,
+                section,
+                taxonomyNodes.stream()
+                        .filter(node -> selectedTaxonomyIds.contains(node.id()))
+                        .toList(),
+                tags,
+                skills,
+                experiences,
+                experienceDetails,
+                relatedStudies.stream()
+                        .filter(item -> selectedStudyIds.contains(item.id()))
+                        .toList(),
+                images,
+                learnedAt,
+                publishedAt,
+                createdAt,
+                updatedAt);
     }
 
     public record ImageResponse(Long id, String objectKey, String url, int displayOrder) {
