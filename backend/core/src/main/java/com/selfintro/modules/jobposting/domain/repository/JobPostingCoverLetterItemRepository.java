@@ -12,7 +12,15 @@ public interface JobPostingCoverLetterItemRepository
 
     List<JobPostingCoverLetterItem> findAllByJobPostingIdOrderByDisplayOrderAsc(Long jobPostingId);
 
+    List<JobPostingCoverLetterItem> findAllByWorkspaceJobApplicationIdOrderByDisplayOrderAsc(
+            Long workspaceJobApplicationId);
+
+    java.util.Optional<JobPostingCoverLetterItem> findByIdAndWorkspaceJobApplicationId(
+            Long id, Long workspaceJobApplicationId);
+
     void deleteAllByJobPostingId(Long jobPostingId);
+
+    void deleteAllByWorkspaceJobApplicationId(Long workspaceJobApplicationId);
 
     long countByJobPostingId(Long jobPostingId);
 

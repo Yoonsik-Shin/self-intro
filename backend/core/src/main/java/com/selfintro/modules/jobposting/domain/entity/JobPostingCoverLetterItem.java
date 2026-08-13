@@ -22,6 +22,9 @@ public class JobPostingCoverLetterItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_job_application_id", nullable = false)
+    private Long workspaceJobApplicationId;
+
     @Column(name = "job_posting_id", nullable = false)
     private Long jobPostingId;
 
@@ -44,12 +47,14 @@ public class JobPostingCoverLetterItem {
     private LocalDateTime updatedAt;
 
     private JobPostingCoverLetterItem(
+            Long workspaceJobApplicationId,
             Long jobPostingId,
             String question,
             String answer,
             Integer characterLimit,
             int displayOrder,
             LocalDateTime now) {
+        this.workspaceJobApplicationId = workspaceJobApplicationId;
         this.jobPostingId = jobPostingId;
         this.question = question;
         this.answer = answer;
@@ -60,6 +65,7 @@ public class JobPostingCoverLetterItem {
     }
 
     public static JobPostingCoverLetterItem create(
+            Long workspaceJobApplicationId,
             Long jobPostingId,
             String question,
             String answer,
@@ -67,6 +73,12 @@ public class JobPostingCoverLetterItem {
             int displayOrder,
             LocalDateTime now) {
         return new JobPostingCoverLetterItem(
-                jobPostingId, question, answer, characterLimit, displayOrder, now);
+                workspaceJobApplicationId,
+                jobPostingId,
+                question,
+                answer,
+                characterLimit,
+                displayOrder,
+                now);
     }
 }
