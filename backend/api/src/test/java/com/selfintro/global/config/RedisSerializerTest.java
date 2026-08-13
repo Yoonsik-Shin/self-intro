@@ -56,6 +56,8 @@ class RedisSerializerTest {
                         "github",
                         "test@test.com",
                         "010-0000-0000",
+                        true,
+                        true,
                         LocalDateTime.now());
         IntroductionResponse response =
                 new IntroductionResponse(profile, List.of(), List.of(), List.of(), "3년", List.of());
@@ -84,6 +86,8 @@ class RedisSerializerTest {
                         "github",
                         "test@test.com",
                         "010-0000-0000",
+                        true,
+                        true,
                         now);
         IntroductionResponse response =
                 new IntroductionResponse(profile, List.of(), List.of(), List.of(), "3년", List.of());

@@ -19,8 +19,10 @@ public class FlywayConfig {
                             .ignoreMigrationPatterns("*:ignored")
                             .placeholderReplacement(false)
                             .load();
-            configuredFlyway.repair();
+            // 운영 시작 시 checksum 불일치나 실패 이력을 자동으로 덮어쓰지 않는다.
+            // repair는 원인을 확인한 운영자가 별도 절차로 실행해야 한다.
             configuredFlyway.migrate();
+            configuredFlyway.validate();
         };
     }
 }

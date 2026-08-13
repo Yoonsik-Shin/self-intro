@@ -27,35 +27,49 @@ public class ExternalStatusService {
 
     public ExternalStatusService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(3))
-                .build();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
     }
 
     public List<ExternalServiceStatusResponse> checkAll() {
-        CompletableFuture<ExternalServiceStatusResponse> github = fetchStatuspage(
-                "GitHub", "https://www.githubstatus.com/api/v2/status.json", "https://www.githubstatus.com");
-        CompletableFuture<ExternalServiceStatusResponse> anthropic = fetchStatuspage(
-                "Anthropic (Claude)", "https://status.claude.com/api/v2/status.json", "https://status.claude.com");
-        CompletableFuture<ExternalServiceStatusResponse> openai = fetchStatuspage(
-                "OpenAI", "https://status.openai.com/api/v2/status.json", "https://status.openai.com");
+        CompletableFuture<ExternalServiceStatusResponse> github =
+                fetchStatuspage(
+                        "GitHub",
+                        "https://www.githubstatus.com/api/v2/status.json",
+                        "https://www.githubstatus.com");
+        CompletableFuture<ExternalServiceStatusResponse> anthropic =
+                fetchStatuspage(
+                        "Anthropic (Claude)",
+                        "https://status.claude.com/api/v2/status.json",
+                        "https://status.claude.com");
+        CompletableFuture<ExternalServiceStatusResponse> openai =
+                fetchStatuspage(
+                        "OpenAI",
+                        "https://status.openai.com/api/v2/status.json",
+                        "https://status.openai.com");
         CompletableFuture<ExternalServiceStatusResponse> googleCloud = fetchGoogleCloud();
 
         return CompletableFuture.allOf(github, anthropic, openai, googleCloud)
-                .thenApply(ignored -> List.of(
-                        github.join(), anthropic.join(), openai.join(), googleCloud.join()))
+                .thenApply(
+                        ignored ->
+                                List.of(
+                                        github.join(),
+                                        anthropic.join(),
+                                        openai.join(),
+                                        googleCloud.join()))
                 .join();
     }
 
     private CompletableFuture<ExternalServiceStatusResponse> fetchStatuspage(
             String name, String apiUrl, String pageUrl) {
         return getAsync(apiUrl)
-                .thenApply(body -> {
-                    JsonNode status = readTree(body).path("status");
-                    String indicator = status.path("indicator").asText("unknown");
-                    String description = status.path("description").asText("알 수 없음");
-                    return new ExternalServiceStatusResponse(name, indicator, description, pageUrl);
-                })
+                .thenApply(
+                        body -> {
+                            JsonNode status = readTree(body).path("status");
+                            String indicator = status.path("indicator").asText("unknown");
+                            String description = status.path("description").asText("알 수 없음");
+                            return new ExternalServiceStatusResponse(
+                                    name, indicator, description, pageUrl);
+                        })
                 .exceptionally(error -> unknown(name, pageUrl, error));
     }
 
@@ -63,44 +77,50 @@ public class ExternalStatusService {
         String name = "Google Cloud";
         String pageUrl = "https://status.cloud.google.com";
         return getAsync("https://status.cloud.google.com/incidents.json")
-                .thenApply(body -> {
-                    JsonNode incidents = readTree(body);
-                    boolean hasOngoing = false;
-                    boolean hasHighSeverityOngoing = false;
-                    for (JsonNode incident : incidents) {
-                        JsonNode end = incident.path("end");
-                        if (end.isMissingNode() || end.isNull()) {
-                            hasOngoing = true;
-                            String severity = incident.path("severity").asText("");
-                            if ("high".equalsIgnoreCase(severity)) {
-                                hasHighSeverityOngoing = true;
+                .thenApply(
+                        body -> {
+                            JsonNode incidents = readTree(body);
+                            boolean hasOngoing = false;
+                            boolean hasHighSeverityOngoing = false;
+                            for (JsonNode incident : incidents) {
+                                JsonNode end = incident.path("end");
+                                if (end.isMissingNode() || end.isNull()) {
+                                    hasOngoing = true;
+                                    String severity = incident.path("severity").asText("");
+                                    if ("high".equalsIgnoreCase(severity)) {
+                                        hasHighSeverityOngoing = true;
+                                    }
+                                }
                             }
-                        }
-                    }
-                    if (!hasOngoing) {
-                        return new ExternalServiceStatusResponse(name, "none", "정상 운영중", pageUrl);
-                    }
-                    String indicator = hasHighSeverityOngoing ? "major" : "minor";
-                    return new ExternalServiceStatusResponse(name, indicator, "진행 중인 이슈 있음", pageUrl);
-                })
+                            if (!hasOngoing) {
+                                return new ExternalServiceStatusResponse(
+                                        name, "none", "정상 운영중", pageUrl);
+                            }
+                            String indicator = hasHighSeverityOngoing ? "major" : "minor";
+                            return new ExternalServiceStatusResponse(
+                                    name, indicator, "진행 중인 이슈 있음", pageUrl);
+                        })
                 .exceptionally(error -> unknown(name, pageUrl, error));
     }
 
     private CompletableFuture<String> getAsync(String url) {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Accept", "application/json")
-                .GET()
-                .timeout(REQUEST_TIMEOUT)
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .header("Accept", "application/json")
+                        .GET()
+                        .timeout(REQUEST_TIMEOUT)
+                        .build();
         return httpClient
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != 200) {
-                        throw new IllegalStateException("HTTP " + response.statusCode() + " from " + url);
-                    }
-                    return response.body();
-                });
+                .thenApply(
+                        response -> {
+                            if (response.statusCode() != 200) {
+                                throw new IllegalStateException(
+                                        "HTTP " + response.statusCode() + " from " + url);
+                            }
+                            return response.body();
+                        });
     }
 
     private JsonNode readTree(String body) {

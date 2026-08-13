@@ -1,5 +1,6 @@
 package com.selfintro.global.config;
 
+import java.io.File;
 import lombok.extern.slf4j.Slf4j;
 import oracle.nosql.driver.NoSQLHandle;
 import oracle.nosql.driver.NoSQLHandleConfig;
@@ -15,18 +16,17 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.io.File;
-
 /**
  * Oracle NoSQL Database 연결 설정.
- * <p>
- * oracle.nosql.enabled=true 일 때만 활성화됩니다.
+ *
+ * <p>oracle.nosql.enabled=true 일 때만 활성화됩니다.
+ *
  * <ul>
- *   <li>mode=cloud: OCI Cloud Service 연결 (SignatureProvider 인증)</li>
- *   <li>mode=local: 로컬 KVLite 에뮬레이터 연결 (무인증 StoreAccessTokenProvider)</li>
+ *   <li>mode=cloud: OCI Cloud Service 연결 (SignatureProvider 인증)
+ *   <li>mode=local: 로컬 KVLite 에뮬레이터 연결 (무인증 StoreAccessTokenProvider)
  * </ul>
- * 서버 기동 시 연결 검증과 CQRS Read Model 테이블 자동 생성(DDL)을 수행합니다.
- * 연결 실패 시 서버 기동을 즉시 중단(Fail-Fast)합니다.
+ *
+ * 서버 기동 시 연결 검증과 CQRS Read Model 테이블 자동 생성(DDL)을 수행합니다. 연결 실패 시 서버 기동을 즉시 중단(Fail-Fast)합니다.
  */
 @Slf4j
 @Configuration
@@ -48,7 +48,7 @@ public class OracleNoSqlConfig {
     @Value("${oracle.nosql.profile-name:self-intro-api-key}")
     private String profileName;
 
-    @Value("${oracle.nosql.table-name:JobPostingReadModel}")
+    @Value("${oracle.nosql.table-name:JobPostingCatalogReadModel}")
     private String tableName;
 
     @Bean
@@ -80,17 +80,13 @@ public class OracleNoSqlConfig {
         }
     }
 
-    /**
-     * 로컬 KVLite 에뮬레이터 모드 - 인증 없이 StoreAccessTokenProvider 사용
-     */
+    /** 로컬 KVLite 에뮬레이터 모드 - 인증 없이 StoreAccessTokenProvider 사용 */
     private void configureLocalMode(NoSQLHandleConfig config) {
         log.info("[Oracle NoSQL] 로컬 KVLite 에뮬레이터 모드 (무인증)");
         config.setAuthorizationProvider(new StoreAccessTokenProvider());
     }
 
-    /**
-     * OCI Cloud Service 모드 - OCI Config 파일 기반 SignatureProvider 인증
-     */
+    /** OCI Cloud Service 모드 - OCI Config 파일 기반 SignatureProvider 인증 */
     private void configureCloudMode(NoSQLHandleConfig config) throws Exception {
         String expandedPath = ociConfigFile.replace("~", System.getProperty("user.home"));
         File configFile = new File(expandedPath);
@@ -121,23 +117,28 @@ public class OracleNoSqlConfig {
     }
 
     private void ensureTableExists(NoSQLHandle handle) {
-        String ddl = String.format(
-                "CREATE TABLE IF NOT EXISTS %s ("
-                        + "jobPostingId LONG, "
-                        + "companyName STRING, "
-                        + "title STRING, "
-                        + "status STRING, "
-                        + "applyUrl STRING, "
-                        + "matchScore INTEGER, "
-                        + "matchSummary STRING, "
-                        + "updatedAt STRING, "
-                        + "PRIMARY KEY(jobPostingId))", tableName);
+        String ddl =
+                String.format(
+                        "CREATE TABLE IF NOT EXISTS %s ("
+                                + "jobPostingId LONG, "
+                                + "companyName STRING, "
+                                + "title STRING, "
+                                + "status STRING, "
+                                + "applyUrl STRING, "
+                                + "updatedAt STRING, "
+                                + "PRIMARY KEY(jobPostingId))",
+                        tableName);
 
         try {
-            log.info("[Oracle NoSQL] CQRS Read Model 테이블 DDL: CREATE TABLE IF NOT EXISTS {}", tableName);
+            log.info(
+                    "[Oracle NoSQL] CQRS Read Model 테이블 DDL: CREATE TABLE IF NOT EXISTS {}",
+                    tableName);
             TableRequest tableReq = new TableRequest().setStatement(ddl);
             TableResult tableResult = handle.tableRequest(tableReq);
-            log.info("[Oracle NoSQL] 테이블({}) DDL 완료 - 상태: {}", tableName, tableResult.getTableState());
+            log.info(
+                    "[Oracle NoSQL] 테이블({}) DDL 완료 - 상태: {}",
+                    tableName,
+                    tableResult.getTableState());
         } catch (Exception e) {
             log.error("[Oracle NoSQL FATAL] 테이블({}) 생성/검증 실패!", tableName, e);
             throw new IllegalStateException("Oracle NoSQL 테이블 초기화 실패 - 서버 기동 중단", e);
