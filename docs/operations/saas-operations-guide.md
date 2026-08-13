@@ -165,16 +165,19 @@ Workspace 집계를 함께 갱신한다. `/api/workspaces/{slug}/visits/manage/*
 
 - JobPosting catalog 벡터를 실제 추천에 사용하는 경우의 Workspace 결과 snapshot·삭제 전파 E2E
 - 온톨로지에 Experience·회고 연결을 추가할 경우 Workspace overlay와 복합 FK 적용
-- PrintTemplate의 채용공고 연결·플랫폼 기본 템플릿 catalog 분리와 일반 Workspace UI 개방
-- Competency 벡터와 전체 AI 입력의 Workspace 격리
+- 플랫폼 기본 PrintTemplate catalog와 Workspace 복사 모델은 향후 유료 템플릿 기능에서 결정
+- Competency 벡터를 다시 활성화할 경우 Workspace vector schema·cache 검증
 - 본인 확인을 포함한 MFA 완전 초기화 절차와 운영 암호화 Secret
-- Support Access 승인·만료·감사 흐름
 - 운영 private object bucket 프로비저닝·기존 최종 PDF 이관, 파일 검사, 삭제 전파 rehearsal
 - Workspace용 canonical API가 없는 레거시 관리 도메인의 플랫폼 전용 유지 또는 Workspace 이관 결정
 - 역할로 잠근 `/api/admin/**` 호환 endpoint의 비공개 베타 이후 제거 시점 결정
 - 운영 이메일 provider와 비밀번호 유출 목록 기반의 운영 blocklist 연동
 - 가입·Workspace 초대의 운영 보존기간 승인과 V215 bounded cleanup의 지표·실패 알림
 - 실명 인증 provider 연동, 암호화·접근 감사·보존 및 삭제 정책
+
+PrintTemplate canonical Workspace API·일반 Workspace UI, Competency AI 입력 격리, Support Access의
+요청·소유자 승인·최소 범위 진단·만료·철회·감사는 구현과 로컬 Compose UAT를 완료했다. 이 항목은 더
+이상 구현 미완료가 아니며, 현재 commit HEAD의 전체 회귀와 운영 provider 설정만 release gate로 남긴다.
 
 위 항목이 남아 있으므로 현재 브랜치는 운영 배포 대상이 아니다.
 

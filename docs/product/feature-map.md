@@ -51,7 +51,7 @@ Workspace 역할과 플랫폼 역할은 합산하지 않는다. 플랫폼 운영
 | 로그인 이메일·비밀번호 hash | 공통 기술 정의             | Profile·연락처 공개 설정  | 가입 초대                |
 | 내부 닉네임·계정 상태       | 공통 taxonomy              | Experience·Project·Study  | 시스템 아키텍처          |
 | MFA·약관·실명 인증          | 향후 기본 템플릿·일반 지식 | 역량·포트폴리오·출력 서식 | 후원·전체 감사·운영 통계 |
-| 플랫폼 역할                 | 공통 자료·공고 원본(후속)  | Membership·공개 설정·파일 | Support Access(후속)     |
+| 플랫폼 역할                 | 공통 자료·승인 공고 원본   | Membership·공개 설정·파일 | Support Access           |
 
 계정 탈퇴와 Workspace 삭제는 같은 작업이 아니다. 계정 탈퇴 전 Workspace 소유권 이전 또는 폐쇄를
 결정해야 하며, Workspace 삭제 시에만 해당 Workspace 콘텐츠와 파생 데이터의 삭제를 전파한다.
@@ -132,7 +132,7 @@ bootstrap 계정의 표시 이름과 Workspace 이름도 별도 설정으로 관
 | 객체 저장소             | Workspace key namespace    | 공개/비공개 scope 분리    | private PDF·purge adapter 구현, 파일 검사 미완료 | 전환 중 |
 | AI·벡터 검색            | Experience·Study Workspace | 직접 공개 안 함           | 경력·학습·역량 초안 입력 격리                    | 구현    |
 | 플랫폼 MFA·세션 보안    | Account/Platform           | 해당 없음                 | 운영자 MFA·재인증                                | 구현    |
-| Support Access          | Platform 보안 경계         | 해당 없음                 | 승인·사유·만료·감사                              | 설계    |
+| Support Access          | Platform 보안 경계         | 해당 없음                 | 승인·사유·만료·최소 범위·감사                    | 구현    |
 
 ## 6. 현재 관리자 화면을 읽는 법
 
@@ -362,7 +362,8 @@ Kubernetes 표준 배포 계약을 유지해 AWS·Azure adapter로 교체할 수
 - Competency 벡터를 다시 활성화하려면 별도 Workspace vector schema·cache 검증 필요
 - 모든 MFA 수단과 복구 코드를 함께 잃은 계정의 운영 신원 확인 절차, 운영 Secret과 rate limit
 - Support Access의 사유·범위·소유자 승인·15~60분 만료·최소 진단·감사 흐름과 Compose V227 적용,
-  MFA를 사용하는 SUPPORT 계정과 Workspace OWNER 두 계정 UAT 및 감사 이벤트 확인까지 완료했다.
+  MFA를 사용하는 SUPPORT 계정과 Workspace OWNER 두 계정 UAT 및 감사 이벤트 확인까지 완료했다. 운영
+  provider 반영 전까지 기능은 기본 비활성으로 유지한다.
 - 폐쇄 Workspace의 provider-neutral purge job·저장소 checkpoint·MySQL inventory dry-run과
   Worker-only checkpoint orchestration을 구현. 완료 건 skip, 실패 지점 재개, stale lease 재claim,
   MySQL 최종 실행을 보장한다. 로컬 backup clone 복구와 5개 checkpoint 전체 purge rehearsal은

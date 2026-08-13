@@ -1,10 +1,12 @@
 # SaaS 전환 작업 체크포인트
 
-- 점검일: 2026-08-12
-- 대상 브랜치: `feat/saas-security-foundation`
-- 기준 HEAD: `eaf0a8c`
+- 최초 점검일: 2026-08-12
+- 상태 갱신일: 2026-08-13
+- SaaS 루트 브랜치: `docs/saas-product-guides`
+- 상태 갱신 브랜치: `docs/saas-readiness-normalization`
+- 기준 HEAD: `38da2cd`
 - 운영 상태: **미배포**
-- 목적: 큰 미커밋 작업 트리의 범위·검증 기준·다음 순서를 고정한다.
+- 목적: 82개로 분리·커밋된 SaaS 전환 변경의 검증 기준과 다음 순서를 고정한다.
 
 이 문서는 구현 완료를 선언하는 문서가 아니다. 제품 기능의 소유권과 상태는
 [제품 기능 지도](../product/feature-map.md), 설계 결정은
@@ -14,14 +16,15 @@
 
 ## 1. Source control 상태
 
-점검 시점 `scripts/inventory-saas-changes.sh`가 펼친 변경 경로는 총 717개이며 staged 변경과 SaaS 전환
-전용 commit은 없다. 기준 HEAD는 계속 `eaf0a8c`이고 모든 전환 변경은 working tree에만 존재한다. 따라서
-다음 원칙을 지킨다.
+최초 점검에서는 `scripts/inventory-saas-changes.sh`가 펼친 717개 경로가 working tree에 있었다. 이후
+기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-13 현재 SaaS 루트는 `main`보다
+82개 commit 앞서며 누적 변경은 770개 파일이다. 상태 갱신 직전 working tree는 clean이다. 아직 `main`에
+merge·push·배포하지 않았으므로 다음 원칙을 지킨다.
 
 1. 기존 변경을 대량 포맷·되돌리기·삭제하지 않는다.
 2. migration, backend 경계, frontend route/UI, 인프라, 문서를 구분해 검토한다.
 3. 기능 단위 검증이 끝나기 전에는 운영 배포나 purge 실행 경로를 열지 않는다.
-4. 사용자가 명시적으로 요청하기 전에는 stage·commit·rebase하지 않는다.
+4. 후속 변경도 자식 branch의 작은 commit으로 만들며 사용자의 로컬 인수 확인 전 `main`에 merge하지 않는다.
 5. 세션 cookie·token·실제 Secret·DB dump 같은 로컬 산출물은 Git에서 제외한다.
 
 루트의 임시 `cookies.txt`는 사용자 요청으로 삭제했고 `.gitignore`에 `cookies.txt`, `*.cookies`,
@@ -104,8 +107,8 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 | 로컬 비공개 베타 기반 | 약 94% | 별도 사람이 수행하는 가입·작성·발행·AI/PDF UX 확인 |
 | 핵심 Workspace 데이터 격리 | 약 96% | 레거시 호환 API 제거 시점 결정·전체 Compose 회귀 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
-| 플랫폼 보안·운영 | 약 70% | MFA 초기화 운영 절차, Support Access, 운영 Secret |
-| 릴리스 변경 세트 준비 | 약 55% | 717개 경로의 9개 후보 계약 완료, 실제 부분 staging·세트별 재검증 미실행 |
+| 플랫폼 보안·운영 | 약 78% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP·rate limit |
+| 릴리스 변경 세트 준비 | 약 90% | 82개 commit 분리 완료, 현재 HEAD 전체 Compose 회귀·사람의 UX 확인 |
 | 운영 가능한 공개 SaaS | 약 63% | 운영 provider·보안 self-service·복구·배포 rehearsal |
 
 비율은 코드 줄 수가 아니라 보안·격리·복구·운영 차단 조건을 기준으로 한 준비도다.
@@ -126,15 +129,15 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 12. Vector 고아·누락 source-of-truth reconciliation — **완료, 17/17·70/70 및 고아·누락 0 확인**
 13. Workspace Skill 실제 관리 화면 500 회귀 수정 — **완료, Compose API 200 확인**
 14. 운영자·별도 베타 계정의 로컬 사용자 인수 테스트 — **SMTP·가입·온보딩·첫 발행 자동 UAT 완료, 사람의 UX 확인 필요**
-15. 717개 변경을 9개 리뷰 가능한 commit 후보로 분류 — **완료, 실제 stage·commit은 미실행**
+15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 현재 82개 commit**
 16. 운영 backup 보존·OCI provider 복구·격리 Worker reconciliation rehearsal 뒤 실행 flag 검토
 
-안정화 트랙은 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한다. Identity·Access,
+안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 82개 commit으로
+분리했다. Identity·Access,
 Workspace 콘텐츠, Job·AI·Vector의 하위 경계·정적 review·targeted/full/Compose gate를 완료했다. 가입,
 MFA, session 회전, Membership, slug, lifecycle, 공개 revision, 지원 결과, StudyPlan, vector namespace,
 retry/DLQ와 purge·restore 경계를 로컬에서 검증했다. 다음은 별도 사람이 수행하는 UX 확인과 변경 세트
-분리다.
-stage·commit은 사용자 승인 전까지 수행하지 않는다.
+분리는 완료됐다. 다음 release gate는 현재 commit HEAD의 전체 Compose 재실행과 사람의 UX 확인이다.
 
 각 단계가 끝날 때 구현 여부, 검증 결과, 운영 배포 여부와 다음 작업을 이 문서와 운영 가이드에 함께
 기록한다.
