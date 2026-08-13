@@ -9,10 +9,11 @@ import com.selfintro.jobposting.domain.entity.GapProjectDocument;
 import com.selfintro.jobposting.domain.repository.GapProjectDocumentRepository;
 import com.selfintro.jobposting.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
-import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
+import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
@@ -69,7 +70,7 @@ public class GapProjectDocumentService {
     private static final int STUDY_TOP_K = 5;
 
     private final GapProjectDocumentRepository repository;
-    private final JobPostingRepository jobPostingRepository;
+    private final WorkspaceJobApplicationRepository applicationRepository;
     private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
     private final JobPostingSourceImageRepository sourceImageRepository;
@@ -77,22 +78,32 @@ public class GapProjectDocumentService {
     private final LlmDispatcher llmDispatcher;
     private final ObjectMapper objectMapper;
 
-    public List<GapProjectDocumentResponse> list(Long jobPostingId) {
-        findPostingOrThrow(jobPostingId);
-        return repository.findAllByJobPostingIdOrderByVersionDesc(jobPostingId).stream()
+    public List<GapProjectDocumentResponse> list(Long workspaceId, Long jobPostingId) {
+        WorkspaceJobApplication application = findApplication(workspaceId, jobPostingId);
+        return repository
+                .findAllByWorkspaceJobApplicationIdOrderByVersionDesc(application.getId())
+                .stream()
                 .map(GapProjectDocumentResponse::from)
                 .toList();
     }
 
-    public GapProjectDocumentResponse generate(Long jobPostingId, String aiModel, String customModelName) {
-        JobPostingResponse posting = toResponse(findPostingOrThrow(jobPostingId));
+    public GapProjectDocumentResponse generate(
+            Long workspaceId, Long jobPostingId, String aiModel, String customModelName) {
+        WorkspaceJobApplication application = findApplication(workspaceId, jobPostingId);
+        JobPostingResponse posting = toResponse(application);
         if (posting.appealAnalysis() == null || posting.appealAnalysis().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "먼저 AI 어필 포인트 분석을 실행해주세요.");
         }
 
-        String queryText = JobPostingRetrievalQueryText.build(
-                posting.positionTitle(), posting.jobDescription(), posting.requiredQualifications(), posting.preferredQualifications());
-        String candidateProfile = relevantProfileDigestService.buildDigest(queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
+        String queryText =
+                JobPostingRetrievalQueryText.build(
+                        posting.positionTitle(),
+                        posting.jobDescription(),
+                        posting.requiredQualifications(),
+                        posting.preferredQualifications());
+        String candidateProfile =
+                relevantProfileDigestService.buildDigest(
+                        workspaceId, queryText, new TopK(EXPERIENCE_TOP_K, STUDY_TOP_K));
 
         ObjectNode input = objectMapper.createObjectNode();
         input.set("jobPosting", objectMapper.valueToTree(posting));
@@ -101,18 +112,26 @@ public class GapProjectDocumentService {
 
         String raw =
                 llmDispatcher.generateJson(
-                        SYSTEM_PROMPT, writeJson(input), aiModel, customModelName, 6144, Duration.ofSeconds(120));
+                        SYSTEM_PROMPT,
+                        writeJson(input),
+                        aiModel,
+                        customModelName,
+                        6144,
+                        Duration.ofSeconds(120));
         JsonNode content = parseJson(raw);
         JsonNode projects = content.path("projects");
         if (!projects.isArray() || projects.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI가 보완 프로젝트를 생성하지 못했습니다.");
         }
 
-        int version = Math.toIntExact(repository.countByJobPostingId(jobPostingId) + 1);
+        int version =
+                Math.toIntExact(
+                        repository.countByWorkspaceJobApplicationId(application.getId()) + 1);
         String title = text(content, "title", posting.companyName() + " 보완 프로젝트 추천");
         if (title.length() > 200) title = title.substring(0, 200);
         GapProjectDocument document =
                 GapProjectDocument.create(
+                        application.getId(),
                         jobPostingId,
                         version,
                         title,
@@ -206,15 +225,20 @@ public class GapProjectDocumentService {
         return value.isBlank() ? fallback : value;
     }
 
-    private JobPosting findPostingOrThrow(Long jobPostingId) {
-        return jobPostingRepository
-                .findById(jobPostingId)
-                .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + jobPostingId));
+    private WorkspaceJobApplication findApplication(Long workspaceId, Long jobPostingId) {
+        return applicationRepository
+                .findByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
+                .orElseThrow(
+                        () ->
+                                new EntityNotFoundException(
+                                        "Workspace job application not found: " + jobPostingId));
     }
 
-    private JobPostingResponse toResponse(JobPosting posting) {
+    private JobPostingResponse toResponse(WorkspaceJobApplication application) {
+        JobPosting posting = application.getJobPosting();
         return JobPostingResponse.from(
                 posting,
+                application,
                 sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
                         posting.getId()),
                 positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),

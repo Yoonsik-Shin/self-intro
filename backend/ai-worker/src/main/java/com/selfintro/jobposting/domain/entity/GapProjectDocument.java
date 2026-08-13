@@ -21,6 +21,9 @@ public class GapProjectDocument {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "workspace_job_application_id", nullable = false)
+    private Long workspaceJobApplicationId;
+
     @Column(name = "job_posting_id", nullable = false)
     private Long jobPostingId;
 
@@ -52,6 +55,7 @@ public class GapProjectDocument {
     private LocalDateTime updatedAt;
 
     public static GapProjectDocument create(
+            Long workspaceJobApplicationId,
             Long jobPostingId,
             int version,
             String title,
@@ -60,6 +64,7 @@ public class GapProjectDocument {
             String contentJson,
             String renderedMarkdown) {
         GapProjectDocument document = new GapProjectDocument();
+        document.workspaceJobApplicationId = workspaceJobApplicationId;
         document.jobPostingId = jobPostingId;
         document.version = version;
         document.title = title;

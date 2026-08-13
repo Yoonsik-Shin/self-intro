@@ -10,7 +10,12 @@ import org.springframework.data.repository.query.Param;
 public interface GapProjectDocumentRepository extends JpaRepository<GapProjectDocument, Long> {
     List<GapProjectDocument> findAllByJobPostingIdOrderByVersionDesc(Long jobPostingId);
 
+    List<GapProjectDocument> findAllByWorkspaceJobApplicationIdOrderByVersionDesc(
+            Long workspaceJobApplicationId);
+
     long countByJobPostingId(Long jobPostingId);
+
+    long countByWorkspaceJobApplicationId(Long workspaceJobApplicationId);
 
     /** 중복 공고 병합(백필) 전용. 승자 공고에 문서가 하나도 없을 때만 호출해야 한다(version 유니크 제약 충돌 방지). */
     @Modifying
