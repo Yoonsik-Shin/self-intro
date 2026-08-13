@@ -1,5 +1,6 @@
 package com.selfintro.modules.visitor.presentation;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -41,5 +42,19 @@ class VisitorApiIntegrationTest {
     @Test
     void visitorAnalyticsRequiresAdminAuthentication() throws Exception {
         mockMvc.perform(get("/api/admin/visits/summary")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void workspaceUserCannotReadPlatformVisitorAnalytics() throws Exception {
+        mockMvc.perform(
+                        get("/api/admin/visits/summary")
+                                .with(user("workspace-owner").roles("USER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void workspaceVisitorAnalyticsRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/workspaces/unknown/visits/manage/summary"))
+                .andExpect(status().isUnauthorized());
     }
 }

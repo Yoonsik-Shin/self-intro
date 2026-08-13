@@ -25,13 +25,15 @@ class VisitorControllerTest {
     @Mock private VisitorService visitorService;
 
     private VisitorController controller;
+    private VisitorRequestIdentity visitorRequestIdentity;
 
     @BeforeEach
     void setUp() {
-        controller = new VisitorController(visitorService);
-        ReflectionTestUtils.setField(controller, "cookieDomain", "unbrdn.me");
-        ReflectionTestUtils.setField(controller, "cookieSecure", true);
-        ReflectionTestUtils.setField(controller, "excludedIps", "");
+        visitorRequestIdentity = new VisitorRequestIdentity();
+        controller = new VisitorController(visitorService, visitorRequestIdentity);
+        ReflectionTestUtils.setField(visitorRequestIdentity, "cookieDomain", "unbrdn.me");
+        ReflectionTestUtils.setField(visitorRequestIdentity, "cookieSecure", true);
+        ReflectionTestUtils.setField(visitorRequestIdentity, "excludedIps", "");
     }
 
     @Test
@@ -79,7 +81,8 @@ class VisitorControllerTest {
 
     @Test
     void doesNotRecordConfiguredForwardedIp() {
-        ReflectionTestUtils.setField(controller, "excludedIps", "203.0.113.10, 2001:db8::10");
+        ReflectionTestUtils.setField(
+                visitorRequestIdentity, "excludedIps", "203.0.113.10, 2001:db8::10");
         VisitorSummaryResponse summary = new VisitorSummaryResponse(3, 10, 20, 0);
         when(visitorService.getSummary()).thenReturn(summary);
         MockHttpServletRequest request = new MockHttpServletRequest();
