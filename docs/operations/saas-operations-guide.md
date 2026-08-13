@@ -2181,3 +2181,36 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   Account 탈퇴·전체 세션 만료·익명화, Support Access 승인·최소 진단·철회, 두 사용자·두 Workspace의
   9단계 격리 E2E를 연속 재실행해 모두 통과했다. fixture는 각 스크립트의 cleanup으로 정리되며 운영 배포와
   운영 provider 호출은 수행하지 않았다.
+
+### 15.10 V231 미사용 레거시 테이블 제거
+
+- 제거 대상은 `study_entry`, `study_entry_skill`, `portfolio_case_study_study` 세 테이블로 제한한다.
+  앞의 두 테이블은 현재 Markdown 기반 `study` 모델로 대체됐고, 포트폴리오의 Study 근거는
+  `portfolio_case_study_revision.content_json.sourceStudyIds`를 단일 원본으로 사용한다.
+- V231은 세 테이블 중 하나라도 행을 가지고 있으면 `SQLSTATE 45000`으로 중단한다. 비어 있지 않은
+  운영 데이터가 자동 배포 과정에서 삭제되는 것을 허용하지 않는다. `verified_identity`, `study_plan_*`,
+  `learning_resource_skill`, `gap_project_document`는 각각 향후 실명 인증 경계 또는 활성 코드 경로가 있어
+  제거하지 않는다.
+- 적용 전 전체 DB 백업을 남기고 다음 조회 결과가 모두 0인지 확인한다.
+
+```sql
+SELECT 'study_entry', COUNT(*) FROM study_entry
+UNION ALL
+SELECT 'study_entry_skill', COUNT(*) FROM study_entry_skill
+UNION ALL
+SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
+```
+
+- 로컬 Compose 검증은 V230 상태에서 위 세 카운트가 모두 0임을 확인한 뒤 백업을 만들고 backend 이미지를
+  재빌드해 V231을 적용한다. 검증 기준은 Flyway V231 `success=1`, 세 테이블 부재, backend health `UP`,
+  동기화 스크립트 구문 검사 통과다.
+- 복구가 필요하면 애플리케이션 쓰기를 먼저 중단하고 V231 적용 전 전체 백업으로 DB를 복원한다. 삭제된
+  빈 테이블만 임의로 재생성해 Flyway 이력과 실제 schema를 어긋나게 만들지 않는다.
+- 이 정리는 로컬 Docker Compose에만 적용하며 stage·commit·운영 배포하지 않는다. 운영 적용은 별도
+  승인과 운영 DB 사전 카운트·백업 확인 뒤 수행한다.
+- 2026-08-14 로컬 검증에서 V230 기준 세 테이블이 모두 0행임을 확인하고
+  `/private/tmp/self-intro-v231-before-20260814.sql`에 `--no-tablespaces --single-transaction` 전체 백업을
+  생성했다. backend 이미지를 재빌드·재생성한 뒤 Flyway V231 `success=1`, 전체 테이블 116개→113개,
+  세 제거 대상과 임시 검사 프로시저 부재, backend `healthy`를 확인했다. 두 동기화 스크립트의 `bash -n`도
+  통과했다. 별도 임시 DB에 `study_entry` 1행을 넣은 실패 경로에서는 `SQLSTATE 45000`으로 중단되고
+  1행과 세 테이블이 모두 보존되는 것도 확인한 뒤 임시 DB를 삭제했다. 운영 DB에는 적용하지 않았다.

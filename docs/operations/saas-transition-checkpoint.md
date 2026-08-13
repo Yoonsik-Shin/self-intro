@@ -51,7 +51,8 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 
 ## 3. 확인된 기준선
 
-- 현재 Compose MySQL에서 V190~V230이 모두 `success=1`이다.
+- 현재 Compose MySQL에서 V190~V231이 모두 `success=1`이다. V231은 행이 남아 있으면
+  중단하는 fail-closed 검사 뒤 대체 완료된 레거시 테이블 3개만 제거한다.
 - backend·MySQL·MinIO·Redis·Oracle Vector·Oracle NoSQL·RabbitMQ 등 필요한 Compose 서비스가 실행 중이며
   backend health가 `healthy`다.
 - core·api·ai-worker 전체 Spotless와 테스트가 통과했다. 2026-08-12 Workspace Skill 조회 회귀 수정 뒤에도

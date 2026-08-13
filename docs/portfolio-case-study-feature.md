@@ -21,7 +21,7 @@
 | --- | --- |
 | `portfolio_case_study` | 케이스스터디 정체성(experience_id, slug, title, status, published_revision_id). Experience 하나당 케이스스터디 여러 개 허용 |
 | `portfolio_case_study_revision` | 버전 이력. `content_json`(구조화 본문) + `rendered_markdown`(mermaid/이미지 포함 마크다운) 동시 저장 |
-| `portfolio_case_study_study` | 근거로 사용한 Study 링크(현재 스키마만 존재, 조회는 `content_json.sourceStudyIds` 기반으로 처리) |
+| `content_json.sourceStudyIds` | 근거로 사용한 Study 링크 |
 
 `content_json` 스키마 (`PortfolioCaseStudyContent`):
 
@@ -153,7 +153,8 @@ frontend-next/
 - 이력서의 `PrintPreviewNav` 사이드바(전체 섹션 트리)는 재사용하지 않음 — 항목 수가 적어 캔버스 내 인라인 핀 버튼으로 대체
 - 트레이드오프/성과 지표 항목의 순서는 캔버스 드래그가 아니라 관리자 구조화 편집 폼에서 배열 순서로 결정
 - 브라우저 스크린샷 기반 시각 검증은 `chromium-cli`/Playwright가 준비되지 않아 SSR HTML 텍스트 검증 + 실제 AI 호출(NVIDIA NIM) end-to-end 검증으로 대체함
-- `portfolio_case_study_study` 조인 테이블은 스키마만 만들어두고 실제 쓰기는 안 함(현재는 `content_json.sourceStudyIds`만으로 충분)
+- V231에서 미사용 `portfolio_case_study_study` 조인 테이블을 제거했다. Study 근거는
+  `content_json.sourceStudyIds`를 단일 원본으로 사용한다.
 - 공개 페이지 없음 — 관리자 전용. 콘텐츠 공개 API만 남겨둠(추후 PDF 등 다른 용도 고려)
 
 ---

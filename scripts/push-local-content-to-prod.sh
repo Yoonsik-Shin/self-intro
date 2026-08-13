@@ -61,8 +61,6 @@ CONTENT_TABLES=(
   skill
   study
   study_category
-  study_entry
-  study_entry_skill
   study_experience
   study_experience_detail
   study_image

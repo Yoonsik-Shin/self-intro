@@ -45,9 +45,9 @@ graph TD
 
 | 파일/폴더 경로 | 역할 및 설명 |
 | :--- | :--- |
-| **`backend/src/main/resources/db/migration/`** | 데이터베이스 마이그레이션(Flyway) 스크립트 보관 폴더 |
-| ├─ `V1__init_schema.sql` | 레거시 `study_entry`, `study_entry_skill` 초기 스키마 |
-| └─ `V6__replace_study_entry_with_study.sql` | Markdown 기반 `study`와 카테고리·태그·연관 관계 스키마 및 데이터 이관 |
+| **`backend/api/src/main/resources/db/migration/`** | 데이터베이스 마이그레이션(Flyway) 스크립트 보관 폴더 |
+| ├─ `V1__init_schema.sql` | 초기 스키마와 이후 대체된 `study_entry` 계열 생성 이력 |
+| └─ `V231__remove_unused_legacy_tables.sql` | 대체·미사용이 확인된 `study_entry` 계열과 포트폴리오 조인 테이블 제거 |
 | **`deploy/k8s/base/backend/`** | 백엔드 Kubernetes 배포의 공통 기본 설정 (Deployment, Service) |
 | **`deploy/k8s/overlays/prod/backend/`** | 실제 OKE 운영 환경에 배포하기 위한 환경별(Kustomize) 설정 폴더 |
 | ├─ `kustomization.yaml` | 빌드 태그, ConfigMap 매핑 및 SealedSecret 연동 정의 |
