@@ -2081,3 +2081,10 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   켜지는 것을 확인했다. v4는 profile revision #46, experience revision #46, 구성 v4를 고정했고 익명 공개
   경험 화면에서 UAT 프로젝트와 상세 링크를 렌더링했다. 대상 ESLint와 Next.js production build가
   통과했으며 Compose의 backend·DB·frontend-next·nginx를 포함한 실행 서비스도 정상이다.
+- 별도 비공개 베타 Account로 Workspace 설정·원본 기록·공개 구성·지원/PDF 메뉴를 순회하고, 계정 정보에
+  현재 Account·Workspace 역할·플랫폼 역할·로그아웃이 구분되어 표시되는 것을 확인했다. 일반 Account에는
+  플랫폼 운영 메뉴가 노출되지 않으며 `/ops`를 직접 입력해도 운영 폼 없이 전용 차단 화면만 표시된다.
+  다른 Workspace의 관리 URL을 직접 입력하면 데이터는 노출되지 않았지만 slug alias 확인 effect가
+  `checking` 상태 전환 때 정리되어 요청 결과를 반영하지 못하고 무한 로딩하던 결함을 확인했다. effect가
+  완료될 때까지 유지되도록 상태 의존성을 분리해 alias면 canonical 관리 URL로 이동하고, 미소속·미존재면
+  명시적인 접근 불가 화면으로 종료되게 수정했다. 운영 배포는 수행하지 않았다.

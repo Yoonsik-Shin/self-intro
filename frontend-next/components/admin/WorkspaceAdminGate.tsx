@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminDashboardShell } from './AdminDashboardShell';
 import { MfaEnrollment } from './security/MfaEnrollment';
@@ -16,6 +16,12 @@ export function WorkspaceAdminGate({ workspaceSlug }: { workspaceSlug: string })
     const me = useAuthStore((state) => state.me);
     const checkSession = useAuthStore((state) => state.checkSession);
     const [aliasResolution, setAliasResolution] = useState<'idle' | 'checking' | 'failed'>('idle');
+    const aliasResolutionAttempt = useRef<string | null>(null);
+    const currentWorkspaceSlug = useRef(workspaceSlug);
+
+    useEffect(() => {
+        currentWorkspaceSlug.current = workspaceSlug;
+    }, [workspaceSlug]);
 
     useEffect(() => {
         checkSession();
@@ -45,42 +51,36 @@ export function WorkspaceAdminGate({ workspaceSlug }: { workspaceSlug: string })
     const membership = me?.workspaces.find((workspace) => workspace.slug === workspaceSlug);
 
     useEffect(() => {
-        if (isChecking || !isAuthenticated || !me || membership || aliasResolution !== 'idle') {
+        if (
+            isChecking ||
+            !isAuthenticated ||
+            !me ||
+            membership ||
+            aliasResolutionAttempt.current === workspaceSlug
+        ) {
             return;
         }
         if (me.workspaces.length === 0 && me.platformRoles.length === 0) {
             router.replace('/onboarding/workspace');
             return;
         }
-        let active = true;
+        aliasResolutionAttempt.current = workspaceSlug;
         queueMicrotask(() => {
-            if (active) setAliasResolution('checking');
+            if (currentWorkspaceSlug.current === workspaceSlug) setAliasResolution('checking');
         });
         void workspaceApi
             .resolveSlug(workspaceSlug)
             .then((resolution) => {
-                if (!active) return;
+                if (currentWorkspaceSlug.current !== workspaceSlug) return;
                 const query = searchParams.toString();
                 router.replace(
                     `/workspace/${encodeURIComponent(resolution.canonicalSlug)}/manage${query ? `?${query}` : ''}`
                 );
             })
             .catch(() => {
-                if (active) setAliasResolution('failed');
+                if (currentWorkspaceSlug.current === workspaceSlug) setAliasResolution('failed');
             });
-        return () => {
-            active = false;
-        };
-    }, [
-        aliasResolution,
-        isAuthenticated,
-        isChecking,
-        me,
-        membership,
-        router,
-        searchParams,
-        workspaceSlug,
-    ]);
+    }, [isAuthenticated, isChecking, me, membership, router, searchParams, workspaceSlug]);
 
     if (
         isChecking ||
