@@ -91,11 +91,6 @@ export function TimelineSection({
     const rangeEndMs = new Date(`${range.endYear + 1}-01-01`).getTime();
     const rangeSpanMs = rangeEndMs - rangeStartMs;
 
-    const percentFor = (dateStr: string) => {
-        const ms = parseMs(dateStr, nowMs);
-        return Math.min(100, Math.max(0, ((ms - rangeStartMs) / rangeSpanMs) * 100));
-    };
-
     const pointBounds = (dateStr: string) => {
         const ms = parseMs(dateStr, nowMs);
         if (ms < rangeStartMs || ms >= rangeEndMs) return null;
@@ -253,7 +248,10 @@ export function TimelineSection({
                 ticks.push({
                     key: dateStr,
                     label: `${y}`,
-                    percent: percentFor(dateStr),
+                    percent: Math.min(
+                        100,
+                        Math.max(0, ((parseMs(dateStr, nowMs) - rangeStartMs) / rangeSpanMs) * 100)
+                    ),
                     isYearStart: true,
                 });
             } else {
@@ -264,7 +262,13 @@ export function TimelineSection({
                     ticks.push({
                         key: dateStr,
                         label,
-                        percent: percentFor(dateStr),
+                        percent: Math.min(
+                            100,
+                            Math.max(
+                                0,
+                                ((parseMs(dateStr, nowMs) - rangeStartMs) / rangeSpanMs) * 100
+                            )
+                        ),
                         isYearStart: m === 1,
                     });
                 }
@@ -272,7 +276,7 @@ export function TimelineSection({
         }
 
         return ticks;
-    }, [range, selectedYears, percentFor]);
+    }, [range, selectedYears, nowMs, rangeStartMs, rangeSpanMs]);
 
     const cardStyle =
         'resume-section-card bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm transition-all duration-300 relative space-y-6';

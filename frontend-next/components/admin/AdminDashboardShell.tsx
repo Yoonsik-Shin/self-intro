@@ -16,7 +16,6 @@ import {
     Eye,
     RefreshCw,
     Sparkles,
-    Pin,
     Terminal,
     Printer,
     BarChart3,
@@ -724,12 +723,18 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         }
 
         if (activeTab === 'SKILLS' && skillDraft) {
-            const {
-                studyIds: _studyIds,
-                experienceIds: _experienceIds,
-                experienceDetailIds: _experienceDetailIds,
-                ...draftSkillFields
-            } = skillDraft.form;
+            const draftSkillFields = {
+                name: skillDraft.form.name,
+                category: skillDraft.form.category,
+                skillLevel: skillDraft.form.skillLevel,
+                skillVersion: skillDraft.form.skillVersion,
+                comment: skillDraft.form.comment,
+                usageType: skillDraft.form.usageType,
+                badgeKey: skillDraft.form.badgeKey,
+                badgeColor: skillDraft.form.badgeColor,
+                isCore: skillDraft.form.isCore,
+                displayOrder: skillDraft.form.displayOrder,
+            };
             const draftSkill: Skill = { id: skillDraft.editingId ?? -1, ...draftSkillFields };
             skills =
                 skillDraft.editingId !== null

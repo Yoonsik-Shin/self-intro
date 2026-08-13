@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     Home,
     MapPin,
@@ -59,26 +59,8 @@ export default function HomeLocationModal({
         }
     }, [isOpen, settings]);
 
-    // 인라인 카카오 주소 검색 창 임베드 (activeSearchQuery를 q 파라미터로 매개변수에 직주입)
-    useEffect(() => {
-        if (isInlineSearchOpen && embedContainerRef.current) {
-            embedDaumPostcodeSearch(
-                embedContainerRef.current,
-                (data: DaumPostcodeData) => {
-                    handleAddressSelected(data);
-                },
-                activeSearchQuery
-            ).catch((err) => {
-                console.warn('Embed search failed, falling back to popup:', err);
-                openPopupSearch();
-            });
-        }
-    }, [isInlineSearchOpen, activeSearchQuery]);
-
-    if (!isOpen) return null;
-
     // 주소 선택 시 처리 (도로명 주소 세팅 + 위도/경도 자동 산출)
-    async function handleAddressSelected(data: DaumPostcodeData) {
+    const handleAddressSelected = useCallback(async (data: DaumPostcodeData) => {
         const selectedAddr = data.roadAddress || data.address;
         setAddress(selectedAddr);
         setIsInlineSearchOpen(false);
@@ -99,10 +81,10 @@ export default function HomeLocationModal({
                 setLongitude(fallbackCoords.lng);
             }
         }
-    }
+    }, []);
 
     // 팝업 방식 주소 검색 (작성된 주소를 q 파라미터로 넘겨 팝업창 오픈)
-    async function openPopupSearch() {
+    const openPopupSearch = useCallback(async () => {
         try {
             setErrorMsg(null);
             await openDaumPostcodeSearch((data) => {
@@ -113,7 +95,23 @@ export default function HomeLocationModal({
                 err instanceof Error ? err.message : '도로명 주소 검색 팝업을 열지 못했습니다.';
             setErrorMsg(message);
         }
-    }
+    }, [address, handleAddressSelected]);
+
+    // 인라인 카카오 주소 검색 창 임베드 (activeSearchQuery를 q 파라미터로 매개변수에 직주입)
+    useEffect(() => {
+        if (isInlineSearchOpen && embedContainerRef.current) {
+            embedDaumPostcodeSearch(
+                embedContainerRef.current,
+                handleAddressSelected,
+                activeSearchQuery
+            ).catch((err) => {
+                console.warn('Embed search failed, falling back to popup:', err);
+                openPopupSearch();
+            });
+        }
+    }, [isInlineSearchOpen, activeSearchQuery, handleAddressSelected, openPopupSearch]);
+
+    if (!isOpen) return null;
 
     // 작성한 내용이 이미 있으므로 [주소검색] 누르면 입력 주소를 q 키워드로 전달하여 인라인 검색 영역 오픈
     const handleSearchClick = () => {

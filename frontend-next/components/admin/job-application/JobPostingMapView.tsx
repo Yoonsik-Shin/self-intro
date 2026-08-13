@@ -487,7 +487,6 @@ export default function JobPostingMapView({
                 }
             }
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const clusters: {
                 centerLat: number;
                 centerLng: number;

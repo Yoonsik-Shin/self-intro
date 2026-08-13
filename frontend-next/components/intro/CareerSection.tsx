@@ -10,19 +10,6 @@ import { resumeMarkdownComponents } from '@/lib/markdown';
 import { RelatedStudyNotes } from './RelatedStudyNotes';
 import { RelatedExperienceLinks } from './RelatedExperienceLinks';
 
-function getExpandableDetailIds(details: ExperienceDetail[]) {
-    return details
-        .filter((detail) =>
-            Boolean(
-                detail.situation ||
-                detail.actionDetail ||
-                detail.outcome ||
-                detail.skills.length > 0
-            )
-        )
-        .map((detail) => detail.id);
-}
-
 const badgeStyle =
     'resume-badge bg-slate-50 border border-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded-md shadow-sm';
 const detailBadgeStyle =

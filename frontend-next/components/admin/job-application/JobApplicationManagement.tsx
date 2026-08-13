@@ -818,7 +818,6 @@ function CoverLetterEditor({
     const [isManaging, setIsManaging] = useState(false);
     const [drafts, setDrafts] = useState<CoverLetterDraft[]>([]);
     const [answerDrafts, setAnswerDrafts] = useState<Record<number, string>>({});
-    const [expandedIndexes, setExpandedIndexes] = useState<Set<number>>(() => new Set());
     const [generatingItemIds, setGeneratingItemIds] = useState<Set<number>>(() => new Set());
     const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
@@ -891,10 +890,6 @@ function CoverLetterEditor({
                     ...current,
                     [itemId]: res.draftAnswer,
                 }));
-                const itemIndex = items.findIndex((i) => i.id === itemId);
-                if (itemIndex !== -1) {
-                    setExpandedIndexes((prev) => new Set(prev).add(itemIndex));
-                }
             } catch (error) {
                 alert(
                     error instanceof ApiError
@@ -915,7 +910,6 @@ function CoverLetterEditor({
     const generateAllDrafts = useCallback(async () => {
         if (items.length === 0 || isGeneratingAll) return;
         setIsGeneratingAll(true);
-        setExpandedIndexes(new Set(items.map((_, idx) => idx)));
 
         const concurrency = 3;
         let index = 0;

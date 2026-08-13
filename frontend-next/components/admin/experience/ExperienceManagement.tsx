@@ -597,7 +597,16 @@ export function ExperienceManagement({
             displayOrder: Number(expForm.displayOrder),
             showOnTimeline: expForm.showOnTimeline,
             timelineLabel: expForm.timelineLabel?.trim() || undefined,
-            details: expForm.details.map(({ studyIds: _studyIds, ...detail }) => detail),
+            details: expForm.details.map((detail) => ({
+                id: detail.id,
+                content: detail.content,
+                situation: detail.situation,
+                task: detail.task,
+                actionDetail: detail.actionDetail,
+                outcome: detail.outcome,
+                narrative: detail.narrative,
+                skillIds: detail.skillIds,
+            })),
             skillIds: expForm.skillIds,
             tagNames: expForm.tagNames
                 .split(',')

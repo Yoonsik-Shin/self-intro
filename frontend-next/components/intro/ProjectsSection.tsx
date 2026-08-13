@@ -32,7 +32,6 @@ function getExpandableDetailIds(details: ExperienceDetail[]) {
 type Props = {
     milestones: Milestone[];
     selectedMilestoneId: string | null;
-    onSelectMilestone: (id: string) => void;
     expandedDetailIds: number[];
     onToggleDetail: (id: number) => void;
     onSetExpandedDetailIds: (ids: number[]) => void;
@@ -44,7 +43,6 @@ type Props = {
 export function ProjectsSection({
     milestones,
     selectedMilestoneId,
-    onSelectMilestone,
     expandedDetailIds,
     onToggleDetail,
     onSetExpandedDetailIds,

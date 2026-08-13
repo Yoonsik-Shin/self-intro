@@ -98,7 +98,6 @@ export function ResumeSections({ introData, workspaceSlug }: Props) {
             <ProjectsSection
                 milestones={milestones}
                 selectedMilestoneId={selectedMilestoneId}
-                onSelectMilestone={setSelectedMilestoneId}
                 expandedDetailIds={expandedDetailIds}
                 onToggleDetail={toggleDetail}
                 onSetExpandedDetailIds={setExpandedDetailIds}

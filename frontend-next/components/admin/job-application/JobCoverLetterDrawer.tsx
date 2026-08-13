@@ -139,7 +139,7 @@ export function JobCoverLetterDrawer({
         try {
             await onSaveAnswer(item.id, answerText);
             alert('답변이 성공적으로 저장되었습니다.');
-        } catch (error) {
+        } catch {
             alert('답변 저장에 실패했습니다.');
         } finally {
             setIsSaving(false);

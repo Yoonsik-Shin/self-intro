@@ -225,7 +225,7 @@ const baseMarkdownComponents: Components = {
             </span>
         </summary>
     ),
-    pre: ({ children, node, ...props }) => <pre {...props}>{children}</pre>,
+    pre: ({ children, node: _node, ...props }) => <pre {...props}>{children}</pre>,
 };
 
 export function createMarkdownComponents(onLanguageChange?: CodeLanguageChange): Components {
