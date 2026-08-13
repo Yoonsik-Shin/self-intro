@@ -4,9 +4,9 @@
 - 상태 갱신일: 2026-08-13
 - SaaS 루트 브랜치: `docs/saas-product-guides`
 - 상태 갱신 브랜치: `fix/saas-recovery-build-baseline`
-- 기준 HEAD: `dc0180e`
+- 기준 HEAD: `282b487`
 - 운영 상태: **미배포**
-- 목적: 91개로 분리·커밋된 SaaS 전환 변경의 검증 기준과 다음 순서를 고정한다.
+- 목적: 96개로 분리·커밋된 SaaS 전환 변경의 검증 기준과 다음 순서를 고정한다.
 
 이 문서는 구현 완료를 선언하는 문서가 아니다. 제품 기능의 소유권과 상태는
 [제품 기능 지도](../product/feature-map.md), 설계 결정은
@@ -18,7 +18,7 @@
 
 최초 점검에서는 `scripts/inventory-saas-changes.sh`가 펼친 717개 경로가 working tree에 있었다. 이후
 기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-13 현재 검증 HEAD는 `main`보다
-91개 commit 앞서며 누적 변경은 772개 파일이다. 상태 갱신 직전 working tree는 clean이다. 아직 `main`에
+96개 commit 앞서며 누적 변경은 772개 파일이다. 상태 갱신 직전 working tree는 clean이다. 아직 `main`에
 merge·push·배포하지 않았으므로 다음 원칙을 지킨다.
 
 1. 기존 변경을 대량 포맷·되돌리기·삭제하지 않는다.
@@ -56,9 +56,8 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
   backend health가 `healthy`다.
 - core·api·ai-worker 전체 Spotless와 테스트가 통과했다. 2026-08-12 Workspace Skill 조회 회귀 수정 뒤에도
   core/API 전체 test와 Spotless를 다시 통과했다.
-- frontend Prettier, `tsc --noEmit`, production build가 통과했다.
-- frontend ESLint는 2026-08-12 재실행 기준 error 0·warning 30으로 통과한다. warning은 release blocker가
-  아니라 별도 품질 부채로 유지한다.
+- frontend Prettier, ESLint(error 0·warning 0), `tsc --noEmit`, production build가 현재 HEAD에서
+  통과했다.
 - 실제 세션·CSRF 기반 Compose E2E는 Profile, 공개 revision/rollback, slug alias, Study, 핵심 프로젝트,
   방문 통계, Workspace 초대·역할·소유권 이전·폐쇄 경계를 검증한다.
 - Object Storage purge inventory와 기본 비활성 멱등 삭제 adapter는 격리 MinIO fixture에서 검증했다.
@@ -100,9 +99,11 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 - `account-withdrawal-compose.sh`는 두 동시 세션, 최근 비밀번호 재인증, 탈퇴, 전체 세션 만료, 재로그인 차단,
   DB 익명화와 감사 이벤트를 모두 통과했다. `support-access-compose.sh`는 운영 역할 MFA, OWNER 승인,
   세 가지 최소 진단 범위, 즉시 철회, 철회 뒤 404와 감사 이벤트를 모두 통과했다.
-- 현재 HEAD에서 `./gradlew test`, Next.js production build, backend·worker·frontend 병렬 Compose 이미지
-  빌드가 통과했다. Gradle BuildKit cache는 `sharing=locked`로 직렬화해 backend·worker 동시 빌드의 journal
-  lock timeout을 제거했다.
+- 현재 HEAD에서 backend `./gradlew spotlessCheck`, `./gradlew test`, frontend format·ESLint·TypeScript·
+  production build가 통과했다. 가입·온보딩·첫 발행, 계정 탈퇴, Support Access, Workspace 격리 9단계
+  Compose E2E도 모두 재통과했다. 이전에 backend·worker·frontend 병렬 Compose 이미지 빌드도 통과했으며,
+  Gradle BuildKit cache는 `sharing=locked`로 직렬화해 backend·worker 동시 빌드의 journal lock timeout을
+  제거했다.
 - 현재 Compose MySQL logical backup을 disposable clone으로 복원해 source/clone의 table 95개, 성공
   migration 122개, Workspace 1개 일치를 확인했다. 같은 clone에서 로컬 5개 purge checkpoint 전체,
   잔여 0건, 감사 가명화, purge 증적·무관 cache 보존과 2차 멱등 실행을 검증했고 clone DB와 Redis DB 15는
@@ -120,7 +121,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 | 핵심 Workspace 데이터 격리 | 약 98% | 레거시 호환 API 제거 시점 결정 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
 | 플랫폼 보안·운영 | 약 78% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP·rate limit |
-| 릴리스 변경 세트 준비 | 약 96% | 91개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
+| 릴리스 변경 세트 준비 | 약 97% | 96개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
 | 운영 가능한 공개 SaaS | 약 63% | 운영 provider·보안 self-service·복구·배포 rehearsal |
 
 비율은 코드 줄 수가 아니라 보안·격리·복구·운영 차단 조건을 기준으로 한 준비도다.
@@ -141,10 +142,10 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 12. Vector 고아·누락 source-of-truth reconciliation — **완료, 17/17·70/70 및 고아·누락 0 확인**
 13. Workspace Skill 실제 관리 화면 500 회귀 수정 — **완료, Compose API 200 확인**
 14. 운영자·별도 베타 계정의 로컬 사용자 인수 테스트 — **SMTP·가입·온보딩·첫 발행·탈퇴·지원 접근 자동 UAT 완료, 사람의 UX 확인 필요**
-15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 현재 91개 commit**
+15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 현재 96개 commit**
 16. 운영 backup 보존·OCI provider 복구·격리 Worker reconciliation rehearsal 뒤 실행 flag 검토
 
-안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 91개 commit으로
+안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 96개 commit으로
 분리했다. Identity·Access,
 Workspace 콘텐츠, Job·AI·Vector의 하위 경계·정적 review·targeted/full/Compose gate를 완료했다. 가입,
 MFA, session 회전, Membership, slug, lifecycle, 공개 revision, 지원 결과, StudyPlan, vector namespace,

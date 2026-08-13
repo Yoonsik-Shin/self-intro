@@ -2093,3 +2093,8 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   저장되는 것을 확인했다. 해당 Workspace에는 공개 학습 자료가 없어 후보 0개·연결 자료 0개와 자료 추가
   안내가 표시되는 것도 확인했다. 집중 목표를 입력하는 추천·피드백 경로는 NVIDIA NIM 호출과 비용·운영
   Secret에 의존하므로 이번 로컬 사람 UAT에서는 실행하지 않았고 provider 계약 검증 항목으로 남긴다.
+- 검증 기준 HEAD `282b487`에서 frontend format·ESLint(error 0·warning 0)·TypeScript·production build와
+  backend Spotless·전체 test를 통과했다. 같은 실행 중 Compose 환경에서 가입·Mailpit 확인·첫 발행,
+  Account 탈퇴·전체 세션 만료·익명화, Support Access 승인·최소 진단·철회, 두 사용자·두 Workspace의
+  9단계 격리 E2E를 연속 재실행해 모두 통과했다. fixture는 각 스크립트의 cleanup으로 정리되며 운영 배포와
+  운영 provider 호출은 수행하지 않았다.
