@@ -13,7 +13,8 @@ const formatLocalDate = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 
-export function AnalyticsPanel() {
+export function AnalyticsPanel({ workspaceSlug }: { workspaceSlug?: string }) {
+    const scope = workspaceSlug ?? 'platform';
     const visitorDateRange = useMemo(() => {
         const to = new Date();
         const from = new Date(to);
@@ -22,24 +23,39 @@ export function AnalyticsPanel() {
     }, []);
 
     const { data: visitorSummary, isLoading: isVisitorSummaryLoading } = useQuery({
-        queryKey: ['visitor', 'admin', 'summary'],
-        queryFn: visitorApi.adminSummary,
+        queryKey: ['visitor', scope, 'summary'],
+        queryFn: () =>
+            workspaceSlug ? visitorApi.workspaceSummary(workspaceSlug) : visitorApi.adminSummary(),
     });
     const { data: visitorDaily = [], isLoading: isVisitorDailyLoading } = useQuery({
-        queryKey: ['visitor', 'admin', 'daily', visitorDateRange.from, visitorDateRange.to],
-        queryFn: () => visitorApi.adminDaily(visitorDateRange.from, visitorDateRange.to),
+        queryKey: ['visitor', scope, 'daily', visitorDateRange.from, visitorDateRange.to],
+        queryFn: () =>
+            workspaceSlug
+                ? visitorApi.workspaceDaily(
+                      workspaceSlug,
+                      visitorDateRange.from,
+                      visitorDateRange.to
+                  )
+                : visitorApi.adminDaily(visitorDateRange.from, visitorDateRange.to),
     });
     const { data: visitorHourly = [], isLoading: isVisitorHourlyLoading } = useQuery({
-        queryKey: ['visitor', 'admin', 'hourly', visitorDateRange.to],
-        queryFn: () => visitorApi.adminHourly(visitorDateRange.to),
+        queryKey: ['visitor', scope, 'hourly', visitorDateRange.to],
+        queryFn: () =>
+            workspaceSlug
+                ? visitorApi.workspaceHourly(workspaceSlug, visitorDateRange.to)
+                : visitorApi.adminHourly(visitorDateRange.to),
     });
 
     return (
         <div className="space-y-6">
             <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-xl font-black text-slate-950">방문자 통계</h2>
+                <h2 className="text-xl font-black text-slate-950">
+                    {workspaceSlug ? 'Workspace 방문자 통계' : '플랫폼 방문자 통계'}
+                </h2>
                 <p className="mt-0.5 text-sm text-slate-500">
-                    브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.
+                    {workspaceSlug
+                        ? '현재 Workspace 공개 페이지의 브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.'
+                        : '전체 공개 페이지의 브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.'}
                 </p>
             </div>
 
