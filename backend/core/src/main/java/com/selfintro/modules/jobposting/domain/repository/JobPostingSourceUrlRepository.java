@@ -12,6 +12,8 @@ public interface JobPostingSourceUrlRepository extends JpaRepository<JobPostingS
 
     boolean existsByUrl(String url);
 
+    boolean existsByScopeKeyAndUrl(String scopeKey, String url);
+
     List<JobPostingSourceUrl> findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(Long jobPostingId);
 
     List<JobPostingSourceUrl> findByJobPostingIdInOrderByPrimaryDescCreatedAtAsc(

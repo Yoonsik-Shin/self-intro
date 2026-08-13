@@ -1,5 +1,7 @@
 package com.selfintro.modules.jobposting.domain.entity;
 
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionBasis;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionReviewStatus;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer;
@@ -29,9 +31,17 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class JobPosting {
 
+    public static final String PLATFORM_SCOPE = "PLATFORM";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "owner_workspace_id")
+    private Long ownerWorkspaceId;
+
+    @Column(name = "scope_key", nullable = false, length = 80)
+    private String scopeKey = PLATFORM_SCOPE;
 
     @Column(name = "company_name", nullable = false, length = 100)
     private String companyName;
@@ -148,6 +158,42 @@ public class JobPosting {
     @Column(name = "jobplanet_checked_at")
     private LocalDateTime jobplanetCheckedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "permission_basis", nullable = false, length = 40)
+    private JobPostingPermissionBasis permissionBasis = JobPostingPermissionBasis.UNKNOWN;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "permission_review_status", nullable = false, length = 30)
+    private JobPostingPermissionReviewStatus permissionReviewStatus =
+            JobPostingPermissionReviewStatus.REVIEW_REQUIRED;
+
+    @Column(name = "permission_evidence_reference", length = 1000)
+    private String permissionEvidenceReference;
+
+    @Column(name = "permission_grantor_name", length = 150)
+    private String permissionGrantorName;
+
+    @Column(name = "permission_grantor_authority", length = 200)
+    private String permissionGrantorAuthority;
+
+    @Column(name = "permission_scope_note", length = 1000)
+    private String permissionScopeNote;
+
+    @Column(name = "permission_terms_version", length = 100)
+    private String permissionTermsVersion;
+
+    @Column(name = "permission_revocation_contact", length = 200)
+    private String permissionRevocationContact;
+
+    @Column(name = "permission_expires_at")
+    private LocalDateTime permissionExpiresAt;
+
+    @Column(name = "permission_reviewed_by_user_id")
+    private Long permissionReviewedByUserId;
+
+    @Column(name = "permission_reviewed_at")
+    private LocalDateTime permissionReviewedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -239,6 +285,74 @@ public class JobPosting {
         return posting;
     }
 
+    /** 플랫폼 공통 원본으로 승격하지 않고 지정 Workspace 안에서만 사용하도록 소유 경계를 고정한다. */
+    public void assignToWorkspace(Long workspaceId) {
+        if (workspaceId == null) {
+            throw new IllegalArgumentException("Workspace id is required.");
+        }
+        if (this.id != null || this.ownerWorkspaceId != null) {
+            throw new IllegalStateException(
+                    "Job posting scope can only be assigned before persistence.");
+        }
+        this.ownerWorkspaceId = workspaceId;
+        this.scopeKey = "WORKSPACE:" + workspaceId;
+    }
+
+    public boolean isPlatformCatalogSource() {
+        return ownerWorkspaceId == null && PLATFORM_SCOPE.equals(scopeKey);
+    }
+
+    public boolean isOwnedByWorkspace(Long workspaceId) {
+        return workspaceId != null && workspaceId.equals(ownerWorkspaceId);
+    }
+
+    /** 같은 Workspace가 보관 중인 비공개 URL 원본을 지원 파이프라인에 다시 연결할 때 최신 입력으로 갱신한다. */
+    public void updatePrivateSource(
+            Long workspaceId,
+            String companyName,
+            String positionTitle,
+            String postingUrl,
+            JobPostingSource collectionMethod,
+            String requiredSkillsRaw,
+            LocalDate deadline,
+            java.time.LocalTime deadlineTime,
+            boolean alwaysOpen,
+            String salaryNote,
+            String location,
+            String employmentType,
+            String jobDescription,
+            String requiredQualifications,
+            String preferredQualifications,
+            String hiringProcess,
+            String applicationMethod,
+            String compensationDetail,
+            LocalDateTime now) {
+        if (!isOwnedByWorkspace(workspaceId)) {
+            throw new IllegalStateException("Private job source belongs to another Workspace.");
+        }
+        this.companyName = companyName;
+        this.companyNameNormalized = JobPostingNormalizer.normalizeCompanyName(companyName);
+        this.positionTitle = positionTitle;
+        this.positionTitleNormalized = JobPostingNormalizer.normalizePositionTitle(positionTitle);
+        this.postingUrl = postingUrl;
+        this.collectionMethod = collectionMethod;
+        this.source = collectionMethod == JobPostingSource.MANUAL ? "직접입력" : "URL 수집";
+        this.requiredSkillsRaw = requiredSkillsRaw;
+        this.deadline = deadline;
+        this.deadlineTime = deadlineTime;
+        this.alwaysOpen = alwaysOpen;
+        this.salaryNote = salaryNote;
+        this.location = location;
+        this.employmentType = employmentType;
+        this.jobDescription = jobDescription;
+        this.requiredQualifications = requiredQualifications;
+        this.preferredQualifications = preferredQualifications;
+        this.hiringProcess = hiringProcess;
+        this.applicationMethod = applicationMethod;
+        this.compensationDetail = compensationDetail;
+        this.updatedAt = now;
+    }
+
     public java.time.LocalTime getDeadlineTime() {
         if (alwaysOpen || deadline == null) {
             return null;
@@ -250,7 +364,8 @@ public class JobPosting {
         this.deadlineTime = deadlineTime;
     }
 
-    public void updateNormalizedFields(String companyNameNormalized, String positionTitleNormalized) {
+    public void updateNormalizedFields(
+            String companyNameNormalized, String positionTitleNormalized) {
         this.companyNameNormalized = companyNameNormalized;
         this.positionTitleNormalized = positionTitleNormalized;
     }
@@ -276,29 +391,30 @@ public class JobPosting {
             String applicationMethod,
             String compensationDetail,
             LocalDateTime now) {
-        JobPosting posting = new JobPosting(
-                companyName,
-                positionTitle,
-                postingUrl,
-                null,
-                JobPostingSource.MANUAL,
-                source,
-                JobPostingStatus.APPLIED,
-                appliedAt,
-                deadline,
-                alwaysOpen,
-                salaryNote,
-                location,
-                employmentType,
-                memo,
-                null,
-                jobDescription,
-                requiredQualifications,
-                preferredQualifications,
-                hiringProcess,
-                applicationMethod,
-                compensationDetail,
-                now);
+        JobPosting posting =
+                new JobPosting(
+                        companyName,
+                        positionTitle,
+                        postingUrl,
+                        null,
+                        JobPostingSource.MANUAL,
+                        source,
+                        JobPostingStatus.APPLIED,
+                        appliedAt,
+                        deadline,
+                        alwaysOpen,
+                        salaryNote,
+                        location,
+                        employmentType,
+                        memo,
+                        null,
+                        jobDescription,
+                        requiredQualifications,
+                        preferredQualifications,
+                        hiringProcess,
+                        applicationMethod,
+                        compensationDetail,
+                        now);
         posting.deadlineTime = deadlineTime;
         return posting;
     }
@@ -387,6 +503,7 @@ public class JobPosting {
         this.applicationMethod = applicationMethod;
         this.compensationDetail = compensationDetail;
         this.updatedAt = now;
+        requirePermissionReview(now);
     }
 
     public void update(
@@ -433,6 +550,77 @@ public class JobPosting {
         this.updatedAt = now;
     }
 
+    /**
+     * 운영자의 승인 행위가 아니라 권리자의 권한 부여 증빙을 기준으로 공통 카탈로그 노출 여부를 판단한다. 만료 시각이 지나면 별도 배치 없이 즉시 fail-closed
+     * 된다.
+     */
+    public boolean isSharedCatalogEligible(LocalDateTime now) {
+        return permissionReviewStatus == JobPostingPermissionReviewStatus.APPROVED
+                && permissionBasis != null
+                && permissionBasis.isShareable()
+                && hasText(permissionEvidenceReference)
+                && hasText(permissionGrantorName)
+                && hasText(permissionGrantorAuthority)
+                && hasText(permissionScopeNote)
+                && (permissionExpiresAt == null || permissionExpiresAt.isAfter(now));
+    }
+
+    public void reviewSharingPermission(
+            JobPostingPermissionReviewStatus reviewStatus,
+            JobPostingPermissionBasis basis,
+            String evidenceReference,
+            String grantorName,
+            String grantorAuthority,
+            String scopeNote,
+            String termsVersion,
+            String revocationContact,
+            LocalDateTime expiresAt,
+            Long reviewerUserId,
+            LocalDateTime now) {
+        if (reviewStatus == JobPostingPermissionReviewStatus.APPROVED) {
+            if (basis == null || !basis.isShareable()) {
+                throw new IllegalArgumentException("공유 가능한 권한 근거가 필요합니다.");
+            }
+            if (!hasText(evidenceReference)
+                    || !hasText(grantorName)
+                    || !hasText(grantorAuthority)
+                    || !hasText(scopeNote)) {
+                throw new IllegalArgumentException("승인에는 증빙, 권리자, 권한 확인자와 허용 범위가 필요합니다.");
+            }
+            if (expiresAt != null && !expiresAt.isAfter(now)) {
+                throw new IllegalArgumentException("이미 만료된 권한은 승인할 수 없습니다.");
+            }
+        }
+        this.permissionReviewStatus = reviewStatus;
+        this.permissionBasis = basis == null ? JobPostingPermissionBasis.UNKNOWN : basis;
+        this.permissionEvidenceReference = normalize(evidenceReference);
+        this.permissionGrantorName = normalize(grantorName);
+        this.permissionGrantorAuthority = normalize(grantorAuthority);
+        this.permissionScopeNote = normalize(scopeNote);
+        this.permissionTermsVersion = normalize(termsVersion);
+        this.permissionRevocationContact = normalize(revocationContact);
+        this.permissionExpiresAt = expiresAt;
+        this.permissionReviewedByUserId = reviewerUserId;
+        this.permissionReviewedAt = now;
+        this.updatedAt = now;
+    }
+
+    /** 원문·회사·직무·출처가 바뀌면 이전 증빙이 새 내용까지 허용한다고 볼 수 없어 재검토한다. */
+    public void requirePermissionReview(LocalDateTime now) {
+        this.permissionReviewStatus = JobPostingPermissionReviewStatus.REVIEW_REQUIRED;
+        this.permissionReviewedByUserId = null;
+        this.permissionReviewedAt = null;
+        this.updatedAt = now;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static String normalize(String value) {
+        return hasText(value) ? value.trim() : null;
+    }
+
     /** 다른 플랫폼에서 같은 공고로 매칭된 URL을 추가로 등록할 때, 본문 필드는 건드리지 않고 갱신 시각만 남긴다. */
     public void touch(LocalDateTime now) {
         this.updatedAt = now;
@@ -441,7 +629,8 @@ public class JobPosting {
     /** 정규화 매칭 키가 생기기 전에 만들어진 행을 위한 백필 전용 메서드. 갱신 시각은 건드리지 않는다. */
     public void backfillNormalizedKeys() {
         if (this.companyNameNormalized == null) {
-            this.companyNameNormalized = JobPostingNormalizer.normalizeCompanyName(this.companyName);
+            this.companyNameNormalized =
+                    JobPostingNormalizer.normalizeCompanyName(this.companyName);
         }
         if (this.positionTitleNormalized == null) {
             this.positionTitleNormalized =
@@ -456,9 +645,8 @@ public class JobPosting {
     }
 
     /**
-     * 지원 전까지는 정보 새로고침·재매칭 때마다 최신 직무상세/자격요건 텍스트로 매칭 원문을
-     * 다시 합쳐도 되지만, {@link #requiredSkillsRaw} 필드 설명대로 지원 이후엔 그 시점 요건을
-     * 이력으로 고정해야 하므로 갱신하지 않는다.
+     * 지원 전까지는 정보 새로고침·재매칭 때마다 최신 직무상세/자격요건 텍스트로 매칭 원문을 다시 합쳐도 되지만, {@link #requiredSkillsRaw} 필드
+     * 설명대로 지원 이후엔 그 시점 요건을 이력으로 고정해야 하므로 갱신하지 않는다.
      */
     public void refreshRequiredSkillsRaw(String requiredSkillsRaw) {
         if (this.status == JobPostingStatus.APPLIED) {

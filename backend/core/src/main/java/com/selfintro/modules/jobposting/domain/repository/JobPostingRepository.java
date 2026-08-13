@@ -13,14 +13,28 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
 
     boolean existsByPostingUrl(String postingUrl);
 
+    boolean existsByScopeKeyAndPostingUrl(String scopeKey, String postingUrl);
+
+    Optional<JobPosting> findByScopeKeyAndPostingUrl(String scopeKey, String postingUrl);
+
     boolean existsByCollectionMethodAndExternalId(
+            JobPostingSource collectionMethod, String externalId);
+
+    boolean existsByOwnerWorkspaceIdIsNullAndCollectionMethodAndExternalId(
             JobPostingSource collectionMethod, String externalId);
 
     /** 플랫폼 간 중복 병합의 매칭 키. 정규화된 회사명+직무명이 완전일치하면 같은 공고로 본다. */
     Optional<JobPosting> findByCompanyNameNormalizedAndPositionTitleNormalized(
             String companyNameNormalized, String positionTitleNormalized);
 
+    Optional<JobPosting>
+            findByOwnerWorkspaceIdIsNullAndCompanyNameNormalizedAndPositionTitleNormalized(
+                    String companyNameNormalized, String positionTitleNormalized);
+
     List<JobPosting> findByCompanyNameNormalized(String companyNameNormalized);
+
+    List<JobPosting> findByOwnerWorkspaceIdIsNullAndCompanyNameNormalized(
+            String companyNameNormalized);
 
     /**
      * 마감일이 지났다고 바로 숨기지 않는다 — 명시적으로 {@link JobPosting#markExpired}가 호출돼 EXPIRED 상태가 되기 전까지는(= "지금
@@ -29,6 +43,16 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
      */
     List<JobPosting> findByStatusNotOrderByCreatedAtDesc(JobPostingStatus excludedStatus);
 
+    List<JobPosting> findByOwnerWorkspaceIdIsNullAndStatusNotOrderByCreatedAtDesc(
+            JobPostingStatus excludedStatus);
+
+    List<JobPosting> findAllByOwnerWorkspaceIdIsNull();
+
+    Optional<JobPosting> findByIdAndOwnerWorkspaceIdIsNull(Long id);
+
     List<JobPosting> findByStatusInAndDeadlineBefore(
+            Collection<JobPostingStatus> statuses, LocalDate deadline);
+
+    List<JobPosting> findByOwnerWorkspaceIdIsNullAndStatusInAndDeadlineBefore(
             Collection<JobPostingStatus> statuses, LocalDate deadline);
 }

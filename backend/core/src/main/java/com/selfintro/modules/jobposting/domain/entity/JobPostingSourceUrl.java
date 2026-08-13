@@ -28,6 +28,9 @@ public class JobPostingSourceUrl {
     @Column(name = "job_posting_id", nullable = false)
     private Long jobPostingId;
 
+    @Column(name = "scope_key", nullable = false, length = 80)
+    private String scopeKey = JobPosting.PLATFORM_SCOPE;
+
     @Column(name = "url", nullable = false, length = 500)
     private String url;
 
@@ -44,11 +47,13 @@ public class JobPostingSourceUrl {
 
     private JobPostingSourceUrl(
             Long jobPostingId,
+            String scopeKey,
             String url,
             JobPostingPlatform platform,
             boolean primary,
             LocalDateTime now) {
         this.jobPostingId = jobPostingId;
+        this.scopeKey = scopeKey;
         this.url = url;
         this.platform = platform;
         this.primary = primary;
@@ -57,12 +62,32 @@ public class JobPostingSourceUrl {
 
     public static JobPostingSourceUrl primary(
             Long jobPostingId, String url, JobPostingPlatform platform, LocalDateTime now) {
-        return new JobPostingSourceUrl(jobPostingId, url, platform, true, now);
+        return new JobPostingSourceUrl(
+                jobPostingId, JobPosting.PLATFORM_SCOPE, url, platform, true, now);
     }
 
     public static JobPostingSourceUrl additional(
             Long jobPostingId, String url, JobPostingPlatform platform, LocalDateTime now) {
-        return new JobPostingSourceUrl(jobPostingId, url, platform, false, now);
+        return new JobPostingSourceUrl(
+                jobPostingId, JobPosting.PLATFORM_SCOPE, url, platform, false, now);
+    }
+
+    public static JobPostingSourceUrl primary(
+            Long jobPostingId,
+            String scopeKey,
+            String url,
+            JobPostingPlatform platform,
+            LocalDateTime now) {
+        return new JobPostingSourceUrl(jobPostingId, scopeKey, url, platform, true, now);
+    }
+
+    public static JobPostingSourceUrl additional(
+            Long jobPostingId,
+            String scopeKey,
+            String url,
+            JobPostingPlatform platform,
+            LocalDateTime now) {
+        return new JobPostingSourceUrl(jobPostingId, scopeKey, url, platform, false, now);
     }
 
     public void updateUrlAndPlatform(String url, JobPostingPlatform platform) {
