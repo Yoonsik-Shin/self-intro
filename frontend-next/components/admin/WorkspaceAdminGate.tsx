@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminDashboardShell } from './AdminDashboardShell';
+import { ViewerWorkspaceReadOnly } from './ViewerWorkspaceReadOnly';
 import { MfaEnrollment } from './security/MfaEnrollment';
 import { useAuthStore } from '@/store/useAuthStore';
 import { workspaceApi } from '@/lib/api';
@@ -103,8 +104,7 @@ export function WorkspaceAdminGate({ workspaceSlug }: { workspaceSlug: string })
         return <MfaEnrollment mode="recovery" />;
     }
 
-    const canManageWorkspace = membership && ['OWNER', 'ADMIN', 'EDITOR'].includes(membership.role);
-    if (!canManageWorkspace) {
+    if (!membership) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
                 <section className="max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -122,6 +122,19 @@ export function WorkspaceAdminGate({ workspaceSlug }: { workspaceSlug: string })
                         플랫폼 메인으로 이동
                     </Link>
                 </section>
+            </main>
+        );
+    }
+
+    if (membership.role === 'VIEWER') {
+        return (
+            <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-6xl">
+                    <ViewerWorkspaceReadOnly
+                        workspaceSlug={workspaceSlug}
+                        workspaceName={membership.name}
+                    />
+                </div>
             </main>
         );
     }

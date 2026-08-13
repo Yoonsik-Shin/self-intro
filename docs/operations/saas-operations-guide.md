@@ -179,6 +179,11 @@ PrintTemplate canonical Workspace API·일반 Workspace UI, Competency AI 입력
 요청·소유자 승인·최소 범위 진단·만료·철회·감사는 구현과 로컬 Compose UAT를 완료했다. 이 항목은 더
 이상 구현 미완료가 아니며, 현재 commit HEAD의 전체 회귀와 운영 provider 설정만 release gate로 남긴다.
 
+2026-08-13에는 서버에 이미 적용된 `VIEWER` 조회 허용·mutation 거부 경계에 맞춰 관리 화면 진입도
+읽기 전용으로 분리했다. `VIEWER`는 비공개 Profile·Experience·Skill·Study 요약과 목록만 조회하며,
+일반 관리 셸과 추가·수정·삭제·발행·AI 생성 컨트롤은 렌더링하지 않는다. `OWNER`·`ADMIN`·`EDITOR`의
+기존 관리 셸은 유지한다.
+
 위 항목이 남아 있으므로 현재 브랜치는 운영 배포 대상이 아니다.
 
 ## 2. 현재 인프라와 이식성 경계

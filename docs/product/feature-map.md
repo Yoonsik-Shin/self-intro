@@ -38,7 +38,7 @@ flowchart LR
 | Workspace `OWNER`  | 해당 Workspace Membership                 | Workspace 소유·멤버·발행 관리         |
 | Workspace `ADMIN`  | 해당 Workspace Membership                 | Workspace 관리                        |
 | Workspace `EDITOR` | 해당 Workspace Membership                 | 콘텐츠 편집                           |
-| Workspace `VIEWER` | 해당 Workspace Membership                 | 비공개 콘텐츠 읽기 전용(후속 구현)    |
+| Workspace `VIEWER` | 해당 Workspace Membership                 | 비공개 Profile·Experience·Skill·Study 읽기 전용 |
 | 플랫폼 운영자      | `PLATFORM_OWNER` 또는 `PLATFORM_OPERATOR` | 관리 셸의 조건부 메뉴에서 플랫폼 운영 |
 
 Workspace 역할과 플랫폼 역할은 합산하지 않는다. 플랫폼 운영자도 Membership이 없는 다른 Workspace를
