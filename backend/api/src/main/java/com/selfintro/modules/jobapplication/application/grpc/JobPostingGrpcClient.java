@@ -15,16 +15,13 @@ public class JobPostingGrpcClient {
     private JobPostingGrpcServiceGrpc.JobPostingGrpcServiceBlockingStub jobPostingStub;
 
     public JobPostingSummaryResponse getJobPostingSummary(Long id) {
-        JobPostingSummaryRequest request = JobPostingSummaryRequest.newBuilder()
-                .setId(id)
-                .build();
+        JobPostingSummaryRequest request = JobPostingSummaryRequest.newBuilder().setId(id).build();
         return jobPostingStub.getJobPostingSummary(request);
     }
 
     public JobMatchingScoreResponse getJobMatchingScore(Long jobPostingId) {
-        JobMatchingScoreRequest request = JobMatchingScoreRequest.newBuilder()
-                .setJobPostingId(jobPostingId)
-                .build();
+        JobMatchingScoreRequest request =
+                JobMatchingScoreRequest.newBuilder().setJobPostingId(jobPostingId).build();
         return jobPostingStub.getJobMatchingScore(request);
     }
 }

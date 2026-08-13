@@ -9,8 +9,7 @@ public record JobPostingCoverLetterRevisionResponse(
         String senderType,
         String content,
         String aiModel,
-        LocalDateTime createdAt
-) {
+        LocalDateTime createdAt) {
     public static JobPostingCoverLetterRevisionResponse from(JobPostingCoverLetterRevision entity) {
         return new JobPostingCoverLetterRevisionResponse(
                 entity.getId(),
@@ -18,7 +17,6 @@ public record JobPostingCoverLetterRevisionResponse(
                 entity.getSenderType(),
                 entity.getContent(),
                 entity.getAiModel(),
-                entity.getCreatedAt()
-        );
+                entity.getCreatedAt());
     }
 }

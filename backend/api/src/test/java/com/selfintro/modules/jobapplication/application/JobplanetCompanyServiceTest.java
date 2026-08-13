@@ -53,7 +53,7 @@ class JobplanetCompanyServiceTest {
 
     @Test
     void savesVerifiedJobplanetCompanyUrlAndRating() {
-        when(repository.findById(1L)).thenReturn(Optional.of(posting));
+        when(repository.findByIdAndOwnerWorkspaceIdIsNull(1L)).thenReturn(Optional.of(posting));
         var result =
                 service.save(
                         1L,

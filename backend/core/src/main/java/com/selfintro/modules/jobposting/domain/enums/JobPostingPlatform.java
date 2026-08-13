@@ -14,7 +14,9 @@ public enum JobPostingPlatform {
         if (url == null || url.isBlank()) {
             return OTHER;
         }
-        String host = com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.extractHost(url);
+        String host =
+                com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.extractHost(
+                        url);
         if (host == null) {
             return OTHER;
         }

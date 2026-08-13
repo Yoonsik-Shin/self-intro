@@ -13,8 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 한 공고에 2지망 이상을 등록/수정한다. URL·이미지 자동수집이 감지한 나머지 모집부문을 사람이
- * 확정할 때, 그리고 수동 등록/수정 폼에서 "+지망 추가"로 직접 입력할 때 양쪽에서 재사용한다.
+ * 한 공고에 2지망 이상을 등록/수정한다. URL·이미지 자동수집이 감지한 나머지 모집부문을 사람이 확정할 때, 그리고 수동 등록/수정 폼에서 "+지망 추가"로 직접 입력할 때
+ * 양쪽에서 재사용한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class JobPostingPositionChoiceService {
     @Transactional
     public List<JobPostingResponse.PositionChoice> replace(
             Long jobPostingId, JobPostingPositionChoiceSaveRequest request) {
-        if (!jobPostingRepository.existsById(jobPostingId)) {
+        if (jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(jobPostingId).isEmpty()) {
             throw new EntityNotFoundException("JobPosting not found: " + jobPostingId);
         }
         positionChoiceRepository.deleteByJobPostingId(jobPostingId);

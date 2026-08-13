@@ -25,7 +25,8 @@ class JobPostingUrlNormalizerTest {
     @Test
     @DisplayName("잡코리아 및 원티드 URL을 canonical 형태로 변환한다")
     void normalizesJobkoreaAndWantedUrls() {
-        String jobkoreaUrl = "https://www.jobkorea.co.kr/Recruit/GI_Read/49653580?Oem_Code=C1&sc=9#seq=0";
+        String jobkoreaUrl =
+                "https://www.jobkorea.co.kr/Recruit/GI_Read/49653580?Oem_Code=C1&sc=9#seq=0";
         String wantedUrl = "https://www.wanted.co.kr/wd/123456?utm_source=share";
 
         assertThat(JobPostingUrlNormalizer.normalizeUrl(jobkoreaUrl))

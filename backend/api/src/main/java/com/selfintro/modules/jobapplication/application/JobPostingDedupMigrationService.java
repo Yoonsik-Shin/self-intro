@@ -26,9 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * DB에 등록되어 있는 기존 공고 데이터를 점검하고 정규화/중복 병합을 수행하는 마이그레이션 서비스.
- */
+/** DB에 등록되어 있는 기존 공고 데이터를 점검하고 정규화/중복 병합을 수행하는 마이그레이션 서비스. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -76,7 +74,9 @@ public class JobPostingDedupMigrationService {
                 if (canonicalUrl != null) {
                     globalCanonicalUrls.add(canonicalUrl);
                 }
-                if (canonicalUrl != null && (!canonicalUrl.equals(rawUrl) || sourceUrl.getPlatform() != newPlatform)) {
+                if (canonicalUrl != null
+                        && (!canonicalUrl.equals(rawUrl)
+                                || sourceUrl.getPlatform() != newPlatform)) {
                     sourceUrl.updateUrlAndPlatform(canonicalUrl, newPlatform);
                     urlsNormalizedCount++;
                 }
@@ -85,7 +85,7 @@ public class JobPostingDedupMigrationService {
         sourceUrlRepository.flush();
 
         // 2. 모든 JobPosting 정규화 필드 재계산
-        List<JobPosting> allPostings = jobPostingRepository.findAll();
+        List<JobPosting> allPostings = jobPostingRepository.findAllByOwnerWorkspaceIdIsNull();
         for (JobPosting posting : allPostings) {
             posting.updateNormalizedFields(
                     JobPostingNormalizer.normalizeCompanyName(posting.getCompanyName()),
@@ -96,7 +96,10 @@ public class JobPostingDedupMigrationService {
         int mergedPostingsCount = 0;
         Map<String, List<JobPosting>> groupedByCompany =
                 allPostings.stream()
-                        .filter(p -> p.getCompanyNameNormalized() != null && !p.getCompanyNameNormalized().isBlank())
+                        .filter(
+                                p ->
+                                        p.getCompanyNameNormalized() != null
+                                                && !p.getCompanyNameNormalized().isBlank())
                         .collect(Collectors.groupingBy(JobPosting::getCompanyNameNormalized));
 
         for (Map.Entry<String, List<JobPosting>> entry : groupedByCompany.entrySet()) {
@@ -124,8 +127,9 @@ public class JobPostingDedupMigrationService {
                                         Comparator.comparing(
                                                         (JobPosting p) ->
                                                                 p.getAppliedAt() != null
-                                                                        || p.getStatus()
-                                                                                != JobPostingStatus.NEW
+                                                                                || p.getStatus()
+                                                                                        != JobPostingStatus
+                                                                                                .NEW
                                                                         ? 0
                                                                         : 1)
                                                 .thenComparing(JobPosting::getId))

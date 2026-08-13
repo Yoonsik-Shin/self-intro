@@ -1,8 +1,6 @@
 package com.selfintro.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,14 +8,11 @@ import static org.mockito.Mockito.when;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
-
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,10 +56,11 @@ class JobPostingDedupServiceTest {
                                 null),
                         LocalDateTime.now());
 
-        when(jobPostingRepository.findByCompanyNameNormalizedAndPositionTitleNormalized(
-                        "스카이웨어", "AI 개발 엔지니어(신입/JAVA개발)"))
+        when(jobPostingRepository
+                        .findByOwnerWorkspaceIdIsNullAndCompanyNameNormalizedAndPositionTitleNormalized(
+                                "스카이웨어", "AI 개발 엔지니어(신입/JAVA개발)"))
                 .thenReturn(Optional.empty());
-        when(jobPostingRepository.findByCompanyNameNormalized("스카이웨어"))
+        when(jobPostingRepository.findByOwnerWorkspaceIdIsNullAndCompanyNameNormalized("스카이웨어"))
                 .thenReturn(List.of(existing));
 
         Optional<JobPosting> match =
@@ -79,16 +75,21 @@ class JobPostingDedupServiceTest {
     void normalizesUrlBeforeCheckingExistenceInAttachAdditionalUrl() {
         Long postingId = 1L;
         JobPosting posting = mock(JobPosting.class);
-        when(jobPostingRepository.findById(postingId)).thenReturn(Optional.of(posting));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(postingId))
+                .thenReturn(Optional.of(posting));
 
         String mailUrl =
                 "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=54566467&utm_source=person_clone_scrap_close&utm_medium=mail#seq=0";
         String expectedCanonical = "https://www.saramin.co.kr/zf_user/jobs/view?rec_idx=54566467";
 
-        when(sourceUrlRepository.existsByUrl(expectedCanonical)).thenReturn(true);
+        when(sourceUrlRepository.existsByScopeKeyAndUrl(
+                        JobPosting.PLATFORM_SCOPE, expectedCanonical))
+                .thenReturn(true);
 
-        dedupService.attachAdditionalUrl(postingId, mailUrl, JobPostingPlatform.SARAMIN, LocalDateTime.now());
+        dedupService.attachAdditionalUrl(
+                postingId, mailUrl, JobPostingPlatform.SARAMIN, LocalDateTime.now());
 
-        verify(sourceUrlRepository).existsByUrl(expectedCanonical);
+        verify(sourceUrlRepository)
+                .existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, expectedCanonical);
     }
 }

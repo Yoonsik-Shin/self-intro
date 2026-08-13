@@ -3,6 +3,9 @@ package com.selfintro.jobposting.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
+import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
+import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
@@ -12,9 +15,6 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoi
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
-import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
-import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.IOException;
@@ -38,8 +38,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * 채용 공고 URL 수집(크롤링+AI 파싱)·재수집·재매칭을 담당한다. 순수 CRUD/상태 관리는 api 모듈의
- * {@code JobPostingCrudService}가 맡는다 — 2026-08 job-posting CRUD/AI 분리 작업으로 쪼갠 절반이다.
+ * 채용 공고 URL 수집(크롤링+AI 파싱)·재수집·재매칭을 담당한다. 순수 CRUD/상태 관리는 api 모듈의 {@code JobPostingCrudService}가 맡는다
+ * — 2026-08 job-posting CRUD/AI 분리 작업으로 쪼갠 절반이다.
  */
 @Slf4j
 @Service
@@ -58,7 +58,6 @@ public class JobPostingService {
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
     private final JobPostingSourceImageRepository sourceImageRepository;
     private final JobApplicationUrlParseService urlParseService;
-    private final JobMatchingService matchingService;
     private final JobPostingDedupService dedupService;
     private final ObjectMapper objectMapper;
     // 이 세마포어는 외부 AI의 전역 쿼터가 아니라 현재 JVM(Pod)의 수집 작업량을 제한한다.
@@ -84,21 +83,26 @@ public class JobPostingService {
 
     private SseEmitter createSseEmitter(long timeoutMillis) {
         SseEmitter emitter = new SseEmitter(timeoutMillis);
-        emitter.onTimeout(() -> {
-            log.info("채용공고 SSE 스트림 타임아웃 발생");
-            emitter.complete();
-        });
-        emitter.onError(ex -> {
-            log.debug("채용공고 SSE 스트림 에러: {}", ex.getMessage());
-        });
+        emitter.onTimeout(
+                () -> {
+                    log.info("채용공고 SSE 스트림 타임아웃 발생");
+                    emitter.complete();
+                });
+        emitter.onError(
+                ex -> {
+                    log.debug("채용공고 SSE 스트림 에러: {}", ex.getMessage());
+                });
         return emitter;
     }
 
     public SseEmitter ingestUrlStream(String url) {
         String trimmed = url.trim();
-        String normalized = com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(trimmed);
+        String normalized =
+                com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(
+                        trimmed);
         String targetUrl = normalized != null ? normalized : trimmed;
-        if (sourceUrlRepository.existsByUrl(targetUrl) || sourceUrlRepository.existsByUrl(trimmed)) {
+        if (sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, targetUrl)
+                || sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
         }
         SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
@@ -122,7 +126,9 @@ public class JobPostingService {
             send(
                     emitter,
                     new CompleteEvent(
-                            "complete", result.response(), result.detectedAdditionalPositionTitles()));
+                            "complete",
+                            result.response(),
+                            result.detectedAdditionalPositionTitles()));
             emitter.complete();
         } catch (ResponseStatusException exception) {
             log.warn("채용공고 수집 스트리밍 실패: {}", exception.getReason(), exception);
@@ -140,9 +146,8 @@ public class JobPostingService {
 
     /**
      * 스크린샷 등록(기능 B)의 SSE 진입점. vision 호출이 최대 {@link
-     * JobApplicationUrlParseService#VISION_AI_TIMEOUT}(120초)까지 걸릴 수 있어, 응답이 아예
-     * 없는 구간이 nginx ingress의 기본 프록시 타임아웃보다 길어질 위험이 있다 — {@code
-     * ingestUrlStream}과 동일하게 heartbeat로 연결을 유지한다.
+     * JobApplicationUrlParseService#VISION_AI_TIMEOUT}(120초)까지 걸릴 수 있어, 응답이 아예 없는 구간이 nginx
+     * ingress의 기본 프록시 타임아웃보다 길어질 위험이 있다 — {@code ingestUrlStream}과 동일하게 heartbeat로 연결을 유지한다.
      */
     public SseEmitter ingestImagesStream(
             List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl) {
@@ -154,7 +159,9 @@ public class JobPostingService {
     }
 
     private void streamImageIngest(
-            List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl, SseEmitter emitter) {
+            List<JobPostingImageIngestRequest.ImageRef> images,
+            String sourceUrl,
+            SseEmitter emitter) {
         boolean acquired = false;
         Thread heartbeat = startHeartbeat(emitter);
         try {
@@ -168,7 +175,9 @@ public class JobPostingService {
             send(
                     emitter,
                     new CompleteEvent(
-                            "complete", result.response(), result.detectedAdditionalPositionTitles()));
+                            "complete",
+                            result.response(),
+                            result.detectedAdditionalPositionTitles()));
             emitter.complete();
         } catch (ResponseStatusException exception) {
             log.warn("채용공고 스크린샷 등록 스트리밍 실패: {}", exception.getReason(), exception);
@@ -201,8 +210,7 @@ public class JobPostingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수집할 공고가 없습니다.");
         }
         if (cleanedRows.size() > 5) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "한 번에 최대 5개까지 수집할 수 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "한 번에 최대 5개까지 수집할 수 있습니다.");
         }
 
         SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
@@ -369,12 +377,13 @@ public class JobPostingService {
     }
 
     private record CompleteEvent(
-            String type, JobPostingResponse response, List<String> detectedAdditionalPositionTitles) {}
+            String type,
+            JobPostingResponse response,
+            List<String> detectedAdditionalPositionTitles) {}
 
     /**
-     * 한 페이지/이미지에 직무가 여러 개 나열돼 자동 감지된 경우, 1지망(positionTitle)으로 쓰인
-     * 것 외 나머지를 담는다. 자동 저장되지 않으며 SSE complete 이벤트에만 실려 프론트가 지망
-     * 선택 UI를 띄울지 판단하는 데 쓰인다.
+     * 한 페이지/이미지에 직무가 여러 개 나열돼 자동 감지된 경우, 1지망(positionTitle)으로 쓰인 것 외 나머지를 담는다. 자동 저장되지 않으며 SSE
+     * complete 이벤트에만 실려 프론트가 지망 선택 UI를 띄울지 판단하는 데 쓰인다.
      */
     private record IngestResult(
             JobPostingResponse response, List<String> detectedAdditionalPositionTitles) {}
@@ -398,9 +407,12 @@ public class JobPostingService {
 
     private IngestResult ingestUrlInternal(String url) {
         String trimmed = url.trim();
-        String normalized = com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(trimmed);
+        String normalized =
+                com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(
+                        trimmed);
         String targetUrl = normalized != null ? normalized : trimmed;
-        if (sourceUrlRepository.existsByUrl(targetUrl) || sourceUrlRepository.existsByUrl(trimmed)) {
+        if (sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, targetUrl)
+                || sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, trimmed)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 수집된 공고입니다.");
         }
 
@@ -448,11 +460,6 @@ public class JobPostingService {
                         parsed.compensationDetail());
         JobPosting posting = JobPosting.collect(draft, now);
 
-        JobMatchingService.MatchResult match =
-                matchingService.evaluate(
-                        posting.getPositionTitle(), posting.getRequiredSkillsRaw());
-        posting.applyMatch(match.score(), match.reason(), now);
-
         try {
             return new IngestResult(
                     toResponse(dedupService.createNew(posting, targetUrl, platform, now)),
@@ -467,20 +474,19 @@ public class JobPostingService {
                             .orElseThrow(() -> exception);
             return new IngestResult(
                     toResponse(
-                            dedupService.attachAdditionalUrl(winner.getId(), targetUrl, platform, now)),
+                            dedupService.attachAdditionalUrl(
+                                    winner.getId(), targetUrl, platform, now)),
                     parsed.additionalPositionTitles());
         }
     }
 
     /**
-     * URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록한다. URL 자동수집과 동일하게 파싱 즉시
-     * 저장하고(사람이 확인은 사후에), 파싱에 쓴 원본 이미지도 job_posting_source_image에 영구
-     * 보관해 상세 드로어에서 다시 볼 수 있게 한다. 회사명+직무명이 기존 공고와 완전일치하면
-     * 새 행을 만들지 않고 그 공고에 이미지만 추가한다({@link JobPostingDedupService}의 URL
-     * 버전과 같은 원칙).
+     * URL 파싱이 불가능한 공고를 JD 스크린샷으로 등록한다. URL 자동수집과 동일하게 파싱 즉시 저장하고(사람이 확인은 사후에), 파싱에 쓴 원본 이미지도
+     * job_posting_source_image에 영구 보관해 상세 드로어에서 다시 볼 수 있게 한다. 회사명+직무명이 기존 공고와 완전일치하면 새 행을 만들지 않고 그
+     * 공고에 이미지만 추가한다({@link JobPostingDedupService}의 URL 버전과 같은 원칙).
      *
-     * <p>클래스 기본이 읽기 전용 트랜잭션이라 {@code refresh()}와 같은 이유로 이 메서드에
-     * {@code @Transactional}을 명시해야 한다(2026-08-06 self-invocation 사고 재발 방지).
+     * <p>클래스 기본이 읽기 전용 트랜잭션이라 {@code refresh()}와 같은 이유로 이 메서드에 {@code @Transactional}을 명시해야
+     * 한다(2026-08-06 self-invocation 사고 재발 방지).
      */
     @Transactional
     public JobPostingResponse ingestImages(
@@ -492,16 +498,24 @@ public class JobPostingService {
             List<JobPostingImageIngestRequest.ImageRef> images, String sourceUrl) {
         if (images.isEmpty() || images.size() > MAX_INGEST_IMAGE_COUNT) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "이미지는 1장 이상 " + MAX_INGEST_IMAGE_COUNT + "장 이하만 가능합니다.");
+                    HttpStatus.BAD_REQUEST,
+                    "이미지는 1장 이상 " + MAX_INGEST_IMAGE_COUNT + "장 이하만 가능합니다.");
         }
 
         List<NvidiaNimClient.ImagePart> parts =
                 images.stream()
-                        .map(image -> urlParseService.downloadImagePart(image.url(), image.contentType()))
+                        .map(
+                                image ->
+                                        urlParseService.downloadImagePart(
+                                                image.url(), image.contentType()))
                         .toList();
         JobApplicationUrlParseResponse parsed = urlParseService.parseFromImages(parts);
-        String companyName = AiJsonSupport.hasText(parsed.companyName()) ? parsed.companyName() : "회사명 미상";
-        String positionTitle = AiJsonSupport.hasText(parsed.positionTitle()) ? parsed.positionTitle() : "수집 공고 (직무 미상)";
+        String companyName =
+                AiJsonSupport.hasText(parsed.companyName()) ? parsed.companyName() : "회사명 미상";
+        String positionTitle =
+                AiJsonSupport.hasText(parsed.positionTitle())
+                        ? parsed.positionTitle()
+                        : "수집 공고 (직무 미상)";
 
         LocalDateTime now = LocalDateTime.now();
         JobPosting posting =
@@ -535,16 +549,13 @@ public class JobPostingService {
                                                     parsed.applicationMethod(),
                                                     parsed.compensationDetail());
                                     JobPosting draftEntity = JobPosting.collect(draft, now);
-                                    JobMatchingService.MatchResult match =
-                                            matchingService.evaluate(
-                                                    draftEntity.getPositionTitle(),
-                                                    draftEntity.getRequiredSkillsRaw());
-                                    draftEntity.applyMatch(match.score(), match.reason(), now);
                                     return jobPostingRepository.save(draftEntity);
                                 });
 
         int baseOrder =
-                sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()).size();
+                sourceImageRepository
+                        .findByJobPostingIdOrderByDisplayOrderAsc(posting.getId())
+                        .size();
         for (int i = 0; i < images.size(); i++) {
             JobPostingImageIngestRequest.ImageRef image = images.get(i);
             sourceImageRepository.save(
@@ -558,7 +569,8 @@ public class JobPostingService {
         // 새로고침"이 이 URL을 다시 긁어오지 않게 막는다.
         if (AiJsonSupport.hasText(sourceUrl)) {
             String trimmedUrl = sourceUrl.trim();
-            if (!sourceUrlRepository.existsByUrl(trimmedUrl)) {
+            if (!sourceUrlRepository.existsByScopeKeyAndUrl(
+                    JobPosting.PLATFORM_SCOPE, trimmedUrl)) {
                 JobPostingPlatform platform = JobPostingPlatform.fromUrl(trimmedUrl);
                 boolean hasNoSourceUrlYet =
                         sourceUrlRepository
@@ -566,7 +578,8 @@ public class JobPostingService {
                                 .isEmpty();
                 sourceUrlRepository.save(
                         hasNoSourceUrlYet
-                                ? JobPostingSourceUrl.primary(posting.getId(), trimmedUrl, platform, now)
+                                ? JobPostingSourceUrl.primary(
+                                        posting.getId(), trimmedUrl, platform, now)
                                 : JobPostingSourceUrl.additional(
                                         posting.getId(), trimmedUrl, platform, now));
             }
@@ -580,12 +593,10 @@ public class JobPostingService {
      * 상세 항목은 이번에 새로 읽은 값이 있으면 그걸로 덮어쓰되 없으면(일시적 추출 실패 등) 기존 값을 그대로 둔다 — 재수집 한 번 실패했다고 이미 확보한 상세 정보를
      * 지우지 않기 위해서다. 다만 마감일/상시채용 여부는 이번 결과가 "확실한 정보"(날짜를 읽었거나 상시채용이라고 명시됨)일 때만 갱신한다.
      *
-     * <p>클래스 기본이 {@code @Transactional(readOnly = true)}라, 이 메서드에 쓰기 트랜잭션을 명시하지
-     * 않으면 아래 {@code updateRefreshedPosting()} 호출이 (같은 빈 안에서의 self-invocation이라 그
-     * 메서드 자신의 {@code @Transactional}이 프록시를 못 타고) 이 메서드가 물려받은 읽기 전용
-     * 트랜잭션 안에서 그대로 실행된다. 그러면 엔티티 필드는 메모리상 바뀌어 응답엔 새 값이 찍히지만
-     * DB에는 플러시되지 않아, 다음 조회에선 그대로 예전 값(특히 jobDescription 이하 상세 항목)이
-     * 나오는 조용한 데이터 유실이 생긴다(2026-08-06 발견).
+     * <p>클래스 기본이 {@code @Transactional(readOnly = true)}라, 이 메서드에 쓰기 트랜잭션을 명시하지 않으면 아래 {@code
+     * updateRefreshedPosting()} 호출이 (같은 빈 안에서의 self-invocation이라 그 메서드 자신의 {@code @Transactional}이
+     * 프록시를 못 타고) 이 메서드가 물려받은 읽기 전용 트랜잭션 안에서 그대로 실행된다. 그러면 엔티티 필드는 메모리상 바뀌어 응답엔 새 값이 찍히지만 DB에는 플러시되지
+     * 않아, 다음 조회에선 그대로 예전 값(특히 jobDescription 이하 상세 항목)이 나오는 조용한 데이터 유실이 생긴다(2026-08-06 발견).
      */
     public record JobPostingBulkRefreshResult(
             int totalTarget,
@@ -594,11 +605,9 @@ public class JobPostingService {
             int skippedCount,
             List<String> logs) {}
 
-    /**
-     * 등록된 모든 공고(또는 활성 공고)를 원본 URL에서 일괄 다시 읽어 최신 정보(마감시간 등)로 갱신하는 백필 메서드.
-     */
+    /** 등록된 모든 공고(또는 활성 공고)를 원본 URL에서 일괄 다시 읽어 최신 정보(마감시간 등)로 갱신하는 백필 메서드. */
     public JobPostingBulkRefreshResult refreshAll(boolean onlyActive) {
-        List<JobPosting> list = jobPostingRepository.findAll();
+        List<JobPosting> list = jobPostingRepository.findAllByOwnerWorkspaceIdIsNull();
         int total = 0;
         int success = 0;
         int failed = 0;
@@ -612,8 +621,12 @@ public class JobPostingService {
                 continue;
             }
             if (onlyActive
-                    && (posting.getStatus() == com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.DISMISSED
-                            || posting.getStatus() == com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.EXPIRED)) {
+                    && (posting.getStatus()
+                                    == com.selfintro.modules.jobposting.domain.enums
+                                            .JobPostingStatus.DISMISSED
+                            || posting.getStatus()
+                                    == com.selfintro.modules.jobposting.domain.enums
+                                            .JobPostingStatus.EXPIRED)) {
                 skipped++;
                 continue;
             }
@@ -624,7 +637,9 @@ public class JobPostingService {
                 logs.add(
                         String.format(
                                 "SUCCESS [ID:%d] %s (%s)",
-                                posting.getId(), posting.getCompanyName(), posting.getPositionTitle()));
+                                posting.getId(),
+                                posting.getCompanyName(),
+                                posting.getPositionTitle()));
             } catch (Exception e) {
                 failed++;
                 log.warn(
@@ -640,6 +655,7 @@ public class JobPostingService {
         }
         return new JobPostingBulkRefreshResult(total, success, failed, skipped, logs);
     }
+
     public SseEmitter refreshAllStream(boolean onlyActive) {
         SseEmitter emitter = createSseEmitter(STREAM_TIMEOUT_MILLIS);
         Thread.ofVirtual()
@@ -651,25 +667,38 @@ public class JobPostingService {
     private void streamRefreshAll(boolean onlyActive, SseEmitter emitter) {
         Thread heartbeat = startHeartbeat(emitter);
         List<JobPosting> list =
-                jobPostingRepository.findAll().stream()
+                jobPostingRepository.findAllByOwnerWorkspaceIdIsNull().stream()
                         .filter(p -> AiJsonSupport.hasText(p.getPostingUrl()))
                         .filter(
                                 p ->
                                         !onlyActive
-                                                || (p.getStatus() != com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.DISMISSED
-                                                        && p.getStatus() != com.selfintro.modules.jobposting.domain.enums.JobPostingStatus.EXPIRED))
+                                                || (p.getStatus()
+                                                                != com.selfintro.modules.jobposting
+                                                                        .domain.enums
+                                                                        .JobPostingStatus.DISMISSED
+                                                        && p.getStatus()
+                                                                != com.selfintro.modules.jobposting
+                                                                        .domain.enums
+                                                                        .JobPostingStatus.EXPIRED))
                         .toList();
 
         int total = list.size();
-        java.util.concurrent.atomic.AtomicInteger completed = new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger errorCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger completed =
+                new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger successCount =
+                new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger errorCount =
+                new java.util.concurrent.atomic.AtomicInteger(0);
 
         try {
             send(
                     emitter,
                     new BulkProgressEvent(
-                            "progress", total, 0, "전체 공고 재수집 백필 준비 완료 (" + total + "건)", "processing"));
+                            "progress",
+                            total,
+                            0,
+                            "전체 공고 재수집 백필 준비 완료 (" + total + "건)",
+                            "processing"));
 
             for (JobPosting posting : list) {
                 String label = posting.getCompanyName() + " - " + posting.getPositionTitle();
@@ -725,6 +754,7 @@ public class JobPostingService {
             heartbeat.interrupt();
         }
     }
+
     @Transactional
     public JobPostingResponse refresh(Long id) {
         JobPosting posting = findOrThrow(id);
@@ -749,7 +779,9 @@ public class JobPostingService {
                 posting.getPostingUrl(),
                 posting.getSource(),
                 deadlineKnown ? parsed.deadline() : posting.getDeadline(),
-                deadlineKnown && parsed.deadlineTime() != null ? parsed.deadlineTime() : posting.getDeadlineTime(),
+                deadlineKnown && parsed.deadlineTime() != null
+                        ? parsed.deadlineTime()
+                        : posting.getDeadlineTime(),
                 deadlineKnown ? parsed.alwaysOpen() : posting.isAlwaysOpen(),
                 pick(parsed.salaryNote(), posting.getSalaryNote()),
                 pick(parsed.location(), posting.getLocation()),
@@ -762,41 +794,18 @@ public class JobPostingService {
                 pick(parsed.applicationMethod(), posting.getApplicationMethod()),
                 pick(parsed.compensationDetail(), posting.getCompensationDetail()),
                 now);
-        // 정보 새로고침으로 직무상세/자격요건 텍스트가 바뀌었을 수 있으니, 매칭 원문과 점수도
-        // 같이 다시 계산한다(요건이 새로고침 전 부실한 값에 고정돼 매칭 점수가 실제 공고 내용과
-        // 어긋나는 문제 방지).
+        // 공용 카탈로그 새로고침은 공고 원문만 갱신한다. Workspace별 매칭 점수는
+        // WorkspaceJobApplicationMatchingService에서 해당 Workspace 기술만 사용해 별도로 계산한다.
         posting.refreshRequiredSkillsRaw(
                 combineForMatching(
                         posting.getJobDescription(),
                         posting.getRequiredQualifications(),
                         posting.getPreferredQualifications()));
-        JobMatchingService.MatchResult match =
-                matchingService.evaluate(posting.getPositionTitle(), posting.getRequiredSkillsRaw());
-        posting.applyMatch(match.score(), match.reason(), now);
         return toResponse(posting);
     }
 
     private static String pick(String fresh, String existing) {
         return AiJsonSupport.hasText(fresh) ? fresh : existing;
-    }
-
-    /** 자동 매칭 점수를 현재 보유 기술 스택 기준으로 다시 계산한다(이미 점수가 있어도 덮어쓴다). */
-    @Transactional
-    public JobPostingResponse rematch(Long id) {
-        JobPosting posting = findOrThrow(id);
-        // 매칭 원문(requiredSkillsRaw)이 최초 수집 시점 값에 고정돼 있으면 그 사이 정보
-        // 새로고침으로 채워진 최신 직무상세/자격요건이 반영되지 않아 재계산해도 계속 부실한
-        // 결과가 나온다 — 지원 전이라면 여기서도 최신 필드 기준으로 다시 합쳐준다.
-        posting.refreshRequiredSkillsRaw(
-                combineForMatching(
-                        posting.getJobDescription(),
-                        posting.getRequiredQualifications(),
-                        posting.getPreferredQualifications()));
-        JobMatchingService.MatchResult match =
-                matchingService.evaluate(
-                        posting.getPositionTitle(), posting.getRequiredSkillsRaw());
-        posting.applyMatch(match.score(), match.reason(), LocalDateTime.now());
-        return toResponse(posting);
     }
 
     /**
@@ -805,7 +814,9 @@ public class JobPostingService {
      */
     private String combineForMatching(JobApplicationUrlParseResponse parsed) {
         return combineForMatching(
-                parsed.jobDescription(), parsed.requiredQualifications(), parsed.preferredQualifications());
+                parsed.jobDescription(),
+                parsed.requiredQualifications(),
+                parsed.preferredQualifications());
     }
 
     private String combineForMatching(
@@ -817,7 +828,7 @@ public class JobPostingService {
 
     private JobPosting findOrThrow(Long id) {
         return jobPostingRepository
-                .findById(id)
+                .findByIdAndOwnerWorkspaceIdIsNull(id)
                 .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + id));
     }
 }

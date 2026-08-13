@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,7 +14,8 @@ import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
 import com.selfintro.modules.skill.domain.entity.Skill;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.entity.WorkspaceSkill;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,12 +27,38 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class JobMatchingServiceTest {
 
-    @Mock private SkillRepository skillRepository;
+    private static final Long WORKSPACE_ID = 11L;
+
+    @Mock private WorkspaceSkillRepository workspaceSkillRepository;
     @Mock private JobPostingSettingRepository settingRepository;
     @Mock private NvidiaNimClient nvidiaNimClient;
 
     private Skill skillNamed(String name) {
         return Skill.create(name, "BACKEND", "INTERMEDIATE", false, 0);
+    }
+
+    private void workspaceSkills(String... names) {
+        List<WorkspaceSkill> skills =
+                java.util.stream.IntStream.range(0, names.length)
+                        .mapToObj(
+                                index ->
+                                        WorkspaceSkill.create(
+                                                WORKSPACE_ID,
+                                                skillNamed(names[index]),
+                                                "INTERMEDIATE",
+                                                null,
+                                                null,
+                                                "USED",
+                                                true,
+                                                index))
+                        .toList();
+        when(workspaceSkillRepository.findAllByWorkspaceIdOrderByDisplayOrderAsc(WORKSPACE_ID))
+                .thenReturn(skills);
+    }
+
+    private JobMatchingService newService() {
+        return new JobMatchingService(
+                workspaceSkillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
     }
 
     private JobPostingSetting settingWithThreshold(int threshold) {
@@ -52,14 +80,12 @@ class JobMatchingServiceTest {
 
     @Test
     void returnsEmptyWhenKeywordOverlapBelowThreshold() {
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        workspaceSkills("Java", "Spring");
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(2));
-        JobMatchingService service =
-                new JobMatchingService(
-                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+        JobMatchingService service = newService();
 
         JobMatchingService.MatchResult result =
-                service.evaluate("프론트엔드 개발자", "React, TypeScript 경험 우대");
+                service.evaluate(WORKSPACE_ID, "프론트엔드 개발자", "React, TypeScript 경험 우대");
 
         assertThat(result.score()).isNull();
         verify(nvidiaNimClient, never())
@@ -68,34 +94,30 @@ class JobMatchingServiceTest {
 
     @Test
     void evaluatesWithoutSkippingWhenThresholdIsZero() {
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        workspaceSkills("Java", "Spring");
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(0));
         when(nvidiaNimClient.generateJsonOnce(
                         anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("{\"score\":60,\"reason\":\"기본 백엔드 적합도 평가 점수입니다.\"}");
-        JobMatchingService service =
-                new JobMatchingService(
-                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+        JobMatchingService service = newService();
 
         JobMatchingService.MatchResult result =
-                service.evaluate("프론트엔드 개발자", "React, TypeScript 경험 우대");
+                service.evaluate(WORKSPACE_ID, "프론트엔드 개발자", "React, TypeScript 경험 우대");
 
         assertThat(result.score()).isEqualTo(60);
     }
 
     @Test
     void callsAiAndClampsScoreWhenThresholdMet() {
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        workspaceSkills("Java", "Spring");
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
         when(nvidiaNimClient.generateJsonOnce(
                         anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("{\"score\":140,\"reason\":\"Java와 Spring 경험이 일치합니다.\"}");
-        JobMatchingService service =
-                new JobMatchingService(
-                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+        JobMatchingService service = newService();
 
         JobMatchingService.MatchResult result =
-                service.evaluate("백엔드 개발자", "Java, Spring Boot 경험자");
+                service.evaluate(WORKSPACE_ID, "백엔드 개발자", "Java, Spring Boot 경험자");
 
         assertThat(result.score()).isEqualTo(100);
         assertThat(result.reason()).contains("일치");
@@ -103,17 +125,15 @@ class JobMatchingServiceTest {
 
     @Test
     void acceptsSchemaFieldsWhenModelOmitsJsonBraces() {
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        workspaceSkills("Java", "Spring");
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
         when(nvidiaNimClient.generateJsonOnce(
                         anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("score: 85\nreason: Java와 Spring 기술이 공고와 일치합니다.");
-        JobMatchingService service =
-                new JobMatchingService(
-                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+        JobMatchingService service = newService();
 
         JobMatchingService.MatchResult result =
-                service.evaluate("백엔드 개발자", "Java, Spring Boot 경험자");
+                service.evaluate(WORKSPACE_ID, "백엔드 개발자", "Java, Spring Boot 경험자");
 
         assertThat(result.score()).isEqualTo(85);
         assertThat(result.reason()).contains("기술이 공고와 일치");
@@ -121,16 +141,15 @@ class JobMatchingServiceTest {
 
     @Test
     void suppliesEvidenceBasedReasonWhenModelReturnsBlankReason() {
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        workspaceSkills("Java", "Spring");
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
         when(nvidiaNimClient.generateJsonOnce(
                         anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn("{\"score\":82,\"reason\":\"\"}");
-        JobMatchingService service =
-                new JobMatchingService(
-                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+        JobMatchingService service = newService();
 
-        JobMatchingService.MatchResult result = service.evaluate("백엔드 개발자", "Java와 Spring 경험");
+        JobMatchingService.MatchResult result =
+                service.evaluate(WORKSPACE_ID, "백엔드 개발자", "Java와 Spring 경험");
 
         assertThat(result.score()).isEqualTo(82);
         assertThat(result.reason()).contains("2개가");
@@ -138,39 +157,51 @@ class JobMatchingServiceTest {
 
     @Test
     void returnsEmptyWhenNvidiaClientThrowsBecauseKeyMissing() {
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        workspaceSkills("Java", "Spring");
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
         when(nvidiaNimClient.generateJsonOnce(
                         anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenThrow(
                         new org.springframework.web.server.ResponseStatusException(
                                 org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "no key"));
-        JobMatchingService service =
-                new JobMatchingService(
-                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+        JobMatchingService service = newService();
 
         JobMatchingService.MatchResult result =
-                service.evaluate("백엔드 개발자", "Java, Spring Boot 경험자");
+                service.evaluate(WORKSPACE_ID, "백엔드 개발자", "Java, Spring Boot 경험자");
 
         assertThat(result.score()).isNull();
     }
 
     @Test
     void returnsEmptyWhenAiResponseIsTruncatedReasoningText() {
-        when(skillRepository.findAllSkillNames()).thenReturn(List.of("Java", "Spring"));
+        workspaceSkills("Java", "Spring");
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(1));
         when(nvidiaNimClient.generateJsonOnce(
                         anyString(), anyString(), anyInt(), any(Duration.class)))
                 .thenReturn(
                         "We need to compute a score based on match between candidate's skills and job requirements. Provide JSON with score integer 0-100 and reason in Korean, max 2 sentences.");
-        JobMatchingService service =
-                new JobMatchingService(
-                        skillRepository, settingRepository, nvidiaNimClient, new ObjectMapper());
+        JobMatchingService service = newService();
 
         JobMatchingService.MatchResult result =
-                service.evaluate("백엔드 개발자", "Java, Spring Boot 경험자");
+                service.evaluate(WORKSPACE_ID, "백엔드 개발자", "Java, Spring Boot 경험자");
 
         assertThat(result.score()).isNull();
         assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void loadsOnlyTheRequestedWorkspaceSkills() {
+        workspaceSkills("Java");
+        when(settingRepository.getOrCreateDefault()).thenReturn(settingWithThreshold(0));
+        when(nvidiaNimClient.generateJsonOnce(
+                        anyString(), anyString(), anyInt(), any(Duration.class)))
+                .thenReturn("{\"score\":70,\"reason\":\"현재 Workspace 기술만 반영했습니다.\"}");
+
+        JobMatchingService.MatchResult result =
+                newService().evaluate(WORKSPACE_ID, "백엔드 개발자", "Java 경험자");
+
+        assertThat(result.score()).isEqualTo(70);
+        verify(workspaceSkillRepository)
+                .findAllByWorkspaceIdOrderByDisplayOrderAsc(eq(WORKSPACE_ID));
     }
 }

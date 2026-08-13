@@ -14,8 +14,8 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * 채용공고 텍스트에서 하이브리드 검색의 lexical(키워드 일치) 절반에 쓸 핵심 기술/도메인 키워드를 NVIDIA NIM(무료)으로 뽑아낸다.
  *
- * <p>{@link JobMatchingService}와 같은 패턴 — NVIDIA_API_KEY가 없거나 호출/파싱이 실패하면 빈 리스트로 조용히 넘어간다(하이브리드
- * 점수는 vector 유사도만으로 계산됨).
+ * <p>{@link JobMatchingService}와 같은 패턴 — NVIDIA_API_KEY가 없거나 호출/파싱이 실패하면 빈 리스트로 조용히 넘어간다(하이브리드 점수는
+ * vector 유사도만으로 계산됨).
  */
 @Slf4j
 @Service
@@ -41,8 +41,12 @@ public class QueryKeywordExtractionService {
         try {
             KeywordResponse response =
                     AiJsonSupport.generateAndParse(
-                            () -> nvidiaNimClient.generateJsonOnce(
-                                    EXTRACTION_PROMPT, queryText, MAX_OUTPUT_TOKENS, TIMEOUT),
+                            () ->
+                                    nvidiaNimClient.generateJsonOnce(
+                                            EXTRACTION_PROMPT,
+                                            queryText,
+                                            MAX_OUTPUT_TOKENS,
+                                            TIMEOUT),
                             this::parseKeywordResponse,
                             2);
             return response.keywords() != null ? response.keywords() : List.of();

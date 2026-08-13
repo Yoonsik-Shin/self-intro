@@ -8,7 +8,5 @@ public record JobPostingReadModel(
         String title,
         String status,
         String applyUrl,
-        Integer matchScore,
-        String matchSummary,
-        String lastUpdatedAt
-) implements Serializable {}
+        String lastUpdatedAt)
+        implements Serializable {}

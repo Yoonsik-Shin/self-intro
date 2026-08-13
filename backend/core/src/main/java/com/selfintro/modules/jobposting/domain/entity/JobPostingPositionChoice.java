@@ -12,9 +12,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 한 공고(job_posting)에 직무가 여러 개 나열된 경우(예: 채용관 공고) 2지망 이상을 표현한다.
- * 1지망은 job_posting.position_title이 dedup 정체성 키로 계속 담당하고, 이 테이블은
- * rank_order 2 이상만 저장한다.
+ * 한 공고(job_posting)에 직무가 여러 개 나열된 경우(예: 채용관 공고) 2지망 이상을 표현한다. 1지망은 job_posting.position_title이
+ * dedup 정체성 키로 계속 담당하고, 이 테이블은 rank_order 2 이상만 저장한다.
  */
 @Getter
 @Entity

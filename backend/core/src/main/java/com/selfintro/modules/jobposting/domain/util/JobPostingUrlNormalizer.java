@@ -7,28 +7,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 채용 공고 URL을 표준(Canonical) 형태로 정규화한다.
- * 추적 파라미터(utm_*, rf, sc 등) 및 fragments(#...)를 제거하고,
- * 사람인/잡코리아/원티드 등 채용 플랫폼별 고유 식별자(rec_idx, GI_No, wd_id) 중심의
- * 표준 URL로 변환하여 동일 공고의 중복 수집을 막는다.
+ * 채용 공고 URL을 표준(Canonical) 형태로 정규화한다. 추적 파라미터(utm_*, rf, sc 등) 및 fragments(#...)를 제거하고,
+ * 사람인/잡코리아/원티드 등 채용 플랫폼별 고유 식별자(rec_idx, GI_No, wd_id) 중심의 표준 URL로 변환하여 동일 공고의 중복 수집을 막는다.
  */
 public final class JobPostingUrlNormalizer {
 
-    private static final Pattern SARAMIN_REC_IDX_PATTERN =
-            Pattern.compile("rec_idx=([^&\\s#]+)");
+    private static final Pattern SARAMIN_REC_IDX_PATTERN = Pattern.compile("rec_idx=([^&\\s#]+)");
 
     private static final Pattern JOBKOREA_GI_NO_PATTERN =
             Pattern.compile("(?:GI_Read/|GI_No=)(\\d+)");
 
-    private static final Pattern WANTED_WD_ID_PATTERN =
-            Pattern.compile("/wd/(\\d+)");
+    private static final Pattern WANTED_WD_ID_PATTERN = Pattern.compile("/wd/(\\d+)");
 
     private JobPostingUrlNormalizer() {}
 
-    /**
-     * 입력 URL을 표준 Canonical URL로 정규화한다.
-     * 올바르지 않거나 빈 URL인 경우 null 또는 정제된 기본 URL을 반환한다.
-     */
+    /** 입력 URL을 표준 Canonical URL로 정규화한다. 올바르지 않거나 빈 URL인 경우 null 또는 정제된 기본 URL을 반환한다. */
     public static String normalizeUrl(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
             return null;
@@ -84,10 +77,7 @@ public final class JobPostingUrlNormalizer {
         return stripTrackingQueryParams(cleaned);
     }
 
-    /**
-     * URL에서 안전하게 host(도메인)를 추출한다.
-     * URI.create()의 문법 예외 시에도 롤백 정규식 처리하여 예외 없이 host를 돌려준다.
-     */
+    /** URL에서 안전하게 host(도메인)를 추출한다. URI.create()의 문법 예외 시에도 롤백 정규식 처리하여 예외 없이 host를 돌려준다. */
     public static String extractHost(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
             return null;

@@ -1,37 +1,26 @@
 package com.selfintro.jobposting.presentation;
 
-import com.selfintro.jobposting.application.CoverLetterDraftAiService;
-import com.selfintro.jobposting.application.GapProjectDocumentService;
 import com.selfintro.jobposting.application.JobApplicationUrlParseService;
-import com.selfintro.jobposting.application.JobPostingAppealService;
 import com.selfintro.jobposting.application.JobPostingBackfillService;
 import com.selfintro.jobposting.application.JobPostingBackfillService.JobPostingBackfillResult;
 import com.selfintro.jobposting.application.JobPostingCollectorService;
 import com.selfintro.jobposting.application.JobPostingCollectorService.JobPostingCollectionResult;
-import com.selfintro.jobposting.application.JobPostingPrintDraftService;
 import com.selfintro.jobposting.application.JobPostingService;
-import com.selfintro.jobposting.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
-import com.selfintro.jobposting.presentation.dto.PrintTemplateRevisionRequest;
-import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
-import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -41,13 +30,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class JobPostingController {
 
     private final JobPostingService jobPostingService;
-    private final GapProjectDocumentService gapProjectDocumentService;
     private final JobPostingCollectorService jobPostingCollectorService;
-    private final JobPostingAppealService jobPostingAppealService;
-    private final JobPostingPrintDraftService jobPostingPrintDraftService;
     private final JobApplicationUrlParseService urlParseService;
     private final JobPostingBackfillService backfillService;
-    private final CoverLetterDraftAiService coverLetterDraftAiService;
 
     @PostMapping("/parse-url")
     public JobApplicationUrlParseResponse parseUrl(
@@ -87,13 +72,15 @@ public class JobPostingController {
 
     @PostMapping("/refresh-all")
     public JobPostingService.JobPostingBulkRefreshResult refreshAll(
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true") boolean onlyActive) {
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true")
+                    boolean onlyActive) {
         return jobPostingService.refreshAll(onlyActive);
     }
 
     @PostMapping(value = "/refresh-all/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter refreshAllStream(
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true") boolean onlyActive) {
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true")
+                    boolean onlyActive) {
         return jobPostingService.refreshAllStream(onlyActive);
     }
 
@@ -107,63 +94,8 @@ public class JobPostingController {
         return backfillService.run();
     }
 
-    @PostMapping("/{id}/analyze-appeal")
-    public JobPostingResponse analyzeAppeal(
-            @PathVariable Long id,
-            @RequestParam(required = false) String aiModel,
-            @RequestParam(required = false) String customModelName) {
-        return jobPostingAppealService.analyzeAppeal(id, aiModel, customModelName);
-    }
-
-    @PostMapping("/{id}/generate-cover-letter-draft")
-    public JobPostingCoverLetterDraftResponse generateCoverLetterDraft(
-            @PathVariable Long id,
-            @Valid @RequestBody JobPostingCoverLetterDraftRequest request) {
-        return coverLetterDraftAiService.generateDraft(id, request);
-    }
-
-    @PostMapping(value = "/{id}/print-template-draft/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter generatePrintTemplateDraftStream(
-            @PathVariable Long id,
-            @RequestParam(required = false) String aiModel,
-            @RequestParam(required = false) String customModelName) {
-        return jobPostingPrintDraftService.generateStream(id, aiModel, customModelName);
-    }
-
-    @PostMapping(
-            value = "/{id}/print-template-draft/{templateId}/revise/stream",
-            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter revisePrintTemplateDraftStream(
-            @PathVariable Long id,
-            @PathVariable Long templateId,
-            @Valid @RequestBody PrintTemplateRevisionRequest request,
-            @RequestParam(required = false) String aiModel,
-            @RequestParam(required = false) String customModelName) {
-        return jobPostingPrintDraftService.reviseStream(
-                id, templateId, request.feedbackInstruction(), aiModel, customModelName);
-    }
-
-    @GetMapping("/{id}/gap-project-documents")
-    public List<GapProjectDocumentResponse> listGapProjectDocuments(@PathVariable Long id) {
-        return gapProjectDocumentService.list(id);
-    }
-
-    @PostMapping("/{id}/gap-project-documents")
-    public GapProjectDocumentResponse generateGapProjectDocument(
-            @PathVariable Long id,
-            @RequestParam(required = false) String aiModel,
-            @RequestParam(required = false) String customModelName) {
-        return gapProjectDocumentService.generate(id, aiModel, customModelName);
-    }
-
-    @PostMapping("/{id}/rematch")
-    public JobPostingResponse rematch(@PathVariable Long id) {
-        return jobPostingService.rematch(id);
-    }
-
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<String> handleNotFound(EntityNotFoundException exception) {
         return ResponseEntity.notFound().build();
     }
 }
-

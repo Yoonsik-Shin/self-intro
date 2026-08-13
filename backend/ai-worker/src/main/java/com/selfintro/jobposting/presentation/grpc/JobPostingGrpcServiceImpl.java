@@ -18,40 +18,61 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @GrpcService
 @RequiredArgsConstructor
-public class JobPostingGrpcServiceImpl extends JobPostingGrpcServiceGrpc.JobPostingGrpcServiceImplBase {
+public class JobPostingGrpcServiceImpl
+        extends JobPostingGrpcServiceGrpc.JobPostingGrpcServiceImplBase {
 
     private final JobPostingRepository jobPostingRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public void getJobPostingSummary(JobPostingSummaryRequest request, StreamObserver<JobPostingSummaryResponse> responseObserver) {
+    public void getJobPostingSummary(
+            JobPostingSummaryRequest request,
+            StreamObserver<JobPostingSummaryResponse> responseObserver) {
         log.info("[gRPC Server] getJobPostingSummary DB 조회 요청: id={}", request.getId());
 
-        Optional<JobPosting> postingOpt = jobPostingRepository.findById(request.getId());
+        Optional<JobPosting> postingOpt =
+                jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(request.getId());
 
         JobPostingSummaryResponse response;
         if (postingOpt.isPresent()) {
             JobPosting posting = postingOpt.get();
-            response = JobPostingSummaryResponse.newBuilder()
-                    .setId(posting.getId())
-                    .setCompanyName(posting.getCompanyName() != null ? posting.getCompanyName() : "")
-                    .setTitle(posting.getPositionTitle() != null ? posting.getPositionTitle() : "")
-                    .setStatus(posting.getStatus() != null ? posting.getStatus().name() : "NEW")
-                    .setApplyUrl(posting.getPostingUrl() != null ? posting.getPostingUrl() : "")
-                    .setLocation(posting.getLocation() != null ? posting.getLocation() : "")
-                    .setExperienceLevel(posting.getEmploymentType() != null ? posting.getEmploymentType() : (posting.getSource() != null ? posting.getSource() : ""))
-                    .build();
+            response =
+                    JobPostingSummaryResponse.newBuilder()
+                            .setId(posting.getId())
+                            .setCompanyName(
+                                    posting.getCompanyName() != null
+                                            ? posting.getCompanyName()
+                                            : "")
+                            .setTitle(
+                                    posting.getPositionTitle() != null
+                                            ? posting.getPositionTitle()
+                                            : "")
+                            .setStatus(
+                                    posting.getStatus() != null
+                                            ? posting.getStatus().name()
+                                            : "NEW")
+                            .setApplyUrl(
+                                    posting.getPostingUrl() != null ? posting.getPostingUrl() : "")
+                            .setLocation(posting.getLocation() != null ? posting.getLocation() : "")
+                            .setExperienceLevel(
+                                    posting.getEmploymentType() != null
+                                            ? posting.getEmploymentType()
+                                            : (posting.getSource() != null
+                                                    ? posting.getSource()
+                                                    : ""))
+                            .build();
         } else {
             log.warn("[gRPC Server] 존재하지 않는 JobPosting ID 조회: id={}", request.getId());
-            response = JobPostingSummaryResponse.newBuilder()
-                    .setId(request.getId())
-                    .setCompanyName("")
-                    .setTitle("")
-                    .setStatus("NOT_FOUND")
-                    .setApplyUrl("")
-                    .setLocation("")
-                    .setExperienceLevel("")
-                    .build();
+            response =
+                    JobPostingSummaryResponse.newBuilder()
+                            .setId(request.getId())
+                            .setCompanyName("")
+                            .setTitle("")
+                            .setStatus("NOT_FOUND")
+                            .setApplyUrl("")
+                            .setLocation("")
+                            .setExperienceLevel("")
+                            .build();
         }
 
         responseObserver.onNext(response);
@@ -60,28 +81,41 @@ public class JobPostingGrpcServiceImpl extends JobPostingGrpcServiceGrpc.JobPost
 
     @Override
     @Transactional(readOnly = true)
-    public void getJobMatchingScore(JobMatchingScoreRequest request, StreamObserver<JobMatchingScoreResponse> responseObserver) {
+    public void getJobMatchingScore(
+            JobMatchingScoreRequest request,
+            StreamObserver<JobMatchingScoreResponse> responseObserver) {
         log.info("[gRPC Server] getJobMatchingScore DB 조회 요청: id={}", request.getJobPostingId());
 
-        Optional<JobPosting> postingOpt = jobPostingRepository.findById(request.getJobPostingId());
+        Optional<JobPosting> postingOpt =
+                jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(request.getJobPostingId());
 
         JobMatchingScoreResponse response;
         if (postingOpt.isPresent() && postingOpt.get().getMatchScore() != null) {
             JobPosting posting = postingOpt.get();
-            response = JobMatchingScoreResponse.newBuilder()
-                    .setJobPostingId(posting.getId())
-                    .setScore(posting.getMatchScore())
-                    .setEvaluationSummary(posting.getMatchReason() != null ? posting.getMatchReason() : "")
-                    .setMatchedAt(posting.getUpdatedAt() != null ? posting.getUpdatedAt().toString() : LocalDateTime.now().toString())
-                    .build();
+            response =
+                    JobMatchingScoreResponse.newBuilder()
+                            .setJobPostingId(posting.getId())
+                            .setScore(posting.getMatchScore())
+                            .setEvaluationSummary(
+                                    posting.getMatchReason() != null
+                                            ? posting.getMatchReason()
+                                            : "")
+                            .setMatchedAt(
+                                    posting.getUpdatedAt() != null
+                                            ? posting.getUpdatedAt().toString()
+                                            : LocalDateTime.now().toString())
+                            .build();
         } else {
-            log.warn("[gRPC Server] 매칭 점수가 존재하지 않는 JobPosting ID 조회: id={}", request.getJobPostingId());
-            response = JobMatchingScoreResponse.newBuilder()
-                    .setJobPostingId(request.getJobPostingId())
-                    .setScore(0)
-                    .setEvaluationSummary("")
-                    .setMatchedAt(LocalDateTime.now().toString())
-                    .build();
+            log.warn(
+                    "[gRPC Server] 매칭 점수가 존재하지 않는 JobPosting ID 조회: id={}",
+                    request.getJobPostingId());
+            response =
+                    JobMatchingScoreResponse.newBuilder()
+                            .setJobPostingId(request.getJobPostingId())
+                            .setScore(0)
+                            .setEvaluationSummary("")
+                            .setMatchedAt(LocalDateTime.now().toString())
+                            .build();
         }
 
         responseObserver.onNext(response);

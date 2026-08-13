@@ -2,7 +2,6 @@ package com.selfintro.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -16,7 +15,6 @@ import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,19 +30,12 @@ class JobPostingCollectorServiceTest {
 
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private JobPostingSettingRepository settingRepository;
-    @Mock private SkillRepository skillRepository;
     @Mock private SaraminJobPostingClient saraminJobPostingClient;
-    @Mock private JobMatchingService matchingService;
     @Mock private JobPostingDedupService dedupService;
 
     private JobPostingCollectorService newService() {
         return new JobPostingCollectorService(
-                jobPostingRepository,
-                settingRepository,
-                skillRepository,
-                saraminJobPostingClient,
-                matchingService,
-                dedupService);
+                jobPostingRepository, settingRepository, saraminJobPostingClient, dedupService);
     }
 
     private JobPostingSetting settingWithSaraminEnabled(boolean saraminEnabled) {
@@ -112,7 +103,8 @@ class JobPostingCollectorServiceTest {
     void collectNowSkipsDisabledSourcesAndExpiresOverdueCandidates() {
         JobPostingCollectorService service = newService();
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithSaraminEnabled(false));
-        when(jobPostingRepository.findByStatusInAndDeadlineBefore(any(), any()))
+        when(jobPostingRepository.findByOwnerWorkspaceIdIsNullAndStatusInAndDeadlineBefore(
+                        any(), any()))
                 .thenReturn(List.of(overdueCandidate()));
 
         JobPostingCollectionResult result = service.collectNow();
@@ -127,22 +119,20 @@ class JobPostingCollectorServiceTest {
     void collectNowSavesNewSaraminPostingsAndSkipsDuplicates() {
         JobPostingCollectorService service = newService();
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithSaraminEnabled(true));
-        when(jobPostingRepository.findByStatusInAndDeadlineBefore(any(), any()))
+        when(jobPostingRepository.findByOwnerWorkspaceIdIsNullAndStatusInAndDeadlineBefore(
+                        any(), any()))
                 .thenReturn(List.of());
         when(saraminJobPostingClient.fetchPostings())
                 .thenReturn(List.of(saraminDraft("1"), saraminDraft("2")));
-        when(jobPostingRepository.existsByCollectionMethodAndExternalId(
+        when(jobPostingRepository.existsByOwnerWorkspaceIdIsNullAndCollectionMethodAndExternalId(
                         JobPostingSource.SARAMIN, "1"))
                 .thenReturn(true);
-        when(jobPostingRepository.existsByCollectionMethodAndExternalId(
+        when(jobPostingRepository.existsByOwnerWorkspaceIdIsNullAndCollectionMethodAndExternalId(
                         JobPostingSource.SARAMIN, "2"))
                 .thenReturn(false);
         when(dedupService.findExistingMatch(any(), any())).thenReturn(Optional.empty());
         when(dedupService.createNew(any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(matchingService.evaluate(any(), any(), any(), anyInt()))
-                .thenReturn(JobMatchingService.MatchResult.empty());
-
         JobPostingCollectionResult result = service.collectNow();
 
         assertThat(result.saraminCollected()).isEqualTo(1);
@@ -153,10 +143,11 @@ class JobPostingCollectorServiceTest {
     void collectNowAttachesSaraminUrlToExistingMatchInsteadOfCreatingNewRow() {
         JobPostingCollectorService service = newService();
         when(settingRepository.getOrCreateDefault()).thenReturn(settingWithSaraminEnabled(true));
-        when(jobPostingRepository.findByStatusInAndDeadlineBefore(any(), any()))
+        when(jobPostingRepository.findByOwnerWorkspaceIdIsNullAndStatusInAndDeadlineBefore(
+                        any(), any()))
                 .thenReturn(List.of());
         when(saraminJobPostingClient.fetchPostings()).thenReturn(List.of(saraminDraft("1")));
-        when(jobPostingRepository.existsByCollectionMethodAndExternalId(
+        when(jobPostingRepository.existsByOwnerWorkspaceIdIsNullAndCollectionMethodAndExternalId(
                         JobPostingSource.SARAMIN, "1"))
                 .thenReturn(false);
         JobPosting existing = overdueCandidate();
@@ -175,7 +166,8 @@ class JobPostingCollectorServiceTest {
     void expireOverdueCandidatesMarksThemExpired() {
         JobPostingCollectorService service = newService();
         JobPosting candidate = overdueCandidate();
-        when(jobPostingRepository.findByStatusInAndDeadlineBefore(any(), any()))
+        when(jobPostingRepository.findByOwnerWorkspaceIdIsNullAndStatusInAndDeadlineBefore(
+                        any(), any()))
                 .thenReturn(List.of(candidate));
 
         int expiredCount = service.expireOverdueCandidates();

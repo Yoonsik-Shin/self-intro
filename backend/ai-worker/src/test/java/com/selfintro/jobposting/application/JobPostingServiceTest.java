@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
@@ -16,10 +18,7 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoi
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
-import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
-import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,7 +41,6 @@ class JobPostingServiceTest {
     @Mock private JobPostingPositionChoiceRepository positionChoiceRepository;
     @Mock private JobPostingSourceImageRepository sourceImageRepository;
     @Mock private JobApplicationUrlParseService urlParseService;
-    @Mock private JobMatchingService matchingService;
     @Mock private JobPostingDedupService dedupService;
 
     private JobPostingService jobPostingService;
@@ -56,7 +54,6 @@ class JobPostingServiceTest {
                         positionChoiceRepository,
                         sourceImageRepository,
                         urlParseService,
-                        matchingService,
                         dedupService,
                         new ObjectMapper());
     }
@@ -107,7 +104,9 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlRejectsAlreadyCollectedUrl() {
-        when(sourceUrlRepository.existsByUrl("https://example.com/posting")).thenReturn(true);
+        when(sourceUrlRepository.existsByScopeKeyAndUrl(
+                        JobPosting.PLATFORM_SCOPE, "https://example.com/posting"))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
                 .isInstanceOf(ResponseStatusException.class);
@@ -117,7 +116,7 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlRejectsWhenAiCannotExtractCoreFields() {
-        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
+        when(sourceUrlRepository.existsByScopeKeyAndUrl(any(), any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -136,7 +135,7 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://example.com/posting",
-                        List.of()));
+                                List.of()));
 
         assertThatThrownBy(() -> jobPostingService.ingestUrl("https://example.com/posting"))
                 .isInstanceOf(ResponseStatusException.class);
@@ -146,7 +145,7 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlSavesNewCandidateOnSuccess() {
-        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
+        when(sourceUrlRepository.existsByScopeKeyAndUrl(any(), any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -165,23 +164,20 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://example.com/posting",
-                        List.of()));
+                                List.of()));
         when(dedupService.findExistingMatch(any(), any())).thenReturn(Optional.empty());
         when(dedupService.createNew(any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(matchingService.evaluate(any(), any()))
-                .thenReturn(new JobMatchingService.MatchResult(80, "보유 기술과 일치도가 높습니다."));
-
         JobPostingResponse response = jobPostingService.ingestUrl("https://example.com/posting");
 
         assertThat(response.companyName()).isEqualTo("테스트 회사");
         assertThat(response.status()).isEqualTo(JobPostingStatus.NEW);
-        assertThat(response.matchScore()).isEqualTo(80);
+        assertThat(response.matchScore()).isNull();
     }
 
     @Test
     void ingestUrlAttachesToExistingMatchInsteadOfCreatingNewRow() {
-        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
+        when(sourceUrlRepository.existsByScopeKeyAndUrl(any(), any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -200,10 +196,9 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://www.jobkorea.co.kr/Recruit/GI_Read/1",
-                        List.of()));
+                                List.of()));
         JobPosting existing = newCandidate();
-        when(dedupService.findExistingMatch("테스트 회사", "백엔드 개발자"))
-                .thenReturn(Optional.of(existing));
+        when(dedupService.findExistingMatch("테스트 회사", "백엔드 개발자")).thenReturn(Optional.of(existing));
         when(dedupService.attachAdditionalUrl(eq(1L), any(), any(), any())).thenReturn(existing);
 
         JobPostingResponse response =
@@ -216,7 +211,7 @@ class JobPostingServiceTest {
 
     @Test
     void ingestUrlRetriesAsAttachWhenConcurrentIngestWinsTheRace() {
-        when(sourceUrlRepository.existsByUrl(any())).thenReturn(false);
+        when(sourceUrlRepository.existsByScopeKeyAndUrl(any(), any())).thenReturn(false);
         when(urlParseService.parse(any()))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -235,9 +230,7 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://www.jobkorea.co.kr/Recruit/GI_Read/1",
-                        List.of()));
-        when(matchingService.evaluate(any(), any()))
-                .thenReturn(new JobMatchingService.MatchResult(80, "보유 기술과 일치도가 높습니다."));
+                                List.of()));
         JobPosting winner = newCandidate();
 
         // 첫 조회 시점엔 아직 동시 요청이 커밋 전이라 매칭되는 게 없다가, createNew 시도가
@@ -260,7 +253,8 @@ class JobPostingServiceTest {
     void refreshRejectsWhenPostingHasNoUrl() {
         JobPosting candidate = newCandidate();
         ReflectionTestUtils.setField(candidate, "postingUrl", null);
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
 
         assertThatThrownBy(() -> jobPostingService.refresh(1L))
                 .isInstanceOf(ResponseStatusException.class);
@@ -271,7 +265,8 @@ class JobPostingServiceTest {
     @Test
     void refreshOverwritesDeadlineAndDetailFieldsButKeepsIdentityFields() {
         JobPosting candidate = newCandidate();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
         LocalDate freshDeadline = LocalDate.now().plusDays(3);
         when(urlParseService.parse("https://example.com/posting"))
                 .thenReturn(
@@ -291,10 +286,8 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://example.com/posting",
-                        List.of()));
+                                List.of()));
 
-        when(matchingService.evaluate(any(), any()))
-                .thenReturn(new JobMatchingService.MatchResult(80, "추천"));
         JobPostingResponse response = jobPostingService.refresh(1L);
 
         assertThat(response.deadline()).isEqualTo(freshDeadline);
@@ -310,7 +303,8 @@ class JobPostingServiceTest {
     void refreshKeepsExistingDeadlineWhenFreshParseCannotDetermineIt() {
         JobPosting candidate = newCandidate();
         LocalDate originalDeadline = candidate.getDeadline();
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
+        when(jobPostingRepository.findByIdAndOwnerWorkspaceIdIsNull(1L))
+                .thenReturn(Optional.of(candidate));
         when(urlParseService.parse("https://example.com/posting"))
                 .thenReturn(
                         new JobApplicationUrlParseResponse(
@@ -329,35 +323,11 @@ class JobPostingServiceTest {
                                 null,
                                 null,
                                 "https://example.com/posting",
-                        List.of()));
+                                List.of()));
 
-        when(matchingService.evaluate(any(), any()))
-                .thenReturn(new JobMatchingService.MatchResult(80, "추천"));
         JobPostingResponse response = jobPostingService.refresh(1L);
 
         assertThat(response.deadline()).isEqualTo(originalDeadline);
-    }
-
-    @Test
-    void rematchRecalculatesScoreEvenWhenAlreadyPresent() {
-        JobPosting candidate = newCandidate();
-        candidate.applyMatch(40, "이전 점수", LocalDateTime.now());
-        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(candidate));
-        when(matchingService.evaluate(any(), any()))
-                .thenReturn(new JobMatchingService.MatchResult(90, "보유 기술과 일치도가 높습니다."));
-
-        JobPostingResponse response = jobPostingService.rematch(1L);
-
-        assertThat(response.matchScore()).isEqualTo(90);
-        assertThat(response.matchReason()).isEqualTo("보유 기술과 일치도가 높습니다.");
-    }
-
-    @Test
-    void rematchThrowsWhenPostingDoesNotExist() {
-        when(jobPostingRepository.findById(99L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> jobPostingService.rematch(99L))
-                .isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test

@@ -9,5 +9,4 @@ public record JobPostingCoverLetterDraftRequest(
         String feedbackInstruction,
         Long coverLetterItemId,
         String aiModel,
-        String customModelName
-) {}
+        String customModelName) {}

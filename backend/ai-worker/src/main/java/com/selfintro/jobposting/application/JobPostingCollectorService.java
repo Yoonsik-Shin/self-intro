@@ -7,7 +7,6 @@ import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,9 +37,7 @@ public class JobPostingCollectorService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSettingRepository settingRepository;
-    private final SkillRepository skillRepository;
     private final SaraminJobPostingClient saraminJobPostingClient;
-    private final JobMatchingService matchingService;
     private final JobPostingDedupService dedupService;
     private final AtomicBoolean collecting = new AtomicBoolean(false);
 
@@ -68,7 +65,7 @@ public class JobPostingCollectorService {
     @Transactional
     public int expireOverdueCandidates() {
         List<JobPosting> overdue =
-                jobPostingRepository.findByStatusInAndDeadlineBefore(
+                jobPostingRepository.findByOwnerWorkspaceIdIsNullAndStatusInAndDeadlineBefore(
                         EXPIRABLE_STATUSES, LocalDate.now());
         LocalDateTime now = LocalDateTime.now();
         overdue.forEach(posting -> posting.markExpired(now));
@@ -86,11 +83,9 @@ public class JobPostingCollectorService {
 
         int savedCount = 0;
         LocalDateTime now = LocalDateTime.now();
-        List<String> mySkillNames = skillRepository.findAllSkillNames();
-        int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
 
         for (JobPosting.Draft draft : drafts) {
-            if (jobPostingRepository.existsByCollectionMethodAndExternalId(
+            if (jobPostingRepository.existsByOwnerWorkspaceIdIsNullAndCollectionMethodAndExternalId(
                     JobPostingSource.SARAMIN, draft.externalId())) {
                 continue;
             }
@@ -107,13 +102,6 @@ public class JobPostingCollectorService {
             }
 
             JobPosting posting = JobPosting.collect(draft, now);
-            JobMatchingService.MatchResult match =
-                    matchingService.evaluate(
-                            posting.getPositionTitle(),
-                            posting.getRequiredSkillsRaw(),
-                            mySkillNames,
-                            keywordThreshold);
-            posting.applyMatch(match.score(), match.reason(), now);
             try {
                 dedupService.createNew(posting, draft.postingUrl(), platform, now);
                 savedCount++;
@@ -123,8 +111,7 @@ public class JobPostingCollectorService {
                         dedupService
                                 .findExistingMatch(draft.companyName(), draft.positionTitle())
                                 .orElseThrow(() -> exception);
-                dedupService.attachAdditionalUrl(
-                        winner.getId(), draft.postingUrl(), platform, now);
+                dedupService.attachAdditionalUrl(winner.getId(), draft.postingUrl(), platform, now);
             }
         }
         return savedCount;

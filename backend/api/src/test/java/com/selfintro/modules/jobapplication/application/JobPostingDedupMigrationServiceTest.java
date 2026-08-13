@@ -20,9 +20,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(
         classes = SelfIntroApplication.class,
@@ -39,29 +38,21 @@ import org.springframework.test.context.ActiveProfiles;
 @Transactional
 class JobPostingDedupMigrationServiceTest {
 
-    @Autowired
-    private JobPostingRepository jobPostingRepository;
+    @Autowired private JobPostingRepository jobPostingRepository;
 
-    @Autowired
-    private JobPostingSourceUrlRepository sourceUrlRepository;
+    @Autowired private JobPostingSourceUrlRepository sourceUrlRepository;
 
-    @Autowired
-    private JobPostingSourceImageRepository sourceImageRepository;
+    @Autowired private JobPostingSourceImageRepository sourceImageRepository;
 
-    @Autowired
-    private JobPostingPositionChoiceRepository positionChoiceRepository;
+    @Autowired private JobPostingPositionChoiceRepository positionChoiceRepository;
 
-    @Autowired
-    private JobPostingCoverLetterItemRepository coverLetterItemRepository;
+    @Autowired private JobPostingCoverLetterItemRepository coverLetterItemRepository;
 
-    @Autowired
-    private JobPostingStatusEventRepository statusEventRepository;
+    @Autowired private JobPostingStatusEventRepository statusEventRepository;
 
-    @Autowired
-    private PrintTemplateRepository printTemplateRepository;
+    @Autowired private PrintTemplateRepository printTemplateRepository;
 
-    @Autowired
-    private JobPostingDedupMigrationService migrationService;
+    @Autowired private JobPostingDedupMigrationService migrationService;
 
     @Test
     @DisplayName("DB에 수집된 기존 중복 공고 및 사람인 기타/추적URL을 정규화하고 하나로 병합한다")
@@ -99,9 +90,11 @@ class JobPostingDedupMigrationServiceTest {
                 "https://www.saramin.co.kr/zf_user/jobs/relay/view?view_type=list&rec_idx=54566467#seq=0";
 
         sourceUrlRepository.save(
-                JobPostingSourceUrl.primary(saraminPosting.getId(), mailUrl, JobPostingPlatform.OTHER, now));
+                JobPostingSourceUrl.primary(
+                        saraminPosting.getId(), mailUrl, JobPostingPlatform.OTHER, now));
         sourceUrlRepository.save(
-                JobPostingSourceUrl.additional(saraminPosting.getId(), listUrl, JobPostingPlatform.SARAMIN, now));
+                JobPostingSourceUrl.additional(
+                        saraminPosting.getId(), listUrl, JobPostingPlatform.SARAMIN, now));
 
         // 2. 잡코리아 중복 공고 생성 (기존 DB 상태: 스카이웨어 동일 직무 공고가 별개 ID로 분리 저장된 경우)
         JobPosting jobkoreaPosting =
@@ -128,10 +121,10 @@ class JobPostingDedupMigrationServiceTest {
                                         null),
                                 now));
 
-        String jobkoreaUrl =
-                "https://www.jobkorea.co.kr/Recruit/GI_Read/49653580?Oem_Code=C1&sc=9";
+        String jobkoreaUrl = "https://www.jobkorea.co.kr/Recruit/GI_Read/49653580?Oem_Code=C1&sc=9";
         sourceUrlRepository.save(
-                JobPostingSourceUrl.primary(jobkoreaPosting.getId(), jobkoreaUrl, JobPostingPlatform.JOBKOREA, now));
+                JobPostingSourceUrl.primary(
+                        jobkoreaPosting.getId(), jobkoreaUrl, JobPostingPlatform.JOBKOREA, now));
 
         // 3. 마이그레이션 실행
         JobPostingDedupMigrationService.MigrationResult result = migrationService.runMigration();
@@ -145,10 +138,12 @@ class JobPostingDedupMigrationServiceTest {
 
         JobPosting winner = skywarePostings.getFirst();
         List<JobPostingSourceUrl> winnerUrls =
-                sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(winner.getId());
+                sourceUrlRepository.findByJobPostingIdOrderByPrimaryDescCreatedAtAsc(
+                        winner.getId());
 
         // 사람인 URL (canonicalized) 과 잡코리아 URL (canonicalized) 이 모두 승자 공고에 존재하는지 확인
-        String expectedSaraminCanonical = "https://www.saramin.co.kr/zf_user/jobs/view?rec_idx=54566467";
+        String expectedSaraminCanonical =
+                "https://www.saramin.co.kr/zf_user/jobs/view?rec_idx=54566467";
         String expectedJobkoreaCanonical = "https://www.jobkorea.co.kr/Recruit/GI_Read/49653580";
 
         List<String> actualUrls = winnerUrls.stream().map(JobPostingSourceUrl::getUrl).toList();

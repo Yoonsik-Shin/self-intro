@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSettingRepository;
-import com.selfintro.modules.skill.domain.repository.SkillRepository;
+import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
@@ -44,24 +44,29 @@ public class JobMatchingService {
             {"score":0,"reason":""}
             """;
 
-    private final SkillRepository skillRepository;
+    private final WorkspaceSkillRepository workspaceSkillRepository;
     private final JobPostingSettingRepository settingRepository;
     private final NvidiaNimClient nvidiaNimClient;
     private final ObjectMapper objectMapper;
 
     public JobMatchingService(
-            SkillRepository skillRepository,
+            WorkspaceSkillRepository workspaceSkillRepository,
             JobPostingSettingRepository settingRepository,
             NvidiaNimClient nvidiaNimClient,
             ObjectMapper objectMapper) {
-        this.skillRepository = skillRepository;
+        this.workspaceSkillRepository = workspaceSkillRepository;
         this.settingRepository = settingRepository;
         this.nvidiaNimClient = nvidiaNimClient;
         this.objectMapper = objectMapper;
     }
 
-    public MatchResult evaluate(String title, String requiredSkillsRaw) {
-        List<String> mySkillNames = skillRepository.findAllSkillNames();
+    public MatchResult evaluate(Long workspaceId, String title, String requiredSkillsRaw) {
+        List<String> mySkillNames =
+                workspaceSkillRepository
+                        .findAllByWorkspaceIdOrderByDisplayOrderAsc(workspaceId)
+                        .stream()
+                        .map(workspaceSkill -> workspaceSkill.getSkill().getName())
+                        .toList();
         int keywordThreshold = settingRepository.getOrCreateDefault().getMatchingKeywordThreshold();
         return evaluate(title, requiredSkillsRaw, mySkillNames, keywordThreshold);
     }

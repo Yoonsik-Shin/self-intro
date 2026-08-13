@@ -49,7 +49,7 @@ public class JobplanetCompanyService {
 
     private JobPosting find(Long id) {
         return jobPostingRepository
-                .findById(id)
+                .findByIdAndOwnerWorkspaceIdIsNull(id)
                 .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 채용 공고입니다: " + id));
     }
 

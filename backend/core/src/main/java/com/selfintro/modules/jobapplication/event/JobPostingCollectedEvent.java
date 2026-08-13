@@ -8,5 +8,4 @@ public record JobPostingCollectedEvent(
         String title,
         String applyUrl,
         String status,
-        LocalDateTime collectedAt
-) {}
+        LocalDateTime collectedAt) {}

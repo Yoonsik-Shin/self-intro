@@ -25,13 +25,10 @@ public class JobPostingGeocodingService {
     private final String kakaoRestApiKey;
 
     public JobPostingGeocodingService(
-            ObjectMapper objectMapper,
-            @Value("${kakao.rest-api-key:}") String kakaoRestApiKey) {
+            ObjectMapper objectMapper, @Value("${kakao.rest-api-key:}") String kakaoRestApiKey) {
         this.objectMapper = objectMapper;
         this.kakaoRestApiKey = kakaoRestApiKey;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     }
 
     public record Coordinates(BigDecimal latitude, BigDecimal longitude) {}
@@ -78,15 +75,19 @@ public class JobPostingGeocodingService {
     private Optional<Coordinates> tryKakaoGeocode(String address) {
         try {
             String encoded = URLEncoder.encode(address, StandardCharsets.UTF_8);
-            URI uri = URI.create("https://dapi.kakao.com/v2/local/search/address.json?query=" + encoded);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(uri)
-                    .header("Authorization", "KakaoAK " + kakaoRestApiKey.trim())
-                    .GET()
-                    .timeout(Duration.ofSeconds(3))
-                    .build();
+            URI uri =
+                    URI.create(
+                            "https://dapi.kakao.com/v2/local/search/address.json?query=" + encoded);
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(uri)
+                            .header("Authorization", "KakaoAK " + kakaoRestApiKey.trim())
+                            .GET()
+                            .timeout(Duration.ofSeconds(3))
+                            .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 JsonNode root = objectMapper.readTree(response.body());
                 JsonNode documents = root.path("documents");
@@ -94,10 +95,10 @@ public class JobPostingGeocodingService {
                     JsonNode doc = documents.get(0);
                     double lng = doc.path("x").asDouble();
                     double lat = doc.path("y").asDouble();
-                    return Optional.of(new Coordinates(
-                            BigDecimal.valueOf(lat).setScale(7, RoundingMode.HALF_UP),
-                            BigDecimal.valueOf(lng).setScale(7, RoundingMode.HALF_UP)
-                    ));
+                    return Optional.of(
+                            new Coordinates(
+                                    BigDecimal.valueOf(lat).setScale(7, RoundingMode.HALF_UP),
+                                    BigDecimal.valueOf(lng).setScale(7, RoundingMode.HALF_UP)));
                 }
             }
         } catch (Exception e) {
@@ -109,19 +110,29 @@ public class JobPostingGeocodingService {
     private Optional<Coordinates> tryOsmGeocode(String address) {
         try {
             String searchAddress = address;
-            if (!searchAddress.contains("서울") && !searchAddress.contains("경기") && !searchAddress.contains("인천")) {
+            if (!searchAddress.contains("서울")
+                    && !searchAddress.contains("경기")
+                    && !searchAddress.contains("인천")) {
                 searchAddress = "서울특별시 " + searchAddress;
             }
             String encoded = URLEncoder.encode(searchAddress, StandardCharsets.UTF_8);
-            URI uri = URI.create("https://nominatim.openstreetmap.org/search?q=" + encoded + "&format=json&countrycodes=kr&limit=1");
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(uri)
-                    .header("User-Agent", "SelfIntroJobPostingMap/1.0 (contact@selfintro.com)")
-                    .GET()
-                    .timeout(Duration.ofSeconds(3))
-                    .build();
+            URI uri =
+                    URI.create(
+                            "https://nominatim.openstreetmap.org/search?q="
+                                    + encoded
+                                    + "&format=json&countrycodes=kr&limit=1");
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(uri)
+                            .header(
+                                    "User-Agent",
+                                    "SelfIntroJobPostingMap/1.0 (contact@selfintro.com)")
+                            .GET()
+                            .timeout(Duration.ofSeconds(3))
+                            .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 JsonNode array = objectMapper.readTree(response.body());
                 if (array.isArray() && !array.isEmpty()) {
@@ -131,10 +142,10 @@ public class JobPostingGeocodingService {
 
                     // 서울/경기 수도권 범주(Lat 37.0~38.0, Lng 126.5~127.6) 이외는 무효화
                     if (lat >= 37.0 && lat <= 38.0 && lng >= 126.5 && lng <= 127.6) {
-                        return Optional.of(new Coordinates(
-                                BigDecimal.valueOf(lat).setScale(7, RoundingMode.HALF_UP),
-                                BigDecimal.valueOf(lng).setScale(7, RoundingMode.HALF_UP)
-                        ));
+                        return Optional.of(
+                                new Coordinates(
+                                        BigDecimal.valueOf(lat).setScale(7, RoundingMode.HALF_UP),
+                                        BigDecimal.valueOf(lng).setScale(7, RoundingMode.HALF_UP)));
                     }
                 }
             }

@@ -16,10 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 회사명+직무명을 정규화해 완전일치하면 같은 공고로 보고, 새 URL은 새 행을 만들지 않고 기존 공고에 추가 등록한다(원티드/잡코리아/사람인 등 플랫폼이 달라도
- * 실제로는 같은 공고인 경우). URL 수집({@link JobPostingService})과 사람인 자동 수집({@link JobPostingCollectorService}) 양쪽에서
- * 공유해 쓴다. 트랜잭션이 있는 메서드를 별도 빈으로 분리해둔 이유는 호출자가 같은 클래스 self-invocation으로 트랜잭션 프록시를 우회하는 것을 막기
- * 위해서다.
+ * 회사명+직무명을 정규화해 완전일치하면 같은 공고로 보고, 새 URL은 새 행을 만들지 않고 기존 공고에 추가 등록한다(원티드/잡코리아/사람인 등 플랫폼이 달라도 실제로는 같은
+ * 공고인 경우). URL 수집({@link JobPostingService})과 사람인 자동 수집({@link JobPostingCollectorService}) 양쪽에서
+ * 공유해 쓴다. 트랜잭션이 있는 메서드를 별도 빈으로 분리해둔 이유는 호출자가 같은 클래스 self-invocation으로 트랜잭션 프록시를 우회하는 것을 막기 위해서다.
  */
 @Slf4j
 @Service
@@ -36,8 +35,9 @@ public class JobPostingDedupService {
 
         // 1차: 정규화된 회사명+직무명 완전일치
         Optional<JobPosting> exactMatch =
-                jobPostingRepository.findByCompanyNameNormalizedAndPositionTitleNormalized(
-                        normalizedCompany, normalizedTitle);
+                jobPostingRepository
+                        .findByOwnerWorkspaceIdIsNullAndCompanyNameNormalizedAndPositionTitleNormalized(
+                                normalizedCompany, normalizedTitle);
         if (exactMatch.isPresent()) {
             return exactMatch;
         }
@@ -49,7 +49,8 @@ public class JobPostingDedupService {
         }
 
         java.util.List<JobPosting> companyPostings =
-                jobPostingRepository.findByCompanyNameNormalized(normalizedCompany);
+                jobPostingRepository.findByOwnerWorkspaceIdIsNullAndCompanyNameNormalized(
+                        normalizedCompany);
         for (JobPosting candidate : companyPostings) {
             String candidateKey =
                     JobPostingNormalizer.normalizePositionTitleKey(candidate.getPositionTitle());
@@ -78,8 +79,8 @@ public class JobPostingDedupService {
     }
 
     /**
-     * 이미 존재하는 공고에 다른 플랫폼의 URL을 추가로 등록한다. 회사명/직무명 등 본문 필드는 건드리지 않는다 — 플랫폼마다 표현이 조금씩 달라 어느 쪽이 "더
-     * 정확한" 값인지 판단할 수 없고, 최신 정보가 필요하면 기존 "정보 새로고침" 기능이 그 역할을 한다. 같은 URL이 동시 수집 등으로 이미 등록돼 있으면 조용히
+     * 이미 존재하는 공고에 다른 플랫폼의 URL을 추가로 등록한다. 회사명/직무명 등 본문 필드는 건드리지 않는다 — 플랫폼마다 표현이 조금씩 달라 어느 쪽이 "더 정확한"
+     * 값인지 판단할 수 없고, 최신 정보가 필요하면 기존 "정보 새로고침" 기능이 그 역할을 한다. 같은 URL이 동시 수집 등으로 이미 등록돼 있으면 조용히
      * 무시한다(멱등) — DB 제약 위반을 잡아 처리하면 같은 트랜잭션이 rollback-only 상태가 될 수 있어, 저장 전에 먼저 존재 여부를 확인한다.
      */
     @Transactional
@@ -87,7 +88,7 @@ public class JobPostingDedupService {
             Long existingJobPostingId, String url, JobPostingPlatform platform, LocalDateTime now) {
         JobPosting posting =
                 jobPostingRepository
-                        .findById(existingJobPostingId)
+                        .findByIdAndOwnerWorkspaceIdIsNull(existingJobPostingId)
                         .orElseThrow(
                                 () ->
                                         new EntityNotFoundException(
@@ -97,7 +98,7 @@ public class JobPostingDedupService {
         if (normalizedUrl == null) {
             normalizedUrl = url != null ? url.trim() : null;
         }
-        if (!sourceUrlRepository.existsByUrl(normalizedUrl)) {
+        if (!sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, normalizedUrl)) {
             sourceUrlRepository.save(
                     JobPostingSourceUrl.additional(posting.getId(), normalizedUrl, platform, now));
         } else {

@@ -37,7 +37,11 @@ public class JobPostingCoverLetterRevision {
     private LocalDateTime createdAt;
 
     private JobPostingCoverLetterRevision(
-            Long coverLetterItemId, String senderType, String content, String aiModel, LocalDateTime createdAt) {
+            Long coverLetterItemId,
+            String senderType,
+            String content,
+            String aiModel,
+            LocalDateTime createdAt) {
         this.coverLetterItemId = coverLetterItemId;
         this.senderType = senderType;
         this.content = content;
@@ -47,11 +51,17 @@ public class JobPostingCoverLetterRevision {
 
     public static JobPostingCoverLetterRevision create(
             Long coverLetterItemId, String senderType, String content, LocalDateTime createdAt) {
-        return new JobPostingCoverLetterRevision(coverLetterItemId, senderType, content, null, createdAt);
+        return new JobPostingCoverLetterRevision(
+                coverLetterItemId, senderType, content, null, createdAt);
     }
 
     public static JobPostingCoverLetterRevision create(
-            Long coverLetterItemId, String senderType, String content, String aiModel, LocalDateTime createdAt) {
-        return new JobPostingCoverLetterRevision(coverLetterItemId, senderType, content, aiModel, createdAt);
+            Long coverLetterItemId,
+            String senderType,
+            String content,
+            String aiModel,
+            LocalDateTime createdAt) {
+        return new JobPostingCoverLetterRevision(
+                coverLetterItemId, senderType, content, aiModel, createdAt);
     }
 }
