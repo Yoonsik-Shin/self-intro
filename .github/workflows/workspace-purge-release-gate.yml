@@ -1,0 +1,35 @@
+name: Workspace Purge Release Gate
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/k8s/base/backend/deployment.yaml'
+      - 'deploy/k8s/base/backend/deployment-worker.yaml'
+      - 'deploy/k8s/overlays/prod/backend/kustomization.yaml'
+      - 'deploy/recovery/workspace-purge-approval.env'
+      - 'scripts/check-workspace-purge-release-gate.sh'
+      - '.github/workflows/workspace-purge-release-gate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'deploy/k8s/base/backend/deployment.yaml'
+      - 'deploy/k8s/base/backend/deployment-worker.yaml'
+      - 'deploy/k8s/overlays/prod/backend/kustomization.yaml'
+      - 'deploy/recovery/workspace-purge-approval.env'
+      - 'scripts/check-workspace-purge-release-gate.sh'
+      - '.github/workflows/workspace-purge-release-gate.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  verify-recovery-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify Workspace purge release gate
+        run: ./scripts/check-workspace-purge-release-gate.sh
