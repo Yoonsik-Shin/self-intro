@@ -935,6 +935,10 @@ Docker 이미지 빌드:
 docker compose build backend backend-worker frontend-next
 ```
 
+backend와 worker를 병렬 빌드할 때 두 Dockerfile은 BuildKit Gradle cache를 `sharing=locked`로 공유한다.
+공유 journal cache의 동시 lock timeout이 발생하면 코드 실패로 판정하지 말고 cache mount 설정을 먼저
+확인한다. 2026-08-13 전체 이미지 빌드에서 해당 timeout을 재현해 이 잠금 계약을 추가했다.
+
 두 사용자·두 Workspace 실제 HTTP 격리 E2E:
 
 ```bash
