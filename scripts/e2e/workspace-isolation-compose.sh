@@ -13,6 +13,7 @@ E2E_EMAIL_B="$E2E_USER_B@example.invalid"
 E2E_SLUG_A="e2e-a-$E2E_RUN_KEY"
 E2E_SLUG_A_NEW="e2e-a-public-$E2E_RUN_KEY"
 E2E_SLUG_B="e2e-b-$E2E_RUN_KEY"
+E2E_JOB_POSTING_URL="https://example.invalid/e2e-job-posting-$E2E_RUN_KEY"
 E2E_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/self-intro-e2e.XXXXXX")"
 E2E_COOKIE_A="$E2E_TMP_DIR/user-a.cookies"
 E2E_COOKIE_B="$E2E_TMP_DIR/user-b.cookies"
@@ -133,6 +134,8 @@ WHERE workspace_id IN (
     SELECT id FROM workspace WHERE slug IN ('$E2E_SLUG_A', '$E2E_SLUG_A_NEW', '$E2E_SLUG_B')
 );
 DELETE FROM workspace WHERE slug IN ('$E2E_SLUG_A', '$E2E_SLUG_A_NEW', '$E2E_SLUG_B');
+DELETE FROM job_posting
+WHERE scope_key = 'PLATFORM' AND posting_url = '$E2E_JOB_POSTING_URL';
 DELETE FROM app_user WHERE login_id IN ('$E2E_USER_A', '$E2E_USER_B');
 SQL
     rm -rf "$E2E_TMP_DIR"
@@ -408,6 +411,27 @@ SELECT workspace.id, user.id, 'OWNER', 'ACTIVE', workspace.id, NOW(6)
 FROM workspace
 JOIN app_user user ON user.login_id = '$E2E_USER_B'
 WHERE workspace.slug = '$E2E_SLUG_B';
+INSERT INTO job_posting (
+    owner_workspace_id, scope_key, company_name, company_name_normalized,
+    position_title, position_title_normalized, posting_url, collection_method, source,
+    status, deadline_time, is_always_open, permission_basis, permission_review_status,
+    permission_evidence_reference, permission_grantor_name, permission_grantor_authority,
+    permission_scope_note, permission_reviewed_by_user_id, permission_reviewed_at,
+    status_changed_at, created_at, updated_at
+)
+SELECT
+    NULL, 'PLATFORM', 'E2E Shared Catalog Company', 'e2e shared catalog company',
+    'E2E Backend Engineer', 'e2e backend engineer', '$E2E_JOB_POSTING_URL',
+    'MANUAL', 'E2E', 'NEW', '23:59:59', FALSE,
+    'EMPLOYER_DIRECT_SUBMISSION', 'APPROVED',
+    'E2E fixture permission evidence', 'E2E Shared Catalog Company',
+    'E2E fixture hiring authority', 'E2E 실행 중 Workspace 공통 카탈로그 검증에 한해 허용',
+    user.id, NOW(6), NOW(6), NOW(6), NOW(6)
+FROM app_user user
+JOIN user_platform_role role ON role.user_id = user.id
+WHERE role.platform_role = 'PLATFORM_OWNER'
+ORDER BY user.id
+LIMIT 1;
 SQL
 FIXTURE_COUNT="$(db_exec <<SQL
 SELECT COUNT(*)
@@ -618,7 +642,10 @@ jq -e --argjson id "$E2E_COMPETENCY_A_ID" '. | any(.id == $id and .title == "A i
 
 request "$E2E_COOKIE_A" GET "/api/workspaces/$E2E_SLUG_A/job-applications/manage/catalog"
 assert_status 200 "공통 JobPosting 카탈로그 조회"
-E2E_JOB_POSTING_ID="$(jq -r '.[0].id // empty' "$E2E_RESPONSE")"
+E2E_JOB_POSTING_ID="$(
+    jq -r --arg postingUrl "$E2E_JOB_POSTING_URL" \
+        '.[] | select(.postingUrl == $postingUrl) | .id' "$E2E_RESPONSE" | head -1
+)"
 [[ -n "$E2E_JOB_POSTING_ID" ]] || {
     echo "FAIL: JobPosting catalog fixture를 찾지 못했습니다." >&2
     exit 1
