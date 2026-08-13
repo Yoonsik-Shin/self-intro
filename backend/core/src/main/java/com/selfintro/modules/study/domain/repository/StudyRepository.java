@@ -2,6 +2,7 @@ package com.selfintro.modules.study.domain.repository;
 
 import com.selfintro.modules.study.domain.entity.*;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,7 +21,11 @@ public interface StudyRepository extends JpaRepository<Study, Long>, StudyReposi
     @Query("select s.workspaceId as workspaceId, s.id as studyId from Study s")
     List<StudySourceReference> findAllSourceReferences();
 
+    List<Study> findAllByWorkspaceIdAndIdIn(Long workspaceId, Collection<Long> ids);
+
     List<Study> findAllByWorkspaceIdOrderByTitleAsc(Long workspaceId);
+
+    boolean existsByWorkspaceIdAndSkills_Id(Long workspaceId, Long skillId);
 
     List<Study> findAllByExperiences_IdOrderByTitleAsc(Long experienceId);
 
