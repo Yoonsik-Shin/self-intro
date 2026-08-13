@@ -8,7 +8,9 @@ import static org.mockito.Mockito.when;
 import com.selfintro.modules.identity.application.WorkspaceVectorStoragePort.WorkspaceVectorInventory;
 import com.selfintro.modules.identity.application.WorkspaceVectorStoragePort.WorkspaceVectorPurgeResult;
 import com.selfintro.vectorsearch.domain.repository.ExperienceVectorRepository;
+import com.selfintro.vectorsearch.domain.repository.JobPostingVectorRepository;
 import com.selfintro.vectorsearch.domain.repository.StudyVectorRepository;
+import java.util.Arrays;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +42,17 @@ class WorkspaceVectorPurgeServiceTest {
         assertThat(inventory.experienceVectorCount()).isEqualTo(3);
         assertThat(inventory.studyVectorCount()).isEqualTo(5);
         assertThat(inventory.totalCandidateCount()).isEqualTo(8);
+    }
+
+    @Test
+    void excludesPlatformJobPostingCatalogFromWorkspaceLifecycleBoundary() {
+        boolean dependsOnPlatformCatalog =
+                Arrays.stream(WorkspaceVectorPurgeService.class.getDeclaredFields())
+                        .anyMatch(
+                                field ->
+                                        field.getType().equals(JobPostingVectorRepository.class));
+
+        assertThat(dependsOnPlatformCatalog).isFalse();
     }
 
     @Test

@@ -9,7 +9,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Workspace-owned Oracle Vector inventory and deletion boundary inside the AI Worker. */
+/**
+ * Workspace-owned Oracle Vector inventory and deletion boundary inside the AI Worker.
+ *
+ * <p>{@code JobPostingVector} is a platform catalog asset and is intentionally excluded from this
+ * Workspace lifecycle boundary.
+ */
 @Service
 @RequiredArgsConstructor
 public class WorkspaceVectorPurgeService implements WorkspaceVectorStoragePort {
