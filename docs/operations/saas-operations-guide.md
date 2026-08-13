@@ -1648,6 +1648,29 @@ Workspace namespace와 Membership 경계를 벗어나지 못하는지 함께 검
 - 정리 전 `docker inspect <name>`의 `com.docker.compose.oneoff=True`를 확인하고 해당 one-off 컨테이너만
   제거한다. DB나 이름이 고정된 `self-intro-backend` 서비스 컨테이너는 함께 제거하지 않는다.
 
+### Finder 휴지통 복원 후 `frontend-next`가 `EPERM`으로 종료됨
+
+macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터리에 `com.apple.macl` 또는
+`com.apple.provenance` 확장 속성이 붙을 수 있다. Docker Desktop bind mount가 이를 가진 파일을
+읽지 못하면 `scandir '/app/app'`, `open '/app/.env.local'`, `open '/app/tsconfig.json'` 같은 `EPERM`
+오류와 함께 `frontend-next`가 종료된다.
+
+1. `docker compose ps -a frontend-next`와 `docker compose logs --tail=100 frontend-next`에서 위 증상을
+   확인한다.
+2. `ls -ldeO@ frontend-next frontend-next/app frontend-next/.env.local frontend-next/tsconfig.json`으로
+   복원된 경로의 확장 속성을 확인한다.
+3. 프로젝트 루트에서 아래처럼 확인된 macOS 복원 속성만 제거한다. 다른 확장 속성이나 Docker volume은
+   함께 삭제하지 않는다.
+
+   ```bash
+   xattr -dr com.apple.macl frontend-next
+   xattr -dr com.apple.provenance frontend-next
+   ```
+
+4. `docker compose up -d frontend-next`로 프런트만 다시 시작한다.
+5. 로그의 `Ready`와 `curl -I http://127.0.0.1:3000/`의 `200`을 확인한다. 소스와 DB volume은 이 절차로
+   변경되지 않는다.
+
 ### MFA 등록 화면에서 시작 실패
 
 1. `MFA_ENCRYPTION_KEY`가 주입됐는지 확인한다.
