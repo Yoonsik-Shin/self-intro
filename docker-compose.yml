@@ -80,6 +80,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_HOST=rabbitmq
+      - GRPC_WORKER_HOST=static://backend-worker:9090
       - SPRING_SESSION_STORE_TYPE=redis
       - LOG_FILE_PATH=/app/logs/application.log
       - ORACLE_NOSQL_ENABLED=true

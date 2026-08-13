@@ -178,6 +178,9 @@ grpc:
     jobPostingService:
       address: ${GRPC_WORKER_HOST:static://localhost:9090}
       negotiation-type: plaintext
+    workspaceVectorService:
+      address: ${GRPC_WORKER_HOST:static://localhost:9090}
+      negotiation-type: plaintext
 
 server:
   port: ${SERVER_PORT:8080}
