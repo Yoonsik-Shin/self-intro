@@ -1,19 +1,28 @@
 package com.selfintro.modules.printtemplate.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
+import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.entity.PrintTemplateRevision;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRevisionRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRevisionResponse;
+import com.selfintro.modules.storage.application.ImageScope;
 import com.selfintro.modules.storage.application.StorageService;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -23,37 +32,80 @@ public class PrintTemplateService {
     private final PrintTemplateRepository printTemplateRepository;
     private final PrintTemplateRevisionRepository printTemplateRevisionRepository;
     private final StorageService storageService;
+    private final PublicWorkspaceResolver publicWorkspaceResolver;
+    private final PortfolioCaseStudyRepository portfolioCaseStudyRepository;
+    private final ObjectMapper objectMapper;
+
+    private Long defaultWorkspaceId() {
+        return publicWorkspaceResolver.requireDefaultPublicWorkspace().getId();
+    }
 
     @Cacheable(value = "print_template:public")
     public List<PrintTemplate> listPublic() {
-        return printTemplateRepository.findAllByDocumentTypeAndVisibleTrueOrderByDisplayOrderAsc(
-                PrintTemplate.DOCUMENT_TYPE_RESUME);
+        return listPublic(defaultWorkspaceId());
+    }
+
+    @Cacheable(value = "print_template:public", key = "#workspaceId")
+    public List<PrintTemplate> listPublic(Long workspaceId) {
+        return printTemplateRepository
+                .findAllByWorkspaceIdAndDocumentTypeAndVisibleTrueOrderByDisplayOrderAsc(
+                        workspaceId, PrintTemplate.DOCUMENT_TYPE_RESUME);
     }
 
     public List<PrintTemplate> listAll() {
-        return printTemplateRepository.findAllByDocumentTypeOrderByDisplayOrderAsc(
-                PrintTemplate.DOCUMENT_TYPE_RESUME);
+        return listAll(defaultWorkspaceId());
+    }
+
+    public List<PrintTemplate> listAll(Long workspaceId) {
+        return printTemplateRepository.findAllByWorkspaceIdAndDocumentTypeOrderByDisplayOrderAsc(
+                workspaceId, PrintTemplate.DOCUMENT_TYPE_RESUME);
     }
 
     public List<PrintTemplate> listByJobPosting(Long jobPostingId) {
-        return printTemplateRepository.findAllByJobPostingIdOrderByDisplayOrderAsc(jobPostingId);
+        return listByJobPosting(defaultWorkspaceId(), jobPostingId);
+    }
+
+    public List<PrintTemplate> listByJobPosting(Long workspaceId, Long jobPostingId) {
+        return printTemplateRepository.findAllByWorkspaceIdAndJobPostingIdOrderByDisplayOrderAsc(
+                workspaceId, jobPostingId);
     }
 
     public List<PrintTemplate> listByPortfolioCaseStudy(Long caseStudyId) {
+        return listByPortfolioCaseStudy(defaultWorkspaceId(), caseStudyId);
+    }
+
+    public List<PrintTemplate> listByPortfolioCaseStudy(Long workspaceId, Long caseStudyId) {
         return printTemplateRepository
-                .findAllByPortfolioCaseStudyIdOrderByOrientationAscDisplayOrderAsc(caseStudyId);
+                .findAllByWorkspaceIdAndPortfolioCaseStudyIdOrderByOrientationAscDisplayOrderAsc(
+                        workspaceId, caseStudyId);
     }
 
     public Optional<PrintTemplate> getDefaultForPortfolio(Long caseStudyId, String orientation) {
-        return printTemplateRepository.findByPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
-                caseStudyId, orientation);
+        return getDefaultForPortfolio(defaultWorkspaceId(), caseStudyId, orientation);
+    }
+
+    public Optional<PrintTemplate> getDefaultForPortfolio(
+            Long workspaceId, Long caseStudyId, String orientation) {
+        return printTemplateRepository
+                .findByWorkspaceIdAndPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
+                        workspaceId, caseStudyId, orientation);
     }
 
     @Transactional
     public PrintTemplate createPortfolio(Long caseStudyId, PortfolioPrintTemplateRequest request) {
-        if (request.isDefault()) clearExistingPortfolioDefault(caseStudyId, request.orientation());
+        return createPortfolio(defaultWorkspaceId(), caseStudyId, request);
+    }
+
+    @Transactional
+    public PrintTemplate createPortfolio(
+            Long workspaceId, Long caseStudyId, PortfolioPrintTemplateRequest request) {
+        requirePortfolioCaseStudy(workspaceId, caseStudyId);
+        if (request.isDefault()) {
+            clearExistingPortfolioDefault(workspaceId, caseStudyId, request.orientation());
+        }
         PrintTemplate template =
                 PrintTemplate.createPortfolio(
+                        workspaceId,
                         request.name(),
                         caseStudyId,
                         request.orientation(),
@@ -70,9 +122,17 @@ public class PrintTemplateService {
 
     @Transactional
     public PrintTemplate updatePortfolio(Long id, PortfolioPrintTemplateRequest request) {
-        PrintTemplate template = getOrThrow(id);
+        return updatePortfolio(defaultWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    public PrintTemplate updatePortfolio(
+            Long workspaceId, Long id, PortfolioPrintTemplateRequest request) {
+        PrintTemplate template = getOrThrow(workspaceId, id);
+        requirePortfolioCaseStudy(workspaceId, template.getPortfolioCaseStudyId());
         if (request.isDefault() && !template.isVisible()) {
-            clearExistingPortfolioDefault(template.getPortfolioCaseStudyId(), template.getOrientation());
+            clearExistingPortfolioDefault(
+                    workspaceId, template.getPortfolioCaseStudyId(), template.getOrientation());
         }
         template.updatePortfolio(
                 request.name(),
@@ -85,24 +145,35 @@ public class PrintTemplateService {
         return printTemplateRepository.save(template);
     }
 
-    private void clearExistingPortfolioDefault(Long caseStudyId, String orientation) {
+    private void clearExistingPortfolioDefault(
+            Long workspaceId, Long caseStudyId, String orientation) {
         printTemplateRepository
-                .findByPortfolioCaseStudyIdAndOrientationAndVisibleTrue(caseStudyId, orientation)
-                .ifPresent(existing -> existing.updatePortfolio(
-                        existing.getName(),
-                        existing.getExcludedIds(),
-                        existing.getSectionOrder(),
-                        existing.getSectionGaps(),
-                        existing.getContentOverrides(),
-                        false,
-                        existing.getLineHeight()));
+                .findByWorkspaceIdAndPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
+                        workspaceId, caseStudyId, orientation)
+                .ifPresent(
+                        existing ->
+                                existing.updatePortfolio(
+                                        existing.getName(),
+                                        existing.getExcludedIds(),
+                                        existing.getSectionOrder(),
+                                        existing.getSectionGaps(),
+                                        existing.getContentOverrides(),
+                                        false,
+                                        existing.getLineHeight()));
     }
 
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate create(PrintTemplateRequest request) {
+        return create(defaultWorkspaceId(), request);
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate create(Long workspaceId, PrintTemplateRequest request) {
         PrintTemplate template =
                 PrintTemplate.create(
+                        workspaceId,
                         request.name(),
                         request.excludedIds(),
                         request.sectionOrder(),
@@ -115,7 +186,9 @@ public class PrintTemplateService {
                         request.displayOrder(),
                         request.jobPostingId(),
                         defaultLineHeight(request.lineHeight()));
-        return printTemplateRepository.save(template);
+        PrintTemplate saved = printTemplateRepository.save(template);
+        recordConfigurationSnapshot(saved);
+        return saved;
     }
 
     @Transactional
@@ -130,10 +203,39 @@ public class PrintTemplateService {
             String targetRole,
             String contentOverrides,
             String generationMetadata) {
-        long version = printTemplateRepository.countByJobPostingId(jobPostingId) + 1;
+        return createAiDraft(
+                defaultWorkspaceId(),
+                jobPostingId,
+                companyName,
+                positionTitle,
+                excludedIds,
+                sectionOrder,
+                sectionGaps,
+                targetRole,
+                contentOverrides,
+                generationMetadata);
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate createAiDraft(
+            Long workspaceId,
+            Long jobPostingId,
+            String companyName,
+            String positionTitle,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            String targetRole,
+            String contentOverrides,
+            String generationMetadata) {
+        long version =
+                printTemplateRepository.countByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
+                        + 1;
         String name = companyName + " " + positionTitle + " AI 초안 v" + version;
         PrintTemplate template =
                 PrintTemplate.createAiDraft(
+                        workspaceId,
                         name,
                         excludedIds,
                         sectionOrder,
@@ -156,15 +258,35 @@ public class PrintTemplateService {
             String targetRole,
             String contentOverrides,
             String generationMetadata) {
-        PrintTemplate template = getOrThrow(templateId);
+        return applyAiRevision(
+                defaultWorkspaceId(),
+                templateId,
+                excludedIds,
+                sectionOrder,
+                targetRole,
+                contentOverrides,
+                generationMetadata);
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate applyAiRevision(
+            Long workspaceId,
+            Long templateId,
+            String excludedIds,
+            String sectionOrder,
+            String targetRole,
+            String contentOverrides,
+            String generationMetadata) {
+        PrintTemplate template = getOrThrow(workspaceId, templateId);
         template.updateAiDraftContent(
                 excludedIds, sectionOrder, targetRole, contentOverrides, generationMetadata);
         return printTemplateRepository.save(template);
     }
 
     /**
-     * 포트폴리오 AI 초안 — 기존 수동 배치의 기본값을 함부로 덮어쓰지 않도록 항상 isDefault=false로
-     * 만든다(마음에 들면 관리자가 updatePortfolio로 승격).
+     * 포트폴리오 AI 초안 — 기존 수동 배치의 기본값을 함부로 덮어쓰지 않도록 항상 isDefault=false로 만든다(마음에 들면 관리자가
+     * updatePortfolio로 승격).
      */
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
@@ -176,13 +298,36 @@ public class PrintTemplateService {
             String sectionOrder,
             String contentOverrides,
             String generationMetadata) {
+        return createPortfolioAiDraft(
+                defaultWorkspaceId(),
+                caseStudyId,
+                caseStudyTitle,
+                orientation,
+                excludedIds,
+                sectionOrder,
+                contentOverrides,
+                generationMetadata);
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate createPortfolioAiDraft(
+            Long workspaceId,
+            Long caseStudyId,
+            String caseStudyTitle,
+            String orientation,
+            String excludedIds,
+            String sectionOrder,
+            String contentOverrides,
+            String generationMetadata) {
         long version =
-                printTemplateRepository.countByPortfolioCaseStudyIdAndOrientation(
-                                caseStudyId, orientation)
+                printTemplateRepository.countByWorkspaceIdAndPortfolioCaseStudyIdAndOrientation(
+                                workspaceId, caseStudyId, orientation)
                         + 1;
         String name = caseStudyTitle + " AI 초안 v" + version;
         PrintTemplate template =
                 PrintTemplate.createPortfolio(
+                        workspaceId,
                         name,
                         caseStudyId,
                         orientation,
@@ -198,18 +343,66 @@ public class PrintTemplateService {
     }
 
     public List<PrintTemplateRevisionResponse> getRevisions(Long templateId) {
-        return printTemplateRevisionRepository.findByPrintTemplateIdOrderByIdAsc(templateId).stream()
+        return getRevisions(defaultWorkspaceId(), templateId);
+    }
+
+    public List<PrintTemplateRevisionResponse> getRevisions(Long workspaceId, Long templateId) {
+        getOrThrow(workspaceId, templateId);
+        return printTemplateRevisionRepository
+                .findByPrintTemplateIdOrderByIdAsc(templateId)
+                .stream()
                 .map(PrintTemplateRevisionResponse::from)
                 .toList();
     }
 
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
-    public PrintTemplate createDirectPdf(Long jobPostingId, String name, String objectKey) {
-        long version = printTemplateRepository.countByJobPostingId(jobPostingId) + 1;
+    public PrintTemplate rollbackConfiguration(Long workspaceId, Long templateId, Long revisionId) {
+        PrintTemplate template = getOrThrow(workspaceId, templateId);
+        var revision =
+                printTemplateRevisionRepository
+                        .findByIdAndPrintTemplateId(revisionId, templateId)
+                        .filter(
+                                item ->
+                                        PrintTemplateRevision.SENDER_SNAPSHOT.equals(
+                                                item.getSenderType()))
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND,
+                                                "복원 가능한 출력 revision을 찾을 수 없습니다."));
+        ConfigurationSnapshot snapshot = readSnapshot(revision.getContent());
+        template.update(
+                snapshot.name(),
+                snapshot.excludedIds(),
+                snapshot.sectionOrder(),
+                snapshot.sectionGaps(),
+                snapshot.targetRole(),
+                snapshot.contentOverrides(),
+                snapshot.baseContentFingerprint(),
+                snapshot.schemaVersion(),
+                snapshot.visible(),
+                snapshot.displayOrder(),
+                snapshot.jobPostingId(),
+                snapshot.lineHeight());
+        PrintTemplate saved = printTemplateRepository.save(template);
+        recordConfigurationSnapshot(saved);
+        return saved;
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate createDirectPdf(
+            Long workspaceId, Long jobPostingId, String name, String objectKey) {
+        storageService.requireOwnedObjectKey(
+                workspaceId, ImageScope.PRINT_TEMPLATE_FINAL_PDF, objectKey);
+        long version =
+                printTemplateRepository.countByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
+                        + 1;
         String templateName = (name != null && !name.isBlank()) ? name : "외부 제출 PDF v" + version;
         PrintTemplate template =
                 PrintTemplate.createExternalPdf(
+                        workspaceId,
                         templateName,
                         jobPostingId,
                         objectKey,
@@ -222,13 +415,13 @@ public class PrintTemplateService {
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
     public PrintTemplate update(Long id, PrintTemplateRequest request) {
-        PrintTemplate template =
-                printTemplateRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "PrintTemplate not found: " + id));
+        return update(defaultWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public PrintTemplate update(Long workspaceId, Long id, PrintTemplateRequest request) {
+        PrintTemplate template = getOrThrow(workspaceId, id);
         template.update(
                 request.name(),
                 request.excludedIds(),
@@ -246,22 +439,78 @@ public class PrintTemplateService {
                 request.displayOrder(),
                 request.jobPostingId(),
                 request.lineHeight() == null ? template.getLineHeight() : request.lineHeight());
-        return printTemplateRepository.save(template);
+        PrintTemplate saved = printTemplateRepository.save(template);
+        recordConfigurationSnapshot(saved);
+        return saved;
+    }
+
+    private void recordConfigurationSnapshot(PrintTemplate template) {
+        if (!PrintTemplate.DOCUMENT_TYPE_RESUME.equals(template.getDocumentType())) return;
+        ConfigurationSnapshot snapshot = ConfigurationSnapshot.from(template);
+        try {
+            printTemplateRevisionRepository.save(
+                    PrintTemplateRevision.create(
+                            template.getId(),
+                            PrintTemplateRevision.SENDER_SNAPSHOT,
+                            objectMapper.writeValueAsString(snapshot),
+                            LocalDateTime.now()));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("출력 구성을 revision으로 저장하지 못했습니다.", exception);
+        }
+    }
+
+    private ConfigurationSnapshot readSnapshot(String content) {
+        try {
+            return objectMapper.readValue(content, ConfigurationSnapshot.class);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY, "출력 revision을 복원할 수 없습니다.", exception);
+        }
+    }
+
+    private record ConfigurationSnapshot(
+            String name,
+            String excludedIds,
+            String sectionOrder,
+            String sectionGaps,
+            String targetRole,
+            String contentOverrides,
+            String baseContentFingerprint,
+            int schemaVersion,
+            boolean visible,
+            int displayOrder,
+            Long jobPostingId,
+            double lineHeight) {
+        private static ConfigurationSnapshot from(PrintTemplate template) {
+            return new ConfigurationSnapshot(
+                    template.getName(),
+                    template.getExcludedIds(),
+                    template.getSectionOrder(),
+                    template.getSectionGaps(),
+                    template.getTargetRole(),
+                    template.getContentOverrides(),
+                    template.getBaseContentFingerprint(),
+                    template.getSchemaVersion(),
+                    template.isVisible(),
+                    template.getDisplayOrder(),
+                    template.getJobPostingId(),
+                    template.getLineHeight());
+        }
     }
 
     /** 같은 지원 공고에 연동된 다른 템플릿의 "최종 제출" 표시는 해제하고, 이 템플릿만 표시한다. */
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
-    public PrintTemplate markFinalSubmission(Long id) {
-        PrintTemplate template = getOrThrow(id);
+    public PrintTemplate markFinalSubmission(Long workspaceId, Long id) {
+        PrintTemplate template = getOrThrow(workspaceId, id);
         promoteToFinal(template);
         return template;
     }
 
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
-    public PrintTemplate unmarkFinalSubmission(Long id) {
-        PrintTemplate template = getOrThrow(id);
+    public PrintTemplate unmarkFinalSubmission(Long workspaceId, Long id) {
+        PrintTemplate template = getOrThrow(workspaceId, id);
         template.markFinalSubmission(false);
         return template;
     }
@@ -271,8 +520,10 @@ public class PrintTemplateService {
      */
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
-    public PrintTemplate attachFinalPdf(Long id, String objectKey) {
-        PrintTemplate template = getOrThrow(id);
+    public PrintTemplate attachFinalPdf(Long workspaceId, Long id, String objectKey) {
+        storageService.requireOwnedObjectKey(
+                workspaceId, ImageScope.PRINT_TEMPLATE_FINAL_PDF, objectKey);
+        PrintTemplate template = getOrThrow(workspaceId, id);
         String previousObjectKey = template.getFinalPdfObjectKey();
         template.attachFinalPdf(objectKey);
         promoteToFinal(template);
@@ -284,8 +535,8 @@ public class PrintTemplateService {
 
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
-    public PrintTemplate removeFinalPdf(Long id) {
-        PrintTemplate template = getOrThrow(id);
+    public PrintTemplate removeFinalPdf(Long workspaceId, Long id) {
+        PrintTemplate template = getOrThrow(workspaceId, id);
         String previousObjectKey = template.getFinalPdfObjectKey();
         template.clearFinalPdf();
         if (previousObjectKey != null) {
@@ -297,20 +548,30 @@ public class PrintTemplateService {
     @Transactional
     @CacheEvict(value = "print_template:public", allEntries = true)
     public void delete(Long id) {
-        PrintTemplate template = printTemplateRepository.findById(id).orElse(null);
-        if (template == null) {
-            throw new IllegalArgumentException("PrintTemplate not found: " + id);
-        }
+        delete(defaultWorkspaceId(), id);
+    }
+
+    @Transactional
+    @CacheEvict(value = "print_template:public", allEntries = true)
+    public void delete(Long workspaceId, Long id) {
+        PrintTemplate template = getOrThrow(workspaceId, id);
         if (template.getFinalPdfObjectKey() != null) {
             storageService.delete(template.getFinalPdfObjectKey());
         }
-        printTemplateRepository.deleteById(id);
+        printTemplateRepository.delete(template);
     }
 
     public PrintTemplate getOrThrow(Long id) {
+        return getOrThrow(defaultWorkspaceId(), id);
+    }
+
+    public PrintTemplate getOrThrow(Long workspaceId, Long id) {
         return printTemplateRepository
-                .findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("PrintTemplate not found: " + id));
+                .findByIdAndWorkspaceId(id, workspaceId)
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "PrintTemplate not found: " + id));
     }
 
     private void promoteToFinal(PrintTemplate template) {
@@ -319,7 +580,8 @@ public class PrintTemplateService {
                     "지원 공고와 연동되지 않은 템플릿은 최종 제출본으로 지정할 수 없습니다: " + template.getId());
         }
         printTemplateRepository
-                .findAllByJobPostingIdAndFinalSubmissionTrue(template.getJobPostingId())
+                .findAllByWorkspaceIdAndJobPostingIdAndFinalSubmissionTrue(
+                        template.getWorkspaceId(), template.getJobPostingId())
                 .forEach(other -> other.markFinalSubmission(false));
         template.markFinalSubmission(true);
     }
@@ -330,5 +592,15 @@ public class PrintTemplateService {
 
     private double defaultLineHeight(Double value) {
         return value == null ? PrintTemplate.DEFAULT_LINE_HEIGHT : value;
+    }
+
+    private void requirePortfolioCaseStudy(Long workspaceId, Long caseStudyId) {
+        if (caseStudyId == null
+                || portfolioCaseStudyRepository
+                        .findByIdAndWorkspaceId(caseStudyId, workspaceId)
+                        .isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "PortfolioCaseStudy not found: " + caseStudyId);
+        }
     }
 }

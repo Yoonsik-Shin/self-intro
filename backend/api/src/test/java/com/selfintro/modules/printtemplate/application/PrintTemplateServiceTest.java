@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
+import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRevisionRepository;
@@ -21,12 +24,21 @@ class PrintTemplateServiceTest {
     @Mock PrintTemplateRepository repository;
     @Mock PrintTemplateRevisionRepository revisionRepository;
     @Mock StorageService storageService;
+    @Mock PublicWorkspaceResolver publicWorkspaceResolver;
+    @Mock PortfolioCaseStudyRepository portfolioCaseStudyRepository;
 
     private PrintTemplateService service;
 
     @BeforeEach
     void setUp() {
-        service = new PrintTemplateService(repository, revisionRepository, storageService);
+        service =
+                new PrintTemplateService(
+                        repository,
+                        revisionRepository,
+                        storageService,
+                        publicWorkspaceResolver,
+                        portfolioCaseStudyRepository,
+                        new ObjectMapper());
         when(repository.save(any(PrintTemplate.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -35,10 +47,20 @@ class PrintTemplateServiceTest {
     void oldRequestGetsCompatibleContentDefaults() {
         PrintTemplateRequest request =
                 new PrintTemplateRequest(
-                        "기본", "[]", "[\"skills\"]", "{}", null, null, null, null, true, 1, null,
+                        "기본",
+                        "[]",
+                        "[\"skills\"]",
+                        "{}",
+                        null,
+                        null,
+                        null,
+                        null,
+                        true,
+                        1,
+                        null,
                         null);
 
-        PrintTemplate saved = service.create(request);
+        PrintTemplate saved = service.create(1L, request);
 
         assertThat(saved.getTargetRole()).isEqualTo("GENERAL");
         assertThat(saved.getContentOverrides()).isEqualTo("{}");
@@ -49,6 +71,7 @@ class PrintTemplateServiceTest {
     void updateKeepsFingerprintWhenLegacyRequestOmitsIt() {
         PrintTemplate existing =
                 PrintTemplate.create(
+                        1L,
                         "백엔드",
                         "[]",
                         "[\"skills\"]",
@@ -61,7 +84,7 @@ class PrintTemplateServiceTest {
                         1,
                         null,
                         PrintTemplate.DEFAULT_LINE_HEIGHT);
-        when(repository.findById(1L)).thenReturn(Optional.of(existing));
+        when(repository.findByIdAndWorkspaceId(1L, 1L)).thenReturn(Optional.of(existing));
         PrintTemplateRequest request =
                 new PrintTemplateRequest(
                         "백엔드 수정",
@@ -77,7 +100,7 @@ class PrintTemplateServiceTest {
                         null,
                         null);
 
-        PrintTemplate saved = service.update(1L, request);
+        PrintTemplate saved = service.update(1L, 1L, request);
 
         assertThat(saved.getTargetRole()).isEqualTo("BACKEND");
         assertThat(saved.getContentOverrides()).contains("백엔드");
@@ -86,14 +109,20 @@ class PrintTemplateServiceTest {
 
     @Test
     void createDirectPdfCreatesExternalTemplateAndPromotesToFinal() {
-        when(repository.countByJobPostingId(10L)).thenReturn(0L);
+        when(repository.countByWorkspaceIdAndJobPostingId(1L, 10L)).thenReturn(0L);
 
-        PrintTemplate saved = service.createDirectPdf(10L, "사람인 이력서.pdf", "print-template/final-pdf/test.pdf");
+        PrintTemplate saved =
+                service.createDirectPdf(
+                        1L,
+                        10L,
+                        "사람인 이력서.pdf",
+                        "workspaces/1/print-template/final-pdf/2026/08/test.pdf");
 
         assertThat(saved.getName()).isEqualTo("사람인 이력서.pdf");
         assertThat(saved.getSource()).isEqualTo("EXTERNAL");
         assertThat(saved.getJobPostingId()).isEqualTo(10L);
-        assertThat(saved.getFinalPdfObjectKey()).isEqualTo("print-template/final-pdf/test.pdf");
+        assertThat(saved.getFinalPdfObjectKey())
+                .isEqualTo("workspaces/1/print-template/final-pdf/2026/08/test.pdf");
         assertThat(saved.isFinalSubmission()).isTrue();
     }
 }

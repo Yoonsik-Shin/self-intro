@@ -19,6 +19,7 @@ public class PrintTemplateRevision {
 
     public static final String SENDER_USER = "USER";
     public static final String SENDER_AI = "AI";
+    public static final String SENDER_SNAPSHOT = "SNAPSHOT";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

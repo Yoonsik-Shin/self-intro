@@ -10,32 +10,40 @@ import org.springframework.data.repository.query.Param;
 public interface PrintTemplateRepository extends JpaRepository<PrintTemplate, Long> {
 
     /**
-     * document_type을 명시하지 않는 목록 조회는 이력서/포트폴리오 행이 한 테이블에 섞여 있어 위험하다.
-     * 반드시 {@link #findAllByDocumentTypeAndVisibleTrueOrderByDisplayOrderAsc}처럼 document_type이
-     * 붙은 쿼리만 새로 추가할 것 — 기존 두 메서드는 하위 호환을 위해 남겨두되 신규 코드에서 쓰지 않는다.
+     * document_type을 명시하지 않는 목록 조회는 이력서/포트폴리오 행이 한 테이블에 섞여 있어 위험하다. 반드시 {@link
+     * #findAllByDocumentTypeAndVisibleTrueOrderByDisplayOrderAsc}처럼 document_type이 붙은 쿼리만 새로 추가할 것
+     * — 기존 두 메서드는 하위 호환을 위해 남겨두되 신규 코드에서 쓰지 않는다.
      */
     List<PrintTemplate> findAllByVisibleTrueOrderByDisplayOrderAsc();
 
     List<PrintTemplate> findAllByOrderByDisplayOrderAsc();
 
-    List<PrintTemplate> findAllByDocumentTypeAndVisibleTrueOrderByDisplayOrderAsc(
-            String documentType);
+    List<PrintTemplate> findAllByWorkspaceIdAndDocumentTypeAndVisibleTrueOrderByDisplayOrderAsc(
+            Long workspaceId, String documentType);
 
-    List<PrintTemplate> findAllByDocumentTypeOrderByDisplayOrderAsc(String documentType);
+    List<PrintTemplate> findAllByWorkspaceIdAndDocumentTypeOrderByDisplayOrderAsc(
+            Long workspaceId, String documentType);
 
-    List<PrintTemplate> findAllByJobPostingIdOrderByDisplayOrderAsc(Long jobPostingId);
+    List<PrintTemplate> findAllByWorkspaceIdAndJobPostingIdOrderByDisplayOrderAsc(
+            Long workspaceId, Long jobPostingId);
 
-    List<PrintTemplate> findAllByJobPostingIdAndFinalSubmissionTrue(Long jobPostingId);
+    List<PrintTemplate> findAllByWorkspaceIdAndJobPostingIdAndFinalSubmissionTrue(
+            Long workspaceId, Long jobPostingId);
 
-    long countByJobPostingId(Long jobPostingId);
+    long countByWorkspaceIdAndJobPostingId(Long workspaceId, Long jobPostingId);
 
-    List<PrintTemplate> findAllByPortfolioCaseStudyIdOrderByOrientationAscDisplayOrderAsc(
-            Long portfolioCaseStudyId);
+    List<PrintTemplate>
+            findAllByWorkspaceIdAndPortfolioCaseStudyIdOrderByOrientationAscDisplayOrderAsc(
+                    Long workspaceId, Long portfolioCaseStudyId);
 
-    java.util.Optional<PrintTemplate> findByPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
-            Long portfolioCaseStudyId, String orientation);
+    java.util.Optional<PrintTemplate>
+            findByWorkspaceIdAndPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
+                    Long workspaceId, Long portfolioCaseStudyId, String orientation);
 
-    long countByPortfolioCaseStudyIdAndOrientation(Long portfolioCaseStudyId, String orientation);
+    long countByWorkspaceIdAndPortfolioCaseStudyIdAndOrientation(
+            Long workspaceId, Long portfolioCaseStudyId, String orientation);
+
+    java.util.Optional<PrintTemplate> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
     /**
      * 중복 채용공고 병합(백필) 전용. 인쇄 템플릿이 연동하던 공고 행이 다른 승자 행으로 합쳐질 때, finalSubmission 등 다른 필드는 건드리지 않고

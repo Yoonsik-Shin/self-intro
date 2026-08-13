@@ -53,4 +53,8 @@ public record PrintTemplateResponse(
                         ? null
                         : urlResolver.apply(entity.getFinalPdfObjectKey()));
     }
+
+    public static PrintTemplateResponse fromPublic(PrintTemplate entity) {
+        return from(entity, ignored -> null);
+    }
 }

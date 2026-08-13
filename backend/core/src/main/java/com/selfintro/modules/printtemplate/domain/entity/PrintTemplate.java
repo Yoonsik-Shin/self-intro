@@ -14,12 +14,16 @@ public class PrintTemplate {
     public static final String SOURCE_MANUAL = "MANUAL";
     public static final String SOURCE_AI = "AI";
     public static final String SOURCE_EXTERNAL = "EXTERNAL";
+
     /** 프론트에 하드코딩돼 있던 leading-relaxed(Tailwind)와 동일한 배수 — 이 기본값을 쓰면 기존 템플릿은 시각적으로 그대로다. */
     public static final double DEFAULT_LINE_HEIGHT = 1.625;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -96,6 +100,7 @@ public class PrintTemplate {
     }
 
     private PrintTemplate(
+            Long workspaceId,
             String name,
             String excludedIds,
             String sectionOrder,
@@ -114,6 +119,7 @@ public class PrintTemplate {
             String source,
             String generationMetadata,
             LocalDateTime generatedAt) {
+        this.workspaceId = workspaceId;
         this.name = name;
         this.excludedIds = excludedIds;
         this.sectionOrder = sectionOrder;
@@ -138,6 +144,7 @@ public class PrintTemplate {
     }
 
     public static PrintTemplate create(
+            Long workspaceId,
             String name,
             String excludedIds,
             String sectionOrder,
@@ -151,6 +158,7 @@ public class PrintTemplate {
             Long jobPostingId,
             double lineHeight) {
         return new PrintTemplate(
+                workspaceId,
                 name,
                 excludedIds,
                 sectionOrder,
@@ -172,6 +180,7 @@ public class PrintTemplate {
     }
 
     public static PrintTemplate createAiDraft(
+            Long workspaceId,
             String name,
             String excludedIds,
             String sectionOrder,
@@ -183,6 +192,7 @@ public class PrintTemplate {
             Long jobPostingId) {
         LocalDateTime now = LocalDateTime.now();
         return new PrintTemplate(
+                workspaceId,
                 name,
                 excludedIds,
                 sectionOrder,
@@ -204,12 +214,14 @@ public class PrintTemplate {
     }
 
     public static PrintTemplate createExternalPdf(
+            Long workspaceId,
             String name,
             Long jobPostingId,
             String finalPdfObjectKey,
             int displayOrder) {
         PrintTemplate template =
                 new PrintTemplate(
+                        workspaceId,
                         name,
                         "[]",
                         "[]",
@@ -234,6 +246,7 @@ public class PrintTemplate {
 
     /** 포트폴리오 케이스스터디 배치 저장 — 방향(orientation)별로 독립된 행이다. */
     public static PrintTemplate createPortfolio(
+            Long workspaceId,
             String name,
             Long portfolioCaseStudyId,
             String orientation,
@@ -246,6 +259,7 @@ public class PrintTemplate {
             double lineHeight,
             String generationMetadata) {
         return new PrintTemplate(
+                workspaceId,
                 name,
                 excludedIds,
                 sectionOrder,
@@ -267,6 +281,7 @@ public class PrintTemplate {
     }
 
     public static PrintTemplate create(
+            Long workspaceId,
             String name,
             String excludedIds,
             String sectionOrder,
@@ -274,6 +289,7 @@ public class PrintTemplate {
             boolean visible,
             int displayOrder) {
         return create(
+                workspaceId,
                 name,
                 excludedIds,
                 sectionOrder,
@@ -372,6 +388,10 @@ public class PrintTemplate {
     // Standard Java Getters
     public Long getId() {
         return id;
+    }
+
+    public Long getWorkspaceId() {
+        return workspaceId;
     }
 
     public String getName() {
