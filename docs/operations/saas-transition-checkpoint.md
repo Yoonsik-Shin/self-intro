@@ -156,9 +156,9 @@ retry/DLQ와 purge·restore 경계를 로컬에서 검증했다. 변경 세트 �
 
 ## 6. 고정된 품질 부채
 
-frontend ESLint error는 0이다. 남은 warning 30개는 미사용 변수, `<img>` 최적화, hook dependency,
-font 선언과 사용하지 않는 eslint-disable로 구성된다. 기능·보안 release blocker는 아니지만 변경 세트 분리
-전에 독립 정리 후보로 유지한다.
+frontend ESLint error와 warning은 모두 0이다. 미사용 변수, hook dependency, 사용하지 않는
+eslint-disable을 제거했고, App Router 전역 font와 인증·객체 저장소 이미지처럼 의도적인 예외는 적용 파일에만
+범위를 제한해 설정 근거를 남겼다.
 
 비공개 베타에서 transactional outbox와 실제 JobPosting vector 추천 endpoint는 의도적으로 보류한다.
 운영 배포 차단 조건은 MFA 초기화 운영 절차·운영 Secret, private object storage와 파일 검사, 운영 backup
