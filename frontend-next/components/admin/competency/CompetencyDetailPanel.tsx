@@ -4,8 +4,6 @@ import {
     ArrowLeft,
     BookOpen,
     BriefcaseBusiness,
-    Eye,
-    EyeOff,
     Pencil,
     Sparkles,
     Trash2,
@@ -60,16 +58,6 @@ export function CompetencyDetailPanel({
 
                 <div className="mt-6 max-w-5xl">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                        <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${competency.visible ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}
-                        >
-                            {competency.visible ? (
-                                <Eye className="h-3 w-3" />
-                            ) : (
-                                <EyeOff className="h-3 w-3" />
-                            )}
-                            {competency.visible ? '공개' : '숨김'}
-                        </span>
                         <span className="rounded-full bg-slate-900 px-2.5 py-1 text-white">
                             정렬 {competency.displayOrder}
                         </span>
@@ -192,10 +180,6 @@ export function CompetencyDetailPanel({
 
                     <section className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
                         <p>
-                            <span className="font-bold text-slate-700">공개 상태</span>{' '}
-                            {competency.visible ? '공개' : '숨김'}
-                        </p>
-                        <p className="mt-1">
                             <span className="font-bold text-slate-700">정렬 순서</span>{' '}
                             {competency.displayOrder}
                         </p>

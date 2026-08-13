@@ -6,8 +6,6 @@ import {
     ArrowDown,
     ArrowUp,
     Check,
-    Eye,
-    EyeOff,
     Pencil,
     Plus,
     Save,
@@ -34,24 +32,28 @@ const emptyForm: CompetencyRequest = {
     title: '',
     summary: '',
     displayOrder: 0,
-    visible: true,
+    // Legacy compatibility field. Public exposure is selected in Public Page composition.
+    visible: false,
     skillIds: [],
     evidences: [],
     studyIds: [],
 };
 
-type VisibilityFilter = 'ALL' | 'VISIBLE' | 'HIDDEN';
 type AiEvidenceGroupSummary = { theme: string; evidenceCount: number; studyCount: number };
 
-export function CompetencyManagement() {
+export function CompetencyManagement({
+    workspaceSlug,
+    enableWorkspaceAi,
+}: {
+    workspaceSlug: string;
+    enableWorkspaceAi: boolean;
+}) {
     const queryClient = useQueryClient();
     const [editingId, setEditingId] = useState<number | null>(null);
     const [selectedCompetencyId, setSelectedCompetencyId] = useState<number | null>(null);
     const [form, setForm] = useState<CompetencyRequest>(emptyForm);
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [selectedCompetencyIds, setSelectedCompetencyIds] = useState<number[]>([]);
     const [listSearch, setListSearch] = useState('');
-    const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('ALL');
     const [skillSearch, setSkillSearch] = useState('');
     const [experienceSearch, setExperienceSearch] = useState('');
     const [studySearch, setStudySearch] = useState('');
@@ -73,25 +75,21 @@ export function CompetencyManagement() {
     } = useAiSuggestionStream();
 
     const { data: competencies = [], isLoading } = useQuery({
-        queryKey: ['competencies', 'admin'],
-        queryFn: competencyApi.list,
+        queryKey: ['competencies', 'workspace', workspaceSlug],
+        queryFn: () => competencyApi.workspaceList(workspaceSlug),
     });
-    const { data: skills = [] } = useQuery({ queryKey: ['skills'], queryFn: skillApi.list });
+    const { data: skills = [] } = useQuery({
+        queryKey: ['skills', workspaceSlug],
+        queryFn: () => skillApi.workspaceList(workspaceSlug),
+    });
     const { data: experiences = [] } = useQuery({
-        queryKey: ['experiences'],
-        queryFn: experienceApi.list,
+        queryKey: ['experiences', workspaceSlug],
+        queryFn: () => experienceApi.workspaceList(workspaceSlug),
     });
     const { data: studyPage } = useQuery({
-        queryKey: ['studies', 'admin'],
-        queryFn: () => studyApi.adminList(),
+        queryKey: ['studies', 'workspace', workspaceSlug],
+        queryFn: () => studyApi.workspaceAdminList(workspaceSlug),
     });
-
-    const counts = useMemo(() => {
-        const total = competencies.length;
-        const visible = competencies.filter((item) => item.visible).length;
-        const hidden = competencies.filter((item) => !item.visible).length;
-        return { total, visible, hidden };
-    }, [competencies]);
 
     const sortedCompetencies = useMemo(() => {
         return [...competencies].sort((a, b) => a.displayOrder - b.displayOrder);
@@ -102,10 +100,6 @@ export function CompetencyManagement() {
     const filteredCompetencies = useMemo(() => {
         const keyword = listSearch.trim().toLowerCase();
         return sortedCompetencies.filter((item) => {
-            const matchesVisibility =
-                visibilityFilter === 'ALL' ||
-                (visibilityFilter === 'VISIBLE' && item.visible) ||
-                (visibilityFilter === 'HIDDEN' && !item.visible);
             const searchable = [
                 item.title,
                 item.summary,
@@ -115,9 +109,9 @@ export function CompetencyManagement() {
             ]
                 .join(' ')
                 .toLowerCase();
-            return matchesVisibility && (!keyword || searchable.includes(keyword));
+            return !keyword || searchable.includes(keyword);
         });
-    }, [sortedCompetencies, listSearch, visibilityFilter]);
+    }, [sortedCompetencies, listSearch]);
     const selectableExperiences = useMemo(
         () =>
             experiences.filter(
@@ -159,46 +153,27 @@ export function CompetencyManagement() {
         setForm(emptyForm);
         setIsFormOpen(false);
     };
-    const createMutation = useMutation({ mutationFn: competencyApi.create, onSuccess: finishSave });
+    const createMutation = useMutation({
+        mutationFn: (payload: CompetencyRequest) =>
+            competencyApi.workspaceCreate(workspaceSlug, payload),
+        onSuccess: finishSave,
+    });
     const updateMutation = useMutation({
         mutationFn: ({ id, payload }: { id: number; payload: CompetencyRequest }) =>
-            competencyApi.update(id, payload),
+            competencyApi.workspaceUpdate(workspaceSlug, id, payload),
         onSuccess: finishSave,
     });
     const deleteMutation = useMutation({
-        mutationFn: competencyApi.remove,
-        onSuccess: async (_data, deletedId) => {
+        mutationFn: (id: number) => competencyApi.workspaceRemove(workspaceSlug, id),
+        onSuccess: async () => {
             setSelectedCompetencyId(null);
-            setSelectedCompetencyIds((prev) => prev.filter((id) => id !== deletedId));
-            await refresh();
-        },
-    });
-
-    const batchPublishMutation = useMutation({
-        mutationFn: (ids: number[]) => competencyApi.batchPublish(ids),
-        onSuccess: async () => {
-            await refresh();
-            setSelectedCompetencyIds([]);
-        },
-    });
-
-    const batchUnpublishMutation = useMutation({
-        mutationFn: (ids: number[]) => competencyApi.batchUnpublish(ids),
-        onSuccess: async () => {
-            await refresh();
-            setSelectedCompetencyIds([]);
-        },
-    });
-
-    const toggleVisibilityMutation = useMutation({
-        mutationFn: (id: number) => competencyApi.toggleVisibility(id),
-        onSuccess: async () => {
             await refresh();
         },
     });
 
     const reorderMutation = useMutation({
-        mutationFn: (orderedIds: number[]) => competencyApi.reorder(orderedIds),
+        mutationFn: (orderedIds: number[]) =>
+            competencyApi.workspaceReorder(workspaceSlug, orderedIds),
         onSuccess: async () => {
             await refresh();
         },
@@ -214,38 +189,6 @@ export function CompetencyManagement() {
         const [movedId] = newOrder.splice(index, 1);
         newOrder.splice(targetIndex, 0, movedId);
         reorderMutation.mutate(newOrder);
-    };
-
-    const toggleSelectCompetency = (id: number) => {
-        setSelectedCompetencyIds((prev) =>
-            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-        );
-    };
-
-    const toggleSelectAllFiltered = () => {
-        const filteredIds = filteredCompetencies.map((c) => c.id);
-        const allSelected = filteredIds.every((id) => selectedCompetencyIds.includes(id));
-        if (allSelected) {
-            setSelectedCompetencyIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
-        } else {
-            setSelectedCompetencyIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
-        }
-    };
-
-    const handleBatchPublish = (ids: number[]) => {
-        if (ids.length === 0) return;
-        if (window.confirm(`선택한 ${ids.length}개의 핵심 역량을 모두 공개로 전환하시겠습니까?`)) {
-            batchPublishMutation.mutate(ids);
-        }
-    };
-
-    const handleBatchUnpublish = (ids: number[]) => {
-        if (ids.length === 0) return;
-        if (
-            window.confirm(`선택한 ${ids.length}개의 핵심 역량을 모두 숨김으로 전환하시겠습니까?`)
-        ) {
-            batchUnpublishMutation.mutate(ids);
-        }
     };
 
     const resetAiStream = () => {
@@ -385,7 +328,8 @@ export function CompetencyManagement() {
         const controller = new AbortController();
         aiAbortRef.current = controller;
         try {
-            await competencyApi.suggestStream(
+            await competencyApi.workspaceSuggestStream(
+                workspaceSlug,
                 {
                     instruction: aiInstruction,
                     draftTitle: form.title,
@@ -453,7 +397,8 @@ export function CompetencyManagement() {
                         <Sparkles className="h-5 w-5" /> 핵심 역량 관리
                     </h2>
                     <p className="mt-0.5 text-sm text-slate-500">
-                        공개 페이지에 표시할 역량과 실무·학습 근거를 직접 관리합니다.
+                        역량 원본과 실무·학습 근거를 기록합니다. 공개 범위는 공개 페이지에서
+                        구성합니다.
                     </p>
                 </div>
                 <button
@@ -476,24 +421,9 @@ export function CompetencyManagement() {
             {showList && (
                 <>
                     <div className="sticky top-14 z-20 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex flex-wrap gap-2">
-                            {(
-                                [
-                                    ['ALL', `전체 ${counts.total}`],
-                                    ['VISIBLE', `공개 ${counts.visible}`],
-                                    ['HIDDEN', `숨김 ${counts.hidden}`],
-                                ] as const
-                            ).map(([value, label]) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => setVisibilityFilter(value)}
-                                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${visibilityFilter === value ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
+                        <p className="text-xs font-bold text-slate-500">
+                            전체 원본 {competencies.length}개
+                        </p>
                         <div className="relative w-full sm:max-w-xs">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
@@ -506,97 +436,6 @@ export function CompetencyManagement() {
                         </div>
                     </div>
 
-                    {visibilityFilter !== 'ALL' && (
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-xs">
-                            <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
-                                    <input
-                                        type="checkbox"
-                                        checked={Boolean(
-                                            filteredCompetencies.length > 0 &&
-                                            filteredCompetencies.every((c) =>
-                                                selectedCompetencyIds.includes(c.id)
-                                            )
-                                        )}
-                                        onChange={toggleSelectAllFiltered}
-                                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                    />
-                                    현재 {visibilityFilter === 'VISIBLE' ? '공개' : '숨김'} 목록
-                                    전체 선택 ({filteredCompetencies.length}개 중{' '}
-                                    {selectedCompetencyIds.length}개 선택됨)
-                                </label>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                {visibilityFilter === 'VISIBLE' && (
-                                    <>
-                                        {selectedCompetencyIds.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleBatchUnpublish(selectedCompetencyIds)
-                                                }
-                                                disabled={batchUnpublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50"
-                                            >
-                                                <EyeOff className="h-3.5 w-3.5" />
-                                                선택한 {selectedCompetencyIds.length}개 일괄 숨김
-                                            </button>
-                                        )}
-                                        {counts.visible > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const visibleIds = competencies
-                                                        .filter((item) => item.visible)
-                                                        .map((item) => item.id);
-                                                    handleBatchUnpublish(visibleIds);
-                                                }}
-                                                disabled={batchUnpublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
-                                            >
-                                                <EyeOff className="h-3.5 w-3.5 text-slate-600" />
-                                                공개 {counts.visible}개 전체 일괄 숨김
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                                {visibilityFilter === 'HIDDEN' && (
-                                    <>
-                                        {selectedCompetencyIds.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleBatchPublish(selectedCompetencyIds)
-                                                }
-                                                disabled={batchPublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
-                                            >
-                                                <Eye className="h-3.5 w-3.5" />
-                                                선택한 {selectedCompetencyIds.length}개 일괄 공개
-                                            </button>
-                                        )}
-                                        {counts.hidden > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const hiddenIds = competencies
-                                                        .filter((item) => !item.visible)
-                                                        .map((item) => item.id);
-                                                    handleBatchPublish(hiddenIds);
-                                                }}
-                                                disabled={batchPublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
-                                            >
-                                                <Eye className="h-3.5 w-3.5 text-emerald-600" />
-                                                숨김 {counts.hidden}개 전체 일괄 공개
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
                     <div className="space-y-3">
                         {isLoading && <p className="text-sm text-slate-400">불러오는 중...</p>}
                         {!isLoading && filteredCompetencies.length === 0 && (
@@ -605,30 +444,11 @@ export function CompetencyManagement() {
                             </p>
                         )}
                         {filteredCompetencies.map((competency) => {
-                            const isSelected = selectedCompetencyIds.includes(competency.id);
                             return (
                                 <article
                                     key={competency.id}
-                                    className={`flex items-center gap-3 rounded-xl border p-4 shadow-sm transition ${
-                                        isSelected && visibilityFilter !== 'ALL'
-                                            ? 'border-indigo-400 bg-indigo-50/20'
-                                            : competency.visible
-                                              ? 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
-                                              : 'border-slate-200 bg-slate-50/70 opacity-80 hover:border-slate-300'
-                                    }`}
+                                    className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                                 >
-                                    {visibilityFilter !== 'ALL' && (
-                                        <div className="flex shrink-0 items-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={isSelected}
-                                                onChange={() =>
-                                                    toggleSelectCompetency(competency.id)
-                                                }
-                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                            />
-                                        </div>
-                                    )}
                                     <button
                                         type="button"
                                         onClick={() => setSelectedCompetencyId(competency.id)}
@@ -641,24 +461,8 @@ export function CompetencyManagement() {
                                                     (c) => c.id === competency.id
                                                 ) + 1}
                                             </span>
-                                            <span
-                                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                                    competency.visible
-                                                        ? 'bg-emerald-50 text-emerald-700'
-                                                        : 'bg-slate-200 text-slate-600'
-                                                }`}
-                                            >
-                                                {competency.visible ? (
-                                                    <Eye className="h-3 w-3" />
-                                                ) : (
-                                                    <EyeOff className="h-3 w-3" />
-                                                )}
-                                                {competency.visible ? '공개' : '숨김'}
-                                            </span>
                                         </div>
-                                        <h3
-                                            className={`mt-2 font-black ${competency.visible ? 'text-slate-900' : 'text-slate-600'}`}
-                                        >
+                                        <h3 className="mt-2 font-black text-slate-900">
                                             {competency.title}
                                         </h3>
                                         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-500">
@@ -671,24 +475,6 @@ export function CompetencyManagement() {
                                         </p>
                                     </button>
                                     <div className="flex shrink-0 items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                toggleVisibilityMutation.mutate(competency.id);
-                                            }}
-                                            disabled={toggleVisibilityMutation.isPending}
-                                            title={
-                                                competency.visible ? '숨김으로 전환' : '공개로 전환'
-                                            }
-                                            className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
-                                                competency.visible
-                                                    ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                            }`}
-                                        >
-                                            {competency.visible ? '숨김 전환' : '공개 전환'}
-                                        </button>
                                         <button
                                             type="button"
                                             onClick={(e) => {
@@ -767,7 +553,7 @@ export function CompetencyManagement() {
                         {editingId === null ? '새 핵심 역량 작성' : '핵심 역량 수정'}
                     </h3>
 
-                    {editingId === null && (
+                    {editingId === null && enableWorkspaceAi && (
                         <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
                             <div className="flex items-start gap-3">
                                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
@@ -934,19 +720,6 @@ export function CompetencyManagement() {
                             className={inputClassName}
                         />
                     </FormField>
-                    <FormField label="공개 상태">
-                        <select
-                            value={form.visible ? 'VISIBLE' : 'HIDDEN'}
-                            onChange={(event) =>
-                                setForm({ ...form, visible: event.target.value === 'VISIBLE' })
-                            }
-                            className={inputClassName}
-                        >
-                            <option value="VISIBLE">공개</option>
-                            <option value="HIDDEN">숨김</option>
-                        </select>
-                    </FormField>
-
                     <SelectionSection
                         title={`기술 스택 (${form.skillIds.length})`}
                         search={skillSearch}
