@@ -69,14 +69,13 @@ class WorkspaceJobApplicationCoverLetterServiceTest {
         when(applicationRepository.findByWorkspaceIdAndJobPostingId(22L, 100L))
                 .thenReturn(Optional.empty());
         var request =
-                new com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSaveRequest(
-                        List.of());
+                new com.selfintro.modules.jobposting.presentation.dto
+                        .JobPostingCoverLetterSaveRequest(List.of());
 
         assertThatThrownBy(() -> service.replace(22L, 100L, request))
                 .isInstanceOf(EntityNotFoundException.class);
 
         verify(itemRepository, never())
-                .deleteAllByWorkspaceJobApplicationId(
-                        org.mockito.ArgumentMatchers.anyLong());
+                .deleteAllByWorkspaceJobApplicationId(org.mockito.ArgumentMatchers.anyLong());
     }
 }

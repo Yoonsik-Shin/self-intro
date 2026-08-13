@@ -264,8 +264,7 @@ class JobPostingCrudServiceTest {
                         "legal@example.com",
                         LocalDateTime.now().plusMonths(6));
 
-        JobPostingResponse response =
-                jobPostingService.reviewSharingPermission(1L, 42L, request);
+        JobPostingResponse response = jobPostingService.reviewSharingPermission(1L, 42L, request);
 
         assertThat(response.permissionReviewStatus())
                 .isEqualTo(JobPostingPermissionReviewStatus.APPROVED);

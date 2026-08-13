@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/workspaces/{workspaceSlug}/job-applications/manage/{jobPostingId}/cover-letter-items")
+@RequestMapping(
+        "/api/workspaces/{workspaceSlug}/job-applications/manage/{jobPostingId}/cover-letter-items")
 @RequiredArgsConstructor
 public class WorkspaceJobCoverLetterController {
 

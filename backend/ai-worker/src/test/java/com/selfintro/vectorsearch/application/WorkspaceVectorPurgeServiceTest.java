@@ -49,8 +49,7 @@ class WorkspaceVectorPurgeServiceTest {
         boolean dependsOnPlatformCatalog =
                 Arrays.stream(WorkspaceVectorPurgeService.class.getDeclaredFields())
                         .anyMatch(
-                                field ->
-                                        field.getType().equals(JobPostingVectorRepository.class));
+                                field -> field.getType().equals(JobPostingVectorRepository.class));
 
         assertThat(dependsOnPlatformCatalog).isFalse();
     }

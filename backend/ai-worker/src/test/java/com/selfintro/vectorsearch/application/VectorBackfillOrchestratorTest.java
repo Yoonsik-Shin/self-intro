@@ -70,10 +70,8 @@ class VectorBackfillOrchestratorTest {
         order.verify(vectorBatchSyncService)
                 .syncExperienceVector(10L, 100L, "experience", "digest");
         order.verify(studyRepository).findAll();
-        order.verify(vectorBatchSyncService)
-                .syncStudyVector(20L, 200L, "study", "content");
-        verify(vectorBatchSyncService)
-                .syncExperienceVector(10L, 100L, "experience", "digest");
+        order.verify(vectorBatchSyncService).syncStudyVector(20L, 200L, "study", "content");
+        verify(vectorBatchSyncService).syncExperienceVector(10L, 100L, "experience", "digest");
         verify(vectorBatchSyncService).syncStudyVector(20L, 200L, "study", "content");
     }
 }

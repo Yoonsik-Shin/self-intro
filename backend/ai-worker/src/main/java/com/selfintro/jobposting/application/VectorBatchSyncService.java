@@ -45,9 +45,7 @@ public class VectorBatchSyncService {
                 vectorEmbeddingService::embedToVectorString);
     }
 
-    /**
-     * Workspace namespace가 없는 과거 호출은 다른 사용자의 vector를 덮어쓸 수 있으므로 실패시킨다.
-     */
+    /** Workspace namespace가 없는 과거 호출은 다른 사용자의 vector를 덮어쓸 수 있으므로 실패시킨다. */
     @Deprecated(forRemoval = true)
     public int syncExperienceVector(Long experienceId, String title, String content) {
         throw new IllegalStateException("Workspace 범위 없는 Experience vector 동기화는 지원하지 않습니다.");
@@ -115,9 +113,7 @@ public class VectorBatchSyncService {
                 vectorEmbeddingService::embedToVectorString);
     }
 
-    /**
-     * Workspace namespace가 없는 과거 호출은 다른 사용자의 vector를 덮어쓸 수 있으므로 실패시킨다.
-     */
+    /** Workspace namespace가 없는 과거 호출은 다른 사용자의 vector를 덮어쓸 수 있으므로 실패시킨다. */
     @Deprecated(forRemoval = true)
     public int syncStudyVector(Long studyId, String title, String markdownContent) {
         throw new IllegalStateException("Workspace 범위 없는 Study vector 동기화는 지원하지 않습니다.");

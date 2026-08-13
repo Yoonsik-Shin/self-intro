@@ -51,15 +51,12 @@ class GrpcWorkspaceVectorStorageAdapterTest {
         verify(inventoryStub).withDeadlineAfter(5, TimeUnit.SECONDS);
         verify(inventoryStub)
                 .inspectWorkspaceVectors(
-                        WorkspaceVectorInventoryRequest.newBuilder()
-                                .setWorkspaceId(42L)
-                                .build());
+                        WorkspaceVectorInventoryRequest.newBuilder().setWorkspaceId(42L).build());
     }
 
     @Test
     void rejectsInvalidWorkspaceBeforeCallingWorker() {
-        assertThatThrownBy(() -> adapter.inspect(0L))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> adapter.inspect(0L)).isInstanceOf(IllegalArgumentException.class);
 
         verify(inventoryStub, never()).withDeadlineAfter(anyLong(), any(TimeUnit.class));
     }

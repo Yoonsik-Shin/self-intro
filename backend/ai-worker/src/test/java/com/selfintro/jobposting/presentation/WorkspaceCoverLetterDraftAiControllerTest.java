@@ -34,8 +34,7 @@ class WorkspaceCoverLetterDraftAiControllerTest {
         WorkspaceCoverLetterDraftAiController controller =
                 new WorkspaceCoverLetterDraftAiController(service, accessPolicy);
         JobPostingCoverLetterDraftRequest request =
-                new JobPostingCoverLetterDraftRequest(
-                        "지원 동기", 500, null, null, 9L, null, null);
+                new JobPostingCoverLetterDraftRequest("지원 동기", 500, null, null, 9L, null, null);
 
         controller.generate(authentication, "w-demo", 7L, request);
 

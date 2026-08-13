@@ -11,7 +11,6 @@ import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobScreenshotUploadRequest;
-import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;

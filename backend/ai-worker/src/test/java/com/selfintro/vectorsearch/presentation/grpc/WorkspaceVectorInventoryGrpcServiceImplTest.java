@@ -17,7 +17,8 @@ import org.mockito.ArgumentCaptor;
 
 class WorkspaceVectorInventoryGrpcServiceImplTest {
 
-    private final WorkspaceVectorPurgeService purgeService = mock(WorkspaceVectorPurgeService.class);
+    private final WorkspaceVectorPurgeService purgeService =
+            mock(WorkspaceVectorPurgeService.class);
     private final WorkspaceVectorInventoryGrpcServiceImpl service =
             new WorkspaceVectorInventoryGrpcServiceImpl(purgeService);
 
@@ -38,7 +39,8 @@ class WorkspaceVectorInventoryGrpcServiceImplTest {
 
     @Test
     void mapsInvalidWorkspaceIdWithoutLeakingDetails() {
-        when(purgeService.inspect(0L)).thenThrow(new IllegalArgumentException("internal id detail"));
+        when(purgeService.inspect(0L))
+                .thenThrow(new IllegalArgumentException("internal id detail"));
         StreamObserver<WorkspaceVectorInventoryResponse> observer = responseObserver();
 
         service.inspectWorkspaceVectors(request(0L), observer);

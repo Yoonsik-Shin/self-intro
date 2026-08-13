@@ -17,7 +17,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/workspaces/{workspaceSlug}/job-applications/manage/private-sources/screenshots/uploads")
+@RequestMapping(
+        "/api/workspaces/{workspaceSlug}/job-applications/manage/private-sources/screenshots/uploads")
 @RequiredArgsConstructor
 public class WorkspaceJobScreenshotController {
 
