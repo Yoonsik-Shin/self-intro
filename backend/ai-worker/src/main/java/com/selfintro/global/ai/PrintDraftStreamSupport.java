@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * PDF 초안(이력서/포트폴리오) 생성·재생성 서비스들이 공유하는 SSE 보일러플레이트. 도메인별 큐레이션 로직(SYSTEM_PROMPT,
- * assemble 등)은 각 서비스가 독립적으로 갖고, 이 클래스는 "결과를 SSE로 어떻게 실어 보내는가"만 다룬다.
+ * PDF 초안(이력서/포트폴리오) 생성·재생성 서비스들이 공유하는 SSE 보일러플레이트. 도메인별 큐레이션 로직(SYSTEM_PROMPT, assemble 등)은 각 서비스가
+ * 독립적으로 갖고, 이 클래스는 "결과를 SSE로 어떻게 실어 보내는가"만 다룬다.
  */
 @Component
 @RequiredArgsConstructor
@@ -48,7 +48,9 @@ public class PrintDraftStreamSupport {
         try {
             emitter.send(
                     SseEmitter.event()
-                            .data(objectMapper.writeValueAsString(payload), MediaType.APPLICATION_JSON));
+                            .data(
+                                    objectMapper.writeValueAsString(payload),
+                                    MediaType.APPLICATION_JSON));
         } catch (IOException exception) {
             throw new UncheckedIOException("SSE 이벤트 전송에 실패했습니다.", exception);
         }

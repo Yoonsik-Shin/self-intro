@@ -19,13 +19,10 @@ public class ClaudeAiClient {
     private final ObjectMapper objectMapper;
 
     public ClaudeAiClient(
-            @Value("${app.ai.anthropic-api-key:}") String apiKey,
-            ObjectMapper objectMapper) {
+            @Value("${app.ai.anthropic-api-key:}") String apiKey, ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     }
 
     public boolean isConfigured() {
@@ -33,12 +30,13 @@ public class ClaudeAiClient {
     }
 
     /**
-     * Anthropic Messages API엔 OpenAI 스타일의 강제 JSON 응답 모드가 없어, 시스템 프롬프트에 JSON 전용 지시문을
-     * 덧붙이는 방식으로 흉내낸다. 파싱은 호출부(AiJsonSupport 등)의 관대한 파서가 처리한다.
+     * Anthropic Messages API엔 OpenAI 스타일의 강제 JSON 응답 모드가 없어, 시스템 프롬프트에 JSON 전용 지시문을 덧붙이는 방식으로 흉내낸다.
+     * 파싱은 호출부(AiJsonSupport 등)의 관대한 파서가 처리한다.
      */
     public String generateJson(String systemPrompt, String userPrompt, String modelName) {
-        String jsonSystemPrompt = systemPrompt
-                + "\n\n반드시 JSON 객체 하나만 응답하세요. 설명 문장이나 ```json 같은 코드펜스 없이 순수 JSON만 출력하세요.";
+        String jsonSystemPrompt =
+                systemPrompt
+                        + "\n\n반드시 JSON 객체 하나만 응답하세요. 설명 문장이나 ```json 같은 코드펜스 없이 순수 JSON만 출력하세요.";
         return generate(jsonSystemPrompt, userPrompt, modelName);
     }
 
@@ -47,33 +45,37 @@ public class ClaudeAiClient {
             throw new IllegalArgumentException("ANTHROPIC_API_KEY 가 환경변수/k8s 시크릿에 설정되지 않았습니다.");
         }
 
-        String targetModel = (modelName != null && !modelName.isBlank()) ? modelName : "claude-sonnet-5";
+        String targetModel =
+                (modelName != null && !modelName.isBlank()) ? modelName : "claude-sonnet-5";
 
         try {
-            ClaudeRequest body = new ClaudeRequest(
-                    targetModel,
-                    8192,
-                    systemPrompt,
-                    List.of(new ClaudeMessage("user", userPrompt)),
-                    new ClaudeThinking("adaptive"),
-                    new ClaudeOutputConfig("low")
-            );
+            ClaudeRequest body =
+                    new ClaudeRequest(
+                            targetModel,
+                            8192,
+                            systemPrompt,
+                            List.of(new ClaudeMessage("user", userPrompt)),
+                            new ClaudeThinking("adaptive"),
+                            new ClaudeOutputConfig("low"));
 
             String requestJson = objectMapper.writeValueAsString(body);
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.anthropic.com/v1/messages"))
-                    .header("x-api-key", apiKey)
-                    .header("anthropic-version", "2023-06-01")
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(60))
-                    .POST(HttpRequest.BodyPublishers.ofString(requestJson))
-                    .build();
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(URI.create("https://api.anthropic.com/v1/messages"))
+                            .header("x-api-key", apiKey)
+                            .header("anthropic-version", "2023-06-01")
+                            .header("Content-Type", "application/json")
+                            .timeout(Duration.ofSeconds(60))
+                            .POST(HttpRequest.BodyPublishers.ofString(requestJson))
+                            .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                throw new RuntimeException("Anthropic API Error (" + response.statusCode() + "): " + response.body());
+                throw new RuntimeException(
+                        "Anthropic API Error (" + response.statusCode() + "): " + response.body());
             }
 
             ClaudeResponse resBody = objectMapper.readValue(response.body(), ClaudeResponse.class);
@@ -99,8 +101,7 @@ public class ClaudeAiClient {
             String system,
             List<ClaudeMessage> messages,
             ClaudeThinking thinking,
-            @JsonProperty("output_config") ClaudeOutputConfig outputConfig
-    ) {}
+            @JsonProperty("output_config") ClaudeOutputConfig outputConfig) {}
 
     private record ClaudeThinking(String type) {}
 
