@@ -114,12 +114,28 @@ export const authApi = {
             method: 'POST',
             body: JSON.stringify({ code }),
         }),
-    logoutAll: () =>
-        request<void>('/api/auth/sessions/logout-all', {
+    logoutAll: async () => {
+        await request<void>('/api/auth/csrf');
+        return request<void>('/api/auth/sessions/logout-all', {
             method: 'POST',
-        }),
+        });
+    },
     withdrawalReadiness: () =>
         request<AccountWithdrawalReadiness>('/api/account/withdrawal-readiness'),
+    changeDisplayName: async (displayName: string) => {
+        await request<void>('/api/auth/csrf');
+        return request<{ displayName: string }>('/api/account/display-name', {
+            method: 'PATCH',
+            body: JSON.stringify({ displayName }),
+        });
+    },
+    changePassword: async (currentPassword: string, newPassword: string) => {
+        await request<void>('/api/auth/csrf');
+        return request<void>('/api/account/password', {
+            method: 'PUT',
+            body: JSON.stringify({ currentPassword, newPassword }),
+        });
+    },
     withdrawAccount: async (confirmation: string) => {
         await request<void>('/api/auth/csrf');
         return request<void>('/api/account', {

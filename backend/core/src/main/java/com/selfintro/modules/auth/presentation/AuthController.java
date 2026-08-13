@@ -14,6 +14,7 @@ import com.selfintro.modules.auth.presentation.dto.ReauthenticateRequest;
 import com.selfintro.modules.identity.domain.AppUserRepository;
 import com.selfintro.modules.identity.domain.MembershipStatus;
 import com.selfintro.modules.identity.domain.WorkspaceMemberRepository;
+import com.selfintro.modules.securityaudit.application.SecurityAuditService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -42,6 +43,7 @@ public class AuthController {
     private final RecentReauthenticationPolicy recentReauthenticationPolicy;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final AppUserRepository appUserRepository;
+    private final SecurityAuditService securityAuditService;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
@@ -165,6 +167,8 @@ public class AuthController {
             Authentication authentication, HttpServletRequest httpRequest) {
         AppUserPrincipal principal = requirePrincipal(authentication);
         sessionSecurityService.logoutAll(principal.getUsername(), httpRequest);
+        securityAuditService.recordPlatformTargetAction(
+                "ACCOUNT_SESSIONS_REVOKED", principal.userId(), "APP_USER", principal.userId());
         return ResponseEntity.noContent().build();
     }
 

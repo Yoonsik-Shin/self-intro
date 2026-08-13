@@ -120,7 +120,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 | 로컬 비공개 베타 기반 | 약 96% | 별도 사람이 수행하는 작성·발행·AI/PDF UX 확인 |
 | 핵심 Workspace 데이터 격리 | 약 98% | 레거시 호환 API 제거 시점 결정 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
-| 플랫폼 보안·운영 | 약 78% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP·rate limit |
+| 플랫폼 보안·운영 | 약 81% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP·rate limit |
 | 릴리스 변경 세트 준비 | 약 97% | 검증 대상 96개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
 | 운영 가능한 공개 SaaS | 약 63% | 운영 provider·보안 self-service·복구·배포 rehearsal |
 
@@ -144,6 +144,12 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 14. 운영자·별도 베타 계정의 로컬 사용자 인수 테스트 — **SMTP·가입·온보딩·첫 발행·탈퇴·지원 접근 자동 UAT 완료, 사람의 UX 확인 필요**
 15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 검증 대상 96개 commit**
 16. 운영 backup 보존·OCI provider 복구·격리 Worker reconciliation rehearsal 뒤 실행 flag 검토
+
+계정 보안 self-service는 닉네임 변경, 현재 비밀번호를 확인하는 비밀번호 변경, 전체 기기 로그아웃까지
+구현했다. 비밀번호 변경은 가입과 동일한 정책을 재사용하고 성공 즉시 현재 세션을 포함한 모든 Redis
+세션을 폐기한다. 세 작업의 보안 감사 이벤트에는 닉네임·비밀번호 원문을 저장하지 않는다. 이메일 변경과
+비밀번호 분실 재설정, 모든 MFA 수단 분실 시 운영 복구는 메일·단기 토큰·신원 확인 절차가 필요한 다음
+보안 단계로 남는다.
 
 안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 96개 commit으로
 분리했다. Identity·Access,

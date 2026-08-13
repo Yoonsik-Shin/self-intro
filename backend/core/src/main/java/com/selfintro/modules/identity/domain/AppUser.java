@@ -110,6 +110,31 @@ public class AppUser {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void changeDisplayName(String displayName) {
+        if (displayName == null || displayName.isBlank()) {
+            throw new IllegalArgumentException("닉네임을 입력해 주세요.");
+        }
+        String normalized = displayName.trim();
+        if (normalized.length() < 2 || normalized.length() > 40) {
+            throw new IllegalArgumentException("닉네임은 2~40자로 입력해 주세요.");
+        }
+        if (normalized
+                .codePoints()
+                .anyMatch(codePoint -> Character.isISOControl(codePoint) || codePoint == 0x200B)) {
+            throw new IllegalArgumentException("닉네임에 제어 문자를 사용할 수 없습니다.");
+        }
+        this.displayName = normalized;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void changePasswordHash(String passwordHash) {
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("암호화된 비밀번호가 필요합니다.");
+        }
+        this.passwordHash = passwordHash;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void withdraw(
             String anonymizedLoginId, String invalidatedPasswordHash, LocalDateTime now) {
         if (status == UserStatus.DELETED) {
