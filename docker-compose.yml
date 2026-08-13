@@ -62,6 +62,7 @@ services:
     env_file:
       - .env
     environment:
+      - APP_RUNTIME_ROLE=api
       - SPRING_PROFILES_ACTIVE=local
       - DB_URL=jdbc:mysql://backend-db:3306/self_intro?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       - DB_USERNAME=self_intro_app
@@ -73,6 +74,7 @@ services:
       - STORAGE_PRESIGNED_ENDPOINT=http://localhost:9000
       - STORAGE_REGION=us-east-1
       - STORAGE_BUCKET=self-intro-images
+      - STORAGE_PRIVATE_BUCKET=self-intro-private
       - STORAGE_ACCESS_KEY=minioadmin
       - STORAGE_SECRET_KEY=minioadmin
       - STORAGE_PATH_STYLE_ACCESS=true
@@ -80,14 +82,53 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_HOST=rabbitmq
+      - SPRING_MAIL_HOST=mailpit
+      - SPRING_MAIL_PORT=1025
+      - REGISTRATION_EMAIL_ENABLED=true
+      - REGISTRATION_EMAIL_FROM=no-reply@self-intro.local
+      - REGISTRATION_VERIFICATION_BASE_URL=http://localhost:3000/signup/verify
+      - REGISTRATION_INVITATION_SIGNUP_BASE_URL=http://localhost:3000/signup
+      - REGISTRATION_TERMS_VERSION=${REGISTRATION_TERMS_VERSION:-2026-08-12-draft}
+      - REGISTRATION_PRIVACY_VERSION=${REGISTRATION_PRIVACY_VERSION:-2026-08-12-draft}
+      - REGISTRATION_MARKETING_VERSION=${REGISTRATION_MARKETING_VERSION:-2026-08-12-draft}
+      - WORKSPACE_INVITATION_ACCEPT_BASE_URL=http://localhost:3000/workspace-invitations
+      - INVITATION_RETENTION_ENABLED=${INVITATION_RETENTION_ENABLED:-true}
+      - INVITATION_RETENTION_CLOSED_FOR=${INVITATION_RETENTION_CLOSED_FOR:-30d}
+      - INVITATION_RETENTION_BATCH_SIZE=${INVITATION_RETENTION_BATCH_SIZE:-500}
+      - INVITATION_RETENTION_CLEANUP_CRON=${INVITATION_RETENTION_CLEANUP_CRON:-0 30 3 * * *}
+      - INVITATION_RETENTION_TIME_ZONE=${INVITATION_RETENTION_TIME_ZONE:-Asia/Seoul}
+      - WORKSPACE_DELETION_GRACE_PERIOD=${WORKSPACE_DELETION_GRACE_PERIOD:-30d}
+      - WORKSPACE_PURGE_OBJECT_STORAGE_DELETE_ENABLED=${WORKSPACE_PURGE_OBJECT_STORAGE_DELETE_ENABLED:-false}
+      - WORKSPACE_PURGE_MYSQL_DELETE_ENABLED=${WORKSPACE_PURGE_MYSQL_DELETE_ENABLED:-false}
+      - WORKSPACE_PURGE_CACHE_DELETE_ENABLED=${WORKSPACE_PURGE_CACHE_DELETE_ENABLED:-false}
+      - MAINTENANCE_MODE=${MAINTENANCE_MODE:-false}
+      - WORKSPACE_RESTORE_RECONCILIATION_ENABLED=${WORKSPACE_RESTORE_RECONCILIATION_ENABLED:-false}
       - GRPC_WORKER_HOST=static://backend-worker:9090
+      - LOCAL_REGISTRATION_INVITATION_ENABLED=true
+      - LOCAL_REGISTRATION_INVITATION_CODE=${LOCAL_REGISTRATION_INVITATION_CODE:-local-invite-only}
+      - PUBLICATION_RETENTION_MAX_REVISIONS=${PUBLICATION_RETENTION_MAX_REVISIONS:-20}
+      - PUBLICATION_RETENTION_MINIMUM_AGE=${PUBLICATION_RETENTION_MINIMUM_AGE:-180d}
       - SPRING_SESSION_STORE_TYPE=redis
+      - AUTH_RATE_LIMIT_ENABLED=true
+      - AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS=${AUTH_LOGIN_RATE_LIMIT_MAX_ATTEMPTS:-10}
+      - AUTH_LOGIN_RATE_LIMIT_WINDOW=${AUTH_LOGIN_RATE_LIMIT_WINDOW:-1m}
+      - AUTH_REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS=${AUTH_REGISTRATION_RATE_LIMIT_MAX_ATTEMPTS:-5}
+      - AUTH_REGISTRATION_RATE_LIMIT_WINDOW=${AUTH_REGISTRATION_RATE_LIMIT_WINDOW:-10m}
+      # 로컬 개발 전용 고정 키(32 zero bytes, Base64). 운영은 반드시 SealedSecret의 별도 랜덤 키를 쓴다.
+      - MFA_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       - LOG_FILE_PATH=/app/logs/application.log
       - ORACLE_NOSQL_ENABLED=true
       - ORACLE_NOSQL_ENDPOINT=http://nosql:8080
       - ORACLE_NOSQL_MODE=local
+      - ORACLE_NOSQL_TABLE=JobPostingCatalogReadModel
     volumes:
       - backend_logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/8080'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
     depends_on:
       backend-db:
         condition: service_healthy
@@ -97,6 +138,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      mailpit:
+        condition: service_started
       nosql:
         condition: service_healthy
 
@@ -112,6 +155,7 @@ services:
     env_file:
       - .env
     environment:
+      - APP_RUNTIME_ROLE=worker
       - SPRING_PROFILES_ACTIVE=local
       # 1차(관계형) 데이터소스 — api 모듈과 동일한 MySQL을 본다(application.yml의 MYSQL_DB_* 값).
       # docker-compose에 이게 빠져있으면 조용히 H2 인메모리로 fallback돼 job_posting 등이 재시작마다
@@ -125,18 +169,44 @@ services:
       - DB_USERNAME=self_intro_vector
       - DB_PASSWORD=self_intro_vector_local
       - DB_DRIVER=oracle.jdbc.OracleDriver
-      - JPA_DDL_AUTO=update
+      - WORKSPACE_PURGE_VECTOR_DELETE_ENABLED=${WORKSPACE_PURGE_VECTOR_DELETE_ENABLED:-false}
+      - WORKSPACE_PURGE_EXECUTION_ENABLED=${WORKSPACE_PURGE_EXECUTION_ENABLED:-false}
+      - WORKSPACE_PURGE_EXECUTION_CRON=${WORKSPACE_PURGE_EXECUTION_CRON:-0 */10 * * * *}
+      - WORKSPACE_PURGE_TIME_ZONE=${WORKSPACE_PURGE_TIME_ZONE:-Asia/Seoul}
+      - WORKSPACE_PURGE_LEASE_TIMEOUT=${WORKSPACE_PURGE_LEASE_TIMEOUT:-2h}
+      - WORKSPACE_PURGE_BATCH_SIZE=${WORKSPACE_PURGE_BATCH_SIZE:-10}
+      - WORKSPACE_PURGE_OBJECT_STORAGE_DELETE_ENABLED=${WORKSPACE_PURGE_OBJECT_STORAGE_DELETE_ENABLED:-false}
+      - WORKSPACE_PURGE_MYSQL_DELETE_ENABLED=${WORKSPACE_PURGE_MYSQL_DELETE_ENABLED:-false}
+      - WORKSPACE_PURGE_CACHE_DELETE_ENABLED=${WORKSPACE_PURGE_CACHE_DELETE_ENABLED:-false}
+      # schema 변경은 api 컨테이너의 Flyway만 수행한다. worker가 update로 먼저 뜨면
+      # migration과 경합하므로 validate로 고정하고 api health 이후에 시작한다.
+      - JPA_DDL_AUTO=validate
+      # API가 발급한 presigned PUT과 Worker의 HEAD/GET/DELETE가 반드시 같은 저장소를
+      # 바라봐야 한다. env_file의 운영 OCI 값을 그대로 읽으면 로컬 MinIO 업로드를
+      # Worker가 찾지 못하므로 API 컨테이너와 동일한 로컬 adapter 설정을 명시한다.
+      - STORAGE_ENDPOINT=http://minio:9000
+      - STORAGE_PRESIGNED_ENDPOINT=http://localhost:9000
+      - STORAGE_REGION=us-east-1
+      - STORAGE_BUCKET=self-intro-images
+      - STORAGE_PRIVATE_BUCKET=self-intro-private
+      - STORAGE_ACCESS_KEY=minioadmin
+      - STORAGE_SECRET_KEY=minioadmin
+      - STORAGE_PATH_STYLE_ACCESS=true
+      - STORAGE_PUBLIC_BASE_URL=http://localhost:9000/self-intro-images
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_HOST=rabbitmq
       - ORACLE_NOSQL_ENABLED=true
       - ORACLE_NOSQL_ENDPOINT=http://nosql:8080
       - ORACLE_NOSQL_MODE=local
+      - ORACLE_NOSQL_TABLE=JobPostingCatalogReadModel
       - PDF_DRAFT_AI_TIMEOUT=${PDF_DRAFT_AI_TIMEOUT:-240s}
       - OTLP_EXPORTER_ENDPOINT=http://tempo:4318/v1/traces
     volumes:
       - backend_logs:/app/logs
     depends_on:
+      backend:
+        condition: service_healthy
       backend-db:
         condition: service_healthy
       redis:
@@ -199,6 +269,16 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./deploy/monitoring/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
 
+  # 로컬 가입 이메일 확인용 SMTP/Web UI. 운영에서는 외부 SMTP adapter로 교체한다.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: self-intro-mailpit
+    ports:
+      - "127.0.0.1:8025:8025"
+    environment:
+      - MP_SMTP_AUTH_ACCEPT_ANY=true
+      - MP_SMTP_AUTH_ALLOW_INSECURE=true
+
 
 
   redis:
@@ -253,7 +333,9 @@ services:
       sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
       mc mb -p local/self-intro-images &&
-      mc anonymous set download local/self-intro-images
+      mc mb -p local/self-intro-private &&
+      mc anonymous set download local/self-intro-images &&
+      mc anonymous set none local/self-intro-private
       "
 
   frontend-next:
@@ -262,14 +344,27 @@ services:
       dockerfile: Dockerfile
       target: deps
     container_name: self-intro-frontend-next
-    command: sh -c "npm install --prefer-offline && npm run dev"
+    # dev server가 예외 없이 정상 종료 신호를 받아 사라진 경우 자동 복구한다.
+    # `docker compose stop`처럼 사용자가 명시적으로 중지한 경우에는 재시작하지 않는다.
+    restart: unless-stopped
+    # deps 이미지의 node_modules를 익명 볼륨에 복사해 사용한다. 재기동마다 npm install을
+    # 반복하지 않고, 로컬 장기 실행에서 캐시·메모리가 크게 불어나는 Turbopack 대신
+    # 캐시를 끈 webpack dev server를 사용한다.
+    command: npm run dev:docker
+    # 관리 route의 최초 webpack chunk 생성은 짧게 2 GiB를 넘는다. 2 GiB hard limit에서는
+    # 정상 소스도 OOM 종료되므로 compile burst만 허용한다. 장기 총 사용량은 후속 Compose profile
+    # 분리에서 core 외 서비스를 기본 기동 대상에서 제외해 줄인다.
+    mem_limit: 3g
+    mem_reservation: 1g
     volumes:
       - ./frontend-next:/app
-      - /app/node_modules
-      - /app/.next
+      - frontend_node_modules:/app/node_modules
+      - frontend_next_cache:/app/.next
     ports:
       - "3000:3000"
     environment:
+      - NODE_OPTIONS=--max-old-space-size=2304
+      - NEXT_DISABLE_WEBPACK_CACHE=true
       # macOS / Docker 바인드 마운트 파일 변경 탐지(HMR)를 위한 폴링 옵션
       - WATCHPACK_POLLING=true
       # 브라우저(호스트)는 이 주소로 API를 호출한다.
@@ -358,3 +453,7 @@ volumes:
   tempo_data:
   grafana_data:
   backend_logs:
+  # 익명 볼륨은 컨테이너 재생성 때마다 고아 volume을 남기므로 프런트 캐시도
+  # 프로젝트 이름이 붙는 명시적 볼륨으로 관리한다.
+  frontend_node_modules:
+  frontend_next_cache:

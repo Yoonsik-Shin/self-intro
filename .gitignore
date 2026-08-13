@@ -13,6 +13,9 @@ backend/build/
 frontend/node_modules/
 frontend/dist/
 .env
+cookies.txt
+*.cookies
+*.cookies.txt
 .claude/
 .local-db-dump/
 

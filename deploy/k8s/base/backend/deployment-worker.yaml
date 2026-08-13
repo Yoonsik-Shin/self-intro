@@ -43,6 +43,8 @@ spec:
           # backend-worker-db-secret(envFrom, 위)은 이제 Oracle 26ai 2차 데이터소스 전용이고,
           # 1차 데이터소스는 backend-db-secret에서 MYSQL_* 이름으로 다시 매핑해 받는다(2026-08-04 사고 대응).
           env:
+            - name: APP_RUNTIME_ROLE
+              value: "worker"
             - name: JOB_POSTING_SCHEDULER_ENABLED
               value: "true"
             - name: MYSQL_DB_URL
@@ -65,7 +67,7 @@ spec:
                 secretKeyRef:
                   name: backend-db-secret
                   key: DB_DRIVER
-            # 어드민 로그인 계정 — worker가 /api/worker/job-postings, /api/admin/study-plans를
+            # 어드민 로그인 계정 — worker가 /api/worker/job-postings와 Workspace StudyPlan을
             # 직접 서빙하게 되면서(2026-08 ingress prefix 라우팅) 필요해졌다.
             - name: ADMIN_USERNAME
               valueFrom:
@@ -105,4 +107,3 @@ spec:
           secret:
             secretName: oracle-atp-worker-wallet
             optional: true
-

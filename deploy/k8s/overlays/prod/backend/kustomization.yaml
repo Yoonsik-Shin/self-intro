@@ -31,6 +31,8 @@ configMapGenerator:
       - JPA_DDL_AUTO=none
       - COOKIE_DOMAIN=unbrdn.me
       - VISITOR_COOKIE_SECURE=true
+      - SESSION_COOKIE_SECURE=true
+      - SESSION_COOKIE_SAME_SITE=lax
       - NVIDIA_API_BASE_URL=https://integrate.api.nvidia.com
       - NVIDIA_MODEL=nvidia/nemotron-3-super-120b-a12b
       - NVIDIA_MAX_OUTPUT_TOKENS=8192
@@ -39,12 +41,31 @@ configMapGenerator:
       - STORAGE_ENDPOINT=https://axrywc89b6lf.compat.objectstorage.ap-chuncheon-1.oraclecloud.com
       - STORAGE_REGION=ap-chuncheon-1
       - STORAGE_BUCKET=self-intro-images
+      - STORAGE_PRIVATE_BUCKET=self-intro-private
       - STORAGE_PATH_STYLE_ACCESS=true
       - STORAGE_PRESIGNED_TTL_SECONDS=300
+      - STORAGE_PRESIGNED_DOWNLOAD_TTL_SECONDS=900
       - STORAGE_PUBLIC_BASE_URL=https://axrywc89b6lf.compat.objectstorage.ap-chuncheon-1.oraclecloud.com/self-intro-images
       - SPRING_SESSION_STORE_TYPE=redis
       - REDIS_HOST=self-intro-redis
       - REDIS_PORT=6379
+      # API의 읽기 전용 Vector inventory client. 삭제 RPC는 노출하지 않는다.
+      - GRPC_WORKER_HOST=static://self-intro-backend-worker:9090
+      - WORKSPACE_DELETION_GRACE_PERIOD=30d
+      # 로컬 rehearsal은 통과했다. 운영 backup/provider 증적 gate 승인 전까지 모두 잠근다.
+      - WORKSPACE_PURGE_EXECUTION_ENABLED=false
+      - WORKSPACE_PURGE_EXECUTION_CRON=0 */10 * * * *
+      - WORKSPACE_PURGE_TIME_ZONE=Asia/Seoul
+      - WORKSPACE_PURGE_LEASE_TIMEOUT=2h
+      - WORKSPACE_PURGE_BATCH_SIZE=10
+      - WORKSPACE_PURGE_OBJECT_STORAGE_DELETE_ENABLED=false
+      - WORKSPACE_PURGE_MYSQL_DELETE_ENABLED=false
+      - WORKSPACE_PURGE_VECTOR_DELETE_ENABLED=false
+      - WORKSPACE_PURGE_CACHE_DELETE_ENABLED=false
+      - MAINTENANCE_MODE=false
+      - WORKSPACE_RESTORE_RECONCILIATION_ENABLED=false
+      # NoSQL을 활성화할 때도 Workspace 개인화가 아닌 공통 채용공고 catalog만 사용한다.
+      - ORACLE_NOSQL_TABLE=JobPostingCatalogReadModel
       # core 모듈의 JobPostingCqrsEventHandler(@RabbitListener)가 api/worker 양쪽에 다 뜨는데
       # 지금까지 RABBITMQ_HOST가 어디에도 없어서 둘 다 localhost:5672로 계속 실패하고 있었다(2026-08-04).
       - RABBITMQ_HOST=self-intro-rabbitmq

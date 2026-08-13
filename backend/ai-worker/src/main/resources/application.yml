@@ -55,6 +55,23 @@ spring:
           model: ${NVIDIA_EMBEDDING_MODEL:nvidia/nemotron-3-embed-1b}
 
 app:
+  runtime-role: ${APP_RUNTIME_ROLE:worker}
+  maintenance-mode: ${MAINTENANCE_MODE:false}
+  vector-sync:
+    # 실패 payload에는 경력·학습 원문이 포함될 수 있어 DLQ에 무기한 보존하지 않는다(기본 7일).
+    dlq-message-ttl-ms: ${VECTOR_SYNC_DLQ_MESSAGE_TTL_MS:604800000}
+  workspace-purge:
+    # 전체 실행 flag와 각 provider flag가 모두 true일 때만 Worker가 영구 삭제를 시도한다.
+    execution-enabled: ${WORKSPACE_PURGE_EXECUTION_ENABLED:false}
+    execution-cron: ${WORKSPACE_PURGE_EXECUTION_CRON:0 */10 * * * *}
+    time-zone: ${WORKSPACE_PURGE_TIME_ZONE:Asia/Seoul}
+    lease-timeout: ${WORKSPACE_PURGE_LEASE_TIMEOUT:2h}
+    batch-size: ${WORKSPACE_PURGE_BATCH_SIZE:10}
+    object-storage-delete-enabled: ${WORKSPACE_PURGE_OBJECT_STORAGE_DELETE_ENABLED:false}
+    vector-delete-enabled: ${WORKSPACE_PURGE_VECTOR_DELETE_ENABLED:false}
+    mysql-delete-enabled: ${WORKSPACE_PURGE_MYSQL_DELETE_ENABLED:false}
+    cache-delete-enabled: ${WORKSPACE_PURGE_CACHE_DELETE_ENABLED:false}
+    restore-reconciliation-enabled: ${WORKSPACE_RESTORE_RECONCILIATION_ENABLED:false}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   cookie-domain: ${COOKIE_DOMAIN:}
@@ -91,10 +108,12 @@ app:
     presigned-endpoint: ${STORAGE_PRESIGNED_ENDPOINT:${STORAGE_ENDPOINT:http://localhost:9000}}
     region: ${STORAGE_REGION:us-east-1}
     bucket: ${STORAGE_BUCKET:self-intro-images}
+    private-bucket: ${STORAGE_PRIVATE_BUCKET:self-intro-private}
     access-key: ${STORAGE_ACCESS_KEY:minioadmin}
     secret-key: ${STORAGE_SECRET_KEY:minioadmin}
     path-style-access: ${STORAGE_PATH_STYLE_ACCESS:true}
     presigned-upload-ttl-seconds: ${STORAGE_PRESIGNED_TTL_SECONDS:300}
+    presigned-download-ttl-seconds: ${STORAGE_PRESIGNED_DOWNLOAD_TTL_SECONDS:900}
     public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:9000/self-intro-images}
 
 oracle:
@@ -105,7 +124,7 @@ oracle:
     compartment-id: ${ORACLE_NOSQL_COMPARTMENT_ID:}
     oci-config-file: ${ORACLE_OCI_CONFIG_FILE:~/.oci/config}
     profile-name: ${ORACLE_OCI_PROFILE:self-intro-api-key}
-    table-name: ${ORACLE_NOSQL_TABLE:JobPostingReadModel}
+    table-name: ${ORACLE_NOSQL_TABLE:JobPostingCatalogReadModel}
   # 2차 데이터소스: job_posting_vector/experience_vector/study_vector 전용 Oracle 26ai ATP.
   # 이전에는 이 값들이 spring.datasource(1차)였다 — 값 자체는 그대로 재사용하고 자리만 옮겼다.
   vector:
