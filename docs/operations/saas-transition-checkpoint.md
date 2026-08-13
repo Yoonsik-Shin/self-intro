@@ -3,10 +3,10 @@
 - 최초 점검일: 2026-08-12
 - 상태 갱신일: 2026-08-13
 - SaaS 루트 브랜치: `docs/saas-product-guides`
-- 상태 갱신 브랜치: `docs/saas-readiness-normalization`
-- 기준 HEAD: `38da2cd`
+- 상태 갱신 브랜치: `docs/saas-local-release-verification`
+- 기준 HEAD: `57d0697`
 - 운영 상태: **미배포**
-- 목적: 82개로 분리·커밋된 SaaS 전환 변경의 검증 기준과 다음 순서를 고정한다.
+- 목적: 86개로 분리·커밋된 SaaS 전환 변경의 검증 기준과 다음 순서를 고정한다.
 
 이 문서는 구현 완료를 선언하는 문서가 아니다. 제품 기능의 소유권과 상태는
 [제품 기능 지도](../product/feature-map.md), 설계 결정은
@@ -17,8 +17,8 @@
 ## 1. Source control 상태
 
 최초 점검에서는 `scripts/inventory-saas-changes.sh`가 펼친 717개 경로가 working tree에 있었다. 이후
-기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-13 현재 SaaS 루트는 `main`보다
-82개 commit 앞서며 누적 변경은 770개 파일이다. 상태 갱신 직전 working tree는 clean이다. 아직 `main`에
+기능·경계·검증·문서 단위의 작은 branch와 commit으로 분리했고, 2026-08-13 현재 검증 HEAD는 `main`보다
+86개 commit 앞서며 누적 변경은 772개 파일이다. 상태 갱신 직전 working tree는 clean이다. 아직 `main`에
 merge·push·배포하지 않았으므로 다음 원칙을 지킨다.
 
 1. 기존 변경을 대량 포맷·되돌리기·삭제하지 않는다.
@@ -51,7 +51,7 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 
 ## 3. 확인된 기준선
 
-- 현재 Compose MySQL에서 V190~V219가 모두 `success=1`이다.
+- 현재 Compose MySQL에서 V190~V228이 모두 `success=1`이다.
 - backend·MySQL·MinIO·Redis·Oracle Vector·Oracle NoSQL·RabbitMQ 등 필요한 Compose 서비스가 실행 중이며
   backend health가 `healthy`다.
 - core·api·ai-worker 전체 Spotless와 테스트가 통과했다. 2026-08-12 Workspace Skill 조회 회귀 수정 뒤에도
@@ -74,7 +74,9 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 - MySQL은 21개 Workspace 테이블과 직접 FK 19개의 rule을 code-owned manifest로 고정했다. Compose MySQL
   transaction 격리 fixture에서 초대 선삭제, 감사 연결값 가명화, Workspace cascade, purge 제어 row 보존,
   잔여 0건과 두 번째 멱등 실행 0건을 확인하고 전체 fixture를 rollback했다. 삭제 flag는 false다.
-- Compose Workspace 격리 E2E 9단계가 실제 세션·CSRF로 모두 통과했고 종료 cleanup이 실행됐다.
+- Compose Workspace 격리 E2E 9단계가 실제 세션·CSRF로 모두 통과했고 종료 cleanup이 실행됐다. 공통
+  JobPosting 검증은 기존 로컬 공고에 의존하지 않고, 권한 증적을 가진 실행 전용 공고를 생성·승인·조회한
+  뒤 삭제하는 결정적 fixture로 고정했다.
 - 운영자 MFA 세션으로 첫 Vector source-of-truth reconciliation을 완료해 Experience 원본/Vector 17/17,
   Study 70/70과 고아·누락 0을 확인했다. 이후 과거 Compose E2E cleanup이 MySQL fixture를 직접 삭제하면서
   삭제 이벤트를 우회해 Experience·Study 고아 namespace가 2개씩 다시 발견됐다. E2E cleanup은
@@ -91,6 +93,12 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
   `PENDING_VERIFICATION`, Mailpit fragment token, 확인 전 로그인 401, 단일 사용 확인 링크, 일반 사용자
   로그인, 첫 비공개 Workspace, 발행 전 공개 404, Profile 저장과 첫 공개 snapshot·프런트 200을 순서대로
   확인했다. 종료 후 임시 계정·Workspace·초대는 모두 0건이며 운영자 세션과 기존 데이터는 변경하지 않았다.
+- `account-withdrawal-compose.sh`는 두 동시 세션, 최근 비밀번호 재인증, 탈퇴, 전체 세션 만료, 재로그인 차단,
+  DB 익명화와 감사 이벤트를 모두 통과했다. `support-access-compose.sh`는 운영 역할 MFA, OWNER 승인,
+  세 가지 최소 진단 범위, 즉시 철회, 철회 뒤 404와 감사 이벤트를 모두 통과했다.
+- 현재 HEAD에서 `./gradlew test`, Next.js production build, backend·worker·frontend 병렬 Compose 이미지
+  빌드가 통과했다. Gradle BuildKit cache는 `sharing=locked`로 직렬화해 backend·worker 동시 빌드의 journal
+  lock timeout을 제거했다.
 - 현재 Compose MySQL logical backup을 disposable clone으로 복원해 source/clone의 table 95개, 성공
   migration 122개, Workspace 1개 일치를 확인했다. 같은 clone에서 로컬 5개 purge checkpoint 전체,
   잔여 0건, 감사 가명화, purge 증적·무관 cache 보존과 2차 멱등 실행을 검증했고 clone DB와 Redis DB 15는
@@ -104,11 +112,11 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 
 | 구간 | 준비도 | 남은 핵심 조건 |
 | --- | --- | --- |
-| 로컬 비공개 베타 기반 | 약 94% | 별도 사람이 수행하는 가입·작성·발행·AI/PDF UX 확인 |
-| 핵심 Workspace 데이터 격리 | 약 96% | 레거시 호환 API 제거 시점 결정·전체 Compose 회귀 |
+| 로컬 비공개 베타 기반 | 약 96% | 별도 사람이 수행하는 작성·발행·AI/PDF UX 확인 |
+| 핵심 Workspace 데이터 격리 | 약 98% | 레거시 호환 API 제거 시점 결정 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
 | 플랫폼 보안·운영 | 약 78% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP·rate limit |
-| 릴리스 변경 세트 준비 | 약 90% | 82개 commit 분리 완료, 현재 HEAD 전체 Compose 회귀·사람의 UX 확인 |
+| 릴리스 변경 세트 준비 | 약 96% | 86개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
 | 운영 가능한 공개 SaaS | 약 63% | 운영 provider·보안 self-service·복구·배포 rehearsal |
 
 비율은 코드 줄 수가 아니라 보안·격리·복구·운영 차단 조건을 기준으로 한 준비도다.
@@ -128,16 +136,16 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 11. maintenance reconciliation·API/Worker runtime role 분리 — **완료, 로컬 clone 검증**
 12. Vector 고아·누락 source-of-truth reconciliation — **완료, 17/17·70/70 및 고아·누락 0 확인**
 13. Workspace Skill 실제 관리 화면 500 회귀 수정 — **완료, Compose API 200 확인**
-14. 운영자·별도 베타 계정의 로컬 사용자 인수 테스트 — **SMTP·가입·온보딩·첫 발행 자동 UAT 완료, 사람의 UX 확인 필요**
-15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 현재 82개 commit**
+14. 운영자·별도 베타 계정의 로컬 사용자 인수 테스트 — **SMTP·가입·온보딩·첫 발행·탈퇴·지원 접근 자동 UAT 완료, 사람의 UX 확인 필요**
+15. 717개 변경을 9개 리뷰 세트로 분류하고 작은 branch/commit으로 분리 — **완료, 현재 86개 commit**
 16. 운영 backup 보존·OCI provider 복구·격리 Worker reconciliation rehearsal 뒤 실행 flag 검토
 
-안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 82개 commit으로
+안정화 트랙은 최초 717개 경로를 9개 변경 세트로 분류하고 `manual-review=0`을 유지한 뒤 86개 commit으로
 분리했다. Identity·Access,
 Workspace 콘텐츠, Job·AI·Vector의 하위 경계·정적 review·targeted/full/Compose gate를 완료했다. 가입,
 MFA, session 회전, Membership, slug, lifecycle, 공개 revision, 지원 결과, StudyPlan, vector namespace,
 retry/DLQ와 purge·restore 경계를 로컬에서 검증했다. 다음은 별도 사람이 수행하는 UX 확인과 변경 세트
-분리는 완료됐다. 다음 release gate는 현재 commit HEAD의 전체 Compose 재실행과 사람의 UX 확인이다.
+분리는 완료됐다. 현재 commit HEAD의 자동 Compose 회귀도 통과했으며, 다음 release gate는 사람의 UX 확인이다.
 
 각 단계가 끝날 때 구현 여부, 검증 결과, 운영 배포 여부와 다음 작업을 이 문서와 운영 가이드에 함께
 기록한다.

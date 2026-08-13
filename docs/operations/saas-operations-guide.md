@@ -1982,8 +1982,9 @@ Workspace namespace와 Membership 경계를 벗어나지 못하는지 함께 검
 - V227은 지원 요청과 선택 범위, 승인·거절·철회 주체 및 시각을 저장한다. 로컬 검증은
   `SupportAccessRequestTest`, backend bootJar, frontend TypeScript·대상 ESLint·production build와
   Compose backend 재빌드를 통과했다. Flyway에서 V227 적용 성공과 backend `UP`, frontend HTTP 200도
-  확인했다. 플랫폼 운영자와 별도 Workspace OWNER 두 계정의 실제 요청→승인→진단→철회 흐름 및 감사
-  이벤트 확인만 로컬 UAT로 남아 있으며 이를 마치기 전 운영 배포하지 않는다.
+  확인했다. 플랫폼 운영자와 별도 Workspace OWNER fixture의 실제 요청→승인→세 범위 최소 진단→철회→
+  철회 후 404 흐름 및 감사 이벤트도 `scripts/e2e/support-access-compose.sh`로 통과했다. 사람의 화면 UX
+  확인과 운영 provider 설정을 마치기 전에는 운영 배포하지 않는다.
 
 ### 15.7 Account 탈퇴와 익명화 검증
 
@@ -2012,3 +2013,25 @@ Workspace namespace와 Membership 경계를 벗어나지 못하는지 함께 검
   인증 사용자에게 통과시키고 최종 권한은 `WorkspaceAccessPolicy`의 OWNER 검증이 담당하도록 수정했다.
 - 2026-08-13 로컬 Compose 최종 실행에서 세 범위 진단과 요청·승인·접근 3회·철회·철회 후 거부 감사
   이벤트 수까지 모두 통과했다. fixture는 종료 시 삭제하며 운영 배포는 수행하지 않았다.
+
+### 15.9 2026-08-13 SaaS 로컬 출시 게이트 재검증
+
+- 검증한 코드 HEAD는 `test/saas-workspace-isolation-fixture`의 `57d0697`이고, 결과를 기록한 문서 branch까지
+  포함하면 `main`보다 86개 commit, 772개 파일 앞선 적층 구조다. `main` merge·원격 push·운영 배포는
+  수행하지 않았다.
+- `docker compose build backend backend-worker frontend-next` 병렬 빌드가 통과했다. backend와 worker의
+  BuildKit Gradle cache는 `sharing=locked`로 고정해 공유 journal lock timeout을 재발하지 않게 했다.
+- Compose MySQL의 최신 Flyway 이력은 V224~V228을 포함해 모두 `success=1`이고 backend health는 `UP`다.
+- `scripts/e2e/workspace-isolation-compose.sh` 9단계가 Profile, 공개 revision·rollback, canonical slug,
+  Study·Experience Tree, Skill·Competency, 공통 공고의 Workspace별 지원 상태, 최종 PDF key·template,
+  핵심 프로젝트, 통계·후원, 초대·역할·소유권 이전·폐쇄와 Vector cleanup을 모두 통과했다. 공통 공고는
+  실행별 고유 URL과 승인 증적을 가진 fixture를 생성하고 종료 시 삭제하므로 기존 운영 데이터에 의존하지 않는다.
+- `scripts/e2e/registration-onboarding-compose.sh`는 실제 Mailpit 확인 메일, 확인 전 로그인 차단, 일회용
+  확인 링크, 첫 비공개 Workspace, 발행 전 404, schema v3 첫 발행과 공개 화면 200을 통과했다.
+- `scripts/e2e/account-withdrawal-compose.sh`는 두 로그인 세션, 최근 비밀번호 재인증, 탈퇴 뒤 전체 세션
+  만료, 기존 자격 증명 재로그인 차단, DB 익명화와 감사 이벤트를 통과했다.
+- `scripts/e2e/support-access-compose.sh`는 SUPPORT MFA, OWNER 승인, 세 최소 진단 범위, 즉시 철회,
+  철회 뒤 404와 감사 이벤트를 통과했다.
+- 현재 HEAD에서 backend `./gradlew test`와 frontend `npm run build`가 모두 성공했다. 자동화된 로컬 출시
+  게이트는 통과했으며 다음 단계는 운영자와 별도 베타 사용자가 브라우저에서 작성·공개 구성·AI·PDF,
+  반응형 화면과 실패 복구 메시지를 직접 확인하는 사람의 UX UAT다.
