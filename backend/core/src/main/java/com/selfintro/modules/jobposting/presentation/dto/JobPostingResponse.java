@@ -4,6 +4,9 @@ import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingPositionChoice;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
+import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionBasis;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionReviewStatus;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
@@ -14,6 +17,7 @@ import java.util.List;
 
 public record JobPostingResponse(
         Long id,
+        Long ownerWorkspaceId,
         String companyName,
         String positionTitle,
         String postingUrl,
@@ -34,6 +38,7 @@ public record JobPostingResponse(
         BigDecimal longitude,
         String employmentType,
         String memo,
+        Integer interestLevel,
         String jobDescription,
         String requiredQualifications,
         String preferredQualifications,
@@ -49,6 +54,18 @@ public record JobPostingResponse(
         String jobplanetCompanyName,
         String jobplanetCompanyUrl,
         LocalDateTime jobplanetCheckedAt,
+        JobPostingPermissionBasis permissionBasis,
+        JobPostingPermissionReviewStatus permissionReviewStatus,
+        String permissionEvidenceReference,
+        String permissionGrantorName,
+        String permissionGrantorAuthority,
+        String permissionScopeNote,
+        String permissionTermsVersion,
+        String permissionRevocationContact,
+        LocalDateTime permissionExpiresAt,
+        Long permissionReviewedByUserId,
+        LocalDateTime permissionReviewedAt,
+        boolean sharedCatalogEligible,
         LocalDateTime statusChangedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
@@ -64,7 +81,8 @@ public record JobPostingResponse(
     /** 2지망 이상. 1지망은 positionTitle 자신이 담당한다. */
     public record PositionChoice(Long id, int rank, String positionTitle) {
         public static PositionChoice from(JobPostingPositionChoice entity) {
-            return new PositionChoice(entity.getId(), entity.getRankOrder(), entity.getPositionTitle());
+            return new PositionChoice(
+                    entity.getId(), entity.getRankOrder(), entity.getPositionTitle());
         }
     }
 
@@ -82,6 +100,7 @@ public record JobPostingResponse(
             List<JobPostingSourceImage> sourceImages) {
         return new JobPostingResponse(
                 entity.getId(),
+                entity.getOwnerWorkspaceId(),
                 entity.getCompanyName(),
                 entity.getPositionTitle(),
                 entity.getPostingUrl(),
@@ -102,6 +121,7 @@ public record JobPostingResponse(
                 entity.getLongitude(),
                 entity.getEmploymentType(),
                 entity.getMemo(),
+                null,
                 entity.getJobDescription(),
                 entity.getRequiredQualifications(),
                 entity.getPreferredQualifications(),
@@ -117,8 +137,82 @@ public record JobPostingResponse(
                 entity.getJobplanetCompanyName(),
                 entity.getJobplanetCompanyUrl(),
                 entity.getJobplanetCheckedAt(),
+                entity.getPermissionBasis(),
+                entity.getPermissionReviewStatus(),
+                entity.getPermissionEvidenceReference(),
+                entity.getPermissionGrantorName(),
+                entity.getPermissionGrantorAuthority(),
+                entity.getPermissionScopeNote(),
+                entity.getPermissionTermsVersion(),
+                entity.getPermissionRevocationContact(),
+                entity.getPermissionExpiresAt(),
+                entity.getPermissionReviewedByUserId(),
+                entity.getPermissionReviewedAt(),
+                entity.isSharedCatalogEligible(LocalDateTime.now()),
                 entity.getStatusChangedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
+    }
+
+    public static JobPostingResponse from(
+            JobPosting entity,
+            WorkspaceJobApplication application,
+            List<JobPostingSourceUrl> sourceUrls,
+            List<JobPostingPositionChoice> positionChoices,
+            List<JobPostingSourceImage> sourceImages) {
+        return new JobPostingResponse(
+                entity.getId(),
+                entity.getOwnerWorkspaceId(),
+                entity.getCompanyName(),
+                entity.getPositionTitle(),
+                entity.getPostingUrl(),
+                sourceUrls.stream().map(SourceUrl::from).toList(),
+                positionChoices.stream().map(PositionChoice::from).toList(),
+                sourceImages.stream().map(SourceImage::from).toList(),
+                entity.getExternalId(),
+                entity.getCollectionMethod(),
+                entity.getSource(),
+                application.getStatus(),
+                application.getAppliedAt(),
+                entity.getDeadline(),
+                entity.getDeadlineTime(),
+                entity.isAlwaysOpen(),
+                entity.getSalaryNote(),
+                entity.getLocation(),
+                entity.getLatitude(),
+                entity.getLongitude(),
+                entity.getEmploymentType(),
+                application.getMemo(),
+                application.getInterestLevel(),
+                entity.getJobDescription(),
+                entity.getRequiredQualifications(),
+                entity.getPreferredQualifications(),
+                entity.getHiringProcess(),
+                entity.getApplicationMethod(),
+                entity.getCompensationDetail(),
+                application.getMatchScore(),
+                application.getMatchReason(),
+                application.getAppealAnalysis(),
+                application.getAppealAnalyzedAt(),
+                entity.getJobplanetRating(),
+                entity.getJobplanetReviewCount(),
+                entity.getJobplanetCompanyName(),
+                entity.getJobplanetCompanyUrl(),
+                entity.getJobplanetCheckedAt(),
+                entity.getPermissionBasis(),
+                entity.getPermissionReviewStatus(),
+                entity.getPermissionEvidenceReference(),
+                entity.getPermissionGrantorName(),
+                entity.getPermissionGrantorAuthority(),
+                entity.getPermissionScopeNote(),
+                entity.getPermissionTermsVersion(),
+                entity.getPermissionRevocationContact(),
+                entity.getPermissionExpiresAt(),
+                entity.getPermissionReviewedByUserId(),
+                entity.getPermissionReviewedAt(),
+                entity.isSharedCatalogEligible(LocalDateTime.now()),
+                application.getStatusChangedAt(),
+                application.getCreatedAt(),
+                application.getUpdatedAt());
     }
 }
