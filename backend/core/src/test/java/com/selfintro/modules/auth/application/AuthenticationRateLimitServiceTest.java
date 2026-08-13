@@ -1,5 +1,6 @@
 package com.selfintro.modules.auth.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -14,6 +15,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 class AuthenticationRateLimitServiceTest {
+
+    @Test
+    void passwordResetRateLimitUsesRestrictedAuditCode() {
+        assertThat(AuthenticationRateLimitService.auditReasonCode("password-reset"))
+                .isEqualTo("PASSWORD_RESET");
+    }
 
     @Test
     void disabledLimiterDoesNotRequireRedis() {

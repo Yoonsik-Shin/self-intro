@@ -8,6 +8,7 @@ import com.selfintro.modules.auth.presentation.dto.RegistrationRequest;
 import com.selfintro.modules.identity.application.PasswordResetService;
 import com.selfintro.modules.identity.application.RegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -62,8 +63,13 @@ public class RegistrationController {
 
     @PostMapping("/password-resets/confirm")
     public ResponseEntity<Void> confirmPasswordReset(
-            @Valid @RequestBody PasswordResetConfirmRequest request) {
+            @Valid @RequestBody PasswordResetConfirmRequest request,
+            HttpServletRequest httpRequest) {
         passwordResetService.confirm(request.token(), request.newPassword());
+        HttpSession currentSession = httpRequest.getSession(false);
+        if (currentSession != null) {
+            currentSession.invalidate();
+        }
         return ResponseEntity.noContent().build();
     }
 }

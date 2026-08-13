@@ -4,6 +4,7 @@ import com.selfintro.modules.securityaudit.application.AuthenticationAuditListen
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -123,8 +124,12 @@ public class AuthenticationRateLimitService {
         if (attempts != null && attempts > maxAttempts) {
             eventPublisher.publishEvent(
                     new AuthenticationAuditSignal(
-                            "AUTH_RATE_LIMITED", null, "DENIED", action.toUpperCase()));
+                            "AUTH_RATE_LIMITED", null, "DENIED", auditReasonCode(action)));
             throw new AuthenticationRateLimitExceededException(retryAfterSeconds);
         }
+    }
+
+    static String auditReasonCode(String action) {
+        return action.toUpperCase(Locale.ROOT).replace('-', '_');
     }
 }

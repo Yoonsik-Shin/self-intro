@@ -92,6 +92,9 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
   `PENDING_VERIFICATION`, Mailpit fragment token, 확인 전 로그인 401, 단일 사용 확인 링크, 일반 사용자
   로그인, 첫 비공개 Workspace, 발행 전 공개 404, Profile 저장과 첫 공개 snapshot·프런트 200을 순서대로
   확인했다. 종료 후 임시 계정·Workspace·초대는 모두 0건이며 운영자 세션과 기존 데이터는 변경하지 않았다.
+- 같은 Compose UAT를 hash-only·30분·일회성 비밀번호 재설정, 현재 세션 포함 전체 세션 폐기, 이전
+  비밀번호 차단, 새 비밀번호 로그인과 감사 이벤트까지 확장해 통과했다. rate-limit 감사 사유의 하이픈을
+  제한 코드 규격의 밑줄로 정규화해 반복 요청도 계약된 429를 반환한다.
 - Finder 휴지통 복원 뒤 `frontend-next` bind mount에 붙은 macOS 확장 속성으로 `/app` 읽기가 `EPERM`으로
   실패한 상태를 복구했다. 확인된 `com.apple.macl`·`com.apple.provenance`만 제거하고 프런트를 재시작해
   Next.js `Ready`와 직접 route 200을 확인했다. 이어 frontend format·TypeScript·production build,
@@ -120,9 +123,9 @@ SaaS 경계 V190~V225 36개로 나뉜다. 경력 콘텐츠 보강 migration과 �
 | 로컬 비공개 베타 기반 | 약 96% | 별도 사람이 수행하는 작성·발행·AI/PDF UX 확인 |
 | 핵심 Workspace 데이터 격리 | 약 98% | 레거시 호환 API 제거 시점 결정 |
 | 개인정보 물리 삭제 | 약 90% | 운영 backup/provider 복구 rehearsal·flag 승인 |
-| 플랫폼 보안·운영 | 약 84% | MFA 전체 수단 분실 복구 절차, 운영 Secret·SMTP provider 승인 |
+| 플랫폼 보안·운영 | 약 86% | MFA 전체 수단 분실 복구 절차, 이메일 변경, 운영 Secret·SMTP provider 승인 |
 | 릴리스 변경 세트 준비 | 약 97% | 검증 대상 96개 commit 분리·자동 회귀 완료, 사람의 UX 확인 |
-| 운영 가능한 공개 SaaS | 약 63% | 운영 provider·보안 self-service·복구·배포 rehearsal |
+| 운영 가능한 공개 SaaS | 약 65% | 운영 provider·이메일 변경·MFA 복구·배포 rehearsal |
 
 비율은 코드 줄 수가 아니라 보안·격리·복구·운영 차단 조건을 기준으로 한 준비도다.
 

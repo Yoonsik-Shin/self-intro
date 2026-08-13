@@ -8,6 +8,7 @@ E2E_RUN_KEY="$(date +%s)-$$"
 E2E_EMAIL="registration-e2e-$E2E_RUN_KEY@example.invalid"
 E2E_INVITATION_CODE="registration-e2e-invite-$E2E_RUN_KEY"
 E2E_PASSWORD="Reg-e2e-${E2E_RUN_KEY:0:16}!Aa1"
+E2E_NEW_PASSWORD="Reset-e2e-${E2E_RUN_KEY:0:14}!Bb2"
 E2E_NICKNAME="가입 UAT $E2E_RUN_KEY"
 E2E_WORKSPACE_NAME="가입 UAT Workspace $E2E_RUN_KEY"
 E2E_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/self-intro-registration-e2e.XXXXXX")"
@@ -33,11 +34,20 @@ db_exec() {
         'mysql --default-character-set=utf8mb4 -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -N'
 }
 
+clear_uat_auth_rate_limits() {
+    docker compose exec -T redis sh -lc \
+        "redis-cli --scan --pattern 'self-intro:auth-rate:*' | xargs -r redis-cli DEL" \
+        >/dev/null
+}
+
 cleanup() {
     set +e
     db_exec <<SQL >/dev/null 2>&1
 DELETE FROM security_audit_event
 WHERE actor_user_id IN (SELECT id FROM app_user WHERE email_canonical = '$E2E_EMAIL')
+   OR (target_type = 'APP_USER'
+       AND CAST(target_id AS UNSIGNED) =
+           (SELECT id FROM app_user WHERE email_canonical = '$E2E_EMAIL'))
    OR workspace_id IN (SELECT id FROM workspace WHERE slug = '$E2E_WORKSPACE_SLUG');
 DELETE FROM workspace WHERE slug = '$E2E_WORKSPACE_SLUG';
 DELETE FROM app_user WHERE email_canonical = '$E2E_EMAIL';
@@ -47,6 +57,10 @@ SQL
     rm -rf "$E2E_TMP_DIR"
 }
 trap cleanup EXIT INT TERM
+
+# 반복 가능한 로컬 UAT를 위해 이 시나리오가 검증하는 인증 테스트 카운터만 초기화한다.
+# 운영 URL에서는 스크립트 자체가 실행을 거부한다.
+clear_uat_auth_rate_limits
 
 csrf_token() {
     local cookie_jar="$1"
@@ -133,7 +147,35 @@ wait_for_verification_token() {
     return 1
 }
 
-echo "[1/6] Compose 서비스와 가입 화면 확인"
+wait_for_password_reset_token() {
+    local attempt mail_id token
+    for attempt in $(seq 1 30); do
+        mail_id="$(
+            docker compose exec -T mailpit wget -qO- 'http://127.0.0.1:8025/api/v1/messages?limit=100' |
+                jq -r --arg email "$E2E_EMAIL" \
+                    '.messages[] | select(.Subject == "Self-Intro 비밀번호 재설정" and any(.To[]; .Address == $email)) | .ID' |
+                head -1
+        )"
+        if [[ -n "$mail_id" && "$mail_id" != "null" ]]; then
+            token="$(
+                docker compose exec -T mailpit wget -qO- "http://127.0.0.1:8025/api/v1/message/$mail_id" |
+                    jq -r '.Text' |
+                    grep -o '#token=[A-Za-z0-9_-]*' |
+                    head -1 |
+                    cut -d= -f2
+            )"
+            if [[ -n "$token" ]]; then
+                printf '%s' "$token"
+                return 0
+            fi
+        fi
+        sleep 1
+    done
+    echo "FAIL: Mailpit에서 비밀번호 재설정 token을 찾지 못했습니다." >&2
+    return 1
+}
+
+echo "[1/7] Compose 서비스와 가입 화면 확인"
 docker compose ps --status running backend backend-db frontend-next mailpit nginx >/dev/null
 wait_for_backend
 for frontend_route in signup login onboarding/workspace; do
@@ -147,7 +189,7 @@ for frontend_route in signup login onboarding/workspace; do
 done
 echo "PASS: 가입·로그인·첫 Workspace 프런트 route (각 200)"
 
-echo "[2/6] 개인 초대 fixture와 실제 SMTP 확인 메일"
+echo "[2/7] 개인 초대 fixture와 실제 SMTP 확인 메일"
 db_exec <<SQL >/dev/null
 INSERT INTO registration_invitation (
     code_hash, label, recipient_email_canonical, expires_at, max_uses, used_count,
@@ -179,7 +221,7 @@ SQL
 E2E_VERIFICATION_TOKEN="$(wait_for_verification_token)"
 echo "PASS: Mailpit 가입 확인 메일과 fragment token"
 
-echo "[3/6] 확인 전 로그인 차단과 단일 사용 이메일 확인"
+echo "[3/7] 확인 전 로그인 차단과 단일 사용 이메일 확인"
 request "$E2E_COOKIE" POST /api/auth/login \
     "$(jq -cn --arg username "$E2E_EMAIL" --arg password "$E2E_PASSWORD" \
         '{username:$username,password:$password}')"
@@ -192,7 +234,7 @@ request "$E2E_COOKIE" POST /api/auth/email-verifications \
 assert_status 400 "확인 token 재사용 차단"
 unset E2E_VERIFICATION_TOKEN
 
-echo "[4/6] 일반 사용자 로그인과 첫 비공개 Workspace 생성"
+echo "[4/7] 일반 사용자 로그인과 첫 비공개 Workspace 생성"
 request "$E2E_COOKIE" POST /api/auth/login \
     "$(jq -cn --arg username "$E2E_EMAIL" --arg password "$E2E_PASSWORD" \
         '{username:$username,password:$password}')"
@@ -213,7 +255,7 @@ jq -e '.publicationStatus == "PRIVATE" and (.publicKey | length > 0)' "$E2E_RESP
 request "$E2E_VISITOR_COOKIE" GET "/api/bff/workspaces/$E2E_WORKSPACE_SLUG/introduction?channel=WEB"
 assert_status 404 "첫 발행 전 공개 접근 차단"
 
-echo "[5/6] 원본 Profile과 공개 구성 초안 분리"
+echo "[5/7] 원본 Profile과 공개 구성 초안 분리"
 request "$E2E_COOKIE" PUT "/api/workspaces/$E2E_WORKSPACE_SLUG/profile" \
     "$(jq -cn --arg marker "$E2E_RUN_KEY" '{
         name:("가입 UAT " + $marker),
@@ -268,7 +310,7 @@ request "$E2E_COOKIE" PUT "/api/workspaces/$E2E_WORKSPACE_SLUG/public-page/draft
     '{"showName":true,"showNameEn":true,"showJobTitle":true,"showBio":true,"showCoreStackSummary":true,"showStatusBadge":true,"showGithub":true,"showEmail":false,"showPhone":false,"skills":[],"competencies":[]}'
 assert_status 200 "Profile 공개 구성 초안 저장"
 
-echo "[6/6] schema v3 첫 발행·category revision·공개 snapshot"
+echo "[6/7] schema v3 첫 발행·category revision·공개 snapshot"
 request "$E2E_COOKIE" POST "/api/workspaces/$E2E_WORKSPACE_SLUG/publication/manage/publish"
 assert_status 200 "신규 Workspace 첫 공개 발행"
 jq -e '.publicationStatus == "PUBLISHED" and .revisionNumber == 1' "$E2E_RESPONSE" >/dev/null
@@ -285,4 +327,62 @@ E2E_PUBLIC_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' "$E2E_FRONTEND_URL/
 }
 echo "PASS: 신규 Workspace 공개 프런트 route (200)"
 
-echo "PASS: 초대 가입 → SMTP 확인 → 로그인 → 비공개 Workspace → 공개 구성 → schema v3 첫 발행 Compose UAT"
+echo "[7/7] 비밀번호 재설정·세션 폐기·단일 사용 token"
+request "$E2E_VISITOR_COOKIE" POST /api/auth/password-resets \
+    "$(jq -cn --arg email "missing-$E2E_EMAIL" '{email:$email}')"
+assert_status 202 "미등록 이메일 재설정 요청의 계정 비노출 응답"
+request "$E2E_COOKIE" POST /api/auth/password-resets \
+    "$(jq -cn --arg email "$E2E_EMAIL" '{email:$email}')"
+assert_status 202 "등록 계정 비밀번호 재설정 요청"
+E2E_PASSWORD_RESET_TOKEN="$(wait_for_password_reset_token)"
+E2E_PASSWORD_RESET_DB_STATE="$(db_exec <<SQL
+SELECT CONCAT(
+    COUNT(*), '|',
+    SUM(token_hash = UNHEX(SHA2('$E2E_PASSWORD_RESET_TOKEN', 256))), '|',
+    SUM(HEX(token_hash) = HEX('$E2E_PASSWORD_RESET_TOKEN'))
+)
+FROM password_reset_token
+WHERE user_id = (SELECT id FROM app_user WHERE email_canonical = '$E2E_EMAIL');
+SQL
+)"
+[[ "$E2E_PASSWORD_RESET_DB_STATE" == "1|1|0" ]] || {
+    echo "FAIL: 재설정 token은 SHA-256 hash 한 건으로만 저장되어야 합니다. (actual=$E2E_PASSWORD_RESET_DB_STATE)" >&2
+    exit 1
+}
+echo "PASS: 비밀번호 재설정 token hash-only 저장"
+request "$E2E_COOKIE" POST /api/auth/password-resets/confirm \
+    "$(jq -cn --arg token "$E2E_PASSWORD_RESET_TOKEN" --arg newPassword "$E2E_NEW_PASSWORD" \
+        '{token:$token,newPassword:$newPassword}')"
+assert_status 204 "새 비밀번호 확정"
+request "$E2E_COOKIE" GET /api/auth/me
+assert_status 401 "비밀번호 변경 뒤 기존 세션 폐기"
+request "$E2E_COOKIE" POST /api/auth/login \
+    "$(jq -cn --arg username "$E2E_EMAIL" --arg password "$E2E_PASSWORD" \
+        '{username:$username,password:$password}')"
+assert_status 401 "이전 비밀번호 로그인 차단"
+request "$E2E_COOKIE" POST /api/auth/login \
+    "$(jq -cn --arg username "$E2E_EMAIL" --arg password "$E2E_NEW_PASSWORD" \
+        '{username:$username,password:$password}')"
+assert_status 200 "새 비밀번호 로그인"
+request "$E2E_COOKIE" POST /api/auth/password-resets/confirm \
+    "$(jq -cn --arg token "$E2E_PASSWORD_RESET_TOKEN" --arg newPassword "$E2E_PASSWORD" \
+        '{token:$token,newPassword:$newPassword}')"
+assert_status 400 "비밀번호 재설정 token 재사용 차단"
+E2E_PASSWORD_RESET_AUDIT_COUNT="$(db_exec <<SQL
+SELECT COUNT(*)
+FROM security_audit_event
+WHERE actor_user_id IS NULL
+  AND target_type = 'APP_USER'
+  AND CAST(target_id AS UNSIGNED) =
+      (SELECT id FROM app_user WHERE email_canonical = '$E2E_EMAIL')
+  AND event_type IN ('PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED');
+SQL
+)"
+[[ "$E2E_PASSWORD_RESET_AUDIT_COUNT" == "2" ]] || {
+    echo "FAIL: 비밀번호 재설정 요청·완료 감사 이벤트가 필요합니다. (actual=$E2E_PASSWORD_RESET_AUDIT_COUNT)" >&2
+    exit 1
+}
+unset E2E_PASSWORD_RESET_TOKEN
+echo "PASS: 비밀번호 재설정 요청·완료 감사 이벤트"
+
+echo "PASS: 초대 가입 → SMTP 확인 → 로그인 → 비공개 Workspace → 공개 구성 → schema v3 첫 발행 → 비밀번호 재설정 Compose UAT"

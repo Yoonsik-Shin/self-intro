@@ -1464,6 +1464,13 @@ Workspace namespace와 Membership 경계를 벗어나지 못하는지 함께 검
   timezone 차이에도 과거가 되지 않도록 2일 여유를 둔다. 스크립트는 로컬 URL만 허용하고 종료 시 생성한
   계정·Workspace·초대 fixture를 정확한 식별자로 삭제하며 최종 잔여 0건을 확인했다. 사람의 문구·동선
   체감 확인은 별도 브라우저 세션의 베타테스터 UAT로 남긴다. 운영에는 배포하지 않았다.
+- 2026-08-13 같은 Compose UAT를 비밀번호 재설정까지 확장했다. 미등록·등록 이메일 요청이 같은 202를
+  반환하고, Mailpit fragment token과 DB의 SHA-256 hash-only 저장, 일회성 소비, 현재 세션을 포함한 전체
+  세션 폐기, 이전 비밀번호 차단, 새 비밀번호 로그인, 요청·완료 감사 이벤트를 순서대로 확인했다. 재설정
+  직후 현재 요청 세션이 다시 저장되던 문제는 controller가 성공 응답 전에 현재 `HttpSession`을 명시적으로
+  무효화하도록 수정했다. 반복 로컬 실행은 인증 rate-limit 테스트 키만 초기화하며 운영 URL에서는
+  스크립트가 실행을 거부한다. `password-reset` 제한 사유도 감사 코드 규격에 맞는
+  `PASSWORD_RESET`으로 정규화해 제한 도달 시 400이 아니라 계약된 429를 반환한다.
 - 2026-08-12 Workspace 관리 UI에 남아 있던 Experience·Study·Competency AI의 `/api/admin/**` 호출을
   slug 기반 canonical API로 교체했다. 서비스는 Skill overlay, Experience, ExperienceDetail, Study,
   Competency 후보를 모두 URL Workspace로 조회하며 다른 Workspace ID는 AI provider 호출 전에
