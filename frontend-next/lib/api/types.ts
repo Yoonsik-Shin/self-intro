@@ -8,7 +8,8 @@ export type ImageScope =
     | 'STUDY_MARKDOWN'
     | 'PRINT_TEMPLATE_FINAL_PDF'
     | 'PORTFOLIO_ARCHITECTURE'
-    | 'JOB_POSTING_SCREENSHOT';
+    | 'JOB_POSTING_SCREENSHOT'
+    | 'WORKSPACE_JOB_POSTING_SCREENSHOT_TEMP';
 
 export type GalleryImage = {
     id?: number;
@@ -35,6 +36,8 @@ export type TaxonomyNode = {
     slug: string;
     displayOrder: number;
     parentId: number | null;
+    schemeId: number;
+    stableKey: string;
 };
 
 export type TaxonomyNodeRequest = {
@@ -42,6 +45,7 @@ export type TaxonomyNodeRequest = {
     slug: string;
     displayOrder: number;
     parentId: number | null;
+    schemeId?: number | null;
 };
 
 export type StudyTaxonomyNode = TaxonomyNode & {
@@ -330,6 +334,25 @@ export type LearningResourceRequest = {
     relatedResources: Array<{ resourceId: number; type: LearningResourceRelationType }>;
 };
 
+export type WorkspaceLearningResourceRequest = Pick<
+    LearningResourceRequest,
+    'status' | 'priorityTier' | 'displayOrder' | 'summary' | 'detailMarkdown' | 'tagNames'
+>;
+
+export type LearningResourceCatalogItem = Pick<
+    LearningResource,
+    | 'id'
+    | 'slug'
+    | 'title'
+    | 'resourceType'
+    | 'provider'
+    | 'url'
+    | 'instructorOrAuthor'
+    | 'durationMinutes'
+    | 'taxonomyNodes'
+    | 'skills'
+> & { saved: boolean };
+
 export type LearningResourcePage = {
     content: LearningResource[];
     page: number;
@@ -368,8 +391,10 @@ export type Profile = {
     coreStackSummary: string;
     statusBadgeText: string;
     githubUrl: string;
-    email: string;
-    phone: string;
+    email: string | null;
+    phone: string | null;
+    publicEmail: boolean;
+    publicPhone: boolean;
     updatedAt: string;
 };
 
@@ -395,7 +420,10 @@ export type ExperienceDetail = {
     actionDetail?: string;
     outcome?: string;
     narrative?: string;
+    /** @deprecated 공개·출력 선택은 composition에서 관리한다. 읽기 호환 전용. */
     visible?: boolean;
+    /** @deprecated 공개·출력 선택은 composition에서 관리한다. 읽기 호환 전용. */
+    publicVisible?: boolean;
     displayOrder: number;
     skills: Skill[];
 };
@@ -528,10 +556,6 @@ export type IntroductionResponse = {
     competencies: Competency[];
 };
 
-export type LearningResponse = {
-    studies: Study[];
-};
-
 export type VisitorSummary = {
     todayVisitors: number;
     totalVisitors: number;
@@ -635,6 +659,23 @@ export type JobPostingSource = 'URL_INGEST' | 'SARAMIN' | 'MANUAL' | 'IMAGE_INGE
 
 export type JobPostingPlatform = 'WANTED' | 'JOBKOREA' | 'SARAMIN' | 'GREETINGHR' | 'OTHER';
 
+export type JobPostingPermissionBasis =
+    'UNKNOWN' | 'EMPLOYER_DIRECT_SUBMISSION' | 'WRITTEN_LICENSE' | 'OFFICIAL_API_LICENSE';
+
+export type JobPostingPermissionReviewStatus = 'REVIEW_REQUIRED' | 'APPROVED' | 'REJECTED';
+
+export type JobPostingPermissionReviewRequest = {
+    reviewStatus: JobPostingPermissionReviewStatus;
+    permissionBasis: JobPostingPermissionBasis;
+    evidenceReference?: string | null;
+    grantorName?: string | null;
+    grantorAuthority?: string | null;
+    permissionScopeNote?: string | null;
+    termsVersion?: string | null;
+    revocationContact?: string | null;
+    expiresAt?: string | null;
+};
+
 /** 회사+직무가 같아 병합된 공고에 등록된 URL 하나. "원본 보기" 팝오버가 이 목록을 그대로 나열한다. */
 export type JobPostingSourceUrl = {
     id: number;
@@ -667,6 +708,7 @@ export type JobPostingSourceImage = {
  * 지원 전(수집 후보), APPLIED 이상이면 지원 완료 단계다. */
 export type JobPosting = {
     id: number;
+    ownerWorkspaceId: number | null;
     companyName: string;
     positionTitle: string;
     postingUrl: string | null;
@@ -687,6 +729,7 @@ export type JobPosting = {
     longitude?: number | null;
     employmentType: string | null;
     memo: string | null;
+    interestLevel?: number | null;
     jobDescription: string | null;
     requiredQualifications: string | null;
     preferredQualifications: string | null;
@@ -702,6 +745,18 @@ export type JobPosting = {
     jobplanetCompanyName: string | null;
     jobplanetCompanyUrl: string | null;
     jobplanetCheckedAt: string | null;
+    permissionBasis: JobPostingPermissionBasis;
+    permissionReviewStatus: JobPostingPermissionReviewStatus;
+    permissionEvidenceReference: string | null;
+    permissionGrantorName: string | null;
+    permissionGrantorAuthority: string | null;
+    permissionScopeNote: string | null;
+    permissionTermsVersion: string | null;
+    permissionRevocationContact: string | null;
+    permissionExpiresAt: string | null;
+    permissionReviewedByUserId: number | null;
+    permissionReviewedAt: string | null;
+    sharedCatalogEligible: boolean;
     statusChangedAt: string;
     createdAt: string;
     updatedAt: string;
@@ -734,6 +789,64 @@ export type JobPostingStatusEvent = {
     memo: string | null;
     changedAt: string;
 };
+
+export type WorkspaceJobApplicationRequest = {
+    status: JobPostingStatus;
+    appliedAt?: string | null;
+    memo?: string | null;
+    interestLevel?: number | null;
+    matchScore?: number | null;
+    matchReason?: string | null;
+};
+
+export type WorkspacePrivateJobPostingRequest = {
+    companyName: string;
+    positionTitle: string;
+    source?: 'MANUAL' | 'URL_INGEST' | 'IMAGE_INGEST' | null;
+    postingUrl?: string | null;
+    deadline?: string | null;
+    deadlineTime?: string | null;
+    alwaysOpen: boolean;
+    salaryNote?: string | null;
+    location?: string | null;
+    employmentType?: string | null;
+    requiredSkillsRaw?: string | null;
+    jobDescription?: string | null;
+    requiredQualifications?: string | null;
+    preferredQualifications?: string | null;
+    hiringProcess?: string | null;
+    applicationMethod?: string | null;
+    compensationDetail?: string | null;
+    status: JobPostingStatus;
+    appliedAt?: string | null;
+    memo?: string | null;
+    interestLevel?: number | null;
+    matchScore?: number | null;
+    matchReason?: string | null;
+};
+
+export type WorkspaceJobScreenshotUploadResponse = {
+    uploadId: string;
+    uploadUrl: string;
+    expiresAt: string;
+};
+
+/**
+ * 일반 Workspace에 공개하는 공통 공고의 최소 탐색 정보입니다.
+ * 원문 본문과 자격 요건은 원본 채용 사이트에서 확인합니다.
+ */
+export type JobPostingCatalogItem = Pick<
+    JobPosting,
+    | 'id'
+    | 'companyName'
+    | 'positionTitle'
+    | 'postingUrl'
+    | 'source'
+    | 'deadline'
+    | 'alwaysOpen'
+    | 'location'
+    | 'employmentType'
+> & { saved: boolean };
 
 export type JobPostingCoverLetterItem = {
     id: number;
@@ -865,7 +978,6 @@ export type ExperienceDetailRequest = {
     actionDetail?: string;
     outcome?: string;
     narrative?: string;
-    visible?: boolean;
     skillIds: number[];
 };
 
@@ -1053,6 +1165,18 @@ export type PrintTemplateContentOverrides = {
     >;
     competencies?: Record<string, Partial<{ title: string; summary: string }>>;
     selectedSkillIds?: number[] | null;
+    /** 원본 Workspace 기술의 활용 구분을 바꾸지 않는 출력 템플릿 전용 배치 위치. */
+    skillGroupOverrides?: Record<string, 'CORE' | 'PROJECT_LEARNING'>;
+    /** 원본 이력과 독립적으로 출력 문서에만 추가하는 사용자 정의 섹션. */
+    customSections?: Array<{
+        id: string;
+        title: string;
+        items: Array<{
+            id: string;
+            title: string;
+            content: string;
+        }>;
+    }>;
 };
 
 /** 프론트에서 사용하는 파싱된 형태 */

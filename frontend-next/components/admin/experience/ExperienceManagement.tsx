@@ -14,8 +14,6 @@ import {
     ListChecks,
     MinusCircle,
     Pencil,
-    Pin,
-    PinOff,
     Plus,
     PlusCircle,
     RefreshCw,
@@ -87,7 +85,8 @@ const emptyExperienceForm: AdminExperienceForm = {
     summary: '',
     takeaway: '',
     displayOrder: 0,
-    showOnTimeline: true,
+    // Legacy compatibility fields. Public placement is configured in Public Page composition.
+    showOnTimeline: false,
     timelineLabel: '',
     details: [],
     skillIds: [],
@@ -114,9 +113,13 @@ const emptyExperienceForm: AdminExperienceForm = {
 };
 
 export function ExperienceManagement({
+    workspaceSlug,
+    enableWorkspaceAi,
     pendingIntent,
     onConsumeIntent,
 }: {
+    workspaceSlug: string;
+    enableWorkspaceAi: boolean;
     pendingIntent: PendingExperienceIntent;
     onConsumeIntent: () => void;
 }) {
@@ -127,19 +130,20 @@ export function ExperienceManagement({
     };
 
     const { data: experiencesList } = useQuery({
-        queryKey: ['experiences'],
-        queryFn: () => experienceApi.list(),
+        queryKey: ['experiences', workspaceSlug],
+        queryFn: () => experienceApi.workspaceList(workspaceSlug),
     });
     const { data: studyPage } = useQuery({
-        queryKey: ['studies', 'admin'],
-        queryFn: () => studyApi.adminList(),
+        queryKey: ['studies', 'workspace', workspaceSlug],
+        queryFn: () => studyApi.workspaceAdminList(workspaceSlug),
     });
     const studies = studyPage?.content;
-    const { data: skillsList } = useQuery({ queryKey: ['skills'], queryFn: () => skillApi.list() });
+    const { data: skillsList } = useQuery({
+        queryKey: ['skills', workspaceSlug],
+        queryFn: () => skillApi.workspaceList(workspaceSlug),
+    });
 
     const [expFilter, setExpFilter] = useState('ALL');
-    const [visibilityFilter, setVisibilityFilter] = useState<'ALL' | 'VISIBLE' | 'HIDDEN'>('ALL');
-    const [selectedExperienceIds, setSelectedExperienceIds] = useState<number[]>([]);
     const [expSearch, setExpSearch] = useState('');
     const [expSkillSearch, setExpSkillSearch] = useState('');
     const [detailSkillSearch, setDetailSkillSearch] = useState('');
@@ -148,32 +152,9 @@ export function ExperienceManagement({
     const [expRelatedSearch, setExpRelatedSearch] = useState('');
     const [expChildProjectSearch, setExpChildProjectSearch] = useState('');
 
-    const toggleTimelineMutation = useMutation({
-        mutationFn: (id: number) => experienceApi.toggleTimeline(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['experiences'] }),
-        onError: handleMutationError,
-    });
-
-    const batchPublishMutation = useMutation({
-        mutationFn: (ids: number[]) => experienceApi.batchTimelineShow(ids),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['experiences'] });
-            setSelectedExperienceIds([]);
-        },
-        onError: handleMutationError,
-    });
-
-    const batchUnpublishMutation = useMutation({
-        mutationFn: (ids: number[]) => experienceApi.batchTimelineHide(ids),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['experiences'] });
-            setSelectedExperienceIds([]);
-        },
-        onError: handleMutationError,
-    });
-
     const reorderMutation = useMutation({
-        mutationFn: (orderedIds: number[]) => experienceApi.reorder(orderedIds),
+        mutationFn: (orderedIds: number[]) =>
+            experienceApi.workspaceReorder(workspaceSlug, orderedIds),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['experiences'] }),
         onError: handleMutationError,
     });
@@ -222,6 +203,8 @@ export function ExperienceManagement({
         if (!pendingIntent || !experiencesList) return;
         const nextDisplayOrder =
             Math.max(-1, ...experiencesList.map((experience) => experience.displayOrder)) + 1;
+        // 외부 탭에서 전달된 일회성 생성 intent를 편집 폼 상태로 소비한다.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedExperienceId(null);
         setExpEditingId(null);
         setExpForm({ ...emptyExperienceForm, type: 'PROJECT', displayOrder: nextDisplayOrder });
@@ -246,11 +229,7 @@ export function ExperienceManagement({
                 (item.summary && item.summary.toLowerCase().includes(expSearch.toLowerCase()));
             return matchesType && matchesSearch;
         });
-        return {
-            all: list.length,
-            visible: list.filter((item) => item.showOnTimeline).length,
-            hidden: list.filter((item) => !item.showOnTimeline).length,
-        };
+        return { all: list.length };
     }, [experiencesList, expFilter, expSearch]);
 
     const sortedExperiences = useMemo(() => {
@@ -270,55 +249,13 @@ export function ExperienceManagement({
                         (exp.educationType === 'COURSE' ||
                             (!exp.educationType && credentialKindLabel(exp) === '교육'))
                       : exp.type === expFilter);
-            const matchesVisibility =
-                visibilityFilter === 'ALL' ||
-                (visibilityFilter === 'VISIBLE' && exp.showOnTimeline) ||
-                (visibilityFilter === 'HIDDEN' && !exp.showOnTimeline);
             const matchesSearch =
                 !expSearch ||
                 exp.title.toLowerCase().includes(expSearch.toLowerCase()) ||
                 (exp.summary && exp.summary.toLowerCase().includes(expSearch.toLowerCase()));
-            return matchesType && matchesVisibility && matchesSearch;
+            return matchesType && matchesSearch;
         });
-    }, [sortedExperiences, expFilter, visibilityFilter, expSearch]);
-
-    const toggleSelectExperience = (id: number) => {
-        setSelectedExperienceIds((prev) =>
-            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-        );
-    };
-
-    const toggleSelectAllFiltered = () => {
-        const filteredIds = filteredExperiences.map((e) => e.id);
-        const allSelected = filteredIds.every((id) => selectedExperienceIds.includes(id));
-        if (allSelected) {
-            setSelectedExperienceIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
-        } else {
-            setSelectedExperienceIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
-        }
-    };
-
-    const handleBatchPublish = (ids: number[]) => {
-        if (ids.length === 0) return;
-        if (
-            window.confirm(
-                `선택한 ${ids.length}개의 이력 항목을 모두 타임라인 공개로 전환하시겠습니까?`
-            )
-        ) {
-            batchPublishMutation.mutate(ids);
-        }
-    };
-
-    const handleBatchUnpublish = (ids: number[]) => {
-        if (ids.length === 0) return;
-        if (
-            window.confirm(
-                `선택한 ${ids.length}개의 이력 항목을 모두 타임라인 숨김으로 전환하시겠습니까?`
-            )
-        ) {
-            batchUnpublishMutation.mutate(ids);
-        }
-    };
+    }, [sortedExperiences, expFilter, expSearch]);
 
     const handleMove = (id: number, direction: 'UP' | 'DOWN') => {
         const index = sortedExperiences.findIndex((item) => item.id === id);
@@ -399,7 +336,7 @@ export function ExperienceManagement({
             const isCurrentlyLinked = proj.careerId === careerId;
             if (isSelected === isCurrentlyLinked) continue;
 
-            await experienceApi.update(proj.id, {
+            await experienceApi.workspaceUpdate(workspaceSlug, proj.id, {
                 type: proj.type,
                 title: proj.title,
                 periodStart: proj.periodStart,
@@ -445,8 +382,9 @@ export function ExperienceManagement({
             form: AdminExperienceForm;
             addToCoreProjects: boolean;
         }) => {
-            const experience = await experienceApi.create(payload);
-            await connectionApi.updateExperience(
+            const experience = await experienceApi.workspaceCreate(workspaceSlug, payload);
+            await connectionApi.updateWorkspaceExperience(
+                workspaceSlug,
                 experience.id,
                 buildExperienceConnections(experience, form)
             );
@@ -458,8 +396,9 @@ export function ExperienceManagement({
                 );
             }
             if (addToCoreProjects) {
-                const placements = await experiencePlacementApi.listCoreProjects();
-                await experiencePlacementApi.replaceCoreProjects([
+                const placements =
+                    await experiencePlacementApi.workspaceListCoreProjects(workspaceSlug);
+                await experiencePlacementApi.workspaceReplaceCoreProjects(workspaceSlug, [
                     ...placements.map((placement, index) => ({
                         experienceId: placement.experienceId,
                         displayOrder: index,
@@ -480,7 +419,9 @@ export function ExperienceManagement({
             queryClient.invalidateQueries({ queryKey: ['experiences'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
             queryClient.invalidateQueries({ queryKey: ['introduction'] });
-            queryClient.invalidateQueries({ queryKey: ['experience-placements', 'CORE_PROJECT'] });
+            queryClient.invalidateQueries({
+                queryKey: ['experience-placements', workspaceSlug, 'CORE_PROJECT'],
+            });
             setExpForm(emptyExperienceForm);
             setIsExpFormOpen(false);
             setCreateAsCoreProject(false);
@@ -498,8 +439,9 @@ export function ExperienceManagement({
             payload: ExperienceRequest;
             form: AdminExperienceForm;
         }) => {
-            const experience = await experienceApi.update(id, payload);
-            await connectionApi.updateExperience(
+            const experience = await experienceApi.workspaceUpdate(workspaceSlug, id, payload);
+            await connectionApi.updateWorkspaceExperience(
+                workspaceSlug,
                 experience.id,
                 buildExperienceConnections(experience, form)
             );
@@ -524,7 +466,7 @@ export function ExperienceManagement({
     });
 
     const deleteExpMutation = useMutation({
-        mutationFn: experienceApi.remove,
+        mutationFn: (id: number) => experienceApi.workspaceRemove(workspaceSlug, id),
         onSuccess: (_data, deletedId) => {
             queryClient.invalidateQueries({ queryKey: ['experiences'] });
             queryClient.invalidateQueries({ queryKey: ['introduction'] });
@@ -540,7 +482,8 @@ export function ExperienceManagement({
         const controller = new AbortController();
         expAiAbortRef.current = controller;
         try {
-            await experienceApi.suggestStream(
+            await experienceApi.workspaceSuggestStream(
+                workspaceSlug,
                 {
                     instruction: expAiInstruction,
                     type: expForm.type,
@@ -627,7 +570,7 @@ export function ExperienceManagement({
         setNarrativeError(null);
         setIsNarrativeGenerating(true);
         try {
-            const { narrative } = await experienceApi.generateNarrative({
+            const { narrative } = await experienceApi.workspaceGenerateNarrative(workspaceSlug, {
                 content: detail.content,
                 situation: detail.situation,
                 actionDetail: detail.actionDetail,
@@ -715,7 +658,10 @@ export function ExperienceManagement({
 
     const openExperienceEditor = async (experience: Experience) => {
         try {
-            const connections = await connectionApi.getExperience(experience.id);
+            const connections = await connectionApi.getWorkspaceExperience(
+                workspaceSlug,
+                experience.id
+            );
             const detailStudies = new Map(
                 connections.detailStudies.map((connection) => [
                     connection.detailId,
@@ -743,7 +689,6 @@ export function ExperienceManagement({
                     actionDetail: detail.actionDetail ?? '',
                     outcome: detail.outcome ?? '',
                     narrative: detail.narrative ?? '',
-                    visible: detail.visible !== false,
                     skillIds: detail.skills?.map((skill) => skill.id) ?? [],
                     studyIds: detailStudies.get(detail.id) ?? [],
                 })),
@@ -837,15 +782,6 @@ export function ExperienceManagement({
         setDraggedDetailIdx(null);
     };
 
-    const toggleDetailVisibility = (idx: number) => {
-        setExpForm((prev) => ({
-            ...prev,
-            details: prev.details.map((d, i) =>
-                i === idx ? { ...d, visible: d.visible === false ? true : false } : d
-            ),
-        }));
-    };
-
     const addDetailPoint = () => {
         if (detailInput.trim()) {
             setExpForm({
@@ -858,7 +794,6 @@ export function ExperienceManagement({
                         actionDetail: '',
                         outcome: '',
                         narrative: '',
-                        visible: true,
                         skillIds: [],
                         studyIds: [],
                     },
@@ -942,7 +877,8 @@ export function ExperienceManagement({
                 <div>
                     <h2 className="text-xl font-black text-slate-950">이력 및 경력 관리</h2>
                     <p className="text-sm text-slate-500 mt-0.5">
-                        Career, Project, Education, Certificate 항목을 유형별로 관리합니다.
+                        경력·프로젝트·교육·자격 원본을 기록합니다. 공개 범위와 타임라인 구성은 공개
+                        페이지에서 관리합니다.
                     </p>
                 </div>
                 <button
@@ -969,27 +905,9 @@ export function ExperienceManagement({
                 <div className="space-y-3 animate-fadeIn">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-xs backdrop-blur-xl">
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
-                                {[
-                                    { value: 'ALL', label: `전체 ${counts.all}` },
-                                    { value: 'VISIBLE', label: `공개 ${counts.visible}` },
-                                    { value: 'HIDDEN', label: `숨김 ${counts.hidden}` },
-                                ].map(({ value, label }) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        onClick={() =>
-                                            setVisibilityFilter(
-                                                value as 'ALL' | 'VISIBLE' | 'HIDDEN'
-                                            )
-                                        }
-                                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${visibilityFilter === value ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+                            <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
+                                전체 원본 {counts.all}개
+                            </span>
                             <div className="flex flex-wrap gap-1">
                                 {[
                                     'ALL',
@@ -1033,97 +951,6 @@ export function ExperienceManagement({
                             </div>
                         </div>
                     </div>
-
-                    {visibilityFilter !== 'ALL' && (
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-xs">
-                            <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
-                                    <input
-                                        type="checkbox"
-                                        checked={Boolean(
-                                            filteredExperiences.length > 0 &&
-                                            filteredExperiences.every((e) =>
-                                                selectedExperienceIds.includes(e.id)
-                                            )
-                                        )}
-                                        onChange={toggleSelectAllFiltered}
-                                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                    />
-                                    현재 {visibilityFilter === 'VISIBLE' ? '공개' : '숨김'} 목록
-                                    전체 선택 ({filteredExperiences.length}개 중{' '}
-                                    {selectedExperienceIds.length}개 선택됨)
-                                </label>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                {visibilityFilter === 'VISIBLE' && (
-                                    <>
-                                        {selectedExperienceIds.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleBatchUnpublish(selectedExperienceIds)
-                                                }
-                                                disabled={batchUnpublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50"
-                                            >
-                                                <PinOff className="h-3.5 w-3.5" />
-                                                선택한 {selectedExperienceIds.length}개 일괄 숨김
-                                            </button>
-                                        )}
-                                        {counts.visible > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const visibleIds = filteredExperiences
-                                                        .filter((item) => item.showOnTimeline)
-                                                        .map((item) => item.id);
-                                                    handleBatchUnpublish(visibleIds);
-                                                }}
-                                                disabled={batchUnpublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
-                                            >
-                                                <PinOff className="h-3.5 w-3.5 text-slate-600" />
-                                                공개 {counts.visible}개 전체 일괄 숨김
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                                {visibilityFilter === 'HIDDEN' && (
-                                    <>
-                                        {selectedExperienceIds.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleBatchPublish(selectedExperienceIds)
-                                                }
-                                                disabled={batchPublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
-                                            >
-                                                <Pin className="h-3.5 w-3.5" />
-                                                선택한 {selectedExperienceIds.length}개 일괄 공개
-                                            </button>
-                                        )}
-                                        {counts.hidden > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const hiddenIds = filteredExperiences
-                                                        .filter((item) => !item.showOnTimeline)
-                                                        .map((item) => item.id);
-                                                    handleBatchPublish(hiddenIds);
-                                                }}
-                                                disabled={batchPublishMutation.isPending}
-                                                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
-                                            >
-                                                <Pin className="h-3.5 w-3.5 text-emerald-600" />
-                                                숨김 {counts.hidden}개 전체 일괄 공개
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -1142,166 +969,173 @@ export function ExperienceManagement({
                         </p>
                     )}
 
-                    <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
-                        <div className="flex items-start gap-3">
-                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
-                                <WandSparkles className="h-4 w-4" />
-                            </span>
-                            <div className="min-w-0 flex-1">
-                                <h4 className="font-black text-violet-950">
-                                    AI로 경력 회고 초안 만들기
-                                </h4>
-                                <p className="mt-1 text-xs leading-relaxed text-violet-700">
-                                    AI가 1단계에서 선택한 기술·관련 Study·관련 경력과 메모의
-                                    사실관계를 정리하고, 2단계에서 검증된 사실만 사용해 요약·배운
-                                    점과 상세 항목 초안을 작성합니다.
-                                </p>
-                                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                                    <textarea
-                                        rows={3}
-                                        maxLength={1000}
-                                        value={expAiInstruction}
-                                        onChange={(event) =>
-                                            setExpAiInstruction(event.target.value)
-                                        }
-                                        placeholder="이 경력·프로젝트에서 있었던 일, 맡은 역할, 핵심 키워드를 적어주세요."
-                                        className="min-h-[88px] flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={requestExpAiSuggestions}
-                                        disabled={isExpAiGenerating}
-                                        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
-                                    >
-                                        <WandSparkles
-                                            className={`h-4 w-4 ${isExpAiGenerating ? 'animate-pulse' : ''}`}
+                    {enableWorkspaceAi && (
+                        <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
+                            <div className="flex items-start gap-3">
+                                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
+                                    <WandSparkles className="h-4 w-4" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="font-black text-violet-950">
+                                        AI로 경력 회고 초안 만들기
+                                    </h4>
+                                    <p className="mt-1 text-xs leading-relaxed text-violet-700">
+                                        AI가 1단계에서 선택한 기술·관련 Study·관련 경력과 메모의
+                                        사실관계를 정리하고, 2단계에서 검증된 사실만 사용해
+                                        요약·배운 점과 상세 항목 초안을 작성합니다.
+                                    </p>
+                                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                                        <textarea
+                                            rows={3}
+                                            maxLength={1000}
+                                            value={expAiInstruction}
+                                            onChange={(event) =>
+                                                setExpAiInstruction(event.target.value)
+                                            }
+                                            placeholder="이 경력·프로젝트에서 있었던 일, 맡은 역할, 핵심 키워드를 적어주세요."
+                                            className="min-h-[88px] flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                                         />
-                                        {isExpAiGenerating
-                                            ? '사실관계 정리·작성 중...'
-                                            : expAiSuggestions.length > 0
-                                              ? '다시 생성'
-                                              : 'AI 초안 생성'}
-                                    </button>
-                                </div>
-                                <p className="mt-2 text-[11px] leading-relaxed text-violet-500">
-                                    선택한 기술·관련 Study·경력 요약과 메모가 NVIDIA NIM API로
-                                    전송됩니다. AI 초안은 자동 저장되지 않으니 반드시 검토 후
-                                    저장하세요.
-                                </p>
-
-                                {(expAiStages.length > 0 || expAiError) && (
-                                    <div
-                                        ref={expAiChatRef}
-                                        className="mt-4 max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-violet-100 bg-white p-3"
-                                    >
-                                        {expAiStages.map((stageItem) => (
-                                            <AiStageBubble
-                                                key={stageItem.stage}
-                                                stage={stageItem}
-                                                fieldLabels={EXPERIENCE_AI_FIELD_LABELS}
-                                                extra={
-                                                    stageItem.stage === 1 && expAiFactCount > 0 ? (
-                                                        <p className="mt-2 text-[11px] font-bold text-violet-600">
-                                                            검증된 사실 {expAiFactCount}개
-                                                        </p>
-                                                    ) : undefined
-                                                }
+                                        <button
+                                            type="button"
+                                            onClick={requestExpAiSuggestions}
+                                            disabled={isExpAiGenerating}
+                                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
+                                        >
+                                            <WandSparkles
+                                                className={`h-4 w-4 ${isExpAiGenerating ? 'animate-pulse' : ''}`}
                                             />
-                                        ))}
-                                        {expAiError && (
-                                            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-                                                {expAiError}
-                                            </p>
-                                        )}
+                                            {isExpAiGenerating
+                                                ? '사실관계 정리·작성 중...'
+                                                : expAiSuggestions.length > 0
+                                                  ? '다시 생성'
+                                                  : 'AI 초안 생성'}
+                                        </button>
                                     </div>
-                                )}
+                                    <p className="mt-2 text-[11px] leading-relaxed text-violet-500">
+                                        선택한 기술·관련 Study·경력 요약과 메모가 NVIDIA NIM API로
+                                        전송됩니다. AI 초안은 자동 저장되지 않으니 반드시 검토 후
+                                        저장하세요.
+                                    </p>
 
-                                {expAiSuggestions.length > 0 && (
-                                    <div className="mt-4 space-y-3">
-                                        {expAiSuggestions.map((suggestion, index) => (
-                                            <article
-                                                key={index}
-                                                className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm"
-                                            >
-                                                <p className="text-xs leading-relaxed text-slate-600">
-                                                    {suggestion.summary}
+                                    {(expAiStages.length > 0 || expAiError) && (
+                                        <div
+                                            ref={expAiChatRef}
+                                            className="mt-4 max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-violet-100 bg-white p-3"
+                                        >
+                                            {expAiStages.map((stageItem) => (
+                                                <AiStageBubble
+                                                    key={stageItem.stage}
+                                                    stage={stageItem}
+                                                    fieldLabels={EXPERIENCE_AI_FIELD_LABELS}
+                                                    extra={
+                                                        stageItem.stage === 1 &&
+                                                        expAiFactCount > 0 ? (
+                                                            <p className="mt-2 text-[11px] font-bold text-violet-600">
+                                                                검증된 사실 {expAiFactCount}개
+                                                            </p>
+                                                        ) : undefined
+                                                    }
+                                                />
+                                            ))}
+                                            {expAiError && (
+                                                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                                                    {expAiError}
                                                 </p>
-                                                {suggestion.takeaway && (
-                                                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                                                        배운 점: {suggestion.takeaway}
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {expAiSuggestions.length > 0 && (
+                                        <div className="mt-4 space-y-3">
+                                            {expAiSuggestions.map((suggestion, index) => (
+                                                <article
+                                                    key={index}
+                                                    className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm"
+                                                >
+                                                    <p className="text-xs leading-relaxed text-slate-600">
+                                                        {suggestion.summary}
                                                     </p>
-                                                )}
-                                                {suggestion.reason && (
-                                                    <p className="mt-3 rounded-lg bg-violet-50 px-2.5 py-2 text-[11px] leading-relaxed text-violet-700">
-                                                        {suggestion.reason}
-                                                    </p>
-                                                )}
-                                                <div className="mt-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            applyExpAiSummary(suggestion)
-                                                        }
-                                                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50"
-                                                    >
-                                                        <Check className="h-3.5 w-3.5" /> 요약·배운
-                                                        점 적용
-                                                    </button>
-                                                </div>
-                                                {suggestion.details.length > 0 && (
-                                                    <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
-                                                        <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                                            제안된 상세 항목
+                                                    {suggestion.takeaway && (
+                                                        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                                                            배운 점: {suggestion.takeaway}
                                                         </p>
-                                                        {suggestion.details.map(
-                                                            (detail, detailIndex) => (
-                                                                <div
-                                                                    key={detailIndex}
-                                                                    className="rounded-lg border border-slate-200 bg-slate-50 p-3"
-                                                                >
-                                                                    <p className="text-xs font-bold text-slate-700">
-                                                                        {detail.content}
-                                                                    </p>
-                                                                    {detail.situation && (
-                                                                        <p className="mt-1 text-[11px] text-slate-500">
-                                                                            상황: {detail.situation}
-                                                                        </p>
-                                                                    )}
-                                                                    {detail.actionDetail && (
-                                                                        <p className="text-[11px] text-slate-500">
-                                                                            행동:{' '}
-                                                                            {detail.actionDetail}
-                                                                        </p>
-                                                                    )}
-                                                                    {detail.outcome && (
-                                                                        <p className="text-[11px] text-slate-500">
-                                                                            성과: {detail.outcome}
-                                                                        </p>
-                                                                    )}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            addExpAiDetailSuggestion(
-                                                                                detail
-                                                                            )
-                                                                        }
-                                                                        className="mt-2 inline-flex items-center gap-1 rounded-lg border border-violet-200 px-2.5 py-1.5 text-[11px] font-bold text-violet-700 transition hover:bg-violet-50"
-                                                                    >
-                                                                        <Check className="h-3 w-3" />{' '}
-                                                                        상세 항목으로 추가
-                                                                    </button>
-                                                                </div>
-                                                            )
-                                                        )}
+                                                    )}
+                                                    {suggestion.reason && (
+                                                        <p className="mt-3 rounded-lg bg-violet-50 px-2.5 py-2 text-[11px] leading-relaxed text-violet-700">
+                                                            {suggestion.reason}
+                                                        </p>
+                                                    )}
+                                                    <div className="mt-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                applyExpAiSummary(suggestion)
+                                                            }
+                                                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50"
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" />{' '}
+                                                            요약·배운 점 적용
+                                                        </button>
                                                     </div>
-                                                )}
-                                            </article>
-                                        ))}
-                                    </div>
-                                )}
+                                                    {suggestion.details.length > 0 && (
+                                                        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                                                            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                                                제안된 상세 항목
+                                                            </p>
+                                                            {suggestion.details.map(
+                                                                (detail, detailIndex) => (
+                                                                    <div
+                                                                        key={detailIndex}
+                                                                        className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                                                                    >
+                                                                        <p className="text-xs font-bold text-slate-700">
+                                                                            {detail.content}
+                                                                        </p>
+                                                                        {detail.situation && (
+                                                                            <p className="mt-1 text-[11px] text-slate-500">
+                                                                                상황:{' '}
+                                                                                {detail.situation}
+                                                                            </p>
+                                                                        )}
+                                                                        {detail.actionDetail && (
+                                                                            <p className="text-[11px] text-slate-500">
+                                                                                행동:{' '}
+                                                                                {
+                                                                                    detail.actionDetail
+                                                                                }
+                                                                            </p>
+                                                                        )}
+                                                                        {detail.outcome && (
+                                                                            <p className="text-[11px] text-slate-500">
+                                                                                성과:{' '}
+                                                                                {detail.outcome}
+                                                                            </p>
+                                                                        )}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                addExpAiDetailSuggestion(
+                                                                                    detail
+                                                                                )
+                                                                            }
+                                                                            className="mt-2 inline-flex items-center gap-1 rounded-lg border border-violet-200 px-2.5 py-1.5 text-[11px] font-bold text-violet-700 transition hover:bg-violet-50"
+                                                                        >
+                                                                            <Check className="h-3 w-3" />{' '}
+                                                                            상세 항목으로 추가
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </article>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </section>
+                        </section>
+                    )}
 
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-2 pt-2">
                         <Briefcase className="h-4 w-4 text-slate-500" />
@@ -1402,35 +1236,6 @@ export function ExperienceManagement({
                             placeholder="리드, 아키텍처, 마이그레이션"
                             className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                         />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 items-end rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                        <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                            <input
-                                type="checkbox"
-                                checked={expForm.showOnTimeline}
-                                onChange={(e) =>
-                                    setExpForm({ ...expForm, showOnTimeline: e.target.checked })
-                                }
-                                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-800"
-                            />
-                            커리어 & 학습 타임라인에 표시
-                        </label>
-                        <div className="sm:col-span-2">
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                타임라인 짧은 라벨 (선택, 비우면 제목 사용)
-                            </label>
-                            <input
-                                type="text"
-                                value={expForm.timelineLabel}
-                                onChange={(e) =>
-                                    setExpForm({ ...expForm, timelineLabel: e.target.value })
-                                }
-                                placeholder="예: CS, LogDr., AI면접"
-                                maxLength={60}
-                                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            />
-                        </div>
                     </div>
 
                     {expForm.type === 'CAREER' && (
@@ -1785,6 +1590,7 @@ export function ExperienceManagement({
                             이미지
                         </label>
                         <ImageGalleryEditor
+                            workspaceSlug={workspaceSlug}
                             scope="EXPERIENCE_GALLERY"
                             images={expForm.images}
                             onChange={(images) => setExpForm({ ...expForm, images })}
@@ -2131,7 +1937,6 @@ export function ExperienceManagement({
                                     .map(({ d, idx }) => {
                                         const isDetailExpanded = expandedDetailIdx === idx;
                                         const isDragged = draggedDetailIdx === idx;
-                                        const isVisible = d.visible !== false;
                                         return (
                                             <div
                                                 key={idx}
@@ -2140,13 +1945,7 @@ export function ExperienceManagement({
                                                 onDragStart={() => handleDetailDragStart(idx)}
                                                 onDragOver={(e) => handleDetailDragOver(e, idx)}
                                                 onDragEnd={handleDetailDragEnd}
-                                                className={`rounded-lg border transition text-sm ${
-                                                    isDragged
-                                                        ? 'border-indigo-400 bg-indigo-50/50 shadow-md opacity-60'
-                                                        : isVisible
-                                                          ? 'border-slate-200 bg-white'
-                                                          : 'border-slate-200 bg-slate-50/70 opacity-75'
-                                                }`}
+                                                className={`rounded-lg border text-sm transition ${isDragged ? 'border-indigo-400 bg-indigo-50/50 opacity-60 shadow-md' : 'border-slate-200 bg-white'}`}
                                             >
                                                 <div className="flex items-center justify-between gap-1.5 p-2">
                                                     <div
@@ -2198,22 +1997,6 @@ export function ExperienceManagement({
                                                         placeholder="불릿 한 줄 요약"
                                                         className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm focus:border-slate-400 focus:bg-slate-100/30 focus:outline-none"
                                                     />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleDetailVisibility(idx)}
-                                                        title={
-                                                            isVisible
-                                                                ? '클릭하여 숨김 전환'
-                                                                : '클릭하여 공개 전환'
-                                                        }
-                                                        className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold transition border ${
-                                                            isVisible
-                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                                                : 'border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                                        }`}
-                                                    >
-                                                        {isVisible ? '공개' : '숨김'}
-                                                    </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -2501,29 +2284,12 @@ export function ExperienceManagement({
                         </p>
                     )}
                     {filteredExperiences.map((exp) => {
-                        const isSelected = selectedExperienceIds.includes(exp.id);
                         return (
                             <div
                                 key={exp.id}
-                                className={`rounded-xl border p-4 shadow-sm transition ${
-                                    isSelected && visibilityFilter !== 'ALL'
-                                        ? 'border-indigo-400 bg-indigo-50/20'
-                                        : exp.showOnTimeline
-                                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
-                                          : 'border-slate-200 bg-slate-50/70 opacity-80 hover:border-slate-300'
-                                }`}
+                                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                             >
                                 <div className="flex items-center justify-between gap-4">
-                                    {visibilityFilter !== 'ALL' && (
-                                        <div className="flex shrink-0 items-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={isSelected}
-                                                onChange={() => toggleSelectExperience(exp.id)}
-                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                            />
-                                        </div>
-                                    )}
                                     <button
                                         type="button"
                                         className="min-w-0 flex-1 text-left"
@@ -2542,20 +2308,6 @@ export function ExperienceManagement({
                                             <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-bold text-slate-500">
                                                 {exp.type}
                                             </span>
-                                            <span
-                                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                                    exp.showOnTimeline
-                                                        ? 'bg-emerald-50 text-emerald-700'
-                                                        : 'bg-slate-200 text-slate-600'
-                                                }`}
-                                            >
-                                                {exp.showOnTimeline ? (
-                                                    <Pin className="h-3 w-3" />
-                                                ) : (
-                                                    <PinOff className="h-3 w-3" />
-                                                )}
-                                                {exp.showOnTimeline ? '공개' : '숨김'}
-                                            </span>
                                         </div>
                                         <p className="mt-1 text-base font-black text-slate-800 transition hover:text-slate-950">
                                             {exp.title}
@@ -2567,24 +2319,6 @@ export function ExperienceManagement({
                                         )}
                                     </button>
                                     <div className="flex shrink-0 items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                toggleTimelineMutation.mutate(exp.id);
-                                            }}
-                                            disabled={toggleTimelineMutation.isPending}
-                                            title={
-                                                exp.showOnTimeline ? '숨김으로 전환' : '공개로 전환'
-                                            }
-                                            className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
-                                                exp.showOnTimeline
-                                                    ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                            }`}
-                                        >
-                                            {exp.showOnTimeline ? '숨김 전환' : '공개 전환'}
-                                        </button>
                                         <button
                                             type="button"
                                             onClick={(e) => {

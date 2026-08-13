@@ -65,7 +65,13 @@ const toStudyRequest = (form: StudyForm): StudyRequest => ({
     images: form.images.map(({ id, objectKey, displayOrder }) => ({ id, objectKey, displayOrder })),
 });
 
-export function StudyManagement() {
+export function StudyManagement({
+    workspaceSlug,
+    enableWorkspaceAi,
+}: {
+    workspaceSlug: string;
+    enableWorkspaceAi: boolean;
+}) {
     const queryClient = useQueryClient();
     const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
     const handleMutationError = (error: unknown) => {
@@ -78,23 +84,26 @@ export function StudyManagement() {
         isError: isStudyListError,
         refetch: refetchStudies,
     } = useQuery({
-        queryKey: ['studies', 'admin'],
-        queryFn: () => studyApi.adminList(),
+        queryKey: ['studies', 'workspace', workspaceSlug],
+        queryFn: () => studyApi.workspaceAdminList(workspaceSlug),
     });
     const studies = studyPage?.content;
 
     const { data: taxonomyNodes } = useQuery({
         queryKey: ['taxonomyNodes'],
-        queryFn: taxonomyApi.list,
+        queryFn: taxonomyApi.publicList,
     });
     const taxonomyNodesById = useMemo(
         () => toTaxonomyNodeMap(taxonomyNodes ?? []),
         [taxonomyNodes]
     );
-    const { data: skillsList } = useQuery({ queryKey: ['skills'], queryFn: () => skillApi.list() });
+    const { data: skillsList } = useQuery({
+        queryKey: ['skills', workspaceSlug],
+        queryFn: () => skillApi.workspaceList(workspaceSlug),
+    });
     const { data: experiencesList } = useQuery({
-        queryKey: ['experiences'],
-        queryFn: () => experienceApi.list(),
+        queryKey: ['experiences', workspaceSlug],
+        queryFn: () => experienceApi.workspaceList(workspaceSlug),
     });
 
     const [studyEditingId, setStudyEditingId] = useState<number | null>(null);
@@ -311,7 +320,8 @@ export function StudyManagement() {
     }, [studies, studyEditingId, relatedStudySearch]);
 
     const createStudyMutation = useMutation({
-        mutationFn: (form: StudyForm) => studyApi.create(toStudyRequest(form)),
+        mutationFn: (form: StudyForm) =>
+            studyApi.workspaceCreate(workspaceSlug, toStudyRequest(form)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['learning'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
@@ -323,7 +333,7 @@ export function StudyManagement() {
 
     const updateStudyMutation = useMutation({
         mutationFn: ({ id, payload }: { id: number; payload: StudyForm }) =>
-            studyApi.update(id, toStudyRequest(payload)),
+            studyApi.workspaceUpdate(workspaceSlug, id, toStudyRequest(payload)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['learning'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
@@ -335,7 +345,7 @@ export function StudyManagement() {
     });
 
     const deleteStudyMutation = useMutation({
-        mutationFn: studyApi.remove,
+        mutationFn: (id: number) => studyApi.workspaceRemove(workspaceSlug, id),
         onSuccess: (_data, deletedId) => {
             queryClient.invalidateQueries({ queryKey: ['learning'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
@@ -346,29 +356,29 @@ export function StudyManagement() {
     });
 
     const batchPublishMutation = useMutation({
-        mutationFn: (ids: number[]) => studyApi.batchPublish(ids),
+        mutationFn: (ids: number[]) => studyApi.workspaceBatchPublish(workspaceSlug, ids),
         onSuccess: (updatedStudies) => {
             queryClient.invalidateQueries({ queryKey: ['learning'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
             setSelectedStudyIds([]);
-            alert(`${updatedStudies.length}개의 초안 글이 성공적으로 공개 전환되었습니다!`);
+            alert(`${updatedStudies.length}개의 학습 기록을 작성 완료로 전환했습니다.`);
         },
         onError: handleMutationError,
     });
 
     const batchUnpublishMutation = useMutation({
-        mutationFn: (ids: number[]) => studyApi.batchUnpublish(ids),
+        mutationFn: (ids: number[]) => studyApi.workspaceBatchUnpublish(workspaceSlug, ids),
         onSuccess: (updatedStudies) => {
             queryClient.invalidateQueries({ queryKey: ['learning'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
             setSelectedStudyIds([]);
-            alert(`${updatedStudies.length}개의 글이 성공적으로 초안(비공개) 전환되었습니다!`);
+            alert(`${updatedStudies.length}개의 학습 기록을 작성 중으로 되돌렸습니다.`);
         },
         onError: handleMutationError,
     });
 
     const toggleStatusMutation = useMutation({
-        mutationFn: (id: number) => studyApi.toggleStatus(id),
+        mutationFn: (id: number) => studyApi.workspaceToggleStatus(workspaceSlug, id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['learning'] });
             queryClient.invalidateQueries({ queryKey: ['studies'] });
@@ -397,7 +407,7 @@ export function StudyManagement() {
         if (idsToPublish.length === 0) return;
         if (
             window.confirm(
-                `선택한 ${idsToPublish.length}개의 초안 글을 모두 공개로 전환하시겠습니까?`
+                `선택한 ${idsToPublish.length}개의 학습 기록을 모두 작성 완료로 전환하시겠습니까?`
             )
         ) {
             batchPublishMutation.mutate(idsToPublish);
@@ -408,7 +418,7 @@ export function StudyManagement() {
         if (idsToUnpublish.length === 0) return;
         if (
             window.confirm(
-                `선택한 ${idsToUnpublish.length}개의 글을 모두 초안(비공개) 상태로 전환하시겠습니까?`
+                `선택한 ${idsToUnpublish.length}개의 학습 기록을 모두 작성 중으로 되돌리시겠습니까?`
             )
         ) {
             batchUnpublishMutation.mutate(idsToUnpublish);
@@ -437,7 +447,8 @@ export function StudyManagement() {
         const controller = new AbortController();
         studyAiAbortRef.current = controller;
         try {
-            await studyApi.suggestStream(
+            await studyApi.workspaceSuggestStream(
+                workspaceSlug,
                 {
                     instruction: studyAiInstruction,
                     draftTitle: studyForm.title,
@@ -563,7 +574,8 @@ export function StudyManagement() {
                 <div>
                     <h2 className="text-xl font-black text-slate-950">Study 관리</h2>
                     <p className="text-sm text-slate-500 mt-0.5">
-                        Markdown 학습 문서와 관련 기술·프로젝트·경력을 관리합니다.
+                        학습 원본과 관련 기술·경험을 기록합니다. 공개할 글과 카테고리는 공개
+                        페이지에서 선택합니다.
                     </p>
                 </div>
                 <button
@@ -591,8 +603,12 @@ export function StudyManagement() {
                             {(
                                 [
                                     { key: 'ALL', label: '전체', count: counts.total },
-                                    { key: 'DRAFT', label: '초안', count: counts.draft },
-                                    { key: 'PUBLISHED', label: '공개', count: counts.published },
+                                    { key: 'DRAFT', label: '작성 중', count: counts.draft },
+                                    {
+                                        key: 'PUBLISHED',
+                                        label: '작성 완료',
+                                        count: counts.published,
+                                    },
                                 ] as const
                             ).map((item) => (
                                 <button
@@ -698,8 +714,8 @@ export function StudyManagement() {
                                 onChange={toggleSelectAllFiltered}
                                 className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                             />
-                            현재 {statusFilter === 'DRAFT' ? '초안' : '공개'} 목록 전체 선택 (
-                            {filteredStudies?.length ?? 0}개 중 {selectedStudyIds.length}개 선택됨)
+                            현재 {statusFilter === 'DRAFT' ? '작성 중' : '작성 완료'} 목록 전체 선택
+                            ({filteredStudies?.length ?? 0}개 중 {selectedStudyIds.length}개 선택됨)
                         </label>
                     </div>
 
@@ -714,7 +730,7 @@ export function StudyManagement() {
                                         className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700 disabled:opacity-50"
                                     >
                                         <Check className="h-3.5 w-3.5" />
-                                        선택한 {selectedStudyIds.length}개 일괄 공개
+                                        선택한 {selectedStudyIds.length}개 작성 완료
                                     </button>
                                 )}
 
@@ -732,7 +748,7 @@ export function StudyManagement() {
                                         className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
                                     >
                                         <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-                                        초안 {counts.draft}개 전체 일괄 공개
+                                        작성 중 {counts.draft}개 전체 완료
                                     </button>
                                 )}
                             </>
@@ -748,7 +764,7 @@ export function StudyManagement() {
                                         className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-amber-700 disabled:opacity-50"
                                     >
                                         <Check className="h-3.5 w-3.5" />
-                                        선택한 {selectedStudyIds.length}개 일괄 비공개(초안) 전환
+                                        선택한 {selectedStudyIds.length}개 작성 중으로 전환
                                     </button>
                                 )}
 
@@ -765,7 +781,7 @@ export function StudyManagement() {
                                         disabled={batchUnpublishMutation.isPending}
                                         className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
                                     >
-                                        공개 {counts.published}개 전체 일괄 비공개 전환
+                                        작성 완료 {counts.published}개 전체 되돌리기
                                     </button>
                                 )}
                             </>
@@ -783,133 +799,135 @@ export function StudyManagement() {
                         {studyEditingId !== null ? '글 수정' : '새 글 작성'}
                     </h3>
 
-                    <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
-                        <div className="flex items-start gap-3">
-                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
-                                <WandSparkles className="h-4 w-4" />
-                            </span>
-                            <div className="min-w-0 flex-1">
-                                <h4 className="font-black text-violet-950">
-                                    AI로 학습 정리 초안 만들기
-                                </h4>
-                                <p className="mt-1 text-xs leading-relaxed text-violet-700">
-                                    AI가 1단계에서 선택한 기술·경력·관련 Study와 메모의 사실관계를
-                                    정리하고, 2단계에서 검증된 사실만 사용해 제목·요약·태그·본문
-                                    초안을 작성합니다.
-                                </p>
-                                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                                    <textarea
-                                        rows={3}
-                                        maxLength={1000}
-                                        value={studyAiInstruction}
-                                        onChange={(event) =>
-                                            setStudyAiInstruction(event.target.value)
-                                        }
-                                        placeholder="이 글에 담고 싶은 핵심 내용, 키워드, 있었던 일을 적어주세요."
-                                        className="min-h-[88px] flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={requestStudyAiSuggestions}
-                                        disabled={isStudyAiGenerating}
-                                        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
-                                    >
-                                        <WandSparkles
-                                            className={`h-4 w-4 ${isStudyAiGenerating ? 'animate-pulse' : ''}`}
+                    {enableWorkspaceAi && (
+                        <section className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
+                            <div className="flex items-start gap-3">
+                                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
+                                    <WandSparkles className="h-4 w-4" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="font-black text-violet-950">
+                                        AI로 학습 정리 초안 만들기
+                                    </h4>
+                                    <p className="mt-1 text-xs leading-relaxed text-violet-700">
+                                        AI가 1단계에서 선택한 기술·경력·관련 Study와 메모의
+                                        사실관계를 정리하고, 2단계에서 검증된 사실만 사용해
+                                        제목·요약·태그·본문 초안을 작성합니다.
+                                    </p>
+                                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                                        <textarea
+                                            rows={3}
+                                            maxLength={1000}
+                                            value={studyAiInstruction}
+                                            onChange={(event) =>
+                                                setStudyAiInstruction(event.target.value)
+                                            }
+                                            placeholder="이 글에 담고 싶은 핵심 내용, 키워드, 있었던 일을 적어주세요."
+                                            className="min-h-[88px] flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                                         />
-                                        {isStudyAiGenerating
-                                            ? '사실관계 정리·작성 중...'
-                                            : studyAiSuggestions.length > 0
-                                              ? '다시 생성'
-                                              : 'AI 초안 생성'}
-                                    </button>
-                                </div>
-                                <p className="mt-2 text-[11px] leading-relaxed text-violet-500">
-                                    선택한 기술·경력·Study 요약과 메모가 NVIDIA NIM API로
-                                    전송됩니다. AI 초안은 자동 저장되지 않으니 반드시 검토 후
-                                    저장하세요.
-                                </p>
-
-                                {(studyAiStages.length > 0 || studyAiError) && (
-                                    <div
-                                        ref={studyAiChatRef}
-                                        className="mt-4 max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-violet-100 bg-white p-3"
-                                    >
-                                        {studyAiStages.map((stageItem) => (
-                                            <AiStageBubble
-                                                key={stageItem.stage}
-                                                stage={stageItem}
-                                                fieldLabels={STUDY_AI_FIELD_LABELS}
-                                                extra={
-                                                    stageItem.stage === 1 &&
-                                                    studyAiFactCount > 0 ? (
-                                                        <p className="mt-2 text-[11px] font-bold text-violet-600">
-                                                            검증된 사실 {studyAiFactCount}개
-                                                        </p>
-                                                    ) : undefined
-                                                }
+                                        <button
+                                            type="button"
+                                            onClick={requestStudyAiSuggestions}
+                                            disabled={isStudyAiGenerating}
+                                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60 sm:self-stretch"
+                                        >
+                                            <WandSparkles
+                                                className={`h-4 w-4 ${isStudyAiGenerating ? 'animate-pulse' : ''}`}
                                             />
-                                        ))}
-                                        {studyAiError && (
-                                            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-                                                {studyAiError}
-                                            </p>
-                                        )}
+                                            {isStudyAiGenerating
+                                                ? '사실관계 정리·작성 중...'
+                                                : studyAiSuggestions.length > 0
+                                                  ? '다시 생성'
+                                                  : 'AI 초안 생성'}
+                                        </button>
                                     </div>
-                                )}
+                                    <p className="mt-2 text-[11px] leading-relaxed text-violet-500">
+                                        선택한 기술·경력·Study 요약과 메모가 NVIDIA NIM API로
+                                        전송됩니다. AI 초안은 자동 저장되지 않으니 반드시 검토 후
+                                        저장하세요.
+                                    </p>
 
-                                {studyAiSuggestions.length > 0 && (
-                                    <div className="mt-4 space-y-3">
-                                        {studyAiSuggestions.map((suggestion, index) => (
-                                            <article
-                                                key={`${suggestion.title}-${index}`}
-                                                className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm"
-                                            >
-                                                <h5 className="text-sm font-black leading-snug text-slate-900">
-                                                    {suggestion.title}
-                                                </h5>
-                                                <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                                                    {suggestion.summary}
+                                    {(studyAiStages.length > 0 || studyAiError) && (
+                                        <div
+                                            ref={studyAiChatRef}
+                                            className="mt-4 max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-violet-100 bg-white p-3"
+                                        >
+                                            {studyAiStages.map((stageItem) => (
+                                                <AiStageBubble
+                                                    key={stageItem.stage}
+                                                    stage={stageItem}
+                                                    fieldLabels={STUDY_AI_FIELD_LABELS}
+                                                    extra={
+                                                        stageItem.stage === 1 &&
+                                                        studyAiFactCount > 0 ? (
+                                                            <p className="mt-2 text-[11px] font-bold text-violet-600">
+                                                                검증된 사실 {studyAiFactCount}개
+                                                            </p>
+                                                        ) : undefined
+                                                    }
+                                                />
+                                            ))}
+                                            {studyAiError && (
+                                                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                                                    {studyAiError}
                                                 </p>
-                                                {suggestion.tagNames.length > 0 && (
-                                                    <div className="mt-2 flex flex-wrap gap-1">
-                                                        {suggestion.tagNames.map((tag) => (
-                                                            <span
-                                                                key={tag}
-                                                                className="rounded bg-blue-50 px-1.5 py-1 text-[10px] font-bold text-blue-700"
-                                                            >
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                <div className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-                                                    {suggestion.contentMarkdown}
-                                                </div>
-                                                {suggestion.reason && (
-                                                    <p className="mt-3 rounded-lg bg-violet-50 px-2.5 py-2 text-[11px] leading-relaxed text-violet-700">
-                                                        {suggestion.reason}
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {studyAiSuggestions.length > 0 && (
+                                        <div className="mt-4 space-y-3">
+                                            {studyAiSuggestions.map((suggestion, index) => (
+                                                <article
+                                                    key={`${suggestion.title}-${index}`}
+                                                    className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm"
+                                                >
+                                                    <h5 className="text-sm font-black leading-snug text-slate-900">
+                                                        {suggestion.title}
+                                                    </h5>
+                                                    <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                                                        {suggestion.summary}
                                                     </p>
-                                                )}
-                                                <div className="mt-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            applyStudyAiSuggestion(suggestion)
-                                                        }
-                                                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50"
-                                                    >
-                                                        <Check className="h-3.5 w-3.5" /> 이 초안
-                                                        적용
-                                                    </button>
-                                                </div>
-                                            </article>
-                                        ))}
-                                    </div>
-                                )}
+                                                    {suggestion.tagNames.length > 0 && (
+                                                        <div className="mt-2 flex flex-wrap gap-1">
+                                                            {suggestion.tagNames.map((tag) => (
+                                                                <span
+                                                                    key={tag}
+                                                                    className="rounded bg-blue-50 px-1.5 py-1 text-[10px] font-bold text-blue-700"
+                                                                >
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    <div className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+                                                        {suggestion.contentMarkdown}
+                                                    </div>
+                                                    {suggestion.reason && (
+                                                        <p className="mt-3 rounded-lg bg-violet-50 px-2.5 py-2 text-[11px] leading-relaxed text-violet-700">
+                                                            {suggestion.reason}
+                                                        </p>
+                                                    )}
+                                                    <div className="mt-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                applyStudyAiSuggestion(suggestion)
+                                                            }
+                                                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50"
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" /> 이
+                                                            초안 적용
+                                                        </button>
+                                                    </div>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </section>
+                        </section>
+                    )}
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
@@ -974,7 +992,7 @@ export function StudyManagement() {
                         </div>
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                공개 상태
+                                작성 상태
                             </label>
                             <select
                                 value={studyForm.status}
@@ -986,8 +1004,8 @@ export function StudyManagement() {
                                 }
                                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                             >
-                                <option value="DRAFT">임시 저장</option>
-                                <option value="PUBLISHED">공개</option>
+                                <option value="DRAFT">작성 중</option>
+                                <option value="PUBLISHED">작성 완료</option>
                             </select>
                         </div>
                     </div>
@@ -1224,6 +1242,7 @@ export function StudyManagement() {
                             이미지
                         </label>
                         <ImageGalleryEditor
+                            workspaceSlug={workspaceSlug}
                             scope="STUDY_GALLERY"
                             images={studyForm.images}
                             onChange={(images) => setStudyForm({ ...studyForm, images })}
@@ -1240,6 +1259,7 @@ export function StudyManagement() {
                                 setStudyForm({ ...studyForm, contentMarkdown })
                             }
                             enableImageUpload
+                            workspaceSlug={workspaceSlug}
                         />
                     </div>
 
@@ -1406,7 +1426,9 @@ export function StudyManagement() {
                                                             : 'bg-amber-50 text-amber-700 border border-amber-200/60'
                                                     }`}
                                                 >
-                                                    {study.status === 'PUBLISHED' ? '공개' : '초안'}
+                                                    {study.status === 'PUBLISHED'
+                                                        ? '작성 완료'
+                                                        : '작성 중'}
                                                 </span>
                                             </div>
                                             <p className="mt-1 text-base font-black text-slate-800 transition hover:text-slate-950">
@@ -1426,8 +1448,8 @@ export function StudyManagement() {
                                                 disabled={toggleStatusMutation.isPending}
                                                 title={
                                                     study.status === 'PUBLISHED'
-                                                        ? '초안(비공개)으로 전환'
-                                                        : '공개로 전환'
+                                                        ? '작성 중으로 되돌리기'
+                                                        : '작성 완료로 전환'
                                                 }
                                                 className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition ${
                                                     study.status === 'PUBLISHED'
@@ -1436,8 +1458,8 @@ export function StudyManagement() {
                                                 }`}
                                             >
                                                 {study.status === 'PUBLISHED'
-                                                    ? '비공개 전환'
-                                                    : '공개 전환'}
+                                                    ? '작성 중 전환'
+                                                    : '작성 완료'}
                                             </button>
 
                                             <button

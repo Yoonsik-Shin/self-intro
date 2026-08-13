@@ -68,7 +68,7 @@ export function SourceLinksPopover({ sourceUrls, label, className }: SourceLinks
                 // 좁은 셀 하나에 들어간다. right-0으로 이 좁은 셀 기준 오른쪽 정렬하면 팝오버(w-64)가
                 // 드로어 왼쪽 경계 밖으로 밀려나 overflow-hidden에 잘린다(2026-08-04) — 셀 중앙 기준으로
                 // 펼쳐서 어느 칸에 있어도 드로어 폭 안에 들어오게 한다.
-                <div className="absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                <div className="absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950 p-1.5 text-white shadow-2xl shadow-slate-950/30 ring-1 ring-black/5">
                     {sorted.map((entry) => (
                         <a
                             key={entry.id}
@@ -76,12 +76,12 @@ export function SourceLinksPopover({ sourceUrls, label, className }: SourceLinks
                             target="_blank"
                             rel="noreferrer"
                             onClick={() => setOpen(false)}
-                            className="flex flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition hover:bg-slate-50"
+                            className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-slate-800"
                         >
-                            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-100">
                                 {PLATFORM_LABELS[entry.platform]}
                                 {entry.primary && (
-                                    <span className="rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500">
+                                    <span className="rounded bg-slate-800 px-1 py-0.5 text-[9px] font-bold text-slate-300">
                                         대표
                                     </span>
                                 )}

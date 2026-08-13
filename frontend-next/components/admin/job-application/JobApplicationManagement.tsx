@@ -76,6 +76,7 @@ import type {
     JobPostingStatusEvent,
     JobplanetLookup,
 } from '@/lib/api/types';
+import { JobPostingPermissionReviewPanel } from './JobPostingPermissionReviewPanel';
 
 /** status가 이 중 하나면 아직 지원 전(수집 후보) 단계다 — 나머지는 전형 진행 단계. */
 type PreApplicationStatus = 'NEW' | 'SAVED' | 'DISMISSED' | 'EXPIRED';
@@ -802,16 +803,18 @@ function newCoverLetterDraft(
 /** 질문과 글자 수 제한은 "문항 관리"에서 구성하고, 답변은 평소 화면에서 언제든 바로 수정한다.
  * 답변이 비어 있어도 문항만 먼저 저장할 수 있으며 수정 이력은 만들지 않는다. */
 function CoverLetterEditor({
+    workspaceSlug,
     jobPostingId,
     companyName,
     positionTitle,
 }: {
+    workspaceSlug: string;
     jobPostingId: number;
     companyName: string;
     positionTitle: string;
 }) {
     const queryClient = useQueryClient();
-    const queryKey = ['jobPostings', jobPostingId, 'coverLetterItems'] as const;
+    const queryKey = ['jobPostings', workspaceSlug, jobPostingId, 'coverLetterItems'] as const;
     const [isManaging, setIsManaging] = useState(false);
     const [drafts, setDrafts] = useState<CoverLetterDraft[]>([]);
     const [answerDrafts, setAnswerDrafts] = useState<Record<number, string>>({});
@@ -829,7 +832,7 @@ function CoverLetterEditor({
         isError,
     } = useQuery({
         queryKey,
-        queryFn: () => jobPostingApi.coverLetterItems(jobPostingId),
+        queryFn: () => jobPostingApi.workspaceCoverLetterItems(workspaceSlug, jobPostingId),
     });
 
     const activeDrawerItem = useMemo(
@@ -839,7 +842,7 @@ function CoverLetterEditor({
 
     const saveMutation = useMutation({
         mutationFn: (payload: JobPostingCoverLetterItemRequest[]) =>
-            jobPostingApi.replaceCoverLetterItems(jobPostingId, payload),
+            jobPostingApi.workspaceReplaceCoverLetterItems(workspaceSlug, jobPostingId, payload),
         onSuccess: (savedItems) => {
             queryClient.setQueryData(queryKey, savedItems);
             setIsManaging(false);
@@ -873,13 +876,17 @@ function CoverLetterEditor({
             try {
                 const currentAnswer =
                     answerDrafts[itemId] ?? items.find((i) => i.id === itemId)?.answer ?? '';
-                const res = await jobPostingApi.generateCoverLetterDraft(jobPostingId, {
-                    question,
-                    characterLimit,
-                    currentDraft: currentAnswer || undefined,
-                    feedbackInstruction: feedbackInstruction?.trim() || undefined,
-                    coverLetterItemId: itemId,
-                });
+                const res = await jobPostingApi.workspaceGenerateCoverLetterDraft(
+                    workspaceSlug,
+                    jobPostingId,
+                    {
+                        question,
+                        characterLimit,
+                        currentDraft: currentAnswer || undefined,
+                        feedbackInstruction: feedbackInstruction?.trim() || undefined,
+                        coverLetterItemId: itemId,
+                    }
+                );
                 setAnswerDrafts((current) => ({
                     ...current,
                     [itemId]: res.draftAnswer,
@@ -902,7 +909,7 @@ function CoverLetterEditor({
                 });
             }
         },
-        [jobPostingId, items, answerDrafts]
+        [workspaceSlug, jobPostingId, items, answerDrafts]
     );
 
     const generateAllDrafts = useCallback(async () => {
@@ -987,7 +994,7 @@ function CoverLetterEditor({
             <div className="space-y-4 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                     <p className="text-xs font-semibold text-slate-500">
-                        문항이나 '열기' 버튼을 클릭하면 AI 에디터 패널이 열립니다.
+                        문항이나 ‘열기’ 버튼을 클릭하면 AI 에디터 패널이 열립니다.
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
                         {items.length > 0 && (
@@ -1161,6 +1168,7 @@ function CoverLetterEditor({
 
                 {/* 시원한 슬라이드 드로어 컴포넌트 */}
                 <JobCoverLetterDrawer
+                    workspaceSlug={workspaceSlug}
                     isOpen={drawerItemId !== null}
                     onClose={() => setDrawerItemId(null)}
                     jobPostingId={jobPostingId}
@@ -1282,18 +1290,20 @@ function CoverLetterEditor({
 const MAX_FINAL_PDF_SIZE_BYTES = 20 * 1024 * 1024;
 
 function PrintTemplatesPanel({
+    workspaceSlug,
     jobPostingId,
     hasAppealAnalysis,
     appealAnalyzedAt,
     onNavigateToAppealAnalysis,
 }: {
+    workspaceSlug: string;
     jobPostingId: number;
     hasAppealAnalysis: boolean;
     appealAnalyzedAt?: string | null;
     onNavigateToAppealAnalysis?: () => void;
 }) {
     const queryClient = useQueryClient();
-    const queryKey = ['jobPostings', jobPostingId, 'printTemplates'] as const;
+    const queryKey = ['jobPostings', workspaceSlug, jobPostingId, 'printTemplates'] as const;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const directFileInputRef = useRef<HTMLInputElement | null>(null);
     const [pendingUploadId, setPendingUploadId] = useState<number | null>(null);
@@ -1310,32 +1320,35 @@ function PrintTemplatesPanel({
         isError,
     } = useQuery({
         queryKey,
-        queryFn: () => printTemplateApi.listByJobPosting(jobPostingId),
+        queryFn: () => printTemplateApi.workspaceListByJobPosting(workspaceSlug, jobPostingId),
     });
 
     const markFinalMutation = useMutation({
-        mutationFn: (id: number) => printTemplateApi.markFinal(id),
+        mutationFn: (id: number) =>
+            printTemplateApi.workspaceMarkFinal(workspaceSlug, jobPostingId, id),
         onSuccess: () => queryClient.invalidateQueries({ queryKey }),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '최종 제출본 지정에 실패했습니다.'),
     });
 
     const unmarkFinalMutation = useMutation({
-        mutationFn: (id: number) => printTemplateApi.unmarkFinal(id),
+        mutationFn: (id: number) =>
+            printTemplateApi.workspaceUnmarkFinal(workspaceSlug, jobPostingId, id),
         onSuccess: () => queryClient.invalidateQueries({ queryKey }),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '최종 제출본 해제에 실패했습니다.'),
     });
 
     const removeFinalPdfMutation = useMutation({
-        mutationFn: (id: number) => printTemplateApi.removeFinalPdf(id),
+        mutationFn: (id: number) =>
+            printTemplateApi.workspaceRemoveFinalPdf(workspaceSlug, jobPostingId, id),
         onSuccess: () => queryClient.invalidateQueries({ queryKey }),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : 'PDF 삭제에 실패했습니다.'),
     });
 
     const deleteTemplateMutation = useMutation({
-        mutationFn: (id: number) => printTemplateApi.remove(id),
+        mutationFn: (id: number) => printTemplateApi.workspaceRemove(workspaceSlug, id),
         onSuccess: (_, deletedId) => {
             if (latestDraft?.templateId === deletedId) setLatestDraft(null);
             queryClient.invalidateQueries({ queryKey });
@@ -1356,13 +1369,14 @@ function PrintTemplatesPanel({
 
         setIsUploadingDirectPdf(true);
         try {
-            const presigned = await imageApi.requestPresignedUpload(
+            const presigned = await imageApi.requestWorkspacePresignedUpload(
+                workspaceSlug,
                 'PRINT_TEMPLATE_FINAL_PDF',
                 file.name,
                 file.type || 'application/pdf'
             );
             await imageApi.uploadToPresignedUrl(presigned.uploadUrl, file);
-            await printTemplateApi.createDirectPdf(jobPostingId, {
+            await printTemplateApi.workspaceCreateDirectPdf(workspaceSlug, jobPostingId, {
                 name: file.name,
                 objectKey: presigned.objectKey,
             });
@@ -1394,13 +1408,19 @@ function PrintTemplatesPanel({
 
         setUploadingId(templateId);
         try {
-            const presigned = await imageApi.requestPresignedUpload(
+            const presigned = await imageApi.requestWorkspacePresignedUpload(
+                workspaceSlug,
                 'PRINT_TEMPLATE_FINAL_PDF',
                 file.name,
                 file.type
             );
             await imageApi.uploadToPresignedUrl(presigned.uploadUrl, file);
-            await printTemplateApi.attachFinalPdf(templateId, presigned.objectKey);
+            await printTemplateApi.workspaceAttachFinalPdf(
+                workspaceSlug,
+                jobPostingId,
+                templateId,
+                presigned.objectKey
+            );
             queryClient.invalidateQueries({ queryKey });
         } catch (error) {
             alert(error instanceof ApiError ? error.message : 'PDF 업로드에 실패했습니다.');
@@ -1444,7 +1464,8 @@ function PrintTemplatesPanel({
     async function generatePrintDraft() {
         setIsGeneratingDraft(true);
         try {
-            await jobPostingApi.generatePrintDraftStream(
+            await jobPostingApi.workspaceGeneratePrintDraftStream(
+                workspaceSlug,
                 jobPostingId,
                 (event) => {
                     if (event.type === 'error') {
@@ -1586,7 +1607,7 @@ function PrintTemplatesPanel({
                     </p>
                     <div className="mt-3">
                         <a
-                            href={`/print?admin=1&templateId=${latestDraft.templateId}`}
+                            href={`/workspace/${encodeURIComponent(workspaceSlug)}/print?admin=1&templateId=${latestDraft.templateId}`}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700"
@@ -1629,7 +1650,7 @@ function PrintTemplatesPanel({
                         PDF 파일 직접 업로드
                     </button>
                     <a
-                        href={`/print?admin=1&jobPostingId=${jobPostingId}`}
+                        href={`/workspace/${encodeURIComponent(workspaceSlug)}/print?admin=1&jobPostingId=${jobPostingId}`}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
@@ -1715,7 +1736,7 @@ function PrintTemplatesPanel({
                             <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                                 {t.source !== 'EXTERNAL' && (
                                     <a
-                                        href={`/print?admin=1&templateId=${t.id}`}
+                                        href={`/workspace/${encodeURIComponent(workspaceSlug)}/print?admin=1&templateId=${t.id}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         title="설정 열기"
@@ -2113,25 +2134,28 @@ function JobplanetReputationCard({ jobPostingId }: { jobPostingId: number }) {
 }
 
 function GapProjectDocumentsPanel({
+    workspaceSlug,
     jobPostingId,
     hasAppealAnalysis,
 }: {
+    workspaceSlug: string;
     jobPostingId: number;
     hasAppealAnalysis: boolean;
 }) {
     const queryClient = useQueryClient();
-    const queryKey = ['jobPostings', jobPostingId, 'gapProjectDocuments'] as const;
+    const queryKey = ['jobPostings', workspaceSlug, jobPostingId, 'gapProjectDocuments'] as const;
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const { data: documents = [], isLoading } = useQuery({
         queryKey,
-        queryFn: () => jobPostingApi.gapProjectDocuments(jobPostingId),
+        queryFn: () => jobPostingApi.workspaceGapProjectDocuments(workspaceSlug, jobPostingId),
     });
     const selected = documents.find((document) => document.id === selectedId) ?? documents[0];
     const aiModel = useAiModelStore((state) => state.modelKey);
     const aiCustomModelName = useAiModelStore((state) => state.customModelName);
     const generateMutation = useMutation({
         mutationFn: () =>
-            jobPostingApi.generateGapProjectDocument(
+            jobPostingApi.workspaceGenerateGapProjectDocument(
+                workspaceSlug,
                 jobPostingId,
                 aiModel,
                 aiCustomModelName || undefined
@@ -2305,7 +2329,7 @@ import JobPostingMapView from './JobPostingMapView';
 type DrawerState = { type: 'create' } | { type: 'existing'; id: number };
 type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP';
 
-export function JobApplicationManagement() {
+export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: string }) {
     const queryClient = useQueryClient();
     const aiModel = useAiModelStore((state) => state.modelKey);
     const aiCustomModelName = useAiModelStore((state) => state.customModelName);
@@ -2414,10 +2438,10 @@ export function JobApplicationManagement() {
         queryFn: () => jobPostingApi.getSettings(),
     });
     const { data: drawerTemplates = [] } = useQuery({
-        queryKey: ['jobPostings', drawerJobPostingId, 'printTemplates'],
+        queryKey: ['jobPostings', workspaceSlug, drawerJobPostingId, 'printTemplates'],
         queryFn: () =>
             drawerJobPostingId
-                ? printTemplateApi.listByJobPosting(drawerJobPostingId)
+                ? printTemplateApi.workspaceListByJobPosting(workspaceSlug, drawerJobPostingId)
                 : Promise.resolve([]),
         enabled: Boolean(drawerJobPostingId),
     });
@@ -2556,14 +2580,19 @@ export function JobApplicationManagement() {
 
     const analyzeAppealMutation = useMutation({
         mutationFn: (id: number) =>
-            jobPostingApi.analyzeAppeal(id, aiModel, aiCustomModelName || undefined),
+            jobPostingApi.workspaceAnalyzeAppeal(
+                workspaceSlug,
+                id,
+                aiModel,
+                aiCustomModelName || undefined
+            ),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '경력 매칭 분석에 실패했습니다.'),
     });
 
     const rematchMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.rematch(id),
+        mutationFn: (id: number) => jobPostingApi.workspaceRematch(workspaceSlug, id),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '매칭 점수 재계산에 실패했습니다.'),
@@ -2594,6 +2623,8 @@ export function JobApplicationManagement() {
         if (!url.trim()) return;
         setIsSingleIngesting(true);
         setSingleIngestElapsedSeconds(0);
+        // 사용자 이벤트 시점부터의 경과 시간을 표시하기 위한 기준값이다.
+        // eslint-disable-next-line react-hooks/purity
         const startedAt = Date.now();
         const timer = window.setInterval(() => {
             setSingleIngestElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
@@ -4054,6 +4085,26 @@ export function JobApplicationManagement() {
                                                                         }`}
                                                                     >
                                                                         <div className="flex items-center justify-end gap-1.5 xl:gap-3">
+                                                                            {candidate.postingUrl && (
+                                                                                <a
+                                                                                    href={
+                                                                                        candidate.postingUrl
+                                                                                    }
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    onClick={(e) =>
+                                                                                        e.stopPropagation()
+                                                                                    }
+                                                                                    title="원본 보기"
+                                                                                    aria-label={`${candidate.companyName} 공고 원본 보기`}
+                                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:rounded-none xl:text-xs xl:font-bold"
+                                                                                >
+                                                                                    <ExternalLink className="h-4 w-4 xl:hidden" />
+                                                                                    <span className="hidden xl:inline">
+                                                                                        원본
+                                                                                    </span>
+                                                                                </a>
+                                                                            )}
                                                                             <button
                                                                                 type="button"
                                                                                 disabled={
@@ -5054,6 +5105,11 @@ export function JobApplicationManagement() {
                                                 )}
                                             </div>
 
+                                            <JobPostingPermissionReviewPanel
+                                                key={`${drawerItem.id}-${drawerItem.permissionReviewedAt ?? 'unreviewed'}-${drawerItem.updatedAt}`}
+                                                posting={drawerItem}
+                                            />
+
                                             {detectedPositions?.jobPostingId === drawerItem.id && (
                                                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                                                     <p className="mb-2 text-xs font-bold text-amber-700">
@@ -5296,6 +5352,7 @@ export function JobApplicationManagement() {
                                                         label: '자소서',
                                                         content: (
                                                             <CoverLetterEditor
+                                                                workspaceSlug={workspaceSlug}
                                                                 jobPostingId={drawerItem.id}
                                                                 companyName={drawerItem.companyName}
                                                                 positionTitle={
@@ -5309,6 +5366,7 @@ export function JobApplicationManagement() {
                                                         label: 'PDF 템플릿',
                                                         content: (
                                                             <PrintTemplatesPanel
+                                                                workspaceSlug={workspaceSlug}
                                                                 jobPostingId={drawerItem.id}
                                                                 hasAppealAnalysis={Boolean(
                                                                     drawerItem.appealAnalysis
@@ -5716,6 +5774,9 @@ export function JobApplicationManagement() {
                                                                             ),
                                                                             content: (
                                                                                 <GapProjectDocumentsPanel
+                                                                                    workspaceSlug={
+                                                                                        workspaceSlug
+                                                                                    }
                                                                                     jobPostingId={
                                                                                         drawerItem.id
                                                                                     }

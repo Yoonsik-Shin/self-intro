@@ -906,8 +906,8 @@ export default function JobPostingMapView({
                                 </button>
 
                                 {isLayerControlOpen && (
-                                    <div className="absolute right-0 top-9 w-64 rounded-2xl border border-slate-200 bg-white/95 p-3.5 backdrop-blur-xl shadow-xl space-y-2 z-30 animate-in fade-in slide-in-from-top-2 duration-150 text-xs text-slate-800">
-                                        <div className="flex items-center justify-between border-b border-slate-100 pb-2 text-[11px] font-bold text-slate-500">
+                                    <div className="absolute right-0 top-9 z-30 w-64 space-y-2 rounded-2xl border border-slate-700 bg-slate-950/95 p-3.5 text-xs text-slate-100 shadow-2xl shadow-slate-950/30 ring-1 ring-black/5 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150">
+                                        <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-[11px] font-bold text-slate-300">
                                             <span className="flex items-center gap-1">
                                                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                                                 지도 요소 켜기/끄기

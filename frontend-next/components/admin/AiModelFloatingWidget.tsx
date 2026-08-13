@@ -102,7 +102,11 @@ export function AiModelFloatingWidget() {
         moved: boolean;
     } | null>(null);
 
-    useEffect(() => setMounted(true), []);
+    useEffect(() => {
+        // Portal은 브라우저 DOM이 준비된 뒤에만 렌더링한다.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setMounted(true);
+    }, []);
 
     // 도킹 상태인 동안 버튼의 실제 위치를 계속 홈 좌표로 동기화한다. mode만 의존성으로 두면 첫
     // 렌더(mounted=false라 아직 아무것도 안 그려져 buttonRef가 비어있는 순간)에 한 번 실행되고,

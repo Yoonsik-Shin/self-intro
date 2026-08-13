@@ -12,6 +12,8 @@ export type AdminProfileDraft = {
     githubUrl: string;
     email: string;
     phone: string;
+    publicEmail: boolean;
+    publicPhone: boolean;
 };
 
 type SkillDraft = { editingId: number | null; form: SkillForm } | null;

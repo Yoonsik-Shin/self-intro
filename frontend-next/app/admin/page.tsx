@@ -1,5 +1,5 @@
-import { AdminDashboardShell } from '@/components/admin/AdminDashboardShell';
+import { redirect } from 'next/navigation';
 
 export default function AdminPage() {
-    return <AdminDashboardShell />;
+    redirect('/');
 }

@@ -85,6 +85,8 @@ function OverviewForm({
 
     useEffect(() => {
         if (overview) {
+            // 서버에서 다시 읽은 저장본으로 편집 초안을 재설정한다.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setForm({
                 heading: overview.heading,
                 subheading: overview.subheading,

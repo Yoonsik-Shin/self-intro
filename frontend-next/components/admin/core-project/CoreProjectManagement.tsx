@@ -23,10 +23,14 @@ import { useTouchDrag } from '@/hooks/useTouchDrag';
 type DraftPlacement = ExperiencePlacementRequest;
 
 type CoreProjectManagementProps = {
+    workspaceSlug: string;
     onCreateProject: () => void;
 };
 
-export function CoreProjectManagement({ onCreateProject }: CoreProjectManagementProps) {
+export function CoreProjectManagement({
+    workspaceSlug,
+    onCreateProject,
+}: CoreProjectManagementProps) {
     const queryClient = useQueryClient();
     const [draft, setDraft] = useState<DraftPlacement[]>([]);
     const [isEditing, setIsEditing] = useState(false);
@@ -35,12 +39,12 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
     const [expandedDetailId, setExpandedDetailId] = useState<number | null>(null);
 
     const { data: experiences = [], isLoading: isExperiencesLoading } = useQuery({
-        queryKey: ['experiences'],
-        queryFn: experienceApi.list,
+        queryKey: ['experiences', workspaceSlug],
+        queryFn: () => experienceApi.workspaceList(workspaceSlug),
     });
     const { data: placements = [], isLoading: isPlacementsLoading } = useQuery({
-        queryKey: ['experience-placements', 'CORE_PROJECT'],
-        queryFn: experiencePlacementApi.listCoreProjects,
+        queryKey: ['experience-placements', workspaceSlug, 'CORE_PROJECT'],
+        queryFn: () => experiencePlacementApi.workspaceListCoreProjects(workspaceSlug),
     });
 
     const toDraft = () =>
@@ -52,6 +56,8 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
         }));
 
     useEffect(() => {
+        // 저장 후 서버가 정규화한 배치 순서를 로컬 드래그 초안에 반영한다.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDraft(toDraft());
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [placements]);
@@ -88,13 +94,14 @@ export function CoreProjectManagement({ onCreateProject }: CoreProjectManagement
 
     const saveMutation = useMutation({
         mutationFn: () =>
-            experiencePlacementApi.replaceCoreProjects(
+            experiencePlacementApi.workspaceReplaceCoreProjects(
+                workspaceSlug,
                 draft.map((item, index) => ({ ...item, displayOrder: index }))
             ),
         onSuccess: async () => {
             await Promise.all([
                 queryClient.invalidateQueries({
-                    queryKey: ['experience-placements', 'CORE_PROJECT'],
+                    queryKey: ['experience-placements', workspaceSlug, 'CORE_PROJECT'],
                 }),
                 queryClient.invalidateQueries({ queryKey: ['introduction'] }),
             ]);

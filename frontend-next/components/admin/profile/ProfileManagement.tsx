@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, bffApi, profileApi } from '@/lib/api';
+import { ApiError, profileApi } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
 
@@ -16,46 +16,53 @@ const emptyProfileForm = {
     githubUrl: '',
     email: '',
     phone: '',
+    publicEmail: false,
+    publicPhone: false,
 };
 
-export function ProfileManagement() {
+function toProfileForm(profile: Awaited<ReturnType<typeof profileApi.getPrivate>>) {
+    return {
+        name: profile.name,
+        nameEn: profile.nameEn,
+        jobTitle: profile.jobTitle,
+        bio: profile.bio,
+        coreStackSummary: profile.coreStackSummary,
+        statusBadgeText: profile.statusBadgeText,
+        githubUrl: profile.githubUrl,
+        email: profile.email ?? '',
+        phone: profile.phone ?? '',
+        publicEmail: profile.publicEmail,
+        publicPhone: profile.publicPhone,
+    };
+}
+
+export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) {
     const queryClient = useQueryClient();
     const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
     const handleMutationError = (error: unknown) => {
         if (error instanceof ApiError && error.status === 401) setUnauthenticated();
     };
 
-    const { data: introData } = useQuery({
-        queryKey: ['introduction'],
-        queryFn: bffApi.getIntroduction,
+    const { data: privateProfile } = useQuery({
+        queryKey: ['private-profile', workspaceSlug],
+        queryFn: () => profileApi.getPrivate(workspaceSlug),
+        retry: false,
     });
 
-    const [profileForm, setProfileForm] = useState(emptyProfileForm);
+    const [editedProfileForm, setProfileForm] = useState<typeof emptyProfileForm | null>(null);
+    const storedProfileForm = useMemo(
+        () => (privateProfile ? toProfileForm(privateProfile) : emptyProfileForm),
+        [privateProfile]
+    );
+    const profileForm = editedProfileForm ?? storedProfileForm;
     const profileBioRef = useRef<HTMLTextAreaElement>(null);
-    const setProfileDraft = useAdminPreviewStore((s) => s.setProfileDraft);
+    const setPreviewProfileDraft = useAdminPreviewStore((s) => s.setProfileDraft);
 
     // 라이브 프리뷰 패널이 저장 전 초안을 메인페이지에 반영할 수 있도록 최신 폼 상태를 발행한다.
     useEffect(() => {
-        setProfileDraft(profileForm);
-        return () => setProfileDraft(null);
-    }, [profileForm, setProfileDraft]);
-
-    useEffect(() => {
-        if (introData?.profile) {
-            const p = introData.profile;
-            setProfileForm({
-                name: p.name,
-                nameEn: p.nameEn,
-                jobTitle: p.jobTitle,
-                bio: p.bio,
-                coreStackSummary: p.coreStackSummary,
-                statusBadgeText: p.statusBadgeText,
-                githubUrl: p.githubUrl,
-                email: p.email,
-                phone: p.phone,
-            });
-        }
-    }, [introData]);
+        setPreviewProfileDraft(profileForm);
+        return () => setPreviewProfileDraft(null);
+    }, [profileForm, setPreviewProfileDraft]);
 
     useLayoutEffect(() => {
         const textarea = profileBioRef.current;
@@ -65,9 +72,9 @@ export function ProfileManagement() {
     }, [profileForm.bio]);
 
     const updateProfileMutation = useMutation({
-        mutationFn: profileApi.update,
+        mutationFn: (payload: typeof profileForm) => profileApi.update(workspaceSlug, payload),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['introduction'] });
+            queryClient.invalidateQueries({ queryKey: ['private-profile', workspaceSlug] });
             alert('프로필 정보가 성공적으로 업데이트되었습니다!');
         },
         onError: handleMutationError,
@@ -175,8 +182,8 @@ export function ProfileManagement() {
                         <input
                             type="text"
                             readOnly
-                            value={introData?.careerSummary ?? '경력 정보를 불러오는 중...'}
-                            title="이력 및 경력 관리의 직장 경력 기간을 기준으로 자동 계산됩니다."
+                            value="경력 관리 기능 연결 예정"
+                            title="Workspace별 경력 관리 API 전환 후 자동 계산됩니다."
                             className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500"
                         />
                     </div>
@@ -217,7 +224,6 @@ export function ProfileManagement() {
                         </label>
                         <input
                             type="email"
-                            required
                             value={profileForm.email}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, email: e.target.value })
@@ -231,7 +237,6 @@ export function ProfileManagement() {
                         </label>
                         <input
                             type="text"
-                            required
                             value={profileForm.phone}
                             onChange={(e) =>
                                 setProfileForm({ ...profileForm, phone: e.target.value })
@@ -239,6 +244,14 @@ export function ProfileManagement() {
                             className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                         />
                     </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-bold text-slate-800">원본 프로필</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        이 화면은 원본 정보만 저장합니다. 이메일·전화번호를 포함한 공개 범위는 ‘공개
+                        페이지 → 프로필 구성’에서 선택합니다.
+                    </p>
                 </div>
 
                 <div className="flex justify-end pt-2">

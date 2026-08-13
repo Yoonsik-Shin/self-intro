@@ -31,7 +31,13 @@ const AI_FIELD_LABELS: Record<string, string> = {
     solution: '해결',
 };
 
-export function PortfolioManagement() {
+export function PortfolioManagement({
+    workspaceSlug,
+    enablePlatformAi,
+}: {
+    workspaceSlug: string;
+    enablePlatformAi: boolean;
+}) {
     const queryClient = useQueryClient();
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
@@ -58,24 +64,24 @@ export function PortfolioManagement() {
     } = useAiSuggestionStream();
 
     const { data: caseStudies = [] } = useQuery({
-        queryKey: ['portfolio-case-studies'],
-        queryFn: portfolioApi.list,
+        queryKey: ['portfolio-case-studies', workspaceSlug],
+        queryFn: () => portfolioApi.workspaceList(workspaceSlug),
     });
     const { data: experiences = [] } = useQuery({
-        queryKey: ['experiences'],
-        queryFn: experienceApi.list,
+        queryKey: ['experiences', workspaceSlug],
+        queryFn: () => experienceApi.workspaceList(workspaceSlug),
     });
     const { data: studyPage } = useQuery({
-        queryKey: ['studies-admin-all'],
-        queryFn: () => studyApi.adminList({}),
+        queryKey: ['studies-admin-all', workspaceSlug],
+        queryFn: () => studyApi.workspaceAdminList(workspaceSlug, {}),
     });
     const { data: skills = [] } = useQuery({
-        queryKey: ['skills'],
-        queryFn: () => skillApi.list(),
+        queryKey: ['skills', workspaceSlug],
+        queryFn: () => skillApi.workspaceList(workspaceSlug),
     });
     const { data: detail } = useQuery({
-        queryKey: ['portfolio-case-study', selectedId],
-        queryFn: () => portfolioApi.detail(selectedId as number),
+        queryKey: ['portfolio-case-study', workspaceSlug, selectedId],
+        queryFn: () => portfolioApi.workspaceDetail(workspaceSlug, selectedId as number),
         enabled: selectedId !== null,
     });
 
@@ -97,13 +103,13 @@ export function PortfolioManagement() {
 
     const createMutation = useMutation({
         mutationFn: () =>
-            portfolioApi.create({
+            portfolioApi.workspaceCreate(workspaceSlug, {
                 experienceId: Number(createForm.experienceId),
                 slug: createForm.slug.trim(),
                 title: createForm.title.trim(),
             }),
         onSuccess: (created) => {
-            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies'] });
+            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
             setCreateOpen(false);
             setCreateForm({ experienceId: '', slug: '', title: '' });
             setSelectedId(created.id);
@@ -111,34 +117,46 @@ export function PortfolioManagement() {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => portfolioApi.remove(id),
+        mutationFn: (id: number) => portfolioApi.workspaceRemove(workspaceSlug, id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies'] });
+            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
             setSelectedId(null);
         },
     });
 
     const saveRevisionMutation = useMutation({
         mutationFn: (source: 'AI' | 'MANUAL') =>
-            portfolioApi.saveRevision(selectedId as number, content, source),
+            portfolioApi.workspaceSaveRevision(
+                workspaceSlug,
+                selectedId as number,
+                content,
+                source
+            ),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['portfolio-case-study', selectedId] });
+            queryClient.invalidateQueries({
+                queryKey: ['portfolio-case-study', workspaceSlug, selectedId],
+            });
         },
     });
 
     const publishMutation = useMutation({
-        mutationFn: (revisionId: number) => portfolioApi.publish(selectedId as number, revisionId),
+        mutationFn: (revisionId: number) =>
+            portfolioApi.workspacePublish(workspaceSlug, selectedId as number, revisionId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['portfolio-case-study', selectedId] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies'] });
+            queryClient.invalidateQueries({
+                queryKey: ['portfolio-case-study', workspaceSlug, selectedId],
+            });
+            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
         },
     });
 
     const unpublishMutation = useMutation({
-        mutationFn: () => portfolioApi.unpublish(selectedId as number),
+        mutationFn: () => portfolioApi.workspaceUnpublish(workspaceSlug, selectedId as number),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['portfolio-case-study', selectedId] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies'] });
+            queryClient.invalidateQueries({
+                queryKey: ['portfolio-case-study', workspaceSlug, selectedId],
+            });
+            queryClient.invalidateQueries({ queryKey: ['portfolio-case-studies', workspaceSlug] });
         },
     });
 
@@ -149,7 +167,8 @@ export function PortfolioManagement() {
         const controller = new AbortController();
         abortRef.current = controller;
         try {
-            await portfolioApi.generateStream(
+            await portfolioApi.workspaceGenerateStream(
+                workspaceSlug,
                 selectedId,
                 { instruction, studyIds, skillIds },
                 (event) => {
@@ -184,7 +203,8 @@ export function PortfolioManagement() {
     const handleUploadImage = async (file: File) => {
         setUploadingImage(true);
         try {
-            const presigned = await imageApi.requestPresignedUpload(
+            const presigned = await imageApi.requestWorkspacePresignedUpload(
+                workspaceSlug,
                 'PORTFOLIO_ARCHITECTURE',
                 file.name,
                 file.type
@@ -370,91 +390,96 @@ export function PortfolioManagement() {
                         </div>
                     </div>
 
-                    {/* AI 초안 생성 */}
-                    <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3">
-                        <h3 className="mb-2 flex items-center gap-1.5 text-xs font-black text-violet-900">
-                            <Sparkles className="h-3.5 w-3.5" /> AI 초안 생성
-                        </h3>
-                        <textarea
-                            value={instruction}
-                            onChange={(e) => setInstruction(e.target.value)}
-                            placeholder="특정 관점 위주로 작성해달라는 메모 (선택)"
-                            rows={2}
-                            className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
-                        />
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                            {(studyPage?.content ?? []).slice(0, 30).map((s) => (
-                                <button
-                                    key={s.id}
-                                    type="button"
-                                    onClick={() =>
-                                        setStudyIds((cur) =>
-                                            cur.includes(s.id)
-                                                ? cur.filter((id) => id !== s.id)
-                                                : [...cur, s.id]
-                                        )
-                                    }
-                                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
-                                        studyIds.includes(s.id)
-                                            ? 'border-violet-400 bg-violet-600 text-white'
-                                            : 'border-slate-300 text-slate-500 hover:border-violet-300'
-                                    }`}
-                                >
-                                    {s.title}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                            {skills.map((sk) => (
-                                <button
-                                    key={sk.id}
-                                    type="button"
-                                    onClick={() =>
-                                        setSkillIds((cur) =>
-                                            cur.includes(sk.id)
-                                                ? cur.filter((id) => id !== sk.id)
-                                                : [...cur, sk.id]
-                                        )
-                                    }
-                                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
-                                        skillIds.includes(sk.id)
-                                            ? 'border-blue-400 bg-blue-600 text-white'
-                                            : 'border-slate-300 text-slate-500 hover:border-blue-300'
-                                    }`}
-                                >
-                                    {sk.name}
-                                </button>
-                            ))}
-                        </div>
-                        <button
-                            type="button"
-                            onClick={requestAiGenerate}
-                            disabled={isGenerating}
-                            className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50"
-                        >
-                            {isGenerating ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                                <Sparkles className="h-3.5 w-3.5" />
-                            )}
-                            {isGenerating ? '생성 중...' : 'AI 초안 생성'}
-                        </button>
-
-                        {aiStages.length > 0 && (
-                            <div ref={chatRef} className="mt-3 max-h-64 space-y-2 overflow-y-auto">
-                                {aiStages.map((stage) => (
-                                    <AiStageBubble
-                                        key={stage.stage}
-                                        stage={stage}
-                                        fieldLabels={AI_FIELD_LABELS}
-                                    />
+                    {/* AI 입력은 Workspace 격리까지 완료된 플랫폼 운영자에게만 노출한다. */}
+                    {enablePlatformAi && (
+                        <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3">
+                            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-black text-violet-900">
+                                <Sparkles className="h-3.5 w-3.5" /> AI 초안 생성
+                            </h3>
+                            <textarea
+                                value={instruction}
+                                onChange={(e) => setInstruction(e.target.value)}
+                                placeholder="특정 관점 위주로 작성해달라는 메모 (선택)"
+                                rows={2}
+                                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+                            />
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {(studyPage?.content ?? []).slice(0, 30).map((s) => (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() =>
+                                            setStudyIds((cur) =>
+                                                cur.includes(s.id)
+                                                    ? cur.filter((id) => id !== s.id)
+                                                    : [...cur, s.id]
+                                            )
+                                        }
+                                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
+                                            studyIds.includes(s.id)
+                                                ? 'border-violet-400 bg-violet-600 text-white'
+                                                : 'border-slate-300 text-slate-500 hover:border-violet-300'
+                                        }`}
+                                    >
+                                        {s.title}
+                                    </button>
                                 ))}
                             </div>
-                        )}
-                        {aiError && (
-                            <p className="mt-2 text-xs font-bold text-rose-600">{aiError}</p>
-                        )}
-                    </div>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {skills.map((sk) => (
+                                    <button
+                                        key={sk.id}
+                                        type="button"
+                                        onClick={() =>
+                                            setSkillIds((cur) =>
+                                                cur.includes(sk.id)
+                                                    ? cur.filter((id) => id !== sk.id)
+                                                    : [...cur, sk.id]
+                                            )
+                                        }
+                                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition ${
+                                            skillIds.includes(sk.id)
+                                                ? 'border-blue-400 bg-blue-600 text-white'
+                                                : 'border-slate-300 text-slate-500 hover:border-blue-300'
+                                        }`}
+                                    >
+                                        {sk.name}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={requestAiGenerate}
+                                disabled={isGenerating}
+                                className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50"
+                            >
+                                {isGenerating ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                )}
+                                {isGenerating ? '생성 중...' : 'AI 초안 생성'}
+                            </button>
+
+                            {aiStages.length > 0 && (
+                                <div
+                                    ref={chatRef}
+                                    className="mt-3 max-h-64 space-y-2 overflow-y-auto"
+                                >
+                                    {aiStages.map((stage) => (
+                                        <AiStageBubble
+                                            key={stage.stage}
+                                            stage={stage}
+                                            fieldLabels={AI_FIELD_LABELS}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                            {aiError && (
+                                <p className="mt-2 text-xs font-bold text-rose-600">{aiError}</p>
+                            )}
+                        </div>
+                    )}
 
                     {/* 구조화 편집 폼 */}
                     <div className="space-y-3">

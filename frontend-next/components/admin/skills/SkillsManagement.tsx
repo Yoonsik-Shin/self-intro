@@ -59,22 +59,32 @@ const skillCategoryFilterLabels: Record<string, string> = {
     ETC: '기타',
 };
 
-export function SkillsManagement() {
+export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
     const queryClient = useQueryClient();
     const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
     const handleMutationError = (error: unknown) => {
         if (error instanceof ApiError && error.status === 401) setUnauthenticated();
     };
 
-    const { data: skillsList } = useQuery({ queryKey: ['skills'], queryFn: () => skillApi.list() });
+    const { data: skillsList } = useQuery({
+        queryKey: ['skills', workspaceSlug],
+        queryFn: () => skillApi.workspaceList(workspaceSlug),
+    });
+    const { data: catalogSkills = [] } = useQuery({
+        queryKey: ['skill-catalog'],
+        queryFn: skillApi.catalog,
+    });
+    const availableCatalogSkills = catalogSkills.filter(
+        (catalogSkill) => !(skillsList ?? []).some((skill) => skill.id === catalogSkill.id)
+    );
     const { data: studyPage } = useQuery({
-        queryKey: ['studies', 'admin'],
-        queryFn: () => studyApi.adminList(),
+        queryKey: ['studies', 'workspace', workspaceSlug],
+        queryFn: () => studyApi.workspaceAdminList(workspaceSlug),
     });
     const studies = studyPage?.content;
     const { data: experiencesList } = useQuery({
-        queryKey: ['experiences'],
-        queryFn: () => experienceApi.list(),
+        queryKey: ['experiences', workspaceSlug],
+        queryFn: () => experienceApi.workspaceList(workspaceSlug),
     });
 
     const [skillFilter, setSkillFilter] = useState('ALL');
@@ -161,8 +171,8 @@ export function SkillsManagement() {
     const createSkillMutation = useMutation({
         mutationFn: async (form: SkillForm) => {
             const { studyIds, experienceIds, experienceDetailIds, ...payload } = form;
-            const skill = await skillApi.create(payload);
-            await connectionApi.updateSkill(skill.id, {
+            const skill = await skillApi.workspaceCreate(workspaceSlug, payload);
+            await connectionApi.updateWorkspaceSkill(workspaceSlug, skill.id, {
                 studyIds,
                 experienceIds,
                 experienceDetailIds,
@@ -183,8 +193,12 @@ export function SkillsManagement() {
     const updateSkillMutation = useMutation({
         mutationFn: async ({ id, payload }: { id: number; payload: SkillForm }) => {
             const { studyIds, experienceIds, experienceDetailIds, ...skillPayload } = payload;
-            const skill = await skillApi.update(id, skillPayload);
-            await connectionApi.updateSkill(id, { studyIds, experienceIds, experienceDetailIds });
+            const skill = await skillApi.workspaceUpdate(workspaceSlug, id, skillPayload);
+            await connectionApi.updateWorkspaceSkill(workspaceSlug, id, {
+                studyIds,
+                experienceIds,
+                experienceDetailIds,
+            });
             return skill;
         },
         onSuccess: () => {
@@ -202,7 +216,10 @@ export function SkillsManagement() {
     const toggleCoreSkillMutation = useMutation({
         mutationFn: (skill: Skill) => {
             const { id, ...payload } = skill;
-            return skillApi.update(id, { ...payload, isCore: !skill.isCore });
+            return skillApi.workspaceUpdate(workspaceSlug, id, {
+                ...payload,
+                isCore: !skill.isCore,
+            });
         },
         onMutate: async (skill) => {
             await queryClient.cancelQueries({ queryKey: ['skills'] });
@@ -232,7 +249,7 @@ export function SkillsManagement() {
     });
 
     const deleteSkillMutation = useMutation({
-        mutationFn: skillApi.remove,
+        mutationFn: (id: number) => skillApi.workspaceRemove(workspaceSlug, id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['skills'] });
             queryClient.invalidateQueries({ queryKey: ['introduction'] });
@@ -274,7 +291,7 @@ export function SkillsManagement() {
 
     const openSkillEditor = async (skill: Skill) => {
         try {
-            const connections = await connectionApi.getSkill(skill.id);
+            const connections = await connectionApi.getWorkspaceSkill(workspaceSlug, skill.id);
             const recommendedBadge = recommendSkillBadge(skill.name);
             setSkillEditingId(skill.id);
             setSkillForm({
@@ -353,14 +370,23 @@ export function SkillsManagement() {
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
                                 기술 스택명
                             </label>
-                            <input
-                                type="text"
+                            <select
                                 required
-                                placeholder="예: Java, React"
                                 value={skillForm.name}
                                 onChange={(e) => handleSkillNameChange(e.target.value)}
+                                disabled={skillEditingId !== null}
                                 className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            />
+                            >
+                                <option value="">공용 기술 카탈로그에서 선택</option>
+                                {availableCatalogSkills.map((skill) => (
+                                    <option key={skill.id} value={skill.name}>
+                                        {skill.name} · {skill.category}
+                                    </option>
+                                ))}
+                                {skillEditingId !== null && skillForm.name && (
+                                    <option value={skillForm.name}>{skillForm.name}</option>
+                                )}
+                            </select>
                         </div>
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">

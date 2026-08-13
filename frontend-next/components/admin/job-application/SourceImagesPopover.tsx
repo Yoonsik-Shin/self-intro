@@ -60,7 +60,7 @@ export function SourceImagesPopover({ sourceImages, label, className }: SourceIm
                 <span className="whitespace-nowrap text-[10px] font-bold">{label}</span>
             </button>
             {open && (
-                <div className="absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                <div className="absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl shadow-slate-950/30 ring-1 ring-black/5">
                     <div className="grid grid-cols-3 gap-1.5">
                         {sorted.map((image, index) => (
                             <a
@@ -68,7 +68,7 @@ export function SourceImagesPopover({ sourceImages, label, className }: SourceIm
                                 href={image.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="block aspect-square overflow-hidden rounded-md border border-slate-200"
+                                className="block aspect-square overflow-hidden rounded-md border border-slate-700 transition hover:border-slate-400"
                                 title={`스크린샷 ${index + 1}`}
                             >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}

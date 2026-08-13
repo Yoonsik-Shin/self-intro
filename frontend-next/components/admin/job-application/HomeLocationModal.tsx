@@ -48,6 +48,8 @@ export default function HomeLocationModal({
     // 모달 오픈 시 초기화
     useEffect(() => {
         if (isOpen) {
+            // 모달을 다시 열 때 마지막 저장값으로 일회성 편집 상태를 초기화한다.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setAddress(settings?.homeAddress || '');
             setLatitude(settings?.homeLatitude ?? 37.5796);
             setLongitude(settings?.homeLongitude ?? 126.8899);
@@ -76,7 +78,7 @@ export default function HomeLocationModal({
     if (!isOpen) return null;
 
     // 주소 선택 시 처리 (도로명 주소 세팅 + 위도/경도 자동 산출)
-    const handleAddressSelected = async (data: DaumPostcodeData) => {
+    async function handleAddressSelected(data: DaumPostcodeData) {
         const selectedAddr = data.roadAddress || data.address;
         setAddress(selectedAddr);
         setIsInlineSearchOpen(false);
@@ -97,10 +99,10 @@ export default function HomeLocationModal({
                 setLongitude(fallbackCoords.lng);
             }
         }
-    };
+    }
 
     // 팝업 방식 주소 검색 (작성된 주소를 q 파라미터로 넘겨 팝업창 오픈)
-    const openPopupSearch = async () => {
+    async function openPopupSearch() {
         try {
             setErrorMsg(null);
             await openDaumPostcodeSearch((data) => {
@@ -111,7 +113,7 @@ export default function HomeLocationModal({
                 err instanceof Error ? err.message : '도로명 주소 검색 팝업을 열지 못했습니다.';
             setErrorMsg(message);
         }
-    };
+    }
 
     // 작성한 내용이 이미 있으므로 [주소검색] 누르면 입력 주소를 q 키워드로 전달하여 인라인 검색 영역 오픈
     const handleSearchClick = () => {

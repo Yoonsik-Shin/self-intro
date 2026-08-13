@@ -10,6 +10,7 @@ import type { JobPostingCoverLetterItem } from '@/lib/api/types';
 import { AiRevisionChat } from '@/components/shared/AiRevisionChat';
 
 interface JobCoverLetterDrawerProps {
+    workspaceSlug: string;
     isOpen: boolean;
     onClose: () => void;
     jobPostingId: number;
@@ -22,6 +23,7 @@ interface JobCoverLetterDrawerProps {
 }
 
 export function JobCoverLetterDrawer({
+    workspaceSlug,
     isOpen,
     onClose,
     jobPostingId,
@@ -40,6 +42,8 @@ export function JobCoverLetterDrawer({
     const abortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
+        // Portal은 브라우저 DOM이 준비된 뒤에만 렌더링한다.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
     }, []);
 
@@ -57,8 +61,11 @@ export function JobCoverLetterDrawer({
         isLoading: isRevisionsLoading,
         refetch: refetchRevisions,
     } = useQuery({
-        queryKey: ['coverLetterRevisions', itemId],
-        queryFn: () => (itemId ? jobPostingApi.coverLetterRevisions(itemId) : Promise.resolve([])),
+        queryKey: ['coverLetterRevisions', workspaceSlug, jobPostingId, itemId],
+        queryFn: () =>
+            itemId
+                ? jobPostingApi.workspaceCoverLetterRevisions(workspaceSlug, jobPostingId, itemId)
+                : Promise.resolve([]),
         enabled: isOpen && itemId > 0,
     });
 
@@ -90,7 +97,8 @@ export function JobCoverLetterDrawer({
         abortControllerRef.current = controller;
 
         try {
-            const res = await jobPostingApi.generateCoverLetterDraft(
+            const res = await jobPostingApi.workspaceGenerateCoverLetterDraft(
+                workspaceSlug,
                 jobPostingId,
                 {
                     question: item.question,

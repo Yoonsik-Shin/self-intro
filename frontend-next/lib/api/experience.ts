@@ -10,59 +10,53 @@ import type {
 } from './types';
 
 export const experienceApi = {
-    list: () => request<Experience[]>('/api/experiences'),
-    create: (payload: ExperienceRequest) =>
-        request<Experience>('/api/experiences', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        }),
-    update: (id: number, payload: ExperienceRequest) =>
-        request<Experience>(`/api/experiences/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-        }),
-    remove: (id: number) =>
-        request<void>(`/api/experiences/${id}`, {
-            method: 'DELETE',
-        }),
-    suggest: (payload: ExperienceSuggestionRequest) =>
-        request<ExperienceSuggestionResponse>('/api/admin/experiences/ai/suggestions', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        }),
-    suggestStream: (
+    workspaceList: (workspaceSlug: string) =>
+        request<Experience[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage`
+        ),
+    workspaceCreate: (workspaceSlug: string, payload: ExperienceRequest) =>
+        request<Experience>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
+    workspaceUpdate: (workspaceSlug: string, id: number, payload: ExperienceRequest) =>
+        request<Experience>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage/${id}`,
+            { method: 'PUT', body: JSON.stringify(payload) }
+        ),
+    workspaceRemove: (workspaceSlug: string, id: number) =>
+        request<void>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage/${id}`,
+            { method: 'DELETE' }
+        ),
+    workspaceReorder: (workspaceSlug: string, orderedIds: number[]) =>
+        request<Experience[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage/reorder`,
+            { method: 'POST', body: JSON.stringify(orderedIds) }
+        ),
+    workspaceSuggest: (workspaceSlug: string, payload: ExperienceSuggestionRequest) =>
+        request<ExperienceSuggestionResponse>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage/ai/suggestions`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
+    workspaceSuggestStream: (
+        workspaceSlug: string,
         payload: ExperienceSuggestionRequest,
         onEvent: (event: ExperienceSuggestionStreamEvent) => void,
         signal?: AbortSignal
     ) =>
         requestEventStream<ExperienceSuggestionStreamEvent>(
-            '/api/admin/experiences/ai/suggestions/stream',
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage/ai/suggestions/stream`,
             payload,
             onEvent,
             signal
         ),
-    generateNarrative: (payload: ExperienceDetailNarrativeRequest) =>
-        request<ExperienceDetailNarrativeResponse>('/api/admin/experiences/ai/details/narrative', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        }),
-    toggleTimeline: (id: number) =>
-        request<Experience>(`/api/experiences/${id}/toggle-timeline`, {
-            method: 'PATCH',
-        }),
-    batchTimelineShow: (ids: number[]) =>
-        request<Experience[]>('/api/experiences/batch-timeline-show', {
-            method: 'POST',
-            body: JSON.stringify(ids),
-        }),
-    batchTimelineHide: (ids: number[]) =>
-        request<Experience[]>('/api/experiences/batch-timeline-hide', {
-            method: 'POST',
-            body: JSON.stringify(ids),
-        }),
-    reorder: (orderedIds: number[]) =>
-        request<Experience[]>('/api/experiences/reorder', {
-            method: 'POST',
-            body: JSON.stringify(orderedIds),
-        }),
+    workspaceGenerateNarrative: (
+        workspaceSlug: string,
+        payload: ExperienceDetailNarrativeRequest
+    ) =>
+        request<ExperienceDetailNarrativeResponse>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/experiences/manage/ai/details/narrative`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
 };

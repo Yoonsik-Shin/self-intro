@@ -44,7 +44,7 @@ const RELATIONS: Array<{ value: DecisionStudyRelationType; label: string }> = [
     { value: 'COUNTER_EXAMPLE', label: '반례' },
 ];
 
-export function ExperienceTreeManagement() {
+export function ExperienceTreeManagement({ workspaceSlug }: { workspaceSlug: string }) {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [domain, setDomain] = useState<DecisionDomain | 'ALL'>('ALL');
@@ -63,19 +63,22 @@ export function ExperienceTreeManagement() {
     });
 
     const { data: index } = useQuery({
-        queryKey: ['experience-tree', 'admin-index'],
-        queryFn: () => experienceTreeApi.adminIndex(),
+        queryKey: ['experience-tree', workspaceSlug, 'manage-index'],
+        queryFn: () => experienceTreeApi.workspaceManageIndex(workspaceSlug),
         staleTime: 60 * 60 * 1000,
     });
     const activeKey = selectedKey ?? index?.situations[0]?.stableKey ?? null;
     const { data: detail } = useQuery({
-        queryKey: ['experience-tree', 'admin-detail', activeKey],
-        queryFn: () => experienceTreeApi.adminDetail(activeKey!),
+        queryKey: ['experience-tree', workspaceSlug, 'manage-detail', activeKey],
+        queryFn: () => experienceTreeApi.workspaceManageDetail(workspaceSlug, activeKey!),
         enabled: Boolean(activeKey),
     });
     const { data: studyPage } = useQuery({
-        queryKey: ['studies', 'admin', 'experience-tree-links', deferredStudySearch],
-        queryFn: () => studyApi.adminList({ q: deferredStudySearch || undefined }),
+        queryKey: ['studies', workspaceSlug, 'experience-tree-links', deferredStudySearch],
+        queryFn: () =>
+            studyApi.workspaceAdminList(workspaceSlug, {
+                q: deferredStudySearch || undefined,
+            }),
     });
 
     const situations = useMemo(() => {
@@ -117,22 +120,23 @@ export function ExperienceTreeManagement() {
     }, [index]);
 
     const invalidate = () => {
-        queryClient.invalidateQueries({ queryKey: ['experience-tree'] });
+        queryClient.invalidateQueries({ queryKey: ['experience-tree', workspaceSlug] });
     };
     const createMutation = useMutation({
-        mutationFn: experienceTreeApi.createStudyLink,
+        mutationFn: (payload: DecisionStudyLinkRequest) =>
+            experienceTreeApi.workspaceCreateStudyLink(workspaceSlug, payload),
         onSuccess: invalidate,
     });
     const updateMutation = useMutation({
         mutationFn: ({ id, payload }: { id: number; payload: DecisionStudyLinkRequest }) =>
-            experienceTreeApi.updateStudyLink(id, payload),
+            experienceTreeApi.workspaceUpdateStudyLink(workspaceSlug, id, payload),
         onSuccess: () => {
             invalidate();
             setEditingLinkId(null);
         },
     });
     const deleteMutation = useMutation({
-        mutationFn: experienceTreeApi.removeStudyLink,
+        mutationFn: (id: number) => experienceTreeApi.workspaceRemoveStudyLink(workspaceSlug, id),
         onSuccess: invalidate,
     });
 
@@ -162,7 +166,7 @@ export function ExperienceTreeManagement() {
                         </div>
                     </div>
                     <Link
-                        href="/experience-tree"
+                        href={`/workspace/${encodeURIComponent(workspaceSlug)}/ontology`}
                         target="_blank"
                         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                     >

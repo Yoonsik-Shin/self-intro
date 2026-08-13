@@ -1,15 +1,81 @@
 import { request } from './client';
 import type {
     LearningResource,
+    LearningResourceCatalogItem,
     LearningResourceGraph,
     LearningResourcePage,
     LearningResourcePriorityTier,
     LearningResourceRequest,
     LearningResourceStatus,
     LearningResourceType,
+    WorkspaceLearningResourceRequest,
 } from './types';
 
 export const learningResourceApi = {
+    workspaceList: (
+        workspaceSlug: string,
+        params: {
+            q?: string;
+            taxonomyNodeId?: number;
+            tags?: string[];
+            skillIds?: number[];
+            resourceType?: LearningResourceType;
+            status?: LearningResourceStatus;
+            priorityTier?: LearningResourcePriorityTier;
+        } = {}
+    ) => {
+        const search = learningResourceSearch(params);
+        return request<LearningResourcePage>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage?${search}`
+        );
+    },
+    workspaceCatalog: (workspaceSlug: string, q?: string) => {
+        const search = new URLSearchParams();
+        if (q) search.set('q', q);
+        return request<LearningResourceCatalogItem[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/catalog?${search}`
+        );
+    },
+    workspaceGet: (workspaceSlug: string, id: number) =>
+        request<LearningResource>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/${id}`
+        ),
+    workspaceGraph: (workspaceSlug: string) =>
+        request<LearningResourceGraph>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/graph`
+        ),
+    workspaceAdd: (
+        workspaceSlug: string,
+        resourceId: number,
+        payload: WorkspaceLearningResourceRequest
+    ) =>
+        request<LearningResource>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/${resourceId}`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
+    workspaceUpdate: (
+        workspaceSlug: string,
+        resourceId: number,
+        payload: WorkspaceLearningResourceRequest
+    ) =>
+        request<LearningResource>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/${resourceId}`,
+            { method: 'PUT', body: JSON.stringify(payload) }
+        ),
+    workspaceRemove: (workspaceSlug: string, resourceId: number) =>
+        request<void>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/${resourceId}`,
+            { method: 'DELETE' }
+        ),
+    workspaceUpdateStatus: (
+        workspaceSlug: string,
+        resourceId: number,
+        status: LearningResourceStatus
+    ) =>
+        request<LearningResource>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/${resourceId}/status`,
+            { method: 'PATCH', body: JSON.stringify({ status }) }
+        ),
     adminList: (
         params: {
             q?: string;
@@ -53,3 +119,23 @@ export const learningResourceApi = {
             body: JSON.stringify({ status }),
         }),
 };
+
+function learningResourceSearch(params: {
+    q?: string;
+    taxonomyNodeId?: number;
+    tags?: string[];
+    skillIds?: number[];
+    resourceType?: LearningResourceType;
+    status?: LearningResourceStatus;
+    priorityTier?: LearningResourcePriorityTier;
+}) {
+    const search = new URLSearchParams({ size: '500' });
+    if (params.q) search.set('q', params.q);
+    if (params.taxonomyNodeId) search.set('taxonomyNodeId', String(params.taxonomyNodeId));
+    params.tags?.forEach((tag) => search.append('tags', tag));
+    params.skillIds?.forEach((id) => search.append('skillIds', String(id)));
+    if (params.resourceType) search.set('resourceType', params.resourceType);
+    if (params.status) search.set('status', params.status);
+    if (params.priorityTier) search.set('priorityTier', params.priorityTier);
+    return search;
+}

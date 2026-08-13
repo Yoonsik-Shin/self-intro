@@ -6,6 +6,7 @@ import { imageApi } from '@/lib/api';
 import type { GalleryImage, ImageScope } from '@/lib/api/types';
 
 type ImageGalleryEditorProps = {
+    workspaceSlug: string;
     scope: ImageScope;
     images: GalleryImage[];
     onChange: (images: GalleryImage[]) => void;
@@ -14,7 +15,12 @@ type ImageGalleryEditorProps = {
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 
-export function ImageGalleryEditor({ scope, images, onChange }: ImageGalleryEditorProps) {
+export function ImageGalleryEditor({
+    workspaceSlug,
+    scope,
+    images,
+    onChange,
+}: ImageGalleryEditorProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -32,7 +38,8 @@ export function ImageGalleryEditor({ scope, images, onChange }: ImageGalleryEdit
                 if (file.size > MAX_FILE_SIZE_BYTES) {
                     throw new Error(`파일이 너무 큽니다(최대 8MB): ${file.name}`);
                 }
-                const presigned = await imageApi.requestPresignedUpload(
+                const presigned = await imageApi.requestWorkspacePresignedUpload(
+                    workspaceSlug,
                     scope,
                     file.name,
                     file.type

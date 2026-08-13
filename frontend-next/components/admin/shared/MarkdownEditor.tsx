@@ -33,13 +33,23 @@ import {
 } from '@/lib/markdown';
 import { imageApi } from '@/lib/api';
 
-type Props = {
+type BaseProps = {
     value: string;
     onChange: (value: string) => void;
-    // Study의 본문 편집기에서만 켜는 기능 — 이 컴포넌트는 Experience의 summary/takeaway/
-    // situation/actionDetail/outcome 편집에도 재사용되므로 기본값은 꺼짐.
-    enableImageUpload?: boolean;
 };
+
+type Props = BaseProps &
+    (
+        | {
+              // Study 본문 이미지 업로드는 반드시 현재 Workspace 경계를 명시한다.
+              enableImageUpload: true;
+              workspaceSlug: string;
+          }
+        | {
+              enableImageUpload?: false;
+              workspaceSlug?: never;
+          }
+    );
 
 const IMAGE_ACCEPT_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
@@ -73,10 +83,11 @@ interface HistoryItem {
     selectionEnd: number;
 }
 
-export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
+export function MarkdownEditor({ value, onChange, enableImageUpload, workspaceSlug }: Props) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const imageUploadWorkspaceSlug = enableImageUpload ? workspaceSlug : undefined;
 
     // Custom History for Undo/Redo (Cmd+Z / Cmd+Shift+Z)
     const historyRef = useRef<HistoryItem[]>([]);
@@ -384,13 +395,18 @@ export function MarkdownEditor({ value, onChange, enableImageUpload }: Props) {
 
     const handleImageSelected = async (file: File | undefined) => {
         if (!file) return;
+        if (!imageUploadWorkspaceSlug) {
+            window.alert('이미지 업로드 Workspace를 확인할 수 없습니다.');
+            return;
+        }
         if (!IMAGE_ACCEPT_TYPES.includes(file.type)) {
             window.alert(`지원하지 않는 이미지 형식입니다: ${file.name}`);
             return;
         }
         setUploadingImage(true);
         try {
-            const presigned = await imageApi.requestPresignedUpload(
+            const presigned = await imageApi.requestWorkspacePresignedUpload(
+                imageUploadWorkspaceSlug,
                 'STUDY_MARKDOWN',
                 file.name,
                 file.type

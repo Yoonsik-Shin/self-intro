@@ -1,9 +1,11 @@
 import { request, requestEventStream } from './client';
+import { ApiError } from './errors';
 import type {
     GapProjectDocument,
     JobApplicationUrlParseResponse,
     JobApplicationUrlParseStreamEvent,
     JobPosting,
+    JobPostingCatalogItem,
     JobPostingBulkIngestRow,
     JobPostingBulkIngestStreamEvent,
     JobPostingCoverLetterDraftRequest,
@@ -15,6 +17,7 @@ import type {
     JobPostingIngestStreamEvent,
     JobPostingPositionChoice,
     JobPostingPositionChoiceRequest,
+    JobPostingPermissionReviewRequest,
     JobPostingPrintDraftStreamEvent,
     JobPostingRequest,
     JobPostingSetting,
@@ -23,6 +26,9 @@ import type {
     JobPostingStatusEvent,
     JobplanetCompanyRequest,
     JobplanetLookup,
+    WorkspaceJobApplicationRequest,
+    WorkspacePrivateJobPostingRequest,
+    WorkspaceJobScreenshotUploadResponse,
 } from './types';
 
 function aiModelQuery(aiModel?: string, customModelName?: string): string {
@@ -33,46 +39,204 @@ function aiModelQuery(aiModel?: string, customModelName?: string): string {
     return query ? `?${query}` : '';
 }
 
+function removedPersonalJobApplicationRoute<T>(...legacyArguments: unknown[]): Promise<T> {
+    void legacyArguments;
+    return Promise.reject(
+        new ApiError(
+            410,
+            '개인 지원 관리는 현재 Workspace의 지원 현황 화면에서만 사용할 수 있습니다.'
+        )
+    );
+}
+
 export const jobPostingApi = {
+    workspaceList: (workspaceSlug: string) =>
+        request<JobPosting[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage`
+        ),
+    workspaceCatalog: (workspaceSlug: string, q?: string) => {
+        const search = new URLSearchParams();
+        if (q) search.set('q', q);
+        return request<JobPostingCatalogItem[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/catalog?${search}`
+        );
+    },
+    workspaceGet: (workspaceSlug: string, id: number) =>
+        request<JobPosting>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}`
+        ),
+    workspaceSave: (workspaceSlug: string, id: number, payload: WorkspaceJobApplicationRequest) =>
+        request<JobPosting>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
+    workspaceCreatePrivateSource: (
+        workspaceSlug: string,
+        payload: WorkspacePrivateJobPostingRequest
+    ) =>
+        request<JobPosting>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/private-sources`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        ),
+    workspaceParsePrivateSourceUrl: (workspaceSlug: string, url: string) =>
+        request<JobApplicationUrlParseResponse>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/parse-url`,
+            { method: 'POST', body: JSON.stringify({ url }) }
+        ),
+    workspaceIssueScreenshotUpload: (
+        workspaceSlug: string,
+        fileName: string,
+        contentType: string,
+        contentLength: number
+    ) =>
+        request<WorkspaceJobScreenshotUploadResponse>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/private-sources/screenshots/uploads`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ fileName, contentType, contentLength }),
+            }
+        ),
+    workspaceParsePrivateSourceScreenshots: (workspaceSlug: string, uploadIds: string[]) =>
+        request<JobApplicationUrlParseResponse>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/parse-screenshots`,
+            { method: 'POST', body: JSON.stringify({ uploadIds }) }
+        ),
+    workspaceCancelScreenshotUpload: (workspaceSlug: string, uploadId: string) =>
+        request<void>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/private-sources/screenshots/uploads/${encodeURIComponent(uploadId)}`,
+            { method: 'DELETE' }
+        ),
+    workspaceUpdate: (workspaceSlug: string, id: number, payload: WorkspaceJobApplicationRequest) =>
+        request<JobPosting>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}`,
+            { method: 'PUT', body: JSON.stringify(payload) }
+        ),
+    workspaceChangeStatus: (
+        workspaceSlug: string,
+        id: number,
+        status: JobPostingStatus,
+        appliedAt?: string | null,
+        memo?: string
+    ) =>
+        request<JobPosting>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/status`,
+            { method: 'PATCH', body: JSON.stringify({ status, appliedAt, memo }) }
+        ),
+    workspaceStatusEvents: (workspaceSlug: string, id: number) =>
+        request<JobPostingStatusEvent[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/status-events`
+        ),
+    workspaceCoverLetterItems: (workspaceSlug: string, id: number) =>
+        request<JobPostingCoverLetterItem[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/cover-letter-items`
+        ),
+    workspaceCoverLetterRevisions: (workspaceSlug: string, id: number, itemId: number) =>
+        request<JobPostingCoverLetterRevision[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/cover-letter-items/${itemId}/revisions`
+        ),
+    workspaceReplaceCoverLetterItems: (
+        workspaceSlug: string,
+        id: number,
+        items: JobPostingCoverLetterItemRequest[]
+    ) =>
+        request<JobPostingCoverLetterItem[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/cover-letter-items`,
+            { method: 'PUT', body: JSON.stringify({ items }) }
+        ),
+    workspaceGenerateCoverLetterDraft: (
+        workspaceSlug: string,
+        id: number,
+        payload: JobPostingCoverLetterDraftRequest,
+        options?: { signal?: AbortSignal }
+    ) =>
+        request<JobPostingCoverLetterDraftResponse>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/generate-cover-letter-draft`,
+            { method: 'POST', body: JSON.stringify(payload), signal: options?.signal }
+        ),
+    workspaceAnalyzeAppeal: (
+        workspaceSlug: string,
+        id: number,
+        aiModel?: string,
+        customModelName?: string
+    ) =>
+        request<JobPosting>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/analyze-appeal${aiModelQuery(aiModel, customModelName)}`,
+            { method: 'POST' }
+        ),
+    workspaceRematch: (workspaceSlug: string, id: number) =>
+        request<JobPosting>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/rematch`,
+            { method: 'POST' }
+        ),
+    workspaceGapProjectDocuments: (workspaceSlug: string, id: number) =>
+        request<GapProjectDocument[]>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/gap-project-documents`
+        ),
+    workspaceGenerateGapProjectDocument: (
+        workspaceSlug: string,
+        id: number,
+        aiModel?: string,
+        customModelName?: string
+    ) =>
+        request<GapProjectDocument>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/gap-project-documents${aiModelQuery(aiModel, customModelName)}`,
+            { method: 'POST' }
+        ),
+    workspaceGeneratePrintDraftStream: (
+        workspaceSlug: string,
+        id: number,
+        onEvent: (event: JobPostingPrintDraftStreamEvent) => void,
+        signal?: AbortSignal,
+        aiModel?: string,
+        customModelName?: string
+    ) =>
+        requestEventStream<JobPostingPrintDraftStreamEvent>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/print-template-draft/stream${aiModelQuery(aiModel, customModelName)}`,
+            {},
+            onEvent,
+            signal
+        ),
+    workspaceReviseAiPrintDraftStream: (
+        workspaceSlug: string,
+        id: number,
+        templateId: number,
+        feedbackInstruction: string,
+        onEvent: (event: JobPostingPrintDraftStreamEvent) => void,
+        signal?: AbortSignal,
+        aiModel?: string,
+        customModelName?: string
+    ) =>
+        requestEventStream<JobPostingPrintDraftStreamEvent>(
+            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/print-template-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
+            { feedbackInstruction },
+            onEvent,
+            signal
+        ),
+    workspaceRemove: (workspaceSlug: string, id: number) =>
+        request<void>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}`,
+            { method: 'DELETE' }
+        ),
     list: () => request<JobPosting[]>('/api/admin/job-postings'),
     get: (id: number) => request<JobPosting>(`/api/admin/job-postings/${id}`),
-    coverLetterItems: (id: number) =>
-        request<JobPostingCoverLetterItem[]>(`/api/admin/job-postings/${id}/cover-letter-items`),
-    coverLetterRevisions: (itemId: number) =>
-        request<JobPostingCoverLetterRevision[]>(
-            `/api/admin/job-postings/cover-letter-items/${itemId}/revisions`
-        ),
-    replaceCoverLetterItems: (id: number, items: JobPostingCoverLetterItemRequest[]) =>
-        request<JobPostingCoverLetterItem[]>(`/api/admin/job-postings/${id}/cover-letter-items`, {
+    reviewSharingPermission: (id: number, payload: JobPostingPermissionReviewRequest) =>
+        request<JobPosting>(`/api/admin/job-postings/${id}/permission-review`, {
             method: 'PUT',
-            body: JSON.stringify({ items }),
+            body: JSON.stringify(payload),
         }),
-    /** 2지망 이상을 확정/수정한다(1지망은 update()가 관리하는 positionTitle이 담당). */
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
     replacePositionChoices: (id: number, choices: JobPostingPositionChoiceRequest[]) =>
-        request<JobPostingPositionChoice[]>(`/api/admin/job-postings/${id}/position-choices`, {
-            method: 'PUT',
-            body: JSON.stringify({ choices }),
-        }),
-    /** "새 지원 공고 등록" — 수집 단계 없이 이미 지원 완료한 공고를 바로 기록한다. */
-    create: (payload: JobPostingRequest) =>
-        request<JobPosting>('/api/admin/job-postings', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        }),
+        removedPersonalJobApplicationRoute<JobPostingPositionChoice[]>(id, choices),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    create: (payload: JobPostingRequest) => removedPersonalJobApplicationRoute<JobPosting>(payload),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
     update: (id: number, payload: JobPostingRequest) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-        }),
+        removedPersonalJobApplicationRoute<JobPosting>(id, payload),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
     updateMemo: (id: number, memo: string | null) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/memo`, {
-            method: 'PATCH',
-            body: JSON.stringify({ memo }),
-        }),
-    remove: (id: number) =>
-        request<void>(`/api/admin/job-postings/${id}`, {
-            method: 'DELETE',
-        }),
+        removedPersonalJobApplicationRoute<JobPosting>(id, memo),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    remove: (id: number) => removedPersonalJobApplicationRoute<void>(id),
     parseUrl: (url: string) =>
         request<JobApplicationUrlParseResponse>('/api/worker/job-postings/parse-url', {
             method: 'POST',
@@ -89,12 +253,11 @@ export const jobPostingApi = {
             onEvent,
             signal
         ),
-    getSettings: () => request<JobPostingSetting>('/api/admin/job-postings/settings'),
+    /** @deprecated 개인 지원 설정은 Workspace 계약 확정 전까지 제공하지 않는다. */
+    getSettings: () => removedPersonalJobApplicationRoute<JobPostingSetting>(),
+    /** @deprecated 개인 지원 설정은 Workspace 계약 확정 전까지 제공하지 않는다. */
     updateSettings: (payload: JobPostingSettingRequest) =>
-        request<JobPostingSetting>('/api/admin/job-postings/settings', {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-        }),
+        removedPersonalJobApplicationRoute<JobPostingSetting>(payload),
     ingestUrl: (url: string) =>
         request<JobPosting>('/api/worker/job-postings/ingest-url', {
             method: 'POST',
@@ -168,109 +331,31 @@ export const jobPostingApi = {
             onEvent,
             signal
         ),
-    save: (id: number) =>
-        request<void>(`/api/admin/job-postings/${id}/save`, {
-            method: 'PATCH',
-        }),
-    unsave: (id: number) =>
-        request<void>(`/api/admin/job-postings/${id}/unsave`, {
-            method: 'PATCH',
-        }),
-    dismiss: (id: number) =>
-        request<void>(`/api/admin/job-postings/${id}/dismiss`, {
-            method: 'PATCH',
-        }),
-    undismiss: (id: number) =>
-        request<void>(`/api/admin/job-postings/${id}/undismiss`, {
-            method: 'PATCH',
-        }),
-    /** 지원 전 후보를 "지원 완료" 상태로 전환한다(예전의 "지원 전환"). */
-    apply: (id: number) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/apply`, {
-            method: 'POST',
-        }),
-    /** 실수로 지원 전환했거나 보드에서 잘못 옮긴 경우 지원 전 상태로 되돌린다. */
-    unapply: (id: number) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/unapply`, {
-            method: 'POST',
-        }),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    save: (id: number) => removedPersonalJobApplicationRoute<void>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    unsave: (id: number) => removedPersonalJobApplicationRoute<void>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    dismiss: (id: number) => removedPersonalJobApplicationRoute<void>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    undismiss: (id: number) => removedPersonalJobApplicationRoute<void>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    apply: (id: number) => removedPersonalJobApplicationRoute<JobPosting>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    unapply: (id: number) => removedPersonalJobApplicationRoute<JobPosting>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
     changeStatus: (id: number, status: JobPostingStatus, memo?: string) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/status`, {
-            method: 'PATCH',
-            body: JSON.stringify({ status, memo }),
-        }),
-    statusEvents: (id: number) =>
-        request<JobPostingStatusEvent[]>(`/api/admin/job-postings/${id}/status-events`),
+        removedPersonalJobApplicationRoute<JobPosting>(id, status, memo),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    statusEvents: (id: number) => removedPersonalJobApplicationRoute<JobPostingStatusEvent[]>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
     deleteStatusEvent: (id: number, eventId: number) =>
-        request<JobPosting>(`/api/admin/job-postings/${id}/status-events/${eventId}`, {
-            method: 'DELETE',
-        }),
-    analyzeAppeal: (id: number, aiModel?: string, customModelName?: string) =>
-        request<JobPosting>(
-            `/api/worker/job-postings/${id}/analyze-appeal${aiModelQuery(aiModel, customModelName)}`,
-            { method: 'POST' }
-        ),
-    generateCoverLetterDraft: (
-        id: number,
-        payload: JobPostingCoverLetterDraftRequest,
-        options?: { signal?: AbortSignal }
-    ) =>
-        request<JobPostingCoverLetterDraftResponse>(
-            `/api/worker/job-postings/${id}/generate-cover-letter-draft`,
-            {
-                method: 'POST',
-                body: JSON.stringify(payload),
-                signal: options?.signal,
-            }
-        ),
-    generatePrintDraftStream: (
-        id: number,
-        onEvent: (event: JobPostingPrintDraftStreamEvent) => void,
-        signal?: AbortSignal,
-        aiModel?: string,
-        customModelName?: string
-    ) =>
-        requestEventStream<JobPostingPrintDraftStreamEvent>(
-            `/api/worker/job-postings/${id}/print-template-draft/stream${aiModelQuery(aiModel, customModelName)}`,
-            {},
-            onEvent,
-            signal
-        ),
-    reviseAiPrintDraftStream: (
-        id: number,
-        templateId: number,
-        feedbackInstruction: string,
-        onEvent: (event: JobPostingPrintDraftStreamEvent) => void,
-        signal?: AbortSignal,
-        aiModel?: string,
-        customModelName?: string
-    ) =>
-        requestEventStream<JobPostingPrintDraftStreamEvent>(
-            `/api/worker/job-postings/${id}/print-template-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
-            { feedbackInstruction },
-            onEvent,
-            signal
-        ),
-    getJobplanet: (id: number) =>
-        request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`),
+        removedPersonalJobApplicationRoute<JobPosting>(id, eventId),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    getJobplanet: (id: number) => removedPersonalJobApplicationRoute<JobplanetLookup>(id),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
     saveJobplanet: (id: number, payload: JobplanetCompanyRequest) =>
-        request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-        }),
-    clearJobplanet: (id: number) =>
-        request<JobplanetLookup>(`/api/admin/job-postings/${id}/jobplanet`, {
-            method: 'DELETE',
-        }),
-    gapProjectDocuments: (id: number) =>
-        request<GapProjectDocument[]>(`/api/worker/job-postings/${id}/gap-project-documents`),
-    generateGapProjectDocument: (id: number, aiModel?: string, customModelName?: string) =>
-        request<GapProjectDocument>(
-            `/api/worker/job-postings/${id}/gap-project-documents${aiModelQuery(aiModel, customModelName)}`,
-            { method: 'POST' }
-        ),
-    rematch: (id: number) =>
-        request<JobPosting>(`/api/worker/job-postings/${id}/rematch`, {
-            method: 'POST',
-        }),
+        removedPersonalJobApplicationRoute<JobplanetLookup>(id, payload),
+    /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
+    clearJobplanet: (id: number) => removedPersonalJobApplicationRoute<JobplanetLookup>(id),
 };

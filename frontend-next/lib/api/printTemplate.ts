@@ -1,5 +1,6 @@
 import { request } from './client';
 import type {
+    IntroductionResponse,
     DirectPdfUploadRequest,
     PortfolioPrintTemplateRequest,
     PrintTemplate,
@@ -47,101 +48,133 @@ function parsePrintTemplate(raw: PrintTemplateRaw): PrintTemplate {
 }
 
 export const printTemplateApi = {
-    list: async () => {
-        const raws = await request<PrintTemplateRaw[]>('/api/print-templates');
-        return raws.map(parsePrintTemplate);
-    },
-    adminList: async () => {
-        const raws = await request<PrintTemplateRaw[]>('/api/admin/print-templates');
-        return raws.map(parsePrintTemplate);
-    },
-    listByJobPosting: async (jobPostingId: number) => {
+    workspacePublicList: async (workspaceSlug: string) => {
         const raws = await request<PrintTemplateRaw[]>(
-            `/api/admin/print-templates?jobPostingId=${jobPostingId}`
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates`
         );
         return raws.map(parsePrintTemplate);
     },
-    create: async (t: PrintTemplateRequest) => {
-        const raw = await request<PrintTemplateRaw>('/api/admin/print-templates', {
-            method: 'POST',
-            body: JSON.stringify(t),
-        });
-        return parsePrintTemplate(raw);
-    },
-    update: async (id: number, t: PrintTemplateRequest) => {
-        const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(t),
-        });
-        return parsePrintTemplate(raw);
-    },
-    markFinal: async (id: number) => {
-        const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/mark-final`, {
-            method: 'PATCH',
-        });
-        return parsePrintTemplate(raw);
-    },
-    unmarkFinal: async (id: number) => {
-        const raw = await request<PrintTemplateRaw>(
-            `/api/admin/print-templates/${id}/unmark-final`,
-            { method: 'PATCH' }
-        );
-        return parsePrintTemplate(raw);
-    },
-    remove: (id: number) => request<void>(`/api/admin/print-templates/${id}`, { method: 'DELETE' }),
-    attachFinalPdf: async (id: number, objectKey: string) => {
-        const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/final-pdf`, {
-            method: 'PUT',
-            body: JSON.stringify({ objectKey }),
-        });
-        return parsePrintTemplate(raw);
-    },
-    removeFinalPdf: async (id: number) => {
-        const raw = await request<PrintTemplateRaw>(`/api/admin/print-templates/${id}/final-pdf`, {
-            method: 'DELETE',
-        });
-        return parsePrintTemplate(raw);
-    },
-    createDirectPdf: async (jobPostingId: number, payload: DirectPdfUploadRequest) => {
-        const raw = await request<PrintTemplateRaw>(
-            `/api/admin/job-postings/${jobPostingId}/direct-pdf`,
-            {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            }
-        );
-        return parsePrintTemplate(raw);
-    },
-    listByPortfolioCaseStudy: async (caseStudyId: number) => {
+    workspaceAdminList: async (workspaceSlug: string) => {
         const raws = await request<PrintTemplateRaw[]>(
-            `/api/admin/print-templates/portfolio/${caseStudyId}`
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage`
         );
         return raws.map(parsePrintTemplate);
     },
-    getPortfolioDefault: async (caseStudyId: number, orientation: 'PORTRAIT' | 'LANDSCAPE') => {
+    workspaceOutputSource: (workspaceSlug: string) =>
+        request<IntroductionResponse>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/source`
+        ),
+    workspaceCreate: async (workspaceSlug: string, template: PrintTemplateRequest) => {
         const raw = await request<PrintTemplateRaw>(
-            `/api/admin/print-templates/portfolio/${caseStudyId}/default?orientation=${orientation}`
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage`,
+            { method: 'POST', body: JSON.stringify(template) }
         );
         return parsePrintTemplate(raw);
     },
-    createPortfolio: async (caseStudyId: number, payload: PortfolioPrintTemplateRequest) => {
+    workspaceUpdate: async (workspaceSlug: string, id: number, template: PrintTemplateRequest) => {
         const raw = await request<PrintTemplateRaw>(
-            `/api/admin/print-templates/portfolio/${caseStudyId}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/${id}`,
+            { method: 'PUT', body: JSON.stringify(template) }
+        );
+        return parsePrintTemplate(raw);
+    },
+    workspaceRemove: (workspaceSlug: string, id: number) =>
+        request<void>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/${id}`,
+            { method: 'DELETE' }
+        ),
+    workspaceListByPortfolioCaseStudy: async (workspaceSlug: string, caseStudyId: number) => {
+        const raws = await request<PrintTemplateRaw[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/portfolio/${caseStudyId}`
+        );
+        return raws.map(parsePrintTemplate);
+    },
+    workspaceCreatePortfolio: async (
+        workspaceSlug: string,
+        caseStudyId: number,
+        payload: PortfolioPrintTemplateRequest
+    ) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/portfolio/${caseStudyId}`,
             { method: 'POST', body: JSON.stringify(payload) }
         );
         return parsePrintTemplate(raw);
     },
-    updatePortfolio: async (
+    workspaceUpdatePortfolio: async (
+        workspaceSlug: string,
         caseStudyId: number,
         id: number,
         payload: PortfolioPrintTemplateRequest
     ) => {
         const raw = await request<PrintTemplateRaw>(
-            `/api/admin/print-templates/portfolio/${caseStudyId}/${id}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/portfolio/${caseStudyId}/${id}`,
             { method: 'PUT', body: JSON.stringify(payload) }
         );
         return parsePrintTemplate(raw);
     },
-    revisions: (templateId: number) =>
-        request<PrintTemplateRevision[]>(`/api/admin/print-templates/${templateId}/revisions`),
+    workspaceRevisions: (workspaceSlug: string, templateId: number) =>
+        request<PrintTemplateRevision[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/${templateId}/revisions`
+        ),
+    workspaceRollbackRevision: async (
+        workspaceSlug: string,
+        templateId: number,
+        revisionId: number
+    ) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/${templateId}/revisions/${revisionId}/rollback`,
+            { method: 'POST' }
+        );
+        return parsePrintTemplate(raw);
+    },
+    workspaceListByJobPosting: async (workspaceSlug: string, jobPostingId: number) => {
+        const raws = await request<PrintTemplateRaw[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/job-applications/${jobPostingId}`
+        );
+        return raws.map(parsePrintTemplate);
+    },
+    workspaceCreateDirectPdf: async (
+        workspaceSlug: string,
+        jobPostingId: number,
+        payload: DirectPdfUploadRequest
+    ) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/job-applications/${jobPostingId}/direct-pdf`,
+            { method: 'POST', body: JSON.stringify(payload) }
+        );
+        return parsePrintTemplate(raw);
+    },
+    workspaceMarkFinal: async (workspaceSlug: string, jobPostingId: number, id: number) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/job-applications/${jobPostingId}/${id}/mark-final`,
+            { method: 'PATCH' }
+        );
+        return parsePrintTemplate(raw);
+    },
+    workspaceUnmarkFinal: async (workspaceSlug: string, jobPostingId: number, id: number) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/job-applications/${jobPostingId}/${id}/unmark-final`,
+            { method: 'PATCH' }
+        );
+        return parsePrintTemplate(raw);
+    },
+    workspaceAttachFinalPdf: async (
+        workspaceSlug: string,
+        jobPostingId: number,
+        id: number,
+        objectKey: string
+    ) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/job-applications/${jobPostingId}/${id}/final-pdf`,
+            { method: 'PUT', body: JSON.stringify({ objectKey }) }
+        );
+        return parsePrintTemplate(raw);
+    },
+    workspaceRemoveFinalPdf: async (workspaceSlug: string, jobPostingId: number, id: number) => {
+        const raw = await request<PrintTemplateRaw>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/job-applications/${jobPostingId}/${id}/final-pdf`,
+            { method: 'DELETE' }
+        );
+        return parsePrintTemplate(raw);
+    },
 };
