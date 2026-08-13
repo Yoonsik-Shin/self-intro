@@ -9,6 +9,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface WorkspaceRepository extends JpaRepository<Workspace, Long> {
+    long countByStatus(WorkspaceStatus status);
+
+    long countByStatusAndPublicationStatus(
+            WorkspaceStatus status, WorkspacePublicationStatus publicationStatus);
+
     Optional<Workspace> findBySlug(String slug);
 
     Optional<Workspace> findBySlugAndStatus(String slug, WorkspaceStatus status);

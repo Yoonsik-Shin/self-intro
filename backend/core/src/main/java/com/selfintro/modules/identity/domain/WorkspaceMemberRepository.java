@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember, Long> {
+    long countByStatus(MembershipStatus status);
+
     @EntityGraph(attributePaths = "workspace")
     List<WorkspaceMember> findAllByUserIdAndStatus(Long userId, MembershipStatus status);
 

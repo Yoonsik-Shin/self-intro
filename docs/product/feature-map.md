@@ -232,7 +232,7 @@ Workspace에서는 해당 Workspace 역할 범위로만 관리한다. 다른 사
 | ---------------------------------------- | ------------------------------------- | --------------------- | -------------------------------- |
 | 비공개 베타 초대 발급·폐기               | `PLATFORM_OWNER`, `PLATFORM_OPERATOR` | 플랫폼 전체           | 구현                             |
 | Vector namespace 정합성·고아/누락 정리   | `PLATFORM_OWNER`, `PLATFORM_OPERATOR` | 원본·파생 데이터 건수 | 구현, 재인증·외부 전송 확인 필요 |
-| 플랫폼 사용자·Workspace 운영 현황        | `PLATFORM_OWNER`, `PLATFORM_OPERATOR` | 최소 메타데이터       | 미구현                           |
+| 플랫폼 사용자·Workspace 운영 현황        | `PLATFORM_OWNER`, `PLATFORM_OPERATOR` | 상태별 집계값만       | 구현, 식별정보 비노출            |
 | 보안 감사·이상 접속                      | `PLATFORM_OWNER`, `PLATFORM_OPERATOR` | 보안 이벤트           | 일부 구현                        |
 | Support Access 승인·감사                 | 승인된 운영 역할                      | 승인된 대상·기간만    | 구현·Compose UAT 완료            |
 | 플랫폼 전체 방문자 통계                  | `PLATFORM_OWNER`, `PLATFORM_OPERATOR` | 플랫폼 집계           | Workspace 통계와 분리 유지       |

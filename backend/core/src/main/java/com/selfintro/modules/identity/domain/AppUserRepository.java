@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
+    long countByStatus(UserStatus status);
+
     Optional<AppUser> findByLoginId(String loginId);
 
     Optional<AppUser> findByEmailCanonical(String emailCanonical);

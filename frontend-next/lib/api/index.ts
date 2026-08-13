@@ -31,3 +31,4 @@ export * from './workspace';
 export * from './workspacePurge';
 export * from './vectorOperations';
 export * from './supportAccess';
+export * from './platformOperations';

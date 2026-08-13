@@ -119,6 +119,11 @@ const ExperienceTreeManagement = dynamic(() =>
 const InvitationOperationsPanel = dynamic(() =>
     import('@/app/ops/page').then((module) => module.default)
 );
+const PlatformOperationsOverviewPanel = dynamic(() =>
+    import('./ops/PlatformOperationsOverviewPanel').then(
+        (module) => module.PlatformOperationsOverviewPanel
+    )
+);
 const WorkspacePurgeOperationsPanel = dynamic(() =>
     import('./ops/WorkspacePurgeOperationsPanel').then(
         (module) => module.WorkspacePurgeOperationsPanel
@@ -153,6 +158,7 @@ type TabId =
     | 'PUBLIC_EXPERIENCE'
     | 'PUBLIC_STUDY'
     | 'MEMBERS'
+    | 'PLATFORM_OVERVIEW'
     | 'INVITATIONS'
     | 'PURGE_JOBS'
     | 'VECTOR_RECONCILIATION'
@@ -347,6 +353,13 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
         requiresPlatformOperator: true,
         items: [
             {
+                id: 'PLATFORM_OVERVIEW',
+                label: '사용자·Workspace 현황',
+                description: '개인정보 없이 플랫폼 계정·Workspace·Membership 집계를 확인합니다.',
+                icon: LayoutDashboard,
+                operatorSection: '사용자·서비스 운영',
+            },
+            {
                 id: 'INVITATIONS',
                 label: '비공개 베타 초대',
                 description: '플랫폼 가입 초대의 발급과 수명주기를 관리합니다.',
@@ -476,6 +489,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 'PUBLIC_EXPERIENCE',
                 'PUBLIC_STUDY',
                 'MEMBERS',
+                'PLATFORM_OVERVIEW',
                 'INVITATIONS',
                 'PURGE_JOBS',
                 'VECTOR_RECONCILIATION',
@@ -863,6 +877,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 activeTab === 'LEARNING_RESOURCES' ||
                 activeTab === 'STUDY_PLAN' ||
                 activeTab === 'TAXONOMY' ||
+                activeTab === 'PLATFORM_OVERVIEW' ||
                 activeTab === 'INVITATIONS' ||
                 activeTab === 'PURGE_JOBS' ||
                 activeTab === 'VECTOR_RECONCILIATION' ||
@@ -1480,6 +1495,9 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             {isPlatformOperator && activeTab === 'DONATIONS' && <DonationsPanel />}
                             {isPlatformOperator && activeTab === 'INVITATIONS' && (
                                 <InvitationOperationsPanel />
+                            )}
+                            {isPlatformOperator && activeTab === 'PLATFORM_OVERVIEW' && (
+                                <PlatformOperationsOverviewPanel />
                             )}
                             {isPlatformOperator && activeTab === 'PURGE_JOBS' && (
                                 <WorkspacePurgeOperationsPanel />
