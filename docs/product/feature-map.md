@@ -352,37 +352,36 @@ Workspace에서는 해당 Workspace 역할 범위로만 관리한다. 다른 사
 Kubernetes 표준 배포 계약을 유지해 AWS·Azure adapter로 교체할 수 있게 한다. 실제 실행과 배포 순서는
 [SaaS 운영 가이드](../operations/saas-operations-guide.md)를 따른다.
 
-## 11. 출시를 막는 핵심 미완료 사항
+## 11. 출시 전 남은 외부 조건과 제품 결정
 
-- 지원 공고의 자기소개서 문항·AI 초안은 V205, 어필 분석·Gap 문서는 V206, PDF AI 초안과 최종
-  제출 PDF는 Workspace 지원 건·PrintTemplate·비공개 object scope로 전환 완료. 공용 JobPosting
-  벡터와 Workspace 기술 기반 매칭 결과도 분리 완료했으며 실제
-  벡터 추천 endpoint와 결과 snapshot 삭제 전파는 아직 없음
-- 운영 private object bucket 프로비저닝·기존 PDF 이관, 파일 검사, 삭제 전파 rehearsal
-- Competency 벡터를 다시 활성화하려면 별도 Workspace vector schema·cache 검증 필요
-- 모든 MFA 수단과 복구 코드를 함께 잃은 계정의 운영 신원 확인 절차, 운영 Secret과 rate limit
-- Support Access의 사유·범위·소유자 승인·15~60분 만료·최소 진단·감사 흐름과 Compose V227 적용,
-  MFA를 사용하는 SUPPORT 계정과 Workspace OWNER 두 계정 UAT 및 감사 이벤트 확인까지 완료했다. 운영
-  provider 반영 전까지 기능은 기본 비활성으로 유지한다.
-- 폐쇄 Workspace의 provider-neutral purge job·저장소 checkpoint·MySQL inventory dry-run과
-  Worker-only checkpoint orchestration을 구현. 완료 건 skip, 실패 지점 재개, stale lease 재claim,
-  MySQL 최종 실행을 보장한다. 로컬 backup clone 복구와 5개 checkpoint 전체 purge rehearsal은
-  통과했고 production release gate도 추가했다. maintenance reconciliation과 API/Worker runtime role
-  격리도 로컬에서 검증했다. 전체·provider flag는 모두 false이며 운영 backup 보존·OCI provider 복구·
-  Service 비노출 격리 Worker reconciliation rehearsal은 미완료
-- 계정 탈퇴 구현과 폐기 가능한 일반 Account의 Compose UAT를 완료했다. 로그인과 명시적 재인증을
-  분리하고 탈퇴·전체 세션 만료·재로그인 차단·DB 익명화·감사 이벤트를 자동 검증한다. 남은 차단
-  조건은 법정·계약상 보존 기간과 운영 복구 정책 확정이다.
-- 비밀번호 재설정 token은 hash만 30분 보관하고 사용·만료 후 기본 30일 retention 배치로 삭제한다. MFA 모든
-  수단 분실 복구에는 별도의 운영 신원 확인·단기 인증정보 보존 계약이 남아 있다.
-- 계정 설정에서 닉네임 변경, 가입과 동일한 10~32자 비밀번호 정책을 적용한 현재 비밀번호 기반 변경,
-  전체 기기 로그아웃을 구현했다. 비밀번호 변경 성공 시 현재 세션을 포함한 모든 Redis 세션을 폐기하며
-  이름·비밀번호·세션 폐기 작업은 원문을 남기지 않는 보안 감사 이벤트로 기록한다. 비밀번호 분실
-  재설정은 30분 hash token, 일회성 소비, 발송 실패 회수와 전체 세션 폐기로 구현했다. 이메일 변경도 현재
-  비밀번호 확인, 새 주소 확인 전 기존 이메일 유지, 충돌 재검사, 30분 hash token, 일회성 소비와 완료 뒤
-  전체 세션 폐기로 구현했다. 운영 SMTP provider와 공개 HTTPS base URL 승인은 배포 차단 항목으로 남는다.
+로컬 비공개 베타 구현과 자동 회귀는 완료했다. 아래 항목은 현재 저장소에서 추가 코드를 작성해 해결할
+수 있는 일반 기능 미구현 목록이 아니라, 운영 provider·보존 정책·신원 확인 절차 또는 출시 범위 승인이
+필요한 release gate다.
 
-이 항목을 끝내기 전에는 일반 베타테스터에게 현재 관리자 기능 전체를 개방하거나 운영 배포하지 않는다.
+### 운영 배포 차단 조건
+
+- 운영 private object bucket 프로비저닝·기존 최종 PDF 이관, 악성 파일 검사와 삭제 전파 rehearsal
+- 모든 MFA 수단과 복구 코드를 함께 잃은 계정의 신원 확인·복구 절차와 운영 `MFA_ENCRYPTION_KEY`
+- 운영 backup 보존 정책과 MySQL·객체 저장소 복구 rehearsal, 격리 Worker의 운영 Service 비노출 확인
+- 운영 SMTP·비밀번호 유출 blocklist provider, 공개 HTTPS base URL, 가입·초대 retention 지표와 실패 알림
+- 계정 탈퇴·지원 접근·실명 인증에 필요한 법정·계약상 보존 및 삭제 정책 승인
+
+Support Access, 계정 탈퇴, 비밀번호 재설정·변경, 이메일 변경, 전체 세션 폐기와 Workspace purge
+checkpoint는 구현했고 로컬 Compose UAT를 통과했다. 운영 승인이 필요한 기능은 기본 비활성이고, purge
+전체·provider flag도 모두 `false`로 유지한다.
+
+### 비공개 베타 이후 제품 결정
+
+- JobPosting catalog vector 추천은 후보 범위·거리 임계값·결과 snapshot·삭제 전파 계약을 확정한 뒤 구현한다.
+  현재 Workspace 기술 기반 수동 재매칭은 완료했으며 비공개 베타 출시 범위에는 추천 endpoint를 넣지 않는다.
+- Competency vector는 다시 활성화할 때 Workspace vector schema·cache 검증을 추가한다. 현재 Competency AI
+  입력의 Workspace 격리는 완료했다.
+- 플랫폼 기본 PrintTemplate catalog와 Workspace 복사 모델은 유료 템플릿 정책을 확정한 뒤 설계한다.
+- 역할로 잠긴 `/api/admin/**` 호환 endpoint와 canonical Workspace API가 없는 플랫폼 도메인의 유지·이관·
+  제거 시점을 비공개 베타 이후 결정한다.
+
+운영 차단 조건을 승인하기 전에는 운영 배포하지 않는다. 제품 결정 항목은 비공개 베타의 로컬 테스트를
+막지 않는다.
 
 ## 12. 목적별 다음 문서
 
