@@ -2188,10 +2188,11 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
 - 제거 대상은 `study_entry`, `study_entry_skill`, `portfolio_case_study_study` 세 테이블로 제한한다.
   앞의 두 테이블은 현재 Markdown 기반 `study` 모델로 대체됐고, 포트폴리오의 Study 근거는
   `portfolio_case_study_revision.content_json.sourceStudyIds`를 단일 원본으로 사용한다.
-- V231은 세 테이블 중 하나라도 행을 가지고 있으면 `SQLSTATE 45000`으로 중단한다. 비어 있지 않은
-  운영 데이터가 자동 배포 과정에서 삭제되는 것을 허용하지 않는다. `verified_identity`, `study_plan_*`,
-  `learning_resource_skill`, `gap_project_document`는 각각 향후 실명 인증 경계 또는 활성 코드 경로가 있어
-  제거하지 않는다.
+- V231은 세 테이블의 합계 행 수를 임시 CHECK 제약 테이블로 검증하고, 하나라도 행을 가지고 있으면
+  constraint violation으로 중단한다. 저장 프로시저를 만들지 않아 최소 권한 애플리케이션 DB 계정에
+  `CREATE ROUTINE` 권한을 추가하지 않으면서 비어 있지 않은 운영 데이터의 자동 삭제를 막는다.
+  `verified_identity`, `study_plan_*`, `learning_resource_skill`, `gap_project_document`는 각각 향후 실명 인증
+  경계 또는 활성 코드 경로가 있어 제거하지 않는다.
 - 적용 전 전체 DB 백업을 남기고 다음 조회 결과가 모두 0인지 확인한다.
 
 ```sql
@@ -2205,7 +2206,8 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 로컬 Compose 검증은 V230 상태에서 위 세 카운트가 모두 0임을 확인한 뒤 백업을 만들고 backend 이미지를
   재빌드해 V231을 적용한다. 검증 기준은 Flyway V231 `success=1`, 세 테이블 부재, backend health `UP`,
   동기화 스크립트 구문 검사 통과다.
-- 복구가 필요하면 애플리케이션 쓰기를 먼저 중단하고 V231 적용 전 전체 백업으로 DB를 복원한다. 삭제된
+- 세 카운트 중 하나라도 0이 아니면 배포를 중단하고 데이터를 삭제하거나 Flyway 이력을 수정하지 않는다.
+  복구가 필요하면 애플리케이션 쓰기를 먼저 중단하고 V231 적용 전 전체 백업으로 DB를 복원한다. 삭제된
   빈 테이블만 임의로 재생성해 Flyway 이력과 실제 schema를 어긋나게 만들지 않는다.
 - 이 정리는 로컬 Docker Compose에서 검증하고 migration과 문서를 독립 커밋으로 보존했다. 운영에는
   배포하지 않았으며, 운영 적용은 별도 승인과 운영 DB 사전 카운트·백업 확인 뒤 수행한다.
@@ -2215,6 +2217,17 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   세 제거 대상과 임시 검사 프로시저 부재, backend `healthy`를 확인했다. 두 동기화 스크립트의 `bash -n`도
   통과했다. 별도 임시 DB에 `study_entry` 1행을 넣은 실패 경로에서는 `SQLSTATE 45000`으로 중단되고
   1행과 세 테이블이 모두 보존되는 것도 확인한 뒤 임시 DB를 삭제했다. 운영 DB에는 적용하지 않았다.
+- 2026-08-14 운영 재배포에서 V231은 실패했고, 운영 애플리케이션 DB 계정에는 `CREATE ROUTINE` 권한이
+  없지만 당시 V231은 `CREATE PROCEDURE`를 요구했다. 최소 권한 정책과 호환되지 않는 구성으로 판단해
+  운영 DB에서 세 대상 테이블이 모두 0행임을 다시 확인하고, Pod 내부
+  `/tmp/self-intro-pre-v188.sql` 전체 백업
+  (SHA-256 `5d92618f0b1fc66aa4f1447ac9978ad7cadd5c0c73278cecd09b4655ff1d1ce5`)을 유지한 상태에서
+  V231의 보호 가드를 CREATE ROUTINE 권한이 필요 없는 임시 CHECK 제약 테이블 방식으로 변경했다.
+  새 이미지 배포 전에는 실패한 V231 이력을 삭제하지 않으며, 새 이미지 반영 후 정확히 그 실패 행만
+  제거하고 Flyway 재실행 결과를 검증한다.
+- 변경된 V231은 로컬 MySQL 8 임시 DB에서 다시 검증했다. 빈 테이블 경로는 세 대상 테이블을 모두
+  제거했고, `study_entry`에 1행을 넣은 경로는 `ERROR 3819` CHECK constraint violation으로 중단되며
+  원본 1행과 세 대상 테이블을 모두 보존했다. 검증용 DB는 확인 후 삭제했다.
 
 ### 15.11 2026-08-14 운영 배포 실패와 전체 애플리케이션 롤백
 
