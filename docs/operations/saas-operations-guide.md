@@ -2262,3 +2262,19 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   공개 메인·introduction HTTP 200을 확인한다.
 - 재실패 시 API·Worker·Frontend를 함께 직전 정상 태그(`f33390a`, `f33390a`, `203ac86`)로 되돌린다.
   migration이 일부 반영됐다면 임의 역 SQL을 실행하지 말고 사전 backup 복원 여부를 먼저 판단한다.
+
+### 15.13 운영 MFA 암호화 Secret
+
+- 2026-08-14 운영 API에서 MFA 등록 확인 요청이 HTTP 500으로 실패했다. API 로그의 직접 원인은
+  `MFA_ENCRYPTION_KEY가 설정되지 않았습니다.`였으며, 사용자가 입력한 TOTP 자체의 오류가 아니었다.
+- MFA 암호화 키는 DB 자격 증명과 분리한 `backend-auth-secret` SealedSecret으로 관리한다. API
+  Deployment만 이 Secret을 `envFrom`으로 주입하며 Worker에는 주입하지 않는다. 키 원문은 Git,
+  ConfigMap, CI 로그, 운영 문서에 남기지 않는다.
+- 운영 키는 랜덤 32바이트를 Base64로 인코딩한 값이어야 한다. `kubeseal --raw` 변환 결과만
+  `sealed-auth-secret.yaml`에 저장하고, Sealed Secrets controller가 생성한 Secret에서 키 이름과
+  데이터 존재 여부만 확인한다. 복호화된 값은 출력하지 않는다.
+- Secret 참조가 바뀌면 API Pod를 교체하고 새 Pod 내부에서 값 자체를 출력하지 않은 채
+  `MFA_ENCRYPTION_KEY`가 비어 있지 않은지만 확인한다. 이후 새 MFA 설정 키를 발급하고 등록 확인,
+  전체 기기 로그아웃, 새 TOTP 로그인을 사람의 UAT로 검증한다.
+- 오류 화면이나 캡처에 QR·설정 키가 노출된 경우 기존 pending 설정 키를 사용하지 않는다. 반드시
+  `설정 키 새로 만들기`로 교체한 뒤 새 QR을 인증 앱에 등록한다.

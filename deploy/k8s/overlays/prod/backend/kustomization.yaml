@@ -8,6 +8,7 @@ resources:
   - ../../../base/redis
   - ingress.yaml
   - sealed-db-secret.yaml
+  - sealed-auth-secret.yaml
   - sealed-ai-secret.yaml
   - sealed-storage-secret.yaml
   - sealed-kofi-secret.yaml
