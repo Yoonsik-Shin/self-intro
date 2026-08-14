@@ -2259,7 +2259,8 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   않는다.
 - 수정 이미지를 배포한 뒤 API 로그에서 V188·V189 migrate 성공을 확인한다. 이어 Flyway history의
   `success=1`, 대상 상세 6개, 상세 기술 연결 26개, RAG Study 연결 1개, backend health `UP`, Worker Ready,
-  공개 메인·introduction HTTP 200을 확인한다.
+  공개 메인과 발행된 Workspace의 `/api/bff/workspaces/{workspaceSlug}/introduction` HTTP 200을 확인한다.
+  전역 `/api/bff/introduction`은 Workspace 격리를 위해 제거된 경로이므로 404가 정상이다.
 - 재실패 시 API·Worker·Frontend를 함께 직전 정상 태그(`f33390a`, `f33390a`, `203ac86`)로 되돌린다.
   migration이 일부 반영됐다면 임의 역 SQL을 실행하지 말고 사전 backup 복원 여부를 먼저 판단한다.
 
@@ -2278,3 +2279,12 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   전체 기기 로그아웃, 새 TOTP 로그인을 사람의 UAT로 검증한다.
 - 오류 화면이나 캡처에 QR·설정 키가 노출된 경우 기존 pending 설정 키를 사용하지 않는다. 반드시
   `설정 키 새로 만들기`로 교체한 뒤 새 QR을 인증 앱에 등록한다.
+- 운영 반영 commit `ce7bfa9`에서 SealedSecret과 API 전용 Secret 참조를 main에 반영했다. Argo CD
+  `self-intro-backend`가 같은 revision으로 Synced·Healthy가 된 뒤 새 API Pod의 재시작 0회와
+  `MFA_ENCRYPTION_KEY` 존재 여부를 값 출력 없이 확인했다. API health, 공개 메인, 발행된 Workspace의
+  slug 기반 introduction BFF는 모두 HTTP 200이었다. 전역 introduction BFF의 404도 제거된 계약과
+  일치했다.
+- 같은 배포의 DB 사후 검증은 MySQL client를 `utf8mb4`로 명시해 수행했다. Flyway V188·V189·V231은
+  모두 `success=1`, 대상 상세 6개, 상세 기술 연결 26개, RAG Study 연결 1개였고 임시 표식과 고아 연결은
+  각각 0개였다. 한글 논리 제목을 비교하는 운영 점검 쿼리는 client character set을 생략하면 잘못된
+  0건으로 보일 수 있으므로 반드시 `--default-character-set=utf8mb4`를 사용한다.
