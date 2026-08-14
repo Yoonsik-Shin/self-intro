@@ -19,7 +19,8 @@ public class MfaSecretCipher {
     private final String encodedKey;
 
     public MfaSecretCipher(@Value("${app.security.mfa.encryption-key:}") String encodedKey) {
-        this.encodedKey = encodedKey;
+        // Secret 생성 도구가 마지막 개행을 포함하더라도 키 본문만 사용한다.
+        this.encodedKey = encodedKey == null ? "" : encodedKey.strip();
     }
 
     public String encrypt(String plaintext) {
@@ -32,7 +33,7 @@ public class MfaSecretCipher {
             return Base64.getUrlEncoder().withoutPadding().encodeToString(nonce)
                     + "."
                     + Base64.getUrlEncoder().withoutPadding().encodeToString(ciphertext);
-        } catch (GeneralSecurityException exception) {
+        } catch (GeneralSecurityException | IllegalArgumentException exception) {
             throw new IllegalStateException("MFA 비밀키 암호화에 실패했습니다.", exception);
         }
     }

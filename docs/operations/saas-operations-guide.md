@@ -2288,3 +2288,11 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   모두 `success=1`, 대상 상세 6개, 상세 기술 연결 26개, RAG Study 연결 1개였고 임시 표식과 고아 연결은
   각각 0개였다. 한글 논리 제목을 비교하는 운영 점검 쿼리는 client character set을 생략하면 잘못된
   0건으로 보일 수 있으므로 반드시 `--default-character-set=utf8mb4`를 사용한다.
+- 첫 Secret 반영 후 MFA 등록 확인이 HTTP 400으로 다시 실패했다. 운영 로그의 직접 원인은
+  `Input byte array has incorrect ending byte at 44`였고, Pod 안의 키는 전체 45바이트·공백 제외
+  44바이트였다. 즉 44자의 정상 Base64 본문 뒤에 Secret 생성 명령의 개행 1바이트가 포함된 문제였다.
+  사용자 TOTP 숫자 불일치가 아니므로 인증 앱을 반복 등록하는 것으로 해결되지 않는다.
+- API는 환경변수의 앞뒤 공백을 제거한 뒤 Base64 키를 검증하며, 잘못된 Base64의 내부 decoder 문구를
+  클라이언트 응답에 그대로 노출하지 않는다. Secret을 새로 만들 때도
+  `openssl rand -base64 32 | tr -d '\\n'`처럼 개행을 제거한 44자 값을 `kubeseal --raw`에 전달한다.
+  값은 출력하지 않고 전체 길이와 공백 제외 길이가 모두 44인지 확인한다.
