@@ -2296,3 +2296,5 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   클라이언트 응답에 그대로 노출하지 않는다. Secret을 새로 만들 때도
   `openssl rand -base64 32 | tr -d '\\n'`처럼 개행을 제거한 44자 값을 `kubeseal --raw`에 전달한다.
   값은 출력하지 않고 전체 길이와 공백 제외 길이가 모두 44인지 확인한다.
+- 운영 SealedSecret은 기존 키 본문을 회전하지 않고 끝 개행만 제거해 다시 봉인했다. 현재 API는 정규화
+  코드로 기존 Pod의 45바이트 환경변수도 처리하며, 이후 교체되는 Pod는 공백 없는 44자 키를 주입받는다.
