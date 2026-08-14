@@ -2228,3 +2228,24 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   일치하는지 확인한다.
 - V188 실패 이력을 임의로 성공 처리하거나 운영 데이터를 보정하지 않는다. 운영 데이터 차이를 허용하는
   migration 수정과 별도 검증을 마치기 전까지 `1809638` 계열 이미지는 다시 배포하지 않는다.
+
+### 15.12 V188 운영 데이터 차이 보정과 재배포 절차
+
+- 실패 원인은 `experience_detail.id=39,40`이 모든 환경에서 동일하다고 가정한 V188의 고정 외래 키였다.
+  운영에는 부모 `experience.id=21`과 기술 원본은 존재했지만 해당 상세 ID가 없어 연결 테이블 INSERT가
+  실패했다. 운영 데이터에 임의 ID 행을 추가하는 방식으로 맞추지 않는다.
+- V188은 각 상세를 `experience_id=21`과 논리 제목으로 찾고, 아직 없는 상세만 생성한 뒤 실제
+  AUTO_INCREMENT ID를 이후 UPDATE와 `experience_detail_skill` 연결에 사용한다. V189도 RAG 상세의
+  실제 ID를 논리 제목으로 조회해 Study 연결을 갱신한다.
+- 별도 MySQL 복제 DB `self_intro_v188_test`에서 상세 ID 39·40을 제거해 운영 차이를 재현했다. 수정된
+  V188·V189를 두 번 연속 실행한 결과 대상 상세 6개(ID `33,34,37,38,54,55`), 상세 기술 연결 26개,
+  RAG Study 연결 1개, 임시 표식 0개를 유지했고 고아 상세 기술 연결은 0개였다.
+- 운영 적용 전 새 MySQL backup 또는 snapshot이 `ACTIVE`인지 확인하고, 실패한
+  `flyway_schema_history.version='188' AND success=0` 행의 전체 값을 별도로 기록한다. 실패 행은 백업이
+  확보된 뒤에만 Flyway repair 또는 동등한 단일 행 정리로 제거한다. 성공 이력이나 다른 version은 수정하지
+  않는다.
+- 수정 이미지를 배포한 뒤 API 로그에서 V188·V189 migrate 성공을 확인한다. 이어 Flyway history의
+  `success=1`, 대상 상세 6개, 상세 기술 연결 26개, RAG Study 연결 1개, backend health `UP`, Worker Ready,
+  공개 메인·introduction HTTP 200을 확인한다.
+- 재실패 시 API·Worker·Frontend를 함께 직전 정상 태그(`f33390a`, `f33390a`, `203ac86`)로 되돌린다.
+  migration이 일부 반영됐다면 임의 역 SQL을 실행하지 말고 사전 backup 복원 여부를 먼저 판단한다.
