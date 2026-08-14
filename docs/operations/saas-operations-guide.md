@@ -2298,3 +2298,10 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   값은 출력하지 않고 전체 길이와 공백 제외 길이가 모두 44인지 확인한다.
 - 운영 SealedSecret은 기존 키 본문을 회전하지 않고 끝 개행만 제거해 다시 봉인했다. 현재 API는 정규화
   코드로 기존 Pod의 45바이트 환경변수도 처리하며, 이후 교체되는 Pod는 공백 없는 44자 키를 주입받는다.
+- 운영 반영 commit `d81bec2`의 API·Worker image와 `f3498ca3`의 공백 없는 SealedSecret이 Argo CD에서
+  Synced된 뒤 운영자가 새 설정 키로 MFA 등록을 완료했다. 새 API 배포 이후 MFA·Base64 관련 오류가
+  재발하지 않았고 API·Worker·Frontend Pod는 모두 Ready, 재시작 0회였다.
+- 운영 DB 사전 검증과 백업 확인에 사용한 임시 Pod `prod-db-verify`, `prod-v188-backup`은 UAT 성공 후
+  삭제했다. Pod 삭제는 운영 DB 데이터나 사전에 확인한 backup을 삭제하는 작업이 아니다.
+- 외부 점검을 위해 OCI 네트워크에 임시로 허용한 TCP 6443 단일 IP 수신 규칙은 후속 운영 작업이 없으면
+  즉시 제거한다. 애플리케이션 서비스 트래픽 규칙과 혼동해 삭제하지 않도록 대상 CIDR과 설명을 확인한다.
