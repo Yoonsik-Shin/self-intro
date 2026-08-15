@@ -25,6 +25,7 @@ import {
 type Props = {
     experiences: Experience[];
     basePath?: string;
+    previewMode?: boolean;
 };
 
 type RecentlyViewedExperienceItem = {
@@ -80,18 +81,23 @@ function writeRecentlyViewed(items: RecentlyViewedExperienceItem[]) {
     window.dispatchEvent(new Event(RECENTLY_VIEWED_CHANGED_EVENT));
 }
 
-export function ExperienceListClient({ experiences, basePath = '/experience' }: Props) {
+export function ExperienceListClient({
+    experiences,
+    basePath = '/experience',
+    previewMode = false,
+}: Props) {
     const [selectedTypes, setSelectedTypes] = useState<ExperienceTypeFilter[]>(['ALL']);
     const [selectedYears, setSelectedYears] = useState<number[]>([]);
     const [selectedExperienceIds, setSelectedExperienceIds] = useState<number[]>([]);
     const [search, setSearch] = useState('');
     const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
     const [isRecentExpanded, setIsRecentExpanded] = useState(false);
-    const recentlyViewed = useSyncExternalStore(
+    const storedRecentlyViewed = useSyncExternalStore(
         subscribeToRecentlyViewed,
         getRecentlyViewedSnapshot,
         getRecentlyViewedServerSnapshot
     );
+    const recentlyViewed = previewMode ? EMPTY_RECENTLY_VIEWED : storedRecentlyViewed;
 
     const handleClearHistory = () => {
         try {
@@ -261,6 +267,10 @@ export function ExperienceListClient({ experiences, basePath = '/experience' }: 
                                 <Link
                                     key={experience.id}
                                     href={targetUrl}
+                                    onClick={
+                                        previewMode ? (event) => event.preventDefault() : undefined
+                                    }
+                                    aria-disabled={previewMode}
                                     className="group block rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8 space-y-4"
                                 >
                                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -368,6 +378,12 @@ export function ExperienceListClient({ experiences, basePath = '/experience' }: 
                                     <div key={item.id} className="flex items-start gap-1.5">
                                         <Link
                                             href={`${basePath}/${item.experienceId}/experience-detail/${item.id}`}
+                                            onClick={
+                                                previewMode
+                                                    ? (event) => event.preventDefault()
+                                                    : undefined
+                                            }
+                                            aria-disabled={previewMode}
                                             className="flex min-w-0 flex-1 items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
                                             title={item.content || item.title}
                                         >
@@ -425,6 +441,12 @@ export function ExperienceListClient({ experiences, basePath = '/experience' }: 
                                         <Link
                                             key={exp.id}
                                             href={`${basePath}/${exp.id}/experience-detail/${targetDetailId}`}
+                                            onClick={
+                                                previewMode
+                                                    ? (event) => event.preventDefault()
+                                                    : undefined
+                                            }
+                                            aria-disabled={previewMode}
                                             className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                             title={exp.title}
                                         >

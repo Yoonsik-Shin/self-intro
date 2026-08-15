@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
     Activity,
     ArrowRight,
@@ -241,6 +242,7 @@ function resolveStudyLink(fullText: string): {
 }
 
 export function ArchitecturePageClient({ overview, layers }: Props) {
+    const router = useRouter();
     const [isSectionNavCollapsed, setIsSectionNavCollapsed] = useState(false);
     const [diagramViewMode, setDiagramViewMode] = useState<'visual' | 'terminal'>('visual');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -249,10 +251,13 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
     const isCheckingSession = useAuthStore((state) => state.isChecking);
     const me = useAuthStore((state) => state.me);
     const currentWorkspace = me?.workspaces[0];
-    const workspaceActionHref = currentWorkspace
-        ? `/workspace/${encodeURIComponent(currentWorkspace.slug)}/manage`
-        : '/onboarding/workspace';
-    const workspaceActionLabel = currentWorkspace ? '내 워크스페이스' : '워크스페이스 만들기';
+
+    useEffect(() => {
+        if (isCheckingSession || !isAuthenticated) return;
+        router.replace(
+            currentWorkspace ? `/workspace/${currentWorkspace.slug}` : '/onboarding/workspace'
+        );
+    }, [currentWorkspace, isAuthenticated, isCheckingSession, router]);
 
     // 필터 카테고리 탭 목록 생성
     const categories = useMemo(() => {
@@ -271,6 +276,16 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
         if (selectedCategory === 'all') return layers;
         return layers.filter((layer) => String(layer.id) === selectedCategory);
     }, [layers, selectedCategory]);
+
+    if (!isCheckingSession && isAuthenticated) {
+        return (
+            <div className="flex min-h-[60vh] items-center justify-center text-sm font-bold text-slate-500">
+                {currentWorkspace
+                    ? '내 공개 Workspace로 이동 중…'
+                    : '첫 Workspace 생성으로 이동 중…'}
+            </div>
+        );
+    }
 
     const handleCopyDiagram = () => {
         if (!overview?.diagramText) return;
@@ -330,15 +345,15 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                         <ArrowRight className="h-4 w-4" />
                                     </Link>
                                     {!isCheckingSession &&
-                                        (isAuthenticated ? (
+                                        (isAuthenticated && !currentWorkspace ? (
                                             <Link
-                                                href={workspaceActionHref}
+                                                href="/onboarding/workspace"
                                                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-indigo-300/60 hover:bg-white/10"
                                             >
-                                                <IdCard className="h-4 w-4 text-indigo-300" />
-                                                {workspaceActionLabel}
+                                                <IdCard className="h-4 w-4 text-indigo-300" />첫
+                                                Workspace 만들기
                                             </Link>
-                                        ) : (
+                                        ) : !isAuthenticated ? (
                                             <Link
                                                 href="/signup"
                                                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-indigo-300/60 hover:bg-white/10"
@@ -346,12 +361,14 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                                 <UserPlus className="h-4 w-4 text-indigo-300" />
                                                 초대받아 가입하기
                                             </Link>
-                                        ))}
+                                        ) : null)}
                                 </div>
                                 {!isCheckingSession && (
                                     <p className="mt-3 text-xs font-semibold text-slate-400">
                                         {isAuthenticated
-                                            ? '가입한 계정의 Workspace에서 경력 관리를 계속할 수 있습니다.'
+                                            ? currentWorkspace
+                                                ? '우측 계정 메뉴에서 내 Workspace로 이동할 수 있습니다.'
+                                                : '첫 Workspace를 만들면 경력 관리를 시작할 수 있습니다.'
                                             : '현재 초대받은 사용자만 가입할 수 있습니다.'}
                                     </p>
                                 )}

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Eye, EyeOff, Save } from 'lucide-react';
+import { Check, Eye, EyeOff, Save, Search, X } from 'lucide-react';
 import {
     publicPageApi,
     taxonomySchemeApi,
@@ -11,6 +11,7 @@ import {
     type PublicStudyDraft,
     type TaxonomyScheme,
 } from '@/lib/api';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 type Section = 'profile' | 'experience' | 'study';
 type PublicDraft = PublicProfileDraft | PublicExperienceDraft | PublicStudyDraft;
@@ -37,9 +38,11 @@ const SECTION_COPY: Record<Section, { eyebrow: string; title: string; descriptio
 export function PublicPageCompositionManagement({
     workspaceSlug,
     section,
+    onPreview,
 }: {
     workspaceSlug: string;
     section: Section;
+    onPreview?: () => void;
 }) {
     const queryClient = useQueryClient();
     const queryKey = ['workspace', workspaceSlug, 'public-page-draft', section];
@@ -52,6 +55,12 @@ export function PublicPageCompositionManagement({
         },
     });
     const [localDraft, setLocalDraft] = useState<PublicDraft | null>(null);
+    const [searchQueries, setSearchQueries] = useState<Record<Section, string>>({
+        profile: '',
+        experience: '',
+        study: '',
+    });
+    const searchQuery = searchQueries[section];
     const draft = localDraft ?? query.data ?? null;
 
     const mutation = useMutation({
@@ -75,13 +84,11 @@ export function PublicPageCompositionManagement({
     });
 
     const copy = SECTION_COPY[section];
-    if (query.isLoading || !draft) {
-        return (
-            <div className="rounded-3xl border border-slate-200 bg-white p-8">
-                구성 불러오는 중…
-            </div>
-        );
-    }
+    const saveAndPreview = () => {
+        mutation.mutate(undefined, {
+            onSuccess: () => onPreview?.(),
+        });
+    };
     if (query.isError) {
         return (
             <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-red-700">
@@ -89,41 +96,66 @@ export function PublicPageCompositionManagement({
             </div>
         );
     }
+    if (query.isLoading || !draft) {
+        return (
+            <div className="rounded-3xl border border-slate-200 bg-white p-8">
+                구성 불러오는 중…
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            <header className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
-                <div>
-                    <p className="text-xs font-black tracking-[0.18em] text-indigo-600">
-                        {copy.eyebrow}
-                    </p>
-                    <h2 className="mt-2 text-3xl font-black text-slate-950">{copy.title}</h2>
-                    <p className="mt-2 text-sm font-medium text-slate-500">{copy.description}</p>
-                </div>
-                <button
-                    type="button"
-                    disabled={mutation.isPending}
-                    onClick={() => mutation.mutate()}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg disabled:opacity-50"
-                >
-                    <Save size={17} /> {mutation.isPending ? '저장 중…' : '초안 저장'}
-                </button>
-            </header>
+            <AdminPageHeader
+                eyebrow={copy.eyebrow}
+                title={copy.title}
+                description={copy.description}
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            disabled={mutation.isPending}
+                            onClick={saveAndPreview}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 disabled:opacity-50"
+                        >
+                            <Eye size={17} /> 저장 후 미리보기
+                        </button>
+                        <button
+                            type="button"
+                            disabled={mutation.isPending}
+                            onClick={() => mutation.mutate()}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg disabled:opacity-50"
+                        >
+                            <Save size={17} /> {mutation.isPending ? '저장 중…' : '초안 저장'}
+                        </button>
+                    </>
+                }
+            />
 
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-semibold text-indigo-900">
-                여기서 저장한 내용은 초안입니다. 방문자 화면은 ‘전체 공개본 발행’을 실행할 때만
-                바뀝니다.
+                여기서 저장한 내용은 초안입니다. 저장 후 미리보기에서는 확인할 수 있지만, 방문자
+                화면은 ‘전체 공개본 발행’을 실행할 때만 바뀝니다.
             </div>
+
+            <CompositionSearch
+                section={section}
+                value={searchQuery}
+                onChange={(value) =>
+                    setSearchQueries((current) => ({ ...current, [section]: value }))
+                }
+            />
 
             {section === 'profile' && (
                 <ProfileEditor
                     draft={draft as PublicProfileDraft}
+                    searchQuery={searchQuery}
                     onChange={(next) => setLocalDraft(next)}
                 />
             )}
             {section === 'experience' && (
                 <ExperienceEditor
                     draft={draft as PublicExperienceDraft}
+                    searchQuery={searchQuery}
                     onChange={(next) => setLocalDraft(next)}
                 />
             )}
@@ -131,6 +163,7 @@ export function PublicPageCompositionManagement({
                 <StudyEditor
                     workspaceSlug={workspaceSlug}
                     draft={draft as PublicStudyDraft}
+                    searchQuery={searchQuery}
                     onChange={(next) => setLocalDraft(next)}
                 />
             )}
@@ -145,6 +178,54 @@ export function PublicPageCompositionManagement({
             )}
         </div>
     );
+}
+
+function CompositionSearch({
+    section,
+    value,
+    onChange,
+}: {
+    section: Section;
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <label className="relative block">
+            <span className="sr-only">{SECTION_COPY[section].title} 항목 검색</span>
+            <Search
+                size={18}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+                type="search"
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder={`${SECTION_COPY[section].title} 항목 검색`}
+                className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-12 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+            />
+            {value && (
+                <button
+                    type="button"
+                    onClick={() => onChange('')}
+                    aria-label="검색어 지우기"
+                    className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                >
+                    <X size={17} aria-hidden="true" />
+                </button>
+            )}
+        </label>
+    );
+}
+
+function matchesSearch(searchQuery: string, ...values: Array<string | null | undefined>) {
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase('ko-KR');
+    if (!normalizedQuery) return true;
+    return values.some((value) => value?.toLocaleLowerCase('ko-KR').includes(normalizedQuery));
+}
+
+function EmptySearchResult() {
+    return <p className="py-5 text-sm font-medium text-slate-400">일치하는 항목이 없습니다.</p>;
 }
 
 function SectionCard({ title, children }: { title: string; children: ReactNode }) {
@@ -188,9 +269,11 @@ function ToggleRow({
 
 function ProfileEditor({
     draft,
+    searchQuery,
     onChange,
 }: {
     draft: PublicProfileDraft;
+    searchQuery: string;
     onChange: (draft: PublicProfileDraft) => void;
 }) {
     const fields: Array<[keyof PublicProfileDraft, string]> = [
@@ -204,10 +287,18 @@ function ProfileEditor({
         ['showEmail', '이메일'],
         ['showPhone', '전화번호'],
     ];
+    const visibleFields = fields.filter(([, label]) => matchesSearch(searchQuery, label));
+    const visibleSkills = draft.skills.filter((item) =>
+        matchesSearch(searchQuery, item.label, item.featured ? '대표 기술' : undefined)
+    );
+    const visibleCompetencies = draft.competencies.filter((item) =>
+        matchesSearch(searchQuery, item.label)
+    );
     return (
         <div className="grid gap-6 xl:grid-cols-2">
             <SectionCard title="프로필 필드">
-                {fields.map(([key, label]) => (
+                {visibleFields.length === 0 && <EmptySearchResult />}
+                {visibleFields.map(([key, label]) => (
                     <ToggleRow
                         key={key}
                         label={label}
@@ -218,7 +309,8 @@ function ProfileEditor({
             </SectionCard>
             <div className="space-y-6">
                 <SectionCard title="공개 기술">
-                    {draft.skills.map((item, index) => (
+                    {visibleSkills.length === 0 && <EmptySearchResult />}
+                    {visibleSkills.map((item) => (
                         <ToggleRow
                             key={item.id}
                             label={item.label}
@@ -227,8 +319,8 @@ function ProfileEditor({
                             onChange={(enabled) =>
                                 onChange({
                                     ...draft,
-                                    skills: draft.skills.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
+                                    skills: draft.skills.map((value) =>
+                                        value.id === item.id ? { ...value, enabled } : value
                                     ),
                                 })
                             }
@@ -236,7 +328,8 @@ function ProfileEditor({
                     ))}
                 </SectionCard>
                 <SectionCard title="대표 역량">
-                    {draft.competencies.map((item, index) => (
+                    {visibleCompetencies.length === 0 && <EmptySearchResult />}
+                    {visibleCompetencies.map((item) => (
                         <ToggleRow
                             key={item.id}
                             label={item.label}
@@ -244,8 +337,8 @@ function ProfileEditor({
                             onChange={(enabled) =>
                                 onChange({
                                     ...draft,
-                                    competencies: draft.competencies.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
+                                    competencies: draft.competencies.map((value) =>
+                                        value.id === item.id ? { ...value, enabled } : value
                                     ),
                                 })
                             }
@@ -259,11 +352,26 @@ function ProfileEditor({
 
 function ExperienceEditor({
     draft,
+    searchQuery,
     onChange,
 }: {
     draft: PublicExperienceDraft;
+    searchQuery: string;
     onChange: (draft: PublicExperienceDraft) => void;
 }) {
+    const visibleExperiences = draft.experiences.filter((item) =>
+        matchesSearch(searchQuery, item.title)
+    );
+    const visibleDetails = draft.details.filter((item) => matchesSearch(searchQuery, item.label));
+    const visiblePortfolios = draft.portfolios.filter((item) =>
+        matchesSearch(searchQuery, item.title)
+    );
+    const visiblePlacements = draft.placements.filter((item) => {
+        const experience = draft.experiences.find(
+            (candidate) => candidate.id === item.experienceId
+        );
+        return matchesSearch(searchQuery, experience?.title, `경험 ${item.experienceId}`);
+    });
     const updateExperienceVisibility = (experienceId: number, enabled: boolean) => {
         onChange({
             ...draft,
@@ -291,7 +399,8 @@ function ExperienceEditor({
                     타임라인이나 대표 프로젝트 노출을 켜면 해당 경험도 함께 공개됩니다. 경험 공개를
                     끄면 연결된 하위 노출도 함께 해제됩니다.
                 </p>
-                {draft.experiences.map((item, index) => (
+                {visibleExperiences.length === 0 && <EmptySearchResult />}
+                {visibleExperiences.map((item) => (
                     <div key={item.id} className="py-4">
                         <ToggleRow
                             label={item.title}
@@ -313,8 +422,8 @@ function ExperienceEditor({
                                     const showOnTimeline = event.target.checked;
                                     onChange({
                                         ...draft,
-                                        experiences: draft.experiences.map((value, itemIndex) =>
-                                            itemIndex === index
+                                        experiences: draft.experiences.map((value) =>
+                                            value.id === item.id
                                                 ? {
                                                       ...value,
                                                       enabled: showOnTimeline || value.enabled,
@@ -332,7 +441,8 @@ function ExperienceEditor({
             </SectionCard>
             <div className="grid gap-6 xl:grid-cols-2">
                 <SectionCard title="세부 성과">
-                    {draft.details.map((item, index) => (
+                    {visibleDetails.length === 0 && <EmptySearchResult />}
+                    {visibleDetails.map((item) => (
                         <ToggleRow
                             key={item.id}
                             label={item.label}
@@ -340,8 +450,8 @@ function ExperienceEditor({
                             onChange={(enabled) =>
                                 onChange({
                                     ...draft,
-                                    details: draft.details.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
+                                    details: draft.details.map((value) =>
+                                        value.id === item.id ? { ...value, enabled } : value
                                     ),
                                 })
                             }
@@ -349,12 +459,14 @@ function ExperienceEditor({
                     ))}
                 </SectionCard>
                 <SectionCard title="포트폴리오 사례">
-                    {draft.portfolios.length === 0 && (
+                    {visiblePortfolios.length === 0 && (
                         <p className="py-4 text-sm text-slate-500">
-                            작성된 포트폴리오 사례가 없습니다.
+                            {draft.portfolios.length === 0
+                                ? '작성된 포트폴리오 사례가 없습니다.'
+                                : '일치하는 항목이 없습니다.'}
                         </p>
                     )}
-                    {draft.portfolios.map((item, index) => (
+                    {visiblePortfolios.map((item) => (
                         <ToggleRow
                             key={item.id}
                             label={item.title}
@@ -362,8 +474,8 @@ function ExperienceEditor({
                             onChange={(enabled) =>
                                 onChange({
                                     ...draft,
-                                    portfolios: draft.portfolios.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
+                                    portfolios: draft.portfolios.map((value) =>
+                                        value.id === item.id ? { ...value, enabled } : value
                                     ),
                                 })
                             }
@@ -372,7 +484,8 @@ function ExperienceEditor({
                 </SectionCard>
             </div>
             <SectionCard title="대표 프로젝트">
-                {draft.placements.map((item, index) => {
+                {visiblePlacements.length === 0 && <EmptySearchResult />}
+                {visiblePlacements.map((item) => {
                     const experience = draft.experiences.find(
                         (candidate) => candidate.id === item.experienceId
                     );
@@ -392,8 +505,11 @@ function ExperienceEditor({
                                                   : value
                                           )
                                         : draft.experiences,
-                                    placements: draft.placements.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
+                                    placements: draft.placements.map((value) =>
+                                        value.experienceId === item.experienceId &&
+                                        value.placementType === item.placementType
+                                            ? { ...value, enabled }
+                                            : value
                                     ),
                                 })
                             }
@@ -408,10 +524,12 @@ function ExperienceEditor({
 function StudyEditor({
     workspaceSlug,
     draft,
+    searchQuery,
     onChange,
 }: {
     workspaceSlug: string;
     draft: PublicStudyDraft;
+    searchQuery: string;
     onChange: (draft: PublicStudyDraft) => void;
 }) {
     const queryClient = useQueryClient();
@@ -432,6 +550,13 @@ function StudyEditor({
         subscriptions.data?.find((scheme) => scheme.primaryScheme)?.id ??
         effectiveSchemeIds[0] ??
         null;
+    const visibleSchemes = (catalog.data ?? []).filter((scheme) =>
+        matchesSearch(searchQuery, scheme.name, scheme.description, `v${scheme.version}`)
+    );
+    const visibleStudies = draft.studies.filter((item) => matchesSearch(searchQuery, item.title));
+    const visibleTaxonomy = draft.taxonomy.filter((item) =>
+        matchesSearch(searchQuery, item.displayLabel, item.label, `분류 체계 ${item.schemeId}`)
+    );
     const schemeMutation = useMutation({
         mutationFn: () => {
             if (effectiveSchemeIds.length === 0 || effectivePrimarySchemeId === null) {
@@ -473,7 +598,8 @@ function StudyEditor({
                     직군에 맞는 분류 체계를 선택합니다. 여러 체계를 함께 쓸 수 있으며 대표 체계는
                     공개 학습 탐색의 기본 분류가 됩니다.
                 </p>
-                {(catalog.data ?? []).map((scheme) => {
+                {visibleSchemes.length === 0 && <EmptySearchResult />}
+                {visibleSchemes.map((scheme) => {
                     const selected = effectiveSchemeIds.includes(scheme.id);
                     return (
                         <div
@@ -529,7 +655,8 @@ function StudyEditor({
             </SectionCard>
             <div className="grid gap-6 xl:grid-cols-2">
                 <SectionCard title="공개 학습 기록">
-                    {draft.studies.map((item, index) => (
+                    {visibleStudies.length === 0 && <EmptySearchResult />}
+                    {visibleStudies.map((item) => (
                         <ToggleRow
                             key={item.id}
                             label={item.title}
@@ -537,8 +664,8 @@ function StudyEditor({
                             onChange={(enabled) =>
                                 onChange({
                                     ...draft,
-                                    studies: draft.studies.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
+                                    studies: draft.studies.map((value) =>
+                                        value.id === item.id ? { ...value, enabled } : value
                                     ),
                                 })
                             }
@@ -546,7 +673,8 @@ function StudyEditor({
                     ))}
                 </SectionCard>
                 <SectionCard title="공개 탐색 카테고리">
-                    {draft.taxonomy.map((item, index) => (
+                    {visibleTaxonomy.length === 0 && <EmptySearchResult />}
+                    {visibleTaxonomy.map((item) => (
                         <ToggleRow
                             key={item.id}
                             label={item.displayLabel || item.label}
@@ -555,8 +683,8 @@ function StudyEditor({
                             onChange={(enabled) =>
                                 onChange({
                                     ...draft,
-                                    taxonomy: draft.taxonomy.map((value, itemIndex) =>
-                                        itemIndex === index ? { ...value, enabled } : value
+                                    taxonomy: draft.taxonomy.map((value) =>
+                                        value.id === item.id ? { ...value, enabled } : value
                                     ),
                                 })
                             }

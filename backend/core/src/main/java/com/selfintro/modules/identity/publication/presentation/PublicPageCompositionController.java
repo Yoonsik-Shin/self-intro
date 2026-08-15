@@ -1,12 +1,17 @@
 package com.selfintro.modules.identity.publication.presentation;
 
+import com.selfintro.bff.application.IntroductionChannel;
+import com.selfintro.bff.presentation.dto.IntroductionResponse;
 import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.identity.publication.application.PublicPageCompositionService;
+import com.selfintro.modules.identity.publication.application.WorkspacePublicationProjectionBuilder;
 import com.selfintro.modules.identity.publication.presentation.dto.PublicExperienceDraft;
+import com.selfintro.modules.identity.publication.presentation.dto.PublicExperienceSnapshot;
 import com.selfintro.modules.identity.publication.presentation.dto.PublicProfileDraft;
 import com.selfintro.modules.identity.publication.presentation.dto.PublicStudyDraft;
+import com.selfintro.modules.identity.publication.presentation.dto.PublicStudyPreview;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -24,6 +29,32 @@ public class PublicPageCompositionController {
 
     private final WorkspaceAccessPolicy workspaceAccessPolicy;
     private final PublicPageCompositionService compositionService;
+    private final WorkspacePublicationProjectionBuilder projectionBuilder;
+
+    @GetMapping("/preview/introduction")
+    public IntroductionResponse previewIntroduction(
+            Authentication authentication, @PathVariable String workspaceSlug) {
+        WorkspaceMember member = readMember(authentication, workspaceSlug);
+        return projectionBuilder.introduction(
+                member.getWorkspace().getId(), IntroductionChannel.WEB);
+    }
+
+    @GetMapping("/preview/experience")
+    public PublicExperienceSnapshot previewExperience(
+            Authentication authentication, @PathVariable String workspaceSlug) {
+        WorkspaceMember member = readMember(authentication, workspaceSlug);
+        return projectionBuilder.experienceSnapshot(member.getWorkspace().getId());
+    }
+
+    @GetMapping("/preview/study")
+    public PublicStudyPreview previewStudy(
+            Authentication authentication, @PathVariable String workspaceSlug) {
+        WorkspaceMember member = readMember(authentication, workspaceSlug);
+        Long workspaceId = member.getWorkspace().getId();
+        return new PublicStudyPreview(
+                projectionBuilder.studies(workspaceId),
+                projectionBuilder.studyTaxonomy(workspaceId));
+    }
 
     @GetMapping("/profile")
     public PublicProfileDraft profile(

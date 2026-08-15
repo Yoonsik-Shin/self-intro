@@ -29,6 +29,7 @@ type Props = {
     initialTotalPages?: number;
     taxonomyNodes: StudyTaxonomyNode[];
     workspaceSlug?: string;
+    previewMode?: boolean;
 };
 
 type RecentlyViewedItem = {
@@ -44,6 +45,7 @@ export function StudyListClient({
     initialTotalPages,
     taxonomyNodes,
     workspaceSlug,
+    previewMode = false,
 }: Props) {
     const router = useRouter();
     const pathname = usePathname();
@@ -57,6 +59,7 @@ export function StudyListClient({
     const { skillIdNum, experienceIdNum, experienceDetailIdNum } = idFilters;
 
     useEffect(() => {
+        if (previewMode) return;
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             // 브라우저 URL의 선택 필터를 hydration 이후 클라이언트 상태로 복원한다.
@@ -71,7 +74,7 @@ export function StudyListClient({
                     : undefined,
             });
         }
-    }, []);
+    }, [previewMode]);
 
     const hasIdFilter = Boolean(skillIdNum || experienceIdNum || experienceDetailIdNum);
     const clearIdFilter = () => {
@@ -87,6 +90,7 @@ export function StudyListClient({
     const [isRecentExpanded, setIsRecentExpanded] = useState(false);
 
     useEffect(() => {
+        if (previewMode) return;
         try {
             const raw = localStorage.getItem('recently_viewed_studies');
             if (raw) {
@@ -98,7 +102,7 @@ export function StudyListClient({
         } catch {
             // Ignore (e.g. sandboxed iframe, incognito)
         }
-    }, []);
+    }, [previewMode]);
 
     const isDefaultQuery =
         search === '' && activeTaxonomyNodeId === null && activeSection === null && !hasIdFilter;
@@ -126,6 +130,38 @@ export function StudyListClient({
         }
     };
 
+    const previewPage = (page: number): StudyPage => {
+        const normalizedSearch = search.trim().toLowerCase();
+        const filtered = initialStudies.filter((study) => {
+            const matchesSearch =
+                normalizedSearch === '' ||
+                [
+                    study.title,
+                    study.summary,
+                    study.contentMarkdown,
+                    ...study.tags.map((tag) => tag.name),
+                    ...study.skills.map((skill) => skill.name),
+                ]
+                    .join(' ')
+                    .toLowerCase()
+                    .includes(normalizedSearch);
+            const matchesSection = !activeSection || study.section === activeSection;
+            const matchesTaxonomy =
+                activeTaxonomyNodeId === null ||
+                study.taxonomyNodes.some((node) => node.id === activeTaxonomyNodeId);
+            return matchesSearch && matchesSection && matchesTaxonomy;
+        });
+        const size = 20;
+        const start = page * size;
+        return {
+            content: filtered.slice(start, start + size),
+            page,
+            size,
+            totalElements: filtered.length,
+            totalPages: Math.max(1, Math.ceil(filtered.length / size)),
+        };
+    };
+
     const {
         data: studyInfiniteData,
         fetchNextPage,
@@ -135,6 +171,8 @@ export function StudyListClient({
         queryKey: [
             'studies',
             'public-infinite',
+            previewMode,
+            workspaceSlug,
             search,
             activeTaxonomyNodeId,
             activeSection,
@@ -143,16 +181,22 @@ export function StudyListClient({
             experienceDetailIdNum,
         ],
         queryFn: ({ pageParam = 0 }) =>
-            (workspaceSlug ? studyApi.workspaceList.bind(null, workspaceSlug) : studyApi.list)({
-                q: search || undefined,
-                taxonomyNodeId: activeTaxonomyNodeId ?? undefined,
-                section: activeSection ?? undefined,
-                skillIds: skillIdNum ? [skillIdNum] : undefined,
-                experienceIds: experienceIdNum ? [experienceIdNum] : undefined,
-                experienceDetailIds: experienceDetailIdNum ? [experienceDetailIdNum] : undefined,
-                page: pageParam as number,
-                size: 20,
-            }),
+            previewMode
+                ? Promise.resolve(previewPage(pageParam as number))
+                : (workspaceSlug
+                      ? studyApi.workspaceList.bind(null, workspaceSlug)
+                      : studyApi.list)({
+                      q: search || undefined,
+                      taxonomyNodeId: activeTaxonomyNodeId ?? undefined,
+                      section: activeSection ?? undefined,
+                      skillIds: skillIdNum ? [skillIdNum] : undefined,
+                      experienceIds: experienceIdNum ? [experienceIdNum] : undefined,
+                      experienceDetailIds: experienceDetailIdNum
+                          ? [experienceDetailIdNum]
+                          : undefined,
+                      page: pageParam as number,
+                      size: 20,
+                  }),
         getNextPageParam: (lastPage) => {
             if (lastPage.page + 1 < lastPage.totalPages) {
                 return lastPage.page + 1;
@@ -185,8 +229,10 @@ export function StudyListClient({
     // breadcrumb 렌더링용 — study 응답엔 직접 attach된 노드만 들어있어 조상 이름을 알 수 없어서
     // 전체 taxonomy 트리를 따로 받아 id→node 맵을 만든다.
     const { data: allTaxonomyNodes } = useQuery({
-        queryKey: ['taxonomyNodesPublic'],
+        queryKey: ['taxonomyNodesPublic', previewMode],
         queryFn: taxonomyApi.publicList,
+        enabled: !previewMode,
+        initialData: previewMode ? taxonomyNodes : undefined,
         staleTime: 5 * 60 * 1000,
     });
     const taxonomyNodesById = useMemo(
@@ -321,6 +367,10 @@ export function StudyListClient({
                             <Link
                                 key={study.id}
                                 href={`${workspaceSlug ? `/workspace/${encodeURIComponent(workspaceSlug)}` : ''}/study/${encodeURIComponent(study.slug)}`}
+                                onClick={
+                                    previewMode ? (event) => event.preventDefault() : undefined
+                                }
+                                aria-disabled={previewMode}
                                 className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8"
                             >
                                 <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -473,6 +523,12 @@ export function StudyListClient({
                                     <div key={item.slug} className="flex items-start gap-1.5">
                                         <Link
                                             href={`${workspaceSlug ? `/workspace/${encodeURIComponent(workspaceSlug)}` : ''}/study/${encodeURIComponent(item.slug)}`}
+                                            onClick={
+                                                previewMode
+                                                    ? (event) => event.preventDefault()
+                                                    : undefined
+                                            }
+                                            aria-disabled={previewMode}
                                             className="flex min-w-0 flex-1 items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-blue-600 group"
                                             title={item.title}
                                         >
@@ -523,6 +579,12 @@ export function StudyListClient({
                                     <Link
                                         key={study.id}
                                         href={`${workspaceSlug ? `/workspace/${encodeURIComponent(workspaceSlug)}` : ''}/study/${encodeURIComponent(study.slug)}`}
+                                        onClick={
+                                            previewMode
+                                                ? (event) => event.preventDefault()
+                                                : undefined
+                                        }
+                                        aria-disabled={previewMode}
                                         className="flex w-full items-start gap-1.5 text-left text-xs font-semibold leading-normal text-slate-600 hover:text-slate-950 group"
                                         title={study.title}
                                     >

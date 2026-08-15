@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Briefcase, Cpu, GraduationCap, Github, Mail, Phone, Sparkles, User } from 'lucide-react';
 import type { IntroductionResponse } from '@/lib/api/types';
-import { scrollToSection } from '@/lib/scroll';
 import { SectionNavSidebar, type SectionNavItem } from '@/components/nav/SectionNavSidebar';
 import { ResumeSections } from './ResumeSections';
 
@@ -21,50 +20,8 @@ const mainSections: SectionNavItem[] = [
     { id: 'credentials', label: '학력·교육 및 자격증', icon: GraduationCap },
 ];
 
-// 관리자 대시보드의 라이브 프리뷰 패널은 이 페이지를 `/?preview=1`로 iframe에 띄우고,
-// sessionStorage(admin-preview-intro-override / admin-preview-nav)를 통해 저장 전 초안과
-// 이동할 섹션을 전달한다. 일반 방문자에게는 이 override가 전혀 동작하지 않으므로 서버에서
-// 렌더링된 SEO용 HTML(initial introData)에는 영향이 없다.
-export function IntroPageClient({ introData: initialIntroData, workspaceSlug }: Props) {
-    const [introData, setIntroData] = useState(initialIntroData);
+export function IntroPageClient({ introData, workspaceSlug }: Props) {
     const [isSectionNavCollapsed, setIsSectionNavCollapsed] = useState(false);
-
-    useEffect(() => {
-        const previewMode = new URLSearchParams(window.location.search).get('preview') === '1';
-        if (!previewMode) return;
-
-        const applyOverride = () => {
-            try {
-                const raw = sessionStorage.getItem('admin-preview-intro-override');
-                setIntroData(raw ? (JSON.parse(raw) as IntroductionResponse) : initialIntroData);
-            } catch {
-                setIntroData(initialIntroData);
-            }
-        };
-        applyOverride();
-
-        const goToSection = () => {
-            try {
-                const raw = sessionStorage.getItem('admin-preview-nav');
-                const nav = raw ? (JSON.parse(raw) as { section?: string }) : null;
-                if (nav?.section)
-                    requestAnimationFrame(() =>
-                        requestAnimationFrame(() => scrollToSection(nav.section!))
-                    );
-            } catch {
-                // 잘못된 payload는 무시
-            }
-        };
-        goToSection();
-
-        const handleStorage = (event: StorageEvent) => {
-            if (event.key === 'admin-preview-intro-override') applyOverride();
-            else if (event.key === 'admin-preview-nav') goToSection();
-        };
-        window.addEventListener('storage', handleStorage);
-        return () => window.removeEventListener('storage', handleStorage);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     const { profile } = introData;
 

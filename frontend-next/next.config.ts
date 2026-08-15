@@ -41,7 +41,9 @@ const nextConfig: NextConfig = {
                         value: 'max-age=31536000; includeSubDomains',
                     },
                     { key: 'X-Content-Type-Options', value: 'nosniff' },
-                    { key: 'X-Frame-Options', value: 'DENY' },
+                    // 공개 초안은 같은 origin의 Workspace 관리 화면 안에서만 iframe으로
+                    // 렌더링한다. 외부 origin의 clickjacking은 계속 차단한다.
+                    { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
                     // 가입 초대·이메일 확인 토큰이 외부 요청의 Referer로 전달되지 않게 한다.
                     { key: 'Referrer-Policy', value: 'no-referrer' },
                     {

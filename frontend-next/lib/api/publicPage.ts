@@ -1,4 +1,22 @@
 import { request } from './client';
+import type {
+    Experience,
+    IntroductionResponse,
+    PortfolioCaseStudyPublicSummary,
+    Study,
+    StudyTaxonomyNode,
+} from './types';
+
+export type PublicExperiencePreview = {
+    experiences: Experience[];
+    coreProjects: Experience[];
+    portfolios: PortfolioCaseStudyPublicSummary[];
+};
+
+export type PublicStudyPreview = {
+    studies: Study[];
+    taxonomy: StudyTaxonomyNode[];
+};
 
 export type PublicProfileItemSelection = {
     id: number;
@@ -73,6 +91,18 @@ const draftPath = (workspaceSlug: string, section: 'profile' | 'experience' | 's
     `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/${section}`;
 
 export const publicPageApi = {
+    previewIntroduction: (workspaceSlug: string) =>
+        request<IntroductionResponse>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/preview/introduction`
+        ),
+    previewExperience: (workspaceSlug: string) =>
+        request<PublicExperiencePreview>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/preview/experience`
+        ),
+    previewStudy: (workspaceSlug: string) =>
+        request<PublicStudyPreview>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/public-page/draft/preview/study`
+        ),
     profile: (workspaceSlug: string) =>
         request<PublicProfileDraft>(draftPath(workspaceSlug, 'profile')),
     updateProfile: (workspaceSlug: string, payload: PublicProfileDraft) =>
