@@ -17,7 +17,6 @@ import {
     IdCard,
     Layers,
     LayoutGrid,
-    LockKeyhole,
     Network,
     PlayCircle,
     Server,
@@ -67,6 +66,33 @@ const productWorkflow = [
     },
 ];
 
+const engineeringHighlights = [
+    {
+        label: 'Architecture',
+        value: '3-Tier Multi-Module',
+        detail: ':core / :api / :ai-worker Pod 분리',
+        icon: Box,
+    },
+    {
+        label: 'Database',
+        value: 'Dual Vector DB',
+        detail: 'MySQL HeatWave + Oracle 26ai Vector',
+        icon: Database,
+    },
+    {
+        label: 'Deployment',
+        value: 'ArgoCD GitOps',
+        detail: 'OKE Auto-Sync & Sealed Secrets',
+        icon: GitBranch,
+    },
+    {
+        label: 'Observability',
+        value: 'Prometheus & Grafana',
+        detail: 'Node Exporter & Loki/Alloy Logs',
+        icon: Activity,
+    },
+];
+
 type Props = {
     overview: ArchitectureOverview | null;
     layers: ArchitectureLayer[];
@@ -80,8 +106,6 @@ const topologyNodes = [
         title: 'Client & Edge Entry',
         subtitle: 'https://unbrdn.me',
         icon: Globe,
-        color: 'from-blue-500/10 to-cyan-500/10 border-blue-200 text-blue-700',
-        badgeColor: 'bg-blue-100 text-blue-800',
         tags: ['Cloudflare DNS', 'Origin CA TLS', 'Ingress Nginx Router', 'SSE Buffering Off'],
         desc: 'Web Browser 요청이 Cloudflare TLS 및 Ingress Nginx를 통해 OKE 클러스터로 유입됩니다.',
     },
@@ -91,8 +115,6 @@ const topologyNodes = [
         title: 'OKE K8s Microservices',
         subtitle: 'Oracle Kubernetes Engine',
         icon: Server,
-        color: 'from-indigo-500/10 to-violet-500/10 border-indigo-200 text-indigo-700',
-        badgeColor: 'bg-indigo-100 text-indigo-800',
         tags: [
             'Next.js 16 (Port 3000)',
             'Spring Boot API (Port 8080)',
@@ -107,8 +129,6 @@ const topologyNodes = [
         title: 'Dual Database & Broker',
         subtitle: 'MSA Data Persistence Layer',
         icon: Database,
-        color: 'from-amber-500/10 to-emerald-500/10 border-emerald-200 text-emerald-700',
-        badgeColor: 'bg-emerald-100 text-emerald-800',
         tags: [
             'MySQL 8.0 HeatWave',
             'Oracle 26ai Vector DB',
@@ -123,8 +143,6 @@ const topologyNodes = [
         title: 'GitOps & Observability',
         subtitle: 'Continuous Deployment & Monitoring',
         icon: Activity,
-        color: 'from-rose-500/10 to-orange-500/10 border-orange-200 text-orange-700',
-        badgeColor: 'bg-orange-100 text-orange-800',
         tags: [
             'ArgoCD Auto-Sync',
             'Prometheus Metrics',
@@ -305,30 +323,18 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                 }`}
             >
                 <div className="min-w-0 space-y-8">
-                    {/* Product showcase hero */}
+                    {/* Product overview */}
                     <div
                         id="product-overview"
-                        className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-[0_24px_70px_-30px_rgba(15,23,42,0.8)] sm:p-10"
+                        className="scroll-mt-24 rounded-lg border border-slate-800 bg-slate-950 p-6 text-white sm:p-10"
                     >
-                        <div className="pointer-events-none absolute -right-20 -top-28 h-96 w-96 rounded-full bg-indigo-500/25 blur-[90px]" />
-                        <div className="pointer-events-none absolute -bottom-32 left-1/4 h-72 w-72 rounded-full bg-cyan-400/10 blur-[80px]" />
-                        <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-end">
+                        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] lg:items-end">
                             <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-300/30 bg-indigo-400/10 px-3 py-1 text-xs font-bold text-indigo-100">
-                                        <Sparkles className="h-3.5 w-3.5" />
-                                        Self-Intro Career Workspace
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                        실제 운영 중인 개인 프로젝트
-                                    </span>
-                                </div>
+                                <p className="text-sm font-semibold text-slate-300">
+                                    Self-Intro Career Workspace · 실제 운영 중인 개인 프로젝트
+                                </p>
                                 <h1 className="mt-6 max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] sm:text-5xl">
-                                    경력의 근거부터 지원별 이력서까지,
-                                    <span className="block text-indigo-300">
-                                        한곳에서 관리합니다.
-                                    </span>
+                                    경력의 근거부터 지원별 이력서까지
                                 </h1>
                                 <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
                                     Self-Intro는 완성된 이력서를 보관하는 웹사이트가 아니라, 흩어진
@@ -338,7 +344,7 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                 <div className="mt-7 flex flex-wrap gap-3">
                                     <Link
                                         href="/architecture/demo"
-                                        className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-slate-950 shadow-lg transition hover:-translate-y-0.5 hover:bg-indigo-50"
+                                        className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2.5 text-sm font-black text-slate-950 transition-colors hover:bg-slate-200"
                                     >
                                         <PlayCircle className="h-4 w-4 text-indigo-600" />
                                         이력 관리 워크스페이스 체험
@@ -348,17 +354,16 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                         (isAuthenticated && !currentWorkspace ? (
                                             <Link
                                                 href="/onboarding/workspace"
-                                                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-indigo-300/60 hover:bg-white/10"
+                                                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2.5 text-sm font-black text-white transition-colors hover:border-slate-400 hover:bg-slate-900"
                                             >
-                                                <IdCard className="h-4 w-4 text-indigo-300" />첫
-                                                Workspace 만들기
+                                                <IdCard className="h-4 w-4" />첫 Workspace 만들기
                                             </Link>
                                         ) : !isAuthenticated ? (
                                             <Link
                                                 href="/signup"
-                                                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-indigo-300/60 hover:bg-white/10"
+                                                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2.5 text-sm font-black text-white transition-colors hover:border-slate-400 hover:bg-slate-900"
                                             >
-                                                <UserPlus className="h-4 w-4 text-indigo-300" />
+                                                <UserPlus className="h-4 w-4" />
                                                 초대받아 가입하기
                                             </Link>
                                         ) : null)}
@@ -373,11 +378,8 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                     </p>
                                 )}
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur">
-                                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                                    One source, many outcomes
-                                </p>
-                                <div className="mt-4 space-y-3">
+                            <div className="border-y border-slate-700">
+                                <div className="divide-y divide-slate-700">
                                     {[
                                         ['Career Evidence', '경력·프로젝트·학습 근거'],
                                         ['Capability Map', '근거 기반 핵심 역량'],
@@ -386,9 +388,9 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                     ].map(([label, value]) => (
                                         <div
                                             key={label}
-                                            className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3"
+                                            className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] gap-4 py-4"
                                         >
-                                            <span className="font-mono text-[11px] text-indigo-300">
+                                            <span className="font-mono text-[11px] text-slate-400">
                                                 {label}
                                             </span>
                                             <span className="text-right text-xs font-bold text-slate-100">
@@ -403,13 +405,10 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
 
                     <div
                         id="product-workflow"
-                        className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] sm:p-8"
+                        className="scroll-mt-24 rounded-lg border border-slate-200 bg-white p-6 sm:p-8"
                     >
                         <div className="max-w-3xl">
-                            <span className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600">
-                                Product workflow
-                            </span>
-                            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                            <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                                 한 번 기록한 경험이 여러 결과물이 되는 과정
                             </h2>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -417,24 +416,21 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                 검증된 경험 하나를 중심으로 노출 범위와 강조점만 다르게 조합합니다.
                             </p>
                         </div>
-                        <ol className="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                            {productWorkflow.map((item, index) => (
+                        <ol className="mt-7 grid border-y border-slate-200 md:grid-cols-2 xl:grid-cols-4 xl:divide-x xl:divide-slate-200">
+                            {productWorkflow.map((item) => (
                                 <li
                                     key={item.step}
-                                    className="relative rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-sm"
+                                    className="border-b border-slate-200 py-5 md:px-5 xl:border-b-0 xl:first:pl-0 xl:last:pr-0"
                                 >
-                                    <span className="font-mono text-xs font-black text-indigo-600">
+                                    <span className="font-mono text-xs font-black text-slate-500">
                                         {item.step}
                                     </span>
-                                    <h3 className="mt-3 text-base font-black text-white">
+                                    <h3 className="mt-3 text-base font-black text-slate-950">
                                         {item.title}
                                     </h3>
-                                    <p className="mt-2 text-xs leading-5 text-slate-300">
+                                    <p className="mt-2 text-xs leading-5 text-slate-600">
                                         {item.description}
                                     </p>
-                                    {index < productWorkflow.length - 1 && (
-                                        <ArrowRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-indigo-300 text-slate-950 xl:block" />
-                                    )}
                                 </li>
                             ))}
                         </ol>
@@ -442,15 +438,11 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
 
                     <div
                         id="admin-demo"
-                        className="scroll-mt-24 overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6 sm:p-8"
+                        className="scroll-mt-24 rounded-lg border border-slate-300 bg-white p-6 sm:p-8"
                     >
                         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
                             <div>
-                                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-black text-indigo-700">
-                                    <IdCard className="h-3.5 w-3.5" />
-                                    Guided product demo
-                                </span>
-                                <h2 className="mt-4 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                                <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                                     설명만 읽지 말고, 관리 흐름을 직접 확인해 보세요.
                                 </h2>
                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
@@ -458,26 +450,17 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                     바뀝니다. 서비스 운영 콘솔과 사용자 워크스페이스는 분리되어
                                     있으며 실제 개인정보는 데모에 사용되지 않습니다.
                                 </p>
-                                <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold text-slate-600">
-                                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 shadow-sm">
-                                        <LockKeyhole className="h-3.5 w-3.5 text-emerald-600" />
-                                        서버 저장 없음
-                                    </span>
-                                    <span className="rounded-lg bg-white px-3 py-2 shadow-sm">
-                                        합성 데이터 전용
-                                    </span>
-                                    <span className="rounded-lg bg-white px-3 py-2 shadow-sm">
-                                        새로고침 시 초기화
-                                    </span>
-                                </div>
+                                <p className="mt-5 text-xs font-bold text-slate-500">
+                                    서버 저장 없음 · 합성 데이터 전용 · 새로고침 시 초기화
+                                </p>
                             </div>
                             <Link
                                 href="/architecture/demo"
-                                className="group flex min-h-36 flex-col justify-between rounded-2xl bg-slate-950 p-5 text-white shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
+                                className="flex min-h-36 flex-col justify-between border border-slate-800 bg-slate-950 p-5 text-white transition-colors hover:bg-slate-900"
                             >
                                 <div className="flex items-center justify-between">
-                                    <PlayCircle className="h-8 w-8 text-indigo-300" />
-                                    <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
+                                    <PlayCircle className="h-8 w-8" />
+                                    <ArrowRight className="h-5 w-5" />
                                 </div>
                                 <div>
                                     <div className="text-lg font-black">데모 워크스페이스 열기</div>
@@ -491,13 +474,10 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
 
                     <div
                         id="architecture-metrics"
-                        className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] sm:p-8"
+                        className="scroll-mt-24 rounded-lg border border-slate-200 bg-white p-6 sm:p-8"
                     >
                         <div className="mb-6 max-w-4xl">
-                            <span className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600">
-                                Engineering evidence
-                            </span>
-                            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+                            <h2 className="text-2xl font-black tracking-tight text-slate-950">
                                 {overview?.heading ?? DEFAULT_HEADING}
                             </h2>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -505,90 +485,36 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                             </p>
                         </div>
 
-                        {/* Key Highlights Metric Grid */}
-                        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="group rounded-xl border border-slate-700 bg-slate-900 p-4 text-white transition-all duration-200 hover:border-indigo-400 hover:bg-slate-800 hover:shadow-md">
-                                <div className="flex items-center gap-3">
-                                    <div className="rounded-lg bg-indigo-50 p-2.5 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                        <Box className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs font-semibold text-slate-300">
-                                            Architecture
+                        <div className="grid border-y border-slate-200 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-slate-200">
+                            {engineeringHighlights.map((item) => {
+                                const HighlightIcon = item.icon;
+                                return (
+                                    <div
+                                        key={item.label}
+                                        className="py-4 sm:px-4 lg:first:pl-0 lg:last:pr-0"
+                                    >
+                                        <div className="flex items-center gap-2 text-slate-500">
+                                            <HighlightIcon className="h-4 w-4" />
+                                            <span className="text-xs font-semibold">
+                                                {item.label}
+                                            </span>
                                         </div>
-                                        <div className="text-sm font-black text-white">
-                                            3-Tier Multi-Module
+                                        <div className="mt-2 text-sm font-black text-slate-950">
+                                            {item.value}
                                         </div>
+                                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                                            {item.detail}
+                                        </p>
                                     </div>
-                                </div>
-                                <p className="mt-2 text-xs text-slate-300 line-clamp-1">
-                                    :core / :api / :ai-worker Pod 분리
-                                </p>
-                            </div>
-
-                            <div className="group rounded-xl border border-slate-700 bg-slate-900 p-4 text-white transition-all duration-200 hover:border-emerald-400 hover:bg-slate-800 hover:shadow-md">
-                                <div className="flex items-center gap-3">
-                                    <div className="rounded-lg bg-emerald-50 p-2.5 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                        <Database className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs font-semibold text-slate-300">
-                                            Database
-                                        </div>
-                                        <div className="text-sm font-black text-white">
-                                            Dual Vector DB
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="mt-2 text-xs text-slate-300 line-clamp-1">
-                                    MySQL HeatWave + Oracle 26ai Vector
-                                </p>
-                            </div>
-
-                            <div className="group rounded-xl border border-slate-700 bg-slate-900 p-4 text-white transition-all duration-200 hover:border-violet-400 hover:bg-slate-800 hover:shadow-md">
-                                <div className="flex items-center gap-3">
-                                    <div className="rounded-lg bg-violet-50 p-2.5 text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition-colors">
-                                        <GitBranch className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs font-semibold text-slate-300">
-                                            Deployment
-                                        </div>
-                                        <div className="text-sm font-black text-white">
-                                            ArgoCD GitOps
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="mt-2 text-xs text-slate-300 line-clamp-1">
-                                    OKE Auto-Sync & Sealed Secrets
-                                </p>
-                            </div>
-
-                            <div className="group rounded-xl border border-slate-700 bg-slate-900 p-4 text-white transition-all duration-200 hover:border-amber-400 hover:bg-slate-800 hover:shadow-md">
-                                <div className="flex items-center gap-3">
-                                    <div className="rounded-lg bg-amber-50 p-2.5 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                                        <Activity className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs font-semibold text-slate-300">
-                                            Observability
-                                        </div>
-                                        <div className="text-sm font-black text-white">
-                                            Prometheus & Grafana
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="mt-2 text-xs text-slate-300 line-clamp-1">
-                                    Node Exporter & Loki/Alloy Logs
-                                </p>
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
 
                     {/* 2. Interactive System Topology Diagram Section */}
                     <div
                         id="architecture-diagram"
-                        className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] sm:p-8"
+                        className="scroll-mt-24 rounded-lg border border-slate-200 bg-white p-6 sm:p-8"
                     >
                         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -606,13 +532,13 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                             </div>
 
                             {/* View Switcher Controls */}
-                            <div className="flex items-center rounded-lg bg-slate-100 p-1 self-start sm:self-auto">
+                            <div className="flex items-center border border-slate-200 self-start sm:self-auto">
                                 <button
                                     type="button"
                                     onClick={() => setDiagramViewMode('visual')}
-                                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                                    className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors ${
                                         diagramViewMode === 'visual'
-                                            ? 'bg-white text-indigo-700 shadow-sm'
+                                            ? 'bg-slate-900 text-white'
                                             : 'text-slate-600 hover:text-slate-900'
                                     }`}
                                 >
@@ -622,9 +548,9 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                 <button
                                     type="button"
                                     onClick={() => setDiagramViewMode('terminal')}
-                                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                                    className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors ${
                                         diagramViewMode === 'terminal'
-                                            ? 'bg-white text-indigo-700 shadow-sm'
+                                            ? 'bg-slate-900 text-white'
                                             : 'text-slate-600 hover:text-slate-900'
                                     }`}
                                 >
@@ -636,19 +562,19 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
 
                         {diagramViewMode === 'visual' ? (
                             /* Visual Topology Nodes Pipeline */
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div>
+                                <div className="grid grid-cols-1 border-y border-slate-200 lg:grid-cols-2">
                                     {topologyNodes.map((node) => {
                                         const IconComp = node.icon;
                                         return (
                                             <div
                                                 key={node.id}
-                                                className={`relative overflow-hidden rounded-xl border bg-gradient-to-br p-5 shadow-sm transition-all hover:shadow-md ${node.color}`}
+                                                className="border-b border-slate-200 p-5 lg:odd:border-r"
                                             >
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
-                                                            <IconComp className="h-5 w-5" />
+                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-slate-200 text-slate-700">
+                                                            <IconComp className="h-4 w-4" />
                                                         </div>
                                                         <div>
                                                             <div className="flex items-center gap-2">
@@ -674,7 +600,7 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                                     {node.tags.map((tag) => (
                                                         <span
                                                             key={tag}
-                                                            className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${node.badgeColor}`}
+                                                            className="border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600"
                                                         >
                                                             {tag}
                                                         </span>
@@ -684,23 +610,18 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                         );
                                     })}
                                 </div>
-                                <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 text-center text-xs font-semibold text-slate-500">
-                                    💡 상세 ASCII 배치도 및 K8s Pod 포트/환경 통신 구조는 상단{' '}
-                                    <span className="font-bold text-indigo-600">
-                                        ASCII Terminal
-                                    </span>{' '}
-                                    탭에서 확인하실 수 있습니다.
+                                <div className="border-b border-slate-200 px-4 py-3 text-xs text-slate-500">
+                                    상세 포트와 환경 통신 구조는 <strong>ASCII Terminal</strong>에서
+                                    확인할 수 있습니다.
                                 </div>
                             </div>
                         ) : (
                             /* Terminal Window ASCII Diagram */
-                            <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-xl">
+                            <div className="overflow-hidden border border-slate-800 bg-slate-900">
                                 <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950 px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <div className="h-3 w-3 rounded-full bg-rose-500/80" />
-                                        <div className="h-3 w-3 rounded-full bg-amber-500/80" />
-                                        <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
-                                        <span className="ml-2 font-mono text-xs text-slate-400">
+                                        <Terminal className="h-4 w-4 text-slate-400" />
+                                        <span className="font-mono text-xs text-slate-400">
                                             architecture-topology.spec
                                         </span>
                                     </div>
@@ -733,19 +654,16 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                     {/* 3. Domain Architecture Components Section */}
                     <div
                         id="architecture-components"
-                        className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] sm:p-8"
+                        className="scroll-mt-24 rounded-lg border border-slate-200 bg-white p-6 sm:p-8"
                     >
                         <div className="mb-6 flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <div className="mb-1 flex items-center gap-2">
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                                        <Layers className="h-3.5 w-3.5 text-indigo-600" />총{' '}
-                                        {layers.length}개 도메인 레이어
-                                    </span>
-                                </div>
                                 <h2 className="text-xl font-black text-slate-900 sm:text-2xl">
                                     도메인 레이어별 아키텍처 명세
                                 </h2>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    총 {layers.length}개 도메인 레이어
+                                </p>
                             </div>
 
                             {/* Category Filter Tabs */}
@@ -758,10 +676,10 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                             key={cat.id}
                                             type="button"
                                             onClick={() => setSelectedCategory(cat.id)}
-                                            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                                            className={`flex items-center gap-1.5 border px-3 py-1.5 text-xs font-bold transition-colors ${
                                                 isActive
-                                                    ? 'bg-slate-900 text-white shadow-sm'
-                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                                    : 'border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-900'
                                             }`}
                                         >
                                             <IconC className="h-3.5 w-3.5" />
@@ -773,25 +691,22 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                         </div>
 
                         {/* Domain Layer Cards Grid */}
-                        <div className="grid grid-cols-1 gap-6">
+                        <div className="divide-y divide-slate-200 border-y border-slate-200">
                             {filteredLayers.length === 0 ? (
                                 <div className="py-12 text-center text-sm font-bold text-slate-400">
                                     등록되었거나 조건에 맞는 아키텍처 레이어가 없습니다.
                                 </div>
                             ) : (
                                 filteredLayers.map((layer) => (
-                                    <div
-                                        key={layer.id}
-                                        className="group rounded-xl border border-slate-200 bg-slate-50/40 p-6 transition-all hover:border-indigo-200 hover:bg-white hover:shadow-md"
-                                    >
+                                    <div key={layer.id} className="py-6">
                                         <div className="mb-4 flex items-center justify-between border-b border-slate-200/60 pb-3">
                                             <h3 className="flex items-center gap-2.5 text-base font-black text-slate-900 sm:text-lg">
-                                                <span className="rounded-lg bg-indigo-50 p-2 text-base leading-none shadow-xs group-hover:bg-indigo-100 transition-colors">
+                                                <span className="text-base leading-none">
                                                     {layer.icon}
                                                 </span>
                                                 {layer.title}
                                             </h3>
-                                            <span className="rounded-full bg-slate-200/60 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+                                            <span className="text-xs font-semibold text-slate-500">
                                                 {layer.items.length} Key Points
                                             </span>
                                         </div>
@@ -809,10 +724,10 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                                 return (
                                                     <li
                                                         key={item.id}
-                                                        className="rounded-lg border border-slate-100 bg-white p-3.5 shadow-2xs transition-colors hover:border-slate-300"
+                                                        className="border-b border-slate-100 py-3.5 last:border-b-0"
                                                     >
                                                         <div className="flex items-start gap-2.5">
-                                                            <span className="mt-1 flex h-2 w-2 shrink-0 rounded-full bg-indigo-500" />
+                                                            <span className="mt-2 h-1.5 w-1.5 shrink-0 bg-slate-400" />
                                                             <div className="space-y-2 w-full">
                                                                 <div className="[overflow-wrap:anywhere]">
                                                                     {item.strongText && (
@@ -844,7 +759,7 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                                                                 (badge) => (
                                                                                     <span
                                                                                         key={badge}
-                                                                                        className="rounded bg-slate-100 px-2 py-0.5 text-[10.5px] font-semibold text-slate-700 border border-slate-200/60"
+                                                                                        className="border border-slate-200 px-2 py-0.5 text-[10.5px] font-semibold text-slate-600"
                                                                                     >
                                                                                         #{badge}
                                                                                     </span>
@@ -859,15 +774,14 @@ export function ArchitecturePageClient({ overview, layers }: Props) {
                                                                     {studyUrl && (
                                                                         <Link
                                                                             href={studyUrl}
-                                                                            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 border border-indigo-200/80 hover:bg-indigo-600 hover:text-white transition-all hover:shadow-xs group/btn ml-auto"
+                                                                            className="ml-auto inline-flex items-center gap-1.5 border border-slate-300 px-3 py-1 text-xs font-bold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-950"
                                                                         >
-                                                                            <BookOpen className="h-3.5 w-3.5 text-indigo-600 group-hover/btn:text-white transition-colors" />
+                                                                            <BookOpen className="h-3.5 w-3.5" />
                                                                             <span>
-                                                                                📖{' '}
                                                                                 {studyTitle ??
                                                                                     'Deep-Dive 스터디 노트'}
                                                                             </span>
-                                                                            <ExternalLink className="h-3 w-3 opacity-70 group-hover/btn:opacity-100 transition-opacity" />
+                                                                            <ExternalLink className="h-3 w-3 opacity-70" />
                                                                         </Link>
                                                                     )}
                                                                 </div>

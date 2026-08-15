@@ -54,7 +54,7 @@ export default function WorkspaceOnboardingPage() {
         return <main className="p-10 text-center">계정 확인 중...</main>;
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-            <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
                 <Link
                     href="/"
                     className="mb-5 inline-flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-950"
@@ -62,7 +62,7 @@ export default function WorkspaceOnboardingPage() {
                     <ArrowLeft className="h-3.5 w-3.5" />
                     메인으로 돌아가기
                 </Link>
-                <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <div className="mb-6 flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
                     <div className="min-w-0">
                         <p className="truncate text-sm font-black text-slate-900">
                             {me?.nickname || me?.username}
@@ -75,14 +75,13 @@ export default function WorkspaceOnboardingPage() {
                             await logout();
                             router.replace('/login');
                         }}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-2.5 py-2 text-xs font-black text-red-700 hover:bg-red-50"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-2 text-xs font-black text-red-700 hover:bg-red-50"
                     >
                         <LogOut className="h-3.5 w-3.5" />
                         로그아웃
                     </button>
                 </div>
-                <span className="text-xs font-black text-indigo-600">FIRST WORKSPACE</span>
-                <h1 className="mt-2 text-2xl font-black text-slate-950">첫 Workspace 만들기</h1>
+                <h1 className="text-2xl font-black text-slate-950">첫 Workspace 만들기</h1>
                 <p className="mt-3 text-sm leading-6 text-slate-500">
                     처음에는 비공개로 생성됩니다. 공개 URL은 발행할 때 선택할 수 있습니다.
                 </p>
@@ -95,7 +94,7 @@ export default function WorkspaceOnboardingPage() {
                             minLength={2}
                             maxLength={120}
                             required
-                            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-indigo-500"
+                            className="mt-2 w-full rounded-md border border-slate-200 px-4 py-3 font-normal outline-none focus:border-indigo-500"
                         />
                     </label>
                     {error && (
@@ -105,7 +104,7 @@ export default function WorkspaceOnboardingPage() {
                     )}
                     <button
                         disabled={pending}
-                        className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                        className="w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                     >
                         {pending ? '생성 중...' : '비공개 Workspace 생성'}
                     </button>

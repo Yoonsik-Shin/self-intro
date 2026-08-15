@@ -54,7 +54,7 @@ export function Modal({
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className={`w-full ${sizeClasses[size]} rounded-2xl bg-white shadow-xl outline-none`}
+                className={`w-full ${sizeClasses[size]} rounded-lg bg-white shadow-xl outline-none`}
                 onClick={(event) => event.stopPropagation()}
             >
                 {children}

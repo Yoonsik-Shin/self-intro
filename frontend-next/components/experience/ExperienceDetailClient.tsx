@@ -172,7 +172,7 @@ export function ExperienceDetailClient({
                 }`}
             >
                 <div className="min-w-0 space-y-8">
-                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                    <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                         {/* Header Section */}
                         <div className="mb-6 border-b border-slate-100 pb-6">
                             {parentCareer && (
@@ -260,7 +260,7 @@ export function ExperienceDetailClient({
                                                 href={experience.repositoryUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 shadow-2xs"
+                                                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950 shadow-2xs"
                                             >
                                                 <Github className="h-4 w-4" />
                                                 GitHub 저장소
@@ -300,7 +300,7 @@ export function ExperienceDetailClient({
                         </div>
 
                         {hasDeepDive && (
-                            <section className="mb-10 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/50 p-5 sm:p-7">
+                            <section className="mb-10 space-y-5 rounded-md border border-slate-200 bg-slate-50/50 p-5 sm:p-7">
                                 <div className="border-b border-slate-200 pb-4">
                                     <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
                                         Case Study
@@ -321,11 +321,11 @@ export function ExperienceDetailClient({
                                         return (
                                             <div
                                                 key={section.label}
-                                                className={`rounded-xl border p-4 sm:p-5 ${section.tone}`}
+                                                className={`rounded-md border p-4 sm:p-5 ${section.tone}`}
                                             >
                                                 <h3 className="mb-3 flex items-center gap-2 text-sm font-black">
                                                     <span
-                                                        className={`grid h-8 w-8 place-items-center rounded-lg ${section.iconTone}`}
+                                                        className={`grid h-8 w-8 place-items-center rounded-md ${section.iconTone}`}
                                                     >
                                                         <Icon className="h-4 w-4" />
                                                     </span>
@@ -358,8 +358,7 @@ export function ExperienceDetailClient({
                         {/* Top-Level Experience Details List */}
                         {listedDetails.length > 0 && (
                             <div className="space-y-6 pt-2">
-                                <h3 className="text-base font-black tracking-tight text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
-                                    <span>📌</span>{' '}
+                                <h3 className="text-base font-black tracking-tight text-slate-900 pb-3 border-b border-slate-100">
                                     {focusDetail
                                         ? '같은 이력의 다른 성과'
                                         : '주요 세부 성과 및 구현 경험'}{' '}
@@ -431,9 +430,9 @@ export function ExperienceDetailClient({
                                                         if (linkedStudies.length === 0) return null;
                                                         return (
                                                             <div className="pl-7 pt-2 space-y-1.5">
-                                                                <div className="text-xs font-extrabold text-indigo-700 flex items-center gap-1.5">
-                                                                    <span>📖</span> 연관 학습 아티클
-                                                                    ({linkedStudies.length}개)
+                                                                <div className="text-xs font-extrabold text-indigo-700">
+                                                                    연관 학습 아티클 (
+                                                                    {linkedStudies.length}개)
                                                                 </div>
                                                                 <ul className="space-y-1 pl-1 text-xs">
                                                                     {linkedStudies.map((s) => (
@@ -469,15 +468,15 @@ export function ExperienceDetailClient({
                         {/* Sub-Projects Section (For CAREER items) */}
                         {subProjects.length > 0 && (
                             <div className="mt-10 border-t border-slate-100 pt-8 space-y-6">
-                                <h3 className="text-lg font-black tracking-tight text-slate-900 flex items-center gap-2">
-                                    <span>🚀</span> 소속 실무 프로젝트 ({subProjects.length}개)
+                                <h3 className="text-lg font-black tracking-tight text-slate-900">
+                                    소속 실무 프로젝트 ({subProjects.length}개)
                                 </h3>
 
                                 <div className="space-y-6">
                                     {subProjects.map((proj) => (
                                         <div
                                             key={proj.id}
-                                            className="rounded-xl border border-slate-200 bg-slate-50/50 p-6 space-y-4"
+                                            className="rounded-md border border-slate-200 bg-slate-50/50 p-6 space-y-4"
                                         >
                                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
                                                 <div>
@@ -499,7 +498,7 @@ export function ExperienceDetailClient({
                                                         href={proj.repositoryUrl}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-slate-950"
+                                                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-slate-950"
                                                     >
                                                         <Github className="h-3.5 w-3.5" /> Code
                                                     </a>
@@ -528,7 +527,7 @@ export function ExperienceDetailClient({
                                                             return (
                                                                 <li
                                                                     key={d.id}
-                                                                    className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-white p-3 rounded-lg border border-slate-100 shadow-2xs"
+                                                                    className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-white p-3 rounded-md border border-slate-100 shadow-2xs"
                                                                 >
                                                                     <strong className="font-extrabold text-slate-900 block mb-1">
                                                                         •{' '}
@@ -582,9 +581,8 @@ export function ExperienceDetailClient({
                                                                     ) : null}
                                                                     {linkedStudies.length > 0 && (
                                                                         <div className="pl-3 pt-2 space-y-1.5">
-                                                                            <div className="text-xs font-extrabold text-indigo-700 flex items-center gap-1.5">
-                                                                                <span>📖</span> 연관
-                                                                                학습 아티클 (
+                                                                            <div className="text-xs font-extrabold text-indigo-700">
+                                                                                연관 학습 아티클 (
                                                                                 {
                                                                                     linkedStudies.length
                                                                                 }
@@ -631,7 +629,7 @@ export function ExperienceDetailClient({
                                                     {proj.skills.map((s) => (
                                                         <span
                                                             key={s.id}
-                                                            className="rounded bg-slate-200/60 px-2 py-0.5 text-[11px] font-bold text-slate-700"
+                                                            className="rounded-md bg-slate-200/60 px-2 py-0.5 text-[11px] font-bold text-slate-700"
                                                         >
                                                             {s.name}
                                                         </span>
@@ -656,7 +654,7 @@ export function ExperienceDetailClient({
                                         <div
                                             key={img.id || img.objectKey}
                                             onClick={() => setSelectedImage(img.url)}
-                                            className="group cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition hover:border-slate-400 hover:shadow-md"
+                                            className="group cursor-pointer overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition hover:border-slate-400 hover:shadow-md"
                                         >
                                             <img
                                                 src={img.url}
@@ -676,7 +674,7 @@ export function ExperienceDetailClient({
                             <button
                                 type="button"
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 print:hidden"
                                 title="본문 맨 위로 스크롤"
                                 aria-label="본문 맨 위로 스크롤"
                             >
@@ -692,7 +690,7 @@ export function ExperienceDetailClient({
                         isNavCollapsed ? 'min-[900px]:w-[76px]' : 'min-[900px]:w-[272px]'
                     }`}
                 >
-                    <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
+                    <div className="relative rounded-lg border border-slate-200/80 bg-white shadow-sm overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
                         <button
                             type="button"
                             onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
@@ -780,11 +778,11 @@ export function ExperienceDetailClient({
                         </div>
 
                         {/* 무조건 하단 고정 영역 (Sticky Bottom) */}
-                        <div className="shrink-0 p-3 min-[900px]:px-4 border-t border-slate-100 bg-white/90 backdrop-blur-md rounded-b-2xl">
+                        <div className="shrink-0 p-3 min-[900px]:px-4 border-t border-slate-100 bg-white rounded-b-lg">
                             <button
                                 type="button"
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="grid h-9 w-full place-items-center rounded-xl border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5"
+                                className="grid h-9 w-full place-items-center rounded-md border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5"
                                 title="위로 가기"
                                 aria-label="위로 가기"
                             >
@@ -805,11 +803,11 @@ export function ExperienceDetailClient({
                         onClick={() => setSelectedImage(null)}
                         className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
                     >
-                        <div className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-2xl bg-white p-2">
+                        <div className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-lg bg-white p-2">
                             <img
                                 src={selectedImage}
                                 alt="Expanded preview"
-                                className="max-h-[85vh] max-w-[85vw] object-contain rounded-xl"
+                                className="max-h-[85vh] max-w-[85vw] object-contain rounded-md"
                             />
                         </div>
                     </div>

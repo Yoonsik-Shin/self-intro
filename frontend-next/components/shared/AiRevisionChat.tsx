@@ -98,7 +98,7 @@ export function AiRevisionChat({
             {/* Chat Header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 bg-indigo-50/50 shrink-0">
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="rounded-xl bg-indigo-600 p-2 text-white shrink-0 shadow-xs">
+                    <div className="rounded-md bg-indigo-600 p-2 text-white shrink-0 shadow-xs">
                         <Sparkles className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
@@ -113,7 +113,7 @@ export function AiRevisionChat({
                 <button
                     type="button"
                     onClick={() => (isGenerating ? onCancelGenerate() : handleGenerate())}
-                    className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-extrabold transition whitespace-nowrap shrink-0 shadow-xs ${
+                    className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-extrabold transition whitespace-nowrap shrink-0 shadow-xs ${
                         isGenerating
                             ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100'
                             : 'border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50'
@@ -144,7 +144,7 @@ export function AiRevisionChat({
                         <select
                             value={selectedAiModel}
                             onChange={(e) => setSelectedAiModel(e.target.value)}
-                            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-800 focus:border-indigo-500 focus:outline-none shadow-2xs"
+                            className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-800 focus:border-indigo-500 focus:outline-none shadow-2xs"
                         >
                             {AI_MODEL_OPTIONS.map((opt) => (
                                 <option key={opt.id} value={opt.id}>
@@ -160,7 +160,7 @@ export function AiRevisionChat({
                         value={customModelInput}
                         onChange={(e) => setCustomModelInput(e.target.value)}
                         placeholder="공식 API 모델명 입력 (예: claude-sonnet-5, gpt-5.4-mini)"
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
                     />
                 )}
             </div>
@@ -269,9 +269,9 @@ export function AiRevisionChat({
                             <button
                                 type="button"
                                 onClick={onCancelGenerate}
-                                className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1 text-[11px] font-extrabold text-rose-600 transition hover:bg-rose-100 shrink-0 whitespace-nowrap shadow-2xs"
+                                className="rounded-md bg-rose-50 border border-rose-200 px-2.5 py-1 text-[11px] font-extrabold text-rose-600 transition hover:bg-rose-100 shrink-0 whitespace-nowrap shadow-2xs"
                             >
-                                🚫 생성 취소
+                                생성 취소
                             </button>
                         </div>
                     </div>
@@ -296,12 +296,12 @@ export function AiRevisionChat({
                         value={feedbackInput}
                         onChange={(e) => setFeedbackInput(e.target.value)}
                         placeholder={inputPlaceholder}
-                        className="flex-1 min-w-0 resize-y min-h-[52px] max-h-36 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-none transition font-medium leading-5"
+                        className="flex-1 min-w-0 resize-y min-h-[52px] max-h-36 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-none transition font-medium leading-5"
                     />
                     <button
                         type="submit"
                         disabled={isGenerating || !feedbackInput.trim()}
-                        className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 whitespace-nowrap shadow-sm h-10"
+                        className="flex items-center gap-1.5 rounded-md bg-amber-600 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 whitespace-nowrap shadow-sm h-10"
                     >
                         {isGenerating ? (
                             <Loader2 className="h-4 w-4 animate-spin shrink-0" />

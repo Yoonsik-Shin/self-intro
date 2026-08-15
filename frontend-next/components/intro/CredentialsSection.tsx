@@ -11,7 +11,7 @@ const badgeStyle =
 const detailBadgeStyle =
     'text-[11px] bg-slate-50 border border-slate-200/70 text-slate-700 font-bold px-1.5 py-0.5 rounded';
 const cardStyle =
-    'resume-section-card bg-white border border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative';
+    'resume-section-card relative rounded-lg border border-slate-200 bg-white p-6 sm:p-8';
 
 type Props = {
     educationExperiences: Experience[];
@@ -55,8 +55,8 @@ export function CredentialsSection({
                             <div className="space-y-6">
                                 {academicList.length > 0 && (
                                     <div className="space-y-3">
-                                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                                            <span>🎓</span> 정규 학력
+                                        <h4 className="text-xs font-black text-slate-600">
+                                            정규 학력
                                         </h4>
                                         {academicList.map((education) => {
                                             const metaParts = [
@@ -74,7 +74,7 @@ export function CredentialsSection({
                                                 <article
                                                     id={`credential-experience-${education.id}`}
                                                     key={education.id}
-                                                    className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
+                                                    className="scroll-mt-24 rounded-md border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
                                                 >
                                                     <div className="flex flex-wrap items-start justify-between gap-2">
                                                         <div>
@@ -130,14 +130,14 @@ export function CredentialsSection({
 
                                 {courseList.length > 0 && (
                                     <div className="space-y-3">
-                                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                                            <span>📚</span> 학습 · 교육과정
+                                        <h4 className="text-xs font-black text-slate-600">
+                                            학습 · 교육과정
                                         </h4>
                                         {courseList.map((education) => (
                                             <article
                                                 id={`credential-experience-${education.id}`}
                                                 key={education.id}
-                                                className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
+                                                className="scroll-mt-24 rounded-md border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
                                             >
                                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                                     <div>
@@ -183,7 +183,7 @@ export function CredentialsSection({
                                 )}
                             </div>
                         ) : (
-                            <p className="rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">
+                            <p className="rounded-md border border-dashed border-slate-200 p-4 text-slate-400">
                                 등록된 학력·교육 정보가 없습니다.
                             </p>
                         )}
@@ -203,7 +203,7 @@ export function CredentialsSection({
                                     <article
                                         id={`credential-experience-${certificate.id}`}
                                         key={certificate.id}
-                                        className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
+                                        className="scroll-mt-24 rounded-md border border-slate-200 bg-slate-50/50 p-4 shadow-sm"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-2">
                                             <div>
@@ -247,7 +247,7 @@ export function CredentialsSection({
                                 ))}
                             </div>
                         ) : (
-                            <p className="rounded-xl border border-dashed border-slate-200 p-4 text-slate-400">
+                            <p className="rounded-md border border-dashed border-slate-200 p-4 text-slate-400">
                                 등록된 자격증 정보가 없습니다.
                             </p>
                         )}

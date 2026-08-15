@@ -14,7 +14,7 @@ const badgeStyle =
 const detailBadgeStyle =
     'text-[11px] bg-slate-50 border border-slate-200/70 text-slate-700 font-bold px-1.5 py-0.5 rounded';
 const cardStyle =
-    'resume-section-card bg-white border border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative';
+    'resume-section-card relative rounded-lg border border-slate-200 bg-white p-6 sm:p-8';
 
 function getExpandableDetailIds(details: ExperienceDetail[]) {
     return details
@@ -101,7 +101,7 @@ export function ProjectsSection({
                     className={`resume-project-list relative mt-8 space-y-8 ${milestones.length > 0 ? 'before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-[2px] before:bg-slate-200' : ''}`}
                 >
                     {milestones.length === 0 && (
-                        <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm font-semibold text-slate-400">
+                        <p className="rounded-md border border-dashed border-slate-200 px-4 py-8 text-center text-sm font-semibold text-slate-400">
                             편성된 핵심 프로젝트가 없습니다.
                         </p>
                     )}
@@ -116,7 +116,7 @@ export function ProjectsSection({
                             />
 
                             <div
-                                className={`resume-project-card space-y-4 rounded-xl border p-6 shadow-sm transition-all duration-300 ${selectedMilestoneId === m.id ? 'border-slate-800 bg-white ring-2 ring-slate-100/50' : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-400 hover:bg-white'}`}
+                                className={`resume-project-card space-y-4 rounded-md border p-6 shadow-sm transition-all duration-300 ${selectedMilestoneId === m.id ? 'border-slate-800 bg-white ring-2 ring-slate-100/50' : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-400 hover:bg-white'}`}
                             >
                                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                                     <div>
@@ -140,7 +140,7 @@ export function ProjectsSection({
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={(event) => event.stopPropagation()}
-                                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+                                            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
                                         >
                                             <Github className="h-4 w-4" />
                                             GitHub 저장소
@@ -151,7 +151,7 @@ export function ProjectsSection({
 
                                 <div className="space-y-4">
                                     <div>
-                                        <h4 className="resume-label font-bold uppercase tracking-wider text-slate-400">
+                                        <h4 className="resume-label font-bold text-slate-500">
                                             프로젝트 설명 및 역할
                                             {m.contributionRate != null
                                                 ? ` · 기여도 ${m.contributionRate}%`
@@ -166,7 +166,7 @@ export function ProjectsSection({
 
                                     {m.tags.length > 0 && (
                                         <div>
-                                            <h4 className="resume-label mb-1.5 font-bold uppercase tracking-wider text-slate-400">
+                                            <h4 className="resume-label mb-1.5 font-bold text-slate-500">
                                                 태그
                                             </h4>
                                             <div className="flex flex-wrap gap-1">
@@ -185,7 +185,7 @@ export function ProjectsSection({
                                     {m.details.length > 0 && (
                                         <div className="border-t border-slate-100 pt-3">
                                             <div className="resume-detail-header mb-2.5 flex items-center justify-between gap-3">
-                                                <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
+                                                <h4 className="resume-label flex items-center gap-1.5 font-bold text-slate-700">
                                                     <Briefcase className="h-3.5 w-3.5 text-slate-500" />
                                                     상세 경험
                                                 </h4>
@@ -351,7 +351,7 @@ export function ProjectsSection({
                                     )}
 
                                     <div>
-                                        <h4 className="resume-label mb-1.5 font-bold uppercase tracking-wider text-slate-400">
+                                        <h4 className="resume-label mb-1.5 font-bold text-slate-500">
                                             활용 기술 스택
                                         </h4>
                                         <div className="flex flex-wrap gap-1">

@@ -161,7 +161,7 @@ function MermaidDiagram({ source }: { source: string }) {
 
     if (!normalizedSource) {
         return (
-            <div className="my-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-xs text-slate-500">
+            <div className="my-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-xs text-slate-500">
                 Mermaid 블록 안에 다이어그램 문법을 입력해 주세요.
                 <code className="mt-2 block font-mono text-slate-400">
                     graph TD&nbsp;&nbsp;A[시작] --&gt; B[완료]
@@ -173,16 +173,16 @@ function MermaidDiagram({ source }: { source: string }) {
     return (
         <div className="my-4">
             {error && (
-                <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-4">
                     <p className="text-xs font-bold text-red-700">Mermaid 렌더링에 실패했습니다.</p>
                     <p className="mt-1 text-xs text-red-600">{error}</p>
-                    <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs leading-5 text-slate-100">
+                    <pre className="mt-3 overflow-x-auto rounded-md bg-slate-950 p-3 text-xs leading-5 text-slate-100">
                         {source}
                     </pre>
                 </div>
             )}
             <div
-                className={`relative min-h-24 overflow-x-auto rounded-xl border border-slate-200 bg-white p-4 ${error ? 'hidden' : ''}`}
+                className={`relative min-h-24 overflow-x-auto rounded-md border border-slate-200 bg-white p-4 ${error ? 'hidden' : ''}`}
             >
                 {rendering && (
                     <div className="absolute inset-0 z-10 grid place-items-center bg-white/80 text-xs font-semibold text-slate-400">
@@ -378,7 +378,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
             onClick={handleClick}
             onMouseOver={handleMouseOver}
             onMouseLeave={handleMouseLeave}
-            className="group relative my-4 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-md"
+            className="group relative my-4 overflow-hidden rounded-md border border-slate-700 bg-slate-950 shadow-md"
         >
             {/* Top Bar Header with Toggle Switch */}
             <div className="flex h-10 items-center justify-between border-b border-slate-700 bg-slate-900 px-3.5">
@@ -402,22 +402,19 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                                 : 'rgba(30, 41, 59, 0.9)',
                             borderColor: tooltipEnabled ? '#f59e0b' : '#64748b',
                         }}
-                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold shadow-sm transition hover:scale-105 active:scale-95"
+                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-extrabold shadow-sm transition hover:opacity-90"
                         title="마우스 호버 시 개념 팝업 켜기/끄기"
                     >
                         <span
                             style={{
                                 backgroundColor: tooltipEnabled ? '#facc15' : '#94a3b8',
-                                boxShadow: tooltipEnabled ? '0 0 10px #facc15' : 'none',
                             }}
-                            className={`h-2.5 w-2.5 rounded-full ${
-                                tooltipEnabled ? 'animate-pulse' : ''
-                            }`}
+                            className="h-2.5 w-2.5 rounded-full"
                         />
                         <span className="tracking-wide">
                             {tooltipEnabled
-                                ? '💡 개념 팝업 ON (마우스 클릭 고정 가능)'
-                                : '💡 개념 팝업 OFF'}
+                                ? '개념 팝업 ON (마우스 클릭 고정 가능)'
+                                : '개념 팝업 OFF'}
                         </span>
                     </button>
                 </div>
@@ -499,7 +496,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
 
                     <div
                         style={{ boxSizing: 'border-box' }}
-                        className={`relative w-full max-w-full rounded-xl border p-4 shadow-2xl backdrop-blur-md bg-slate-900 ${
+                        className={`relative w-full max-w-full rounded-md border p-4 shadow-lg bg-slate-900 ${
                             isPinned
                                 ? 'border-amber-400 shadow-amber-500/20 ring-1 ring-amber-400/40'
                                 : 'border-sky-400 shadow-sky-500/20 ring-1 ring-sky-400/40'
@@ -512,7 +509,7 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                                 </span>
                                 {isPinned && (
                                     <span className="rounded bg-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold text-amber-200 border border-amber-400/60 shrink-0">
-                                        📌 고정됨
+                                        고정됨
                                     </span>
                                 )}
                             </div>
@@ -561,7 +558,6 @@ export function MarkdownCode({ children, className, node, onLanguageChange }: Co
                                 }}
                                 className="mt-3 flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-slate-800/90 px-2.5 py-1.5 text-xs font-medium text-amber-300 shadow-sm"
                             >
-                                <span className="text-xs shrink-0">💡</span>
                                 <span className="text-[11px] leading-snug text-amber-200/90">
                                     {hoveredConcept.info.tip}
                                 </span>

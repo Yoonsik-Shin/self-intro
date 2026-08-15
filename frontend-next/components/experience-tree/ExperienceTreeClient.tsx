@@ -132,9 +132,8 @@ export function ExperienceTreeClient({
 
     return (
         <div className="mx-auto max-w-[1500px] space-y-5 px-4 py-6 sm:px-6">
-            <header className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 -translate-y-16 translate-x-16 rounded-full bg-slate-800/5 blur-[50px]" />
-                <div className="relative max-w-3xl">
+            <header className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <div className="max-w-3xl">
                     <h1 className="text-3xl font-black tracking-tight text-slate-900">
                         개발자 온톨로지
                     </h1>
@@ -145,7 +144,7 @@ export function ExperienceTreeClient({
                 </div>
             </header>
 
-            <div className="sticky top-16 z-20 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
+            <div className="sticky top-16 z-20 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap gap-1.5">
                     {DOMAIN_FILTERS.map((value) => (
                         <button
@@ -159,7 +158,7 @@ export function ExperienceTreeClient({
                     ))}
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
                         <Search className="h-4 w-4 text-slate-400" />
                         <input
                             value={search}
@@ -168,7 +167,7 @@ export function ExperienceTreeClient({
                             className="w-full bg-transparent text-sm outline-none sm:w-52"
                         />
                     </label>
-                    <div className="flex rounded-xl bg-slate-100 p-1">
+                    <div className="flex rounded-md bg-slate-100 p-1">
                         {(
                             [
                                 ['TREE', GitBranch, '트리'],
@@ -181,7 +180,7 @@ export function ExperienceTreeClient({
                                 type="button"
                                 onClick={() => setViewMode(value)}
                                 title={label}
-                                className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold ${viewMode === value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
+                                className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-bold ${viewMode === value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
                             >
                                 <Icon className="h-3.5 w-3.5" />
                                 <span className="hidden sm:inline">{label}</span>
@@ -242,7 +241,7 @@ function TreeView({
     const isOpen = (key: string) => expanded.has(key);
 
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <FolderRow
                 label="개발자 온톨로지"
                 description="하나의 지식 루트에서 영역·역량·주제·의사결정 순서로 탐색합니다."
@@ -392,7 +391,7 @@ function FolderRow({
             type="button"
             aria-expanded={open}
             onClick={onToggle}
-            className={`group flex w-full items-center gap-3 rounded-xl text-left transition hover:bg-slate-50 ${root ? 'p-5 sm:p-6' : 'px-2 py-2.5'}`}
+            className={`group flex w-full items-center gap-3 rounded-md text-left transition hover:bg-slate-50 ${root ? 'p-5 sm:p-6' : 'px-2 py-2.5'}`}
         >
             <span className="grid h-6 w-6 shrink-0 place-items-center text-slate-400">
                 {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -459,7 +458,7 @@ function DecisionTree({
             <button
                 type="button"
                 onClick={() => onSelect(item.stableKey)}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${selectedKey === item.stableKey ? 'bg-slate-900 font-bold text-white' : 'text-slate-700 hover:bg-slate-100'}`}
+                className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition ${selectedKey === item.stableKey ? 'bg-slate-900 font-bold text-white' : 'text-slate-700 hover:bg-slate-100'}`}
             >
                 <FileText className="h-4 w-4 shrink-0 opacity-60" />
                 <span className="min-w-0 flex-1">{item.title}</span>
@@ -502,7 +501,7 @@ function ListView({
                     key={item.stableKey}
                     type="button"
                     onClick={() => onSelect(item.stableKey)}
-                    className={`rounded-2xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${selectedKey === item.stableKey ? 'border-blue-400 bg-blue-50/40' : 'border-slate-200 bg-white'}`}
+                    className={`rounded-lg border p-5 text-left shadow-sm transition hover:border-blue-300 ${selectedKey === item.stableKey ? 'border-blue-400 bg-blue-50/40' : 'border-slate-200 bg-white'}`}
                 >
                     <p className="text-[11px] font-black uppercase tracking-wider text-blue-600">
                         {categoryBreadcrumb(item).join(' › ')}
@@ -621,7 +620,7 @@ function DecisionMapView({
         }));
     const edges = [...hierarchyEdges, ...relationEdges];
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="h-[680px] bg-slate-50">
                 {nodes.length === 0 ? (
                     <EmptyPanel text="표시할 상황이 없습니다." />
@@ -718,7 +717,7 @@ export function MatrixView({
         ),
     ];
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 p-5">
                 <h2 className="text-xl font-black text-slate-950">{detail.title}</h2>
                 <p className="mt-1 text-sm text-slate-500">
@@ -808,7 +807,7 @@ export function TimelineView({
         })),
     ].sort((a, b) => a.date.localeCompare(b.date));
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-black text-slate-950">검토·회고 타임라인</h2>
             <p className="mt-1 text-sm text-slate-500">
                 검색 결과의 재검토 일정과 선택한 상황의 Study 기록을 시간순으로 봅니다.
@@ -865,7 +864,7 @@ export function DetailPanel({
     if (loading) return <LoadingPanel />;
     if (!detail) return <EmptyPanel text="왼쪽에서 구현 상황을 선택해주세요." />;
     return (
-        <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="space-y-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
             <div>
                 <p className="text-xs font-black uppercase tracking-wider text-blue-600">
                     {DOMAIN_LABELS[detail.domain]} · {detail.topic}
@@ -873,7 +872,7 @@ export function DetailPanel({
                 <h2 className="mt-2 text-2xl font-black text-slate-950">{detail.title}</h2>
                 <p className="mt-2 leading-7 text-slate-600">{detail.summary}</p>
             </div>
-            <div className="rounded-xl bg-slate-50 p-4">
+            <div className="rounded-md bg-slate-50 p-4">
                 <p className="text-xs font-black uppercase text-slate-400">Problem</p>
                 <p className="mt-1 text-sm leading-6 text-slate-700">{detail.problem}</p>
             </div>
@@ -881,7 +880,7 @@ export function DetailPanel({
                 {detail.options.map((option) => (
                     <article
                         key={option.stableKey}
-                        className="rounded-2xl border border-slate-200 p-5"
+                        className="rounded-md border border-slate-200 p-5"
                     >
                         <h3 className="font-black text-slate-950">{option.title}</h3>
                         <p className="mt-1 text-sm leading-6 text-slate-600">{option.summary}</p>
@@ -906,13 +905,13 @@ export function DetailPanel({
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div>
-                                    <dt className="font-bold text-blue-700">장점</dt>
+                                    <dt className="font-bold text-emerald-700">장점</dt>
                                     <dd className="mt-1 whitespace-pre-line text-slate-600">
                                         {option.advantages}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="font-bold text-amber-700">단점</dt>
+                                    <dt className="font-bold text-rose-700">단점</dt>
                                     <dd className="mt-1 whitespace-pre-line text-slate-600">
                                         {option.disadvantages}
                                     </dd>
@@ -920,7 +919,7 @@ export function DetailPanel({
                             </div>
                             {option.operationalNotes && (
                                 <div>
-                                    <dt className="font-bold text-violet-700">운영 메모</dt>
+                                    <dt className="font-bold text-slate-900">운영 메모</dt>
                                     <dd className="mt-1 whitespace-pre-line text-slate-600">
                                         {option.operationalNotes}
                                     </dd>
@@ -951,7 +950,7 @@ export function DetailPanel({
                         {detail.warnings.map((warning) => (
                             <article
                                 key={warning.stableKey}
-                                className="rounded-xl border border-rose-200 bg-rose-50/50 p-4"
+                                className="rounded-md border border-rose-200 bg-rose-50/50 p-4"
                             >
                                 <p className="text-[11px] font-black text-rose-600">
                                     {warning.classification} · {warning.severity}
@@ -977,7 +976,7 @@ export function DetailPanel({
                 </div>
             )}
             {detail.constraintsMarkdown && (
-                <div className="prose prose-slate max-w-none rounded-xl bg-slate-50 p-4">
+                <div className="prose prose-slate max-w-none rounded-md bg-slate-50 p-4">
                     <h3>제약 조건</h3>
                     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                         {detail.constraintsMarkdown}
@@ -998,7 +997,7 @@ export function DetailPanel({
                                     type="button"
                                     key={`${relation.sourceKey}-${relation.targetKey}-${relation.relationType}`}
                                     onClick={() => onSelect(relatedKey)}
-                                    className="rounded-xl border border-slate-200 px-3 py-2 text-left text-xs hover:border-blue-300 hover:bg-blue-50"
+                                    className="rounded-md border border-slate-200 px-3 py-2 text-left text-xs hover:border-blue-300 hover:bg-blue-50"
                                 >
                                     <b className="text-blue-700">{relation.relationType}</b>
                                     <span className="ml-2 text-slate-600">{relatedKey}</span>
@@ -1022,7 +1021,7 @@ export function DetailPanel({
                                 <Link
                                     key={study.linkId}
                                     href={`/study/${study.slug}`}
-                                    className="block rounded-xl border border-slate-200 p-3 transition hover:border-blue-300 hover:bg-blue-50"
+                                    className="block rounded-md border border-slate-200 p-3 transition hover:border-blue-300 hover:bg-blue-50"
                                 >
                                     <p className="text-xs font-bold text-blue-600">
                                         {study.section} · {study.relationType}
@@ -1042,7 +1041,7 @@ export function DetailPanel({
                                 href={source.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm text-slate-700 hover:border-blue-300"
+                                className="flex items-start justify-between gap-3 rounded-md border border-slate-200 p-3 text-sm text-slate-700 hover:border-blue-300"
                             >
                                 <span>
                                     <b>{source.publisher}</b>
@@ -1067,11 +1066,11 @@ export function DetailPanel({
 }
 
 function LoadingPanel() {
-    return <div className="h-72 animate-pulse rounded-2xl bg-slate-100" />;
+    return <div className="h-72 animate-pulse rounded-lg bg-slate-100" />;
 }
 function EmptyPanel({ text }: { text: string }) {
     return (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-24 text-center text-sm text-slate-400">
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white py-24 text-center text-sm text-slate-400">
             {text}
         </div>
     );

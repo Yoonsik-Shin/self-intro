@@ -6271,7 +6271,7 @@ export function JobApplicationManagement({
                                                                         }
                                                                     }
                                                                 }}
-                                                                placeholder="https://... 공고 주소 입력 또는 🔒자물쇠/링크 드래그"
+                                                                placeholder="https://... 공고 주소 입력 또는 링크 드래그"
                                                                 className="w-full bg-transparent px-2 py-1 text-xs focus:outline-none"
                                                             />
                                                             {singleUrl && (
@@ -6301,7 +6301,7 @@ export function JobApplicationManagement({
                                                             <Sparkles className="h-4 w-4" />
                                                             {isSingleIngesting
                                                                 ? `수집 및 등록 중... (${singleIngestElapsedSeconds}초)`
-                                                                : '✨ AI로 수집 및 자동 등록'}
+                                                                : 'AI로 수집 및 자동 등록'}
                                                         </button>
                                                     </div>
                                                 )}
@@ -6310,7 +6310,7 @@ export function JobApplicationManagement({
                                                     <div className="my-5">
                                                         <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
                                                             <span className="text-xs font-bold text-slate-700">
-                                                                📷 스크린샷으로 등록
+                                                                스크린샷으로 등록
                                                             </span>
                                                             <button
                                                                 type="button"
@@ -6345,7 +6345,7 @@ export function JobApplicationManagement({
                                                                 className="relative bg-white px-3.5 py-1.5 text-[11px] font-bold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition flex items-center gap-1.5 cursor-pointer"
                                                             >
                                                                 <span>
-                                                                    ✍️ 수동으로 공고 직접 작성하기
+                                                                    수동으로 공고 직접 작성하기
                                                                 </span>
                                                                 <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                                                             </button>
@@ -6356,9 +6356,7 @@ export function JobApplicationManagement({
                                                                 }
                                                                 className="relative bg-white px-3.5 py-1.5 text-[11px] font-bold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition flex items-center gap-1.5 cursor-pointer"
                                                             >
-                                                                <span>
-                                                                    📷 스크린샷으로 등록하기
-                                                                </span>
+                                                                <span>스크린샷으로 등록하기</span>
                                                             </button>
                                                         </div>
                                                     )}
@@ -6368,7 +6366,7 @@ export function JobApplicationManagement({
                                                             {isCreating && showManualForm && (
                                                                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
                                                                     <span className="text-xs font-bold text-slate-700">
-                                                                        ✍️ 수동 작성 등록
+                                                                        수동 작성 등록
                                                                     </span>
                                                                     <button
                                                                         type="button"

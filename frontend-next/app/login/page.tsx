@@ -99,9 +99,9 @@ export default function LoginPage() {
 
     return (
         <main className="min-h-screen bg-[#f8fafc] flex items-center justify-center px-4">
-            <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)]">
+            <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)]">
                 <div className="mb-6 flex items-center gap-3">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-slate-900 to-slate-950 text-white shadow-md shadow-slate-800/20">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-gradient-to-tr from-slate-900 to-slate-950 text-white shadow-md shadow-slate-800/20">
                         {step === 'credentials' ? (
                             <Lock className="h-5 w-5" />
                         ) : (
@@ -134,7 +134,7 @@ export default function LoginPage() {
                                     autoFocus
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
+                                    className="w-full rounded-md border border-slate-200 px-4 py-2.5 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
                                 />
                             </div>
                             <div>
@@ -156,7 +156,7 @@ export default function LoginPage() {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 pr-11 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
+                                        className="w-full rounded-md border border-slate-200 px-4 py-2.5 pr-11 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 transition"
                                     />
                                     <button
                                         type="button"
@@ -177,7 +177,7 @@ export default function LoginPage() {
                         </>
                     ) : (
                         <div>
-                            <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                            <div className="mb-4 rounded-md bg-slate-50 px-4 py-3 text-xs text-slate-500">
                                 <span className="block font-bold text-slate-700">{username}</span>
                                 비밀번호 확인이 완료됐습니다. MFA 완료 전에는 Workspace 권한이
                                 부여되지 않습니다.
@@ -197,7 +197,7 @@ export default function LoginPage() {
                                     setTotpCode(event.target.value.toUpperCase().slice(0, 20))
                                 }
                                 placeholder="000000 또는 XXXX-XXXX-XXXX"
-                                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-center text-lg font-black tracking-[0.35em] transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                className="w-full rounded-md border border-slate-200 px-4 py-2.5 text-center text-lg font-black tracking-[0.35em] transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                             />
                         </div>
                     )}
@@ -207,7 +207,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition shadow-md shadow-slate-800/20"
+                        className="w-full rounded-md bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition shadow-md shadow-slate-800/20"
                     >
                         {isSubmitting
                             ? step === 'credentials'

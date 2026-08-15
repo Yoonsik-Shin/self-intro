@@ -99,7 +99,7 @@ function PageMarginInput({
     };
 
     return (
-        <label className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-[10px] font-bold text-slate-300">
+        <label className="rounded-md border border-slate-800 bg-slate-900 p-2 text-[10px] font-bold text-slate-300">
             {label}
             <input
                 type="number"
@@ -1999,7 +1999,7 @@ export function PrintCanvas({
                         <div className="relative z-10 space-y-4">
                             <div className="resume-profile-toprow flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-slate-100 pb-3">
                                 <div className="space-y-1 shrink-0 min-w-0 flex-1">
-                                    <h2 className="resume-profile-role font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-950 whitespace-nowrap text-sm">
+                                    <h2 className="resume-profile-role font-black tracking-tight text-slate-900 whitespace-nowrap text-sm">
                                         {renderInlineText({
                                             value: profile.jobTitle,
                                             baseValue: origProfile?.jobTitle ?? '',
@@ -2062,11 +2062,11 @@ export function PrintCanvas({
                                         e.stopPropagation();
                                         setSkillSelectorModalOpen(true);
                                     }}
-                                    className="absolute bottom-1 right-0 z-10 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-xs hover:bg-blue-700 transition cursor-pointer print:hidden"
+                                    className="absolute bottom-1 right-0 z-10 inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-xs hover:bg-blue-700 transition cursor-pointer print:hidden"
                                     title="DB 전체 기술 스택 선택 및 관리 모달 열기"
                                 >
                                     <Settings className="h-3.5 w-3.5" />
-                                    <span>⚙ DB 기술스택 선택/관리</span>
+                                    <span>DB 기술스택 선택/관리</span>
                                 </button>
                             )}
                         </div>
@@ -3417,7 +3417,7 @@ export function PrintCanvas({
                         <div className="flex min-w-0 items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
                             <span>
-                                ✍️ 인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리 텍스트를
+                                인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리 텍스트를
                                 클릭하여 맞춤 문구를 직접 수정하세요. 상단 &apos;템플릿으로
                                 저장&apos; 클릭 시 함께 저장됩니다.
                             </span>
@@ -3442,7 +3442,7 @@ export function PrintCanvas({
                                 <button
                                     type="button"
                                     onClick={() => setMarginSettingsOpen(false)}
-                                    className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"
+                                    className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white"
                                     aria-label="문서 설정 닫기"
                                 >
                                     <X className="h-4 w-4" />
@@ -3520,7 +3520,7 @@ export function PrintCanvas({
                                                     left: 14,
                                                 })
                                             }
-                                            className="mt-3 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                            className="mt-3 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
                                         >
                                             기본 여백으로 초기화
                                         </button>
@@ -3549,7 +3549,7 @@ export function PrintCanvas({
                                         <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                                             모든 페이지 본문에 적용되는 읽기 간격입니다.
                                         </p>
-                                        <label className="mt-4 block rounded-xl border border-slate-800 bg-slate-900 p-3">
+                                        <label className="mt-4 block rounded-md border border-slate-800 bg-slate-900 p-3">
                                             <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
                                                 전체 글자 크기
                                                 <strong className="text-blue-300">
@@ -3569,7 +3569,7 @@ export function PrintCanvas({
                                                 className="mt-3 h-1 w-full cursor-pointer accent-blue-500"
                                             />
                                         </label>
-                                        <label className="mt-3 block rounded-xl border border-slate-800 bg-slate-900 p-3">
+                                        <label className="mt-3 block rounded-md border border-slate-800 bg-slate-900 p-3">
                                             <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
                                                 본문 줄 간격
                                                 <strong className="text-blue-300">
@@ -3594,7 +3594,7 @@ export function PrintCanvas({
                                                 store.setFontScale(1);
                                                 store.setLineHeight(1.625);
                                             }}
-                                            className="mt-3 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                            className="mt-3 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
                                         >
                                             기본 글자·줄 간격으로 초기화
                                         </button>
@@ -3612,7 +3612,7 @@ export function PrintCanvas({
                                                 store.setNavPanelOpen(!store.navPanelOpen)
                                             }
                                             aria-pressed={store.navPanelOpen}
-                                            className={`mt-4 flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
+                                            className={`mt-4 flex w-full items-center justify-between rounded-md border p-3 text-left transition ${
                                                 store.navPanelOpen
                                                     ? 'border-blue-400 bg-blue-600/20 text-white'
                                                     : 'border-slate-800 bg-slate-900 text-slate-200 hover:border-slate-600'
@@ -3632,7 +3632,7 @@ export function PrintCanvas({
                                         <button
                                             type="button"
                                             onClick={store.toggleAllExcluded}
-                                            className="mt-2 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                            className="mt-2 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
                                         >
                                             {store.printExcludedIds.length > 0
                                                 ? '모든 섹션 다시 포함'
@@ -3651,7 +3651,7 @@ export function PrintCanvas({
                                             type="button"
                                             onClick={store.toggleHidePrintGuides}
                                             aria-pressed={!store.hidePrintGuides}
-                                            className="mt-4 flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-3 text-left text-slate-200 transition hover:border-slate-600"
+                                            className="mt-4 flex w-full items-center justify-between rounded-md border border-slate-800 bg-slate-900 p-3 text-left text-slate-200 transition hover:border-slate-600"
                                         >
                                             <span>
                                                 <strong className="block text-xs">
@@ -3674,7 +3674,7 @@ export function PrintCanvas({
                                         <button
                                             type="button"
                                             onClick={handleZoomFit}
-                                            className="mt-2 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
+                                            className="mt-2 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
                                         >
                                             화면에 페이지 맞춤
                                         </button>
@@ -3683,7 +3683,7 @@ export function PrintCanvas({
                                 {documentSettingsTab === 'template' && (
                                     <section>
                                         <h2 className="text-xs font-black">템플릿</h2>
-                                        <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-3">
+                                        <div className="mt-3 rounded-md border border-slate-800 bg-slate-900 p-3">
                                             <span className="text-[9px] font-black text-slate-500">
                                                 현재 적용 중
                                             </span>
@@ -3695,7 +3695,7 @@ export function PrintCanvas({
                                             <button
                                                 type="button"
                                                 onClick={() => setModeModalOpen(true)}
-                                                className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-100 transition hover:border-blue-400"
+                                                className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-100 transition hover:border-blue-400"
                                             >
                                                 다른 템플릿 불러오기
                                             </button>
@@ -3703,7 +3703,7 @@ export function PrintCanvas({
                                                 <button
                                                     type="button"
                                                     onClick={() => setSaveTemplateModalOpen(true)}
-                                                    className="h-10 w-full rounded-lg bg-blue-600 text-[10px] font-black text-white transition hover:bg-blue-500"
+                                                    className="h-10 w-full rounded-md bg-blue-600 text-[10px] font-black text-white transition hover:bg-blue-500"
                                                 >
                                                     Workspace 템플릿으로 저장
                                                 </button>
@@ -3711,7 +3711,7 @@ export function PrintCanvas({
                                             <button
                                                 type="button"
                                                 onClick={handleSaveLocalTemplate}
-                                                className="h-10 w-full rounded-lg border border-amber-500/50 bg-amber-500/10 text-[10px] font-black text-amber-300 transition hover:bg-amber-500/20"
+                                                className="h-10 w-full rounded-md border border-amber-500/50 bg-amber-500/10 text-[10px] font-black text-amber-300 transition hover:bg-amber-500/20"
                                             >
                                                 브라우저에 임시 저장
                                             </button>
@@ -3956,7 +3956,7 @@ export function PrintCanvas({
                             <button
                                 type="button"
                                 onClick={() => setAiChatOpen(false)}
-                                className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                                 aria-label="AI 대화 패널 닫기"
                             >
                                 <X className="h-4 w-4" />

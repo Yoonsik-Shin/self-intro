@@ -279,7 +279,7 @@ export function TimelineSection({
     }, [range, selectedYears, nowMs, rangeStartMs, rangeSpanMs]);
 
     const cardStyle =
-        'resume-section-card bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm transition-all duration-300 relative space-y-6';
+        'resume-section-card relative space-y-6 rounded-lg border border-slate-200 bg-white p-6 sm:p-8';
 
     return (
         <section id="timeline" className="scroll-mt-24 print:hidden">
@@ -390,7 +390,7 @@ export function TimelineSection({
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         placeholder="프로젝트, 기술, 성과, 기관명 검색..."
-                                        className="w-full rounded-xl border border-slate-200 pl-9 pr-4 py-1.5 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 bg-slate-50/50 focus:bg-white"
+                                        className="w-full rounded-md border border-slate-200 pl-9 pr-4 py-1.5 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 bg-slate-50/50 focus:bg-white"
                                     />
                                 </div>
                             </div>
@@ -567,7 +567,7 @@ export function TimelineSection({
                                                             left: `${bounds.left}%`,
                                                             width: `${bounds.width}%`,
                                                         }}
-                                                        className={`group/item absolute bottom-1 top-1 flex cursor-pointer items-center justify-center rounded-lg border border-white bg-gradient-to-r from-blue-500 to-slate-800 px-2 text-[10px] font-black text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] ${dimClass(exp)} ${selectedExperienceIds.includes(exp.id) ? 'ring-2 ring-slate-900 ring-offset-1 z-30' : ''}`}
+                                                        className={`group/item absolute bottom-1 top-1 flex cursor-pointer items-center justify-center rounded-md border border-white bg-gradient-to-r from-blue-500 to-slate-800 px-2 text-[10px] font-black text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] ${dimClass(exp)} ${selectedExperienceIds.includes(exp.id) ? 'ring-2 ring-slate-900 ring-offset-1 z-30' : ''}`}
                                                         onClick={() => onItemClick(exp)}
                                                     >
                                                         <span className="truncate">
@@ -604,7 +604,7 @@ export function TimelineSection({
                                                             left: `${bounds.left}%`,
                                                             width: `${bounds.width}%`,
                                                         }}
-                                                        className={`group/item absolute bottom-1 top-1 flex cursor-pointer items-center justify-center rounded-lg border border-white bg-gradient-to-r from-violet-600 to-slate-900 px-2 text-[10px] font-black text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] ${dimClass(exp)} ${selectedExperienceIds.includes(exp.id) ? 'ring-2 ring-slate-900 ring-offset-1 z-30' : ''}`}
+                                                        className={`group/item absolute bottom-1 top-1 flex cursor-pointer items-center justify-center rounded-md border border-white bg-gradient-to-r from-violet-600 to-slate-900 px-2 text-[10px] font-black text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] ${dimClass(exp)} ${selectedExperienceIds.includes(exp.id) ? 'ring-2 ring-slate-900 ring-offset-1 z-30' : ''}`}
                                                         onClick={() => onItemClick(exp)}
                                                     >
                                                         <span className="truncate">
@@ -644,7 +644,7 @@ export function TimelineSection({
                                                             left: `${bounds.left}%`,
                                                             width: `${bounds.width}%`,
                                                         }}
-                                                        className={`group/item absolute bottom-1 top-1 flex cursor-pointer items-center justify-center rounded-lg border border-white bg-gradient-to-r from-pink-500 to-rose-500 px-2 text-[10px] font-black text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] ${dimClass(exp)} ${selectedExperienceIds.includes(exp.id) ? 'ring-2 ring-rose-600 ring-offset-1 z-30 font-extrabold' : ''}`}
+                                                        className={`group/item absolute bottom-1 top-1 flex cursor-pointer items-center justify-center rounded-md border border-white bg-gradient-to-r from-pink-500 to-rose-500 px-2 text-[10px] font-black text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] ${dimClass(exp)} ${selectedExperienceIds.includes(exp.id) ? 'ring-2 ring-rose-600 ring-offset-1 z-30 font-extrabold' : ''}`}
                                                         onClick={() => onItemClick(exp)}
                                                     >
                                                         <span className="truncate">

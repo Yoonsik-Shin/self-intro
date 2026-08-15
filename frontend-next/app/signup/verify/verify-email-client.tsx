@@ -22,7 +22,7 @@ export function VerifyEmailClient() {
 
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-            <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
                 <h1 className="text-2xl font-black text-slate-950">
                     {state === 'checking'
                         ? '이메일 확인 중'
@@ -40,7 +40,7 @@ export function VerifyEmailClient() {
                 {state !== 'checking' && (
                     <Link
                         href="/login"
-                        className="mt-6 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white"
+                        className="mt-6 inline-flex rounded-md bg-slate-950 px-4 py-2.5 text-sm font-bold text-white"
                     >
                         로그인으로 이동
                     </Link>

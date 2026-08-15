@@ -17,13 +17,10 @@ export default async function RegistrationPolicyPage({
 
     return (
         <main className="min-h-screen bg-slate-100 px-4 py-10 text-slate-800">
-            <article className="mx-auto max-w-3xl rounded-3xl border border-slate-300 bg-white p-6 shadow-sm sm:p-10">
+            <article className="mx-auto max-w-3xl rounded-lg border border-slate-300 bg-white p-6 shadow-sm sm:p-10">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-5">
                     <div>
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">
-                            Registration policy
-                        </p>
-                        <h1 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">
+                        <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">
                             {policy.title}
                         </h1>
                     </div>
@@ -33,7 +30,7 @@ export default async function RegistrationPolicyPage({
                         {policy.required ? '필수' : '선택'}
                     </span>
                 </div>
-                <div className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-950">
+                <div className="mt-5 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-950">
                     로컬 비공개 베타용 정책 초안입니다. 정식 배포 전 “운영 전 확정 필요” 항목을 실제
                     운영 정보로 교체하고 법률 검토가 필요합니다.
                 </div>

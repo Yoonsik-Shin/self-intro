@@ -150,7 +150,7 @@ export function ProductDemoClient() {
         <main className="min-h-screen bg-[#f8fafc] text-slate-800">
             <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl">
                 <div className="flex min-w-0 items-center gap-3">
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-950 text-xs font-black text-white">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-950 text-xs font-black text-white">
                         SI
                     </div>
                     <div className="min-w-0">
@@ -172,7 +172,7 @@ export function ProductDemoClient() {
                             setIsSidebarCollapsed(false);
                             setIsMobileMenuOpen(true);
                         }}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 lg:hidden"
+                        className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 lg:hidden"
                         aria-label="워크스페이스 메뉴 열기"
                         title="워크스페이스 메뉴 열기"
                     >
@@ -181,7 +181,7 @@ export function ProductDemoClient() {
                     <button
                         type="button"
                         onClick={() => setIsPreviewOpen((open) => !open)}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-bold transition ${
                             isPreviewOpen
                                 ? 'border-slate-900 bg-slate-900 text-white'
                                 : 'border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -195,7 +195,7 @@ export function ProductDemoClient() {
                     <button
                         type="button"
                         onClick={reset}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                        className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                         aria-label="데모 초기화"
                         title="데모 초기화"
                     >
@@ -204,7 +204,7 @@ export function ProductDemoClient() {
                     </button>
                     <Link
                         href="/#admin-demo"
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                        className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                         aria-label="데모 종료"
                         title="데모 종료"
                     >
@@ -242,7 +242,7 @@ export function ProductDemoClient() {
                                 isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
                             } ${
                                 isSidebarCollapsed
-                                    ? 'rounded-2xl border border-slate-200 bg-white px-2 py-3 shadow-sm'
+                                    ? 'rounded-lg border border-slate-200 bg-white px-2 py-3 shadow-sm'
                                     : ''
                             }`}
                         >
@@ -253,7 +253,7 @@ export function ProductDemoClient() {
                                 <button
                                     type="button"
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500"
+                                    className="grid h-9 w-9 place-items-center rounded-md border border-slate-200 text-slate-500"
                                     aria-label="워크스페이스 메뉴 닫기"
                                 >
                                     <X className="h-4 w-4" />
@@ -313,7 +313,7 @@ export function ProductDemoClient() {
                                                         type="button"
                                                         onClick={() => selectTab(item.id)}
                                                         title={item.label}
-                                                        className={`flex items-center rounded-xl text-sm font-bold transition-all ${
+                                                        className={`flex items-center rounded-md text-sm font-bold transition-all ${
                                                             isSidebarCollapsed
                                                                 ? 'mx-auto h-11 w-11 justify-center'
                                                                 : 'w-full gap-2.5 px-3 py-2.5 text-left'
@@ -436,7 +436,7 @@ function WorkspaceOverview({
                 <button
                     type="button"
                     onClick={() => onSelect('EXPERIENCE')}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-4 py-2.5 text-sm font-black text-white"
                 >
                     경력 추가 <ArrowRight className="h-4 w-4" />
                 </button>
@@ -448,7 +448,7 @@ function WorkspaceOverview({
                     return (
                         <div
                             key={card.label}
-                            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
                         >
                             <div className="flex items-center justify-between">
                                 <Icon className="h-4 w-4 text-indigo-600" />
@@ -464,7 +464,7 @@ function WorkspaceOverview({
             </div>
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="font-black text-slate-950">이번 지원 준비</h3>
@@ -486,7 +486,7 @@ function WorkspaceOverview({
                         ].map(([label, complete]) => (
                             <div
                                 key={String(label)}
-                                className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700"
+                                className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700"
                             >
                                 <span
                                     className={`grid h-5 w-5 place-items-center rounded-full ${
@@ -503,7 +503,7 @@ function WorkspaceOverview({
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <h3 className="font-black text-slate-950">빠른 작업</h3>
                     <div className="mt-4 space-y-2">
                         {quickActions.map(([label, tab]) => (
@@ -511,7 +511,7 @@ function WorkspaceOverview({
                                 key={label}
                                 type="button"
                                 onClick={() => onSelect(tab)}
-                                className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-3 py-3 text-left text-xs font-bold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50"
+                                className="flex w-full items-center justify-between rounded-md border border-slate-100 px-3 py-3 text-left text-xs font-bold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50"
                             >
                                 {label} <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
                             </button>
@@ -532,14 +532,14 @@ function ExperienceDemo({ demo, update, onSave, saved }: DemoEditorProps) {
                 action="경력 추가"
             />
             <div className="grid gap-5">
-                <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-slate-500">프로젝트 1개</span>
                         <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700">
                             공개
                         </span>
                     </div>
-                    <button className="w-full rounded-xl border-2 border-slate-900 bg-slate-50 p-4 text-left">
+                    <button className="w-full rounded-md border-2 border-slate-900 bg-slate-50 p-4 text-left">
                         <span className="text-[11px] font-bold text-indigo-600">개인 프로젝트</span>
                         <strong className="mt-1 block text-sm text-slate-950">
                             {demo.projectTitle}
@@ -548,7 +548,7 @@ function ExperienceDemo({ demo, update, onSave, saved }: DemoEditorProps) {
                             2026. 07 — 진행 중
                         </span>
                     </button>
-                    <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
+                    <div className="rounded-md border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
                         다른 경력과 프로젝트는 데모에서 제외했습니다.
                     </div>
                 </div>
@@ -579,7 +579,7 @@ function ExperienceDemo({ demo, update, onSave, saved }: DemoEditorProps) {
                             onChange={(event) => update('projectSummary', event.target.value)}
                         />
                     </Field>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
                         <div className="mb-3 flex items-center justify-between">
                             <span className="text-sm font-black text-slate-900">상세 성과</span>
                             <button className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600">
@@ -670,18 +670,18 @@ function CompetencyDemo({ demo, update, onSave, saved }: DemoEditorProps) {
                 action="새 역량 추가"
             />
             <div className="grid gap-5">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex gap-2">
                         {['전체 1', '공개 1', '비공개 0'].map((item, index) => (
                             <span
                                 key={item}
-                                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${index === 0 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}
+                                className={`rounded-md px-2.5 py-1.5 text-[11px] font-bold ${index === 0 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}
                             >
                                 {item}
                             </span>
                         ))}
                     </div>
-                    <button className="w-full rounded-xl border-2 border-slate-900 bg-slate-50 p-4 text-left">
+                    <button className="w-full rounded-md border-2 border-slate-900 bg-slate-50 p-4 text-left">
                         <Sparkles className="h-4 w-4 text-indigo-600" />
                         <strong className="mt-2 block text-sm text-slate-950">
                             {demo.competency}
@@ -704,7 +704,7 @@ function CompetencyDemo({ demo, update, onSave, saved }: DemoEditorProps) {
                             onChange={(e) => update('competencyEvidence', e.target.value)}
                         />
                     </Field>
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4">
                         <div className="flex items-center gap-2 text-xs font-black text-emerald-800">
                             <Check className="h-4 w-4" /> 연결된 경험 근거
                         </div>
@@ -728,7 +728,7 @@ function PrintTemplateDemo({ demo, update }: Omit<DemoEditorProps, 'onSave' | 's
                 action="새 이력서"
             />
             <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-2xl border-2 border-indigo-500 bg-white p-5 shadow-sm">
+                <div className="rounded-lg border-2 border-indigo-500 bg-white p-5 shadow-sm">
                     <div className="flex items-start justify-between">
                         <div>
                             <span className="text-[11px] font-black text-indigo-600">FINAL</span>
@@ -741,7 +741,7 @@ function PrintTemplateDemo({ demo, update }: Omit<DemoEditorProps, 'onSave' | 's
                     <p className="mt-3 text-xs leading-5 text-slate-500">
                         프로필, 핵심 역량, 선택 프로젝트를 A4 문서로 구성합니다.
                     </p>
-                    <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-slate-50 p-3">
+                    <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-md bg-slate-50 p-3">
                         <input
                             type="checkbox"
                             checked={demo.includeProject}
@@ -758,7 +758,7 @@ function PrintTemplateDemo({ demo, update }: Omit<DemoEditorProps, 'onSave' | 's
                         </span>
                     </label>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <span className="text-[11px] font-black text-slate-400">BASE</span>
                     <h3 className="mt-1 font-black text-slate-950">기본 백엔드 이력서</h3>
                     <p className="mt-3 text-xs leading-5 text-slate-500">
@@ -777,7 +777,7 @@ function DemoScopeNotice({ title }: { title: string }) {
                 title={title}
                 description="사용자 워크스페이스에 포함되는 기능입니다."
             />
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm">
                 <LockKeyhole className="mx-auto h-8 w-8 text-slate-300" />
                 <h3 className="mt-4 text-base font-black text-slate-900">
                     현재 공개 데모에서는 흐름만 제공하는 기능입니다.
@@ -804,21 +804,21 @@ function PreviewPanel({ demo, onClose }: { demo: DemoState; onClose: () => void 
                 <div className="flex gap-2">
                     <button
                         title="새로고침"
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500"
+                        className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-500"
                     >
                         <RefreshCw className="h-3.5 w-3.5" />
                     </button>
                     <button
                         onClick={onClose}
                         title="닫기"
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500"
+                        className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 text-slate-500"
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>
                 </div>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-100 p-4">
-                <article className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <article className="mx-auto max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
                     <header className="border-b border-slate-200 pb-6">
                         <p className="text-xs font-black uppercase tracking-[0.15em] text-indigo-600">
                             {demo.jobTitle}
@@ -837,11 +837,9 @@ function PreviewPanel({ demo, onClose }: { demo: DemoState; onClose: () => void 
                             </h3>
                             <span className="text-[10px] font-bold text-slate-400">근거 1</span>
                         </div>
-                        <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/70 p-4">
-                            <h4 className="text-sm font-black text-indigo-950">
-                                {demo.competency}
-                            </h4>
-                            <p className="mt-2 text-xs leading-5 text-indigo-900/75">
+                        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-4">
+                            <h4 className="text-sm font-black text-slate-950">{demo.competency}</h4>
+                            <p className="mt-2 text-xs leading-5 text-slate-600">
                                 {demo.competencyEvidence}
                             </p>
                         </div>
@@ -857,7 +855,7 @@ function PreviewPanel({ demo, onClose }: { demo: DemoState; onClose: () => void 
                             <p className="mt-2 text-xs leading-5 text-slate-600">
                                 {demo.projectSummary}
                             </p>
-                            <div className="mt-4 rounded-lg bg-slate-950 px-4 py-3 text-sm font-black text-white">
+                            <div className="mt-4 rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white">
                                 {demo.metric}
                             </div>
                         </section>
@@ -888,7 +886,7 @@ function SectionHeading({
                 <p className="mt-0.5 text-sm text-slate-500">{description}</p>
             </div>
             {action && (
-                <button className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-black text-white">
+                <button className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-2 text-xs font-black text-white">
                     <Plus className="h-3.5 w-3.5" />
                     {action}
                 </button>
@@ -907,13 +905,13 @@ function EditorCard({
     saved: boolean;
 }) {
     return (
-        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             {children}
             <div className="flex justify-end border-t border-slate-100 pt-4">
                 <button
                     type="button"
                     onClick={onSave}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-black transition ${saved ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                    className={`inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-black transition ${saved ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
                 >
                     {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                     {saved ? '미리보기에 반영됨' : '변경사항 저장'}

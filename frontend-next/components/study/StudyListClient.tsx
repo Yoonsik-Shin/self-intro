@@ -280,9 +280,8 @@ export function StudyListClient({
             }`}
         >
             <div className="min-w-0 space-y-8">
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                    <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 -translate-y-16 translate-x-16 rounded-full bg-slate-800/5 blur-[50px]" />
-                    <div className="relative">
+                <div className="rounded-lg border border-slate-200 bg-white p-6 sm:p-8">
+                    <div>
                         <h1 className="text-3xl font-black tracking-tight text-slate-900">Study</h1>
                         <p className="mt-1 text-sm leading-relaxed text-slate-500 sm:text-base">
                             학습 내용과 실제 프로젝트 적용 경험을 연결해 기록하는 기술
@@ -292,7 +291,7 @@ export function StudyListClient({
                 </div>
 
                 {hasIdFilter && (
-                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm">
                         <p className="font-bold text-blue-700">
                             <span className="text-blue-900">{idFilterLabel ?? '선택한 항목'}</span>{' '}
                             관련 학습만 모아보는 중이에요
@@ -308,7 +307,7 @@ export function StudyListClient({
                     </div>
                 )}
 
-                <div className="sticky top-16 z-20 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center">
+                <div className="sticky top-16 z-20 flex flex-col justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
                     <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-1.5">
                             {(
@@ -353,13 +352,13 @@ export function StudyListClient({
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="제목, 본문, 태그, 기술 검색..."
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72"
+                        className="w-full rounded-md border border-slate-200 px-4 py-2 text-xs outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 sm:w-72"
                     />
                 </div>
 
                 <div className="space-y-5">
                     {studies.length === 0 ? (
-                        <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm font-semibold text-slate-400">
+                        <div className="rounded-lg border border-slate-200 bg-white py-12 text-center text-sm font-semibold text-slate-400">
                             검색 조건에 맞는 Study가 없습니다.
                         </div>
                     ) : (
@@ -371,17 +370,17 @@ export function StudyListClient({
                                     previewMode ? (event) => event.preventDefault() : undefined
                                 }
                                 aria-disabled={previewMode}
-                                className="block w-full rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8"
+                                className="block w-full rounded-lg border border-slate-200 bg-white p-6 text-left transition-colors hover:border-slate-400 sm:p-8"
                             >
                                 <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
                                     <div className="flex flex-wrap gap-1">
-                                        <span className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-black text-white">
+                                        <span className="rounded-md bg-blue-600 px-2.5 py-0.5 text-xs font-black text-white">
                                             {study.section}
                                         </span>
                                         {study.taxonomyNodes.map((node) => (
                                             <span
                                                 key={node.id}
-                                                className="rounded bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800"
+                                                className="rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800"
                                             >
                                                 {taxonomyBreadcrumbLabel(node, taxonomyNodesById)}
                                             </span>
@@ -423,7 +422,7 @@ export function StudyListClient({
                                 type="button"
                                 onClick={() => fetchNextPage()}
                                 disabled={isFetchingNextPage}
-                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                                className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-6 py-3 text-xs font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
                             >
                                 {isFetchingNextPage ? (
                                     <>
@@ -449,7 +448,7 @@ export function StudyListClient({
                     isNavCollapsed ? 'min-[900px]:w-[76px]' : 'min-[900px]:w-[272px]'
                 }`}
             >
-                <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
+                <div className="relative flex max-h-[calc(100vh-113px)] flex-col overflow-visible rounded-lg border border-slate-200 bg-white">
                     <button
                         type="button"
                         onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
@@ -540,7 +539,7 @@ export function StudyListClient({
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveItem(item.slug)}
-                                            className="mt-0.5 shrink-0 rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                                            className="mt-0.5 shrink-0 rounded-md p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
                                             title="이 항목 삭제"
                                             aria-label={`${item.title} 삭제`}
                                         >
@@ -553,7 +552,7 @@ export function StudyListClient({
                                     <button
                                         type="button"
                                         onClick={() => setIsRecentExpanded(!isRecentExpanded)}
-                                        className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
+                                        className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors w-full py-1.5 rounded-md bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60"
                                     >
                                         {isRecentExpanded ? (
                                             <>
@@ -604,19 +603,19 @@ export function StudyListClient({
                     </div>
 
                     {/* 무조건 하단 고정 영역 (Sticky Bottom) */}
-                    <div className="shrink-0 p-3 min-[900px]:px-4 border-t border-slate-100 bg-white/90 backdrop-blur-md rounded-b-2xl">
+                    <div className="shrink-0 rounded-b-lg border-t border-slate-100 bg-white p-3 min-[900px]:px-4">
                         <button
                             type="button"
                             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                             className={`grid place-items-center border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group ${
                                 isNavCollapsed
                                     ? 'h-9 w-9 mx-auto rounded-full'
-                                    : 'h-9 w-full rounded-xl min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5'
+                                    : 'h-9 w-full rounded-md min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5'
                             }`}
                             title="위로 가기"
                             aria-label="위로 가기"
                         >
-                            <ArrowUp className="h-4 w-4 shrink-0 group-hover:-translate-y-0.5 transition-transform" />
+                            <ArrowUp className="h-4 w-4 shrink-0" />
                             <span
                                 className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
                             >
@@ -631,7 +630,7 @@ export function StudyListClient({
             <button
                 type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="fixed bottom-6 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-lg backdrop-blur-md transition hover:bg-slate-100 hover:scale-105 active:scale-95 min-[900px]:hidden"
+                className="fixed bottom-6 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-md transition-colors hover:bg-slate-100 min-[900px]:hidden"
                 title="맨 위로 스크롤"
                 aria-label="맨 위로 스크롤"
             >

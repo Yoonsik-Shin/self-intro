@@ -81,13 +81,11 @@ export function SidebarSection({
                     <button
                         type="button"
                         onClick={onExpandSidebar}
-                        className="group relative grid h-9 w-9 place-items-center rounded-xl border border-slate-200/80 bg-slate-50 text-slate-600 transition-all hover:scale-105 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 shadow-2xs"
+                        className="group relative grid h-9 w-9 place-items-center rounded-md border border-slate-200/80 bg-slate-50 text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 shadow-2xs"
                         title={`${title}${badge !== undefined ? ` (${badge})` : ''} - 클릭하여 펼치기`}
                         aria-label={`${title} 펼치기`}
                     >
-                        <Icon
-                            className={`h-4 w-4 ${iconColor} group-hover:scale-110 transition-transform`}
-                        />
+                        <Icon className={`h-4 w-4 ${iconColor}`} />
                         {badge !== undefined && (
                             <span className="absolute -right-1 -top-1 grid min-w-4 h-4 place-items-center rounded-full bg-blue-600 px-1 font-mono text-[9px] font-extrabold text-white shadow-2xs">
                                 {badge}

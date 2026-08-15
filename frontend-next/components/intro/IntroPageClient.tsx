@@ -47,13 +47,12 @@ export function IntroPageClient({ introData, workspaceSlug }: Props) {
                 <div className="min-w-0 space-y-8">
                     <div
                         id="intro-profile"
-                        className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] backdrop-blur-md sm:p-8"
+                        className="scroll-mt-24 rounded-lg border border-slate-200 bg-white p-6 sm:p-8"
                     >
-                        <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 -translate-y-20 translate-x-20 rounded-full bg-slate-800/5 blur-[60px]" />
-                        <div className="relative z-10 space-y-6">
+                        <div className="space-y-6">
                             <div className="resume-profile-toprow flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
                                 <div className="shrink-0 space-y-2">
-                                    <h2 className="resume-profile-role whitespace-nowrap bg-gradient-to-r from-slate-900 to-slate-950 bg-clip-text font-black tracking-tight text-transparent">
+                                    <h2 className="resume-profile-role whitespace-nowrap font-black tracking-tight text-slate-900">
                                         {profile.jobTitle}
                                     </h2>
                                     <div className="flex items-baseline gap-2.5 whitespace-nowrap">
@@ -67,8 +66,7 @@ export function IntroPageClient({ introData, workspaceSlug }: Props) {
                                 </div>
 
                                 <div className="mt-2 flex flex-wrap items-center gap-3.5 md:mt-0">
-                                    <span className="resume-meta inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700 shadow-sm animate-pulse print:hidden">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                    <span className="resume-meta border-l-2 border-slate-400 px-2 py-1 font-semibold text-slate-600 print:hidden">
                                         {profile.statusBadgeText} (
                                         {process.env.NEXT_PUBLIC_BUILD_DATE} 배포)
                                     </span>
@@ -77,7 +75,7 @@ export function IntroPageClient({ introData, workspaceSlug }: Props) {
                                             href={profile.githubUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                            className="rounded-md border border-slate-200 bg-white p-2 text-slate-500 hover:border-slate-400 hover:text-slate-900"
                                             title="GitHub"
                                         >
                                             <Github className="h-4 w-4" />
@@ -85,7 +83,7 @@ export function IntroPageClient({ introData, workspaceSlug }: Props) {
                                         {profile.email && (
                                             <a
                                                 href={`mailto:${profile.email}`}
-                                                className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                                className="rounded-md border border-slate-200 bg-white p-2 text-slate-500 hover:border-slate-400 hover:text-slate-900"
                                                 title="이메일 보내기"
                                             >
                                                 <Mail className="h-4 w-4" />
@@ -94,7 +92,7 @@ export function IntroPageClient({ introData, workspaceSlug }: Props) {
                                         {profile.phone && (
                                             <a
                                                 href={`tel:${profile.phone}`}
-                                                className="rounded-lg border border-slate-200/60 bg-slate-50 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                                className="rounded-md border border-slate-200 bg-white p-2 text-slate-500 hover:border-slate-400 hover:text-slate-900"
                                                 title="전화 걸기"
                                             >
                                                 <Phone className="h-4 w-4" />

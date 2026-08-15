@@ -142,7 +142,7 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                 }`}
             >
                 <div className="min-w-0 space-y-8">
-                    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                    <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                         <div className="mb-8 border-b border-slate-100 pb-6">
                             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
                                 <span className="rounded-full bg-blue-600 px-3 py-1 font-black text-white">
@@ -185,10 +185,9 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
 
                             {/* Applied ExperienceDetails Banner */}
                             {study.experienceDetails && study.experienceDetails.length > 0 && (
-                                <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-2">
+                                <div className="mt-6 rounded-md border border-blue-100 bg-blue-50/60 p-4 space-y-2">
                                     <h3 className="text-xs font-black uppercase tracking-wider text-blue-800 flex items-center gap-1.5">
-                                        <span>💼</span> 이 기술 공부가 적용된 실무 성과 (Experience
-                                        Detail)
+                                        이 기술 공부가 적용된 실무 성과 (Experience Detail)
                                     </h3>
                                     <div className="flex flex-wrap gap-2">
                                         {study.experienceDetails.map((detail) => (
@@ -199,7 +198,7 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                                                         ? `/experience/${detail.experienceId}/experience-detail/${detail.id}`
                                                         : `/experience-detail/${detail.id}`
                                                 }
-                                                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-950 transition hover:border-blue-400 hover:bg-blue-50 shadow-2xs"
+                                                className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-950 transition hover:border-blue-400 hover:bg-blue-50 shadow-2xs"
                                             >
                                                 {detail.experienceTitle && (
                                                     <span className="text-blue-600 font-extrabold font-mono">
@@ -240,7 +239,7 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                             <button
                                 type="button"
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:scale-105 active:scale-95 print:hidden"
+                                className="pointer-events-auto -translate-y-[calc(100%+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 print:hidden"
                                 title="본문 맨 위로 스크롤"
                                 aria-label="본문 맨 위로 스크롤"
                             >
@@ -255,7 +254,7 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                         isNavCollapsed ? 'min-[900px]:w-[76px]' : 'min-[900px]:w-[272px]'
                     }`}
                 >
-                    <div className="relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
+                    <div className="relative rounded-lg border border-slate-200/80 bg-white shadow-sm overflow-visible max-h-[calc(100vh-113px)] flex flex-col">
                         <button
                             type="button"
                             onClick={() => setIsNavCollapsed((collapsed) => !collapsed)}
@@ -299,7 +298,7 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                                                     key={item.id}
                                                     type="button"
                                                     onClick={() => scrollToHeading(item.id)}
-                                                    className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-lg px-2.5 py-1 ${
+                                                    className={`group relative flex w-full items-center text-left transition-all duration-150 rounded-md px-2.5 py-1 ${
                                                         item.level === 1
                                                             ? 'font-bold text-slate-800'
                                                             : item.level === 2
@@ -346,7 +345,7 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                                                     href={`/experience/${experience.id}`}
                                                     className="flex w-full items-start gap-1.5 text-left text-xs leading-normal text-slate-600 hover:text-slate-950 group"
                                                 >
-                                                    <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-700">
+                                                    <span className="shrink-0 rounded-md bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-700">
                                                         {experience.type}
                                                     </span>
                                                     <span className="font-semibold group-hover:text-slate-950">
@@ -430,19 +429,19 @@ export function StudyDetailClient({ study, basePath = '/study' }: Props) {
                             </div>
 
                             {/* 무조건 하단 고정 영역 (Sticky Bottom) */}
-                            <div className="shrink-0 p-3 min-[900px]:px-4 border-t border-slate-100 bg-white/90 backdrop-blur-md rounded-b-2xl">
+                            <div className="shrink-0 p-3 min-[900px]:px-4 border-t border-slate-100 bg-white rounded-b-lg">
                                 <button
                                     type="button"
                                     onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                                     className={`grid place-items-center border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-all shadow-2xs group ${
                                         isNavCollapsed
                                             ? 'h-9 w-9 mx-auto rounded-full'
-                                            : 'h-9 w-full rounded-xl min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5'
+                                            : 'h-9 w-full rounded-md min-[900px]:flex min-[900px]:items-center min-[900px]:justify-center min-[900px]:gap-1.5'
                                     }`}
                                     title="위로 가기"
                                     aria-label="위로 가기"
                                 >
-                                    <ArrowUp className="h-4 w-4 shrink-0 group-hover:-translate-y-0.5 transition-transform" />
+                                    <ArrowUp className="h-4 w-4 shrink-0" />
                                     <span
                                         className={`hidden ${isNavCollapsed ? '' : 'min-[900px]:inline'}`}
                                     >
