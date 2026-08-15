@@ -22,7 +22,6 @@ export * from './connection';
 export * from './architecture';
 export * from './printTemplate';
 export * from './jobPosting';
-export * from './studyPlan';
 export * from './portfolio';
 export * from './portfolioPrintDraft';
 export * from './publication';

@@ -492,6 +492,7 @@ export type Competency = {
     displayOrder: number;
     visible: boolean;
     skills: Skill[];
+    tags?: Tag[];
     evidences: CompetencyEvidence[];
     relatedStudies: CompetencyStudy[];
 };
@@ -509,6 +510,7 @@ export type CompetencyRequest = {
         displayOrder: number;
     }>;
     studyIds: number[];
+    tagNames: string[];
 };
 
 export type CompetencySuggestionRequest = {
@@ -970,6 +972,18 @@ export type JobPostingSettingRequest = {
     homeLongitude?: number | null;
 };
 
+export type JobMapLocationSetting = {
+    homeAddress: string | null;
+    homeLatitude: number | null;
+    homeLongitude: number | null;
+};
+
+export type JobMapLocationSettingRequest = {
+    homeAddress: string;
+    homeLatitude: number;
+    homeLongitude: number;
+};
+
 export type ExperienceDetailRequest = {
     id?: number | null;
     content: string;
@@ -1293,6 +1307,25 @@ export type PrintTemplateRevision = {
     createdAt: string;
 };
 
+export type PrintDocumentArtifact = {
+    id: number;
+    printTemplateId: number;
+    revisionId: number;
+    jobPostingId: number | null;
+    current: boolean;
+    pdfUrl: string;
+    sha256Checksum: string;
+    contentLength: number;
+    contentType: string;
+    origin: 'BROWSER_UPLOAD' | 'EXTERNAL_UPLOAD' | string;
+    rendererVersion: string | null;
+    fontBundleVersion: string | null;
+    pageCount: number | null;
+    status: 'READY' | string;
+    generatedAt: string;
+    createdAt: string;
+};
+
 export type PortfolioPrintDraftResponse = {
     templateId: number;
     templateName: string;
@@ -1310,82 +1343,6 @@ export type PortfolioPrintDraftStreamEvent =
 export type DirectPdfUploadRequest = {
     name?: string;
     objectKey: string;
-};
-
-export type StudyPlanStatus = 'COLLECTING' | 'DRAFT' | 'CONFIRMED';
-export type StudyPlanMessageRole = 'USER' | 'ASSISTANT';
-
-export type StudyPlanCandidate = {
-    id: number;
-    title: string;
-    category: string;
-    resourceType: string;
-    priorityTier: string | null;
-    durationMinutes: number | null;
-    selected: boolean;
-    familiar: boolean;
-};
-
-export type StudyPlanCheckQuestion = {
-    id: number;
-    question: string;
-    modelAnswerHint: string | null;
-};
-
-export type StudyPlanItem = {
-    id: number;
-    learningResourceId: number | null;
-    resourceTitle: string | null;
-    freeTextLabel: string | null;
-    allocatedMinutes: number;
-    completed: boolean;
-    completedAt: string | null;
-    understandingChecked: boolean;
-    understandingCheckedAt: string | null;
-    notes: string | null;
-    checkQuestions: StudyPlanCheckQuestion[];
-};
-
-export type StudyPlanStage = {
-    id: number;
-    stageOrder: number;
-    theme: string;
-    totalMinutes: number;
-    estimatedDurationLabel: string;
-    items: StudyPlanItem[];
-};
-
-export type StudyPlanMessage = {
-    id: number;
-    role: StudyPlanMessageRole;
-    content: string;
-    createdAt: string;
-};
-
-export type StudyPlan = {
-    id: number;
-    status: StudyPlanStatus;
-    weeklyAvailableMinutes: number;
-    focusGoal: string | null;
-    candidates: StudyPlanCandidate[];
-    stages: StudyPlanStage[];
-    messages: StudyPlanMessage[];
-    createdAt: string;
-    updatedAt: string;
-    confirmedAt: string | null;
-};
-
-export type StudyPlanSummary = {
-    id: number;
-    status: StudyPlanStatus;
-    focusGoal: string | null;
-    createdAt: string;
-    confirmedAt: string | null;
-};
-
-export type StudyPlanCreateRequest = {
-    weeklyAvailableMinutes: number;
-    focusGoal?: string | null;
 };
 
 export type PortfolioCaseStudyStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
