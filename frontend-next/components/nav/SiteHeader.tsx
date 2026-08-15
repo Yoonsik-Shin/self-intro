@@ -153,6 +153,9 @@ export function SiteHeader() {
     }, [isAccountMenuOpen]);
 
     const currentWorkspace = me?.workspaces[0];
+    const ownPublicWorkspaceHref = currentWorkspace
+        ? `/workspace/${encodeURIComponent(currentWorkspace.slug)}`
+        : '/';
     const workspaceActionHref = currentWorkspace
         ? `/workspace/${encodeURIComponent(currentWorkspace.slug)}/manage`
         : '/onboarding/workspace';
@@ -193,10 +196,14 @@ export function SiteHeader() {
             <div className="mx-auto flex h-12 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
                 <div className="flex min-w-0 items-center gap-6">
                     <Link
-                        href={workspaceBase ?? '/'}
+                        href={workspaceBase ?? ownPublicWorkspaceHref}
                         className="flex shrink-0 items-center text-left focus:outline-none hover:opacity-90 transition"
                         title={
-                            isWorkspacePublicArea ? 'Workspace 홈으로 이동' : '제품 메인으로 이동'
+                            isWorkspacePublicArea
+                                ? 'Workspace 홈으로 이동'
+                                : currentWorkspace
+                                  ? '내 공개 Workspace로 이동'
+                                  : '제품 메인으로 이동'
                         }
                     >
                         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-slate-900 to-slate-950 text-sm font-black text-white shadow-md shadow-slate-800/20">
