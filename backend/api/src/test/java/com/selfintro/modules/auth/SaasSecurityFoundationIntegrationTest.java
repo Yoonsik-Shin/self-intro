@@ -2539,7 +2539,9 @@ class SaasSecurityFoundationIntegrationTest {
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"password\":\"test-password\"}"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresAtEpochMillis").isNumber())
+                .andExpect(jsonPath("$.explicitExpiresAtEpochMillis").isNumber());
 
         String response =
                 mockMvc.perform(

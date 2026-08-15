@@ -57,7 +57,9 @@ class PlatformMfaIntegrationTest {
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"password\":\"mfa-password\"}"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresAtEpochMillis").isNumber())
+                .andExpect(jsonPath("$.explicitExpiresAtEpochMillis").isNumber());
 
         String enrollmentJson =
                 mockMvc.perform(
