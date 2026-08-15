@@ -2583,3 +2583,18 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   삭제했다. Pod 삭제는 운영 DB 데이터나 사전에 확인한 backup을 삭제하는 작업이 아니다.
 - 외부 점검을 위해 OCI 네트워크에 임시로 허용한 TCP 6443 단일 IP 수신 규칙은 후속 운영 작업이 없으면
   즉시 제거한다. 애플리케이션 서비스 트래픽 규칙과 혼동해 삭제하지 않도록 대상 CIDR과 설명을 확인한다.
+
+### 15.30 2026-08-15 SaaS 기능 브랜치 운영 반영
+
+- `fix/saas-recovery-build-baseline`의 출시 후보를 `main`에 병합한 기준 source commit은
+  `20f45fc5`이다. 병합 전 Docker Compose 설정, frontend ESLint·TypeScript 검사, backend 전체
+  Gradle test를 통과했다. ESLint는 오류 0개와 기존 경고 7개였으며 경고를 성공으로 숨기지 않는다.
+- source commit을 대상으로 GitHub Actions의 Frontend CI/CD Pipeline(run `31871631045`), Deploy
+  API Microservice(run `31871631092`), Deploy Worker Microservice(run `31871631043`)가 모두
+  성공했다. GitOps 이미지 태그 반영 후 `main`의 운영 revision은 `30bda335`이다.
+- 운영 Deployment의 API·Worker·Frontend는 모두 image tag `20f45fc`, Ready·Available·Updated
+  replica `1/1`, Pod restart 0회로 확인했다. Argo CD의 `self-intro-backend`와
+  `self-intro-frontend`는 revision `30bda335`에서 모두 `Synced`·`Healthy`였다.
+- 외부 smoke test에서 `https://unbrdn.me/`는 HTTP 200,
+  `https://api.unbrdn.me/actuator/health`는 HTTP 200과 `status=UP`을 반환했다. 이는 자동화된
+  배포·인프라 검증이며 로그인, 중요 작업 재인증, Workspace 관리 흐름의 브라우저 UAT를 대신하지 않는다.
