@@ -2236,10 +2236,11 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
 - 제거 대상은 `study_entry`, `study_entry_skill`, `portfolio_case_study_study` 세 테이블로 제한한다.
   앞의 두 테이블은 현재 Markdown 기반 `study` 모델로 대체됐고, 포트폴리오의 Study 근거는
   `portfolio_case_study_revision.content_json.sourceStudyIds`를 단일 원본으로 사용한다.
-- V231은 세 테이블 중 하나라도 행을 가지고 있으면 `SQLSTATE 45000`으로 중단한다. 비어 있지 않은
-  운영 데이터가 자동 배포 과정에서 삭제되는 것을 허용하지 않는다. `verified_identity`,
-  `learning_resource_skill`, `gap_project_document`는 각각 향후 실명 인증 경계 또는 활성 코드 경로가 있어
-  제거하지 않는다.
+- V231은 세 테이블의 합계 행 수를 임시 CHECK 제약 테이블로 검증하고, 하나라도 행을 가지고 있으면
+  constraint violation으로 중단한다. 저장 프로시저를 만들지 않아 최소 권한 애플리케이션 DB 계정에
+  `CREATE ROUTINE` 권한을 추가하지 않으면서 비어 있지 않은 운영 데이터의 자동 삭제를 막는다.
+  `verified_identity`, `learning_resource_skill`, `gap_project_document`는 각각 향후 실명 인증 경계 또는
+  활성 코드 경로가 있어 제거하지 않는다.
 - 적용 전 전체 DB 백업을 남기고 다음 조회 결과가 모두 0인지 확인한다.
 
 ```sql
@@ -2253,7 +2254,8 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 로컬 Compose 검증은 V230 상태에서 위 세 카운트가 모두 0임을 확인한 뒤 백업을 만들고 backend 이미지를
   재빌드해 V231을 적용한다. 검증 기준은 Flyway V231 `success=1`, 세 테이블 부재, backend health `UP`,
   동기화 스크립트 구문 검사 통과다.
-- 복구가 필요하면 애플리케이션 쓰기를 먼저 중단하고 V231 적용 전 전체 백업으로 DB를 복원한다. 삭제된
+- 세 카운트 중 하나라도 0이 아니면 배포를 중단하고 데이터를 삭제하거나 Flyway 이력을 수정하지 않는다.
+  복구가 필요하면 애플리케이션 쓰기를 먼저 중단하고 V231 적용 전 전체 백업으로 DB를 복원한다. 삭제된
   빈 테이블만 임의로 재생성해 Flyway 이력과 실제 schema를 어긋나게 만들지 않는다.
 - 이 정리는 로컬 Docker Compose에서 검증하고 migration과 문서를 독립 커밋으로 보존했다. 운영에는
   배포하지 않았으며, 운영 적용은 별도 승인과 운영 DB 사전 카운트·백업 확인 뒤 수행한다.
@@ -2263,8 +2265,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   세 제거 대상과 임시 검사 프로시저 부재, backend `healthy`를 확인했다. 두 동기화 스크립트의 `bash -n`도
   통과했다. 별도 임시 DB에 `study_entry` 1행을 넣은 실패 경로에서는 `SQLSTATE 45000`으로 중단되고
   1행과 세 테이블이 모두 보존되는 것도 확인한 뒤 임시 DB를 삭제했다. 운영 DB에는 적용하지 않았다.
-
-### 15.11 V232 출력 revision과 불변 PDF artifact 연결
+### 15.14 V232 출력 revision과 불변 PDF artifact 연결
 
 - 최종 PDF 첨부·외부 PDF 등록 시 현재 `PrintTemplate` 구성을 먼저 `SNAPSHOT` revision으로 저장하고,
   `print_document_artifact`가 해당 revision ID와 Workspace ID를 직접 참조한다. 현재 최종본 pointer를
@@ -2290,7 +2291,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   origin·SHA-256과 짧은 만료시간의 비공개 객체 URL을 제공한다. pointer를 해제하거나 교체해도 이전
   artifact는 이 목록에 남아야 하며, 이력 조회 권한은 해당 Workspace의 읽기 권한을 그대로 따른다.
 
-### 15.12 공개 페이지 초안 미리보기 경계
+### 15.15 공개 페이지 초안 미리보기 경계
 
 - 방문자 URL `/workspace/{slug}`는 계속 발행된 불변 공개 revision만 렌더링한다. 비공개 상태이거나 아직
   한 번도 발행하지 않은 Workspace가 이 URL에서 404를 반환하는 것은 의도된 개인정보 보호 경계다.
@@ -2306,7 +2307,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   Workspace(`/workspace/{slug}`)를 연다. 다른 사람의 공개 Workspace를 열람 중일 때는 현재 Workspace 홈을
   유지하며, 계정 메뉴의 `내 Workspace` 목록으로 자신의 관리 화면에 복귀한다.
 
-### 15.13 V233 핵심 역량 태그 전환
+### 15.16 V233 핵심 역량 태그 전환
 
 - 핵심 역량의 분류·검색 문맥은 공통 기술 카탈로그가 아니라 Workspace 소유 `tag`를 사용한다.
   `competency_tag`는 역량과 같은 Workspace의 태그만 서비스 계층에서 조회하거나 생성해 연결한다.
@@ -2317,7 +2318,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   backend health, Workspace별 태그 생성·수정·검색, 다른 Workspace 데이터 비노출, 공개 페이지와 PDF의
   태그 출력 및 기존 기술 대체 표시를 확인한다.
 
-### 15.14 포트폴리오 원본과 공개 경험 구성 경계
+### 15.17 포트폴리오 원본과 공개 경험 구성 경계
 
 - `포트폴리오 원본`은 Workspace 소유 Case Study와 content revision을 관리한다. 관리 화면은 제목·slug·
   연결 Experience 검색, 기준 revision 준비 상태 필터, revision 이력 조회·불러오기·기준본 지정을 제공한다.
@@ -2346,7 +2347,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   로그아웃 상태와 미소속 Account가 관리용 URL·API에 접근할 수 없는지, 공개 URL에는 마지막 발행본만
   유지되는지를 확인한다. 이 절의 변경은 현재 로컬 구현이며 운영 배포는 별도 승인 후 진행한다.
 
-### 15.15 공통 기술 카탈로그와 Workspace 실무 메타데이터 경계
+### 15.18 공통 기술 카탈로그와 Workspace 실무 메타데이터 경계
 
 - `skill`은 플랫폼 공통 기술의 이름·분류·배지를 보관한다. `workspace_skill`은 해당 Workspace의 실무
   수준·사용 버전·활용 맥락·경험 메모·핵심 여부·노출 순서만 보관한다. 물리 분리는 V199에서 완료됐으며,
@@ -2365,7 +2366,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   변하지 않아야 한다. 이번 검증에서는 backend `:core:compileJava`, `:core:test`, frontend
   `tsc --noEmit`과 기술 관리 관련 ESLint를 통과했으며 운영 배포는 수행하지 않았다.
 
-### 15.16 V234 Workspace 지원 지도 기준 위치
+### 15.19 V234 Workspace 지원 지도 기준 위치
 
 - V234는 `workspace_job_map_setting`을 추가한다. 주소와 좌표는 출퇴근 거리·시간을 계산하기 위한
   Workspace 비공개 설정이며 Account 프로필, 공통 공고 원본, 공개 페이지·revision·PDF에 포함하지 않는다.
@@ -2385,7 +2386,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   브라우저에서의 서로 다른 Workspace 비공유·VIEWER 읽기 전용·새로고침 유지 확인과 운영 배포는 아직
   수행하지 않았다.
 
-### 15.17 Workspace 홈 요약 경계
+### 15.20 Workspace 홈 요약 경계
 
 - 관리 화면의 기본 진입 탭은 `홈`이며 현재 Workspace의 원본 기록, 학습 기록, 연결 기술, 역량 원본,
   지원 현황, 공개 revision 상태를 카드로 요약한다. 각 값은 URL의 `workspaceSlug`를 포함한 Workspace
@@ -2396,7 +2397,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   공개 페이지 카드 상태가 갱신되는지, 접근 권한이 없는 slug의 관리 API가 기존과 동일하게 거부되는지
   확인한다. 플랫폼 운영자라고 해서 Membership 없는 Workspace의 홈 데이터를 우회 조회할 수 없어야 한다.
 
-### 15.18 V235 AI 학습 계획 완전 제거와 지원 화면 복원
+### 15.21 V235 AI 학습 계획 완전 제거와 지원 화면 복원
 
 - AI 학습 계획을 제품 범위에서 제외하기로 확정했으므로 프런트 메뉴만 숨기지 않고 Worker
   controller·service·entity·repository와 테스트를 삭제한다.
@@ -2410,7 +2411,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - `/`는 익명 사용자에게 제품 소개를 제공하고, 인증된 Account에는 자신의 첫 Workspace 공개 페이지로 즉시
   이동한다. Workspace가 아직 없으면 `/onboarding/workspace`로 이동한다.
 
-### 15.19 Workspace 홈 설정 접힘과 이름 변경 동기화
+### 15.22 Workspace 홈 설정 접힘과 이름 변경 동기화
 
 - Workspace 홈은 요약 카드를 우선 노출하고, 공개 주소·이름·탈퇴·폐쇄처럼 사용 빈도가 낮고 중요한 설정은
   `Workspace 설정` 펼침 영역에 기본 접힘 상태로 둔다. 설정을 접어도 데이터나 재인증 상태를 변경하지 않으며,
@@ -2424,7 +2425,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   새로고침 없이 함께 바뀌는지, 새로고침 후에도 변경 이름이 유지되는지 확인한다. `EDITOR`·`VIEWER`에게 이름
   변경 폼이 노출되지 않는지와 API 직접 호출이 거부되는지도 확인한다.
 
-### 15.20 공개 주소 용어와 Workspace 보안 메뉴 순서
+### 15.23 공개 주소 용어와 Workspace 보안 메뉴 순서
 
 - 사용자 화면에서는 내부 `canonical slug`를 `기본 공개 주소`, 이전 주소 alias를 `이전 공개 주소`로
   표시한다. API와 데이터베이스의 `canonicalSlug`·alias 명칭은 호환성을 위해 변경하지 않는다.
@@ -2435,7 +2436,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 로컬 확인 시 기술 용어 `canonical slug`·`alias`가 공개 주소 관리 화면에 노출되지 않는지, 접힌 사이드바와
   펼친 사이드바 모두에서 고객 지원 접근 동의가 Workspace 범위의 마지막 항목으로 보이는지 확인한다.
 
-### 15.21 중요 작업 재인증 공유와 상단 잔여시간
+### 15.24 중요 작업 재인증 공유와 상단 잔여시간
 
 - 최근 비밀번호 재확인의 source of truth는 브라우저별 로컬 상태가 아니라 서버 `HttpSession`이다. 기본
   유효시간은 `app.security.reauthentication.valid-for`이며 설정이 없으면 10분이다.
@@ -2465,7 +2466,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   배포 전에는 상단 인증 후 서로 다른 관리 탭 두 곳에서 재입력 없이 작업 가능한지, 만료 후 버튼이 원래 상태로
   돌아오는지, 일반 로그인 직후 계정 탈퇴가 허용되지 않는지, 브라우저별 세션이 서로 공유되지 않는지 확인한다.
 
-### 15.22 관리 화면 공통 헤더 규격
+### 15.25 관리 화면 공통 헤더 규격
 
 - Workspace 관리와 플랫폼 운영 화면의 최상단은 공통 `AdminPageHeader`를 사용한다. 제목·설명·범위 표식과
   주요 작업 버튼의 위치를 고정해 메뉴마다 글자 크기, 여백, 버튼 정렬이 달라지는 문제를 방지한다.
@@ -2478,7 +2479,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   배포 전에는 펼친·접힌 사이드바, 좁은 화면, 긴 Workspace 이름에서 제목과 작업 버튼이 겹치지 않는지 확인하고,
   플랫폼 운영자 전용 화면이 일반 Membership 사용자에게 새로 노출되지 않는지 확인한다.
 
-### 15.23 2026-08-15 기능 브랜치 출시 후보 검증
+### 15.26 2026-08-15 기능 브랜치 출시 후보 검증
 
 - 검증 대상은 `fix/saas-recovery-build-baseline` 기능 브랜치다. 운영 배포 Workflow는 `main` push 또는
   수동 `workflow_dispatch`만 대상으로 하므로 이 브랜치를 원격에 push해도 운영 환경은 변경되지 않는다.
@@ -2494,3 +2495,91 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 이 기록은 로컬 출시 후보의 재현 가능한 검증 근거이며 운영 데이터 백업, 운영 Flyway 적용, GitOps
   rollout과 운영 브라우저 smoke test를 대신하지 않는다. 기능 브랜치 push 뒤 배포가 발생하지 않는 것이
   정상이며, 운영 반영 시에는 각 Workflow 실행과 실제 배포 commit SHA를 별도로 기록한다.
+- 2026-08-14 운영 재배포에서 V231은 실패했고, 운영 애플리케이션 DB 계정에는 `CREATE ROUTINE` 권한이
+  없지만 당시 V231은 `CREATE PROCEDURE`를 요구했다. 최소 권한 정책과 호환되지 않는 구성으로 판단해
+  운영 DB에서 세 대상 테이블이 모두 0행임을 다시 확인하고, Pod 내부
+  `/tmp/self-intro-pre-v188.sql` 전체 백업
+  (SHA-256 `5d92618f0b1fc66aa4f1447ac9978ad7cadd5c0c73278cecd09b4655ff1d1ce5`)을 유지한 상태에서
+  V231의 보호 가드를 CREATE ROUTINE 권한이 필요 없는 임시 CHECK 제약 테이블 방식으로 변경했다.
+  새 이미지 배포 전에는 실패한 V231 이력을 삭제하지 않으며, 새 이미지 반영 후 정확히 그 실패 행만
+  제거하고 Flyway 재실행 결과를 검증한다.
+- 변경된 V231은 로컬 MySQL 8 임시 DB에서 다시 검증했다. 빈 테이블 경로는 세 대상 테이블을 모두
+  제거했고, `study_entry`에 1행을 넣은 경로는 `ERROR 3819` CHECK constraint violation으로 중단되며
+  원본 1행과 세 대상 테이블을 모두 보존했다. 검증용 DB는 확인 후 삭제했다.
+
+### 15.27 2026-08-14 운영 배포 실패와 전체 애플리케이션 롤백
+
+- 기능 기준 commit `1809638`의 API·Worker·Frontend 이미지는 CI 빌드와 registry push에 성공했다.
+- 운영 API와 Worker는 Flyway V188 검증 실패로 기동하지 못했다. 운영 `experience_detail`에는 V188이
+  전제로 둔 일부 식별자가 존재하지 않아 연관 테이블 INSERT가 외래 키 제약을 위반했다.
+- API와 Worker를 직전 정상 이미지 `f33390a`로 되돌린 뒤 health 및 공개 introduction 응답 HTTP 200을
+  확인했다.
+- Frontend도 기능 버전 불일치를 남기지 않도록 직전 정상 이미지 `203ac86`으로 되돌린다. Argo CD에서
+  Frontend·Backend가 같은 롤백 Git revision에 Synced·Healthy인지, 실제 Deployment 이미지가 위 태그와
+  일치하는지 확인한다.
+- V188 실패 이력을 임의로 성공 처리하거나 운영 데이터를 보정하지 않는다. 운영 데이터 차이를 허용하는
+  migration 수정과 별도 검증을 마치기 전까지 `1809638` 계열 이미지는 다시 배포하지 않는다.
+
+### 15.28 V188 운영 데이터 차이 보정과 재배포 절차
+
+- 실패 원인은 `experience_detail.id=39,40`이 모든 환경에서 동일하다고 가정한 V188의 고정 외래 키였다.
+  운영에는 부모 `experience.id=21`과 기술 원본은 존재했지만 해당 상세 ID가 없어 연결 테이블 INSERT가
+  실패했다. 운영 데이터에 임의 ID 행을 추가하는 방식으로 맞추지 않는다.
+- V188은 각 상세를 `experience_id=21`과 논리 제목으로 찾고, 아직 없는 상세만 생성한 뒤 실제
+  AUTO_INCREMENT ID를 이후 UPDATE와 `experience_detail_skill` 연결에 사용한다. V189도 RAG 상세의
+  실제 ID를 논리 제목으로 조회해 Study 연결을 갱신한다.
+- 별도 MySQL 복제 DB `self_intro_v188_test`에서 상세 ID 39·40을 제거해 운영 차이를 재현했다. 수정된
+  V188·V189를 두 번 연속 실행한 결과 대상 상세 6개(ID `33,34,37,38,54,55`), 상세 기술 연결 26개,
+  RAG Study 연결 1개, 임시 표식 0개를 유지했고 고아 상세 기술 연결은 0개였다.
+- 운영 적용 전 새 MySQL backup 또는 snapshot이 `ACTIVE`인지 확인하고, 실패한
+  `flyway_schema_history.version='188' AND success=0` 행의 전체 값을 별도로 기록한다. 실패 행은 백업이
+  확보된 뒤에만 Flyway repair 또는 동등한 단일 행 정리로 제거한다. 성공 이력이나 다른 version은 수정하지
+  않는다.
+- 수정 이미지를 배포한 뒤 API 로그에서 V188·V189 migrate 성공을 확인한다. 이어 Flyway history의
+  `success=1`, 대상 상세 6개, 상세 기술 연결 26개, RAG Study 연결 1개, backend health `UP`, Worker Ready,
+  공개 메인과 발행된 Workspace의 `/api/bff/workspaces/{workspaceSlug}/introduction` HTTP 200을 확인한다.
+  전역 `/api/bff/introduction`은 Workspace 격리를 위해 제거된 경로이므로 404가 정상이다.
+- 재실패 시 API·Worker·Frontend를 함께 직전 정상 태그(`f33390a`, `f33390a`, `203ac86`)로 되돌린다.
+  migration이 일부 반영됐다면 임의 역 SQL을 실행하지 말고 사전 backup 복원 여부를 먼저 판단한다.
+
+### 15.29 운영 MFA 암호화 Secret
+
+- 2026-08-14 운영 API에서 MFA 등록 확인 요청이 HTTP 500으로 실패했다. API 로그의 직접 원인은
+  `MFA_ENCRYPTION_KEY가 설정되지 않았습니다.`였으며, 사용자가 입력한 TOTP 자체의 오류가 아니었다.
+- MFA 암호화 키는 DB 자격 증명과 분리한 `backend-auth-secret` SealedSecret으로 관리한다. API
+  Deployment만 이 Secret을 `envFrom`으로 주입하며 Worker에는 주입하지 않는다. 키 원문은 Git,
+  ConfigMap, CI 로그, 운영 문서에 남기지 않는다.
+- 운영 키는 랜덤 32바이트를 Base64로 인코딩한 값이어야 한다. `kubeseal --raw` 변환 결과만
+  `sealed-auth-secret.yaml`에 저장하고, Sealed Secrets controller가 생성한 Secret에서 키 이름과
+  데이터 존재 여부만 확인한다. 복호화된 값은 출력하지 않는다.
+- Secret 참조가 바뀌면 API Pod를 교체하고 새 Pod 내부에서 값 자체를 출력하지 않은 채
+  `MFA_ENCRYPTION_KEY`가 비어 있지 않은지만 확인한다. 이후 새 MFA 설정 키를 발급하고 등록 확인,
+  전체 기기 로그아웃, 새 TOTP 로그인을 사람의 UAT로 검증한다.
+- 오류 화면이나 캡처에 QR·설정 키가 노출된 경우 기존 pending 설정 키를 사용하지 않는다. 반드시
+  `설정 키 새로 만들기`로 교체한 뒤 새 QR을 인증 앱에 등록한다.
+- 운영 반영 commit `ce7bfa9`에서 SealedSecret과 API 전용 Secret 참조를 main에 반영했다. Argo CD
+  `self-intro-backend`가 같은 revision으로 Synced·Healthy가 된 뒤 새 API Pod의 재시작 0회와
+  `MFA_ENCRYPTION_KEY` 존재 여부를 값 출력 없이 확인했다. API health, 공개 메인, 발행된 Workspace의
+  slug 기반 introduction BFF는 모두 HTTP 200이었다. 전역 introduction BFF의 404도 제거된 계약과
+  일치했다.
+- 같은 배포의 DB 사후 검증은 MySQL client를 `utf8mb4`로 명시해 수행했다. Flyway V188·V189·V231은
+  모두 `success=1`, 대상 상세 6개, 상세 기술 연결 26개, RAG Study 연결 1개였고 임시 표식과 고아 연결은
+  각각 0개였다. 한글 논리 제목을 비교하는 운영 점검 쿼리는 client character set을 생략하면 잘못된
+  0건으로 보일 수 있으므로 반드시 `--default-character-set=utf8mb4`를 사용한다.
+- 첫 Secret 반영 후 MFA 등록 확인이 HTTP 400으로 다시 실패했다. 운영 로그의 직접 원인은
+  `Input byte array has incorrect ending byte at 44`였고, Pod 안의 키는 전체 45바이트·공백 제외
+  44바이트였다. 즉 44자의 정상 Base64 본문 뒤에 Secret 생성 명령의 개행 1바이트가 포함된 문제였다.
+  사용자 TOTP 숫자 불일치가 아니므로 인증 앱을 반복 등록하는 것으로 해결되지 않는다.
+- API는 환경변수의 앞뒤 공백을 제거한 뒤 Base64 키를 검증하며, 잘못된 Base64의 내부 decoder 문구를
+  클라이언트 응답에 그대로 노출하지 않는다. Secret을 새로 만들 때도
+  `openssl rand -base64 32 | tr -d '\\n'`처럼 개행을 제거한 44자 값을 `kubeseal --raw`에 전달한다.
+  값은 출력하지 않고 전체 길이와 공백 제외 길이가 모두 44인지 확인한다.
+- 운영 SealedSecret은 기존 키 본문을 회전하지 않고 끝 개행만 제거해 다시 봉인했다. 현재 API는 정규화
+  코드로 기존 Pod의 45바이트 환경변수도 처리하며, 이후 교체되는 Pod는 공백 없는 44자 키를 주입받는다.
+- 운영 반영 commit `d81bec2`의 API·Worker image와 `f3498ca3`의 공백 없는 SealedSecret이 Argo CD에서
+  Synced된 뒤 운영자가 새 설정 키로 MFA 등록을 완료했다. 새 API 배포 이후 MFA·Base64 관련 오류가
+  재발하지 않았고 API·Worker·Frontend Pod는 모두 Ready, 재시작 0회였다.
+- 운영 DB 사전 검증과 백업 확인에 사용한 임시 Pod `prod-db-verify`, `prod-v188-backup`은 UAT 성공 후
+  삭제했다. Pod 삭제는 운영 DB 데이터나 사전에 확인한 backup을 삭제하는 작업이 아니다.
+- 외부 점검을 위해 OCI 네트워크에 임시로 허용한 TCP 6443 단일 IP 수신 규칙은 후속 운영 작업이 없으면
+  즉시 제거한다. 애플리케이션 서비스 트래픽 규칙과 혼동해 삭제하지 않도록 대상 CIDR과 설명을 확인한다.

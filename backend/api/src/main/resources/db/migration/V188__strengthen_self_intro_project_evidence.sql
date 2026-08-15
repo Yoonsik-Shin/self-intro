@@ -8,6 +8,105 @@ SET title = '이력·지원 관리 플랫폼 설계·운영 (Self-Intro)',
     takeaway = '개인 소개 페이지를 넘어 실제 지원 과정에서 반복되는 수집·근거 검색·문서 작성·배포 문제를 제품 기능으로 전환했습니다. 기능이 늘어난 뒤에는 공용 도메인과 실행 경계를 다시 나누고 관측 가능성을 보강하며, 혼자 만든 서비스도 운영 가능한 구조로 발전시키고 있습니다.'
 WHERE id = 21;
 
+-- 상세 이력의 AUTO_INCREMENT 값은 운영 데이터의 생성·삭제 이력에 따라 달라질 수 있다.
+-- 기존 기준 ID나 이미 적용된 논리 제목을 우선 사용하고, 둘 다 없으면 임시 표식 행을 만든 뒤
+-- 실제 ID를 변수에 보관한다. 아래 UPDATE와 연결 테이블은 이 변수만 참조한다.
+SET @v188_api_boundary_detail_id = (
+    SELECT id FROM experience_detail
+    WHERE experience_id = 21
+      AND (id = 33 OR content = '운영 트래픽과 장시간 AI 작업을 분리한 Spring Boot 멀티모듈 구조')
+    ORDER BY (id = 33) DESC, id
+    LIMIT 1
+);
+INSERT INTO experience_detail (experience_id, content, display_order, visible, public_visible, resume_available)
+SELECT 21, '__v188_api_boundary__', 0, 1, 1, 1
+WHERE @v188_api_boundary_detail_id IS NULL
+  AND EXISTS (SELECT 1 FROM experience WHERE id = 21);
+SET @v188_api_boundary_detail_id = COALESCE(
+    @v188_api_boundary_detail_id,
+    (SELECT id FROM experience_detail WHERE experience_id = 21 AND content = '__v188_api_boundary__' LIMIT 1)
+);
+
+SET @v188_pdf_workflow_detail_id = (
+    SELECT id FROM experience_detail
+    WHERE experience_id = 21
+      AND (id = 34 OR content = '지원 공고별로 재사용하는 WYSIWYG 이력서·PDF 편집 워크플로우')
+    ORDER BY (id = 34) DESC, id
+    LIMIT 1
+);
+INSERT INTO experience_detail (experience_id, content, display_order, visible, public_visible, resume_available)
+SELECT 21, '__v188_pdf_workflow__', 1, 1, 1, 1
+WHERE @v188_pdf_workflow_detail_id IS NULL
+  AND EXISTS (SELECT 1 FROM experience WHERE id = 21);
+SET @v188_pdf_workflow_detail_id = COALESCE(
+    @v188_pdf_workflow_detail_id,
+    (SELECT id FROM experience_detail WHERE experience_id = 21 AND content = '__v188_pdf_workflow__' LIMIT 1)
+);
+
+SET @v188_gitops_detail_id = (
+    SELECT id FROM experience_detail
+    WHERE experience_id = 21
+      AND (id = 37 OR content = 'GitOps 기반 ARM64 Kubernetes 배포·운영 환경 구축')
+    ORDER BY (id = 37) DESC, id
+    LIMIT 1
+);
+INSERT INTO experience_detail (experience_id, content, display_order, visible, public_visible, resume_available)
+SELECT 21, '__v188_gitops__', 2, 1, 1, 1
+WHERE @v188_gitops_detail_id IS NULL
+  AND EXISTS (SELECT 1 FROM experience WHERE id = 21);
+SET @v188_gitops_detail_id = COALESCE(
+    @v188_gitops_detail_id,
+    (SELECT id FROM experience_detail WHERE experience_id = 21 AND content = '__v188_gitops__' LIMIT 1)
+);
+
+SET @v188_ingestion_detail_id = (
+    SELECT id FROM experience_detail
+    WHERE experience_id = 21
+      AND (id = 38 OR content = '정적 HTML부터 SPA·iframe·이미지 공고까지 수용하는 다단계 수집 파이프라인')
+    ORDER BY (id = 38) DESC, id
+    LIMIT 1
+);
+INSERT INTO experience_detail (experience_id, content, display_order, visible, public_visible, resume_available)
+SELECT 21, '__v188_ingestion__', 3, 1, 1, 1
+WHERE @v188_ingestion_detail_id IS NULL
+  AND EXISTS (SELECT 1 FROM experience WHERE id = 21);
+SET @v188_ingestion_detail_id = COALESCE(
+    @v188_ingestion_detail_id,
+    (SELECT id FROM experience_detail WHERE experience_id = 21 AND content = '__v188_ingestion__' LIMIT 1)
+);
+
+SET @v188_rag_detail_id = (
+    SELECT id FROM experience_detail
+    WHERE experience_id = 21
+      AND (id = 39 OR content = '경력 근거를 선별해 지원 문서를 생성하는 공용 RAG 파이프라인')
+    ORDER BY (id = 39) DESC, id
+    LIMIT 1
+);
+INSERT INTO experience_detail (experience_id, content, display_order, visible, public_visible, resume_available)
+SELECT 21, '__v188_rag__', 4, 1, 1, 1
+WHERE @v188_rag_detail_id IS NULL
+  AND EXISTS (SELECT 1 FROM experience WHERE id = 21);
+SET @v188_rag_detail_id = COALESCE(
+    @v188_rag_detail_id,
+    (SELECT id FROM experience_detail WHERE experience_id = 21 AND content = '__v188_rag__' LIMIT 1)
+);
+
+SET @v188_observability_detail_id = (
+    SELECT id FROM experience_detail
+    WHERE experience_id = 21
+      AND (id = 40 OR content = '외부 AI·장시간 작업의 실패 제어와 관측 가능성 구축')
+    ORDER BY (id = 40) DESC, id
+    LIMIT 1
+);
+INSERT INTO experience_detail (experience_id, content, display_order, visible, public_visible, resume_available)
+SELECT 21, '__v188_observability__', 5, 1, 1, 1
+WHERE @v188_observability_detail_id IS NULL
+  AND EXISTS (SELECT 1 FROM experience WHERE id = 21);
+SET @v188_observability_detail_id = COALESCE(
+    @v188_observability_detail_id,
+    (SELECT id FROM experience_detail WHERE experience_id = 21 AND content = '__v188_observability__' LIMIT 1)
+);
+
 UPDATE experience_detail
 SET content = '운영 트래픽과 장시간 AI 작업을 분리한 Spring Boot 멀티모듈 구조',
     display_order = 0,
@@ -19,7 +118,7 @@ SET content = '운영 트래픽과 장시간 AI 작업을 분리한 Spring Boot 
     visible = 1,
     public_visible = 1,
     resume_available = 1
-WHERE id = 33 AND experience_id = 21;
+WHERE id = @v188_api_boundary_detail_id AND experience_id = 21;
 
 UPDATE experience_detail
 SET content = '지원 공고별로 재사용하는 WYSIWYG 이력서·PDF 편집 워크플로우',
@@ -32,7 +131,7 @@ SET content = '지원 공고별로 재사용하는 WYSIWYG 이력서·PDF 편집
     visible = 1,
     public_visible = 1,
     resume_available = 1
-WHERE id = 34 AND experience_id = 21;
+WHERE id = @v188_pdf_workflow_detail_id AND experience_id = 21;
 
 UPDATE experience_detail
 SET content = 'GitOps 기반 ARM64 Kubernetes 배포·운영 환경 구축',
@@ -45,7 +144,7 @@ SET content = 'GitOps 기반 ARM64 Kubernetes 배포·운영 환경 구축',
     visible = 1,
     public_visible = 1,
     resume_available = 1
-WHERE id = 37 AND experience_id = 21;
+WHERE id = @v188_gitops_detail_id AND experience_id = 21;
 
 UPDATE experience_detail
 SET content = '정적 HTML부터 SPA·iframe·이미지 공고까지 수용하는 다단계 수집 파이프라인',
@@ -58,7 +157,7 @@ SET content = '정적 HTML부터 SPA·iframe·이미지 공고까지 수용하�
     visible = 1,
     public_visible = 1,
     resume_available = 1
-WHERE id = 38 AND experience_id = 21;
+WHERE id = @v188_ingestion_detail_id AND experience_id = 21;
 
 UPDATE experience_detail
 SET content = '경력 근거를 선별해 지원 문서를 생성하는 공용 RAG 파이프라인',
@@ -71,7 +170,7 @@ SET content = '경력 근거를 선별해 지원 문서를 생성하는 공용 R
     visible = 1,
     public_visible = 1,
     resume_available = 1
-WHERE id = 39 AND experience_id = 21;
+WHERE id = @v188_rag_detail_id AND experience_id = 21;
 
 UPDATE experience_detail
 SET content = '외부 AI·장시간 작업의 실패 제어와 관측 가능성 구축',
@@ -84,18 +183,46 @@ SET content = '외부 AI·장시간 작업의 실패 제어와 관측 가능성 
     visible = 1,
     public_visible = 1,
     resume_available = 1
-WHERE id = 40 AND experience_id = 21;
+WHERE id = @v188_observability_detail_id AND experience_id = 21;
 
 -- 프로젝트와 상세 사례의 기술 태그를 최신 구조에 맞춰 다시 정렬한다.
-DELETE FROM experience_detail_skill WHERE experience_detail_id IN (33, 34, 37, 38, 39, 40);
+DELETE FROM experience_detail_skill
+WHERE experience_detail_id IN (
+    @v188_api_boundary_detail_id,
+    @v188_pdf_workflow_detail_id,
+    @v188_gitops_detail_id,
+    @v188_ingestion_detail_id,
+    @v188_rag_detail_id,
+    @v188_observability_detail_id
+);
 
-INSERT INTO experience_detail_skill (experience_detail_id, skill_id, list_order) VALUES
-    (33, 1, 0), (33, 5, 1), (33, 56, 2), (33, 61, 3), (33, 62, 4),
-    (34, 2, 0), (34, 10, 1), (34, 64, 2),
-    (37, 31, 0), (37, 35, 1), (37, 63, 2),
-    (38, 1, 0), (38, 5, 1), (38, 23, 2), (38, 38, 3),
-    (39, 1, 0), (39, 5, 1), (39, 38, 2), (39, 40, 3), (39, 73, 4), (39, 74, 5),
-    (40, 1, 0), (40, 5, 1), (40, 38, 2), (40, 72, 3), (40, 27, 4);
+INSERT INTO experience_detail_skill (experience_detail_id, skill_id, list_order)
+SELECT @v188_api_boundary_detail_id, 1, 0 WHERE @v188_api_boundary_detail_id IS NOT NULL
+UNION ALL SELECT @v188_api_boundary_detail_id, 5, 1 WHERE @v188_api_boundary_detail_id IS NOT NULL
+UNION ALL SELECT @v188_api_boundary_detail_id, 56, 2 WHERE @v188_api_boundary_detail_id IS NOT NULL
+UNION ALL SELECT @v188_api_boundary_detail_id, 61, 3 WHERE @v188_api_boundary_detail_id IS NOT NULL
+UNION ALL SELECT @v188_api_boundary_detail_id, 62, 4 WHERE @v188_api_boundary_detail_id IS NOT NULL
+UNION ALL SELECT @v188_pdf_workflow_detail_id, 2, 0 WHERE @v188_pdf_workflow_detail_id IS NOT NULL
+UNION ALL SELECT @v188_pdf_workflow_detail_id, 10, 1 WHERE @v188_pdf_workflow_detail_id IS NOT NULL
+UNION ALL SELECT @v188_pdf_workflow_detail_id, 64, 2 WHERE @v188_pdf_workflow_detail_id IS NOT NULL
+UNION ALL SELECT @v188_gitops_detail_id, 31, 0 WHERE @v188_gitops_detail_id IS NOT NULL
+UNION ALL SELECT @v188_gitops_detail_id, 35, 1 WHERE @v188_gitops_detail_id IS NOT NULL
+UNION ALL SELECT @v188_gitops_detail_id, 63, 2 WHERE @v188_gitops_detail_id IS NOT NULL
+UNION ALL SELECT @v188_ingestion_detail_id, 1, 0 WHERE @v188_ingestion_detail_id IS NOT NULL
+UNION ALL SELECT @v188_ingestion_detail_id, 5, 1 WHERE @v188_ingestion_detail_id IS NOT NULL
+UNION ALL SELECT @v188_ingestion_detail_id, 23, 2 WHERE @v188_ingestion_detail_id IS NOT NULL
+UNION ALL SELECT @v188_ingestion_detail_id, 38, 3 WHERE @v188_ingestion_detail_id IS NOT NULL
+UNION ALL SELECT @v188_rag_detail_id, 1, 0 WHERE @v188_rag_detail_id IS NOT NULL
+UNION ALL SELECT @v188_rag_detail_id, 5, 1 WHERE @v188_rag_detail_id IS NOT NULL
+UNION ALL SELECT @v188_rag_detail_id, 38, 2 WHERE @v188_rag_detail_id IS NOT NULL
+UNION ALL SELECT @v188_rag_detail_id, 40, 3 WHERE @v188_rag_detail_id IS NOT NULL
+UNION ALL SELECT @v188_rag_detail_id, 73, 4 WHERE @v188_rag_detail_id IS NOT NULL
+UNION ALL SELECT @v188_rag_detail_id, 74, 5 WHERE @v188_rag_detail_id IS NOT NULL
+UNION ALL SELECT @v188_observability_detail_id, 1, 0 WHERE @v188_observability_detail_id IS NOT NULL
+UNION ALL SELECT @v188_observability_detail_id, 5, 1 WHERE @v188_observability_detail_id IS NOT NULL
+UNION ALL SELECT @v188_observability_detail_id, 38, 2 WHERE @v188_observability_detail_id IS NOT NULL
+UNION ALL SELECT @v188_observability_detail_id, 72, 3 WHERE @v188_observability_detail_id IS NOT NULL
+UNION ALL SELECT @v188_observability_detail_id, 27, 4 WHERE @v188_observability_detail_id IS NOT NULL;
 
 DELETE FROM experience_skill WHERE experience_id = 21;
 

@@ -8,6 +8,7 @@ resources:
   - ../../../base/redis
   - ingress.yaml
   - sealed-db-secret.yaml
+  - sealed-auth-secret.yaml
   - sealed-ai-secret.yaml
   - sealed-storage-secret.yaml
   - sealed-kofi-secret.yaml
@@ -15,10 +16,10 @@ resources:
 images:
   - name: self-intro-backend
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend
-    newTag: "f33390a"
+    newTag: "d81bec2"
   - name: self-intro-backend-worker
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend-worker
-    newTag: "f33390a"
+    newTag: "d81bec2"
 
 
 configMapGenerator:
