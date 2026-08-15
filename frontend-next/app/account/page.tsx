@@ -18,6 +18,7 @@ import {
     X,
 } from 'lucide-react';
 import { authApi, type AccountWithdrawalReadiness } from '@/lib/api/auth';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
 import { PASSWORD_RULES } from '@/lib/passwordPolicy';
 import { publishAuthSessionEvent } from '@/lib/auth/sessionEvents';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -32,7 +33,11 @@ export default function AccountSettingsPage() {
     const [readiness, setReadiness] = useState<AccountWithdrawalReadiness | null>(null);
     const [password, setPassword] = useState('');
     const [confirmation, setConfirmation] = useState('');
-    const [reauthenticated, setReauthenticated] = useState(false);
+    const {
+        isExplicitlyReauthenticated: reauthenticated,
+        confirm: confirmReauthentication,
+        clear: clearReauthentication,
+    } = useRecentReauthentication();
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -73,10 +78,10 @@ export default function AccountSettingsPage() {
         setBusy(true);
         setError(null);
         try {
-            await authApi.reauthenticate(password);
+            await confirmReauthentication(password);
             setPassword('');
-            setReauthenticated(true);
         } catch {
+            clearReauthentication();
             setError('비밀번호를 다시 확인해 주세요.');
         } finally {
             setBusy(false);

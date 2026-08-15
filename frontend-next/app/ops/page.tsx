@@ -3,25 +3,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-    Ban,
-    Check,
-    Clipboard,
-    Clock3,
-    KeyRound,
-    Mail,
-    RefreshCw,
-    ShieldCheck,
-    UserPlus,
-} from 'lucide-react';
-import {
-    ApiError,
-    authApi,
-    invitationApi,
-    type Invitation,
-    type IssuedInvitation,
-} from '@/lib/api';
+import { Ban, Check, Clipboard, Clock3, KeyRound, Mail, RefreshCw, UserPlus } from 'lucide-react';
+import { ApiError, invitationApi, type Invitation, type IssuedInvitation } from '@/lib/api';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
 import { useAuthStore } from '@/store/useAuthStore';
+import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
 
 const statusStyle: Record<Invitation['status'], string> = {
     ACTIVE: 'bg-emerald-50 text-emerald-700',
@@ -87,29 +73,17 @@ function InvitationOperationsPanel() {
     const [issued, setIssued] = useState<IssuedInvitation | null>(null);
     const [recipientEmail, setRecipientEmail] = useState('');
     const [sendEmail, setSendEmail] = useState(true);
-    const [reauthPassword, setReauthPassword] = useState('');
-    const [reauthenticated, setReauthenticated] = useState(false);
+    const { isReauthenticated: reauthenticated, clear: clearReauthentication } =
+        useRecentReauthentication();
     const [pending, setPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    async function reauthenticate(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        setPending(true);
-        setError(null);
-        try {
-            await authApi.reauthenticate(reauthPassword);
-            setReauthenticated(true);
-            setReauthPassword('');
-        } catch {
-            setReauthenticated(false);
-            setError('비밀번호를 다시 확인해 주세요.');
-        } finally {
-            setPending(false);
-        }
-    }
-
     async function issue(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        if (!reauthenticated) {
+            setError('상단에서 중요 작업 인증을 먼저 완료해 주세요.');
+            return;
+        }
         const formElement = event.currentTarget;
         const form = new FormData(formElement);
         setPending(true);
@@ -136,6 +110,10 @@ function InvitationOperationsPanel() {
     }
 
     async function revoke(invitationId: number) {
+        if (!reauthenticated) {
+            setError('상단에서 중요 작업 인증을 먼저 완료해 주세요.');
+            return;
+        }
         if (!window.confirm('이 초대를 즉시 폐기할까요? 기존 링크는 더 이상 사용할 수 없습니다.')) {
             return;
         }
@@ -152,6 +130,10 @@ function InvitationOperationsPanel() {
     }
 
     async function replaceAndSend(invitationId: number) {
+        if (!reauthenticated) {
+            setError('상단에서 중요 작업 인증을 먼저 완료해 주세요.');
+            return;
+        }
         setPending(true);
         setError(null);
         setIssued(null);
@@ -168,7 +150,7 @@ function InvitationOperationsPanel() {
 
     function handleMutationError(cause: unknown) {
         if (cause instanceof ApiError && cause.status === 401) {
-            setReauthenticated(false);
+            clearReauthentication();
             setError('보안을 위해 비밀번호를 다시 확인해 주세요.');
             return;
         }
@@ -192,34 +174,7 @@ function InvitationOperationsPanel() {
                     </div>
                 </header>
 
-                <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-sm md:grid-cols-[minmax(0,1fr)_360px] md:items-center">
-                    <div>
-                        <div className="flex items-center gap-2 font-black text-white">
-                            <ShieldCheck className="h-5 w-5" /> 중요 작업 재인증
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-300">
-                            초대 목록은 이메일을 마스킹합니다. 발급·폐기·교체 발송은 최근 10분 안에
-                            비밀번호를 다시 확인한 운영자만 수행할 수 있습니다.
-                        </p>
-                    </div>
-                    <form onSubmit={reauthenticate} className="flex gap-2">
-                        <input
-                            type="password"
-                            value={reauthPassword}
-                            onChange={(event) => setReauthPassword(event.target.value)}
-                            placeholder="운영자 비밀번호"
-                            autoComplete="current-password"
-                            required
-                            className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                        />
-                        <button
-                            disabled={pending}
-                            className="rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:opacity-50"
-                        >
-                            {reauthenticated ? <Check className="h-4 w-4" /> : '재확인'}
-                        </button>
-                    </form>
-                </section>
+                <RecentReauthenticationStatus description="초대 목록은 이메일을 마스킹합니다. 상단에서 인증하면 발급·폐기·교체 발송에 같은 최근 인증 상태가 10분 동안 적용됩니다." />
 
                 {(error || loadError) && (
                     <p
@@ -300,7 +255,12 @@ function InvitationOperationsPanel() {
                                 <span>지정한 이메일로 초대 링크를 바로 발송합니다.</span>
                             </label>
                             <button
-                                disabled={pending}
+                                disabled={pending || !reauthenticated}
+                                title={
+                                    reauthenticated
+                                        ? undefined
+                                        : '상단에서 중요 작업 인증을 먼저 완료해 주세요.'
+                                }
                                 className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                             >
                                 초대 발급
@@ -365,7 +325,12 @@ function InvitationOperationsPanel() {
                                                 {invitation.recipientEmailMasked && (
                                                     <button
                                                         type="button"
-                                                        disabled={pending}
+                                                        disabled={pending || !reauthenticated}
+                                                        title={
+                                                            reauthenticated
+                                                                ? undefined
+                                                                : '상단에서 중요 작업 인증을 먼저 완료해 주세요.'
+                                                        }
                                                         onClick={() =>
                                                             void replaceAndSend(invitation.id)
                                                         }
@@ -377,7 +342,12 @@ function InvitationOperationsPanel() {
                                                 {invitation.status === 'ACTIVE' && (
                                                     <button
                                                         type="button"
-                                                        disabled={pending}
+                                                        disabled={pending || !reauthenticated}
+                                                        title={
+                                                            reauthenticated
+                                                                ? undefined
+                                                                : '상단에서 중요 작업 인증을 먼저 완료해 주세요.'
+                                                        }
                                                         onClick={() => void revoke(invitation.id)}
                                                         className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-black text-red-600 disabled:opacity-50"
                                                     >
