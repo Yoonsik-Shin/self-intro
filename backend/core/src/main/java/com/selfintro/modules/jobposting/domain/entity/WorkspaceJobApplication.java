@@ -45,7 +45,7 @@ public class WorkspaceJobApplication {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
-    @Column(name = "interest_level")
+    @Column(name = "interest_level", columnDefinition = "TINYINT")
     private Integer interestLevel;
 
     @Column(name = "match_score")

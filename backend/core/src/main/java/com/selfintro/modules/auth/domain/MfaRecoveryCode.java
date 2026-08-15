@@ -24,7 +24,7 @@ public class MfaRecoveryCode {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "code_hash", nullable = false, length = 32)
+    @Column(name = "code_hash", nullable = false, columnDefinition = "BINARY(32)")
     private byte[] codeHash;
 
     @Column(name = "created_at", nullable = false, updatable = false)

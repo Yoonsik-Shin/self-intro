@@ -40,7 +40,11 @@ public class PrintDocumentArtifact {
     @Column(name = "object_key", nullable = false, length = 300, updatable = false)
     private String objectKey;
 
-    @Column(name = "sha256_checksum", nullable = false, length = 64, updatable = false)
+    @Column(
+            name = "sha256_checksum",
+            nullable = false,
+            columnDefinition = "CHAR(64)",
+            updatable = false)
     private String sha256Checksum;
 
     @Column(name = "content_length", nullable = false, updatable = false)

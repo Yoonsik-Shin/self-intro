@@ -80,7 +80,7 @@ public class PrintTemplate {
     private String orientation;
 
     /** 본문 줄간격 배수. 섹션 간 간격(sectionGaps)과 달리 AI 초안이 관여하지 않는 순수 사용자 조작 값이다. */
-    @Column(name = "line_height", nullable = false)
+    @Column(name = "line_height", nullable = false, columnDefinition = "DECIMAL(4,3)")
     private double lineHeight;
 
     @Column(name = "is_final_submission", nullable = false)

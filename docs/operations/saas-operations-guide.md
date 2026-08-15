@@ -2598,3 +2598,16 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 외부 smoke test에서 `https://unbrdn.me/`는 HTTP 200,
   `https://api.unbrdn.me/actuator/health`는 HTTP 200과 `status=UP`을 반환했다. 이는 자동화된
   배포·인프라 검증이며 로그인, 중요 작업 재인증, Workspace 관리 흐름의 브라우저 UAT를 대신하지 않는다.
+
+### 15.31 Flyway V1 재기준화
+
+- 누적 V1~V235 migration을 현재 검증된 스키마와 동일한 schema-only V1으로 재기준화한다.
+- 새 DB는 V1을 실행하고 기존 로컬·운영 DB는 데이터를 유지한 채 Flyway 기준선만 version 1로 전환한다.
+- 상시 설정은 `FLYWAY_BASELINE_ON_MIGRATE=false`, `JPA_DDL_AUTO=validate`, `out-of-order=false`다.
+- 기존 DB 전환은 쓰기 중단, 전체 백업, 별도 복원 rehearsal, 기존 이력 보존, 일회성 baseline, 설정 원복,
+  행 수·스키마·smoke 검증 순서로 수행한다.
+- 세부 절차와 롤백 조건은 [Flyway V1 재기준화 운영 가이드](./flyway-v1-rebaseline.md)를 따른다.
+- 격리 브랜치에서 기존 140개 migration의 빈 DB 재생과 운영 스키마 정규화 비교, 신규 DB V1 실행,
+  기존 DB 일회성 baseline, Hibernate `validate`, 전체 백엔드 테스트까지 완료했다.
+- 로컬 보존 DB·운영 DB의 데이터와 Flyway 이력, main, 배포는 변경하지 않았다. 운영 이력 전환은 전체
+  백업의 별도 복원 rehearsal과 명시적 승인 전에는 금지한다.

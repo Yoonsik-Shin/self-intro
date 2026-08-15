@@ -68,7 +68,8 @@ services:
       - DB_USERNAME=self_intro_app
       - DB_PASSWORD=password123
       - DB_DRIVER=com.mysql.cj.jdbc.Driver
-      - JPA_DDL_AUTO=update
+      # schema 변경은 Flyway만 담당한다. update는 migration 이력과 실제 schema를 어긋나게 한다.
+      - JPA_DDL_AUTO=validate
       - CORS_ALLOWED_ORIGINS=http://localhost:3000
       - STORAGE_ENDPOINT=http://minio:9000
       - STORAGE_PRESIGNED_ENDPOINT=http://localhost:9000

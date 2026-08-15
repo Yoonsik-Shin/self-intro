@@ -503,3 +503,21 @@ cookie·token·Secret 원문을 출력하지 않으며, 임시 파일이 꼭 필
   입력의 Workspace 격리는 구현·검증 완료 상태다.
 - 역할로 잠긴 `/api/admin/**` 호환 endpoint와 canonical Workspace API가 없는 레거시 도메인의 비공개
   베타 이후 유지·이관·제거 시점을 결정한다.
+
+## Flyway V1 재기준화 결정 (2026-08-15)
+
+- 현재 운영 스키마와 전체 V1~V235 migration을 빈 MySQL 8.0에 재생한 결과를 비교해 새 기준 스키마를
+  확정한다. 특정 개발자 로컬 DB나 Hibernate 자동 변경 결과는 기준으로 사용하지 않는다.
+- 새 `V1__baseline_schema.sql`은 109개 애플리케이션 테이블의 DDL만 포함한다. 개인 데이터와 seed 데이터는
+  포함하지 않으며 기존 데이터는 백업과 기존 DB에 보존한다.
+- 새 DB는 V1 SQL migration을 실행한다. 기존 로컬·운영 DB는 V1을 재실행하지 않고 Flyway의 baseline
+  version 1만 기록한다. 따라서 다음 공통 변경은 V2부터 시작한다.
+- `baseline-on-migrate`는 기존 DB 전환 과정의 일회성 명시 설정이며 상시 활성화하지 않는다.
+  `out-of-order`는 비활성화하고 Hibernate는 `validate`만 사용한다.
+- 기존 `flyway_schema_history`는 즉시 삭제하지 않고 검증 기간 동안 이름을 바꿔 보존한다. 백업 복원
+  rehearsal과 전환 전후 비교가 끝나기 전에는 운영 이력을 변경하지 않는다.
+- 기존 140개 migration을 빈 MySQL 8.0에 재생한 스키마와 운영 스키마를 정규화해 비교한 결과 구조 차이가
+  없었다. 생성한 V1은 신규 DB의 SQL migration 경로, 기존 DB의 BASELINE 경로, Hibernate `validate`를
+  각각 통과했다.
+- 과거 migration이 명시한 타입과 엔티티 선언이 달랐던 네 필드는 운영 스키마를 기준으로 엔티티를
+  `BINARY(32)`, `CHAR(64)`, `DECIMAL(4,3)`, `TINYINT`에 맞췄다. Hibernate 자동 DDL 보정은 사용하지 않는다.
