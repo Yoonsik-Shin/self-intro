@@ -47,7 +47,7 @@ export function PdfPageLayer({
             data-page-index={pageIndex}
             data-last-page={isLastPage || undefined}
             data-orientation={orientation}
-            className={`pdf-page-layer relative ${DIMENSION_CLASSES[orientation]} shrink-0 rounded-md bg-white border border-slate-300/90 shadow-[0_12px_40px_rgba(0,0,0,0.15)] box-border print:m-0 print:shadow-none print:rounded-none print:border-none print:bg-white print:overflow-hidden print:box-border`}
+            className={`pdf-page-layer relative ${DIMENSION_CLASSES[orientation]} shrink-0 rounded-lg bg-white border border-slate-300/90 shadow-[0_12px_40px_rgba(0,0,0,0.15)] box-border print:m-0 print:shadow-none print:rounded-none print:border-none print:bg-white print:overflow-hidden print:box-border`}
             style={
                 {
                     breakAfter: isLastPage ? 'auto' : 'page',

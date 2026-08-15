@@ -95,7 +95,7 @@ export function PrintPreviewBar({
         return () => document.removeEventListener('mousedown', closeSaveMenu);
     }, [saveMenuOpen]);
     const zoomControl = (
-        <div className="flex items-center gap-1 bg-slate-800 border border-slate-700/60 rounded-xl px-1.5 py-1 text-white shrink-0">
+        <div className="flex items-center gap-1 bg-slate-800 border border-slate-700/60 rounded-md px-1.5 py-1 text-white shrink-0">
             <button
                 onClick={() => onZoomChange(Math.max(zoom - 0.1, 0.3))}
                 className="w-5 h-5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 font-black text-xs flex items-center justify-center transition"
@@ -123,7 +123,7 @@ export function PrintPreviewBar({
     const lineHeightControl =
         lineHeight !== undefined && onLineHeightChange ? (
             <div
-                className="flex items-center gap-1.5 bg-slate-800 border border-slate-700/60 rounded-xl px-2 py-1 text-white shrink-0"
+                className="flex items-center gap-1.5 bg-slate-800 border border-slate-700/60 rounded-md px-2 py-1 text-white shrink-0"
                 title="본문 줄간격 조절"
             >
                 <AlignJustify className="h-3.5 w-3.5 text-slate-400" />
@@ -172,12 +172,12 @@ export function PrintPreviewBar({
 
             <div className="flex items-center gap-2 shrink-0">
                 {(onUndo || onRedo) && (
-                    <div className="flex items-center rounded-xl border border-slate-700/60 bg-slate-800 p-1">
+                    <div className="flex items-center rounded-md border border-slate-700/60 bg-slate-800 p-1">
                         <button
                             type="button"
                             onClick={onUndo}
                             disabled={!canUndo}
-                            className="grid h-7 w-7 place-items-center rounded-lg text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent"
+                            className="grid h-7 w-7 place-items-center rounded-md text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent"
                             title="실행 취소 (Ctrl/⌘ + Z)"
                             aria-label="실행 취소"
                         >
@@ -187,7 +187,7 @@ export function PrintPreviewBar({
                             type="button"
                             onClick={onRedo}
                             disabled={!canRedo}
-                            className="grid h-7 w-7 place-items-center rounded-lg text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent"
+                            className="grid h-7 w-7 place-items-center rounded-md text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent"
                             title="다시 실행 (Ctrl/⌘ + Shift + Z)"
                             aria-label="다시 실행"
                         >
@@ -200,7 +200,7 @@ export function PrintPreviewBar({
                         type="button"
                         onClick={onToggleMarginSettings}
                         aria-pressed={marginSettingsOpen}
-                        className={`flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-[10px] font-black transition ${
+                        className={`flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-[10px] font-black transition ${
                             marginSettingsOpen
                                 ? 'border-blue-400 bg-blue-600 text-white'
                                 : 'border-slate-700/60 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
@@ -217,7 +217,7 @@ export function PrintPreviewBar({
                     <button
                         onClick={onToggleInlineEditMode}
                         aria-pressed={inlineEditMode}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-bold transition ${
                             inlineEditMode
                                 ? 'border-blue-400 bg-blue-600 text-white shadow-sm ring-2 ring-blue-400/40'
                                 : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
@@ -238,7 +238,7 @@ export function PrintPreviewBar({
                     <button
                         onClick={onToggleHideGuides}
                         aria-pressed={hideGuides}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-bold transition ${
                             hideGuides
                                 ? 'border-indigo-400/80 bg-indigo-600 text-white shadow-sm'
                                 : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
@@ -261,7 +261,7 @@ export function PrintPreviewBar({
                     <button
                         onClick={onToggleNav}
                         aria-pressed={navOpen}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-bold transition ${
                             navOpen
                                 ? 'border-slate-400 bg-slate-700 text-white'
                                 : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
@@ -275,7 +275,7 @@ export function PrintPreviewBar({
                     <button
                         onClick={onToggleAiChat}
                         aria-pressed={aiChatOpen}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-bold transition ${
                             aiChatOpen
                                 ? 'border-indigo-400 bg-indigo-600 text-white shadow-sm'
                                 : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:text-white'
@@ -289,7 +289,7 @@ export function PrintPreviewBar({
                 {!integratedDocumentSettings && onOpenTemplateModal && (
                     <button
                         onClick={onOpenTemplateModal}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                        className="flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
                         title="다른 저장된 템플릿 불러오기 또는 변경"
                     >
                         <FolderOpen className="h-3.5 w-3.5" />
@@ -299,7 +299,7 @@ export function PrintPreviewBar({
                 {!integratedDocumentSettings && onSaveServer && (
                     <button
                         onClick={onSaveServer}
-                        className="flex items-center gap-1.5 rounded-lg border border-blue-500/50 bg-blue-500/20 px-3 py-1.5 text-xs font-bold text-blue-200 transition hover:bg-blue-500/30 hover:text-white"
+                        className="flex items-center gap-1.5 rounded-md border border-blue-500/50 bg-blue-500/20 px-3 py-1.5 text-xs font-bold text-blue-200 transition hover:bg-blue-500/30 hover:text-white"
                         title="현재 인쇄 설정을 서버 템플릿으로 저장"
                     >
                         <Save className="h-3.5 w-3.5" />
@@ -309,7 +309,7 @@ export function PrintPreviewBar({
                 {!integratedDocumentSettings && onSaveLocal && (
                     <button
                         onClick={onSaveLocal}
-                        className="flex items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 transition hover:bg-amber-500/20 hover:text-white"
+                        className="flex items-center gap-1.5 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 transition hover:bg-amber-500/20 hover:text-white"
                         title="현재 설정을 내 브라우저에 저장"
                     >
                         <Save className="h-3.5 w-3.5" />
@@ -322,14 +322,14 @@ export function PrintPreviewBar({
                             type="button"
                             onClick={() => setSaveMenuOpen((open) => !open)}
                             aria-expanded={saveMenuOpen}
-                            className="flex items-center gap-1.5 rounded-lg border border-blue-500/50 bg-blue-500/20 px-3 py-1.5 text-xs font-bold text-blue-100 transition hover:bg-blue-500/30 hover:text-white"
+                            className="flex items-center gap-1.5 rounded-md border border-blue-500/50 bg-blue-500/20 px-3 py-1.5 text-xs font-bold text-blue-100 transition hover:bg-blue-500/30 hover:text-white"
                             title="현재 인쇄 설정 저장"
                         >
                             <Save className="h-3.5 w-3.5" />
                             <span className="hidden xl:inline">저장</span>
                         </button>
                         {saveMenuOpen && (
-                            <div className="absolute right-0 top-full z-[80] mt-2 w-56 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 p-1.5 text-left shadow-2xl">
+                            <div className="absolute right-0 top-full z-[80] mt-2 w-56 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 p-1.5 text-left shadow-2xl">
                                 {onSaveServer && (
                                     <button
                                         type="button"
@@ -337,7 +337,7 @@ export function PrintPreviewBar({
                                             setSaveMenuOpen(false);
                                             onSaveServer();
                                         }}
-                                        className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                                        className="flex w-full items-start gap-2 rounded-md px-3 py-2 text-slate-200 transition hover:bg-slate-800 hover:text-white"
                                     >
                                         <Save className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
                                         <span>
@@ -357,7 +357,7 @@ export function PrintPreviewBar({
                                             setSaveMenuOpen(false);
                                             onSaveLocal();
                                         }}
-                                        className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                                        className="flex w-full items-start gap-2 rounded-md px-3 py-2 text-slate-200 transition hover:bg-slate-800 hover:text-white"
                                     >
                                         <Save className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                                         <span>
@@ -376,14 +376,14 @@ export function PrintPreviewBar({
                 )}
                 <button
                     onClick={onPrint}
-                    className="flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-1.5 text-xs font-black text-slate-900 shadow-sm transition hover:bg-slate-100"
+                    className="flex items-center gap-1.5 rounded-md bg-white px-3.5 py-1.5 text-xs font-black text-slate-900 shadow-sm transition hover:bg-slate-100"
                 >
                     <Printer className="h-3.5 w-3.5" />
                     인쇄
                 </button>
                 <button
                     onClick={onCancel}
-                    className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                    className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-slate-800 hover:text-white"
                     aria-label="프리뷰 닫기"
                 >
                     <X className="h-4 w-4" />

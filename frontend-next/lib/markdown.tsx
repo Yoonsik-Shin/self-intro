@@ -151,7 +151,7 @@ const baseMarkdownComponents: Components = {
             };
             const style = alertConfigs[alertType] || alertConfigs.NOTE;
             return (
-                <div className={`my-4 rounded-xl border-l-4 ${style.bg} p-4 shadow-2xs`}>
+                <div className={`my-4 rounded-md border-l-4 ${style.bg} p-4 shadow-2xs`}>
                     <div
                         className={`flex items-center gap-2 text-xs font-black uppercase tracking-wider ${style.text} mb-1.5`}
                     >
@@ -167,7 +167,7 @@ const baseMarkdownComponents: Components = {
         return (
             <blockquote
                 {...props}
-                className="my-3 border-l-4 border-blue-500 bg-blue-50/30 px-3.5 py-2 text-slate-600 italic rounded-r-xl text-sm sm:text-base leading-[1.55]"
+                className="my-3 border-l-4 border-blue-500 bg-blue-50/30 px-3.5 py-2 text-slate-600 italic rounded-r-md text-sm sm:text-base leading-[1.55]"
             >
                 {children}
             </blockquote>
@@ -201,7 +201,7 @@ const baseMarkdownComponents: Components = {
     details: ({ children, node: _node, ...props }) => (
         <details
             {...props}
-            className="group/details my-3.5 rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition-all open:bg-white open:shadow-sm open:border-slate-300"
+            className="group/details my-3.5 rounded-md border border-slate-200 bg-slate-50/60 p-4 transition open:bg-white open:shadow-sm open:border-slate-300"
         >
             {children}
         </details>
@@ -335,7 +335,7 @@ export const experienceMarkdownComponents: Components = {
         </ol>
     ),
     blockquote: ({ children }) => (
-        <blockquote className="my-3 border-l-4 border-slate-300 bg-slate-50/50 px-4 py-2 text-slate-500 italic rounded-r-lg text-[13.5px] sm:text-sm leading-relaxed">
+        <blockquote className="my-3 border-l-4 border-slate-300 bg-slate-50/50 px-4 py-2 text-slate-500 italic rounded-r-md text-[13.5px] sm:text-sm leading-relaxed">
             {children}
         </blockquote>
     ),

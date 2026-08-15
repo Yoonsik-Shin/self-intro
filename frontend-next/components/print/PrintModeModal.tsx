@@ -132,7 +132,7 @@ export function PrintModeModal({
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
             <div
-                className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden"
+                className="relative w-full max-w-md rounded-lg bg-white shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 pt-6 pb-4.5">
@@ -140,13 +140,13 @@ export function PrintModeModal({
                         {step === 'TEMPLATE_LIST' ? (
                             <button
                                 onClick={() => setStep('MAIN')}
-                                className="grid h-8.5 w-8.5 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                                className="grid h-8.5 w-8.5 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
                                 title="이전 단계로"
                             >
                                 <ArrowLeft className="h-4.5 w-4.5" />
                             </button>
                         ) : (
-                            <div className="grid h-8.5 w-8.5 place-items-center rounded-xl bg-slate-900 text-white">
+                            <div className="grid h-8.5 w-8.5 place-items-center rounded-md bg-slate-900 text-white">
                                 <Printer className="h-4.5 w-4.5" />
                             </div>
                         )}
@@ -156,7 +156,7 @@ export function PrintModeModal({
                     </div>
                     <button
                         onClick={onClose}
-                        className="grid h-8.5 w-8.5 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                        className="grid h-8.5 w-8.5 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                         aria-label="닫기"
                     >
                         <X className="h-4.5 w-4.5" />
@@ -167,10 +167,10 @@ export function PrintModeModal({
                     <div className="px-6 pt-5 pb-4 space-y-3.5">
                         <button
                             onClick={onManual}
-                            className="group flex w-full items-center justify-between gap-4 rounded-2xl border-2 border-slate-200/90 bg-slate-50/50 p-4.5 text-left transition hover:border-slate-900 hover:bg-slate-50 hover:shadow-md"
+                            className="group flex w-full items-center justify-between gap-4 rounded-md border-2 border-slate-200/90 bg-slate-50/50 p-4.5 text-left transition hover:border-slate-900 hover:bg-slate-50 hover:shadow-md"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-900 text-white shadow-sm transition group-hover:scale-105">
+                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-slate-900 text-white shadow-sm transition group-hover:scale-105">
                                     <Settings className="h-6 w-6" />
                                 </div>
                                 <div>
@@ -186,10 +186,10 @@ export function PrintModeModal({
 
                         <button
                             onClick={() => setStep('TEMPLATE_LIST')}
-                            className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4.5 text-left transition hover:border-blue-500 hover:bg-blue-50/30 hover:shadow-md"
+                            className="group flex w-full items-center justify-between gap-4 rounded-md border border-slate-200 bg-white p-4.5 text-left transition hover:border-blue-500 hover:bg-blue-50/30 hover:shadow-md"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100 group-hover:scale-105">
+                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-blue-50 text-blue-600 transition group-hover:bg-blue-100 group-hover:scale-105">
                                     <FileText className="h-6 w-6" />
                                 </div>
                                 <div>
@@ -236,10 +236,10 @@ export function PrintModeModal({
                                                 <button
                                                     key={t.id}
                                                     onClick={() => handleSelectServer(t)}
-                                                    className="group flex w-full items-center justify-between gap-3.5 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-sm"
+                                                    className="group flex w-full items-center justify-between gap-3.5 rounded-md border border-slate-200 bg-white p-3.5 text-left transition hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-sm"
                                                 >
                                                     <div className="flex items-center gap-3.5 min-w-0">
-                                                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-100">
+                                                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-blue-50 text-blue-600 transition group-hover:bg-blue-100">
                                                             <FileText className="h-4.5 w-4.5" />
                                                         </div>
                                                         <div className="min-w-0">
@@ -288,10 +288,10 @@ export function PrintModeModal({
                                                             handleSelectLocal(s);
                                                         }
                                                     }}
-                                                    className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-sm cursor-pointer"
+                                                    className="group flex w-full items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-3.5 text-left transition hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-sm cursor-pointer"
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
-                                                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600 transition group-hover:bg-amber-100">
+                                                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-amber-50 text-amber-600 transition group-hover:bg-amber-100">
                                                             <Save className="h-4.5 w-4.5" />
                                                         </div>
                                                         <div className="min-w-0">
@@ -309,7 +309,7 @@ export function PrintModeModal({
                                                     <div className="flex items-center gap-1 shrink-0">
                                                         <button
                                                             onClick={(e) => handleRenameLocal(s, e)}
-                                                            className="grid h-8 w-8 place-items-center rounded-xl text-slate-300 transition hover:bg-amber-100 hover:text-amber-700"
+                                                            className="grid h-8 w-8 place-items-center rounded-md text-slate-300 transition hover:bg-amber-100 hover:text-amber-700"
                                                             title="이름 변경"
                                                         >
                                                             <Pencil className="h-3.5 w-3.5" />
@@ -318,7 +318,7 @@ export function PrintModeModal({
                                                             onClick={(e) =>
                                                                 handleRemoveLocal(s.id, e)
                                                             }
-                                                            className="grid h-8 w-8 place-items-center rounded-xl text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                                                            className="grid h-8 w-8 place-items-center rounded-md text-slate-300 transition hover:bg-red-50 hover:text-red-500"
                                                             title="삭제"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
@@ -338,14 +338,14 @@ export function PrintModeModal({
                     {step === 'TEMPLATE_LIST' && (
                         <button
                             onClick={() => setStep('MAIN')}
-                            className="flex-1 rounded-2xl border border-slate-200/90 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                            className="flex-1 rounded-md border border-slate-200/90 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
                         >
                             이전
                         </button>
                     )}
                     <button
                         onClick={onClose}
-                        className="flex-1 rounded-2xl border border-slate-200/90 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                        className="flex-1 rounded-md border border-slate-200/90 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
                     >
                         취소
                     </button>

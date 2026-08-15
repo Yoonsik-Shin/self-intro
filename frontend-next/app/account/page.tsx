@@ -202,12 +202,9 @@ export default function AccountSettingsPage() {
                 >
                     <ArrowLeft className="h-4 w-4" /> 돌아가기
                 </Link>
-                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
-                        Account
-                    </p>
-                    <h1 className="mt-2 text-2xl font-black text-slate-950">계정 설정</h1>
-                    <dl className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
+                <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                    <h1 className="text-2xl font-black text-slate-950">계정 설정</h1>
+                    <dl className="mt-5 grid gap-3 rounded-md bg-slate-50 p-4 text-sm sm:grid-cols-2">
                         <div>
                             <dt className="font-bold text-slate-400">닉네임</dt>
                             <dd className="mt-1 font-black text-slate-900">{me.nickname}</dd>
@@ -227,7 +224,7 @@ export default function AccountSettingsPage() {
                     </dl>
                 </section>
 
-                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-start gap-3">
                         <Mail className="mt-1 h-6 w-6 text-indigo-600" />
                         <div>
@@ -250,7 +247,7 @@ export default function AccountSettingsPage() {
                                 autoComplete="email"
                                 maxLength={255}
                                 required
-                                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900"
+                                className="w-full rounded-md border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900"
                             />
                         </label>
                         <PasswordInput
@@ -263,14 +260,14 @@ export default function AccountSettingsPage() {
                         />
                         <button
                             disabled={busy || !newEmail.trim() || !emailPassword}
-                            className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
+                            className="w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
                         >
                             확인 메일 보내기
                         </button>
                     </form>
                 </section>
 
-                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-start gap-3">
                         <UserPen className="mt-1 h-6 w-6 text-indigo-600" />
                         <div>
@@ -287,18 +284,18 @@ export default function AccountSettingsPage() {
                             minLength={2}
                             maxLength={40}
                             required
-                            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900"
+                            className="min-w-0 flex-1 rounded-md border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900"
                         />
                         <button
                             disabled={busy || displayName.trim() === me.nickname}
-                            className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
+                            className="rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
                         >
                             변경
                         </button>
                     </form>
                 </section>
 
-                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-start gap-3">
                         <KeyRound className="mt-1 h-6 w-6 text-indigo-600" />
                         <div>
@@ -333,7 +330,7 @@ export default function AccountSettingsPage() {
                             onToggle={() => setShowNewPasswordConfirmation((value) => !value)}
                             autoComplete="new-password"
                         />
-                        <div className="grid gap-1 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
+                        <div className="grid gap-1 rounded-md bg-slate-50 p-4 sm:grid-cols-2">
                             {PASSWORD_RULES.map((rule) => {
                                 const passed = rule.test(newPassword);
                                 return (
@@ -358,14 +355,14 @@ export default function AccountSettingsPage() {
                                 !PASSWORD_RULES.every((rule) => rule.test(newPassword)) ||
                                 newPassword !== newPasswordConfirmation
                             }
-                            className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
+                            className="w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
                         >
                             비밀번호 변경 후 모든 기기 로그아웃
                         </button>
                     </form>
                 </section>
 
-                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex items-start gap-3">
                         <LogOut className="mt-1 h-6 w-6 text-indigo-600" />
                         <div className="flex-1">
@@ -380,24 +377,24 @@ export default function AccountSettingsPage() {
                         type="button"
                         onClick={() => void logoutAll()}
                         disabled={busy}
-                        className="mt-5 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-black text-slate-800 hover:bg-slate-50 disabled:opacity-40"
+                        className="mt-5 w-full rounded-md border border-slate-300 px-4 py-3 text-sm font-black text-slate-800 hover:bg-slate-50 disabled:opacity-40"
                     >
                         전체 기기 로그아웃
                     </button>
                 </section>
 
                 {success && (
-                    <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+                    <p className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
                         {success}
                     </p>
                 )}
                 {error && (
-                    <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+                    <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
                         {error}
                     </p>
                 )}
 
-                <section className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm">
+                <section className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">
                     <div className="flex items-start gap-3">
                         <UserRoundX className="mt-1 h-6 w-6 text-red-600" />
                         <div>
@@ -410,7 +407,7 @@ export default function AccountSettingsPage() {
                     </div>
 
                     {!readiness.eligible && (
-                        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                        <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                             <p className="flex items-center gap-2 font-black">
                                 <AlertTriangle className="h-4 w-4" /> 먼저 정리해야 할 항목
                             </p>
@@ -439,7 +436,7 @@ export default function AccountSettingsPage() {
                                     required
                                     value={password}
                                     onChange={(event) => setPassword(event.target.value)}
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-sm outline-none focus:border-slate-900"
+                                    className="w-full rounded-md border border-slate-300 px-4 py-3 pr-12 text-sm outline-none focus:border-slate-900"
                                 />
                                 <button
                                     type="button"
@@ -456,7 +453,7 @@ export default function AccountSettingsPage() {
                             </div>
                             <button
                                 disabled={busy}
-                                className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                                className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                             >
                                 <ShieldCheck className="h-4 w-4" /> 비밀번호 재확인
                             </button>
@@ -472,13 +469,13 @@ export default function AccountSettingsPage() {
                             <input
                                 value={confirmation}
                                 onChange={(event) => setConfirmation(event.target.value)}
-                                className="w-full rounded-xl border border-red-200 px-4 py-3 text-sm outline-none focus:border-red-500"
+                                className="w-full rounded-md border border-red-200 px-4 py-3 text-sm outline-none focus:border-red-500"
                             />
                             <button
                                 type="button"
                                 onClick={() => void withdraw()}
                                 disabled={busy || confirmation !== readiness.confirmationPhrase}
-                                className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white disabled:bg-red-200"
+                                className="w-full rounded-md bg-red-600 px-4 py-3 text-sm font-black text-white disabled:bg-red-200"
                             >
                                 계정 탈퇴 확정
                             </button>
@@ -515,7 +512,7 @@ function PasswordInput({
                     onChange={(event) => onChange(event.target.value)}
                     autoComplete={autoComplete}
                     required
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-sm outline-none focus:border-slate-900"
+                    className="w-full rounded-md border border-slate-300 px-4 py-3 pr-12 text-sm outline-none focus:border-slate-900"
                 />
                 <button
                     type="button"

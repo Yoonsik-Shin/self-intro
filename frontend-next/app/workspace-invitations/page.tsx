@@ -79,29 +79,27 @@ export default function WorkspaceInvitationPage() {
 
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-            <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <span className="inline-flex rounded-2xl bg-indigo-50 p-3 text-indigo-700">
-                    <ShieldCheck className="h-6 w-6" />
-                </span>
-                <h1 className="mt-5 text-2xl font-black text-slate-950">Workspace 참여 초대</h1>
+            <section className="w-full max-w-lg rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+                <ShieldCheck className="h-8 w-8 text-indigo-600" />
+                <h1 className="mt-4 text-2xl font-black text-slate-950">Workspace 참여 초대</h1>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                     초대 메일과 동일한 이메일의 플랫폼 계정으로 로그인한 뒤 직접 수락해야 합니다.
                     수락 전에는 Workspace 데이터에 접근할 수 없습니다.
                 </p>
 
                 {!token && !declined && (
-                    <p role="alert" className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+                    <p role="alert" className="mt-5 rounded-md bg-red-50 p-4 text-sm text-red-700">
                         초대 토큰이 없습니다. 받은 메일의 링크를 다시 열어 주세요.
                     </p>
                 )}
                 {error && (
-                    <p role="alert" className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+                    <p role="alert" className="mt-5 rounded-md bg-red-50 p-4 text-sm text-red-700">
                         {error}
                     </p>
                 )}
 
                 {declined ? (
-                    <div className="mt-6 rounded-2xl bg-slate-100 p-5">
+                    <div className="mt-6 rounded-md bg-slate-100 p-5">
                         <div className="flex items-center gap-2 font-black text-slate-900">
                             <XCircle className="h-5 w-5" /> 초대를 거절했습니다
                         </div>
@@ -111,7 +109,7 @@ export default function WorkspaceInvitationPage() {
                         </p>
                     </div>
                 ) : acceptedSlug ? (
-                    <div className="mt-6 rounded-2xl bg-emerald-50 p-5">
+                    <div className="mt-6 rounded-md bg-emerald-50 p-5">
                         <div className="flex items-center gap-2 font-black text-emerald-900">
                             <CheckCircle2 className="h-5 w-5" /> 참여가 완료되었습니다
                         </div>
@@ -122,7 +120,7 @@ export default function WorkspaceInvitationPage() {
                                     `/workspace/${encodeURIComponent(acceptedSlug)}/manage`
                                 )
                             }
-                            className="mt-4 w-full rounded-xl bg-emerald-900 px-4 py-3 text-sm font-black text-white"
+                            className="mt-4 w-full rounded-md bg-emerald-900 px-4 py-3 text-sm font-black text-white"
                         >
                             Workspace 관리 화면으로 이동
                         </button>
@@ -133,7 +131,7 @@ export default function WorkspaceInvitationPage() {
                             type="button"
                             disabled={!token || pending}
                             onClick={accept}
-                            className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
+                            className="rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-40"
                         >
                             {pending ? '처리 중...' : '이 계정으로 수락'}
                         </button>
@@ -141,7 +139,7 @@ export default function WorkspaceInvitationPage() {
                             type="button"
                             disabled={!token || pending}
                             onClick={decline}
-                            className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-black text-slate-700 disabled:opacity-40"
+                            className="rounded-md border border-slate-300 px-4 py-3 text-sm font-black text-slate-700 disabled:opacity-40"
                         >
                             초대 거절
                         </button>
@@ -149,7 +147,7 @@ export default function WorkspaceInvitationPage() {
                 ) : (
                     <Link
                         href="/login?next=%2Fworkspace-invitations"
-                        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                        className="mt-6 flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white"
                     >
                         <LogIn className="h-4 w-4" /> 로그인하고 계속
                     </Link>

@@ -73,14 +73,14 @@ export function AuthSessionCoordinator({ queryClient }: { queryClient: QueryClie
         <div
             role="status"
             aria-live="polite"
-            className="fixed left-1/2 top-4 z-[200] flex w-[min(92vw,640px)] -translate-x-1/2 items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-2xl"
+            className="fixed left-1/2 top-4 z-[200] flex w-[min(92vw,640px)] -translate-x-1/2 items-center gap-3 rounded-lg bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-2xl"
         >
             <span className="min-w-0 flex-1">{notice}</span>
             <button
                 type="button"
                 aria-label="계정 변경 안내 닫기"
                 onClick={() => setNotice(null)}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-white"
             >
                 <X className="h-4 w-4" />
             </button>

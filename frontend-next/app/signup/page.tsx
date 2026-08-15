@@ -100,7 +100,7 @@ export default function SignupPage() {
                     visible={showPassword}
                     onToggle={() => setShowPassword((value) => !value)}
                 />
-                <ul className="grid grid-cols-1 gap-1.5 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-2">
+                <ul className="grid grid-cols-1 gap-1.5 rounded-md bg-slate-50 p-3 text-xs sm:grid-cols-2">
                     {PASSWORD_RULES.map((rule) => {
                         const passed = rule.test(password);
                         return (
@@ -153,7 +153,7 @@ export default function SignupPage() {
                 )}
                 <button
                     disabled={pending}
-                    className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                    className="w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                 >
                     {pending ? '가입 요청 중...' : '확인 메일 받기'}
                 </button>
@@ -165,7 +165,7 @@ export default function SignupPage() {
 function AuthCard({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-            <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
                 <Link
                     href="/"
                     className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-950"
@@ -191,7 +191,7 @@ function Field({ label, inputRef, ...props }: FieldProps) {
             <input
                 ref={inputRef}
                 {...props}
-                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="mt-2 w-full rounded-md border border-slate-200 px-4 py-3 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
             />
         </label>
     );
@@ -225,7 +225,7 @@ function PasswordField({
                     minLength={10}
                     maxLength={32}
                     required
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-md border border-slate-200 px-4 py-3 pr-12 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
                 <button
                     type="button"
@@ -252,7 +252,7 @@ function Consent({
     required?: boolean;
 }) {
     return (
-        <div className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
+        <div className="flex items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2.5">
             <label className="flex min-w-0 items-start gap-2 text-sm text-slate-700">
                 <input className="mt-1" type="checkbox" name={name} required={required} />
                 <span>{label}</span>

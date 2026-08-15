@@ -42,7 +42,7 @@ export default function OpsLayout({ children }: { children: React.ReactNode }) {
     if (!canOperate) {
         return (
             <main className="grid min-h-screen place-items-center bg-slate-50 px-4">
-                <section className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+                <section className="max-w-md rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
                     <h1 className="text-xl font-black text-slate-950">플랫폼 운영자 전용</h1>
                     <p className="mt-3 text-sm leading-6 text-slate-600">
                         Workspace 역할과 플랫폼 운영 권한은 분리되어 있습니다.

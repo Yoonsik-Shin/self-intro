@@ -82,7 +82,7 @@ export function ExperienceTreeDetailClient({
                 <ArrowLeft className="h-4 w-4" /> 경험 트리로 돌아가기
             </button>
             <div className="grid items-start gap-6 min-[1000px]:grid-cols-[minmax(0,1fr)_250px]">
-                <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+                <article className="min-w-0 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                     <header className="border-b border-slate-100 pb-7">
                         <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-500">
                             {breadcrumb.map((item, index) => (
@@ -116,12 +116,12 @@ export function ExperienceTreeDetailClient({
 
                     <section id="overview" className="scroll-mt-24 border-b border-slate-100 py-8">
                         <h2 className="text-2xl font-black text-slate-950">문제와 판단 맥락</h2>
-                        <div className="mt-4 rounded-xl bg-slate-50 p-5 text-sm leading-7 text-slate-700">
+                        <div className="mt-4 rounded-md bg-slate-50 p-5 text-sm leading-7 text-slate-700">
                             {detail.problem}
                         </div>
                         <MarkdownContent markdown={detail.contextMarkdown} />
                         {detail.constraintsMarkdown && (
-                            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/50 p-5">
+                            <div className="mt-6 rounded-md border border-amber-200 bg-amber-50/50 p-5">
                                 <h3 className="font-black text-amber-900">결정 전 확인할 제약</h3>
                                 <MarkdownContent markdown={detail.constraintsMarkdown} compact />
                             </div>
@@ -138,7 +138,7 @@ export function ExperienceTreeDetailClient({
                             {detail.options.map((option, optionIndex) => (
                                 <section
                                     key={option.stableKey}
-                                    className="rounded-2xl border border-slate-200 p-5 sm:p-7"
+                                    className="rounded-md border border-slate-200 p-5 sm:p-7"
                                 >
                                     <p className="text-xs font-black uppercase tracking-wider text-blue-600">
                                         Option {optionIndex + 1}
@@ -169,12 +169,12 @@ export function ExperienceTreeDetailClient({
                                         <OptionBlock
                                             title="장점"
                                             markdown={option.advantages}
-                                            tone="text-blue-700"
+                                            tone="text-emerald-700"
                                         />
                                         <OptionBlock
                                             title="단점"
                                             markdown={option.disadvantages}
-                                            tone="text-amber-700"
+                                            tone="text-rose-700"
                                         />
                                     </div>
                                 </section>
@@ -195,7 +195,7 @@ export function ExperienceTreeDetailClient({
                             {detail.warnings.map((warning) => (
                                 <article
                                     key={warning.stableKey}
-                                    className="rounded-xl border border-rose-200 bg-rose-50/40 p-5"
+                                    className="rounded-md border border-rose-200 bg-rose-50/40 p-5"
                                 >
                                     <p className="text-xs font-black text-rose-600">
                                         {warning.classification} · {warning.reasonType} ·{' '}
@@ -236,7 +236,7 @@ export function ExperienceTreeDetailClient({
                                     <Link
                                         key={`${relation.sourceKey}-${relation.targetKey}-${relation.relationType}`}
                                         href={`${basePath}/${encodeURIComponent(key)}`}
-                                        className="rounded-xl border border-slate-200 p-4 hover:border-blue-300 hover:bg-blue-50"
+                                        className="rounded-md border border-slate-200 p-4 hover:border-blue-300 hover:bg-blue-50"
                                     >
                                         <p className="text-xs font-black text-blue-600">
                                             {relation.relationType}
@@ -262,7 +262,7 @@ export function ExperienceTreeDetailClient({
                                         href={source.url}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="block rounded-xl border border-slate-200 p-4 hover:border-blue-300"
+                                        className="block rounded-md border border-slate-200 p-4 hover:border-blue-300"
                                     >
                                         <p className="flex items-center gap-1 text-sm font-bold text-slate-900">
                                             {source.title}
@@ -279,7 +279,7 @@ export function ExperienceTreeDetailClient({
                             </div>
                             <div className="space-y-2">
                                 {detail.studies.length === 0 ? (
-                                    <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-400">
+                                    <p className="rounded-md bg-slate-50 p-4 text-sm text-slate-400">
                                         아직 연결된 공개 Study가 없습니다.
                                     </p>
                                 ) : (
@@ -287,7 +287,7 @@ export function ExperienceTreeDetailClient({
                                         <Link
                                             key={study.linkId}
                                             href={`${studyBasePath}/${study.slug}`}
-                                            className="block rounded-xl border border-slate-200 p-4 hover:border-blue-300 hover:bg-blue-50"
+                                            className="block rounded-md border border-slate-200 p-4 hover:border-blue-300 hover:bg-blue-50"
                                         >
                                             <p className="text-xs font-black text-blue-600">
                                                 {study.section} · {study.relationType}
@@ -306,7 +306,7 @@ export function ExperienceTreeDetailClient({
                     </section>
                 </article>
 
-                <aside className="sticky top-[89px] hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm min-[1000px]:block">
+                <aside className="sticky top-[89px] hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm min-[1000px]:block">
                     <h2 className="flex items-center gap-2 text-sm font-black text-slate-800">
                         <ListOrdered className="h-4 w-4 text-blue-600" /> 문서 목차
                     </h2>
@@ -315,7 +315,7 @@ export function ExperienceTreeDetailClient({
                             <a
                                 key={id}
                                 href={`#${id}`}
-                                className="block rounded-lg px-3 py-2 text-xs font-bold text-slate-500 hover:bg-blue-50 hover:text-blue-700"
+                                className="block rounded-md px-3 py-2 text-xs font-bold text-slate-500 hover:bg-blue-50 hover:text-blue-700"
                             >
                                 {label}
                             </a>
@@ -323,7 +323,7 @@ export function ExperienceTreeDetailClient({
                     </nav>
                     <Link
                         href={basePath}
-                        className="mt-4 block rounded-xl bg-slate-900 px-3 py-2.5 text-center text-xs font-bold text-white"
+                        className="mt-4 block rounded-md bg-slate-900 px-3 py-2.5 text-center text-xs font-bold text-white"
                     >
                         전체 온톨로지 보기
                     </Link>
@@ -407,7 +407,7 @@ function TradeoffMatrix({ detail }: { detail: ExperienceTreeDetail }) {
         ),
     ];
     return (
-        <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+        <div className="mt-5 overflow-x-auto rounded-md border border-slate-200">
             <table className="min-w-full text-sm">
                 <thead className="bg-slate-50">
                     <tr>
@@ -458,21 +458,21 @@ function TradeoffMatrix({ detail }: { detail: ExperienceTreeDetail }) {
 
 function DecisionFlow({ detail }: { detail: ExperienceTreeDetail }) {
     return (
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+        <div className="mt-8 rounded-md border border-slate-200 bg-slate-50/70 p-5">
             <h3 className="text-lg font-black text-slate-950">결정 구조</h3>
             <p className="mt-1 text-xs leading-5 text-slate-500">
                 문제에서 선택지로 곧장 이동하지 않고 제약을 통과시킨 뒤, 선택의 이득과 비용을 함께
                 검증합니다.
             </p>
             <div className="mt-5 flex flex-col items-center">
-                <div className="w-full max-w-xl rounded-xl border border-slate-300 bg-white p-4 text-center">
+                <div className="w-full max-w-xl rounded-md border border-slate-300 bg-white p-4 text-center">
                     <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                         Problem
                     </p>
                     <p className="mt-1 text-sm font-bold text-slate-800">{detail.problem}</p>
                 </div>
                 <ArrowDown className="my-2 h-5 w-5 text-slate-300" />
-                <div className="w-full max-w-xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+                <div className="w-full max-w-xl rounded-md border border-amber-200 bg-amber-50 p-4 text-center">
                     <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">
                         Constraints
                     </p>
@@ -485,7 +485,7 @@ function DecisionFlow({ detail }: { detail: ExperienceTreeDetail }) {
                     {detail.options.map((option) => (
                         <div
                             key={option.stableKey}
-                            className="rounded-xl border border-blue-200 bg-white p-4"
+                            className="rounded-md border border-blue-200 bg-white p-4"
                         >
                             <p className="text-[10px] font-black uppercase text-blue-600">
                                 Candidate
@@ -499,13 +499,13 @@ function DecisionFlow({ detail }: { detail: ExperienceTreeDetail }) {
                 </div>
                 <ArrowDown className="my-2 h-5 w-5 text-slate-300" />
                 <div className="grid w-full gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-700">
+                    <div className="rounded-md bg-emerald-50 p-3 text-center text-xs font-bold text-emerald-700">
                         적합 조건 충족
                     </div>
-                    <div className="rounded-xl bg-blue-50 p-3 text-center text-xs font-bold text-blue-700">
+                    <div className="rounded-md bg-blue-50 p-3 text-center text-xs font-bold text-blue-700">
                         트레이드오프 수용
                     </div>
-                    <div className="rounded-xl bg-rose-50 p-3 text-center text-xs font-bold text-rose-700">
+                    <div className="rounded-md bg-rose-50 p-3 text-center text-xs font-bold text-rose-700">
                         안티패턴 회피
                     </div>
                 </div>

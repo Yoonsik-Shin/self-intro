@@ -50,9 +50,9 @@ export default function EmailChangeConfirmationPage() {
 
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-            <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
                 <div className="mb-6 flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-slate-950 text-white">
+                    <div className="grid h-11 w-11 place-items-center rounded-md bg-slate-950 text-white">
                         {status === 'completed' ? (
                             <CheckCircle2 className="h-5 w-5" />
                         ) : (
@@ -68,19 +68,19 @@ export default function EmailChangeConfirmationPage() {
                 </div>
 
                 {status === 'checking' && (
-                    <p className="rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-600">
+                    <p className="rounded-md bg-slate-50 p-4 text-sm font-semibold text-slate-600">
                         변경 링크를 확인하고 있습니다...
                     </p>
                 )}
                 {status === 'completed' && (
                     <div className="space-y-5">
-                        <p className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                        <p className="rounded-md bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
                             로그인 이메일이 <strong>{changedEmail}</strong>(으)로 변경됐고 기존
                             로그인 세션은 모두 종료됐습니다.
                         </p>
                         <Link
                             href="/login?changed=email"
-                            className="block rounded-xl bg-slate-950 px-5 py-3 text-center text-sm font-bold text-white"
+                            className="block rounded-md bg-slate-950 px-5 py-3 text-center text-sm font-bold text-white"
                         >
                             새 이메일로 로그인
                         </Link>
@@ -88,12 +88,12 @@ export default function EmailChangeConfirmationPage() {
                 )}
                 {status === 'error' && (
                     <div className="space-y-5">
-                        <p className="rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">
+                        <p className="rounded-md bg-red-50 p-4 text-sm font-semibold text-red-700">
                             {error}
                         </p>
                         <Link
                             href="/account"
-                            className="block rounded-xl border border-slate-200 px-5 py-3 text-center text-sm font-bold text-slate-700"
+                            className="block rounded-md border border-slate-200 px-5 py-3 text-center text-sm font-bold text-slate-700"
                         >
                             계정 설정으로 돌아가기
                         </Link>

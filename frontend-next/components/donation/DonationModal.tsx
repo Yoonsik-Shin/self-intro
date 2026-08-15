@@ -61,7 +61,7 @@ export function DonationModal({ onClose }: DonationModalProps) {
         >
             <div className="flex min-h-full items-center justify-center p-4">
                 <div
-                    className="my-auto w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+                    className="my-auto w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl"
                     onClick={(event) => event.stopPropagation()}
                 >
                     <div className="flex items-center justify-between">
@@ -76,7 +76,7 @@ export function DonationModal({ onClose }: DonationModalProps) {
                             ref={closeButtonRef}
                             type="button"
                             onClick={onClose}
-                            className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                             aria-label="닫기"
                         >
                             <X className="h-5 w-5" />
@@ -86,7 +86,7 @@ export function DonationModal({ onClose }: DonationModalProps) {
                     {phase === 'info' ? (
                         <div className="mt-4 flex flex-col gap-4">
                             <p className="text-sm leading-relaxed text-slate-600">
-                                작은 후원이 큰 힘이 됩니다! 💙
+                                작은 후원이 큰 힘이 됩니다.
                                 <br />
                                 후원은{' '}
                                 <strong className="font-semibold text-blue-600">
@@ -95,14 +95,14 @@ export function DonationModal({ onClose }: DonationModalProps) {
                                 를 통해 안전하게 진행하실 수 있습니다.
                             </p>
 
-                            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 text-xs text-blue-900 leading-relaxed">
-                                💡 버튼을 누르면 Ko-fi 후원 페이지로 이동합니다. PayPal 또는 카드로
+                            <div className="rounded-md border border-blue-100 bg-blue-50/60 p-3.5 text-xs text-blue-900 leading-relaxed">
+                                버튼을 누르면 Ko-fi 후원 페이지로 이동합니다. PayPal 또는 카드로
                                 쉽고 편리하게 마음을 전해보세요.
                             </div>
 
                             <button
                                 onClick={handleOpenKofi}
-                                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700"
+                                className="flex h-11 items-center justify-center gap-2 rounded-md bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700"
                             >
                                 <ExternalLink className="h-4 w-4" />
                                 Ko-fi에서 후원하기
@@ -124,7 +124,7 @@ export function DonationModal({ onClose }: DonationModalProps) {
                             </div>
                             <button
                                 onClick={onClose}
-                                className="h-10 w-full rounded-xl bg-slate-900 text-sm font-extrabold text-white transition hover:bg-slate-700"
+                                className="h-10 w-full rounded-md bg-slate-900 text-sm font-extrabold text-white transition hover:bg-slate-700"
                             >
                                 확인 (닫기)
                             </button>

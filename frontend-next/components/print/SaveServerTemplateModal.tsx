@@ -132,12 +132,12 @@ export function SaveServerTemplateModal({
         >
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
             <div
-                className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden"
+                className="relative w-full max-w-md rounded-lg bg-white shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                     <div className="flex items-center gap-2.5">
-                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white">
+                        <div className="grid h-8 w-8 place-items-center rounded-md bg-slate-900 text-white">
                             <Printer className="h-4 w-4" />
                         </div>
                         <h2 className="text-lg font-black text-slate-900">
@@ -146,7 +146,7 @@ export function SaveServerTemplateModal({
                     </div>
                     <button
                         onClick={onClose}
-                        className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        className="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                     >
                         <X className="h-4.5 w-4.5" />
                     </button>
@@ -162,7 +162,7 @@ export function SaveServerTemplateModal({
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder={suggestedName || '예: Backend 이력서용, 핵심 요약본 등'}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 outline-none focus:border-slate-900"
+                            className="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 outline-none focus:border-slate-900"
                             autoFocus
                         />
                         {suggestedName && !name.trim() && (
@@ -172,7 +172,7 @@ export function SaveServerTemplateModal({
                         )}
                     </div>
 
-                    <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-slate-200 p-3.5 bg-slate-50/50 hover:bg-slate-50">
+                    <label className="flex items-center gap-2.5 cursor-pointer rounded-md border border-slate-200 p-3.5 bg-slate-50/50 hover:bg-slate-50">
                         <input
                             type="checkbox"
                             checked={visible}
@@ -198,7 +198,7 @@ export function SaveServerTemplateModal({
                             onChange={(e) =>
                                 setJobPostingId(e.target.value ? Number(e.target.value) : null)
                             }
-                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 outline-none focus:border-slate-900"
+                            className="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-900 outline-none focus:border-slate-900"
                         >
                             <option value="">연동 안 함</option>
                             {jobPostings.map((jp) => (
@@ -213,7 +213,7 @@ export function SaveServerTemplateModal({
                         </p>
                     </div>
 
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-600 space-y-1">
+                    <div className="rounded-md border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-600 space-y-1">
                         <div className="font-bold text-slate-700">저장될 현재 프리뷰 상태:</div>
                         <div>• 제외 항목: {currentSettings.excludedIds.length}개 선택됨</div>
                         <div>
@@ -230,14 +230,14 @@ export function SaveServerTemplateModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
                         >
                             취소
                         </button>
                         <button
                             type="submit"
                             disabled={createMutation.isPending || updateMutation.isPending}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50"
                         >
                             <Check className="h-4 w-4" />
                             저장하기

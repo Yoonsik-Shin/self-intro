@@ -46,7 +46,7 @@ export function SectionNavSidebar({ sections, isCollapsed, onToggleCollapse }: P
     return (
         <aside className="block print:hidden w-full sticky top-[89px] self-start">
             <div
-                className={`relative rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md min-[900px]:flex min-[900px]:flex-col ${
+                className={`relative rounded-lg border border-slate-200/80 bg-white shadow-sm min-[900px]:flex min-[900px]:flex-col ${
                     isCollapsed
                         ? 'min-[900px]:gap-3 min-[900px]:px-1.5 min-[900px]:py-3'
                         : 'min-[900px]:gap-4 min-[900px]:px-5 min-[900px]:py-4'
@@ -58,7 +58,7 @@ export function SectionNavSidebar({ sections, isCollapsed, onToggleCollapse }: P
                     className={`z-20 hidden items-center justify-center border border-slate-200 bg-white text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-[900px]:flex ${
                         isCollapsed
                             ? 'relative mx-auto h-8 w-8 shrink-0 rounded-full shadow-xs'
-                            : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-lg border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
+                            : 'absolute -right-[11px] top-6 !m-0 h-10 w-5 rounded-r-md border-l-0 bg-white/95 shadow-[3px_1px_6px_-3px_rgba(15,23,42,0.35)]'
                     }`}
                     title={isCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
                     aria-label={isCollapsed ? '네비게이션 펼치기' : '네비게이션 접기'}
@@ -88,7 +88,7 @@ export function SectionNavSidebar({ sections, isCollapsed, onToggleCollapse }: P
                                 }`}
                             />
                             <span
-                                className={`rounded-lg px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${activeSectionId === step.id ? 'bg-slate-100 text-slate-900 font-extrabold' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-950'}`}
+                                className={`rounded-md px-2 py-1 text-sm font-bold leading-tight transition-all duration-200 ${activeSectionId === step.id ? 'bg-slate-100 text-slate-900 font-extrabold' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-950'}`}
                             >
                                 {step.label}
                             </span>

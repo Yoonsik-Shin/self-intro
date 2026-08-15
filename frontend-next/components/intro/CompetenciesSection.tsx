@@ -40,7 +40,7 @@ export function CompetenciesSection({
     const toggleAll = () => setExpandedIds(isAllExpanded ? [] : expandableIds);
 
     const cardStyle =
-        'resume-section-card bg-white border border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative';
+        'resume-section-card relative rounded-lg border border-slate-200 bg-white p-6 sm:p-8';
 
     if (ordered.length === 0) return null;
 
@@ -68,24 +68,21 @@ export function CompetenciesSection({
                 </div>
 
                 <div className="mt-2 divide-y divide-slate-200 border-b border-slate-200">
-                    {ordered.map((competency, index) => (
+                    {ordered.map((competency) => (
                         <article
                             key={competency.id}
                             id={`competency-${competency.id}`}
-                            className="scroll-mt-24 grid gap-3 py-5 sm:grid-cols-[minmax(180px,0.32fr)_minmax(0,1fr)] sm:gap-6"
+                            className="scroll-mt-24 grid gap-3 py-5 sm:grid-cols-[minmax(200px,0.34fr)_minmax(0,1fr)] sm:gap-6"
                         >
                             <div className="min-w-0">
-                                <div className="flex items-baseline gap-2">
-                                    <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400">
-                                        {String(index + 1).padStart(2, '0')}
-                                    </span>
+                                <div>
                                     <h3 className="resume-item-title font-black text-slate-900">
                                         {competency.title}
                                     </h3>
                                 </div>
                                 {((competency.tags ?? []).length > 0 ||
                                     competency.skills.length > 0) && (
-                                    <p className="resume-meta mt-2 pl-9 font-bold text-slate-500">
+                                    <p className="resume-meta mt-2 font-bold text-slate-500">
                                         {((competency.tags ?? []).length > 0
                                             ? (competency.tags ?? [])
                                             : competency.skills
@@ -111,7 +108,7 @@ export function CompetenciesSection({
                                             aria-expanded={expandedIds.includes(competency.id)}
                                             className="flex items-center gap-1.5 text-left"
                                         >
-                                            <span className="resume-label font-black uppercase tracking-[0.14em] text-slate-400">
+                                            <span className="resume-label font-black text-slate-500">
                                                 근거
                                             </span>
                                             <ChevronDown

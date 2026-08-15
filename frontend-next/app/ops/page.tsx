@@ -162,10 +162,7 @@ function InvitationOperationsPanel() {
             <div className="space-y-6">
                 <header className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
-                            Platform Operations
-                        </span>
-                        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+                        <h1 className="text-3xl font-black tracking-tight text-slate-950">
                             비공개 베타 초대 관리
                         </h1>
                         <p className="mt-2 text-sm text-slate-600">
@@ -179,14 +176,14 @@ function InvitationOperationsPanel() {
                 {(error || loadError) && (
                     <p
                         role="alert"
-                        className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
+                        className="rounded-md bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
                     >
                         {error ?? messageOf(loadError)}
                     </p>
                 )}
 
                 {issued && (
-                    <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
                         <h2 className="font-black text-emerald-950">초대가 발급되었습니다</h2>
                         <p className="mt-1 text-xs leading-5 text-emerald-800">
                             {issued.code
@@ -203,7 +200,7 @@ function InvitationOperationsPanel() {
                 <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
                     <form
                         onSubmit={issue}
-                        className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                        className="h-fit rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
                     >
                         <div className="flex items-center gap-2">
                             <UserPlus className="h-5 w-5 text-indigo-600" />
@@ -261,14 +258,14 @@ function InvitationOperationsPanel() {
                                         ? undefined
                                         : '상단에서 중요 작업 인증을 먼저 완료해 주세요.'
                                 }
-                                className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                                className="w-full rounded-md bg-indigo-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                             >
                                 초대 발급
                             </button>
                         </div>
                     </form>
 
-                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                             <div>
                                 <h2 className="font-black text-slate-950">발급 현황</h2>
@@ -278,7 +275,7 @@ function InvitationOperationsPanel() {
                             </div>
                             <button
                                 onClick={() => void refetch()}
-                                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                                className="rounded-md p-2 text-slate-500 hover:bg-slate-100"
                                 aria-label="새로고침"
                             >
                                 <RefreshCw className="h-4 w-4" />
@@ -334,7 +331,7 @@ function InvitationOperationsPanel() {
                                                         onClick={() =>
                                                             void replaceAndSend(invitation.id)
                                                         }
-                                                        className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:opacity-50"
+                                                        className="rounded-md border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:opacity-50"
                                                     >
                                                         교체 발송
                                                     </button>
@@ -349,7 +346,7 @@ function InvitationOperationsPanel() {
                                                                 : '상단에서 중요 작업 인증을 먼저 완료해 주세요.'
                                                         }
                                                         onClick={() => void revoke(invitation.id)}
-                                                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-black text-red-600 disabled:opacity-50"
+                                                        className="inline-flex items-center gap-1 rounded-md border border-red-200 px-3 py-2 text-xs font-black text-red-600 disabled:opacity-50"
                                                     >
                                                         <Ban className="h-3.5 w-3.5" /> 폐기
                                                     </button>
@@ -372,7 +369,7 @@ function SecretRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="mt-3 grid gap-2 sm:grid-cols-[90px_minmax(0,1fr)_auto] sm:items-center">
             <span className="text-xs font-black text-emerald-900">{label}</span>
-            <code className="overflow-x-auto rounded-lg bg-white/80 px-3 py-2 text-xs text-slate-700">
+            <code className="overflow-x-auto rounded-md bg-white/80 px-3 py-2 text-xs text-slate-700">
                 {value}
             </code>
             <button
@@ -382,7 +379,7 @@ function SecretRow({ label, value }: { label: string; value: string }) {
                     setCopied(true);
                     window.setTimeout(() => setCopied(false), 1500);
                 }}
-                className="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-black text-emerald-800"
+                className="inline-flex items-center justify-center gap-1 rounded-md border border-emerald-200 bg-white px-3 py-2 text-xs font-black text-emerald-800"
             >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Clipboard className="h-3.5 w-3.5" />}
                 {copied ? '복사됨' : '복사'}
@@ -398,7 +395,7 @@ function OpsField({ label, ...props }: OpsFieldProps) {
             {label}
             <input
                 {...props}
-                className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-indigo-500 disabled:bg-slate-100"
+                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-indigo-500 disabled:bg-slate-100"
             />
         </label>
     );

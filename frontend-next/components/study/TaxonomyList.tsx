@@ -33,7 +33,7 @@ export function TaxonomyList({ nodes, activeNodeId, onSelect, hideHeader = false
                 <button
                     type="button"
                     onClick={() => onSelect(node.id)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold transition ${
+                    className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold transition ${
                         isActive
                             ? 'bg-slate-900 text-white'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
@@ -65,7 +65,7 @@ export function TaxonomyList({ nodes, activeNodeId, onSelect, hideHeader = false
             <button
                 type="button"
                 onClick={() => onSelect(null)}
-                className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold transition ${
+                className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold transition ${
                     activeNodeId === null
                         ? 'bg-slate-900 text-white'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'

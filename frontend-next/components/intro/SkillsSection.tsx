@@ -65,7 +65,7 @@ export function SkillsSection({
     }, [experiences, selectedSkill]);
 
     const cardStyle =
-        'resume-section-card bg-white border border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative';
+        'resume-section-card relative rounded-lg border border-slate-200 bg-white p-6 sm:p-8';
 
     return (
         <section id="skills" className="scroll-mt-24 space-y-6">
@@ -97,7 +97,7 @@ export function SkillsSection({
                                         if (catSkills.length === 0) return null;
                                         return (
                                             <div key={cat} className="space-y-2">
-                                                <h5 className="resume-label font-black uppercase tracking-wider text-slate-400">
+                                                <h5 className="resume-label font-black text-slate-500">
                                                     {cat}
                                                 </h5>
                                                 <div className="flex flex-wrap gap-1.5">

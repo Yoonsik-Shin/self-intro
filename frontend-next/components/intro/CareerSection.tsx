@@ -15,7 +15,7 @@ const badgeStyle =
 const detailBadgeStyle =
     'text-[11px] bg-slate-50 border border-slate-200/70 text-slate-700 font-bold px-1.5 py-0.5 rounded';
 const cardStyle =
-    'resume-section-card bg-white border border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] hover:shadow-[0_4px_20px_-2px_rgba(15,23,42,0.08)] transition-all duration-300 relative';
+    'resume-section-card relative rounded-lg border border-slate-200 bg-white p-6 sm:p-8';
 
 function detailMarkdown(detail: ExperienceDetail) {
     const merged =
@@ -187,7 +187,7 @@ export function CareerSection({
                                                 <div>
                                                     {project.summary && (
                                                         <div className="mb-4">
-                                                            <h4 className="resume-label font-bold uppercase tracking-wider text-slate-400">
+                                                            <h4 className="resume-label font-bold text-slate-500">
                                                                 프로젝트 설명 및 역할
                                                             </h4>
                                                             <div className="resume-body mt-1 text-slate-600">
@@ -232,7 +232,7 @@ export function CareerSection({
 
                                                             return (
                                                                 <div className="mb-2.5 flex items-center justify-between gap-3 pt-1">
-                                                                    <h4 className="resume-label flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-700">
+                                                                    <h4 className="resume-label flex items-center gap-1.5 font-bold text-slate-700">
                                                                         <Briefcase className="h-3.5 w-3.5 text-slate-500" />
                                                                         상세 경험
                                                                     </h4>

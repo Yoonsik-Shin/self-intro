@@ -432,7 +432,7 @@ export function PrintPreviewNav({
                 <button
                     type="button"
                     onClick={onRequestToggle}
-                    className="mb-4 grid h-9 w-9 place-items-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition shadow-sm shrink-0"
+                    className="mb-4 grid h-9 w-9 place-items-center rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition shadow-sm shrink-0"
                     title="구성 관리 펼치기"
                 >
                     <ChevronLeft className="h-4 w-4" />
@@ -450,7 +450,7 @@ export function PrintPreviewNav({
                                 type="button"
                                 onClick={() => onNavigate(sec.id)}
                                 title={`${sec.label}${excluded ? ' (제외됨)' : ''}`}
-                                className={`grid h-9 w-9 place-items-center rounded-xl border transition ${
+                                className={`grid h-9 w-9 place-items-center rounded-md border transition ${
                                     excluded
                                         ? 'border-slate-800/80 bg-slate-950/40 text-slate-600'
                                         : 'border-slate-700/60 bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
@@ -490,7 +490,7 @@ export function PrintPreviewNav({
                     <button
                         type="button"
                         onClick={onRequestToggle}
-                        className="shrink-0 rounded-lg border border-slate-700 bg-slate-800 p-1 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+                        className="shrink-0 rounded-md border border-slate-700 bg-slate-800 p-1 text-slate-300 hover:bg-slate-700 hover:text-white transition"
                         title="사이드바 접기"
                     >
                         <ChevronRight className="h-4 w-4" />
@@ -564,7 +564,7 @@ export function PrintPreviewNav({
                                     setDragOverSectionId(null);
                                     setSectionDropPosition(null);
                                 }}
-                                className={`group rounded-xl border transition ${
+                                className={`group rounded-lg border transition ${
                                     excluded
                                         ? 'border-slate-800/80 bg-slate-950/40 opacity-60'
                                         : 'border-slate-800 bg-slate-800/60 hover:border-slate-700'
@@ -660,7 +660,7 @@ export function PrintPreviewNav({
                     <button
                         type="button"
                         onClick={onAddCustomSection}
-                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-400/50 bg-blue-500/10 px-3 py-2.5 text-xs font-black text-blue-200 transition hover:border-blue-300 hover:bg-blue-500/20 hover:text-white"
+                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-blue-400/50 bg-blue-500/10 px-3 py-2.5 text-xs font-black text-blue-200 transition hover:border-blue-300 hover:bg-blue-500/20 hover:text-white"
                     >
                         <Plus className="h-3.5 w-3.5" />
                         사용자 정의 섹션 추가

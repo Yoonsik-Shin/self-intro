@@ -86,9 +86,9 @@ export default function PasswordResetPage() {
 
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-            <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06)]">
+            <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06)]">
                 <div className="mb-6 flex items-center gap-3">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-950 text-white">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-slate-950 text-white">
                         {completed ? (
                             <ShieldCheck className="h-5 w-5" />
                         ) : token ? (
@@ -109,12 +109,12 @@ export default function PasswordResetPage() {
 
                 {completed ? (
                     <div className="space-y-5">
-                        <div className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                        <div className="rounded-md bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
                             비밀번호가 변경됐고 기존 로그인 세션은 모두 종료됐습니다.
                         </div>
                         <Link
                             href="/login"
-                            className="block w-full rounded-xl bg-slate-950 px-5 py-3 text-center text-sm font-bold text-white hover:bg-slate-800"
+                            className="block w-full rounded-md bg-slate-950 px-5 py-3 text-center text-sm font-bold text-white hover:bg-slate-800"
                         >
                             새 비밀번호로 로그인
                         </Link>
@@ -137,7 +137,7 @@ export default function PasswordResetPage() {
                             onToggle={() => setConfirmationVisible((current) => !current)}
                             autoComplete="new-password"
                         />
-                        <ul className="grid gap-1.5 rounded-xl bg-slate-50 p-4 text-xs font-semibold">
+                        <ul className="grid gap-1.5 rounded-md bg-slate-50 p-4 text-xs font-semibold">
                             {PASSWORD_RULES.map((rule) => {
                                 const satisfied = rule.test(newPassword);
                                 return (
@@ -164,21 +164,21 @@ export default function PasswordResetPage() {
                                 !allRulesSatisfied ||
                                 newPassword !== passwordConfirmation
                             }
-                            className="w-full rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="w-full rounded-md bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             {submitting ? '변경 중...' : '비밀번호 변경'}
                         </button>
                     </form>
                 ) : requested ? (
                     <div className="space-y-5">
-                        <div className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                        <div className="rounded-md bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
                             계정이 존재하고 메일 전송이 가능하면 재설정 링크를 보냈습니다. 링크는
                             30분 동안 사용할 수 있습니다.
                         </div>
                         <button
                             type="button"
                             onClick={() => setRequested(false)}
-                            className="w-full rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                            className="w-full rounded-md border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
                         >
                             다른 이메일로 다시 요청
                         </button>
@@ -197,7 +197,7 @@ export default function PasswordResetPage() {
                                 maxLength={255}
                                 value={email}
                                 onChange={(event) => setEmail(event.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                className="w-full rounded-md border border-slate-200 px-4 py-3 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                             />
                         </div>
                         <p className="text-xs leading-5 text-slate-500">
@@ -208,7 +208,7 @@ export default function PasswordResetPage() {
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="w-full rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-40"
+                            className="w-full rounded-md bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-40"
                         >
                             {submitting ? '요청 중...' : '재설정 링크 받기'}
                         </button>
@@ -256,7 +256,7 @@ function PasswordField({
                     autoComplete={autoComplete}
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-11 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    className="w-full rounded-md border border-slate-200 px-4 py-3 pr-11 text-sm focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 />
                 <button
                     type="button"

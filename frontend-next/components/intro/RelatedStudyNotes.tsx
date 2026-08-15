@@ -57,7 +57,7 @@ export function RelatedStudyNotes({
 
     return (
         <div className="mt-3 border-t border-slate-100 pt-2.5 print:hidden">
-            <p className="resume-label mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-blue-600">
+            <p className="resume-label mb-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />
                 관련 학습 · 기술노트
             </p>
@@ -67,7 +67,7 @@ export function RelatedStudyNotes({
                         key={study.id}
                         href={`${studyBasePath}/${encodeURIComponent(study.slug)}`}
                         onClick={(event) => event.stopPropagation()}
-                        className="group flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-left text-blue-600 transition-all hover:bg-blue-50/70 hover:text-blue-800"
+                        className="group flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-blue-600 transition-all hover:bg-blue-50/70 hover:text-blue-800"
                     >
                         <span className="text-sm font-semibold underline-offset-4 decoration-blue-300 group-hover:underline">
                             {study.title}
@@ -80,7 +80,7 @@ export function RelatedStudyNotes({
                 <Link
                     href={moreHref}
                     onClick={(event) => event.stopPropagation()}
-                    className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:bg-slate-50 hover:text-blue-600"
+                    className="mt-1 flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:bg-slate-50 hover:text-blue-600"
                 >
                     더보기 +{remainingCount}
                     <ChevronDown className="h-3 w-3" />

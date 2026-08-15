@@ -310,7 +310,7 @@ export function PortfolioPrintCanvas({
                             e.stopPropagation();
                             setContentOverrides((cur) => ({ ...cur, [field]: undefined }));
                         }}
-                        className="absolute -top-3.5 right-1 z-30 inline-flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-xs hover:bg-amber-600 transition print:hidden"
+                        className="absolute -top-3.5 right-1 z-30 inline-flex items-center gap-1 rounded-md bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-xs hover:bg-amber-600 transition print:hidden"
                         title="원본 문구로 복원"
                     >
                         <RotateCcw className="h-2.5 w-2.5" />
@@ -820,7 +820,7 @@ export function PortfolioPrintCanvas({
                         <button
                             type="button"
                             onClick={() => setAiChatOpen(false)}
-                            className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                             aria-label="AI 대화 패널 닫기"
                         >
                             <X className="h-4 w-4" />
@@ -846,7 +846,7 @@ export function PortfolioPrintCanvas({
                 <button
                     type="button"
                     onClick={onExit}
-                    className="absolute right-4 top-[4.25rem] z-50 hidden h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-slate-300 hover:text-white print:hidden"
+                    className="absolute right-4 top-[4.25rem] z-50 hidden h-8 w-8 items-center justify-center rounded-md bg-slate-800 text-slate-300 hover:text-white print:hidden"
                 >
                     <X className="h-4 w-4" />
                 </button>
