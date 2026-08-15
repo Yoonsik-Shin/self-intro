@@ -32,15 +32,15 @@ flowchart LR
 
 ## 2. 사용자와 권한
 
-| 사용자             | 권한 기준                                 | 할 수 있는 일                         |
-| ------------------ | ----------------------------------------- | ------------------------------------- |
-| 공개 방문자        | 공개 상태                                 | 발행된 Profile·Experience·Study 조회  |
-| 비공개 베타테스터  | 계정 + Workspace Membership               | 초대 가입, 자기 Workspace 생성·관리   |
-| Workspace `OWNER`  | 해당 Workspace Membership                 | Workspace 소유·멤버·발행 관리         |
-| Workspace `ADMIN`  | 해당 Workspace Membership                 | Workspace 관리                        |
-| Workspace `EDITOR` | 해당 Workspace Membership                 | 콘텐츠 편집                           |
+| 사용자             | 권한 기준                                 | 할 수 있는 일                                   |
+| ------------------ | ----------------------------------------- | ----------------------------------------------- |
+| 공개 방문자        | 공개 상태                                 | 발행된 Profile·Experience·Study 조회            |
+| 비공개 베타테스터  | 계정 + Workspace Membership               | 초대 가입, 자기 Workspace 생성·관리             |
+| Workspace `OWNER`  | 해당 Workspace Membership                 | Workspace 소유·멤버·발행 관리                   |
+| Workspace `ADMIN`  | 해당 Workspace Membership                 | Workspace 관리                                  |
+| Workspace `EDITOR` | 해당 Workspace Membership                 | 콘텐츠 편집                                     |
 | Workspace `VIEWER` | 해당 Workspace Membership                 | 비공개 Profile·Experience·Skill·Study 읽기 전용 |
-| 플랫폼 운영자      | `PLATFORM_OWNER` 또는 `PLATFORM_OPERATOR` | 관리 셸의 조건부 메뉴에서 플랫폼 운영 |
+| 플랫폼 운영자      | `PLATFORM_OWNER` 또는 `PLATFORM_OPERATOR` | 관리 셸의 조건부 메뉴에서 플랫폼 운영           |
 
 Workspace 역할과 플랫폼 역할은 합산하지 않는다. 플랫폼 운영자도 Membership이 없는 다른 Workspace를
 관리할 수 없고, Workspace `OWNER`도 플랫폼 역할 없이는 `/ops`에 접근할 수 없다.
@@ -58,8 +58,11 @@ Workspace 역할과 플랫폼 역할은 합산하지 않는다. 플랫폼 운영
 결정해야 하며, Workspace 삭제 시에만 해당 Workspace 콘텐츠와 파생 데이터의 삭제를 전파한다.
 
 현재 Profile, Experience, Study, Competency, Tag, Portfolio Case Study, PrintTemplate이 직접
-`workspace_id`를 갖는다. Skill은 공통 정의를
-유지하고 `workspace_skill`에 숙련도·버전·설명·핵심 여부·노출 순서를 저장한다. 대표 프로젝트 배치는
+`workspace_id`를 갖는다. Skill은 이름·분류·배지를 플랫폼 공통 `skill` 정의로 유지하고
+`workspace_skill`에 실무 수준·사용 버전·활용 맥락·경험 메모·핵심 여부·노출 순서를 저장한다.
+Workspace 관리자는 공통 catalog ID를 선택해 자기 overlay를 만들거나 수정할 수 있지만 공통 정의는
+변경할 수 없다. 플랫폼 공통 Skill 쓰기 API도 이름·분류·배지 정의만 받으며 Workspace 표현값은
+조회하거나 수정하지 않는다. 대표 프로젝트 배치는
 Experience의 Workspace를 상속해 조회·교체한다. Taxonomy node는 플랫폼 공통 정의이고 공개 Study에
 노출할 항목과 순서는 Workspace 공개 학습 구성으로 관리한다. Taxonomy는 버전이 있는 domain scheme이며
 Workspace가 여러 플랫폼 template 또는 자체 scheme을 구독할 수 있다. 기존 개발자 트리는
@@ -110,30 +113,30 @@ bootstrap 계정의 표시 이름과 Workspace 이름도 별도 설정으로 관
 - **설계**: 결정은 끝났지만 구현 전
 - **레거시**: 기존 기능은 동작하지만 SaaS 사용자에게 개방하면 안 됨
 
-| 기능 영역               | 데이터 소유권              | 공개 화면                 | 관리 화면/API                                    | 상태    |
-| ----------------------- | -------------------------- | ------------------------- | ------------------------------------------------ | ------- |
-| 계정·이메일 로그인      | Account                    | 해당 없음                 | 가입·로그인·이메일 확인                          | 구현    |
-| 비공개 베타 초대        | Platform                   | `/signup`                 | 관리 셸의 운영자 전용 메뉴                       | 구현    |
-| Vector 정합성 점검      | Platform 파생 데이터       | 해당 없음                 | 운영자 전용 대조·고아/누락 정리                  | 구현    |
-| Workspace·Membership    | Workspace                  | 공개 상태에 따라 404      | 생성·초대·수락·거절·역할·소유권 관리             | 구현    |
-| Profile                 | Workspace                  | Workspace slug 조회       | slug 기반 관리·Membership 인가                   | 구현    |
-| Experience              | Workspace                  | 목록·상세 Workspace 격리  | 관리·연결·대표 배치 API·UI                       | 구현    |
-| Study                   | Workspace                  | 목록·상세 Workspace 격리  | canonical 관리 API·UI                            | 구현    |
-| Tag                     | Workspace                  | Workspace별 Study tag     | Study에서 Workspace별 생성                       | 구현    |
-| Skill                   | 공통 catalog + Workspace   | Workspace overlay만 포함  | catalog 선택·표현·연결 관리 UI                   | 구현    |
-| Competency              | Workspace                  | Workspace별 응답          | canonical 관리 API·UI                            | 구현    |
-| Taxonomy                | versioned scheme + Workspace 구독 | Workspace별 공개 탐색 | 공개 페이지 학습 구성 + 플랫폼 scheme 원본 UI | 구현    |
-| 개발자 온톨로지         | 공통 catalog + Workspace   | Workspace별 Study 근거    | canonical 관리 API·UI                            | 구현    |
-| 학습 자료·학습 계획     | catalog + Workspace 상태   | 일부 기존 화면            | canonical 관리 API·UI                            | 구현    |
-| 지원 공고·지원별 이력서 | 승인 catalog + Workspace 비공개 원본·지원 | 비공개 | URL·스크린샷 parse-only, 직접 입력·지원·매칭·AI 경계 구현 | 구현 |
-| Portfolio Case Study    | Workspace                  | Workspace별 발행 API      | canonical 관리 API·UI                            | 구현    |
-| PrintTemplate           | Workspace                  | Workspace별 공개 서식 API | canonical API·Workspace UI                       | 구현    |
-| 출력 원본·구성 revision | Workspace                  | 비공개 원본 / 공개 snapshot 분리 | 템플릿별 포함·제외·복원                    | 구현    |
-| 공개 revision           | Workspace                  | 발행본 전용 API           | 초안→발행→공개 중지                              | 구현    |
-| 객체 저장소             | Workspace key namespace    | 공개/비공개 scope 분리    | private PDF·purge adapter 구현, 파일 검사 미완료 | 전환 중 |
-| AI·벡터 검색            | Experience·Study Workspace | 직접 공개 안 함           | 경력·학습·역량 초안 입력 격리                    | 구현    |
-| 플랫폼 MFA·세션 보안    | Account/Platform           | 해당 없음                 | 운영자 MFA·재인증                                | 구현    |
-| Support Access          | Platform 보안 경계         | 해당 없음                 | 승인·사유·만료·최소 범위·감사                    | 구현    |
+| 기능 영역               | 데이터 소유권                             | 공개 화면                        | 관리 화면/API                                             | 상태    |
+| ----------------------- | ----------------------------------------- | -------------------------------- | --------------------------------------------------------- | ------- |
+| 계정·이메일 로그인      | Account                                   | 해당 없음                        | 가입·로그인·이메일 확인                                   | 구현    |
+| 비공개 베타 초대        | Platform                                  | `/signup`                        | 관리 셸의 운영자 전용 메뉴                                | 구현    |
+| Vector 정합성 점검      | Platform 파생 데이터                      | 해당 없음                        | 운영자 전용 대조·고아/누락 정리                           | 구현    |
+| Workspace·Membership    | Workspace                                 | 공개 상태에 따라 404             | 생성·초대·수락·거절·역할·소유권 관리                      | 구현    |
+| Profile                 | Workspace                                 | Workspace slug 조회              | slug 기반 관리·Membership 인가                            | 구현    |
+| Experience              | Workspace                                 | 목록·상세 Workspace 격리         | 관리·연결·대표 배치 API·UI                                | 구현    |
+| Study                   | Workspace                                 | 목록·상세 Workspace 격리         | canonical 관리 API·UI                                     | 구현    |
+| Tag                     | Workspace                                 | Workspace별 Study tag            | Study에서 Workspace별 생성                                | 구현    |
+| Skill                   | 공통 catalog + Workspace                  | Workspace overlay만 포함         | catalog 선택 + 실무 메타데이터·연결 관리 UI               | 구현    |
+| Competency              | Workspace                                 | Workspace별 응답                 | canonical 관리 API·UI                                     | 구현    |
+| Taxonomy                | versioned scheme + Workspace 구독         | Workspace별 공개 탐색            | 공개 페이지 학습 구성 + 플랫폼 scheme 원본 UI             | 구현    |
+| 개발자 온톨로지         | 공통 catalog + Workspace                  | Workspace별 Study 근거           | canonical 관리 API·UI                                     | 구현    |
+| 학습 자료               | catalog + Workspace 상태                  | 일부 기존 화면                   | canonical 관리 API·UI                                     | 구현    |
+| 지원 공고·지원별 이력서 | 승인 catalog + Workspace 비공개 원본·지원 | 비공개                           | URL·스크린샷 parse-only, 직접 입력·지원·매칭·AI 경계 구현 | 구현    |
+| Portfolio Case Study    | Workspace                                 | Workspace별 발행 API             | canonical 관리 API·UI                                     | 구현    |
+| PrintTemplate           | Workspace                                 | Workspace별 공개 서식 API        | canonical API·Workspace UI                                | 구현    |
+| 출력 원본·구성 revision | Workspace                                 | 비공개 원본 / 공개 snapshot 분리 | 템플릿별 포함·제외·복원                                   | 구현    |
+| 공개 revision           | Workspace                                 | 발행본 전용 API                  | 초안→발행→공개 중지                                       | 구현    |
+| 객체 저장소             | Workspace key namespace                   | 공개/비공개 scope 분리           | private PDF·purge adapter 구현, 파일 검사 미완료          | 전환 중 |
+| AI·벡터 검색            | Experience·Study Workspace                | 직접 공개 안 함                  | 경력·학습·역량 초안 입력 격리                             | 구현    |
+| 플랫폼 MFA·세션 보안    | Account/Platform                          | 해당 없음                        | 운영자 MFA·재인증                                         | 구현    |
+| Support Access          | Platform 보안 경계                        | 해당 없음                        | 승인·사유·만료·최소 범위·감사                             | 구현    |
 
 ## 6. 현재 관리자 화면을 읽는 법
 
@@ -151,10 +154,16 @@ bootstrap 계정의 표시 이름과 Workspace 이름도 별도 설정으로 관
 관리 셸은 저장 위치의 기술 용어인 `DB` 대신 사용자가 수행하는 작업과 공개 효과를 기준으로 메뉴를
 구분한다.
 
-- `Workspace 설정`: 기본 설정, 멤버·권한, 현재 Workspace의 공개 페이지 통계
-- `내 기록`: 경력·프로젝트, 학습 기록, 기술 스택, 학습 자료, AI 학습 계획. 저장만으로 공개되지 않는다.
+- `Workspace 설정`: 홈 요약, 기본 설정, 멤버·권한, 현재 Workspace의 공개 페이지 통계.
+  홈은 현재 Workspace의 경력·학습 원본 수, 연결 기술·역량 수, 지원 현황, 공개본 상태를 요약하며
+  각 카드에서 해당 관리 화면으로 이동한다. 플랫폼 전체 사용자·방문·운영 통계는 포함하지 않는다.
+- `Workspace 보안·동의`: Workspace `OWNER`가 플랫폼 지원 담당자의 최소 진단 요청을 승인·거절·철회
+  하는 소유자 동의 화면. 플랫폼 운영 기능이 아니며 일반 멤버에게는 노출하지 않는다.
+- `내 기록`: 경력·프로젝트, 학습 기록, 기술 스택, 학습 자료. 저장만으로 공개되지 않는다.
   Experience·Competency 원본 API는 레거시 공개 플래그를 새로 켜거나 수정하지 않는다. Study의
   `작성 중/작성 완료`는 문서 편집 상태일 뿐 공개 여부가 아니다.
+  `포트폴리오 원본`은 Experience에 연결한 사례 문서와 그 content revision을 관리한다. 제목·URL·연결
+  경험 검색과 기준 revision 준비 상태 필터를 제공하며, 과거 revision을 편집 기준으로 불러올 수 있다.
 - `공개 페이지`: 전체 공개본 발행, 프로필 구성, 경험 구성, 학습 구성.
   원본 기록에는 공개 여부를 저장하지 않고 이 영역에서만 노출·순서·강조 방식을 관리한다.
   프로필과 경험은 각각 불변 revision을 가지며 Study는 별도 revision 없이 전체 공개본에 content·taxonomy
@@ -165,13 +174,20 @@ bootstrap 계정의 표시 이름과 Workspace 이름도 별도 설정으로 관
   공개 탐색에 사용할 카테고리만 고른다. 플랫폼 taxonomy 원본 관리와 Workspace 공개 선택은 별도다.
 - `지원·출력`: 지원 현황, 이력서·PDF 템플릿. 공개 메인페이지와 별개의 결과물이다.
 
+관리 화면 상단의 `공개 페이지`는 현재 Workspace의 방문자 URL인 `/workspace/{slug}`로 이동한다.
+발행 전 저장 내용을 확인하는 `미리보기`와는 역할이 다르며, 활성 공개본이 없는 Workspace의 방문자 URL은
+404로 닫힌다. 플랫폼 제품 소개는 루트(`/`)에 그대로 남아 있고 Workspace 관리의 기본 복귀 경로로
+사용하지 않는다.
+
 사이드바 그룹 제목의 도움말 버튼은 위 범위와 공개 효과를 어두운 툴팁으로 보여준다. 각 목록 화면은
 자체 제목과 설명만 유지해 같은 설명을 두 번 출력하지 않는다. 미리보기는 플랫폼 역할이 아니라 현재
 Workspace의 `OWNER`, `ADMIN`, `EDITOR` Membership을 기준으로 제공한다. 실제 발행·공개 중지는
 `공개 페이지 > 공개본·버전`에서 `OWNER`, `ADMIN`만 수행한다. schema v3 발행은 프로필 구성 revision과
 경험 구성 revision을 고정하고, 선택한 학습 기록·탐색 taxonomy를 전체 Workspace snapshot에 함께
 복사한다. 포트폴리오 사례는 자체 content revision을 먼저 준비하되, 공개 페이지 포함 여부와 순서는
-`경험 구성`에서 결정한다.
+`경험 구성`에서 결정한다. 따라서 사례 화면은 `revision 발행` 대신 `기준 revision 지정`으로 표현하며,
+이는 공개 구성에서 선택할 수 있는 불변 후보를 확정하는 작업이다. 기준본 준비 상태만으로 공개 URL에
+나타나지 않는다.
 
 ### 플랫폼 운영자에게만 표시할 메뉴
 
@@ -179,7 +195,8 @@ Workspace의 `OWNER`, `ADMIN`, `EDITOR` Membership을 기준으로 제공한다.
 - 플랫폼 전체 방문자 통계
 - 플랫폼 후원·결제 운영
 - 전역 분류 체계와 제품 아키텍처 콘텐츠
-- 초대·사용자·보안 감사·Support Access
+- 초대·사용자·보안 감사·Support Access 요청·최소 진단. 접근 승인은 대상 Workspace `OWNER`의 별도
+  동의 화면에서만 처리한다.
 - 폐쇄 Workspace 삭제 점검·저장소별 dry-run
 - MySQL 원본·Oracle Vector namespace read-only 정합성 점검, 재인증 기반 고아 정리, 명시적 외부 전송 기반 누락 복구
 
@@ -200,28 +217,27 @@ Workspace 관리 UI는 아래 표의 `최종 관리 주체`에 따라 canonical 
 
 ### Workspace가 소유·관리할 콘텐츠
 
-| 기능                       | 최종 관리 주체              | 권한 기준                  | 현재 상태                             |
-| -------------------------- | --------------------------- | -------------------------- | ------------------------------------- |
-| 프로필 정보                | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | slug 기반 관리 API 구현               |
-| 이력·경력·프로젝트         | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | canonical 관리 API·UI 구현            |
-| 공부 정리·기술 노트        | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | canonical 관리 API·UI 구현            |
-| 개발자 온톨로지            | catalog + Workspace overlay | `OWNER`, `ADMIN`, `EDITOR` | 공통 지식 + Study 연결 격리 구현      |
-| 학습 자료                  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | catalog 선택 + 상태·메모 UI 구현      |
-| AI 학습 계획               | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | Workspace 후보·계획·AI 경계 구현      |
-| 기술 스택                  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 공통 catalog + 표현·연결 구현         |
-| 핵심 역량                  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | canonical 관리 API·UI 구현            |
-| 핵심 프로젝트 노출·순서    | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | Experience 소유권 상속 + canonical UI |
-| 지원 현황                   | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 내 지원 + 승인 공통 공고 + 비공개 URL·직접 입력 |
-| 공고 공유 심사              | Platform                    | 플랫폼 운영자              | 권한 증빙 검토 + 공통 공개 승인        |
-| 지원별 이력서·자기소개서   | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 자소서·PDF API 격리, 플랫폼 AI 제한   |
-| 포트폴리오 Case Study      | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | canonical 관리 API·UI 구현            |
-| PDF 템플릿·출력 설정       | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 소유권·canonical API·UI 구현          |
-| Workspace별 분류·카테고리  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | scheme 구독 + 공개 학습 구성 구현     |
-| 공개 페이지 방문 통계      | Workspace                   | `OWNER`, `ADMIN`           | 별도 집계·canonical API·UI 구현       |
-| 공개 Profile·revision·slug | Workspace                   | `OWNER`, `ADMIN`           | 불변 revision·발행·alias UI 구현      |
-| Workspace 멤버·역할        | Workspace                   | `OWNER`, `ADMIN`           | 수락형 초대·역할·제거 UI 구현         |
-| Workspace 이름·설정        | Workspace                   | `OWNER`, `ADMIN`           | 이름·slug 변경 구현                   |
-| 소유권 이전·Workspace 폐쇄 | Workspace                   | `OWNER`                    | 즉시 차단·purge dry-run 기반 구현     |
+| 기능                       | 최종 관리 주체              | 권한 기준                  | 현재 상태                                                    |
+| -------------------------- | --------------------------- | -------------------------- | ------------------------------------------------------------ |
+| 프로필 정보                | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | slug 기반 관리 API 구현                                      |
+| 이력·경력·프로젝트         | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | canonical 관리 API·UI 구현                                   |
+| 공부 정리·기술 노트        | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | canonical 관리 API·UI 구현                                   |
+| 개발자 온톨로지            | catalog + Workspace overlay | `OWNER`, `ADMIN`, `EDITOR` | 공통 지식 + Study 연결 격리 구현                             |
+| 학습 자료                  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | catalog 선택 + 상태·메모 UI 구현                             |
+| 기술 스택                  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 공통 catalog + 표현·연결 구현                                |
+| 핵심 역량                  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | Workspace 태그 기반 관리·검색·출력, 기존 기술 연결 호환      |
+| 핵심 프로젝트 노출·순서    | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | Experience 소유권 상속 + canonical UI                        |
+| 지원 현황                  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 목록·보드·캘린더·지도, 승인 공통 공고 + 비공개 URL·직접 입력 |
+| 공고 공유 심사             | Platform                    | 플랫폼 운영자              | 권한 증빙 검토 + 공통 공개 승인                              |
+| 지원별 이력서·자기소개서   | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 자소서·PDF API 격리, 플랫폼 AI 제한                          |
+| 포트폴리오 Case Study      | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 원본 검색·상태 필터·revision 비교/기준본 지정 UI 구현        |
+| PDF 템플릿·출력 설정       | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | 소유권·canonical API·UI 구현                                 |
+| Workspace별 분류·카테고리  | Workspace                   | `OWNER`, `ADMIN`, `EDITOR` | scheme 구독 + 공개 학습 구성 구현                            |
+| 공개 페이지 방문 통계      | Workspace                   | `OWNER`, `ADMIN`           | 별도 집계·canonical API·UI 구현                              |
+| 공개 Profile·revision·slug | Workspace                   | `OWNER`, `ADMIN`           | 불변 revision·발행·alias UI 구현                             |
+| Workspace 멤버·역할        | Workspace                   | `OWNER`, `ADMIN`           | 수락형 초대·역할·제거 UI 구현                                |
+| Workspace 이름·설정        | Workspace                   | `OWNER`, `ADMIN`           | 이름·slug 변경 구현                                          |
+| 소유권 이전·Workspace 폐쇄 | Workspace                   | `OWNER`                    | 즉시 차단·purge dry-run 기반 구현                            |
 
 플랫폼 운영자는 플랫폼 역할만으로 위 콘텐츠를 열람하거나 수정할 수 없다. 자신의 Membership이 있는
 Workspace에서는 해당 Workspace 역할 범위로만 관리한다. 다른 사용자 지원이 필요하면 향후
@@ -248,14 +264,14 @@ Workspace에서는 해당 Workspace 역할 범위로만 관리한다. 다른 사
 
 ### 계정 본인만 관리할 정보
 
-| 기능                        | 관리 주체                    | Workspace와의 관계               | 현재 상태    |
-| --------------------------- | ---------------------------- | -------------------------------- | ------------ |
-| 로그인 이메일·비밀번호      | Account 본인                 | 비밀번호 변경·분실 재설정·확인형 이메일 변경 구현 | 구현         |
-| 닉네임                      | Account 본인                 | 멤버 표시용, 공개 Profile과 독립 | 구현         |
-| MFA·세션·전체 기기 로그아웃 | Account 본인                 | 전체 기기 로그아웃 구현, 플랫폼 운영자는 MFA 필수 | 일부 구현    |
-| 실명 인증                   | Account 본인 + 인증 provider | 공개 Profile로 자동 복사 금지    | 경계만 설계  |
-| 약관·개인정보 동의          | Account 본인                 | Workspace와 독립                 | 구현         |
-| 계정 탈퇴                   | Account 본인                 | 활성 Workspace 소유권·플랫폼 역할 정리 선행 | 구현         |
+| 기능                        | 관리 주체                    | Workspace와의 관계                                | 현재 상태   |
+| --------------------------- | ---------------------------- | ------------------------------------------------- | ----------- |
+| 로그인 이메일·비밀번호      | Account 본인                 | 비밀번호 변경·분실 재설정·확인형 이메일 변경 구현 | 구현        |
+| 닉네임                      | Account 본인                 | 멤버 표시용, 공개 Profile과 독립                  | 구현        |
+| MFA·세션·전체 기기 로그아웃 | Account 본인                 | 전체 기기 로그아웃 구현, 플랫폼 운영자는 MFA 필수 | 일부 구현   |
+| 실명 인증                   | Account 본인 + 인증 provider | 공개 Profile로 자동 복사 금지                     | 경계만 설계 |
+| 약관·개인정보 동의          | Account 본인                 | Workspace와 독립                                  | 구현        |
+| 계정 탈퇴                   | Account 본인                 | 활성 Workspace 소유권·플랫폼 역할 정리 선행       | 구현        |
 
 ### Workspace 역할별 최종 권한
 

@@ -2477,3 +2477,20 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 이번 변경은 표시 규격 통일만 수행한다. API, 저장 데이터, 공개 revision, 권한 판정은 변경하지 않는다.
   배포 전에는 펼친·접힌 사이드바, 좁은 화면, 긴 Workspace 이름에서 제목과 작업 버튼이 겹치지 않는지 확인하고,
   플랫폼 운영자 전용 화면이 일반 Membership 사용자에게 새로 노출되지 않는지 확인한다.
+
+### 15.23 2026-08-15 기능 브랜치 출시 후보 검증
+
+- 검증 대상은 `fix/saas-recovery-build-baseline` 기능 브랜치다. 운영 배포 Workflow는 `main` push 또는
+  수동 `workflow_dispatch`만 대상으로 하므로 이 브랜치를 원격에 push해도 운영 환경은 변경되지 않는다.
+  운영 배포는 로컬 UAT 완료 후 별도의 명시적 승인으로 `main`에 반영해야 한다.
+- frontend는 ESLint와 `tsc --noEmit`을 통과했다. ESLint 결과는 오류 0개, 기존 경고 7개이며 경고를
+  출시 실패로 숨기지 않고 후속 정리 대상으로 유지한다.
+- backend 전체 Gradle test와 최근 재인증 집중 테스트 44건을 통과했다. Compose 설정 검증과
+  `backend`, `backend-worker`, `frontend-next` 이미지 build도 통과했다.
+- 로컬 MySQL에서 V232~V235가 모두 성공 이력으로 기록되었다. 출력 artifact, 역량 tag, Workspace 지도
+  설정 테이블은 생성되었고 제거하기로 확정한 AI 학습 계획 테이블은 존재하지 않음을 확인했다.
+- Compose runtime에서 backend health는 `UP`, 홈페이지는 HTTP 200을 반환했다. frontend 환경과 번들을
+  확실히 갱신하기 위해 frontend container를 강제 재생성한 뒤 다시 확인했다.
+- 이 기록은 로컬 출시 후보의 재현 가능한 검증 근거이며 운영 데이터 백업, 운영 Flyway 적용, GitOps
+  rollout과 운영 브라우저 smoke test를 대신하지 않는다. 기능 브랜치 push 뒤 배포가 발생하지 않는 것이
+  정상이며, 운영 반영 시에는 각 Workflow 실행과 실제 배포 commit SHA를 별도로 기록한다.

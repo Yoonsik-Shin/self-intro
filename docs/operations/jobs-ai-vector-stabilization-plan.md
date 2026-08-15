@@ -31,8 +31,6 @@
   ID로 해석한 뒤 지원 건을 `(workspace_id, job_posting_id)`로 다시 검증한다.
 - 자기소개서 revision, Gap 문서, 적합도 결과와 PrintTemplate 재생성은 해당 Workspace 지원 건의
   자식으로 취급한다.
-- StudyPlan API는 `/api/worker/workspaces/{slug}/study-plans/manage`만 사용하고 plan ID 단독 조회 대신
-  `(id, workspace_id)` 조회를 사용한다.
 - `RelevantProfileDigestService`는 명시적 Workspace ID를 받아 경력·학습 vector를 검색한다.
 - `job_posting_vector`는 공용 공고 원문 파생 데이터다. Workspace 폐쇄·purge 대상은
   `experience_vector`와 `study_vector`이며 공용 공고 vector는 제외한다.

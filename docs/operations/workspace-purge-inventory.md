@@ -31,7 +31,7 @@ V217 적용 전 로컬 MySQL 실스키마에는 `workspace_id` 컬럼 테이블�
 
 | 처리 분류 | 테이블 |
 | --- | --- |
-| Workspace FK `CASCADE` | `competency`, `decision_study_link`, `experience`, `portfolio_case_study`, `print_template`, `profile`, `study`, `study_plan`, `study_taxonomy_curation`, `tag`, `workspace_job_application`, `workspace_learning_resource`, `workspace_member`, `workspace_publication_revision`, `workspace_skill`, `workspace_slug_alias`, `workspace_visitor_daily_visit`, `workspace_visitor_hourly_visit` |
+| Workspace FK `CASCADE` | `competency`, `decision_study_link`, `experience`, `portfolio_case_study`, `print_template`, `profile`, `study`, `study_taxonomy_curation`, `tag`, `workspace_job_application`, `workspace_learning_resource`, `workspace_member`, `workspace_publication_revision`, `workspace_skill`, `workspace_slug_alias`, `workspace_visitor_daily_visit`, `workspace_visitor_hourly_visit` |
 | Workspace 삭제 전 명시 삭제 | `workspace_membership_invitation` (`NO ACTION`) |
 | 보존·가명화 정책 필요 | `security_audit_event` (Workspace FK 없음) |
 | purge 제어 증적 보존 | `workspace_purge_job` (Workspace FK 없음) |
