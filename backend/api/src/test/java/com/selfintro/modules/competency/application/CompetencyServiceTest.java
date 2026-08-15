@@ -12,7 +12,9 @@ import com.selfintro.modules.competency.presentation.dto.CompetencyRequest;
 import com.selfintro.modules.experience.domain.repository.ExperienceRepository;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
+import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
+import com.selfintro.modules.study.domain.repository.TagRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +29,7 @@ class CompetencyServiceTest {
     @Mock WorkspaceSkillRepository workspaceSkillRepository;
     @Mock ExperienceRepository experienceRepository;
     @Mock StudyRepository studyRepository;
+    @Mock TagRepository tagRepository;
 
     private CompetencyService service;
 
@@ -38,7 +41,8 @@ class CompetencyServiceTest {
                         skillRepository,
                         workspaceSkillRepository,
                         experienceRepository,
-                        studyRepository);
+                        studyRepository,
+                        tagRepository);
     }
 
     @Test
@@ -47,7 +51,14 @@ class CompetencyServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         CompetencyRequest request =
                 new CompetencyRequest(
-                        "백엔드 아키텍처", "도메인 경계를 설계합니다.", 1, true, List.of(), List.of(), List.of());
+                        "백엔드 아키텍처",
+                        "도메인 경계를 설계합니다.",
+                        1,
+                        true,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of());
 
         var response = service.create(request);
 
@@ -69,6 +80,7 @@ class CompetencyServiceTest {
                         List.of(
                                 new CompetencyRequest.EvidenceRequest(1L, "첫 번째", true, 0),
                                 new CompetencyRequest.EvidenceRequest(2L, "두 번째", true, 1)),
+                        List.of(),
                         List.of());
 
         assertThatThrownBy(() -> service.create(request))
@@ -88,12 +100,39 @@ class CompetencyServiceTest {
                         true,
                         List.of(31L),
                         List.of(),
+                        List.of(),
                         List.of());
 
         assertThatThrownBy(() -> service.create(10L, request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("현재 Workspace에 추가되지 않은 기술");
         verifyNoInteractions(competencyRepository);
+    }
+
+    @Test
+    void createsWorkspaceCompetencyWithWorkspaceOwnedTags() {
+        when(competencyRepository.save(any(Competency.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(tagRepository.findByWorkspaceIdAndNameIgnoreCase(10L, "성능 최적화"))
+                .thenReturn(java.util.Optional.empty());
+        when(tagRepository.save(any(Tag.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CompetencyRequest request =
+                new CompetencyRequest(
+                        "성능 병목 개선",
+                        "측정 가능한 병목을 찾아 제거합니다.",
+                        1,
+                        false,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of("성능 최적화"));
+
+        var response = service.create(10L, request);
+
+        assertThat(response.tags()).extracting("name").containsExactly("성능 최적화");
+        assertThat(response.skills()).isEmpty();
     }
 
     @Test

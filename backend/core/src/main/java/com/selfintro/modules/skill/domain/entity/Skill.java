@@ -104,6 +104,31 @@ public class Skill {
                 displayOrder);
     }
 
+    /** 플랫폼 공통 카탈로그에는 재사용 가능한 정적 정의만 저장한다. */
+    public static Skill createCatalog(
+            String name, String category, String badgeKey, String badgeColor) {
+        return new Skill(
+                name,
+                category,
+                null,
+                null,
+                null,
+                "CATALOG",
+                badgeKey,
+                badgeColor,
+                false,
+                0);
+    }
+
+    /** Workspace별 숙련도·버전·메모·노출 순서는 건드리지 않고 공통 정의만 변경한다. */
+    public void updateCatalogDefinition(
+            String name, String category, String badgeKey, String badgeColor) {
+        this.name = name;
+        this.category = category;
+        this.badgeKey = normalizeBadgeValue(badgeKey);
+        this.badgeColor = normalizeBadgeValue(badgeColor);
+    }
+
     public static Skill create(
             String name,
             String category,

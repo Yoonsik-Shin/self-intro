@@ -3,8 +3,9 @@ package com.selfintro.modules.skill.presentation;
 import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.skill.application.SkillService;
-import com.selfintro.modules.skill.presentation.dto.SkillRequest;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
+import com.selfintro.modules.skill.presentation.dto.WorkspaceSkillCreateRequest;
+import com.selfintro.modules.skill.presentation.dto.WorkspaceSkillUpdateRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +51,7 @@ public class WorkspaceSkillController {
     public SkillResponse create(
             Authentication authentication,
             @PathVariable String workspaceSlug,
-            @Valid @RequestBody SkillRequest request) {
+            @Valid @RequestBody WorkspaceSkillCreateRequest request) {
         return skillService.addToWorkspace(
                 writeWorkspaceId(authentication, workspaceSlug), request);
     }
@@ -60,7 +61,7 @@ public class WorkspaceSkillController {
             Authentication authentication,
             @PathVariable String workspaceSlug,
             @PathVariable Long catalogSkillId,
-            @Valid @RequestBody SkillRequest request) {
+            @Valid @RequestBody WorkspaceSkillUpdateRequest request) {
         return skillService.updateWorkspaceSkill(
                 writeWorkspaceId(authentication, workspaceSlug), catalogSkillId, request);
     }

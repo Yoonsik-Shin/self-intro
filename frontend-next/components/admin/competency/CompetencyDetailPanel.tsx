@@ -7,7 +7,7 @@ import {
     Pencil,
     Sparkles,
     Trash2,
-    Wrench,
+    Tags,
 } from 'lucide-react';
 import type { Competency } from '@/lib/api/types';
 
@@ -26,6 +26,8 @@ export function CompetencyDetailPanel({
 }: CompetencyDetailPanelProps) {
     const primaryEvidence = competency.evidences.find((evidence) => evidence.primary);
     const otherEvidences = competency.evidences.filter((evidence) => !evidence.primary);
+    const displayTags =
+        (competency.tags ?? []).length > 0 ? (competency.tags ?? []) : competency.skills;
 
     return (
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-fadeIn">
@@ -135,21 +137,21 @@ export function CompetencyDetailPanel({
                 <aside className="space-y-5 lg:border-l lg:border-slate-100 lg:pl-6">
                     <section>
                         <h4 className="mb-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-400">
-                            <Wrench className="h-3.5 w-3.5" /> 기술 스택
+                            <Tags className="h-3.5 w-3.5" /> 태그
                         </h4>
-                        {competency.skills.length > 0 ? (
+                        {displayTags.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
-                                {competency.skills.map((skill) => (
+                                {displayTags.map((tag) => (
                                     <span
-                                        key={skill.id}
+                                        key={`${tag.id}-${tag.name}`}
                                         className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700"
                                     >
-                                        {skill.name}
+                                        {tag.name}
                                     </span>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-xs text-slate-400">연결된 기술이 없습니다.</p>
+                            <p className="text-xs text-slate-400">등록된 태그가 없습니다.</p>
                         )}
                     </section>
 

@@ -10,7 +10,6 @@ import {
     Plus,
     Save,
     Search,
-    Sparkles,
     Trash2,
     WandSparkles,
 } from 'lucide-react';
@@ -18,6 +17,7 @@ import { competencyApi, experienceApi, skillApi, studyApi } from '@/lib/api';
 import type { Competency, CompetencyRequest, CompetencySuggestion } from '@/lib/api/types';
 import { CompetencyDetailPanel } from './CompetencyDetailPanel';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const AI_FIELD_LABELS: Record<string, string> = {
     theme: '주제',
@@ -37,6 +37,7 @@ const emptyForm: CompetencyRequest = {
     skillIds: [],
     evidences: [],
     studyIds: [],
+    tagNames: [],
 };
 
 type AiEvidenceGroupSummary = { theme: string; evidenceCount: number; studyCount: number };
@@ -54,7 +55,7 @@ export function CompetencyManagement({
     const [form, setForm] = useState<CompetencyRequest>(emptyForm);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [listSearch, setListSearch] = useState('');
-    const [skillSearch, setSkillSearch] = useState('');
+    const [tagDraft, setTagDraft] = useState('');
     const [experienceSearch, setExperienceSearch] = useState('');
     const [studySearch, setStudySearch] = useState('');
     const [aiInstruction, setAiInstruction] = useState('');
@@ -103,6 +104,7 @@ export function CompetencyManagement({
             const searchable = [
                 item.title,
                 item.summary,
+                ...(item.tags ?? []).map((tag) => tag.name),
                 ...item.skills.map((skill) => skill.name),
                 ...item.evidences.map((evidence) => evidence.experienceTitle),
                 ...item.relatedStudies.map((study) => study.title),
@@ -121,14 +123,6 @@ export function CompetencyManagement({
                         item.title.toLowerCase().includes(experienceSearch.toLowerCase()))
             ),
         [experiences, experienceSearch]
-    );
-    const filteredSkills = useMemo(
-        () =>
-            skills.filter(
-                (item) =>
-                    !skillSearch || item.name.toLowerCase().includes(skillSearch.toLowerCase())
-            ),
-        [skills, skillSearch]
     );
     const filteredStudies = useMemo(
         () =>
@@ -197,7 +191,7 @@ export function CompetencyManagement({
     };
 
     const resetRelationSearches = () => {
-        setSkillSearch('');
+        setTagDraft('');
         setExperienceSearch('');
         setStudySearch('');
     };
@@ -221,7 +215,7 @@ export function CompetencyManagement({
             summary: competency.summary,
             displayOrder: competency.displayOrder,
             visible: competency.visible,
-            skillIds: competency.skills.map((skill) => skill.id),
+            skillIds: [],
             evidences: competency.evidences.map((evidence) => ({
                 experienceId: evidence.experienceId,
                 evidenceSummary: evidence.evidenceSummary ?? '',
@@ -229,6 +223,10 @@ export function CompetencyManagement({
                 displayOrder: evidence.displayOrder,
             })),
             studyIds: competency.relatedStudies.map((study) => study.id),
+            tagNames:
+                (competency.tags ?? []).length > 0
+                    ? (competency.tags ?? []).map((tag) => tag.name)
+                    : competency.skills.map((skill) => skill.name),
         });
         setAiSuggestions([]);
         resetAiStream();
@@ -248,12 +246,24 @@ export function CompetencyManagement({
         if (window.confirm('이 핵심 역량을 삭제하시겠습니까?')) deleteMutation.mutate(id);
     };
 
-    const toggleSkill = (id: number) => {
+    const addTag = () => {
+        const name = tagDraft.trim();
+        if (!name) return;
         setForm((current) => ({
             ...current,
-            skillIds: current.skillIds.includes(id)
-                ? current.skillIds.filter((value) => value !== id)
-                : [...current.skillIds, id],
+            tagNames: current.tagNames.some(
+                (tagName) => tagName.toLowerCase() === name.toLowerCase()
+            )
+                ? current.tagNames
+                : [...current.tagNames, name],
+        }));
+        setTagDraft('');
+    };
+
+    const removeTag = (name: string) => {
+        setForm((current) => ({
+            ...current,
+            tagNames: current.tagNames.filter((tagName) => tagName !== name),
         }));
     };
 
@@ -376,7 +386,14 @@ export function CompetencyManagement({
             ...current,
             title: suggestion.title,
             summary: suggestion.summary,
-            skillIds: suggestion.skillIds,
+            skillIds: [],
+            tagNames: Array.from(
+                new Set(
+                    suggestion.skillIds
+                        .map((id) => skills.find((skill) => skill.id === id)?.name)
+                        .filter((name): name is string => Boolean(name))
+                )
+            ),
             evidences: suggestion.evidences.map((evidence, index) => ({
                 ...evidence,
                 displayOrder: index,
@@ -391,24 +408,20 @@ export function CompetencyManagement({
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="flex items-center gap-2 text-xl font-black text-slate-950">
-                        <Sparkles className="h-5 w-5" /> 핵심 역량 관리
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-500">
-                        역량 원본과 실무·학습 근거를 기록합니다. 공개 범위는 공개 페이지에서
-                        구성합니다.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={openCreate}
-                    className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
-                >
-                    <Plus className="h-4 w-4" /> 새 역량 작성
-                </button>
-            </div>
+            <AdminPageHeader
+                eyebrow="Source Record"
+                title="핵심 역량 관리"
+                description="역량 원본과 실무·학습 근거를 기록합니다. 공개 범위는 공개 페이지에서 구성합니다."
+                actions={
+                    <button
+                        type="button"
+                        onClick={openCreate}
+                        className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                    >
+                        <Plus className="h-4 w-4" /> 새 역량 작성
+                    </button>
+                }
+            />
 
             {mutationError && (
                 <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -469,9 +482,15 @@ export function CompetencyManagement({
                                             {competency.summary}
                                         </p>
                                         <p className="mt-2 text-xs font-semibold text-slate-400">
-                                            기술 {competency.skills.length}개 · 실무 근거{' '}
-                                            {competency.evidences.length}개 · 관련 Study{' '}
-                                            {competency.relatedStudies.length}개
+                                            태그{' '}
+                                            {
+                                                ((competency.tags ?? []).length > 0
+                                                    ? (competency.tags ?? [])
+                                                    : competency.skills
+                                                ).length
+                                            }
+                                            개 · 실무 근거 {competency.evidences.length}개 · 관련
+                                            Study {competency.relatedStudies.length}개
                                         </p>
                                     </button>
                                     <div className="flex shrink-0 items-center gap-2">
@@ -720,22 +739,56 @@ export function CompetencyManagement({
                             className={inputClassName}
                         />
                     </FormField>
-                    <SelectionSection
-                        title={`기술 스택 (${form.skillIds.length})`}
-                        search={skillSearch}
-                        onSearch={setSkillSearch}
-                        placeholder="기술 검색..."
-                    >
-                        {filteredSkills.map((skill) => (
-                            <CheckItem
-                                key={skill.id}
-                                checked={form.skillIds.includes(skill.id)}
-                                onChange={() => toggleSkill(skill.id)}
-                                label={skill.name}
-                                meta={skill.category}
+                    <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h4 className="text-sm font-black text-slate-800">
+                                    역량 태그 ({form.tagNames.length})
+                                </h4>
+                                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                    기술 이름에 한정하지 않고 이 역량의 문제 영역·역할·강점을
+                                    표현하세요.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                            <input
+                                value={tagDraft}
+                                maxLength={80}
+                                onChange={(event) => setTagDraft(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ',') {
+                                        event.preventDefault();
+                                        addTag();
+                                    }
+                                }}
+                                placeholder="예: 성능 최적화, 이벤트 아키텍처"
+                                className={inputClassName}
                             />
-                        ))}
-                    </SelectionSection>
+                            <button
+                                type="button"
+                                onClick={addTag}
+                                className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-700"
+                            >
+                                추가
+                            </button>
+                        </div>
+                        {form.tagNames.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {form.tagNames.map((name) => (
+                                    <button
+                                        key={name}
+                                        type="button"
+                                        onClick={() => removeTag(name)}
+                                        title="태그 제거"
+                                        className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                    >
+                                        {name} ×
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </section>
 
                     <SelectionSection
                         title={`실무 근거 (${form.evidences.length})`}

@@ -13,7 +13,8 @@ public record CompetencyRequest(
         boolean visible,
         @NotNull List<Long> skillIds,
         @NotNull @Valid List<EvidenceRequest> evidences,
-        @NotNull List<Long> studyIds) {
+        @NotNull List<Long> studyIds,
+        List<@NotBlank @Size(max = 80) String> tagNames) {
     public record EvidenceRequest(
             @NotNull Long experienceId,
             @Size(max = 700) String evidenceSummary,

@@ -8,6 +8,8 @@ import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.skill.presentation.dto.SkillRequest;
 import com.selfintro.modules.skill.presentation.dto.SkillResponse;
+import com.selfintro.modules.skill.presentation.dto.WorkspaceSkillCreateRequest;
+import com.selfintro.modules.skill.presentation.dto.WorkspaceSkillUpdateRequest;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -45,10 +47,10 @@ public class SkillService {
 
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
-    public SkillResponse addToWorkspace(Long workspaceId, SkillRequest request) {
+    public SkillResponse addToWorkspace(Long workspaceId, WorkspaceSkillCreateRequest request) {
         Skill catalogSkill =
                 skillRepository
-                        .findByName(request.name())
+                        .findById(request.catalogSkillId())
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
@@ -74,15 +76,12 @@ public class SkillService {
     @Transactional
     @CacheEvict(value = "bff:introduction", allEntries = true)
     public SkillResponse updateWorkspaceSkill(
-            Long workspaceId, Long catalogSkillId, SkillRequest request) {
+            Long workspaceId, Long catalogSkillId, WorkspaceSkillUpdateRequest request) {
         WorkspaceSkill workspaceSkill =
                 workspaceSkillRepository
                         .findByWorkspaceIdAndSkillId(workspaceId, catalogSkillId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Workspace 기술을 찾을 수 없습니다."));
-        if (!workspaceSkill.getSkill().getName().equals(request.name())) {
-            throw new IllegalArgumentException("공통 기술 이름은 Workspace에서 변경할 수 없습니다.");
-        }
         workspaceSkill.update(
                 request.skillLevel(),
                 request.skillVersion(),
@@ -117,17 +116,11 @@ public class SkillService {
     @CacheEvict(value = "bff:introduction", allEntries = true)
     public Skill create(SkillRequest request) {
         Skill skill =
-                Skill.create(
+                Skill.createCatalog(
                         request.name(),
                         request.category(),
-                        request.skillLevel(),
-                        request.skillVersion(),
-                        request.comment(),
-                        request.usageType(),
                         request.badgeKey(),
-                        request.badgeColor(),
-                        request.isCore(),
-                        request.displayOrder());
+                        request.badgeColor());
         return skillRepository.save(skill);
     }
 
@@ -138,17 +131,11 @@ public class SkillService {
                 skillRepository
                         .findById(id)
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기술 스택입니다."));
-        skill.update(
+        skill.updateCatalogDefinition(
                 request.name(),
                 request.category(),
-                request.skillLevel(),
-                request.skillVersion(),
-                request.comment(),
-                request.usageType(),
                 request.badgeKey(),
-                request.badgeColor(),
-                request.isCore(),
-                request.displayOrder());
+                request.badgeColor());
         return skillRepository.save(skill);
     }
 

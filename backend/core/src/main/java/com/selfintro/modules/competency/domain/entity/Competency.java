@@ -3,6 +3,7 @@ package com.selfintro.modules.competency.domain.entity;
 import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.skill.domain.entity.Skill;
 import com.selfintro.modules.study.domain.entity.Study;
+import com.selfintro.modules.study.domain.entity.Tag;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -59,6 +60,15 @@ public class Competency {
     @OrderBy("displayOrder ASC")
     private List<CompetencyStudy> studyLinks = new ArrayList<>();
 
+    @BatchSize(size = 100)
+    @ManyToMany
+    @JoinTable(
+            name = "competency_tag",
+            joinColumns = @JoinColumn(name = "competency_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    @OrderBy("name ASC")
+    private List<Tag> tags = new ArrayList<>();
+
     private Competency(String title, String summary, int displayOrder, boolean visible) {
         this.title = title;
         this.summary = summary;
@@ -102,6 +112,7 @@ public class Competency {
         skillLinks.clear();
         evidences.clear();
         studyLinks.clear();
+        tags.clear();
     }
 
     public void replaceSkills(List<Skill> skills) {
@@ -131,6 +142,11 @@ public class Competency {
         for (int i = 0; i < studies.size(); i++) {
             studyLinks.add(CompetencyStudy.create(this, studies.get(i), i));
         }
+    }
+
+    public void replaceTags(List<Tag> tags) {
+        this.tags.clear();
+        this.tags.addAll(tags);
     }
 
     public record EvidenceDraft(

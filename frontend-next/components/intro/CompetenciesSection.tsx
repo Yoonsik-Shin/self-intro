@@ -83,9 +83,13 @@ export function CompetenciesSection({
                                         {competency.title}
                                     </h3>
                                 </div>
-                                {competency.skills.length > 0 && (
+                                {((competency.tags ?? []).length > 0 ||
+                                    competency.skills.length > 0) && (
                                     <p className="resume-meta mt-2 pl-9 font-bold text-slate-500">
-                                        {competency.skills
+                                        {((competency.tags ?? []).length > 0
+                                            ? (competency.tags ?? [])
+                                            : competency.skills
+                                        )
                                             .slice(0, 6)
                                             .map((skill) => skill.name)
                                             .join(' · ')}

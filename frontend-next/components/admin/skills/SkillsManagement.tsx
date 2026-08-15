@@ -8,17 +8,19 @@ import type { Skill } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
 import { SkillBadgeIcon } from '@/lib/SkillBadgeIcon';
-import { findSkillBadge, recommendSkillBadge, skillBadgeOptions } from '@/lib/skillBadges';
 import { SkillGroupSection } from './SkillGroupSection';
 import { getSkillCategoryPresentation, skillCategoryPresentations } from './skillPresentation';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 export type SkillForm = Omit<Skill, 'id'> & {
+    catalogSkillId: number | null;
     studyIds: number[];
     experienceIds: number[];
     experienceDetailIds: number[];
 };
 
 const emptySkillForm: SkillForm = {
+    catalogSkillId: null,
     name: '',
     category: 'FRAMEWORK',
     skillLevel: '중급',
@@ -96,6 +98,9 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
     const [skillForm, setSkillForm] = useState<SkillForm>(emptySkillForm);
     const [isSkillFormOpen, setIsSkillFormOpen] = useState(false);
     const setSkillDraft = useAdminPreviewStore((s) => s.setSkillDraft);
+    const selectedCatalogSkill = catalogSkills.find(
+        (catalogSkill) => catalogSkill.id === skillForm.catalogSkillId
+    );
 
     // 라이브 프리뷰 패널이 저장 전 초안을 메인페이지 기술 스택 영역에 반영할 수 있도록 발행한다.
     useEffect(() => {
@@ -170,8 +175,19 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
 
     const createSkillMutation = useMutation({
         mutationFn: async (form: SkillForm) => {
-            const { studyIds, experienceIds, experienceDetailIds, ...payload } = form;
-            const skill = await skillApi.workspaceCreate(workspaceSlug, payload);
+            const { studyIds, experienceIds, experienceDetailIds } = form;
+            if (form.catalogSkillId === null) {
+                throw new Error('공통 기술 카탈로그에서 기술을 선택해 주세요.');
+            }
+            const skill = await skillApi.workspaceCreate(workspaceSlug, {
+                catalogSkillId: form.catalogSkillId,
+                skillLevel: form.skillLevel,
+                skillVersion: form.skillVersion,
+                comment: form.comment,
+                usageType: form.usageType,
+                isCore: form.isCore,
+                displayOrder: form.displayOrder,
+            });
             await connectionApi.updateWorkspaceSkill(workspaceSlug, skill.id, {
                 studyIds,
                 experienceIds,
@@ -192,8 +208,15 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
 
     const updateSkillMutation = useMutation({
         mutationFn: async ({ id, payload }: { id: number; payload: SkillForm }) => {
-            const { studyIds, experienceIds, experienceDetailIds, ...skillPayload } = payload;
-            const skill = await skillApi.workspaceUpdate(workspaceSlug, id, skillPayload);
+            const { studyIds, experienceIds, experienceDetailIds } = payload;
+            const skill = await skillApi.workspaceUpdate(workspaceSlug, id, {
+                skillLevel: payload.skillLevel,
+                skillVersion: payload.skillVersion,
+                comment: payload.comment,
+                usageType: payload.usageType,
+                isCore: payload.isCore,
+                displayOrder: payload.displayOrder,
+            });
             await connectionApi.updateWorkspaceSkill(workspaceSlug, id, {
                 studyIds,
                 experienceIds,
@@ -215,10 +238,13 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
 
     const toggleCoreSkillMutation = useMutation({
         mutationFn: (skill: Skill) => {
-            const { id, ...payload } = skill;
-            return skillApi.workspaceUpdate(workspaceSlug, id, {
-                ...payload,
+            return skillApi.workspaceUpdate(workspaceSlug, skill.id, {
+                skillLevel: skill.skillLevel,
+                skillVersion: skill.skillVersion,
+                comment: skill.comment,
+                usageType: skill.usageType,
                 isCore: !skill.isCore,
+                displayOrder: skill.displayOrder,
             });
         },
         onMutate: async (skill) => {
@@ -266,23 +292,6 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
         }
     };
 
-    const handleSkillNameChange = (name: string) => {
-        setSkillForm((current) => {
-            const previousRecommendation = recommendSkillBadge(current.name);
-            const nextRecommendation = recommendSkillBadge(name);
-            const usesAutomaticBadge =
-                !current.badgeKey || current.badgeKey === previousRecommendation?.key;
-            return {
-                ...current,
-                name,
-                badgeKey: usesAutomaticBadge ? (nextRecommendation?.key ?? '') : current.badgeKey,
-                badgeColor: usesAutomaticBadge
-                    ? (nextRecommendation?.color ?? '')
-                    : current.badgeColor,
-            };
-        });
-    };
-
     const handleSkillDelete = (id: number) => {
         if (window.confirm('정말 이 기술 스택을 삭제하시겠습니까?')) {
             deleteSkillMutation.mutate(id);
@@ -292,17 +301,17 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
     const openSkillEditor = async (skill: Skill) => {
         try {
             const connections = await connectionApi.getWorkspaceSkill(workspaceSlug, skill.id);
-            const recommendedBadge = recommendSkillBadge(skill.name);
             setSkillEditingId(skill.id);
             setSkillForm({
+                catalogSkillId: skill.id,
                 name: skill.name,
                 category: skill.category,
                 skillLevel: skill.skillLevel ?? '',
                 skillVersion: skill.skillVersion ?? '',
                 comment: skill.comment ?? '',
                 usageType: skill.usageType ?? 'LEARNING',
-                badgeKey: skill.badgeKey ?? recommendedBadge?.key ?? '',
-                badgeColor: skill.badgeColor ?? recommendedBadge?.color ?? '',
+                badgeKey: skill.badgeKey ?? '',
+                badgeColor: skill.badgeColor ?? '',
                 isCore: skill.isCore,
                 displayOrder: skill.displayOrder,
                 ...connections,
@@ -315,24 +324,23 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="text-xl font-black text-slate-950">기술 스택 관리</h2>
-                    <p className="text-sm text-slate-500 mt-0.5">
-                        포트폴리오 핵심/일반 마스터 기술 목록을 관리합니다.
-                    </p>
-                </div>
-                <button
-                    onClick={() => {
-                        setSkillEditingId(null);
-                        setSkillForm(emptySkillForm);
-                        setIsSkillFormOpen(true);
-                    }}
-                    className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
-                >
-                    <Plus className="h-4 w-4" />새 기술 추가
-                </button>
-            </div>
+            <AdminPageHeader
+                eyebrow="Source Record"
+                title="내 기술 스택"
+                description="공통 기술 카탈로그에서 선택하고 이 Workspace의 실무 경험과 활용 정보를 연결합니다."
+                actions={
+                    <button
+                        onClick={() => {
+                            setSkillEditingId(null);
+                            setSkillForm(emptySkillForm);
+                            setIsSkillFormOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
+                    >
+                        <Plus className="h-4 w-4" /> 카탈로그 기술 추가
+                    </button>
+                }
+            />
 
             <div className="sticky top-14 z-20 flex flex-col sm:flex-row gap-3 items-center justify-between bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">
                 <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
@@ -363,58 +371,89 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
                     className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
                 >
                     <h3 className="text-base font-black text-slate-800">
-                        {skillEditingId !== null ? '기술 수정' : '새 기술 추가'}
+                        {skillEditingId !== null
+                            ? 'Workspace 기술 정보 수정'
+                            : '카탈로그 기술 추가'}
                     </h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                기술 스택명
-                            </label>
-                            <select
-                                required
-                                value={skillForm.name}
-                                onChange={(e) => handleSkillNameChange(e.target.value)}
-                                disabled={skillEditingId !== null}
-                                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            >
-                                <option value="">공용 기술 카탈로그에서 선택</option>
-                                {availableCatalogSkills.map((skill) => (
-                                    <option key={skill.id} value={skill.name}>
-                                        {skill.name} · {skill.category}
-                                    </option>
-                                ))}
-                                {skillEditingId !== null && skillForm.name && (
-                                    <option value={skillForm.name}>{skillForm.name}</option>
-                                )}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                분류 카테고리
-                            </label>
-                            <select
-                                value={skillForm.category}
-                                onChange={(e) =>
-                                    setSkillForm({ ...skillForm, category: e.target.value })
-                                }
-                                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            >
-                                <option value="LANGUAGE">개발 언어 (LANGUAGE)</option>
-                                <option value="FRAMEWORK">
-                                    프레임워크 / 라이브러리 (FRAMEWORK)
-                                </option>
-                                <option value="DATABASE">데이터베이스 (DATABASE)</option>
-                                <option value="DEVOPS">배포 및 인프라 (DEVOPS)</option>
-                                <option value="AI_RAG">인공지능 / RAG (AI_RAG)</option>
-                                <option value="ETC">기타 (ETC)</option>
-                            </select>
-                        </div>
+                    <div>
+                        {skillEditingId === null ? (
+                            <div>
+                                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    공통 기술 카탈로그
+                                </label>
+                                <select
+                                    required
+                                    value={skillForm.catalogSkillId ?? ''}
+                                    onChange={(event) => {
+                                        if (!event.target.value) {
+                                            setSkillForm((current) => ({
+                                                ...current,
+                                                catalogSkillId: null,
+                                                name: '',
+                                                category: 'ETC',
+                                                badgeKey: '',
+                                                badgeColor: '',
+                                            }));
+                                            return;
+                                        }
+                                        const catalogSkillId = Number(event.target.value);
+                                        const catalogSkill = catalogSkills.find(
+                                            (skill) => skill.id === catalogSkillId
+                                        );
+                                        setSkillForm((current) => ({
+                                            ...current,
+                                            catalogSkillId,
+                                            name: catalogSkill?.name ?? '',
+                                            category: catalogSkill?.category ?? 'ETC',
+                                            badgeKey: catalogSkill?.badgeKey ?? '',
+                                            badgeColor: catalogSkill?.badgeColor ?? '',
+                                        }));
+                                    }}
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                >
+                                    <option value="">기술을 선택해 주세요</option>
+                                    {availableCatalogSkills.map((skill) => (
+                                        <option key={skill.id} value={skill.id}>
+                                            {skill.name} ·{' '}
+                                            {getSkillCategoryPresentation(skill.category).label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        ) : null}
+
+                        {selectedCatalogSkill ? (
+                            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <SkillBadgeIcon
+                                    name={selectedCatalogSkill.name}
+                                    badgeKey={selectedCatalogSkill.badgeKey}
+                                    badgeColor={selectedCatalogSkill.badgeColor}
+                                    className="h-9 w-9"
+                                />
+                                <div className="min-w-0">
+                                    <p className="font-black text-slate-900">
+                                        {selectedCatalogSkill.name}
+                                    </p>
+                                    <p className="text-xs font-semibold text-slate-500">
+                                        {
+                                            getSkillCategoryPresentation(
+                                                selectedCatalogSkill.category
+                                            ).label
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        ) : null}
+                        <p className="mt-2 text-xs font-medium text-slate-500">
+                            이름·분류·뱃지는 플랫폼 공통 카탈로그 정의입니다. 이 Workspace에서는
+                            실무 수준, 사용 맥락과 경험 메모만 관리합니다.
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                기술 레벨
+                                실무 수준
                             </label>
                             <input
                                 type="text"
@@ -428,7 +467,7 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
                         </div>
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                버전
+                                사용 버전
                             </label>
                             <input
                                 type="text"
@@ -442,7 +481,7 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
                         </div>
                         <div>
                             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                활용 구분
+                                활용 맥락
                             </label>
                             <select
                                 value={skillForm.usageType}
@@ -492,109 +531,9 @@ export function SkillsManagement({ workspaceSlug }: { workspaceSlug: string }) {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                            <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row">
-                                <div className="min-w-0 flex-1">
-                                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                        기술 뱃지
-                                    </label>
-                                    <select
-                                        value={skillForm.badgeKey ?? ''}
-                                        onChange={(event) => {
-                                            if (event.target.value === 'none') {
-                                                setSkillForm((current) => ({
-                                                    ...current,
-                                                    badgeKey: 'none',
-                                                    badgeColor: '',
-                                                }));
-                                                return;
-                                            }
-                                            const option = findSkillBadge(event.target.value);
-                                            setSkillForm((current) => ({
-                                                ...current,
-                                                badgeKey: option?.key ?? '',
-                                                badgeColor: option?.color ?? '',
-                                            }));
-                                        }}
-                                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                    >
-                                        <option value="">자동 추천 또는 글자 뱃지</option>
-                                        <option value="none">뱃지 표시 안 함</option>
-                                        {skillBadgeOptions.map((option) => (
-                                            <option key={option.key} value={option.key}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="sm:w-44">
-                                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                                        브랜드 색상
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="color"
-                                            value={
-                                                /^[0-9A-Fa-f]{6}$/.test(skillForm.badgeColor ?? '')
-                                                    ? `#${skillForm.badgeColor}`
-                                                    : '#64748B'
-                                            }
-                                            onChange={(event) =>
-                                                setSkillForm((current) => ({
-                                                    ...current,
-                                                    badgeColor: event.target.value
-                                                        .slice(1)
-                                                        .toUpperCase(),
-                                                }))
-                                            }
-                                            className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
-                                            aria-label="뱃지 색상 선택"
-                                        />
-                                        <input
-                                            type="text"
-                                            maxLength={6}
-                                            value={skillForm.badgeColor ?? ''}
-                                            placeholder="64748B"
-                                            onChange={(event) =>
-                                                setSkillForm((current) => ({
-                                                    ...current,
-                                                    badgeColor: event.target.value
-                                                        .replace(/[^0-9A-Fa-f]/g, '')
-                                                        .toUpperCase(),
-                                                }))
-                                            }
-                                            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-mono text-sm uppercase outline-none focus:border-slate-800"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex min-w-36 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                <SkillBadgeIcon
-                                    name={skillForm.name || '기술'}
-                                    badgeKey={skillForm.badgeKey}
-                                    badgeColor={skillForm.badgeColor}
-                                    className="h-7 w-7"
-                                />
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                        미리보기
-                                    </p>
-                                    <p className="truncate text-sm font-black text-slate-800">
-                                        {skillForm.name || '기술명'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="mt-2 text-xs font-medium text-slate-400">
-                            기술명과 일치하는 뱃지는 자동 추천되며, 없으면 첫 글자 뱃지로
-                            표시됩니다.
-                        </p>
-                    </div>
-
                     <div>
                         <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-                            코멘트
+                            경험 메모
                         </label>
                         <textarea
                             rows={3}

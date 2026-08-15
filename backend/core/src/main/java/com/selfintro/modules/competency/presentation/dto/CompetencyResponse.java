@@ -15,6 +15,7 @@ public record CompetencyResponse(
         int displayOrder,
         boolean visible,
         List<SkillResponse> skills,
+        List<TagResponse> tags,
         List<EvidenceResponse> evidences,
         List<StudyReferenceResponse> relatedStudies) {
     public static CompetencyResponse from(Competency competency, boolean publicOnly) {
@@ -41,9 +42,14 @@ public record CompetencyResponse(
                 competency.getSkillLinks().stream()
                         .map(link -> SkillResponse.fromCatalog(link.getSkill()))
                         .toList(),
+                competency.getTags().stream()
+                        .map(tag -> new TagResponse(tag.getId(), tag.getName(), tag.getSlug()))
+                        .toList(),
                 evidences,
                 studies);
     }
+
+    public record TagResponse(Long id, String name, String slug) {}
 
     public record EvidenceResponse(
             Long id,

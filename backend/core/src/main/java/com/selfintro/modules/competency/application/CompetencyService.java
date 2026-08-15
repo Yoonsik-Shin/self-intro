@@ -11,15 +11,23 @@ import com.selfintro.modules.skill.domain.entity.WorkspaceSkill;
 import com.selfintro.modules.skill.domain.repository.SkillRepository;
 import com.selfintro.modules.skill.domain.repository.WorkspaceSkillRepository;
 import com.selfintro.modules.study.domain.entity.Study;
+import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
+import com.selfintro.modules.study.domain.repository.TagRepository;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +39,7 @@ public class CompetencyService {
     private final WorkspaceSkillRepository workspaceSkillRepository;
     private final ExperienceRepository experienceRepository;
     private final StudyRepository studyRepository;
+    private final TagRepository tagRepository;
 
     public List<CompetencyResponse> getAll() {
         return competencyRepository.findAllByOrderByDisplayOrderAsc().stream()
@@ -236,6 +245,19 @@ public class CompetencyService {
                         != request.evidences().size()) {
             throw new IllegalArgumentException("핵심 역량의 연결 항목은 중복될 수 없습니다.");
         }
+        if (request.tagNames() != null) {
+            long distinctTags =
+                    request.tagNames().stream()
+                            .filter(StringUtils::hasText)
+                            .map(String::trim)
+                            .map(name -> name.toLowerCase(Locale.ROOT))
+                            .distinct()
+                            .count();
+            long tagCount = request.tagNames().stream().filter(StringUtils::hasText).count();
+            if (distinctTags != tagCount) {
+                throw new IllegalArgumentException("핵심 역량 태그는 중복될 수 없습니다.");
+            }
+        }
     }
 
     private void replaceLinks(Competency competency, CompetencyRequest request) {
@@ -283,6 +305,7 @@ public class CompetencyService {
         competency.replaceSkills(skills);
         competency.replaceEvidences(evidences);
         competency.replaceStudies(studies);
+        competency.replaceTags(List.of());
     }
 
     private void replaceLinks(Long workspaceId, Competency competency, CompetencyRequest request) {
@@ -334,6 +357,54 @@ public class CompetencyService {
         competency.replaceSkills(skills);
         competency.replaceEvidences(evidences);
         competency.replaceStudies(studies);
+        competency.replaceTags(resolveTags(workspaceId, request.tagNames()));
+    }
+
+    private List<Tag> resolveTags(Long workspaceId, List<String> tagNames) {
+        if (tagNames == null) {
+            return List.of();
+        }
+        Set<String> normalizedNames = new LinkedHashSet<>();
+        tagNames.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .forEach(normalizedNames::add);
+
+        List<Tag> result = new ArrayList<>();
+        for (String name : normalizedNames) {
+            result.add(
+                    tagRepository
+                            .findByWorkspaceIdAndNameIgnoreCase(workspaceId, name)
+                            .orElseGet(
+                                    () ->
+                                            tagRepository.save(
+                                                    Tag.create(
+                                                            workspaceId,
+                                                            name,
+                                                            uniqueTagSlug(workspaceId, name)))));
+        }
+        return result;
+    }
+
+    private String uniqueTagSlug(Long workspaceId, String name) {
+        String base = slugify(name);
+        if (!StringUtils.hasText(base)) {
+            base = "tag";
+        }
+        String candidate = base;
+        int suffix = 2;
+        while (tagRepository.existsByWorkspaceIdAndSlug(workspaceId, candidate)) {
+            candidate = base + "-" + suffix++;
+        }
+        return candidate;
+    }
+
+    private String slugify(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT)
+                .trim()
+                .replaceAll("[^\\p{L}\\p{N}]+", "-")
+                .replaceAll("^-+|-+$", "");
     }
 
     private Competency requireOwned(Long workspaceId, Long id) {

@@ -19,19 +19,19 @@ public class SkillController {
     @GetMapping
     public ResponseEntity<List<SkillResponse>> list() {
         List<SkillResponse> responses =
-                skillService.getAllSkills().stream().map(SkillResponse::from).toList();
+                skillService.getAllSkills().stream().map(SkillResponse::fromCatalog).toList();
         return ResponseEntity.ok(responses);
     }
 
     @PostMapping
     public ResponseEntity<SkillResponse> create(@Valid @RequestBody SkillRequest request) {
-        return ResponseEntity.ok(SkillResponse.from(skillService.create(request)));
+        return ResponseEntity.ok(SkillResponse.fromCatalog(skillService.create(request)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<SkillResponse> update(
             @PathVariable Long id, @Valid @RequestBody SkillRequest request) {
-        return ResponseEntity.ok(SkillResponse.from(skillService.update(id, request)));
+        return ResponseEntity.ok(SkillResponse.fromCatalog(skillService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
