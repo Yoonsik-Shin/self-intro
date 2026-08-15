@@ -19,7 +19,7 @@ images:
     newTag: "aaf72fc"
   - name: self-intro-backend-worker
     newName: yny.ocir.io/axrywc89b6lf/self-intro/backend-worker
-    newTag: "20f45fc"
+    newTag: "aaf72fc"
 
 
 configMapGenerator:
