@@ -2,14 +2,16 @@
 
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Clock3, Eye, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Clock3, Eye, RefreshCw } from 'lucide-react';
 import {
     ApiError,
-    authApi,
     supportAccessApi,
     type SupportAccessScope,
     type SupportSnapshot,
 } from '@/lib/api';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
 
 const SCOPE_LABEL: Record<SupportAccessScope, string> = {
     PROFILE_READ: '프로필 설정 진단',
@@ -31,24 +33,11 @@ export function SupportAccessOperationsPanel() {
     const [reason, setReason] = useState('');
     const [durationMinutes, setDurationMinutes] = useState(30);
     const [scopes, setScopes] = useState<SupportAccessScope[]>(['PROFILE_READ']);
-    const [password, setPassword] = useState('');
-    const [reauthenticated, setReauthenticated] = useState(false);
+    const { isReauthenticated: reauthenticated, clear: clearReauthentication } =
+        useRecentReauthentication();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [snapshot, setSnapshot] = useState<SupportSnapshot | null>(null);
-
-    async function reauthenticate(event: FormEvent) {
-        event.preventDefault();
-        setError(null);
-        try {
-            await authApi.reauthenticate(password);
-            setReauthenticated(true);
-            setPassword('');
-        } catch {
-            setReauthenticated(false);
-            setError('운영자 비밀번호를 다시 확인해 주세요.');
-        }
-    }
 
     async function createRequest(event: FormEvent) {
         event.preventDefault();
@@ -71,7 +60,7 @@ export function SupportAccessOperationsPanel() {
 
     function handleError(cause: unknown) {
         if (cause instanceof ApiError && (cause.status === 401 || cause.status === 403)) {
-            setReauthenticated(false);
+            clearReauthentication();
         }
         setError(cause instanceof Error ? cause.message : '지원 접근 작업을 완료하지 못했습니다.');
     }
@@ -105,43 +94,14 @@ export function SupportAccessOperationsPanel() {
 
     return (
         <div className="space-y-6 text-slate-800">
-            <header>
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
-                    Platform Operations
-                </span>
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-                    고객 지원 접근
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Workspace 소유자의 명시적 승인을 받은 범위만 최대 60분 동안 진단합니다.
-                    원문·연락처 값은 표시하지 않으며 일반 관리 화면으로 가장하지 않습니다.
-                </p>
-            </header>
+            <AdminPageHeader
+                headingAs="h1"
+                eyebrow="Platform Operations"
+                title="지원 접근 요청·최소 진단"
+                description="Workspace 소유자의 명시적 승인을 받은 범위만 최대 60분 동안 진단합니다. 원문·연락처 값은 표시하지 않으며 일반 관리 화면으로 가장하지 않습니다."
+            />
 
-            <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 md:grid-cols-[1fr_360px] md:items-center">
-                <div className="text-sm leading-6 text-slate-300">
-                    <strong className="flex items-center gap-2 text-white">
-                        <ShieldCheck className="h-5 w-5" /> 최근 재인증 필수
-                    </strong>
-                    <p className="mt-2">
-                        요청·철회와 모든 성공/거절 진단은 보안 감사 이벤트로 남습니다.
-                    </p>
-                </div>
-                <form onSubmit={reauthenticate} className="flex gap-2">
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="운영자 비밀번호"
-                        autoComplete="current-password"
-                        required
-                        className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-white px-3 py-2 text-sm text-slate-950"
-                    />
-                    <button className="rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950">
-                        {reauthenticated ? <Check className="h-4 w-4" /> : '재확인'}
-                    </button>
-                </form>
-            </section>
+            <RecentReauthenticationStatus description="요청·철회와 모든 성공/거절 진단은 보안 감사 이벤트로 남습니다. 상단에서 인증하면 남은 시간 동안 지원 접근 작업에 공통으로 적용됩니다." />
 
             {(error || loadError) && (
                 <p

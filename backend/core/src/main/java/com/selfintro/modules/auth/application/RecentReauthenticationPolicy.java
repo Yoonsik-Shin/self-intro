@@ -28,10 +28,30 @@ public class RecentReauthenticationPolicy {
         requireTimestamp(session.getAttribute(EXPLICIT_REAUTHENTICATED_AT_ATTRIBUTE));
     }
 
+    public Long expiresAtEpochMillis(HttpSession session) {
+        return expiresAtEpochMillis(session.getAttribute(REAUTHENTICATED_AT_ATTRIBUTE));
+    }
+
+    public Long explicitExpiresAtEpochMillis(HttpSession session) {
+        return expiresAtEpochMillis(session.getAttribute(EXPLICIT_REAUTHENTICATED_AT_ATTRIBUTE));
+    }
+
+    public void expire(HttpSession session) {
+        session.removeAttribute(REAUTHENTICATED_AT_ATTRIBUTE);
+        session.removeAttribute(EXPLICIT_REAUTHENTICATED_AT_ATTRIBUTE);
+    }
+
     private void requireTimestamp(Object value) {
-        if (!(value instanceof Long reauthenticatedAt)
-                || System.currentTimeMillis() - reauthenticatedAt > validFor.toMillis()) {
+        if (expiresAtEpochMillis(value) == null) {
             throw new InsufficientAuthenticationException("비밀번호 재확인이 필요합니다.");
         }
+    }
+
+    private Long expiresAtEpochMillis(Object value) {
+        if (!(value instanceof Long reauthenticatedAt)) {
+            return null;
+        }
+        long expiresAt = reauthenticatedAt + validFor.toMillis();
+        return expiresAt > System.currentTimeMillis() ? expiresAt : null;
     }
 }

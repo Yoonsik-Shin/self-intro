@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
-import { ApiError, authApi, supportAccessApi, type SupportAccessScope } from '@/lib/api';
+import { RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
+import { ApiError, supportAccessApi, type SupportAccessScope } from '@/lib/api';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
 
 const SCOPE_LABEL: Record<SupportAccessScope, string> = {
     PROFILE_READ: '프로필 설정 여부',
@@ -20,23 +23,10 @@ export function WorkspaceSupportAccessPanel({ workspaceSlug }: { workspaceSlug: 
         queryKey: ['workspace', workspaceSlug, 'support-access'],
         queryFn: () => supportAccessApi.listForWorkspace(workspaceSlug),
     });
-    const [password, setPassword] = useState('');
-    const [reauthenticated, setReauthenticated] = useState(false);
+    const { isReauthenticated: reauthenticated, clear: clearReauthentication } =
+        useRecentReauthentication();
     const [busyId, setBusyId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    async function reauthenticate(event: FormEvent) {
-        event.preventDefault();
-        setError(null);
-        try {
-            await authApi.reauthenticate(password);
-            setReauthenticated(true);
-            setPassword('');
-        } catch {
-            setReauthenticated(false);
-            setError('비밀번호를 다시 확인해 주세요.');
-        }
-    }
 
     async function decide(id: number, action: 'approve' | 'deny' | 'revoke') {
         if (!reauthenticated) return setError('처리 전에 비밀번호를 다시 확인해 주세요.');
@@ -49,7 +39,7 @@ export function WorkspaceSupportAccessPanel({ workspaceSlug }: { workspaceSlug: 
             await refetch();
         } catch (cause) {
             if (cause instanceof ApiError && (cause.status === 401 || cause.status === 403)) {
-                setReauthenticated(false);
+                clearReauthentication();
             }
             setError(cause instanceof Error ? cause.message : '요청을 처리하지 못했습니다.');
         } finally {
@@ -59,42 +49,23 @@ export function WorkspaceSupportAccessPanel({ workspaceSlug }: { workspaceSlug: 
 
     return (
         <div className="space-y-6 text-slate-800">
-            <header>
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
-                    Workspace Security
-                </span>
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-                    지원 접근 승인
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    플랫폼 지원 담당자의 제한된 진단 요청을 검토합니다. 승인해도 원문·연락처 값이나
-                    일반 관리 권한은 제공되지 않습니다.
-                </p>
-            </header>
-            <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 md:grid-cols-[1fr_360px] md:items-center">
+            <AdminPageHeader
+                headingAs="h1"
+                eyebrow="Workspace Security"
+                title="고객 지원 접근 동의"
+                description="이 화면은 플랫폼 운영 기능이 아니라 내 Workspace 데이터에 대한 소유자의 동의 화면입니다. 승인해도 원문·연락처 값이나 일반 관리 권한은 제공되지 않습니다."
+            />
+            <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 md:grid-cols-[1fr_420px] md:items-center">
                 <div>
-                    <strong className="flex items-center gap-2 text-white">
+                    <strong className="flex items-center gap-2 text-slate-950">
                         <ShieldCheck className="h-5 w-5" /> 소유자만 승인 가능
                     </strong>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
                         사유·범위·시간을 확인하세요. 승인은 최대 60분이며 언제든 즉시 철회할 수
                         있습니다.
                     </p>
                 </div>
-                <form onSubmit={reauthenticate} className="flex gap-2">
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="소유자 비밀번호"
-                        autoComplete="current-password"
-                        required
-                        className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-white px-3 py-2 text-sm text-slate-950"
-                    />
-                    <button className="rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950">
-                        {reauthenticated ? <Check className="h-4 w-4" /> : '재확인'}
-                    </button>
-                </form>
+                <RecentReauthenticationStatus description="지원 접근 승인·거절·철회에는 최근 10분 안의 소유자 비밀번호 확인이 필요합니다." />
             </section>
             {(error || loadError) && (
                 <p
@@ -110,7 +81,7 @@ export function WorkspaceSupportAccessPanel({ workspaceSlug }: { workspaceSlug: 
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                     <div>
-                        <h2 className="font-black text-slate-950">요청 이력</h2>
+                        <h2 className="font-black text-slate-950">내 Workspace 요청 이력</h2>
                         <p className="mt-1 text-xs text-slate-500">
                             지원 담당자 이름, 사유, 요청 범위만 표시합니다.
                         </p>

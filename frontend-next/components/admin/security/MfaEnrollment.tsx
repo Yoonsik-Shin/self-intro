@@ -16,6 +16,7 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 import { authApi } from '@/lib/api/auth';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
 import { publishAuthSessionEvent } from '@/lib/auth/sessionEvents';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -34,7 +35,12 @@ export function MfaEnrollment({ mode = 'initial' }: { mode?: 'initial' | 'recove
     const [recoveryCodesSaved, setRecoveryCodesSaved] = useState(false);
     const [password, setPassword] = useState('');
     const [passwordVisible, setPasswordVisible] = useState(false);
-    const [reauthenticated, setReauthenticated] = useState(!isRecovery);
+    const {
+        isReauthenticated,
+        confirm: confirmReauthentication,
+        clear: clearReauthentication,
+    } = useRecentReauthentication();
+    const reauthenticated = !isRecovery || isReauthenticated;
     const setUnauthenticated = useAuthStore((state) => state.setUnauthenticated);
 
     const begin = async () => {
@@ -67,10 +73,10 @@ export function MfaEnrollment({ mode = 'initial' }: { mode?: 'initial' | 'recove
         setBusy(true);
         setError(null);
         try {
-            await authApi.reauthenticate(password);
-            setReauthenticated(true);
+            await confirmReauthentication(password);
             setPassword('');
         } catch {
+            clearReauthentication();
             setError('현재 계정의 비밀번호를 다시 확인해 주세요.');
         } finally {
             setBusy(false);

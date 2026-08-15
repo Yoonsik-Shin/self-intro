@@ -49,10 +49,11 @@ Profile, Experience, Study, Skill, Competency 관리 API는 각각
 `/experiences/manage/{id}/connections`, 대표 프로젝트 배치는 `/experience-placements/{type}`에서
 Workspace를 검증한다. Portfolio Case Study는 `/portfolio/case-studies/manage`, 출력 서식은
 `/print-templates/manage`에서 같은 경계를 검증한다. 학습 자료는
-`/learning-resources/manage`, AI 학습 계획은 worker의
-`/api/worker/workspaces/{slug}/study-plans/manage`에서 같은 Membership과 Workspace 소유권을
-검증한다. 일반 사용자 관리 셸에는 Profile, Experience, Study, Skill, Competency, Portfolio,
-LearningResource, StudyPlan과 PrintTemplate을 개방했다. Experience·Study·Competency AI는 slug 기반
+`/learning-resources/manage`에서 같은 Membership과 Workspace 소유권을 검증한다. AI 학습 계획은
+2026-08-15 제품 범위에서 완전히 제거했으며 V235가 기존 `study_plan_*` 데이터를 포함한 여섯 테이블을
+삭제한다. 새 기획을 도입할 때는 기존 API·schema를 되살리지 않고 별도 계약으로 다시 설계한다. 일반 사용자 관리 셸에는 Profile,
+Experience, Study, Skill, Competency, Portfolio, LearningResource와 PrintTemplate을 개방했다.
+Experience·Study·Competency AI는 slug 기반
 canonical endpoint에서 Workspace 후보만 조회한다. `/api/admin/**` 호환 endpoint는 플랫폼 역할을 계속
 요구하지만 Workspace 관리 UI에서는 호출하지 않는다. Taxonomy 원본·제품 Architecture처럼 플랫폼이
 소유하는 관리 기능만 플랫폼 운영자 메뉴에 남긴다.
@@ -206,6 +207,33 @@ OCI는 현재 배포 adapter다. 객체 저장소는 `ObjectStoragePort`, 경력
 `ProfileVectorSearchPort` 뒤에 있으며 Oracle SQL은 adapter 내부에만 둔다. AWS나 Azure로
 이전할 때 도메인 모델이 아니라 adapter, Secret, Kubernetes overlay를 교체하는 방향을 유지한다.
 
+### 개인정보 물리 분리 목표 구조
+
+[ADR-006](../adr/ADR-006-private-data-plane-and-public-projection.md)에 따라 향후 배포 환경은
+`Public MySQL + Private ATP + Vector ATP`의 세 data plane을 목표로 한다. 목적은 테이블 수 감소가
+아니라 Public API와 플랫폼 공개 경로에서 개인정보 원본 DB 자격 증명을 제거하는 것이다.
+
+현재는 두 번째 관계형 ATP datasource, wallet, Secret과 독립 migration이 구현되지 않았다. 따라서
+아래 표는 운영 중인 연결 정보가 아니라 이관 순서를 위한 목표 계약이다.
+
+| data plane   | 목표 데이터                                                                         | 장애 시 기대 동작                            |
+| ------------ | ----------------------------------------------------------------------------------- | -------------------------------------------- |
+| Public MySQL | 공개 제품 콘텐츠, 승인 공고·공통 taxonomy, 비식별 집계, 공개 registry·불변 revision | 기존 공개본 제공                             |
+| Private ATP  | Account·인증, Workspace 원본·초안·지원·AI·감사 데이터                               | 로그인·관리·신규 발행 중단, 기존 공개본 유지 |
+| Vector ATP   | Workspace Experience·Study와 승인 공고의 재생성 가능한 vector                       | AI 검색·추천만 degraded                      |
+
+운영자가 두 번째 ATP를 준비하더라도 애플리케이션 Secret을 먼저 추가하거나 MySQL 테이블을 수동으로
+옮기지 않는다. 공고·taxonomy의 혼합 모델 분리, 독립 datasource와 Flyway history, 백업·restore,
+백필 checksum과 shadow read가 모두 검증된 변경 단위에서 endpoint별로 전환한다. Public API pod에는
+Private ATP와 Vector ATP wallet을 주입하지 않고, Vector Worker에는 필요한 Oracle schema 권한만
+부여한다. 각 data plane은 별도 DB 사용자, wallet, Kubernetes Secret, backup·retention과 자격 증명
+회전 절차를 사용한다.
+
+공개 revision은 공개 승인을 받은 개인정보이지 비개인정보가 아니다. Private ATP 원본을 조회하는
+pointer만 Public MySQL에 저장해서는 안 되며, 공개 allowlist의 최소 필드로 완결된 snapshot을 만든 뒤
+checksum 검증이 끝나야 공개 pointer를 전환한다. 공개 중지 시 기존 private 원본은 유지하고 Public
+MySQL pointer와 CDN/cache만 즉시 비활성화한다.
+
 ### 객체 저장소 공개·비공개 경계
 
 Redis 파생 cache 삭제 안전장치는 `WORKSPACE_PURGE_CACHE_DELETE_ENABLED`이며 기본값은 `false`다.
@@ -355,7 +383,7 @@ Workspace 공개 페이지는 반드시 URL의 slug를 `/api/bff/workspaces/{wor
 | V217 | Workspace purge job·저장소 checkpoint                                                |
 | V218 | 단일 활성 Workspace OWNER nullable guard·unique·check 제약                           |
 | V219 | 활성 OWNER guard의 `NULL` 3값 논리 우회 차단                                         |
-| V228 | Account 탈퇴 시각과 익명화 상태 추적                                                  |
+| V228 | Account 탈퇴 시각과 익명화 상태 추적                                                 |
 
 Docker Compose MySQL에서 V190부터 V219까지 Flyway 적용을 확인했다. V210은 과거 플랫폼 방문 기록에
 Workspace 식별자가 없어 데이터를 추정 backfill하지 않고 Workspace 집계를 0부터 시작한다. V208 적용 후 기존 링크 11개가
@@ -416,7 +444,11 @@ V1은 격리된 일회성 MySQL schema에도 적용해 Profile 1건의 이메일
 6. `GET .../revisions`는 Membership이 있는 사용자에게 보존 중인 이력과 정책을 반환한다.
 7. `OWNER` 또는 `ADMIN`은 `POST .../revisions/{revisionNumber}/rollback`으로 호환 가능한 과거 snapshot을
    복원한다. 복원은 선택한 resource를 복사한 새 revision이며 초안과 과거 revision을 수정하지 않는다.
-8. 기본 보존 정책은 최근 20개와 최소 180일이다. `PUBLICATION_RETENTION_MAX_REVISIONS`와
+8. 관리 화면은 `현재 방문자 공개 상태`와 `관리 중인 공개 초안`을 분리해 표시한다. `현재 공개본`은
+   `publicationStatus=PUBLISHED`인 최신 revision만 의미한다. 공개 중지 후 최신 revision은 `최근 발행본`으로
+   보존되지만 방문자 URL에는 노출되지 않는다. 구성 화면에 저장한 초안은 새 version을 발행하기 전까지
+   방문자 공개본을 변경하지 않는다.
+9. 기본 보존 정책은 최근 20개와 최소 180일이다. `PUBLICATION_RETENTION_MAX_REVISIONS`와
    `PUBLICATION_RETENTION_MINIMUM_AGE`로 조정한다. 두 조건 중 하나라도 만족하면 보존하며, 정리는 다음
    발행·복원 시 실행된다. 값을 줄이기 전 백업 clone에서 삭제 대상 revision/resource 수를 확인한다.
 
@@ -771,8 +803,8 @@ Redis를 의도적으로 제외한 MockMvc `test` profile에서만
 
 ### 계정 보안 self-service
 
-계정 설정에서는 Workspace 콘텐츠와 독립된 Account 닉네임을 2~40자 범위에서 변경할 수 있다. 현재
-비밀번호를 확인한 비밀번호 변경은 가입과 같은 10~32자·대소문자·숫자·특수문자·취약 비밀번호 차단
+계정 설정에서는 Workspace 콘텐츠와 독립된 Account 닉네임을 2~~40자 범위에서 변경할 수 있다. 현재
+비밀번호를 확인한 비밀번호 변경은 가입과 같은 10~~32자·대소문자·숫자·특수문자·취약 비밀번호 차단
 정책을 사용한다. 변경 성공 직후 현재 세션을 포함해 동일 principal의 Redis 세션을 모두 폐기하므로 새
 비밀번호로 다시 로그인해야 한다. `전체 기기 로그아웃`도 같은 세션 폐기 경계를 사용한다.
 
@@ -1586,10 +1618,10 @@ Workspace namespace와 Membership 경계를 벗어나지 못하는지 함께 검
   옮겨 sticky header가 테두리 바로 아래부터 덮게 함으로써 둥근 상단 중앙에 아이콘 일부가 새는 현상도
   차단했다. 펼친 상태의 기존 접기 버튼 위치와 사이드바 독립 스크롤은 유지했으며 frontend ESLint와
   `git diff --check`를 통과했다.
-- 2026-08-12 Workspace 관리 헤더의 `메인페이지`는 공개 발행 여부와 무관한 플랫폼 루트(`/`)로
-  이동한다. Workspace 공개 URL(`/workspace/{slug}`)은 활성 publication snapshot이 있을 때만 방문자
-  페이지가 존재하며, 미발행 상태의 404는 공개 데이터가 없음을 감추는 의도된 fail-closed 동작이다.
-  공개 결과 확인은 발행 관리의 `공개 페이지` 또는 미리보기 진입점을 사용한다. 또한 PDF 자동 배치는
+- 2026-08-14 Workspace 관리 헤더의 `공개 페이지`는 현재 Workspace의 방문자 URL
+  (`/workspace/{slug}`)로 이동한다. 발행 전 저장 내용을 확인하는 인증된 `미리보기`와 방문자 공개 URL을
+  구분하며, 활성 publication snapshot이 없는 Workspace의 404는 공개 데이터가 없음을 감추는 의도된
+  fail-closed 동작이다. 플랫폼 제품 소개 루트(`/`)는 Workspace 복귀 경로로 사용하지 않는다. 또한 PDF 자동 배치는
   각 atom의 실제 DOM 높이에 이미 포함된 padding과 margin 외에 가상의 기본 간격을 중복 누적하지 않고,
   사용자가 지정한 간격만 별도로 계산한다. 이로써 항목 수에 비례해 계산 높이만 부풀어 다음 섹션이
   통째로 밀리고 앞 페이지가 크게 비는 현상을 방지한다. 변경 파일 frontend ESLint(기존 미사용 경고
@@ -1598,8 +1630,8 @@ Workspace namespace와 Membership 경계를 벗어나지 못하는지 함께 검
 - 2026-08-12 일반 사용자의 복귀 동선을 플랫폼 메인이 아닌 계정의 Workspace로 정리했다. 공개 페이지
   우측 계정 프로필 메뉴는 현재 계정과 모든 Workspace membership을 보여주며 OWNER·ADMIN·EDITOR는
   해당 Workspace 관리 화면으로, VIEWER는 공개 페이지로 이동한다. 현재 열람 중인 Workspace도 별도
-  표시한다. 모바일 페이지 메뉴에도 같은 Workspace 이동 목록을 제공한다. Workspace 관리 헤더의
-  `메인페이지`는 플랫폼 역할이 있는 운영자에게만 노출하며 일반 계정에는 숨긴다. 권한 판정은 기존
+  표시한다. 모바일 페이지 메뉴에도 같은 Workspace 이동 목록을 제공한다. Workspace 관리 헤더에는 현재
+  Workspace membership이 있으면 역할과 무관하게 `공개 페이지`를 노출한다. 권한 판정은 기존
   `/api/auth/me`의 membership과 platform role만 사용하고 다른 Workspace의 비공개 데이터를 추가로
   조회하지 않는다. frontend 대상 파일 ESLint(기존 미사용 경고 4건 외 오류 없음)와 production build를
   통과했다. 로그인 상태 시각 확인 전이며 운영에는 배포하지 않았다.
@@ -1861,8 +1893,9 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   해당 Workspace에만 저장한다. 다른 Workspace와 공유하거나 공통 원본에 역으로 반영하지 않는다.
 - 두 화면은 데이터 소유권과 권한이 다르므로 API와 mutation은 분리한다. 사용자가 화면 차이를 역할
   오류로 오해하지 않도록 목록 탐색의 기본 패턴과 용어만 통일한다.
-- Workspace `지원 현황`은 리스트·보드·마감 캘린더를 제공한다. 지도는 위경도 저장·노출·검색 반경의
-  Workspace 계약이 확정되지 않아 이번 변경에 포함하지 않는다.
+- Workspace `지원 현황`은 리스트·보드·마감 캘린더·지도를 제공한다. 지도 기준 위치는 V234의
+  `workspace_job_map_setting`에 Workspace 비공개 설정으로 저장하며 Account 프로필이나 공통 공고,
+  공개 revision·PDF에는 포함하지 않는다.
 - 플랫폼 운영자는 운영자 계정으로 공통 카탈로그의 수집·원본 작업이 보이는지 확인하고, 베타테스터는
   별도 브라우저 세션에서 자기 Workspace의 상태·메모만 수정할 수 있는지 확인한다.
 - `./scripts/e2e/workspace-isolation-compose.sh`는 임시 일반 사용자와 Workspace 두 세트를 생성해 같은
@@ -1871,12 +1904,14 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
 - 2026-08-12 기준 해당 프런트 파일 ESLint·TypeScript·프로덕션 빌드와 Compose 격리 E2E를 통과했으며
   운영에는 배포하지 않는다.
 
-
 ### 15.3 지원 현황과 공고 공유 심사 UI 경계
 
 - 일반 Workspace에는 별도의 `지원 공고 관리` 메뉴를 두지 않는다. `지원 현황` 안에서 `내 지원`과
   `공고 가져오기`를 전환한다. 가져온 뒤의 상태·메모·자기소개서·이력서/PDF는 전부 Workspace 비공개
   overlay로 관리한다.
+- `VIEWER`는 리스트·보드·마감 캘린더·지도와 지원 상세·상태 이력을 조회할 수 있지만 공고 가져오기,
+  상태·메모 수정, 목록 제외, 기준 위치 변경, 자기소개서·AI 작업은 노출하지 않는다. `OWNER`, `ADMIN`,
+  `EDITOR`만 이 쓰기 동작을 사용할 수 있으며 서버 Membership 검사도 동일한 경계를 강제한다.
 - `공고 가져오기`는 V223의 재노출 권한 심사를 통과한 공통 공고 검색과 Workspace 비공개 원본 등록을
   명확히 분리한다. 공통 공고는 플랫폼 원본을 참조하고, URL·직접 입력은 V224의
   `owner_workspace_id`와 `scope_key=WORKSPACE:{id}`가 설정된 별도 원본을 만든다.
@@ -1908,7 +1943,7 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
 - Compose에서는 API와 AI Worker의 `STORAGE_ENDPOINT`, bucket, credential, path-style 설정을 반드시
   동일하게 유지한다. API만 로컬 MinIO를 명시하고 Worker가 `.env`의 운영 OCI 값을 읽으면 presigned
   PUT은 성공해도 Worker의 HEAD/GET이 다른 저장소로 향해 `업로드가 완료되지 않았거나 파일을 찾을 수
-  없습니다`로 실패한다. `docker compose config`로 두 서비스의 최종 환경 변수를 비교한 뒤 Worker를
+없습니다`로 실패한다. `docker compose config`로 두 서비스의 최종 환경 변수를 비교한 뒤 Worker를
   재생성하고 실제 PNG 업로드부터 분석·저장·임시 객체 삭제까지 확인한다.
 - 2026-08-12 로컬 검증: core/AI/API 컴파일, `WorkspaceJobScreenshotUploadServiceTest`, 기존
   `WorkspaceJobApplicationPermissionTest`, frontend ESLint와 production build를 통과했다. 새 backend
@@ -1930,6 +1965,7 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   서로 다른 행이 생성되고, 상대 Workspace의 목록·상세 API가 404인지 확인한다.
 - V224 이후 되돌리기는 서로 다른 scope에 같은 URL이 존재할 수 있으므로 단순 컬럼 삭제로 수행하지
   않는다. 먼저 URL 충돌 보고서를 만들고 보존할 원본을 결정한 뒤에만 이전 unique index를 복구한다.
+
 ### 15.1 외부 채용 사이트 수집 운영 원칙
 
 - 공개 페이지라고 해서 자동 수집과 재배포가 자동으로 허용되는 것은 아니다. 출시 전 각 출처의 최신
@@ -2071,9 +2107,13 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
 - 고객 지원을 이유로 플랫폼 운영자가 Workspace 관리 화면이나 원문 데이터에 직접 접근하지 않는다.
   지원 담당자는 `고객 지원 접근` 화면에서 Workspace slug, 구체적인 사유, 필요한 진단 범위와
   15·30·60분 중 하나를 선택해 요청한다. 요청은 24시간 안에 승인되지 않으면 만료된다.
-- 승인 주체는 해당 Workspace의 `OWNER`다. 소유자는 `지원 접근 승인` 화면에서 요청자, 사유, 범위와
+- 승인 주체는 해당 Workspace의 `OWNER`다. 소유자는 `고객 지원 접근 동의` 화면에서 요청자, 사유, 범위와
   시간을 확인하고 승인·거절한다. 승인된 접근도 소유자와 요청자 모두 즉시 철회할 수 있다. 요청,
   승인, 거절, 철회는 최근 비밀번호 재인증을 요구한다.
+- 화면 정보 구조도 권한 경계와 동일하게 분리한다. 플랫폼 운영자의 `지원 접근 요청·최소 진단`은
+  요청 생성·자기 요청 이력·승인된 최소 snapshot만 제공하고, Workspace의 `고객 지원 접근 동의`는
+  `OWNER`에게만 노출한다. 운영자가 자신의 요청을 직접 승인하거나 일반 멤버가 동의 화면을 보는
+  경로는 제공하지 않는다.
 - 현재 허용 범위는 `PROFILE_READ`, `EXPERIENCE_READ`, `STUDY_READ`뿐이다. 응답은 프로필 설정·공개
   여부, 경험 수, 학습 전체·공개 수 같은 최소 진단값만 반환한다. 이름·소개·이메일·전화번호·경험 및
   학습 원문은 반환하지 않으며 사용자 가장, 일반 Workspace 관리 권한, 쓰기 권한도 부여하지 않는다.
@@ -2139,9 +2179,22 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   만료, 기존 자격 증명 재로그인 차단, DB 익명화와 감사 이벤트를 통과했다.
 - `scripts/e2e/support-access-compose.sh`는 SUPPORT MFA, OWNER 승인, 세 최소 진단 범위, 즉시 철회,
   철회 뒤 404와 감사 이벤트를 통과했다.
-- 현재 HEAD에서 backend `./gradlew test`와 frontend `npm run build`가 모두 성공했다. 자동화된 로컬 출시
-  게이트는 통과했으며 다음 단계는 운영자와 별도 베타 사용자가 브라우저에서 작성·공개 구성·AI·PDF,
-  반응형 화면과 실패 복구 메시지를 직접 확인하는 사람의 UX UAT다.
+- 2026-08-14 현재 작업 트리에서 `workspace-isolation-compose.sh`를 다시 실행했다. 최종 PDF 검증은
+  presigned URL 발급만으로 끝내지 않고 A/B Workspace별 최소 PDF fixture를 실제 object storage에
+  `application/pdf`로 업로드한 뒤 PDF 원본·template 소유권 격리를 확인하도록 강화했으며, 전체 격리
+  시나리오가 통과했다. 같은 상태에서 `support-access-compose.sh`도 SUPPORT MFA 등록·재로그인,
+  OWNER 승인, 세 최소 진단 범위, 즉시 철회, 철회 뒤 404와 감사 이벤트까지 다시 통과했다. 이 검증은
+  로컬 Compose에만 수행했으며 commit·push·운영 배포는 하지 않았다.
+- 같은 2026-08-14 검증에서 `registration-onboarding-compose.sh`와
+  `account-withdrawal-compose.sh`도 다시 통과했다. 초대 가입·메일 확인·첫 비공개 Workspace·schema v3
+  첫 발행·비밀번호 재설정·로그인 이메일 변경의 일회용 token 및 세션 폐기와, 탈퇴 직전 재인증·동시
+  세션 폐기·기존 자격 증명 차단·DB 익명화·감사 이벤트를 현재 Compose 상태에서 확인했다.
+- 2026-08-14 현재 작업 트리에서 backend `./gradlew test`와 frontend `npm run build`가 모두 성공했다.
+  이 검증에는 `/`의 로그인 상태별 Workspace 진입 CTA 정리, Workspace 역할별 지원 현황 읽기·쓰기 UI,
+  공개 초안과 현재 발행본의 분리, 당시 프런트 AI 학습 계획 화면·클라이언트·전용 DTO 제거가 포함된다.
+  자동화된 로컬 출시 게이트는 통과했으며 다음 단계는 운영자와 별도 베타 사용자가 브라우저에서 작성·공개
+  구성·PDF, 반응형 화면과 실패 복구 메시지를 직접 확인하는 사람의 UX UAT다. AI 학습 계획은 이후
+  V235에서 API·DB와 함께 완전히 제거되어 UAT 대상이 아니다.
 - 2026-08-13 사람의 UX UAT를 인앱 브라우저에서 시작했다. 비로그인 제품 메인의 로그인·초대 가입 CTA,
   공개 데모의 데스크톱 렌더링과 console warning/error 0건을 확인했다. 390x844 viewport에서는 미리보기
   패널을 닫은 뒤에도 240px 관리 사이드바가 본문 폭을 차지해 콘텐츠가 읽을 수 없을 정도로 좁아지는
@@ -2172,11 +2225,6 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   `checking` 상태 전환 때 정리되어 요청 결과를 반영하지 못하고 무한 로딩하던 결함을 확인했다. effect가
   완료될 때까지 유지되도록 상태 의존성을 분리해 alias면 canonical 관리 URL로 이동하고, 미소속·미존재면
   명시적인 접근 불가 화면으로 종료되게 수정했다. 운영 배포는 수행하지 않았다.
-- 같은 베타 Workspace에서 AI 학습 계획의 주간 가능 시간을 0분으로 설정하면 생성 버튼이 비활성화되고,
-  300분과 빈 집중 목표로 생성하면 외부 AI provider를 호출하지 않는 Workspace 자료 검색 경로로 계획 #1이
-  저장되는 것을 확인했다. 해당 Workspace에는 공개 학습 자료가 없어 후보 0개·연결 자료 0개와 자료 추가
-  안내가 표시되는 것도 확인했다. 집중 목표를 입력하는 추천·피드백 경로는 NVIDIA NIM 호출과 비용·운영
-  Secret에 의존하므로 이번 로컬 사람 UAT에서는 실행하지 않았고 provider 계약 검증 항목으로 남긴다.
 - 검증 기준 기능 HEAD `5f1b46a`에서 frontend ESLint(error 0·warning 0)·TypeScript·production build와
   backend Spotless·전체 test를 통과했다. 같은 실행 중 Compose 환경에서 가입·Mailpit 확인·첫 발행,
   Account 탈퇴·전체 세션 만료·익명화, Support Access 승인·최소 진단·철회, 두 사용자·두 Workspace의
@@ -2189,7 +2237,7 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
   앞의 두 테이블은 현재 Markdown 기반 `study` 모델로 대체됐고, 포트폴리오의 Study 근거는
   `portfolio_case_study_revision.content_json.sourceStudyIds`를 단일 원본으로 사용한다.
 - V231은 세 테이블 중 하나라도 행을 가지고 있으면 `SQLSTATE 45000`으로 중단한다. 비어 있지 않은
-  운영 데이터가 자동 배포 과정에서 삭제되는 것을 허용하지 않는다. `verified_identity`, `study_plan_*`,
+  운영 데이터가 자동 배포 과정에서 삭제되는 것을 허용하지 않는다. `verified_identity`,
   `learning_resource_skill`, `gap_project_document`는 각각 향후 실명 인증 경계 또는 활성 코드 경로가 있어
   제거하지 않는다.
 - 적용 전 전체 DB 백업을 남기고 다음 조회 결과가 모두 0인지 확인한다.
@@ -2215,3 +2263,217 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   세 제거 대상과 임시 검사 프로시저 부재, backend `healthy`를 확인했다. 두 동기화 스크립트의 `bash -n`도
   통과했다. 별도 임시 DB에 `study_entry` 1행을 넣은 실패 경로에서는 `SQLSTATE 45000`으로 중단되고
   1행과 세 테이블이 모두 보존되는 것도 확인한 뒤 임시 DB를 삭제했다. 운영 DB에는 적용하지 않았다.
+
+### 15.11 V232 출력 revision과 불변 PDF artifact 연결
+
+- 최종 PDF 첨부·외부 PDF 등록 시 현재 `PrintTemplate` 구성을 먼저 `SNAPSHOT` revision으로 저장하고,
+  `print_document_artifact`가 해당 revision ID와 Workspace ID를 직접 참조한다. 현재 최종본 pointer를
+  교체하거나 해제해도 기존 artifact 객체는 삭제하지 않는다.
+- 업로드 완료 요청의 파일명·클라이언트 checksum은 신뢰하지 않는다. backend가 Workspace별
+  `PRINT_TEMPLATE_FINAL_PDF` 객체 key prefix를 검증하고 객체 저장소에서 `stat`과 실제 바이트를 읽어
+  1byte~25MB, `application/pdf`, `%PDF-` magic, metadata와 실제 크기 일치를 확인한 뒤 SHA-256을 직접
+  계산한다.
+- 브라우저 인쇄 업로드는 `BROWSER_UPLOAD`, 외부에서 만들어 등록한 PDF는 `EXTERNAL_UPLOAD`로 기록한다.
+  현재는 서버 PDF renderer가 없으므로 `renderer_version`, `font_bundle_version`, `page_count`는 비어
+  있다. 이 필드를 근거로 자동 생성이 구현됐다고 판단하지 않는다.
+- artifact가 있는 출력 서식을 일반 관리 API로 삭제하면 409로 거부한다. Workspace 폐쇄 시에는 기존
+  Workspace 객체 prefix purge와 DB cascade를 통해 함께 정리하며, 이 전체 삭제 수명주기 외에는 artifact
+  row와 객체를 수정·삭제하지 않는다.
+- 운영 반영 전 로컬 Compose에서 V232 `success=1`, backend health, 업로드·교체·현재 pointer 해제 뒤
+  artifact 목록과 checksum 보존, 다른 Workspace key 거부, Workspace 폐쇄 cleanup을 확인한다. 운영
+  migration 적용과 서버 renderer 도입은 별도 변경·승인으로 진행한다.
+- 2026-08-14 코드 검증에서는 `./gradlew :api:spotlessApply :api:test --rerun-tasks`가 통과했다. 당시
+  Docker daemon이 실행 중이 아니어서 Compose 기반 V232 적용과 객체 저장소 UAT는 수행하지 않았으며,
+  이 항목은 배포 승인 조건으로 남긴다.
+- 지원 현황의 출력 서식 목록에서 `이력`을 펼치면 해당 서식에 연결된 artifact를 revision 단위로
+  조회한다. 현재 `final_pdf_object_key`와 같은 artifact에는 `현재 연결본`을 표시하고, 생성 시각·용량·
+  origin·SHA-256과 짧은 만료시간의 비공개 객체 URL을 제공한다. pointer를 해제하거나 교체해도 이전
+  artifact는 이 목록에 남아야 하며, 이력 조회 권한은 해당 Workspace의 읽기 권한을 그대로 따른다.
+
+### 15.12 공개 페이지 초안 미리보기 경계
+
+- 방문자 URL `/workspace/{slug}`는 계속 발행된 불변 공개 revision만 렌더링한다. 비공개 상태이거나 아직
+  한 번도 발행하지 않은 Workspace가 이 URL에서 404를 반환하는 것은 의도된 개인정보 보호 경계다.
+- 관리 화면의 `공개 초안 미리보기`는 프로필 `/workspace/{slug}/preview`, 경험
+  `/workspace/{slug}/preview/experience`, 학습 `/workspace/{slug}/preview/study`를 사용한다. 이 경로들은 공개 URL의
+  우회 경로가 아니라 로그인한 Workspace 구성원만 접근할 수 있는 관리용 화면이며, OWNER·ADMIN·EDITOR·
+  VIEWER의 읽기 권한을 `WorkspaceAccessPolicy`로 검증한다.
+- 프런트 보안 헤더는 `X-Frame-Options: SAMEORIGIN`을 사용한다. 따라서 관리 화면은 같은 origin의 초안
+  경로만 iframe으로 열 수 있고, 외부 사이트의 임베딩과 clickjacking은 계속 차단된다. 이 값을 `DENY`로
+  강화하면 관리용 iframe도 함께 차단되므로, 변경 시에는 도킹 미리보기를 iframe 밖 렌더링 방식으로 먼저
+  전환해야 한다.
+- 상단 로고는 익명 사용자에게 제품 소개(`/`)를, Workspace가 있는 로그인 사용자에게 자신의 공개
+  Workspace(`/workspace/{slug}`)를 연다. 다른 사람의 공개 Workspace를 열람 중일 때는 현재 Workspace 홈을
+  유지하며, 계정 메뉴의 `내 Workspace` 목록으로 자신의 관리 화면에 복귀한다.
+
+### 15.13 V233 핵심 역량 태그 전환
+
+- 핵심 역량의 분류·검색 문맥은 공통 기술 카탈로그가 아니라 Workspace 소유 `tag`를 사용한다.
+  `competency_tag`는 역량과 같은 Workspace의 태그만 서비스 계층에서 조회하거나 생성해 연결한다.
+- 기존 `competency_skill`은 과거 데이터와 공개 revision 호환을 위해 제거하거나 자동 변환하지 않는다.
+  새 관리 화면은 태그를 기본 편집 대상으로 사용하며, 태그가 없는 기존 역량만 기술 이름을 대체 표시한다.
+  과거 공개 revision처럼 `tags` 필드가 없는 응답도 빈 목록으로 처리해야 한다.
+- V233은 연결 테이블만 추가하며 기존 행을 갱신하지 않는다. 적용 뒤에는 Flyway V233 `success=1`,
+  backend health, Workspace별 태그 생성·수정·검색, 다른 Workspace 데이터 비노출, 공개 페이지와 PDF의
+  태그 출력 및 기존 기술 대체 표시를 확인한다.
+
+### 15.14 포트폴리오 원본과 공개 경험 구성 경계
+
+- `포트폴리오 원본`은 Workspace 소유 Case Study와 content revision을 관리한다. 관리 화면은 제목·slug·
+  연결 Experience 검색, 기준 revision 준비 상태 필터, revision 이력 조회·불러오기·기준본 지정을 제공한다.
+- Case Study의 기준 revision 지정은 검토가 끝난 불변 후보를 정하는 작업이다. API와 DB의 기존
+  `PUBLISHED` 명칭은 호환을 위해 유지하지만, 방문자 공개 여부와 순서는
+  `공개 페이지 > 경험 구성`의 Portfolio 선택 상태가 단독으로 결정한다. 두 상태를 자동 동기화하지 않는다.
+- 편집기에 저장하지 않은 변경이 있으면 기준본 지정 버튼을 비활성화한다. 먼저 새 revision을 저장한 뒤
+  그 revision을 기준본으로 지정해야 화면에서 본 내용과 공개 구성 후보가 어긋나지 않는다.
+- 회귀 검증은 원본 검색·필터, 과거 revision 불러오기, 변경 저장 후 새 revision 생성, 기준본 지정·해제,
+  공개 경험 구성에서의 독립적인 포함·제외를 순서대로 확인한다. 기준본 지정만 수행했을 때 공개 URL의 현재
+  revision이 바뀌지 않아야 한다.
+- 미리보기 데이터는 `GET /api/workspaces/{workspaceSlug}/public-page/draft/preview/introduction`,
+  `/preview/experience`, `/preview/study`에서 현재 저장된 프로필·경험·학습 구성을
+  `WorkspacePublicationProjectionBuilder`로 조합한다. 경험·학습 미리보기는 실제 방문자 목록 컴포넌트를
+  재사용하지만 상세 링크, 최근 방문 기록, 발행본 목록 API 호출을 비활성화한다. 공개 발행 revision을
+  만들거나 현재 공개본 pointer를 변경하지 않는다.
+- 구성 편집 화면의 `저장 후 미리보기`는 먼저 해당 초안을 저장한 뒤 관리용 미리보기를 연다. 저장하지 않은
+  폼 상태를 `sessionStorage`로 공개 페이지에 덮어쓰던 기존 방식은 제거했다. 따라서 미리보기와 새로고침,
+  별도 브라우저 탭은 모두 같은 저장 초안을 재현한다.
+- 프로필·경험·학습 구성과 공개본·버전 화면에서만 미리보기를 노출한다. 원본 기록, 지원 현황, PDF 등 공개
+  페이지 구성과 무관한 관리 탭으로 이동하면 미리보기 패널을 닫는다.
+- 관리 화면 상단 미리보기는 현재 탭을 기준으로 프로필·공개본은 프로필 초안, 경험 구성은 경험 초안,
+  학습 구성은 학습 초안 경로를 연다. 따라서 미발행 Workspace에서도 각 영역의 저장 상태를 독립적으로
+  검토할 수 있으며 공개 방문 URL의 404 정책에는 영향을 주지 않는다.
+- 배포 전에는 미발행 비공개 Workspace와 이미 발행된 Workspace 각각에서 관리용 미리보기가 열리는지,
+  로그아웃 상태와 미소속 Account가 관리용 URL·API에 접근할 수 없는지, 공개 URL에는 마지막 발행본만
+  유지되는지를 확인한다. 이 절의 변경은 현재 로컬 구현이며 운영 배포는 별도 승인 후 진행한다.
+
+### 15.15 공통 기술 카탈로그와 Workspace 실무 메타데이터 경계
+
+- `skill`은 플랫폼 공통 기술의 이름·분류·배지를 보관한다. `workspace_skill`은 해당 Workspace의 실무
+  수준·사용 버전·활용 맥락·경험 메모·핵심 여부·노출 순서만 보관한다. 물리 분리는 V199에서 완료됐으며,
+  이번 변경은 관리 API와 UI가 이 소유권 경계를 우회하지 못하도록 요청 계약을 좁힌다.
+- Workspace 생성 API `POST /api/workspaces/{slug}/skills`는 `catalogSkillId`와 Workspace 메타데이터만
+  받는다. 수정 API `PUT /api/workspaces/{slug}/skills/{catalogSkillId}`는 Workspace 메타데이터만 받고
+  이름·분류·배지 필드를 받지 않는다. 따라서 일반 Workspace 역할로 공통 정의를 덮어쓸 수 없다.
+- 공통 정의 생성·수정·삭제는 플랫폼 운영자용 `/api/skills` 경계에 남는다. 이 API의 쓰기 요청은
+  `name`, `category`, `badgeKey`, `badgeColor`만 받고 응답도 공통 정의만 노출한다. 레거시 `skill`
+  컬럼에 남은 숙련도·버전·메모·핵심 여부·순서는 호환 데이터일 뿐 공통 카탈로그 API로 수정하지 않는다.
+  Workspace 관리 화면은 공통 catalog를 검색·선택하고 자기 실무 메타데이터만 편집한다. 연결된
+  Experience·Study·ExperienceDetail은 기존 Workspace 인가가 적용된 연결 API를 사용한다.
+- 새 migration은 없다. 배포 전에는 backend core compile/test, frontend TypeScript와 대상 ESLint를
+  통과시키고, 서로 다른 두 Workspace에서 같은 catalog 기술을 추가한 뒤 서로 다른 수준·버전·메모가
+  유지되는지 확인한다. 한 Workspace에서 수정·제거해도 다른 Workspace overlay와 공통 이름·분류·배지가
+  변하지 않아야 한다. 이번 검증에서는 backend `:core:compileJava`, `:core:test`, frontend
+  `tsc --noEmit`과 기술 관리 관련 ESLint를 통과했으며 운영 배포는 수행하지 않았다.
+
+### 15.16 V234 Workspace 지원 지도 기준 위치
+
+- V234는 `workspace_job_map_setting`을 추가한다. 주소와 좌표는 출퇴근 거리·시간을 계산하기 위한
+  Workspace 비공개 설정이며 Account 프로필, 공통 공고 원본, 공개 페이지·revision·PDF에 포함하지 않는다.
+- 조회는 `OWNER`, `ADMIN`, `EDITOR`, `VIEWER`, 변경은 `OWNER`, `ADMIN`, `EDITOR` Membership만
+  허용한다. 다른 Workspace slug로 조회·수정할 수 없어야 하며 Workspace 삭제 시 FK cascade로 제거된다.
+- 기준 위치가 없으면 지도는 일반 서울 중심 좌표만 화면 중심으로 사용하고 특정 기본 주소를 저장하거나
+  노출하지 않는다. 지원 목록이 비어 있어도 지도와 기준 위치 설정은 열 수 있어야 한다.
+- 주소 검색을 사용자가 명시적으로 실행하면 브라우저에서 Daum 우편번호 검색과 OpenStreetMap
+  Nominatim 지오코딩 요청이 발생할 수 있다. 운영 개인정보 처리방침에는 이 외부 처리 경계를 반영하고,
+  주소 원문을 애플리케이션 로그·분석 이벤트에 기록하지 않는다.
+- 배포 전에는 Flyway V234 성공, backend controller 권한 테스트, frontend TypeScript·ESLint, 서로 다른
+  두 Workspace의 기준 위치 비공유, VIEWER 변경 거부, 새로고침 후 저장 유지, 공개 API·revision·PDF
+  비포함을 확인한다. 이번 로컬 검증에서는 `WorkspaceJobApplicationControllerTest`와
+  `WorkspaceJobApplicationPermissionTest`, `:api:compileJava`, 대상 frontend ESLint와
+  `tsc --noEmit`을 통과했다. Compose backend만 재빌드해 Flyway V234 적용 성공, backend healthy,
+  `workspace_job_map_setting`의 Workspace PK·nullable 주소/좌표·삭제 cascade 생성도 확인했다.
+  브라우저에서의 서로 다른 Workspace 비공유·VIEWER 읽기 전용·새로고침 유지 확인과 운영 배포는 아직
+  수행하지 않았다.
+
+### 15.17 Workspace 홈 요약 경계
+
+- 관리 화면의 기본 진입 탭은 `홈`이며 현재 Workspace의 원본 기록, 학습 기록, 연결 기술, 역량 원본,
+  지원 현황, 공개 revision 상태를 카드로 요약한다. 각 값은 URL의 `workspaceSlug`를 포함한 Workspace
+  관리 API에서만 조회하고, 플랫폼 운영용 `/api/ops/overview`나 플랫폼 전체 방문 통계를 사용하지 않는다.
+- 홈 카드는 상세 데이터나 개인정보 원문을 복제해 저장하지 않는다. 조회 결과의 개수와 공개 상태만
+  화면에서 계산하며 카드를 선택하면 기존 canonical 관리 탭으로 이동한다.
+- 배포 전에는 서로 다른 두 Workspace에서 카드 수치가 섞이지 않는지, 공개 중지·새 revision 발행 시
+  공개 페이지 카드 상태가 갱신되는지, 접근 권한이 없는 slug의 관리 API가 기존과 동일하게 거부되는지
+  확인한다. 플랫폼 운영자라고 해서 Membership 없는 Workspace의 홈 데이터를 우회 조회할 수 없어야 한다.
+
+### 15.18 V235 AI 학습 계획 완전 제거와 지원 화면 복원
+
+- AI 학습 계획을 제품 범위에서 제외하기로 확정했으므로 프런트 메뉴만 숨기지 않고 Worker
+  controller·service·entity·repository와 테스트를 삭제한다.
+- V235는 더 이상 보존하지 않는 기존 계획 데이터와 함께 `study_plan_check_question`,
+  `study_plan_message`, `study_plan_candidate`, `study_plan_item`, `study_plan_stage`, `study_plan`을
+  자식부터 순서대로 삭제한다.
+- 이 마이그레이션은 의도적인 비가역 데이터 삭제다. 적용 전 운영 MySQL 백업을 확보하고, 삭제 후 새 기획은
+  기존 테이블을 재사용하지 않는 별도 migration으로 도입한다.
+- 지원 현황의 LIST·BOARD·CALENDAR는 기존 Git UX를 기준으로 복구하되 데이터 접근은 계속
+  `/api/workspaces/{slug}/job-applications/manage` 경계를 사용한다. MAP 화면과 Workspace 격리는 유지한다.
+- `/`는 익명 사용자에게 제품 소개를 제공하고, 인증된 Account에는 자신의 첫 Workspace 공개 페이지로 즉시
+  이동한다. Workspace가 아직 없으면 `/onboarding/workspace`로 이동한다.
+
+### 15.19 Workspace 홈 설정 접힘과 이름 변경 동기화
+
+- Workspace 홈은 요약 카드를 우선 노출하고, 공개 주소·이름·탈퇴·폐쇄처럼 사용 빈도가 낮고 중요한 설정은
+  `Workspace 설정` 펼침 영역에 기본 접힘 상태로 둔다. 설정을 접어도 데이터나 재인증 상태를 변경하지 않으며,
+  사용자가 명시적으로 펼친 뒤에만 설정 컴포넌트를 렌더링한다.
+- 이름 변경 API가 성공하면 응답의 정규화된 이름을 입력값과 로그인 세션의 해당 Workspace 항목에 즉시
+  반영한다. 이어서 `/api/auth/me`를 재조회하되, 롤링 배포나 중간 캐시로 이전 이름이 잠시 반환되더라도 현재
+  변경 응답을 마지막에 적용해 헤더·홈 제목·계정 메뉴가 같은 이름을 표시하게 한다.
+- 이름 변경은 기존과 동일하게 `OWNER` 또는 `ADMIN`만 수행하고 최근 10분 이내 비밀번호 재인증을 요구한다.
+  화면의 즉시 반영은 권한이나 서버 저장을 대체하지 않으며, API 실패 시 로그인 세션 상태를 수정하지 않는다.
+- 배포 전에는 설정이 첫 진입에서 접혀 있는지, 재인증 후 이름을 변경하면 홈 제목과 상단 Workspace 이름이
+  새로고침 없이 함께 바뀌는지, 새로고침 후에도 변경 이름이 유지되는지 확인한다. `EDITOR`·`VIEWER`에게 이름
+  변경 폼이 노출되지 않는지와 API 직접 호출이 거부되는지도 확인한다.
+
+### 15.20 공개 주소 용어와 Workspace 보안 메뉴 순서
+
+- 사용자 화면에서는 내부 `canonical slug`를 `기본 공개 주소`, 이전 주소 alias를 `이전 공개 주소`로
+  표시한다. API와 데이터베이스의 `canonicalSlug`·alias 명칭은 호환성을 위해 변경하지 않는다.
+- 기본 공개 주소 입력란은 공개 페이지 URL의 마지막 부분이라는 의미와 허용 문자 규칙을 함께 안내한다.
+  주소 변경 후에도 이전 공개 주소는 같은 Workspace로 연결되며 Membership 권한에는 영향을 주지 않는다.
+- `고객 지원 접근 동의`는 일반 콘텐츠·공개 페이지·지원/출력 메뉴 다음, 플랫폼 운영자 전용 메뉴 직전에
+  배치한다. 메뉴 위치만 변경하며 OWNER 전용 권한과 승인·거절·철회 계약은 그대로 유지한다.
+- 로컬 확인 시 기술 용어 `canonical slug`·`alias`가 공개 주소 관리 화면에 노출되지 않는지, 접힌 사이드바와
+  펼친 사이드바 모두에서 고객 지원 접근 동의가 Workspace 범위의 마지막 항목으로 보이는지 확인한다.
+
+### 15.21 중요 작업 재인증 공유와 상단 잔여시간
+
+- 최근 비밀번호 재확인의 source of truth는 브라우저별 로컬 상태가 아니라 서버 `HttpSession`이다. 기본
+  유효시간은 `app.security.reauthentication.valid-for`이며 설정이 없으면 10분이다.
+- `GET /api/auth/me`와 `POST /api/auth/reauthenticate`는 일반 중요 작업 만료 시각과 계정 탈퇴 같은 파괴적
+  작업의 명시적 재인증 만료 시각을 epoch millisecond로 반환한다. 만료된 시각은 `null`로 반환하며 클라이언트가
+  임의로 유효시간을 연장하지 않는다.
+- Workspace 관리 상단의 `중요 작업 인증`에서 비밀번호를 한 번 확인하면 잔여시간을 초 단위로 표시한다.
+  Workspace 이름·공개 주소·멤버·폐쇄, 지원 접근, 초대, Vector 정합성, 삭제 dry-run 등은 같은 서버 세션
+  상태를 공유한다. 각 관리 화면에는 별도의 비밀번호 입력 폼을 두지 않으며, 상단 인증을 유일한 진입점으로
+  사용한다. 화면별 상태 안내는 인증 여부와 남은 시간만 보여 주고 인증이 만료되면 다시 상단으로 안내한다.
+- 인증이 더는 필요하지 않으면 상단 계정 영역이나 각 관리 화면의 상태 카드에서 `지금 만료`를 누른다.
+  `DELETE /api/auth/reauthentication`은 현재 서버 세션의 일반·명시적 재인증 시각을 함께 제거한다. 로그인
+  세션 자체는 유지되지만 이후 모든 중요 작업은 즉시 비밀번호 재확인을 다시 요구한다.
+- 계정 탈퇴는 로그인만으로 설정되는 일반 재인증 시각을 사용하지 않고 `explicit` 만료 시각을 확인한다.
+  비밀번호를 명시적으로 다시 입력한 경우에만 일반·명시적 시각이 함께 설정된다.
+- API가 401을 반환하면 클라이언트의 공유 재인증 상태를 즉시 비우고 다시 확인하도록 안내한다. 로그아웃,
+  전체 기기 로그아웃, 계정 상태 변경 시에도 두 만료 시각을 모두 제거한다.
+- 재인증 대상 계정은 세션에 남아 있을 수 있는 로그인 아이디 문자열이 아니라 인증 주체의 불변 `userId`로
+  다시 조회한다. 조회한 활성 계정의 현재 비밀번호 해시를 설정된 BCrypt encoder로 검증하므로 로그인 이메일이나
+  아이디가 변경된 뒤에도 현재 비밀번호가 잘못 거절되지 않는다.
+- `POST /api/auth/reauthenticate`의 성공 계약은 `200 OK`와
+  `expiresAtEpochMillis`, `explicitExpiresAtEpochMillis` JSON 응답이다. 프런트는 `401` 비밀번호 불일치,
+  `403` 보안 토큰 오류, `429` 재시도 제한, 그 밖의 서버·네트워크 오류를 구분해 안내한다.
+- 로컬 검증은 backend `RecentReauthenticationPolicyTest`,
+  `SaasSecurityFoundationIntegrationTest`의 정상 비밀번호·오래된 로그인 아이디·오류 비밀번호 시나리오,
+  frontend 대상 ESLint와 `tsc --noEmit`을 통과해야 한다.
+  배포 전에는 상단 인증 후 서로 다른 관리 탭 두 곳에서 재입력 없이 작업 가능한지, 만료 후 버튼이 원래 상태로
+  돌아오는지, 일반 로그인 직후 계정 탈퇴가 허용되지 않는지, 브라우저별 세션이 서로 공유되지 않는지 확인한다.
+
+### 15.22 관리 화면 공통 헤더 규격
+
+- Workspace 관리와 플랫폼 운영 화면의 최상단은 공통 `AdminPageHeader`를 사용한다. 제목·설명·범위 표식과
+  주요 작업 버튼의 위치를 고정해 메뉴마다 글자 크기, 여백, 버튼 정렬이 달라지는 문제를 방지한다.
+- 범위 표식은 `원본 기록`, `공개 페이지 구성`, `Workspace 설정`, `플랫폼 운영`, `공통 카탈로그`처럼
+  현재 데이터의 소유 범위와 용도를 먼저 설명한다. 권한이나 데이터 경계 자체를 화면 문구로 대체하지 않으며,
+  기존 Workspace Membership과 플랫폼 역할 검증을 그대로 적용한다.
+- 관리 셸 안의 탭 패널은 기본 `h2`, 독립 경로의 첫 제목은 `h1`을 사용한다. 상태 배지와 새 작성·새로고침·
+  발행 같은 주요 작업은 제목 영역의 `actions`에 배치하고 상세 안내·위험 경고는 헤더 아래 본문에 둔다.
+- 이번 변경은 표시 규격 통일만 수행한다. API, 저장 데이터, 공개 revision, 권한 판정은 변경하지 않는다.
+  배포 전에는 펼친·접힌 사이드바, 좁은 화면, 긴 Workspace 이름에서 제목과 작업 버튼이 겹치지 않는지 확인하고,
+  플랫폼 운영자 전용 화면이 일반 Membership 사용자에게 새로 노출되지 않는지 확인한다.

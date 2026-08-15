@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type MouseEvent as ReactMouseEvent,
+} from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -22,7 +29,6 @@ import {
     Heart,
     ClipboardList,
     GraduationCap,
-    CalendarCheck,
     X,
     Activity,
     GitBranch,
@@ -40,15 +46,18 @@ import {
     ShieldCheck,
     Database,
 } from 'lucide-react';
-import { bffApi, skillApi, systemStatusApi } from '@/lib/api';
-import type { Experience, IntroductionResponse, Skill } from '@/lib/api/types';
+import { systemStatusApi } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
 import { AiModelFloatingWidget } from './AiModelFloatingWidget';
 import { WorkspacePublicationPanel } from './publication/WorkspacePublicationPanel';
 import { WorkspaceSlugSettings } from './workspace/WorkspaceSlugSettings';
 import { WorkspaceLifecycleSettings } from './workspace/WorkspaceLifecycleSettings';
 import { WorkspaceMemberManagement } from './workspace/WorkspaceMemberManagement';
+import { ReauthenticationControl } from './security/ReauthenticationControl';
+import {
+    WorkspaceHomeDashboard,
+    type WorkspaceHomeDestination,
+} from './workspace/WorkspaceHomeDashboard';
 
 const StudyManagement = dynamic(() =>
     import('./study/StudyManagement').then((module) => module.StudyManagement)
@@ -103,13 +112,10 @@ const JobCatalogPermissionOperations = dynamic(() =>
         (module) => module.JobCatalogPermissionOperations
     )
 );
-const WorkspaceJobApplicationManagement = dynamic(() =>
-    import('./job-application/WorkspaceJobApplicationManagement').then(
-        (module) => module.WorkspaceJobApplicationManagement
+const JobApplicationManagement = dynamic(() =>
+    import('./job-application/JobApplicationManagement').then(
+        (module) => module.JobApplicationManagement
     )
-);
-const StudyPlanManagement = dynamic(() =>
-    import('./study-plan/StudyPlanManagement').then((module) => module.StudyPlanManagement)
 );
 const ExperienceTreeManagement = dynamic(() =>
     import('./experience-tree/ExperienceTreeManagement').then(
@@ -180,7 +186,6 @@ type TabId =
     | 'JOB_APPLICATIONS'
     | 'JOB_CATALOG_OPERATIONS'
     | 'LEARNING_RESOURCES'
-    | 'STUDY_PLAN'
     | 'TAXONOMY';
 
 type AdminMenuGroup = {
@@ -207,8 +212,8 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
         items: [
             {
                 id: 'WORKSPACE_HOME',
-                label: '기본 설정',
-                description: 'Workspace 이름, 공개 주소, 폐쇄 등 기본 설정을 관리합니다.',
+                label: '홈',
+                description: '기록, 공개본, 지원 현황과 Workspace 설정을 한눈에 확인합니다.',
                 icon: LayoutDashboard,
             },
             {
@@ -224,13 +229,6 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
                 description: '현재 Workspace 공개 페이지의 방문 현황을 확인합니다.',
                 icon: BarChart3,
                 workspaceAdminOnly: true,
-            },
-            {
-                id: 'WORKSPACE_SUPPORT_ACCESS',
-                label: '지원 접근 승인',
-                description: '플랫폼 지원 담당자의 제한된 진단 요청을 승인·거절·철회합니다.',
-                icon: ShieldCheck,
-                workspaceOwnerOnly: true,
             },
         ],
     },
@@ -287,12 +285,6 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
                 description: '공통 자료 목록에서 학습 상태와 활용 여부를 관리합니다.',
                 icon: GraduationCap,
             },
-            {
-                id: 'STUDY_PLAN',
-                label: 'AI 학습 계획',
-                description: '현재 Workspace의 목표와 기록을 바탕으로 학습 계획을 관리합니다.',
-                icon: CalendarCheck,
-            },
         ],
     },
     {
@@ -347,6 +339,21 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
         ],
     },
     {
+        label: 'Workspace 보안·동의',
+        description: '내 Workspace 데이터에 대한 외부 접근 요청과 보안 동의를 관리합니다.',
+        scope: 'WORKSPACE',
+        items: [
+            {
+                id: 'WORKSPACE_SUPPORT_ACCESS',
+                label: '고객 지원 접근 동의',
+                description:
+                    '플랫폼 지원 담당자가 보낸 최소 진단 요청을 소유자가 승인·거절·철회합니다.',
+                icon: ShieldCheck,
+                workspaceOwnerOnly: true,
+            },
+        ],
+    },
+    {
         label: '플랫폼 운영자 전용',
         description: 'Workspace 콘텐츠가 아닌 플랫폼 공통 데이터와 운영 기능입니다.',
         scope: 'PLATFORM',
@@ -368,8 +375,9 @@ const ADMIN_MENU_GROUPS: AdminMenuGroup[] = [
             },
             {
                 id: 'SUPPORT_ACCESS_OPERATIONS',
-                label: '고객 지원 접근',
-                description: 'Workspace 소유자에게 제한된 진단 접근을 요청하고 이력을 확인합니다.',
+                label: '지원 접근 요청·진단',
+                description:
+                    'Workspace 소유자에게 최소 진단 접근을 요청하고 승인된 범위만 확인합니다.',
                 icon: ShieldCheck,
                 operatorSection: '사용자·서비스 운영',
             },
@@ -475,6 +483,28 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     );
     const [activeTab, setActiveTab] = useState<TabId>('WORKSPACE_HOME');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isWorkspaceSettingsOpen, setIsWorkspaceSettingsOpen] = useState(false);
+    const sidebarCollapsedBeforeMapRef = useRef(false);
+    const isJobMapViewRef = useRef(false);
+
+    const handleJobApplicationViewModeChange = useCallback(
+        (viewMode: 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP') => {
+            if (viewMode === 'MAP') {
+                if (!isJobMapViewRef.current) {
+                    sidebarCollapsedBeforeMapRef.current = isSidebarCollapsed;
+                    isJobMapViewRef.current = true;
+                }
+                setIsSidebarCollapsed(true);
+                return;
+            }
+
+            if (isJobMapViewRef.current) {
+                isJobMapViewRef.current = false;
+                setIsSidebarCollapsed(sidebarCollapsedBeforeMapRef.current);
+            }
+        },
+        [isSidebarCollapsed]
+    );
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -511,14 +541,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 'JOB_APPLICATIONS',
                 'JOB_CATALOG_OPERATIONS',
                 'LEARNING_RESOURCES',
-                'STUDY_PLAN',
                 'TAXONOMY',
             ];
             if (tabInUrl && validTabs.includes(tabInUrl) && allowedTabIds.includes(tabInUrl)) {
                 setActiveTab(tabInUrl);
-                if (tabInUrl === 'JOB_APPLICATIONS') {
-                    setIsSidebarCollapsed(true);
-                }
             }
         };
 
@@ -535,9 +561,6 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     const handleTabChange = (newTab: TabId) => {
         if (!allowedTabIds.includes(newTab)) return;
         setActiveTab(newTab);
-        if (newTab === 'JOB_APPLICATIONS') {
-            setIsSidebarCollapsed(true);
-        }
         if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             url.searchParams.set('tab', newTab);
@@ -563,20 +586,6 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         compactViewport.addEventListener('change', handleViewportChange);
         return () => compactViewport.removeEventListener('change', handleViewportChange);
     }, []);
-
-    const { data: introData } = useQuery({
-        queryKey: ['workspace', workspaceSlug, 'introduction', 'preview'],
-        queryFn: () => bffApi.getWorkspaceIntroduction(workspaceSlug),
-        enabled: Boolean(workspaceSlug),
-    });
-    const { data: skillsList } = useQuery({
-        queryKey: ['workspace', workspaceSlug, 'skills', 'preview'],
-        queryFn: () => skillApi.workspaceList(workspaceSlug),
-        enabled: Boolean(workspaceSlug),
-    });
-    const profileDraft = useAdminPreviewStore((s) => s.profileDraft);
-    const skillDraft = useAdminPreviewStore((s) => s.skillDraft);
-    const experienceDraft = useAdminPreviewStore((s) => s.experienceDraft);
 
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
@@ -674,181 +683,23 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             ? viewportWidth
             : Math.min(previewWidth, previewMaxAllowedWidth);
 
-    // 관리자에서 현재 선택된 메뉴(및 편집 중인 폼)에 대응하는 메인페이지 경로/섹션을 계산한다.
-    const getPreviewTarget = (): { path: string; section?: string } => {
-        switch (activeTab) {
-            case 'WORKSPACE_HOME':
-            case 'PUBLICATION':
-                return { path: publicWorkspaceHref };
-            case 'PUBLIC_PROFILE':
-                return { path: publicWorkspaceHref, section: 'intro-profile' };
-            case 'PUBLIC_EXPERIENCE':
-                return { path: `${publicWorkspaceHref}/experience` };
-            case 'PUBLIC_STUDY':
-                return { path: `${publicWorkspaceHref}/study` };
-            case 'STUDY':
-                return { path: '/study' };
-            case 'EXPERIENCE_TREE':
-                return { path: '/experience-tree' };
-            case 'PROFILE':
-                return { path: '/', section: 'intro-profile' };
-            case 'SKILLS':
-                return { path: '/', section: 'skills' };
-            case 'COMPETENCIES':
-                return { path: '/', section: 'competencies' };
-            case 'ARCHITECTURE':
-                return { path: '/architecture', section: 'architecture-components' };
-            case 'CORE_PROJECTS':
-                return { path: '/', section: 'projects' };
-            case 'EXPERIENCE': {
-                const type = experienceDraft?.form.type;
-                const section =
-                    type === 'CAREER'
-                        ? 'career'
-                        : type === 'PROJECT'
-                          ? 'projects'
-                          : type === 'EDUCATION' || type === 'CERTIFICATE'
-                            ? 'credentials'
-                            : 'timeline';
-                return { path: '/', section };
-            }
-            case 'ANALYTICS':
-            case 'WORKSPACE_ANALYTICS':
-            case 'DONATIONS':
-            default:
-                return { path: '/', section: 'intro-profile' };
-        }
-    };
+    const previewSupported = [
+        'PUBLICATION',
+        'PUBLIC_PROFILE',
+        'PUBLIC_EXPERIENCE',
+        'PUBLIC_STUDY',
+    ].includes(activeTab);
+    const publicDraftPreviewHref = currentWorkspace
+        ? activeTab === 'PUBLIC_EXPERIENCE'
+            ? `${publicWorkspaceHref}/preview/experience`
+            : activeTab === 'PUBLIC_STUDY'
+              ? `${publicWorkspaceHref}/preview/study`
+              : `${publicWorkspaceHref}/preview`
+        : '/';
 
-    // 저장 전 작성 중인 초안을 현재 저장된 introData 위에 겹쳐 미리보기용 데이터를 구성한다.
-    const buildPreviewIntroData = (): IntroductionResponse | null => {
-        if (!introData) return null;
-
-        let profile = introData.profile;
-        let skills = introData.skills;
-        let experiences = introData.experiences;
-
-        if (activeTab === 'PROFILE' && profileDraft) {
-            profile = {
-                id: introData.profile?.id ?? 0,
-                updatedAt: introData.profile?.updatedAt ?? new Date().toISOString(),
-                ...profileDraft,
-            };
-        }
-
-        if (activeTab === 'SKILLS' && skillDraft) {
-            const draftSkillFields = {
-                name: skillDraft.form.name,
-                category: skillDraft.form.category,
-                skillLevel: skillDraft.form.skillLevel,
-                skillVersion: skillDraft.form.skillVersion,
-                comment: skillDraft.form.comment,
-                usageType: skillDraft.form.usageType,
-                badgeKey: skillDraft.form.badgeKey,
-                badgeColor: skillDraft.form.badgeColor,
-                isCore: skillDraft.form.isCore,
-                displayOrder: skillDraft.form.displayOrder,
-            };
-            const draftSkill: Skill = { id: skillDraft.editingId ?? -1, ...draftSkillFields };
-            skills =
-                skillDraft.editingId !== null
-                    ? skills.map((skill) =>
-                          skill.id === skillDraft.editingId ? draftSkill : skill
-                      )
-                    : [...skills, draftSkill];
-        }
-
-        if (activeTab === 'EXPERIENCE' && experienceDraft) {
-            const form = experienceDraft.form;
-            const resolveSkills = (ids: number[]): Skill[] =>
-                ids
-                    .map((id) => skillsList?.find((skill) => skill.id === id))
-                    .filter((skill): skill is Skill => Boolean(skill));
-
-            const draftExperience: Experience = {
-                id: experienceDraft.editingId ?? -1,
-                type: form.type,
-                title: form.title,
-                periodStart: form.periodStart,
-                periodEnd: form.periodEnd ? form.periodEnd : undefined,
-                summary: form.summary,
-                takeaway: form.takeaway,
-                displayOrder: Number(form.displayOrder),
-                showOnTimeline: form.showOnTimeline,
-                timelineLabel: form.timelineLabel?.trim() || undefined,
-                details: form.details.map((detail, idx) => ({
-                    id: detail.id ?? -(idx + 1),
-                    content: detail.content,
-                    situation: detail.situation,
-                    actionDetail: detail.actionDetail,
-                    outcome: detail.outcome,
-                    displayOrder: idx,
-                    skills: resolveSkills(detail.skillIds),
-                })),
-                skills: resolveSkills(form.skillIds),
-                tags: form.tagNames
-                    .split(',')
-                    .map((name) => name.trim())
-                    .filter(Boolean)
-                    .map((name) => ({ id: -1, name, slug: name })),
-                images: form.images,
-                companyName: form.type === 'CAREER' ? form.companyName : undefined,
-                employmentType: form.type === 'CAREER' ? form.employmentType : undefined,
-                department: form.type === 'CAREER' ? form.department : undefined,
-                role: form.type === 'CAREER' || form.type === 'PROJECT' ? form.role : undefined,
-                slug: form.type === 'PROJECT' ? form.slug : undefined,
-                contributionRate:
-                    form.type === 'PROJECT' && form.contributionRate != null
-                        ? Number(form.contributionRate)
-                        : undefined,
-                repositoryUrl:
-                    form.type === 'PROJECT' ? form.repositoryUrl?.trim() || undefined : undefined,
-                careerId: form.type === 'PROJECT' ? form.careerId : undefined,
-                institutionName: form.type === 'EDUCATION' ? form.institutionName : undefined,
-                issuer: form.type === 'CERTIFICATE' ? form.issuer : undefined,
-            };
-
-            experiences =
-                experienceDraft.editingId !== null
-                    ? experiences.map((experience) =>
-                          experience.id === experienceDraft.editingId ? draftExperience : experience
-                      )
-                    : [...experiences, draftExperience];
-        }
-
-        return { ...introData, profile, skills, experiences };
-    };
-
-    const writePreviewState = () => {
-        const data = buildPreviewIntroData();
-        if (data) sessionStorage.setItem('admin-preview-intro-override', JSON.stringify(data));
-        else sessionStorage.removeItem('admin-preview-intro-override');
-        sessionStorage.setItem('admin-preview-nav', JSON.stringify(getPreviewTarget()));
-    };
-
-    // 미리보기가 열려있는 동안 편집 중인 내용과 선택된 메뉴가 바뀔 때마다 실시간으로 반영한다.
-    useEffect(() => {
-        if (!isPreviewOpen) return;
-        const timer = setTimeout(writePreviewState, 200);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        isPreviewOpen,
-        activeTab,
-        introData,
-        profileDraft,
-        skillDraft,
-        experienceDraft,
-        skillsList,
-    ]);
-
-    const refreshPreview = () => {
-        writePreviewState();
-        setPreviewNonce((n) => n + 1);
-    };
+    const refreshPreview = () => setPreviewNonce((n) => n + 1);
 
     const openPreview = () => {
-        writePreviewState();
         setIsPreviewOpen(true);
         requestAnimationFrame(() => setIsPreviewVisible(true));
     };
@@ -857,8 +708,6 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         setIsPreviewVisible(false);
         setTimeout(() => {
             setIsPreviewOpen(false);
-            sessionStorage.removeItem('admin-preview-intro-override');
-            sessionStorage.removeItem('admin-preview-nav');
         }, 300);
     };
 
@@ -867,30 +716,14 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         else openPreview();
     };
 
-    // 공개 페이지에 대응되는 화면이 없는 탭으로 오면 미리보기 패널을 닫는다.
+    // 공개 페이지 구성과 무관한 탭으로 이동하면 초안 미리보기 패널을 닫는다.
     useEffect(() => {
-        if (
-            (activeTab === 'PRINT_TEMPLATES' ||
-                activeTab === 'PORTFOLIO' ||
-                activeTab === 'JOB_APPLICATIONS' ||
-                activeTab === 'JOB_CATALOG_OPERATIONS' ||
-                activeTab === 'LEARNING_RESOURCES' ||
-                activeTab === 'STUDY_PLAN' ||
-                activeTab === 'TAXONOMY' ||
-                activeTab === 'PLATFORM_OVERVIEW' ||
-                activeTab === 'INVITATIONS' ||
-                activeTab === 'PURGE_JOBS' ||
-                activeTab === 'VECTOR_RECONCILIATION' ||
-                activeTab === 'SUPPORT_ACCESS_OPERATIONS' ||
-                activeTab === 'WORKSPACE_SUPPORT_ACCESS') &&
-            isPreviewOpen
-        ) {
-            // 탭 전환에 맞춰 외부 iframe 상태를 정리한다.
+        if (!previewSupported && isPreviewOpen) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             closePreviewPanel();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab]);
+    }, [previewSupported]);
 
     const handlePreviewResizeStart = (event: ReactMouseEvent) => {
         event.preventDefault();
@@ -949,13 +782,12 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                 </div>
                 <div className="flex items-center gap-2">
                     {isPlatformOperator && <AiModelFloatingWidget />}
-                    {canEditWorkspace && (
+                    {canEditWorkspace && previewSupported && (
                         <button
                             type="button"
                             onClick={togglePreview}
-                            disabled={!introData}
-                            title="저장 전 변경사항을 메인페이지에서 미리 확인합니다"
-                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                            title="저장된 공개 페이지 초안을 미리 봅니다"
+                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
                                 isPreviewOpen
                                     ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
                                     : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800'
@@ -1084,16 +916,17 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             )}
                         </div>
                     )}
-                    {isPlatformOperator && (
+                    {currentWorkspace && (
                         <Link
-                            href="/"
-                            title="플랫폼 메인페이지로 이동합니다"
+                            href={publicWorkspaceHref}
+                            title="현재 Workspace의 공개 페이지로 이동합니다"
                             className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
                         >
                             <Home className="h-3.5 w-3.5" />
-                            <span className="hidden md:inline">메인페이지</span>
+                            <span className="hidden md:inline">공개 페이지</span>
                         </Link>
                     )}
+                    <ReauthenticationControl />
                     <div className="relative" ref={accountMenuRef}>
                         <button
                             type="button"
@@ -1364,48 +1197,59 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         <section className="min-w-0 space-y-6">
                             {activeTab === 'WORKSPACE_HOME' && (
                                 <>
-                                    <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                                        <span className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600">
-                                            Workspace Management
-                                        </span>
-                                        <h2 className="mt-3 text-2xl font-black text-slate-950">
-                                            {currentWorkspace?.name ?? 'Workspace'}
-                                        </h2>
-                                        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                                            Workspace 이름과 공개 주소, 멤버가 접근할 수 있는
-                                            수명주기를 관리합니다. 공개 버전과 발행 이력은 공개
-                                            페이지의 공개본·버전에서 다룹니다.
-                                        </p>
-                                        <dl className="mt-6 grid gap-3 rounded-2xl bg-slate-50 p-5 text-sm sm:grid-cols-2">
-                                            <div>
-                                                <dt className="font-bold text-slate-500">
-                                                    Workspace 역할
-                                                </dt>
-                                                <dd className="mt-1 font-black text-slate-900">
-                                                    {currentWorkspace?.role ?? 'MEMBER'}
-                                                </dd>
-                                            </div>
-                                            <div>
-                                                <dt className="font-bold text-slate-500">
-                                                    공개 주소
-                                                </dt>
-                                                <dd className="mt-1 truncate font-mono text-xs text-slate-700">
-                                                    {currentWorkspace?.slug ?? '-'}
-                                                </dd>
-                                            </div>
-                                        </dl>
-                                    </section>
                                     {currentWorkspace && (
                                         <>
-                                            <WorkspaceSlugSettings
-                                                workspaceSlug={currentWorkspace.slug}
-                                                role={currentWorkspace.role}
-                                            />
-                                            <WorkspaceLifecycleSettings
+                                            <WorkspaceHomeDashboard
                                                 workspaceSlug={currentWorkspace.slug}
                                                 workspaceName={currentWorkspace.name}
-                                                role={currentWorkspace.role}
+                                                workspaceRole={currentWorkspace.role}
+                                                onNavigate={(
+                                                    destination: WorkspaceHomeDestination
+                                                ) => handleTabChange(destination)}
                                             />
+                                            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                                                <button
+                                                    type="button"
+                                                    aria-expanded={isWorkspaceSettingsOpen}
+                                                    onClick={() =>
+                                                        setIsWorkspaceSettingsOpen((open) => !open)
+                                                    }
+                                                    className="flex w-full items-center justify-between gap-4 p-6 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                                                >
+                                                    <span>
+                                                        <span className="block text-xs font-black uppercase tracking-[0.14em] text-indigo-600">
+                                                            Workspace settings
+                                                        </span>
+                                                        <strong className="mt-1 block text-lg font-black text-slate-950">
+                                                            주소·이름·탈퇴·폐쇄 설정
+                                                        </strong>
+                                                        <span className="mt-1 block text-sm text-slate-500">
+                                                            자주 사용하지 않는 설정은 기본으로 접어
+                                                            둡니다.
+                                                        </span>
+                                                    </span>
+                                                    <ChevronDown
+                                                        className={`h-5 w-5 shrink-0 text-slate-500 transition-transform ${
+                                                            isWorkspaceSettingsOpen
+                                                                ? 'rotate-180'
+                                                                : ''
+                                                        }`}
+                                                    />
+                                                </button>
+                                                {isWorkspaceSettingsOpen && (
+                                                    <div className="space-y-6 border-t border-slate-200 bg-slate-50/60 p-4 sm:p-6">
+                                                        <WorkspaceSlugSettings
+                                                            workspaceSlug={currentWorkspace.slug}
+                                                            role={currentWorkspace.role}
+                                                        />
+                                                        <WorkspaceLifecycleSettings
+                                                            workspaceSlug={currentWorkspace.slug}
+                                                            workspaceName={currentWorkspace.name}
+                                                            role={currentWorkspace.role}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </section>
                                         </>
                                     )}
                                 </>
@@ -1414,24 +1258,28 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 <WorkspacePublicationPanel
                                     workspaceSlug={currentWorkspace.slug}
                                     role={currentWorkspace.role}
+                                    onPreview={openPreview}
                                 />
                             )}
                             {activeTab === 'PUBLIC_PROFILE' && currentWorkspace && (
                                 <PublicPageCompositionManagement
                                     workspaceSlug={currentWorkspace.slug}
                                     section="profile"
+                                    onPreview={openPreview}
                                 />
                             )}
                             {activeTab === 'PUBLIC_EXPERIENCE' && currentWorkspace && (
                                 <PublicPageCompositionManagement
                                     workspaceSlug={currentWorkspace.slug}
                                     section="experience"
+                                    onPreview={openPreview}
                                 />
                             )}
                             {activeTab === 'PUBLIC_STUDY' && currentWorkspace && (
                                 <PublicPageCompositionManagement
                                     workspaceSlug={currentWorkspace.slug}
                                     section="study"
+                                    onPreview={openPreview}
                                 />
                             )}
                             {activeTab === 'STUDY' && (
@@ -1511,8 +1359,11 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             {isWorkspaceOwner && activeTab === 'WORKSPACE_SUPPORT_ACCESS' && (
                                 <WorkspaceSupportAccessPanel workspaceSlug={workspaceSlug} />
                             )}
-                            {activeTab === 'JOB_APPLICATIONS' && (
-                                <WorkspaceJobApplicationManagement workspaceSlug={workspaceSlug} />
+                            {activeTab === 'JOB_APPLICATIONS' && currentWorkspace && (
+                                <JobApplicationManagement
+                                    workspaceSlug={workspaceSlug}
+                                    onViewModeChange={handleJobApplicationViewModeChange}
+                                />
                             )}
                             {isPlatformOperator && activeTab === 'JOB_CATALOG_OPERATIONS' && (
                                 <JobCatalogPermissionOperations />
@@ -1521,9 +1372,6 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 <WorkspaceLearningResourceManagement
                                     workspaceSlug={workspaceSlug}
                                 />
-                            )}
-                            {activeTab === 'STUDY_PLAN' && (
-                                <StudyPlanManagement workspaceSlug={workspaceSlug} />
                             )}
                             {activeTab === 'TAXONOMY' && <TaxonomyManagement />}
                         </section>
@@ -1549,10 +1397,10 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
                                 <div className="min-w-0">
                                     <h3 className="text-sm font-black text-slate-900">
-                                        메인페이지 미리보기
+                                        공개 페이지 초안 미리보기
                                     </h3>
                                     <p className="mt-0.5 text-xs text-slate-500">
-                                        저장 전 변경사항이 반영된 화면입니다.
+                                        저장된 공개 구성을 방문자 화면으로 확인합니다.
                                     </p>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
@@ -1577,9 +1425,9 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                                 </div>
                             </div>
                             <iframe
-                                key={`${previewNonce}-${getPreviewTarget().path}`}
-                                src={`${getPreviewTarget().path}?preview=1`}
-                                title="메인페이지 미리보기"
+                                key={`${previewNonce}-${publicDraftPreviewHref}`}
+                                src={publicDraftPreviewHref}
+                                title="공개 페이지 초안 미리보기"
                                 className="w-full flex-1 border-0"
                             />
                         </div>

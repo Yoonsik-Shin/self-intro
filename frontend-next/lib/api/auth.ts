@@ -16,6 +16,8 @@ export type MeResponse = {
     mfaEnabled: boolean;
     mfaEnrollmentRequired: boolean;
     mfaRecoveryReenrollmentAllowed: boolean;
+    reauthenticationExpiresAtEpochMillis: number | null;
+    explicitReauthenticationExpiresAtEpochMillis: number | null;
     platformRoles: Array<'PLATFORM_OWNER' | 'PLATFORM_OPERATOR' | 'SUPPORT'>;
     workspaces: AuthWorkspace[];
 };
@@ -35,12 +37,19 @@ export type AccountWithdrawalReadiness = {
 
 type LegacyCompatibleMeResponse = Omit<
     MeResponse,
-    'email' | 'nickname' | 'platformRoles' | 'workspaces'
+    | 'email'
+    | 'nickname'
+    | 'platformRoles'
+    | 'workspaces'
+    | 'reauthenticationExpiresAtEpochMillis'
+    | 'explicitReauthenticationExpiresAtEpochMillis'
 > & {
     email?: string | null;
     nickname?: string;
     platformRoles?: MeResponse['platformRoles'];
     workspaces?: MeResponse['workspaces'];
+    reauthenticationExpiresAtEpochMillis?: number | null;
+    explicitReauthenticationExpiresAtEpochMillis?: number | null;
 };
 
 function normalizeMe(response: LegacyCompatibleMeResponse): MeResponse {
@@ -51,6 +60,9 @@ function normalizeMe(response: LegacyCompatibleMeResponse): MeResponse {
         mfaEnabled: response.mfaEnabled ?? false,
         mfaEnrollmentRequired: response.mfaEnrollmentRequired ?? false,
         mfaRecoveryReenrollmentAllowed: response.mfaRecoveryReenrollmentAllowed ?? false,
+        reauthenticationExpiresAtEpochMillis: response.reauthenticationExpiresAtEpochMillis ?? null,
+        explicitReauthenticationExpiresAtEpochMillis:
+            response.explicitReauthenticationExpiresAtEpochMillis ?? null,
         platformRoles: response.platformRoles ?? [],
         workspaces: response.workspaces ?? [],
     };
@@ -110,9 +122,18 @@ export const authApi = {
         }),
     reauthenticate: async (password: string) => {
         await request<void>('/api/auth/csrf');
-        return request<void>('/api/auth/reauthenticate', {
+        return request<{
+            expiresAtEpochMillis: number | null;
+            explicitExpiresAtEpochMillis: number | null;
+        }>('/api/auth/reauthenticate', {
             method: 'POST',
             body: JSON.stringify({ password }),
+        });
+    },
+    expireReauthentication: async () => {
+        await request<void>('/api/auth/csrf');
+        return request<void>('/api/auth/reauthentication', {
+            method: 'DELETE',
         });
     },
     me: async () => normalizeMe(await request<LegacyCompatibleMeResponse>('/api/auth/me')),

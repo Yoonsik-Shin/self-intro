@@ -2,9 +2,11 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, KeyRound, LoaderCircle, LogOut, Pencil, Trash2 } from 'lucide-react';
-import { ApiError, authApi, workspaceApi, type WorkspaceRole } from '@/lib/api';
+import { LogOut, Pencil, Trash2 } from 'lucide-react';
+import { ApiError, workspaceApi, type WorkspaceRole } from '@/lib/api';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
 import { useAuthStore } from '@/store/useAuthStore';
+import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
 
 type Props = {
     workspaceSlug: string;
@@ -15,32 +17,17 @@ type Props = {
 export function WorkspaceLifecycleSettings({ workspaceSlug, workspaceName, role }: Props) {
     const router = useRouter();
     const checkSession = useAuthStore((state) => state.checkSession);
+    const updateWorkspaceName = useAuthStore((state) => state.updateWorkspaceName);
+    const { isReauthenticated: reauthenticated, clear: clearReauthentication } =
+        useRecentReauthentication();
     const [name, setName] = useState(workspaceName);
     const [confirmationName, setConfirmationName] = useState('');
-    const [password, setPassword] = useState('');
-    const [reauthenticated, setReauthenticated] = useState(false);
     const [pending, setPending] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const canRename = role === 'OWNER' || role === 'ADMIN';
 
-    async function reauthenticate(event: FormEvent) {
-        event.preventDefault();
-        setPending(true);
-        setError(null);
-        try {
-            await authApi.reauthenticate(password);
-            setPassword('');
-            setReauthenticated(true);
-        } catch {
-            setReauthenticated(false);
-            setError('비밀번호를 다시 확인해 주세요.');
-        } finally {
-            setPending(false);
-        }
-    }
-
-    async function run(operation: () => Promise<unknown>, success: () => Promise<void>) {
+    async function run<T>(operation: () => Promise<T>, success: (result: T) => Promise<void>) {
         if (!reauthenticated) {
             setError('먼저 비밀번호를 다시 확인해 주세요.');
             return;
@@ -49,12 +36,12 @@ export function WorkspaceLifecycleSettings({ workspaceSlug, workspaceName, role 
         setError(null);
         setMessage(null);
         try {
-            await operation();
-            await success();
+            const result = await operation();
+            await success(result);
         } catch (cause) {
             if (cause instanceof ApiError && cause.status === 401) {
-                setReauthenticated(false);
-                setError('재인증 시간이 만료되었습니다. 비밀번호를 다시 확인해 주세요.');
+                clearReauthentication();
+                setError('인증 시간이 만료되었습니다. 상단에서 중요 작업 인증을 다시 해 주세요.');
             } else {
                 setError(cause instanceof Error ? cause.message : 'Workspace 작업에 실패했습니다.');
             }
@@ -67,8 +54,11 @@ export function WorkspaceLifecycleSettings({ workspaceSlug, workspaceName, role 
         event.preventDefault();
         await run(
             () => workspaceApi.rename(workspaceSlug, name),
-            async () => {
+            async (renamedWorkspace) => {
+                setName(renamedWorkspace.name);
                 await checkSession();
+                // /me 응답 캐시가 갱신되기 전이어도 현재 화면에는 이름 변경 결과를 즉시 반영한다.
+                updateWorkspaceName(workspaceSlug, renamedWorkspace.name);
                 setMessage('Workspace 이름을 변경했습니다.');
             }
         );
@@ -126,37 +116,9 @@ export function WorkspaceLifecycleSettings({ workspaceSlug, workspaceName, role 
             )}
             {message && <p className="mt-5 text-sm font-bold text-emerald-700">{message}</p>}
 
-            <form onSubmit={reauthenticate} className="mt-6 rounded-2xl bg-slate-950 p-5 shadow-sm">
-                <div className="flex items-center gap-2 font-black text-white">
-                    <KeyRound className="h-4 w-4" /> 중요 작업 재인증
-                </div>
-                <p className="mt-2 text-xs leading-5 text-slate-300">
-                    이름 변경·탈퇴·폐쇄는 최근 10분 안에 현재 비밀번호를 확인해야 합니다.
-                </p>
-                <div className="mt-4 flex gap-2">
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="현재 비밀번호"
-                        autoComplete="current-password"
-                        required
-                        className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                    <button
-                        disabled={pending}
-                        className="rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:opacity-50"
-                    >
-                        {pending ? (
-                            <LoaderCircle className="h-4 w-4 animate-spin" />
-                        ) : reauthenticated ? (
-                            <Check className="h-4 w-4" />
-                        ) : (
-                            '재확인'
-                        )}
-                    </button>
-                </div>
-            </form>
+            <div className="mt-6">
+                <RecentReauthenticationStatus description="이름 변경·탈퇴·폐쇄는 최근 10분 안에 현재 비밀번호를 확인해야 합니다." />
+            </div>
 
             <div className="mt-6 grid gap-5 lg:grid-cols-2">
                 {canRename && (

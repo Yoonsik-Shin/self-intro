@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Clock3, Database, RefreshCw, ShieldAlert } from 'lucide-react';
-import { ApiError, authApi, workspacePurgeApi, type WorkspacePurgeCheckpoint } from '@/lib/api';
+import { Clock3, Database, RefreshCw } from 'lucide-react';
+import { ApiError, workspacePurgeApi, type WorkspacePurgeCheckpoint } from '@/lib/api';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
 
 const STORE_LABEL: Record<WorkspacePurgeCheckpoint['store'], string> = {
     MYSQL_PRIMARY: 'MySQL 원본',
@@ -22,23 +25,10 @@ export function WorkspacePurgeOperationsPanel() {
         queryKey: ['ops', 'workspace-purge-jobs'],
         queryFn: workspacePurgeApi.list,
     });
-    const [password, setPassword] = useState('');
-    const [reauthenticated, setReauthenticated] = useState(false);
+    const { isReauthenticated: reauthenticated, clear: clearReauthentication } =
+        useRecentReauthentication();
     const [pendingJobId, setPendingJobId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    async function reauthenticate(event: FormEvent) {
-        event.preventDefault();
-        setError(null);
-        try {
-            await authApi.reauthenticate(password);
-            setReauthenticated(true);
-            setPassword('');
-        } catch {
-            setReauthenticated(false);
-            setError('운영자 비밀번호를 다시 확인해 주세요.');
-        }
-    }
 
     async function dryRun(jobId: number) {
         if (!reauthenticated) {
@@ -52,7 +42,7 @@ export function WorkspacePurgeOperationsPanel() {
             await refetch();
         } catch (cause) {
             if (cause instanceof ApiError && cause.status === 401) {
-                setReauthenticated(false);
+                clearReauthentication();
                 setError('재인증 시간이 만료되었습니다. 비밀번호를 다시 확인해 주세요.');
             } else {
                 setError(cause instanceof Error ? cause.message : 'dry-run을 완료하지 못했습니다.');
@@ -64,45 +54,14 @@ export function WorkspacePurgeOperationsPanel() {
 
     return (
         <div className="space-y-6 text-slate-800">
-            <header>
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
-                    Platform Operations
-                </span>
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-                    Workspace 삭제 점검
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    폐쇄된 Workspace의 저장소별 삭제 후보와 차단 사유를 점검합니다. 이 화면의
-                    dry-run은 데이터를 삭제하지 않으며, 실제 물리 삭제 실행기는 비활성화되어
-                    있습니다.
-                </p>
-            </header>
+            <AdminPageHeader
+                headingAs="h1"
+                eyebrow="Platform Operations"
+                title="Workspace 삭제 점검"
+                description="폐쇄된 Workspace의 저장소별 삭제 후보와 차단 사유를 점검합니다. 이 화면의 dry-run은 데이터를 삭제하지 않으며, 실제 물리 삭제 실행기는 비활성화되어 있습니다."
+            />
 
-            <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-sm md:grid-cols-[minmax(0,1fr)_360px] md:items-center">
-                <div>
-                    <div className="flex items-center gap-2 font-black text-white">
-                        <ShieldAlert className="h-5 w-5" /> fail-closed 삭제 점검
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">
-                        Workspace 이름·이메일·본문은 표시하지 않습니다. dry-run은 최근 10분 이내
-                        비밀번호 재확인이 필요하고, 미분류 저장소가 하나라도 있으면 차단됩니다.
-                    </p>
-                </div>
-                <form onSubmit={reauthenticate} className="flex gap-2">
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="운영자 비밀번호"
-                        autoComplete="current-password"
-                        required
-                        className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-white px-3 py-2 text-sm text-slate-950 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                    <button className="rounded-xl bg-white px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-slate-100">
-                        {reauthenticated ? <Check className="h-4 w-4" /> : '재확인'}
-                    </button>
-                </form>
-            </section>
+            <RecentReauthenticationStatus description="Workspace 이름·이메일·본문은 표시하지 않습니다. 상단에서 인증한 뒤에만 삭제 dry-run을 실행하며, 미분류 저장소가 하나라도 있으면 차단됩니다." />
 
             {(error || loadError) && (
                 <p

@@ -95,11 +95,7 @@ public class SecurityConfig {
                                         // 2026-08). /api/admin/**과 분리된 prefix라 이 규칙이 없으면
                                         // GET 엔드포인트가 아래 GET permitAll에 먼저 걸려 인증 없이
                                         // 열려버린다.
-                                        // AI 학습 계획은 worker가 실행하지만 플랫폼 운영 기능이 아니라
-                                        // Workspace 콘텐츠다. 세부 역할 검증은 controller policy가 한다.
                                         .requestMatchers(
-                                                "/api/worker/workspaces/*/study-plans/manage",
-                                                "/api/worker/workspaces/*/study-plans/manage/**",
                                                 "/api/worker/workspaces/*/job-applications/manage",
                                                 "/api/worker/workspaces/*/job-applications/manage/**")
                                         .authenticated()
@@ -213,6 +209,9 @@ public class SecurityConfig {
                                                 "/api/auth/reauthenticate",
                                                 "/api/auth/sessions/logout-all",
                                                 "/api/auth/mfa/**")
+                                        .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.DELETE, "/api/auth/reauthentication")
                                         .authenticated()
                                         // 계정 자기관리 API는 플랫폼 운영 권한이 아니라 현재 로그인한
                                         // 본인의 AppUserPrincipal로만 동작한다. 아래 전역 ADMIN 쓰기

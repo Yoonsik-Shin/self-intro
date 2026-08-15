@@ -34,7 +34,9 @@ Self-Intro를 단일 소유자 포트폴리오에서 다중 사용자 SaaS로 �
 Workspace에 따라 달라지는 값을 저장하지 않는다. 공통 정의를 개인화해야 하는 도메인은 공통
 catalog와 Workspace overlay를 분리한다.
 
-- Skill: 공통 `skill` 정의 + Workspace별 `workspace_skill` 표현
+- Skill: 이름·분류·배지는 공통 `skill` 정의, 실무 수준·사용 버전·활용 맥락·경험 메모·핵심 여부·노출
+  순서는 Workspace별 `workspace_skill` 표현. Workspace 생성 API는 `catalogSkillId`와 overlay 값만 받고,
+  수정 API도 overlay 값만 받는다. 공통 정의의 쓰기는 플랫폼 운영 API에서만 수행한다.
 - Taxonomy: 공통 노드 + Workspace별 선택·순서·사용자 정의 분류
 - Learning Resource: 공통 자료 메타데이터 + Workspace별 상태·메모·진도
 - Job Posting: 공고 원본 + Workspace별 저장·지원·분석·자소서
@@ -81,6 +83,13 @@ key는 V207에서 `workspaces/{workspaceId}/...` namespace로 이관한다. obje
 전에 비공개 버킷의 같은 결과 key로 복사·검증해야 한다. Workspace 지원 상태 관리 화면과 플랫폼
 공고 수집·AI 운영 화면은 계속 분리한다. 전자는 일반
 Workspace에 개방하고 후자는 플랫폼 운영자에게만 보인다.
+
+지원 지도의 기준 위치는 공통 `job_posting_setting`이나 Account 프로필이 아니라
+`workspace_job_map_setting`에 Workspace별로 저장한다. 이 값은 개인의 생활권을 추론할 수 있는 비공개
+정보이므로 공통 공고 catalog, 공개 페이지 구성, 공개 revision, PDF 출력에 포함하지 않는다. 읽기는
+`OWNER`, `ADMIN`, `EDITOR`, `VIEWER` Membership에 허용하고 변경은 `OWNER`, `ADMIN`, `EDITOR`로
+제한한다. Workspace 폐쇄 시 FK cascade로 제거하며, 다른 Workspace로 복사하거나 기본 주소를 자동
+생성하지 않는다.
 
 ### JobPosting 공유 카탈로그 권한 불변 조건
 
@@ -161,6 +170,13 @@ application과 가능한 경우 복합 외래키로 검증한다.
 현재 규모에서는 MySQL 공유 스키마의 row-level tenancy를 사용한다. Workspace aggregate root와
 보안상 직접 조회되는 하위·연결 테이블에는 `workspace_id NOT NULL`을 둔다. 연결 테이블은
 가능한 경우 `(workspace_id, entity_id)` 복합 외래키로 교차 Workspace 연결을 DB에서도 막는다.
+
+배포 환경의 다음 단계에서는 개인정보 원본에 접근할 수 있는 실행 주체를 줄이기 위해
+[ADR-006](./ADR-006-private-data-plane-and-public-projection.md)의 Public MySQL, Private ATP,
+Vector ATP 경계를 적용한다. 이는 아직 구현되지 않은 목표 구조이며, 이관 전까지 현재 MySQL 공유
+schema의 row-level tenancy와 기존 Oracle Vector ATP 경계를 source of truth로 유지한다. 공개 revision도
+개인정보이므로 비개인정보로 분류하지 않고, 사용자가 선택한 최소 필드 projection과 별도 보존·공개
+중지 정책을 적용한다.
 
 다른 Workspace의 객체를 요청하면 존재 여부를 노출하지 않도록 404로 응답한다.
 

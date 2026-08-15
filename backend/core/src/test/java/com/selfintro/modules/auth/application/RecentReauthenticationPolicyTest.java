@@ -1,5 +1,6 @@
 package com.selfintro.modules.auth.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -33,5 +34,21 @@ class RecentReauthenticationPolicyTest {
                 System.currentTimeMillis());
 
         assertThatCode(() -> policy.requireExplicitRecent(session)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void exposesOnlyUnexpiredSessionDeadlines() {
+        MockHttpSession session = new MockHttpSession();
+        long now = System.currentTimeMillis();
+        session.setAttribute(RecentReauthenticationPolicy.REAUTHENTICATED_AT_ATTRIBUTE, now);
+        session.setAttribute(
+                RecentReauthenticationPolicy.EXPLICIT_REAUTHENTICATED_AT_ATTRIBUTE,
+                now - Duration.ofMinutes(11).toMillis());
+
+        assertThat(policy.expiresAtEpochMillis(session))
+                .isBetween(
+                        now + Duration.ofMinutes(9).toMillis(),
+                        now + Duration.ofMinutes(10).toMillis());
+        assertThat(policy.explicitExpiresAtEpochMillis(session)).isNull();
     }
 }

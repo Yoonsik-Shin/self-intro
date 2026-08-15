@@ -1,21 +1,22 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Check, Database, RefreshCw, ShieldCheck } from 'lucide-react';
-import { ApiError, authApi, vectorOperationsApi } from '@/lib/api';
-import { useAuthStore } from '@/store/useAuthStore';
+import { AlertTriangle, Database, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ApiError, vectorOperationsApi } from '@/lib/api';
+import { useRecentReauthentication } from '@/hooks/useRecentReauthentication';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+import { RecentReauthenticationStatus } from '@/components/admin/security/RecentReauthenticationStatus';
 
 export function VectorReconciliationPanel() {
-    const setUnauthenticated = useAuthStore((state) => state.setUnauthenticated);
     const [repairConfirmed, setRepairConfirmed] = useState(false);
     const [repairPending, setRepairPending] = useState(false);
     const [repairMessage, setRepairMessage] = useState<string | null>(null);
     const [repairError, setRepairError] = useState<string | null>(null);
     const [missingConfirmed, setMissingConfirmed] = useState(false);
     const [missingPending, setMissingPending] = useState(false);
-    const [password, setPassword] = useState('');
-    const [reauthenticated, setReauthenticated] = useState(false);
+    const { isReauthenticated: reauthenticated, clear: clearReauthentication } =
+        useRecentReauthentication();
     const inspection = useQuery({
         queryKey: ['ops', 'vector-reconciliation'],
         queryFn: vectorOperationsApi.inspectReconciliation,
@@ -39,28 +40,6 @@ export function VectorReconciliationPanel() {
               : 'Vector 정합성 점검을 완료하지 못했습니다.'
         : null;
 
-    async function reauthenticate(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        setRepairError(null);
-        let activeSessionConfirmed = false;
-        try {
-            await authApi.me();
-            activeSessionConfirmed = true;
-            await authApi.reauthenticate(password);
-            setReauthenticated(true);
-        } catch (cause) {
-            setReauthenticated(false);
-            if (cause instanceof ApiError && cause.status === 401 && !activeSessionConfirmed) {
-                setRepairError('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
-                setUnauthenticated();
-            } else {
-                setRepairError('운영자 비밀번호를 다시 확인해 주세요.');
-            }
-        } finally {
-            setPassword('');
-        }
-    }
-
     async function reconcileOrphans() {
         if (!repairConfirmed || !reauthenticated) return;
         setRepairPending(true);
@@ -75,7 +54,7 @@ export function VectorReconciliationPanel() {
             await inspection.refetch();
         } catch (cause) {
             if (cause instanceof ApiError && cause.status === 401) {
-                setReauthenticated(false);
+                clearReauthentication();
                 setRepairError(
                     '최근 비밀번호 재확인이 만료되었습니다. 비밀번호를 다시 확인해 주세요.'
                 );
@@ -105,7 +84,7 @@ export function VectorReconciliationPanel() {
             await inspection.refetch();
         } catch (cause) {
             if (cause instanceof ApiError && cause.status === 401) {
-                setReauthenticated(false);
+                clearReauthentication();
                 setRepairError(
                     '최근 비밀번호 재확인이 만료되었습니다. 비밀번호를 다시 확인해 주세요.'
                 );
@@ -123,19 +102,12 @@ export function VectorReconciliationPanel() {
 
     return (
         <div className="space-y-6 text-slate-800">
-            <header>
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
-                    Platform Operations
-                </span>
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-                    Vector 정합성 점검
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    MySQL 원본과 Oracle Vector의 Experience·Study namespace 수를 읽기 전용으로
-                    대조합니다. 이 화면은 ID·제목·본문을 표시하지 않으며 명시적으로 확인한 고아 파생
-                    Vector만 정리할 수 있습니다. 전체 백필은 실행하지 않습니다.
-                </p>
-            </header>
+            <AdminPageHeader
+                headingAs="h1"
+                eyebrow="Platform Operations"
+                title="Vector 정합성 점검"
+                description="MySQL 원본과 Oracle Vector의 Experience·Study namespace 수를 읽기 전용으로 대조합니다. 이 화면은 ID·제목·본문을 표시하지 않으며 명시적으로 확인한 고아 파생 Vector만 정리할 수 있습니다. 전체 백필은 실행하지 않습니다."
+            />
 
             <section className="flex flex-col gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-5 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -230,35 +202,7 @@ export function VectorReconciliationPanel() {
             )}
 
             {result && inconsistencyCount > 0 && (
-                <section className="space-y-3 rounded-2xl border border-slate-300 bg-white p-5">
-                    <div>
-                        <h2 className="font-black text-slate-950">중요 작업 재인증</h2>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
-                            Vector 삭제 또는 외부 임베딩 전송 전 최근 10분 이내 비밀번호 재확인이
-                            필요합니다.
-                        </p>
-                    </div>
-                    <form
-                        onSubmit={reauthenticate}
-                        className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]"
-                    >
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                            placeholder="운영자 비밀번호 재확인"
-                            autoComplete="current-password"
-                            required
-                            className="min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-600"
-                        />
-                        <button
-                            type="submit"
-                            className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white"
-                        >
-                            {reauthenticated ? <Check className="h-4 w-4" /> : '재확인'}
-                        </button>
-                    </form>
-                </section>
+                <RecentReauthenticationStatus description="Vector 삭제 또는 외부 임베딩 전송 전에 상단의 중요 작업 인증을 완료해 주세요. 남은 인증 시간은 다른 플랫폼 운영 작업과 공유됩니다." />
             )}
 
             {result &&

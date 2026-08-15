@@ -12,6 +12,8 @@ public record MeResponse(
         boolean mfaEnabled,
         boolean mfaEnrollmentRequired,
         boolean mfaRecoveryReenrollmentAllowed,
+        Long reauthenticationExpiresAtEpochMillis,
+        Long explicitReauthenticationExpiresAtEpochMillis,
         Set<String> platformRoles,
         List<WorkspaceMembershipResponse> workspaces) {
 

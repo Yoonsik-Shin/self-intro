@@ -11,6 +11,7 @@ import com.selfintro.modules.auth.presentation.dto.LoginResponse;
 import com.selfintro.modules.auth.presentation.dto.MeResponse;
 import com.selfintro.modules.auth.presentation.dto.MfaCodeRequest;
 import com.selfintro.modules.auth.presentation.dto.ReauthenticateRequest;
+import com.selfintro.modules.auth.presentation.dto.ReauthenticationStatusResponse;
 import com.selfintro.modules.identity.domain.AppUserRepository;
 import com.selfintro.modules.identity.domain.MembershipStatus;
 import com.selfintro.modules.identity.domain.WorkspaceMemberRepository;
@@ -24,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -96,6 +98,7 @@ public class AuthController {
                                                 membership.getRole().name()))
                         .toList();
         String nickname = currentUser.getDisplayName();
+        var session = httpRequest.getSession(true);
         return new MeResponse(
                 principal.userId(),
                 principal.getUsername(),
@@ -103,7 +106,9 @@ public class AuthController {
                 nickname,
                 principal.mfaEnabled(),
                 !principal.platformRoles().isEmpty() && !principal.mfaEnabled(),
-                mfaService.requiresRecoveryReenrollment(principal, httpRequest.getSession(true)),
+                mfaService.requiresRecoveryReenrollment(principal, session),
+                recentReauthenticationPolicy.expiresAtEpochMillis(session),
+                recentReauthenticationPolicy.explicitExpiresAtEpochMillis(session),
                 principal.platformRoles(),
                 workspaces);
     }
@@ -154,12 +159,29 @@ public class AuthController {
     }
 
     @PostMapping("/reauthenticate")
-    public ResponseEntity<Void> reauthenticate(
+    public ResponseEntity<ReauthenticationStatusResponse> reauthenticate(
             @Valid @RequestBody ReauthenticateRequest request,
             Authentication authentication,
             HttpServletRequest httpRequest) {
         AppUserPrincipal principal = requirePrincipal(authentication);
         authService.reauthenticate(principal, request.password(), httpRequest);
+        var session = httpRequest.getSession(true);
+        return ResponseEntity.ok(
+                new ReauthenticationStatusResponse(
+                        recentReauthenticationPolicy.expiresAtEpochMillis(session),
+                        recentReauthenticationPolicy.explicitExpiresAtEpochMillis(session)));
+    }
+
+    @DeleteMapping("/reauthentication")
+    public ResponseEntity<Void> expireReauthentication(
+            Authentication authentication, HttpServletRequest httpRequest) {
+        AppUserPrincipal principal = requirePrincipal(authentication);
+        var session = httpRequest.getSession(false);
+        if (session != null) {
+            recentReauthenticationPolicy.expire(session);
+        }
+        securityAuditService.recordPlatformTargetAction(
+                "REAUTHENTICATION_EXPIRED", principal.userId(), "APP_USER", principal.userId());
         return ResponseEntity.noContent().build();
     }
 

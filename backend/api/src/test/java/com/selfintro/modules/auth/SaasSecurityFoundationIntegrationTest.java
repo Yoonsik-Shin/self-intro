@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -245,7 +246,9 @@ class SaasSecurityFoundationIntegrationTest {
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"password\":\"test-password\"}"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresAtEpochMillis").isNumber())
+                .andExpect(jsonPath("$.explicitExpiresAtEpochMillis").isNumber());
 
         assertThat((Long) session.getAttribute("SELF_INTRO_REAUTHENTICATED_AT")).isGreaterThan(0L);
 
@@ -254,6 +257,59 @@ class SaasSecurityFoundationIntegrationTest {
 
         assertThatThrownBy(() -> session.getAttribute("SELF_INTRO_REAUTHENTICATED_AT"))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void platformOwnerCanExpireRecentReauthenticationImmediately() throws Exception {
+        MockHttpSession session = login();
+
+        mockMvc.perform(
+                        post("/api/auth/reauthenticate")
+                                .session(session)
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"password\":\"test-password\"}"))
+                .andExpect(status().isOk());
+
+        assertThat(session.getAttribute("SELF_INTRO_REAUTHENTICATED_AT")).isNotNull();
+        assertThat(session.getAttribute("SELF_INTRO_EXPLICIT_REAUTHENTICATED_AT")).isNotNull();
+
+        mockMvc.perform(delete("/api/auth/reauthentication").session(session).with(csrf()))
+                .andExpect(status().isNoContent());
+
+        assertThat(session.getAttribute("SELF_INTRO_REAUTHENTICATED_AT")).isNull();
+        assertThat(session.getAttribute("SELF_INTRO_EXPLICIT_REAUTHENTICATED_AT")).isNull();
+
+        mockMvc.perform(get("/api/auth/me").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reauthenticationExpiresAtEpochMillis").doesNotExist())
+                .andExpect(
+                        jsonPath("$.explicitReauthenticationExpiresAtEpochMillis").doesNotExist());
+    }
+
+    @Test
+    void reauthenticationUsesImmutableUserIdWhenSessionLoginIdIsStale() throws Exception {
+        AppUser owner = appUserRepository.findByLoginId("test-owner").orElseThrow();
+        AppUserPrincipal currentPrincipal = platformOwnerPrincipal();
+        AppUserPrincipal staleLoginIdPrincipal =
+                new AppUserPrincipal(
+                        owner.getId(),
+                        "stale-login-id",
+                        currentPrincipal.password(),
+                        currentPrincipal.enabled(),
+                        currentPrincipal.mfaEnabled(),
+                        currentPrincipal.platformRoles(),
+                        currentPrincipal.authorities());
+
+        mockMvc.perform(
+                        post("/api/auth/reauthenticate")
+                                .with(user(staleLoginIdPrincipal))
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"password\":\"test-password\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresAtEpochMillis").isNumber())
+                .andExpect(jsonPath("$.explicitExpiresAtEpochMillis").isNumber());
     }
 
     @Test
@@ -1456,24 +1512,23 @@ class SaasSecurityFoundationIntegrationTest {
                 workspaceRepository.save(Workspace.createPrivatePersonal("Second skills"));
         workspaceMemberRepository.save(WorkspaceMember.owner(first, firstOwner));
         workspaceMemberRepository.save(WorkspaceMember.owner(second, secondOwner));
-        skillRepository.save(
-                Skill.create("Workspace API catalog skill", "BACKEND", null, false, 0));
+        Skill catalogSkill =
+                skillRepository.save(
+                        Skill.create("Workspace API catalog skill", "BACKEND", null, false, 0));
 
         String payload =
                 """
                 {
-                  "name":"Workspace API catalog skill",
-                  "category":"BACKEND",
+                  "catalogSkillId":%d,
                   "skillLevel":"ADVANCED",
                   "skillVersion":"21",
                   "comment":"first workspace only",
                   "usageType":"WORK_EXPERIENCE",
-                  "badgeKey":"",
-                  "badgeColor":"",
                   "isCore":true,
                   "displayOrder":0
                 }
-                """;
+                """
+                        .formatted(catalogSkill.getId());
 
         mockMvc.perform(
                         post("/api/workspaces/" + first.getSlug() + "/skills")

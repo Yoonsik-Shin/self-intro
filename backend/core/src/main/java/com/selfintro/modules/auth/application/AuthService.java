@@ -1,5 +1,7 @@
 package com.selfintro.modules.auth.application;
 
+import com.selfintro.modules.identity.domain.AppUser;
+import com.selfintro.modules.identity.domain.AppUserRepository;
 import com.selfintro.modules.securityaudit.application.AuthenticationAuditListener.AuthenticationAuditSignal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,10 +11,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +25,8 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private final AuthenticationManager authenticationManager;
+    private final AppUserRepository appUserRepository;
+    private final PasswordEncoder passwordEncoder;
     private final SecurityContextRepository securityContextRepository;
     private final SessionSecurityService sessionSecurityService;
     private final MfaService mfaService;
@@ -105,8 +111,17 @@ public class AuthService {
     public void reauthenticate(
             AppUserPrincipal principal, String password, HttpServletRequest httpRequest) {
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(principal.getUsername(), password));
+            // Reauthentication belongs to the already authenticated account. Resolve it by the
+            // immutable user id instead of the login id captured in the session, because a login
+            // id/email normalization or account update can otherwise reject the correct password.
+            AppUser user =
+                    appUserRepository
+                            .findById(principal.userId())
+                            .filter(AppUser::isActive)
+                            .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+            if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+                throw new BadCredentialsException("Invalid credentials");
+            }
         } catch (org.springframework.security.core.AuthenticationException exception) {
             audit(
                     "REAUTHENTICATION_FAILURE",
