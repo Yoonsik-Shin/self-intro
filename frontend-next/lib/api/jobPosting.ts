@@ -15,6 +15,8 @@ import type {
     JobPostingCoverLetterRevision,
     JobPostingCollectionResult,
     JobPostingIngestStreamEvent,
+    JobMapLocationSetting,
+    JobMapLocationSettingRequest,
     JobPostingPositionChoice,
     JobPostingPositionChoiceRequest,
     JobPostingPermissionReviewRequest,
@@ -61,6 +63,15 @@ export const jobPostingApi = {
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/catalog?${search}`
         );
     },
+    workspaceMapSetting: (workspaceSlug: string) =>
+        request<JobMapLocationSetting>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/map-setting`
+        ),
+    workspaceUpdateMapSetting: (workspaceSlug: string, payload: JobMapLocationSettingRequest) =>
+        request<JobMapLocationSetting>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/map-setting`,
+            { method: 'PUT', body: JSON.stringify(payload) }
+        ),
     workspaceGet: (workspaceSlug: string, id: number) =>
         request<JobPosting>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}`

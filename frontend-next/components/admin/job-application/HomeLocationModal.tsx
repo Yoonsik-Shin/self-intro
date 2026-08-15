@@ -11,8 +11,7 @@ import {
     CheckCircle2,
     ExternalLink,
 } from 'lucide-react';
-import { jobPostingApi } from '@/lib/api/jobPosting';
-import type { JobPostingSetting } from '@/lib/api/types';
+import type { JobMapLocationSetting, JobMapLocationSettingRequest } from '@/lib/api/types';
 import {
     openDaumPostcodeSearch,
     embedDaumPostcodeSearch,
@@ -23,8 +22,15 @@ import {
 interface HomeLocationModalProps {
     isOpen: boolean;
     onClose: () => void;
-    settings: JobPostingSetting | null;
-    onSuccess: (updated: JobPostingSetting) => void;
+    settings:
+        | Pick<JobMapLocationSetting, 'homeAddress' | 'homeLatitude' | 'homeLongitude'>
+        | {
+              homeAddress?: string | null;
+              homeLatitude?: number | null;
+              homeLongitude?: number | null;
+          }
+        | null;
+    onSuccess: (updated: JobMapLocationSettingRequest) => void | Promise<void>;
 }
 
 export default function HomeLocationModal({
@@ -34,8 +40,8 @@ export default function HomeLocationModal({
     onSuccess,
 }: HomeLocationModalProps) {
     const [address, setAddress] = useState(settings?.homeAddress || '');
-    const [latitude, setLatitude] = useState<number>(settings?.homeLatitude ?? 37.5796);
-    const [longitude, setLongitude] = useState<number>(settings?.homeLongitude ?? 126.8899);
+    const [latitude, setLatitude] = useState<number>(settings?.homeLatitude ?? 0);
+    const [longitude, setLongitude] = useState<number>(settings?.homeLongitude ?? 0);
 
     const [isSaving, setIsSaving] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
@@ -51,8 +57,8 @@ export default function HomeLocationModal({
             // 모달을 다시 열 때 마지막 저장값으로 일회성 편집 상태를 초기화한다.
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setAddress(settings?.homeAddress || '');
-            setLatitude(settings?.homeLatitude ?? 37.5796);
-            setLongitude(settings?.homeLongitude ?? 126.8899);
+            setLatitude(settings?.homeLatitude ?? 0);
+            setLongitude(settings?.homeLongitude ?? 0);
             setIsInlineSearchOpen(false);
             setActiveSearchQuery('');
             setErrorMsg(null);
@@ -63,6 +69,8 @@ export default function HomeLocationModal({
     const handleAddressSelected = useCallback(async (data: DaumPostcodeData) => {
         const selectedAddr = data.roadAddress || data.address;
         setAddress(selectedAddr);
+        setLatitude(0);
+        setLongitude(0);
         setIsInlineSearchOpen(false);
 
         // 도로명 주소 선택 직후 좌표 실시간 자동 계산
@@ -123,7 +131,7 @@ export default function HomeLocationModal({
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!address.trim()) {
-            setErrorMsg('집 주소를 입력해주세요.');
+            setErrorMsg('기준 주소를 입력해주세요.');
             return;
         }
 
@@ -140,24 +148,22 @@ export default function HomeLocationModal({
                     finalLat = coords.lat;
                     finalLng = coords.lng;
                 } else {
-                    finalLat = 37.5508;
-                    finalLng = 126.9176;
+                    setErrorMsg(
+                        '주소의 위치를 확인하지 못했습니다. 주소 검색 결과를 선택해주세요.'
+                    );
+                    return;
                 }
             }
 
-            const currentSettings = settings || (await jobPostingApi.getSettings());
-            const updated = await jobPostingApi.updateSettings({
-                ...currentSettings,
+            await onSuccess({
                 homeAddress: address.trim(),
                 homeLatitude: finalLat,
                 homeLongitude: finalLng,
             });
-
-            onSuccess(updated);
             onClose();
         } catch (err: unknown) {
             const message =
-                err instanceof Error ? err.message : '집 위치 저장 중 오류가 발생했습니다.';
+                err instanceof Error ? err.message : '기준 위치 저장 중 오류가 발생했습니다.';
             setErrorMsg(message);
         } finally {
             setIsSaving(false);
@@ -174,7 +180,7 @@ export default function HomeLocationModal({
                             <Home className="h-5 w-5" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-base text-white">기준 집 위치 설정</h3>
+                            <h3 className="font-bold text-base text-white">기준 위치 설정</h3>
                             <p className="text-xs text-zinc-400">
                                 작성한 주소를 기반으로 도로명 주소와 위도·경도가 100% 자동
                                 산출됩니다.
@@ -194,7 +200,7 @@ export default function HomeLocationModal({
                     <div>
                         <div className="flex items-center justify-between mb-1.5">
                             <label className="block text-xs font-semibold text-zinc-300">
-                                집 주소 (도로명/지번)
+                                기준 주소 (도로명/지번)
                             </label>
                             {address.trim() && (
                                 <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
@@ -211,6 +217,8 @@ export default function HomeLocationModal({
                                     value={address}
                                     onChange={(e) => {
                                         setAddress(e.target.value);
+                                        setLatitude(0);
+                                        setLongitude(0);
                                         if (isInlineSearchOpen) setIsInlineSearchOpen(false);
                                     }}
                                     onKeyDown={(e) => {
@@ -310,7 +318,7 @@ export default function HomeLocationModal({
                             ) : (
                                 <>
                                     <CheckCircle2 className="h-4 w-4" />
-                                    <span>집 위치 저장</span>
+                                    <span>기준 위치 저장</span>
                                 </>
                             )}
                         </button>

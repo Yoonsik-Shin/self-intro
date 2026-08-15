@@ -8,6 +8,8 @@ import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobApplicationRequest;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobApplicationStatusEventResponse;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobApplicationStatusRequest;
+import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobMapSettingRequest;
+import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobMapSettingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspacePrivateJobPostingRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -46,6 +48,22 @@ public class WorkspaceJobApplicationController {
             @RequestParam(required = false) String q) {
         return workspaceJobApplicationService.catalog(
                 readWorkspaceId(authentication, workspaceSlug), q);
+    }
+
+    @GetMapping("/map-setting")
+    public WorkspaceJobMapSettingResponse mapSetting(
+            Authentication authentication, @PathVariable String workspaceSlug) {
+        return workspaceJobApplicationService.mapSetting(
+                readWorkspaceId(authentication, workspaceSlug));
+    }
+
+    @PutMapping("/map-setting")
+    public WorkspaceJobMapSettingResponse updateMapSetting(
+            Authentication authentication,
+            @PathVariable String workspaceSlug,
+            @Valid @RequestBody WorkspaceJobMapSettingRequest request) {
+        return workspaceJobApplicationService.updateMapSetting(
+                writeWorkspaceId(authentication, workspaceSlug), request);
     }
 
     @GetMapping("/{jobPostingId}")

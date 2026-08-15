@@ -10,6 +10,9 @@ import com.selfintro.modules.identity.domain.Workspace;
 import com.selfintro.modules.identity.domain.WorkspaceMember;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.jobposting.application.WorkspaceJobApplicationService;
+import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobMapSettingRequest;
+import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobMapSettingResponse;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,6 +66,43 @@ class WorkspaceJobApplicationControllerTest {
                         WorkspaceRole.ADMIN,
                         WorkspaceRole.EDITOR);
         verify(service).remove(42L, 7L);
+    }
+
+    @Test
+    void viewerCanReadWorkspacePrivateMapSetting() {
+        allowRead(42L);
+        WorkspaceJobMapSettingResponse expected =
+                new WorkspaceJobMapSettingResponse(
+                        "서울시청", new BigDecimal("37.5665000"), new BigDecimal("126.9780000"));
+        when(service.mapSetting(42L)).thenReturn(expected);
+
+        assertThat(controller.mapSetting(authentication, "w-demo")).isEqualTo(expected);
+
+        verify(service).mapSetting(42L);
+    }
+
+    @Test
+    void mapSettingUpdateRequiresWorkspaceEditorRole() {
+        allowWrite(42L);
+        WorkspaceJobMapSettingRequest request =
+                new WorkspaceJobMapSettingRequest(
+                        "서울시청", new BigDecimal("37.5665000"), new BigDecimal("126.9780000"));
+        WorkspaceJobMapSettingResponse expected =
+                new WorkspaceJobMapSettingResponse(
+                        request.homeAddress(), request.homeLatitude(), request.homeLongitude());
+        when(service.updateMapSetting(42L, request)).thenReturn(expected);
+
+        assertThat(controller.updateMapSetting(authentication, "w-demo", request))
+                .isEqualTo(expected);
+
+        verify(accessPolicy)
+                .requireAnyRole(
+                        authentication,
+                        "w-demo",
+                        WorkspaceRole.OWNER,
+                        WorkspaceRole.ADMIN,
+                        WorkspaceRole.EDITOR);
+        verify(service).updateMapSetting(42L, request);
     }
 
     private void allowRead(Long workspaceId) {

@@ -27,7 +27,12 @@ import {
     Calendar,
     Star,
 } from 'lucide-react';
-import type { JobPosting, JobPostingSetting } from '@/lib/api/types';
+import type {
+    JobMapLocationSetting,
+    JobMapLocationSettingRequest,
+    JobPosting,
+    JobPostingSetting,
+} from '@/lib/api/types';
 import {
     estimateCommuteTime,
     getKakaoDirectionsUrl,
@@ -38,8 +43,10 @@ import HomeLocationModal from './HomeLocationModal';
 
 interface JobPostingMapViewProps {
     postings: JobPosting[];
-    settings: JobPostingSetting | null;
-    onUpdateSettings: (settings: JobPostingSetting) => void;
+    settings?: JobPostingSetting | null;
+    onUpdateSettings?: (settings: JobPostingSetting) => void;
+    mapLocation?: JobMapLocationSetting | null;
+    onUpdateMapLocation?: (settings: JobMapLocationSettingRequest) => void | Promise<void>;
     onSelectPosting: (posting: JobPosting) => void;
 }
 
@@ -147,6 +154,8 @@ export default function JobPostingMapView({
     postings,
     settings,
     onUpdateSettings,
+    mapLocation,
+    onUpdateMapLocation,
     onSelectPosting,
 }: JobPostingMapViewProps) {
     const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
@@ -191,10 +200,17 @@ export default function JobPostingMapView({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ringsGroupRef = useRef<any>(null);
 
-    // 기본 집 위치
-    const homeLat = settings?.homeLatitude ?? 37.5796;
-    const homeLng = settings?.homeLongitude ?? 126.8899;
-    const homeAddress = settings?.homeAddress || '서울 마포구 월드컵북로 400 (기본)';
+    const effectiveMapLocation = mapLocation ?? settings ?? null;
+    const canUpdateMapLocation = Boolean(onUpdateMapLocation || onUpdateSettings);
+    const hasMapLocation = Boolean(
+        effectiveMapLocation?.homeAddress &&
+        effectiveMapLocation.homeLatitude != null &&
+        effectiveMapLocation.homeLongitude != null
+    );
+    // 기준 위치 미설정 시 지도 중심만 서울의 일반 좌표를 사용하며 주소로 노출하지 않는다.
+    const homeLat = effectiveMapLocation?.homeLatitude ?? 37.5665;
+    const homeLng = effectiveMapLocation?.homeLongitude ?? 126.978;
+    const homeAddress = effectiveMapLocation?.homeAddress || '기준 위치 미설정';
 
     // 공고별 정밀 위도/경도 계산 및 예상 출퇴근 시간 매핑
     const postingsWithCommute = useMemo(() => {
@@ -421,7 +437,7 @@ export default function JobPostingMapView({
             const zoom = map.getZoom();
 
             // 🎯 1. 반경 동심원 (10km, 20km, 30km)
-            if (layerToggles.showDistanceRings) {
+            if (hasMapLocation && layerToggles.showDistanceRings) {
                 L.circle([homeLat, homeLng], {
                     radius: 10000,
                     color: tileStyle === 'LIGHT' ? '#059669' : '#10b981',
@@ -447,8 +463,8 @@ export default function JobPostingMapView({
                 }).addTo(ringsGroup);
             }
 
-            // 🏠 2. 내 집 위치 마커 (Home Marker)
-            if (layerToggles.showHomePin) {
+            // 기준 위치가 저장된 경우에만 출발점 마커를 표시한다.
+            if (hasMapLocation && layerToggles.showHomePin) {
                 const homeIcon = L.divIcon({
                     className: 'custom-home-icon',
                     html: `
@@ -458,7 +474,7 @@ export default function JobPostingMapView({
                                 🏠
                             </div>
                             <div style="margin-top: 4px; background: #0f172a; border: 1.5px solid #334155; color: #ffffff; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.18);">
-                                🏠 내 집 출발점
+                                기준 위치
                             </div>
                         </div>
                     `,
@@ -469,7 +485,9 @@ export default function JobPostingMapView({
                 const homeMarker = L.marker([homeLat, homeLng], { icon: homeIcon }).addTo(
                     markersGroup
                 );
-                homeMarker.on('click', () => setIsHomeModalOpen(true));
+                if (canUpdateMapLocation) {
+                    homeMarker.on('click', () => setIsHomeModalOpen(true));
+                }
             }
 
             // 🎯 빡빡하고 가독성 뛰어난 스마트 군집화 기준 (Strict Clustering Policy)
@@ -735,6 +753,8 @@ export default function JobPostingMapView({
             isMounted = false;
         };
     }, [
+        canUpdateMapLocation,
+        hasMapLocation,
         homeLat,
         homeLng,
         mapItemsToRender,
@@ -839,18 +859,30 @@ export default function JobPostingMapView({
                     </div>
                 </div>
 
-                {/* [오른쪽 그룹] 기준 집 위치 버튼 */}
+                {/* [오른쪽 그룹] Workspace 기준 위치 */}
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setIsHomeModalOpen(true)}
-                        className="group flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-sm"
-                    >
-                        <Home className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                        <span className="max-w-[220px] truncate text-slate-100">{homeAddress}</span>
-                        <span className="rounded-md bg-slate-700/80 px-1.5 py-0.5 text-[10px] text-slate-200 font-semibold group-hover:bg-slate-600">
-                            도로명 검색/변경
-                        </span>
-                    </button>
+                    {canUpdateMapLocation ? (
+                        <button
+                            onClick={() => setIsHomeModalOpen(true)}
+                            className="group flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-sm"
+                        >
+                            <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                            <span className="max-w-[220px] truncate text-slate-100">
+                                {homeAddress}
+                            </span>
+                            <span className="rounded-md bg-slate-700/80 px-1.5 py-0.5 text-[10px] text-slate-200 font-semibold group-hover:bg-slate-600">
+                                주소 검색/변경
+                            </span>
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            <span className="max-w-[220px] truncate">{homeAddress}</span>
+                            <span className="text-[10px] font-semibold text-slate-400">
+                                조회 전용
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -925,7 +957,7 @@ export default function JobPostingMapView({
                                         >
                                             <span className="flex items-center gap-1.5">
                                                 <Home className="h-3.5 w-3.5 text-emerald-400" />
-                                                기준 내 집 마커
+                                                기준 위치 마커
                                             </span>
                                             {layerToggles.showHomePin ? (
                                                 <Eye className="h-3.5 w-3.5 text-emerald-400" />
@@ -1394,15 +1426,22 @@ export default function JobPostingMapView({
                 )}
             </div>
 
-            {/* 내 집 위치 설정 다이얼로그 모달 */}
-            <HomeLocationModal
-                isOpen={isHomeModalOpen}
-                onClose={() => setIsHomeModalOpen(false)}
-                settings={settings}
-                onSuccess={(updated) => {
-                    onUpdateSettings(updated);
-                }}
-            />
+            {canUpdateMapLocation && (
+                <HomeLocationModal
+                    isOpen={isHomeModalOpen}
+                    onClose={() => setIsHomeModalOpen(false)}
+                    settings={effectiveMapLocation}
+                    onSuccess={async (updated) => {
+                        if (onUpdateMapLocation) {
+                            await onUpdateMapLocation(updated);
+                            return;
+                        }
+                        if (settings && onUpdateSettings) {
+                            onUpdateSettings({ ...settings, ...updated });
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

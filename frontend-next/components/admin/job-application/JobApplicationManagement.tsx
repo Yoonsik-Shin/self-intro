@@ -75,8 +75,11 @@ import type {
     JobPostingStatus,
     JobPostingStatusEvent,
     JobplanetLookup,
+    WorkspaceJobApplicationRequest,
+    WorkspacePrivateJobPostingRequest,
 } from '@/lib/api/types';
 import { JobPostingPermissionReviewPanel } from './JobPostingPermissionReviewPanel';
+import { PrintDocumentArtifactHistory } from '../print-template/PrintDocumentArtifactHistory';
 
 /** status가 이 중 하나면 아직 지원 전(수집 후보) 단계다 — 나머지는 전형 진행 단계. */
 type PreApplicationStatus = 'NEW' | 'SAVED' | 'DISMISSED' | 'EXPIRED';
@@ -1305,6 +1308,7 @@ function PrintTemplatesPanel({
     const [isUploadingDirectPdf, setIsUploadingDirectPdf] = useState(false);
     const [latestDraft, setLatestDraft] = useState<JobPostingPrintDraftResponse | null>(null);
     const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+    const [artifactHistoryTemplateId, setArtifactHistoryTemplateId] = useState<number | null>(null);
     const aiModel = useAiModelStore((state) => state.modelKey);
     const aiCustomModelName = useAiModelStore((state) => state.customModelName);
 
@@ -1336,7 +1340,12 @@ function PrintTemplatesPanel({
     const removeFinalPdfMutation = useMutation({
         mutationFn: (id: number) =>
             printTemplateApi.workspaceRemoveFinalPdf(workspaceSlug, jobPostingId, id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+        onSuccess: (_, templateId) => {
+            queryClient.invalidateQueries({ queryKey });
+            queryClient.invalidateQueries({
+                queryKey: ['printTemplateArtifacts', workspaceSlug, templateId],
+            });
+        },
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : 'PDF 삭제에 실패했습니다.'),
     });
@@ -1416,6 +1425,9 @@ function PrintTemplatesPanel({
                 presigned.objectKey
             );
             queryClient.invalidateQueries({ queryKey });
+            queryClient.invalidateQueries({
+                queryKey: ['printTemplateArtifacts', workspaceSlug, templateId],
+            });
         } catch (error) {
             alert(error instanceof ApiError ? error.message : 'PDF 업로드에 실패했습니다.');
         } finally {
@@ -1752,6 +1764,28 @@ function PrintTemplatesPanel({
                                 )}
                                 <button
                                     type="button"
+                                    onClick={() =>
+                                        setArtifactHistoryTemplateId((current) =>
+                                            current === t.id ? null : t.id
+                                        )
+                                    }
+                                    title="보존 PDF 이력"
+                                    aria-expanded={artifactHistoryTemplateId === t.id}
+                                    className={`flex h-7 items-center gap-1 rounded-lg border px-2 text-[11px] font-bold transition ${
+                                        artifactHistoryTemplateId === t.id
+                                            ? 'border-slate-700 bg-slate-800 text-white'
+                                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <Clock className="h-3.5 w-3.5" /> 이력
+                                    <ChevronDown
+                                        className={`h-3 w-3 transition-transform ${
+                                            artifactHistoryTemplateId === t.id ? 'rotate-180' : ''
+                                        }`}
+                                    />
+                                </button>
+                                <button
+                                    type="button"
                                     disabled={uploadingId === t.id}
                                     onClick={() => requestUpload(t.id)}
                                     title={t.finalPdfUrl ? 'PDF 교체' : 'PDF 업로드'}
@@ -1829,6 +1863,14 @@ function PrintTemplatesPanel({
                                         </button>
                                     ))}
                             </div>
+                            {artifactHistoryTemplateId === t.id && (
+                                <div className="-mx-3.5 -mb-2.5 basis-full overflow-hidden rounded-b-xl">
+                                    <PrintDocumentArtifactHistory
+                                        workspaceSlug={workspaceSlug}
+                                        templateId={t.id}
+                                    />
+                                </div>
+                            )}
                         </li>
                     ))}
                 </ul>
@@ -2321,17 +2363,30 @@ const emptyForm: JobPostingRequest = {
 import JobPostingMapView from './JobPostingMapView';
 
 type DrawerState = { type: 'create' } | { type: 'existing'; id: number };
-type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP';
+export type ViewMode = 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP';
 
-export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: string }) {
+export function JobApplicationManagement({
+    workspaceSlug,
+    onViewModeChange,
+}: {
+    workspaceSlug: string;
+    onViewModeChange?: (viewMode: ViewMode) => void;
+}) {
     const queryClient = useQueryClient();
     const aiModel = useAiModelStore((state) => state.modelKey);
     const aiCustomModelName = useAiModelStore((state) => state.customModelName);
     const [viewMode, setViewMode] = useState<ViewMode>('LIST');
+    const changeViewMode = useCallback((nextViewMode: ViewMode) => {
+        setViewMode(nextViewMode);
+    }, []);
     const [calendarMonth, setCalendarMonth] = useState(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
     });
+
+    useEffect(() => {
+        onViewModeChange?.(viewMode);
+    }, [onViewModeChange, viewMode]);
     const [drawerState, setDrawerState] = useState<DrawerState | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [form, setForm] = useState<JobPostingRequest>(emptyForm);
@@ -2427,10 +2482,7 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
     );
 
     const drawerJobPostingId = drawerState?.type === 'existing' ? drawerState.id : null;
-    const { data: settingsData = null } = useQuery({
-        queryKey: ['jobPostingSettings'],
-        queryFn: () => jobPostingApi.getSettings(),
-    });
+    const settingsData = null;
     const { data: drawerTemplates = [] } = useQuery({
         queryKey: ['jobPostings', workspaceSlug, drawerJobPostingId, 'printTemplates'],
         queryFn: () =>
@@ -2441,7 +2493,49 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
     });
 
     const boardRef = useRef<HTMLDivElement>(null);
+    const boardScrollRef = useRef<HTMLDivElement>(null);
+    const boardAutoScrollFrameRef = useRef<number | null>(null);
+    const boardAutoScrollDirectionRef = useRef<-1 | 0 | 1>(0);
     const [boardHeightPx, setBoardHeightPx] = useState<number | null>(null);
+
+    const stopBoardAutoScroll = useCallback(() => {
+        boardAutoScrollDirectionRef.current = 0;
+        if (boardAutoScrollFrameRef.current !== null) {
+            cancelAnimationFrame(boardAutoScrollFrameRef.current);
+            boardAutoScrollFrameRef.current = null;
+        }
+    }, []);
+
+    const runBoardAutoScroll = useCallback(function runBoardAutoScrollFrame() {
+        const element = boardScrollRef.current;
+        const direction = boardAutoScrollDirectionRef.current;
+        if (!element || direction === 0) {
+            boardAutoScrollFrameRef.current = null;
+            return;
+        }
+        element.scrollLeft += direction * 18;
+        boardAutoScrollFrameRef.current = requestAnimationFrame(runBoardAutoScrollFrame);
+    }, []);
+
+    const updateBoardAutoScroll = useCallback(
+        (clientX: number) => {
+            const element = boardScrollRef.current;
+            if (!element) return;
+            const bounds = element.getBoundingClientRect();
+            const edge = Math.min(120, bounds.width * 0.18);
+            const direction: -1 | 0 | 1 =
+                clientX < bounds.left + edge ? -1 : clientX > bounds.right - edge ? 1 : 0;
+            boardAutoScrollDirectionRef.current = direction;
+            if (direction === 0) {
+                stopBoardAutoScroll();
+            } else if (boardAutoScrollFrameRef.current === null) {
+                boardAutoScrollFrameRef.current = requestAnimationFrame(runBoardAutoScroll);
+            }
+        },
+        [runBoardAutoScroll, stopBoardAutoScroll]
+    );
+
+    useEffect(() => stopBoardAutoScroll, [stopBoardAutoScroll]);
 
     useLayoutEffect(() => {
         if (viewMode !== 'BOARD') return;
@@ -2459,8 +2553,8 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
     }, [viewMode]);
 
     const { data: postings = [], isLoading } = useQuery({
-        queryKey: ['jobPostings'],
-        queryFn: jobPostingApi.list,
+        queryKey: ['workspaceJobApplications', workspaceSlug],
+        queryFn: () => jobPostingApi.workspaceList(workspaceSlug),
     });
 
     const isApplicationItem = (item: JobPosting) =>
@@ -2476,10 +2570,7 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
         [postings]
     );
 
-    const { data: settings } = useQuery({
-        queryKey: ['jobPostingSettings'],
-        queryFn: jobPostingApi.getSettings,
-    });
+    const settings = null;
 
     const isCreating = drawerState?.type === 'create';
     const drawerId = drawerState?.type === 'existing' ? drawerState.id : null;
@@ -2488,23 +2579,24 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
     const formIsPostApplication = isCreating || isPostApplicationItem;
 
     const { data: stageEvents = [], isLoading: isStageEventsLoading } = useQuery({
-        queryKey: ['jobPostings', drawerId, 'statusEvents'],
-        queryFn: () => jobPostingApi.statusEvents(drawerId!),
+        queryKey: ['workspaceJobApplications', workspaceSlug, drawerId, 'statusEvents'],
+        queryFn: () => jobPostingApi.workspaceStatusEvents(workspaceSlug, drawerId!),
         enabled: drawerId !== null,
     });
 
-    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['jobPostings'] });
+    const invalidate = () =>
+        queryClient.invalidateQueries({ queryKey: ['workspaceJobApplications', workspaceSlug] });
 
     const createMutation = useMutation({
-        mutationFn: (payload: JobPostingRequest) => jobPostingApi.create(payload),
+        mutationFn: (payload: JobPostingRequest) =>
+            jobPostingApi.workspaceCreatePrivateSource(workspaceSlug, {
+                ...payload,
+                source: payload.postingUrl ? 'URL_INGEST' : 'MANUAL',
+                status: 'NEW',
+            } as WorkspacePrivateJobPostingRequest),
         onSuccess: (response) => {
             invalidate();
-            if (positionChoiceDraft.length > 0) {
-                replacePositionChoicesMutation.mutate({
-                    id: response.id,
-                    choices: positionChoiceDraft,
-                });
-            }
+            void response;
             closeDrawer();
         },
         onError: (error) =>
@@ -2513,15 +2605,13 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
 
     const updateMutation = useMutation({
         mutationFn: ({ id, payload }: { id: number; payload: JobPostingRequest }) =>
-            jobPostingApi.update(id, payload),
+            jobPostingApi.workspaceUpdate(workspaceSlug, id, {
+                appliedAt: payload.appliedAt,
+                memo: payload.memo,
+            } as WorkspaceJobApplicationRequest),
         onSuccess: (response) => {
             invalidate();
-            if (positionChoiceDraft.length > 0 || response.positionChoices.length > 0) {
-                replacePositionChoicesMutation.mutate({
-                    id: response.id,
-                    choices: positionChoiceDraft,
-                });
-            }
+            void response;
             setIsEditing(false);
         },
         onError: (error) =>
@@ -2529,7 +2619,7 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.remove(id),
+        mutationFn: (id: number) => jobPostingApi.workspaceRemove(workspaceSlug, id),
         onSuccess: () => {
             invalidate();
             closeDrawer();
@@ -2547,11 +2637,18 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
             id: number;
             status: ApplicationStatus;
             memo?: string;
-        }) => jobPostingApi.changeStatus(id, status, memo),
+        }) =>
+            jobPostingApi.workspaceChangeStatus(
+                workspaceSlug,
+                id,
+                status,
+                status === 'APPLIED' ? new Date().toISOString().slice(0, 10) : undefined,
+                memo
+            ),
         onSuccess: (_, variables) => {
             invalidate();
             queryClient.invalidateQueries({
-                queryKey: ['jobPostings', variables.id, 'statusEvents'],
+                queryKey: ['workspaceJobApplications', workspaceSlug, variables.id, 'statusEvents'],
             });
             setStageMemo('');
         },
@@ -2625,35 +2722,43 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
         }, 1000);
 
         try {
-            await jobPostingApi.ingestUrlStream(url.trim(), (event) => {
-                if (event.type === 'error') {
-                    alert(event.message);
-                    return;
-                }
-                queryClient.setQueryData(['jobPostings'], (prev: JobPosting[] | undefined) => [
-                    event.response,
-                    ...(prev ?? []),
-                ]);
-                setSingleUrl('');
-                closeDrawer();
-                openDrawer(event.response);
-                setDetectedPositions(
-                    event.detectedAdditionalPositionTitles.length > 0
-                        ? {
-                              jobPostingId: event.response.id,
-                              titles: event.detectedAdditionalPositionTitles,
-                          }
-                        : null
-                );
-                setPositionChoiceDraft([]);
-
-                if (isCandidateDetailMissing(event.response)) {
-                    alert(
-                        '공고를 수집해 자동 등록했어요!\n' +
-                            '상세 내용(담당업무, 자격요건 등) 일부가 부족할 수 있으니 열린 상세 화면에서 확인 후 필요 시 수정해 주세요.'
-                    );
-                }
+            const parsed = await jobPostingApi.workspaceParsePrivateSourceUrl(
+                workspaceSlug,
+                url.trim()
+            );
+            const response = await jobPostingApi.workspaceCreatePrivateSource(workspaceSlug, {
+                companyName: parsed.companyName?.trim() || '회사명 미확인',
+                positionTitle: parsed.positionTitle?.trim() || '직무명 미확인',
+                source: 'URL_INGEST',
+                postingUrl: parsed.postingUrl,
+                deadline: parsed.deadline,
+                alwaysOpen: parsed.alwaysOpen,
+                salaryNote: parsed.salaryNote,
+                jobDescription: parsed.jobDescription,
+                requiredQualifications: parsed.requiredQualifications,
+                preferredQualifications: parsed.preferredQualifications,
+                hiringProcess: parsed.hiringProcess,
+                applicationMethod: parsed.applicationMethod,
+                compensationDetail: parsed.compensationDetail,
+                status: 'NEW',
             });
+            invalidate();
+            setSingleUrl('');
+            closeDrawer();
+            openDrawer(response);
+            setDetectedPositions(
+                parsed.additionalPositionTitles.length > 0
+                    ? { jobPostingId: response.id, titles: parsed.additionalPositionTitles }
+                    : null
+            );
+            setPositionChoiceDraft([]);
+
+            if (isCandidateDetailMissing(response)) {
+                alert(
+                    '원본 URL에서 공고 정보를 가져와 등록했습니다.\n' +
+                        '상세 내용 일부가 부족할 수 있으니 열린 상세 화면에서 확인해 주세요.'
+                );
+            }
         } catch (error) {
             if (error instanceof ApiError && error.status === 409) {
                 const existing = candidates.find((item) => item.postingUrl === url.trim());
@@ -2970,42 +3075,49 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
     }
 
     const dismissCandidateMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.dismiss(id),
+        mutationFn: (id: number) =>
+            jobPostingApi.workspaceChangeStatus(workspaceSlug, id, 'DISMISSED'),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '제외 처리에 실패했습니다.'),
     });
 
     const undismissCandidateMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.undismiss(id),
+        mutationFn: (id: number) => jobPostingApi.workspaceChangeStatus(workspaceSlug, id, 'NEW'),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '제외 해제에 실패했습니다.'),
     });
 
     const applyMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.apply(id),
+        mutationFn: (id: number) =>
+            jobPostingApi.workspaceChangeStatus(
+                workspaceSlug,
+                id,
+                'APPLIED',
+                new Date().toISOString().slice(0, 10)
+            ),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '지원 전환에 실패했습니다.'),
     });
 
     const unapplyMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.unapply(id),
+        mutationFn: (id: number) => jobPostingApi.workspaceChangeStatus(workspaceSlug, id, 'NEW'),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '지원 취소에 실패했습니다.'),
     });
 
     const saveCandidateMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.save(id),
+        mutationFn: (id: number) => jobPostingApi.workspaceChangeStatus(workspaceSlug, id, 'SAVED'),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '저장에 실패했습니다.'),
     });
 
     const unsaveCandidateMutation = useMutation({
-        mutationFn: (id: number) => jobPostingApi.unsave(id),
+        mutationFn: (id: number) => jobPostingApi.workspaceChangeStatus(workspaceSlug, id, 'NEW'),
         onSuccess: () => invalidate(),
         onError: (error) =>
             alert(error instanceof ApiError ? error.message : '저장 해제에 실패했습니다.'),
@@ -3076,20 +3188,9 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
     });
 
     function openSettingsDrawer() {
-        if (settings) {
-            setSettingsForm({
-                saraminEnabled: settings.saraminEnabled,
-                searchKeywords: settings.searchKeywords ?? '',
-                searchCount: settings.searchCount,
-                searchSort: settings.searchSort,
-                locationCode: settings.locationCode ?? '',
-                jobCode: settings.jobCode ?? '',
-                industryCode: settings.industryCode ?? '',
-                collectorScheduledEnabled: settings.collectorScheduledEnabled,
-                matchingKeywordThreshold: settings.matchingKeywordThreshold,
-                collectorCron: settings.collectorCron,
-            });
-        }
+        // Workspace 사용자는 플랫폼 공통 수집 설정을 변경하지 않는다.
+        // 기존 관리 화면의 설정 drawer는 플랫폼 운영 경계에 남겨 두고 여기서는 열지 않는다.
+        setSettingsForm(null);
         setIsSettingsDrawerOpen(true);
     }
 
@@ -3474,58 +3575,6 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
                 <div className="flex items-center gap-1.5 xl:gap-2">
                     <button
                         type="button"
-                        onClick={openSettingsDrawer}
-                        title="수집 설정 · 사람인 수집 사용여부/검색 조건/자동 스케줄 설정"
-                        aria-label="수집 설정"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 xl:h-auto xl:w-auto xl:gap-1.5 xl:rounded-lg xl:border xl:border-slate-200 xl:bg-white xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold xl:hover:bg-slate-50"
-                    >
-                        <SettingsIcon className="h-4 w-4" />
-                        <span className="hidden xl:inline">수집 설정</span>
-                    </button>
-                    <button
-                        type="button"
-                        disabled={collectMutation.isPending}
-                        onClick={() => collectMutation.mutate()}
-                        title={
-                            collectMutation.isPending
-                                ? '수집 중...'
-                                : '지금 수집 · 사람인 자동 수집(설정된 경우) 실행 및 마감 지난 공고 정리'
-                        }
-                        aria-label="지금 수집"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 xl:h-auto xl:w-auto xl:gap-1.5 xl:rounded-lg xl:border xl:border-slate-200 xl:bg-white xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold xl:hover:bg-slate-50"
-                    >
-                        {collectMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <RefreshCw className="h-4 w-4" />
-                        )}
-                        <span className="hidden xl:inline">
-                            {collectMutation.isPending ? '수집 중...' : '지금 수집'}
-                        </span>
-                    </button>
-                    <button
-                        type="button"
-                        disabled={isRefreshingAll}
-                        onClick={handleRefreshAll}
-                        title={
-                            isRefreshingAll
-                                ? refreshProgressText || '전체 공고 재수집 백필 진행 중...'
-                                : '전체 공고 재수집 (백필) · 원본 URL에서 최신 마감시간 및 정보를 일괄 갱신'
-                        }
-                        aria-label="전체 공고 재수집"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 xl:h-auto xl:w-auto xl:gap-1.5 xl:rounded-lg xl:border xl:border-slate-200 xl:bg-white xl:px-3.5 xl:py-2 xl:text-sm xl:font-bold xl:hover:bg-slate-50"
-                    >
-                        {isRefreshingAll ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        ) : (
-                            <RefreshCw className="h-4 w-4 text-blue-600" />
-                        )}
-                        <span className="hidden xl:inline">
-                            {isRefreshingAll ? refreshProgressText || '백필 중...' : '전체 재수집'}
-                        </span>
-                    </button>
-                    <button
-                        type="button"
                         onClick={openCreateDrawer}
                         title="새 공고 등록"
                         aria-label="새 공고 등록"
@@ -3541,7 +3590,7 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
                 <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
                     <button
                         type="button"
-                        onClick={() => setViewMode('LIST')}
+                        onClick={() => changeViewMode('LIST')}
                         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
                             viewMode === 'LIST'
                                 ? 'bg-slate-900 text-white'
@@ -3553,7 +3602,7 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
                     </button>
                     <button
                         type="button"
-                        onClick={() => setViewMode('BOARD')}
+                        onClick={() => changeViewMode('BOARD')}
                         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
                             viewMode === 'BOARD'
                                 ? 'bg-slate-900 text-white'
@@ -3565,7 +3614,7 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
                     </button>
                     <button
                         type="button"
-                        onClick={() => setViewMode('CALENDAR')}
+                        onClick={() => changeViewMode('CALENDAR')}
                         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
                             viewMode === 'CALENDAR'
                                 ? 'bg-slate-900 text-white'
@@ -3577,7 +3626,7 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
                     </button>
                     <button
                         type="button"
-                        onClick={() => setViewMode('MAP')}
+                        onClick={() => changeViewMode('MAP')}
                         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
                             viewMode === 'MAP'
                                 ? 'bg-emerald-600 text-white'
@@ -4599,7 +4648,20 @@ export function JobApplicationManagement({ workspaceSlug }: { workspaceSlug: str
                     )}
                 </div>
             ) : viewMode === 'BOARD' ? (
-                <div className="w-full min-w-0 overflow-x-auto overflow-y-hidden pb-3 custom-scrollbar">
+                <div
+                    ref={boardScrollRef}
+                    onDragOver={(event) => {
+                        updateBoardAutoScroll(event.clientX);
+                    }}
+                    onDragEndCapture={stopBoardAutoScroll}
+                    onDropCapture={stopBoardAutoScroll}
+                    onDragLeave={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                            stopBoardAutoScroll();
+                        }
+                    }}
+                    className="w-full min-w-0 overflow-x-auto overflow-y-hidden pb-3 custom-scrollbar"
+                >
                     <div
                         ref={boardRef}
                         className="grid gap-3"

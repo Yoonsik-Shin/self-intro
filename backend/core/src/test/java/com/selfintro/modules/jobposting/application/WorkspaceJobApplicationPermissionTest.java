@@ -19,6 +19,7 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageR
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationStatusEventRepository;
+import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobMapSettingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobApplicationRequest;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspacePrivateJobPostingRequest;
 import java.time.LocalDate;
@@ -48,7 +49,8 @@ class WorkspaceJobApplicationPermissionTest {
                         mock(WorkspaceJobApplicationStatusEventRepository.class),
                         sourceUrlRepository,
                         mock(JobPostingPositionChoiceRepository.class),
-                        mock(JobPostingSourceImageRepository.class));
+                        mock(JobPostingSourceImageRepository.class),
+                        mock(WorkspaceJobMapSettingRepository.class));
         when(workspaceJobApplicationRepository.findAllByWorkspaceIdOrderByUpdatedAtDesc(7L))
                 .thenReturn(List.of());
     }

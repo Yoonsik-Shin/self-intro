@@ -3,6 +3,7 @@ package com.selfintro.modules.jobposting.application;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
 import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplicationStatusEvent;
+import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobMapSetting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
@@ -11,11 +12,14 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageR
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationStatusEventRepository;
+import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobMapSettingRepository;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCatalogResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobApplicationRequest;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobApplicationStatusEventResponse;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobApplicationStatusRequest;
+import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobMapSettingRequest;
+import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobMapSettingResponse;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspacePrivateJobPostingRequest;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
@@ -39,6 +43,30 @@ public class WorkspaceJobApplicationService {
     private final JobPostingSourceUrlRepository sourceUrlRepository;
     private final JobPostingPositionChoiceRepository positionChoiceRepository;
     private final JobPostingSourceImageRepository sourceImageRepository;
+    private final WorkspaceJobMapSettingRepository workspaceJobMapSettingRepository;
+
+    public WorkspaceJobMapSettingResponse mapSetting(Long workspaceId) {
+        return workspaceJobMapSettingRepository
+                .findById(workspaceId)
+                .map(WorkspaceJobMapSettingResponse::from)
+                .orElseGet(WorkspaceJobMapSettingResponse::empty);
+    }
+
+    @Transactional
+    public WorkspaceJobMapSettingResponse updateMapSetting(
+            Long workspaceId, WorkspaceJobMapSettingRequest request) {
+        LocalDateTime now = LocalDateTime.now();
+        WorkspaceJobMapSetting setting =
+                workspaceJobMapSettingRepository
+                        .findById(workspaceId)
+                        .orElseGet(() -> WorkspaceJobMapSetting.create(workspaceId, now));
+        setting.update(
+                request.homeAddress().trim(),
+                request.homeLatitude(),
+                request.homeLongitude(),
+                now);
+        return WorkspaceJobMapSettingResponse.from(workspaceJobMapSettingRepository.save(setting));
+    }
 
     public List<JobPostingResponse> list(Long workspaceId) {
         return workspaceJobApplicationRepository

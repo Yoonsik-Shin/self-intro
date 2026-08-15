@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, ExternalLink, Search, ShieldCheck } from 'lucide-react';
 import {
@@ -54,17 +55,11 @@ export function JobCatalogPermissionOperations() {
 
     return (
         <div className="space-y-5">
-            <header className="border-b border-slate-200 pb-5">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">
-                    Platform catalog governance
-                </p>
-                <h2 className="mt-1 text-2xl font-black text-slate-950">공고 공유 심사</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    운영자 판단이 아니라 권리자 직접 제공, 서면 이용 허락, 재배포를 허용한 공식 API
-                    약관 중 하나를 증빙한 공고만 공통 카탈로그에 공개합니다. 개인 지원 상태와 문서는
-                    이 화면에서 다루지 않습니다.
-                </p>
-            </header>
+            <AdminPageHeader
+                eyebrow="Platform Catalog Governance"
+                title="공고 공유 심사"
+                description="운영자 판단이 아니라 권리자 직접 제공, 서면 이용 허락, 재배포를 허용한 공식 API 약관 중 하나를 증빙한 공고만 공통 카탈로그에 공개합니다. 개인 지원 상태와 문서는 이 화면에서 다루지 않습니다."
+            />
 
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {FILTERS.map((item) => (

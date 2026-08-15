@@ -5,12 +5,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     BriefcaseBusiness,
     CalendarDays,
+    Clock3,
     ChevronLeft,
     ChevronRight,
     Database,
     ExternalLink,
     LayoutGrid,
     List as ListIcon,
+    Map as MapIcon,
     Plus,
     Search,
     Sparkles,
@@ -18,8 +20,11 @@ import {
     X,
 } from 'lucide-react';
 import { jobPostingApi } from '@/lib/api';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import { WorkspacePrivateJobImport } from './WorkspacePrivateJobImport';
+import JobPostingMapView from './JobPostingMapView';
 import type {
+    JobMapLocationSettingRequest,
     JobPosting,
     JobPostingCatalogItem,
     JobPostingCoverLetterItem,
@@ -55,8 +60,17 @@ type EditorState = {
     matchReason: string;
 };
 
-type WorkspaceViewMode = 'LIST' | 'BOARD' | 'CALENDAR';
+type WorkspaceViewMode = 'LIST' | 'BOARD' | 'CALENDAR' | 'MAP';
 type CatalogSourceMode = 'SHARED' | 'URL' | 'MANUAL' | 'SCREENSHOT';
+type PipelineSection = 'CANDIDATES' | 'APPLICATIONS';
+type DeadlineSubTab = 'ALL' | 'HAS_DEADLINE' | 'ALWAYS_OPEN_OR_NO_DEADLINE' | 'EXPIRED';
+
+const PRE_APPLICATION_STATUSES = new Set<JobPostingStatus>([
+    'NEW',
+    'SAVED',
+    'DISMISSED',
+    'EXPIRED',
+]);
 
 const BOARD_COLUMNS: Array<{
     id: string;
@@ -65,9 +79,14 @@ const BOARD_COLUMNS: Array<{
 }> = [
     { id: 'REVIEW', label: '검토·관심', statuses: ['NEW', 'SAVED'] },
     {
-        id: 'PROCESS',
-        label: '지원·전형',
-        statuses: ['APPLIED', 'CODING_TEST', 'ASSIGNMENT', 'APTITUDE_TEST'],
+        id: 'APPLIED',
+        label: '지원 완료',
+        statuses: ['APPLIED'],
+    },
+    {
+        id: 'TEST',
+        label: '테스트·과제',
+        statuses: ['CODING_TEST', 'ASSIGNMENT', 'APTITUDE_TEST'],
     },
     {
         id: 'INTERVIEW',
@@ -75,9 +94,14 @@ const BOARD_COLUMNS: Array<{
         statuses: ['INTERVIEW_1', 'INTERVIEW_2', 'FINAL_INTERVIEW'],
     },
     {
+        id: 'OFFER',
+        label: '처우·합격',
+        statuses: ['OFFER'],
+    },
+    {
         id: 'CLOSED',
-        label: '결과·종료',
-        statuses: ['OFFER', 'REJECTED', 'WITHDRAWN', 'DISMISSED', 'EXPIRED'],
+        label: '종료',
+        statuses: ['REJECTED', 'WITHDRAWN', 'DISMISSED', 'EXPIRED'],
     },
 ];
 
@@ -92,11 +116,22 @@ const toPayload = (editor: EditorState): WorkspaceJobApplicationRequest => ({
     matchReason: editor.matchReason || null,
 });
 
-export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspaceSlug: string }) {
+export function WorkspaceJobApplicationManagement({
+    workspaceSlug,
+    workspaceRole,
+}: {
+    workspaceSlug: string;
+    workspaceRole: string;
+}) {
     const queryClient = useQueryClient();
+    const canEditWorkspace = ['OWNER', 'ADMIN', 'EDITOR'].includes(workspaceRole);
     const [mode, setMode] = useState<'MINE' | 'CATALOG'>('MINE');
     const [catalogSourceMode, setCatalogSourceMode] = useState<CatalogSourceMode>('SHARED');
     const [viewMode, setViewMode] = useState<WorkspaceViewMode>('LIST');
+    const [pipelineSection, setPipelineSection] = useState<PipelineSection>('CANDIDATES');
+    const [deadlineSubTab, setDeadlineSubTab] = useState<DeadlineSubTab>('ALL');
+    const [showDismissed, setShowDismissed] = useState(false);
+    const [deadlineSoonOnly, setDeadlineSoonOnly] = useState(false);
     const [statusFilter, setStatusFilter] = useState<'ALL' | JobPostingStatus>('ALL');
     const [calendarMonth, setCalendarMonth] = useState(() => {
         const now = new Date();
@@ -106,6 +141,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
     const [editor, setEditor] = useState<EditorState | null>(null);
     const mineKey = ['job-applications', 'workspace', workspaceSlug];
     const catalogKey = ['job-applications', 'catalog', workspaceSlug];
+    const mapSettingKey = ['job-applications', 'workspace', workspaceSlug, 'map-setting'];
 
     const { data: applications = [], isLoading: applicationsLoading } = useQuery({
         queryKey: mineKey,
@@ -114,6 +150,11 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
     const { data: catalog = [], isLoading: catalogLoading } = useQuery({
         queryKey: catalogKey,
         queryFn: () => jobPostingApi.workspaceCatalog(workspaceSlug),
+    });
+    const { data: mapLocation = null } = useQuery({
+        queryKey: mapSettingKey,
+        queryFn: () => jobPostingApi.workspaceMapSetting(workspaceSlug),
+        enabled: mode === 'MINE' && viewMode === 'MAP',
     });
     const { data: statusEvents = [] } = useQuery({
         queryKey: ['job-applications', workspaceSlug, editor?.posting.id, 'status-events'],
@@ -156,9 +197,26 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
             setEditor(null);
         },
     });
+    const moveStatusMutation = useMutation({
+        mutationFn: ({ posting, status }: { posting: JobPosting; status: JobPostingStatus }) =>
+            jobPostingApi.workspaceUpdate(workspaceSlug, posting.id, {
+                status,
+                appliedAt: posting.appliedAt,
+                memo: posting.memo,
+                interestLevel: posting.interestLevel,
+                matchScore: posting.matchScore,
+                matchReason: posting.matchReason,
+            }),
+        onSuccess: invalidate,
+    });
     const removeMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.workspaceRemove(workspaceSlug, id),
         onSuccess: invalidate,
+    });
+    const mapSettingMutation = useMutation({
+        mutationFn: (value: JobMapLocationSettingRequest) =>
+            jobPostingApi.workspaceUpdateMapSetting(workspaceSlug, value),
+        onSuccess: (updated) => queryClient.setQueryData(mapSettingKey, updated),
     });
     const rematchMutation = useMutation({
         mutationFn: (id: number) => jobPostingApi.workspaceRematch(workspaceSlug, id),
@@ -183,9 +241,24 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
             applications.filter(
                 (posting) =>
                     matches(posting, normalized) &&
-                    (statusFilter === 'ALL' || posting.status === statusFilter)
+                    (statusFilter === 'ALL' || posting.status === statusFilter) &&
+                    (pipelineSection === 'CANDIDATES'
+                        ? PRE_APPLICATION_STATUSES.has(posting.status)
+                        : !PRE_APPLICATION_STATUSES.has(posting.status)) &&
+                    (showDismissed || posting.status !== 'DISMISSED') &&
+                    (!deadlineSoonOnly || isDeadlineSoon(posting)) &&
+                    (pipelineSection !== 'CANDIDATES' ||
+                        matchesDeadlineSubTab(posting, deadlineSubTab))
             ),
-        [applications, normalized, statusFilter]
+        [
+            applications,
+            deadlineSoonOnly,
+            deadlineSubTab,
+            normalized,
+            pipelineSection,
+            showDismissed,
+            statusFilter,
+        ]
     );
     const filteredCatalog = useMemo(
         () => catalog.filter((posting) => matches(posting, normalized)),
@@ -216,25 +289,26 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
 
     return (
         <div className="space-y-5">
-            <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">
-                        Workspace Career Pipeline
-                    </p>
-                    <h2 className="mt-1 text-2xl font-black text-slate-950">지원 현황</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                        공통 공고를 가져와 이 Workspace만의 지원 상태와 맞춤 자료를 관리합니다.
-                    </p>
-                </div>
-                <div className="flex rounded-xl bg-slate-100 p-1" aria-label="지원 현황 보기">
-                    <ModeButton active={mode === 'MINE'} onClick={() => setMode('MINE')}>
-                        내 지원 {applications.length}
-                    </ModeButton>
-                    <ModeButton active={mode === 'CATALOG'} onClick={() => setMode('CATALOG')}>
-                        공고 가져오기
-                    </ModeButton>
-                </div>
-            </header>
+            <AdminPageHeader
+                eyebrow="Workspace Career Pipeline"
+                title="지원 현황"
+                description="공통 공고를 가져와 이 Workspace만의 지원 상태와 맞춤 자료를 관리합니다."
+                actions={
+                    <div className="flex rounded-xl bg-slate-100 p-1" aria-label="지원 현황 보기">
+                        <ModeButton active={mode === 'MINE'} onClick={() => setMode('MINE')}>
+                            내 지원 {applications.length}
+                        </ModeButton>
+                        {canEditWorkspace && (
+                            <ModeButton
+                                active={mode === 'CATALOG'}
+                                onClick={() => setMode('CATALOG')}
+                            >
+                                공고 가져오기
+                            </ModeButton>
+                        )}
+                    </div>
+                }
+            />
 
             <section className="grid gap-3 lg:grid-cols-2">
                 <ScopeCard
@@ -276,6 +350,13 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             >
                                 캘린더
                             </ViewModeButton>
+                            <ViewModeButton
+                                active={viewMode === 'MAP'}
+                                onClick={() => setViewMode('MAP')}
+                                icon={<MapIcon className="h-3.5 w-3.5" />}
+                            >
+                                지도
+                            </ViewModeButton>
                         </div>
                     )}
                     {mode === 'MINE' && (
@@ -308,6 +389,76 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                     />
                 </label>
             </div>
+
+            {mode === 'MINE' && (
+                <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex rounded-xl bg-slate-100 p-1">
+                            <ModeButton
+                                active={pipelineSection === 'CANDIDATES'}
+                                onClick={() => setPipelineSection('CANDIDATES')}
+                            >
+                                수집함{' '}
+                                {
+                                    applications.filter((posting) =>
+                                        PRE_APPLICATION_STATUSES.has(posting.status)
+                                    ).length
+                                }
+                            </ModeButton>
+                            <ModeButton
+                                active={pipelineSection === 'APPLICATIONS'}
+                                onClick={() => setPipelineSection('APPLICATIONS')}
+                            >
+                                지원 현황{' '}
+                                {
+                                    applications.filter(
+                                        (posting) => !PRE_APPLICATION_STATUSES.has(posting.status)
+                                    ).length
+                                }
+                            </ModeButton>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-600">
+                            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                                <input
+                                    type="checkbox"
+                                    checked={showDismissed}
+                                    onChange={(event) => setShowDismissed(event.target.checked)}
+                                />
+                                숨김 처리된 항목도 보기
+                            </label>
+                            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                                <input
+                                    type="checkbox"
+                                    checked={deadlineSoonOnly}
+                                    onChange={(event) => setDeadlineSoonOnly(event.target.checked)}
+                                />
+                                마감 임박(7일 이내)
+                            </label>
+                        </div>
+                    </div>
+                    {pipelineSection === 'CANDIDATES' && (
+                        <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                            {(
+                                [
+                                    ['ALL', '전체'],
+                                    ['HAS_DEADLINE', '마감일 O'],
+                                    ['ALWAYS_OPEN_OR_NO_DEADLINE', '상시채용·마감일 X'],
+                                    ['EXPIRED', '마감된 공고'],
+                                ] as Array<[DeadlineSubTab, string]>
+                            ).map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setDeadlineSubTab(value)}
+                                    className={`rounded-lg px-3 py-2 text-xs font-black ${deadlineSubTab === value ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
 
             {mode === 'CATALOG' && (
                 <section
@@ -344,7 +495,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
             {mode === 'MINE' ? (
                 applicationsLoading ? (
                     <Empty label="지원 목록을 불러오는 중입니다." />
-                ) : filteredApplications.length === 0 ? (
+                ) : filteredApplications.length === 0 && viewMode !== 'MAP' ? (
                     <Empty
                         label={
                             applications.length === 0
@@ -361,18 +512,30 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                     <WorkspaceApplicationList
                         postings={filteredApplications}
                         onOpen={openEditor}
-                        onRemove={(posting) => {
-                            if (window.confirm('이 Workspace의 지원 목록에서 제거할까요?')) {
-                                removeMutation.mutate(posting.id);
-                            }
-                        }}
+                        onRemove={
+                            canEditWorkspace
+                                ? (posting) => {
+                                      if (
+                                          window.confirm('이 Workspace의 지원 목록에서 제거할까요?')
+                                      ) {
+                                          removeMutation.mutate(posting.id);
+                                      }
+                                  }
+                                : undefined
+                        }
                     />
                 ) : viewMode === 'BOARD' ? (
                     <WorkspaceApplicationBoard
                         postings={filteredApplications}
                         onOpen={openEditor}
+                        onStatusChange={
+                            canEditWorkspace
+                                ? (posting, status) =>
+                                      moveStatusMutation.mutate({ posting, status })
+                                : undefined
+                        }
                     />
-                ) : (
+                ) : viewMode === 'CALENDAR' ? (
                     <WorkspaceApplicationCalendar
                         month={calendarMonth}
                         cells={calendarCells}
@@ -390,6 +553,19 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             )
                         }
                         onOpen={openEditor}
+                    />
+                ) : (
+                    <JobPostingMapView
+                        postings={filteredApplications}
+                        mapLocation={mapLocation}
+                        onUpdateMapLocation={
+                            canEditWorkspace
+                                ? async (updated) => {
+                                      await mapSettingMutation.mutateAsync(updated);
+                                  }
+                                : undefined
+                        }
+                        onSelectPosting={openEditor}
                     />
                 )
             ) : catalogSourceMode === 'URL' ||
@@ -486,6 +662,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
+                            if (!canEditWorkspace) return;
                             updateMutation.mutate(editor);
                         }}
                         className="h-full w-full max-w-xl overflow-y-auto bg-white p-6 shadow-2xl"
@@ -511,6 +688,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                         <div className="mt-6 grid gap-4 sm:grid-cols-2">
                             <Field label="지원 상태">
                                 <select
+                                    disabled={!canEditWorkspace}
                                     value={editor.status}
                                     onChange={(event) =>
                                         setEditor({
@@ -530,6 +708,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             <Field label="지원일">
                                 <input
                                     type="date"
+                                    disabled={!canEditWorkspace}
                                     value={editor.appliedAt}
                                     onChange={(event) =>
                                         setEditor({ ...editor, appliedAt: event.target.value })
@@ -540,6 +719,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             <Field label="관심도 (1~5)">
                                 <input
                                     type="number"
+                                    disabled={!canEditWorkspace}
                                     min={1}
                                     max={5}
                                     value={editor.interestLevel}
@@ -558,6 +738,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             <Field label="매칭 점수 (0~100)">
                                 <input
                                     type="number"
+                                    disabled={!canEditWorkspace}
                                     min={0}
                                     max={100}
                                     value={editor.matchScore}
@@ -575,27 +756,32 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             </Field>
                         </div>
                         <div className="mt-4 space-y-4">
-                            <div className="flex flex-col gap-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="text-sm font-black text-slate-800">
-                                        Workspace 기술 기반 자동 매칭
-                                    </p>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        공용 기술 카탈로그가 아니라 현재 Workspace에 연결한 기술만
-                                        사용하며 결과도 이 지원 건에만 저장됩니다.
-                                    </p>
+                            {canEditWorkspace && (
+                                <div className="flex flex-col gap-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p className="text-sm font-black text-slate-800">
+                                            Workspace 기술 기반 자동 매칭
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            공용 기술 카탈로그가 아니라 현재 Workspace에 연결한
+                                            기술만 사용하며 결과도 이 지원 건에만 저장됩니다.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        disabled={rematchMutation.isPending}
+                                        onClick={() => rematchMutation.mutate(editor.posting.id)}
+                                        className="shrink-0 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-indigo-700 disabled:text-slate-400"
+                                    >
+                                        {rematchMutation.isPending
+                                            ? '계산 중…'
+                                            : '자동 매칭 다시 계산'}
+                                    </button>
                                 </div>
-                                <button
-                                    type="button"
-                                    disabled={rematchMutation.isPending}
-                                    onClick={() => rematchMutation.mutate(editor.posting.id)}
-                                    className="shrink-0 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-indigo-700 disabled:text-slate-400"
-                                >
-                                    {rematchMutation.isPending ? '계산 중…' : '자동 매칭 다시 계산'}
-                                </button>
-                            </div>
+                            )}
                             <Field label="지원 메모">
                                 <textarea
+                                    disabled={!canEditWorkspace}
                                     rows={5}
                                     value={editor.memo}
                                     onChange={(event) =>
@@ -606,6 +792,7 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             </Field>
                             <Field label="매칭 근거">
                                 <textarea
+                                    disabled={!canEditWorkspace}
                                     rows={4}
                                     maxLength={500}
                                     value={editor.matchReason}
@@ -647,16 +834,20 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             </div>
                         </section>
 
-                        <WorkspaceCoverLetterEditor
-                            workspaceSlug={workspaceSlug}
-                            jobPostingId={editor.posting.id}
-                            items={coverLetterItems}
-                        />
-                        <WorkspaceApplicationAiTools
-                            workspaceSlug={workspaceSlug}
-                            jobPostingId={editor.posting.id}
-                            initialAppealAnalysis={editor.posting.appealAnalysis}
-                        />
+                        {canEditWorkspace && (
+                            <>
+                                <WorkspaceCoverLetterEditor
+                                    workspaceSlug={workspaceSlug}
+                                    jobPostingId={editor.posting.id}
+                                    items={coverLetterItems}
+                                />
+                                <WorkspaceApplicationAiTools
+                                    workspaceSlug={workspaceSlug}
+                                    jobPostingId={editor.posting.id}
+                                    initialAppealAnalysis={editor.posting.appealAnalysis}
+                                />
+                            </>
+                        )}
 
                         <div className="mt-6 flex gap-3">
                             <button
@@ -666,13 +857,15 @@ export function WorkspaceJobApplicationManagement({ workspaceSlug }: { workspace
                             >
                                 취소
                             </button>
-                            <button
-                                type="submit"
-                                disabled={updateMutation.isPending}
-                                className="flex-1 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                            >
-                                Workspace에 저장
-                            </button>
+                            {canEditWorkspace && (
+                                <button
+                                    type="submit"
+                                    disabled={updateMutation.isPending}
+                                    className="flex-1 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+                                >
+                                    Workspace에 저장
+                                </button>
+                            )}
                         </div>
                     </form>
                 </div>
@@ -1021,75 +1214,100 @@ function WorkspaceApplicationList({
 }: {
     postings: JobPosting[];
     onOpen: (posting: JobPosting) => void;
-    onRemove: (posting: JobPosting) => void;
+    onRemove?: (posting: JobPosting) => void;
 }) {
+    const groups = groupApplicationsByDeadline(postings);
     return (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="hidden grid-cols-[minmax(0,2fr)_140px_130px_90px_116px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-black uppercase tracking-wider text-slate-400 lg:grid">
                 <span>회사·직무</span>
                 <span>지원 상태</span>
-                <span>마감</span>
-                <span>매칭</span>
+                <span>마감 시간</span>
+                <span>AI 매칭</span>
                 <span className="text-right">관리</span>
             </div>
-            {postings.map((posting) => (
-                <article
-                    key={posting.id}
-                    className="grid gap-3 border-b border-slate-100 px-5 py-4 last:border-b-0 lg:grid-cols-[minmax(0,2fr)_140px_130px_90px_116px] lg:items-center lg:gap-4"
-                >
-                    <button
-                        type="button"
-                        onClick={() => onOpen(posting)}
-                        className="min-w-0 text-left"
-                    >
-                        <p className="truncate text-sm font-black text-slate-900">
-                            {posting.companyName}
-                        </p>
-                        <p className="mt-1 truncate text-xs text-slate-500">
-                            {posting.positionTitle}
-                        </p>
-                        {posting.memo && (
-                            <p className="mt-1 line-clamp-1 text-xs text-slate-400">
-                                {posting.memo}
-                            </p>
-                        )}
-                    </button>
-                    <StatusBadge status={posting.status} />
-                    <span className="text-xs font-bold text-slate-500">
-                        {posting.alwaysOpen ? '상시 채용' : posting.deadline || '미정'}
-                    </span>
-                    <span className="text-xs font-black text-slate-600">
-                        {posting.matchScore == null ? '—' : `${posting.matchScore}점`}
-                    </span>
-                    <div className="flex justify-end gap-1.5">
-                        {posting.postingUrl && (
-                            <a
-                                href={posting.postingUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-                                aria-label="원본 공고 열기"
-                            >
-                                <ExternalLink className="h-4 w-4" />
-                            </a>
-                        )}
-                        <button
-                            type="button"
-                            onClick={() => onOpen(posting)}
-                            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-                        >
-                            편집
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onRemove(posting)}
-                            className="rounded-lg border border-red-100 p-2 text-red-500 hover:bg-red-50"
-                            aria-label="지원 목록에서 제거"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </button>
+            {groups.map((group) => (
+                <div key={group.key}>
+                    <div className="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-5 py-2 text-xs font-black text-amber-900">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {group.label}
+                        <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] text-amber-700">
+                            {group.postings.length}
+                        </span>
                     </div>
-                </article>
+                    {group.postings.map((posting) => (
+                        <article
+                            key={posting.id}
+                            className="grid gap-3 border-b border-slate-100 px-5 py-4 last:border-b-0 lg:grid-cols-[minmax(0,2fr)_140px_130px_90px_116px] lg:items-center lg:gap-4"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => onOpen(posting)}
+                                className="min-w-0 text-left"
+                            >
+                                <p className="truncate text-sm font-black text-slate-900">
+                                    {posting.companyName}
+                                </p>
+                                <p className="mt-1 truncate text-xs text-slate-500">
+                                    {posting.positionTitle}
+                                </p>
+                                <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-slate-400">
+                                    {posting.location && <span>{posting.location}</span>}
+                                    {posting.jobplanetRating != null && (
+                                        <span className="font-bold text-amber-600">
+                                            잡플래닛 ★ {posting.jobplanetRating}
+                                        </span>
+                                    )}
+                                </p>
+                                {posting.memo && (
+                                    <p className="mt-1 line-clamp-1 text-xs text-slate-400">
+                                        {posting.memo}
+                                    </p>
+                                )}
+                            </button>
+                            <StatusBadge status={posting.status} />
+                            <span className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                                <Clock3 className="h-3.5 w-3.5" />
+                                {posting.alwaysOpen
+                                    ? '상시 채용'
+                                    : posting.deadlineTime || posting.deadline || '미정'}
+                            </span>
+                            <span className="text-xs font-black text-slate-600">
+                                {posting.matchScore == null ? '—' : `${posting.matchScore}점`}
+                            </span>
+                            <div className="flex justify-end gap-1.5">
+                                {posting.postingUrl && (
+                                    <a
+                                        href={posting.postingUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                                        aria-label="원본 공고 열기"
+                                    >
+                                        <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => onOpen(posting)}
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                >
+                                    편집
+                                </button>
+                                {onRemove && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onRemove(posting)}
+                                        className="rounded-lg border border-red-100 p-2 text-red-500 hover:bg-red-50"
+                                        aria-label="지원 목록에서 제거"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </article>
+                    ))}
+                </div>
             ))}
         </section>
     );
@@ -1098,12 +1316,14 @@ function WorkspaceApplicationList({
 function WorkspaceApplicationBoard({
     postings,
     onOpen,
+    onStatusChange,
 }: {
     postings: JobPosting[];
     onOpen: (posting: JobPosting) => void;
+    onStatusChange?: (posting: JobPosting, status: JobPostingStatus) => void;
 }) {
     return (
-        <section className="grid gap-3 xl:grid-cols-4">
+        <section className="grid gap-3 xl:grid-cols-3 2xl:grid-cols-6">
             {BOARD_COLUMNS.map((column) => {
                 const columnPostings = postings.filter((posting) =>
                     column.statuses.includes(posting.status)
@@ -1121,18 +1341,22 @@ function WorkspaceApplicationBoard({
                         </div>
                         <div className="mt-2 space-y-2">
                             {columnPostings.map((posting) => (
-                                <button
+                                <article
                                     key={posting.id}
-                                    type="button"
-                                    onClick={() => onOpen(posting)}
-                                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-400"
+                                    className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-400"
                                 >
-                                    <p className="truncate text-xs font-black text-slate-900">
-                                        {posting.companyName}
-                                    </p>
-                                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-                                        {posting.positionTitle}
-                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpen(posting)}
+                                        className="w-full text-left"
+                                    >
+                                        <p className="truncate text-xs font-black text-slate-900">
+                                            {posting.companyName}
+                                        </p>
+                                        <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                                            {posting.positionTitle}
+                                        </p>
+                                    </button>
                                     <div className="mt-3 flex items-center justify-between gap-2 text-[10px] font-bold text-slate-400">
                                         <span>
                                             {posting.alwaysOpen
@@ -1145,7 +1369,26 @@ function WorkspaceApplicationBoard({
                                                 : `${posting.matchScore}점`}
                                         </span>
                                     </div>
-                                </button>
+                                    {onStatusChange && (
+                                        <select
+                                            value={posting.status}
+                                            onChange={(event) =>
+                                                onStatusChange(
+                                                    posting,
+                                                    event.target.value as JobPostingStatus
+                                                )
+                                            }
+                                            className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-600"
+                                            aria-label={`${posting.companyName} 지원 상태 변경`}
+                                        >
+                                            {STATUS_OPTIONS.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </article>
                             ))}
                         </div>
                     </div>
@@ -1225,9 +1468,19 @@ function WorkspaceApplicationCalendar({
                                                 key={posting.id}
                                                 type="button"
                                                 onClick={() => onOpen(posting)}
-                                                className="block w-full truncate rounded-md bg-slate-100 px-2 py-1 text-left text-[10px] font-bold text-slate-700 hover:bg-slate-200"
+                                                className="block w-full rounded-md bg-slate-100 px-2 py-1.5 text-left text-[10px] font-bold text-slate-700 hover:bg-slate-200"
                                             >
-                                                {posting.companyName}
+                                                <span className="block truncate">
+                                                    {posting.companyName}
+                                                </span>
+                                                <span className="mt-0.5 block truncate font-medium text-slate-500">
+                                                    {posting.deadlineTime || posting.positionTitle}
+                                                </span>
+                                                {posting.matchScore != null && (
+                                                    <span className="mt-0.5 block font-black text-emerald-600">
+                                                        AI {posting.matchScore}점
+                                                    </span>
+                                                )}
                                             </button>
                                         ))}
                                         {dayPostings.length > 3 && (
@@ -1274,6 +1527,80 @@ function toDateKey(date: Date): string {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+function isExpired(posting: JobPosting): boolean {
+    if (posting.status === 'EXPIRED') return true;
+    if (!posting.deadline || posting.alwaysOpen) return false;
+    return posting.deadline < toDateKey(new Date());
+}
+
+function isDeadlineSoon(posting: JobPosting): boolean {
+    if (!posting.deadline || posting.alwaysOpen || isExpired(posting)) return false;
+    const deadline = new Date(`${posting.deadline}T${posting.deadlineTime || '23:59'}:00`);
+    const remaining = deadline.getTime() - Date.now();
+    return remaining >= 0 && remaining <= 7 * 24 * 60 * 60 * 1000;
+}
+
+function matchesDeadlineSubTab(posting: JobPosting, tab: DeadlineSubTab): boolean {
+    if (tab === 'ALL') return true;
+    if (tab === 'HAS_DEADLINE') {
+        return Boolean(posting.deadline) && !posting.alwaysOpen && !isExpired(posting);
+    }
+    if (tab === 'ALWAYS_OPEN_OR_NO_DEADLINE') {
+        return posting.alwaysOpen || !posting.deadline;
+    }
+    return isExpired(posting);
+}
+
+type DeadlineGroup = {
+    key: string;
+    label: string;
+    postings: JobPosting[];
+    order: number;
+};
+
+function groupApplicationsByDeadline(postings: JobPosting[]): DeadlineGroup[] {
+    const groups = new Map<string, DeadlineGroup>();
+    postings.forEach((posting) => {
+        let key: string;
+        let label: string;
+        let order: number;
+        if (isExpired(posting)) {
+            key = 'expired';
+            label = '마감된 공고';
+            order = Number.MAX_SAFE_INTEGER;
+        } else if (posting.alwaysOpen) {
+            key = 'always-open';
+            label = '상시 채용';
+            order = Number.MAX_SAFE_INTEGER - 2;
+        } else if (!posting.deadline) {
+            key = 'no-deadline';
+            label = '마감일 미정';
+            order = Number.MAX_SAFE_INTEGER - 1;
+        } else {
+            key = posting.deadline;
+            const deadline = new Date(`${posting.deadline}T00:00:00`);
+            const today = new Date(`${toDateKey(new Date())}T00:00:00`);
+            const remainingDays = Math.ceil(
+                (deadline.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)
+            );
+            const dDay = remainingDays === 0 ? 'D-day' : `D-${remainingDays}`;
+            label = `${posting.deadline.replaceAll('-', '.')} (${WEEKDAY_LABELS[deadline.getDay()]}) · ${dDay}`;
+            order = deadline.getTime();
+        }
+        const group = groups.get(key) ?? { key, label, postings: [], order };
+        group.postings.push(posting);
+        groups.set(key, group);
+    });
+    return [...groups.values()]
+        .map((group) => ({
+            ...group,
+            postings: [...group.postings].sort((left, right) =>
+                (left.deadlineTime || '23:59').localeCompare(right.deadlineTime || '23:59')
+            ),
+        }))
+        .sort((left, right) => left.order - right.order);
 }
 
 function ModeButton({
