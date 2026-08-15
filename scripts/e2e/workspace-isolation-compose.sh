@@ -20,6 +20,7 @@ E2E_COOKIE_B="$E2E_TMP_DIR/user-b.cookies"
 E2E_VISITOR_A="$E2E_TMP_DIR/visitor-a.cookies"
 E2E_VISITOR_B="$E2E_TMP_DIR/visitor-b.cookies"
 E2E_RESPONSE="$E2E_TMP_DIR/response.json"
+E2E_PDF_FIXTURE="$E2E_TMP_DIR/minimal.pdf"
 E2E_STATUS=""
 
 if [[ "$E2E_BASE_URL" != http://localhost:* && "$E2E_BASE_URL" != http://127.0.0.1:* ]]; then
@@ -187,6 +188,24 @@ request() {
     E2E_STATUS="$(curl "${args[@]}" "$E2E_BASE_URL$path")"
 }
 
+upload_pdf_to_presigned_url() {
+    local upload_url="$1"
+    local label="$2"
+    local upload_status
+
+    printf '%%PDF-1.4\n%% Self-Intro Workspace isolation E2E\n%%%%EOF\n' >"$E2E_PDF_FIXTURE"
+    upload_status="$(curl -sS -o "$E2E_RESPONSE" -w '%{http_code}' \
+        -X PUT \
+        -H 'Content-Type: application/pdf' \
+        --data-binary "@$E2E_PDF_FIXTURE" \
+        "$upload_url")"
+    if [[ "$upload_status" != "200" ]]; then
+        echo "FAIL: $label (expected=200, actual=$upload_status)" >&2
+        exit 1
+    fi
+    echo "PASS: $label ($upload_status)"
+}
+
 login() {
     local cookie_jar="$1"
     local login_id="$2"
@@ -262,17 +281,14 @@ experience_payload() {
 }
 
 workspace_skill_payload() {
-    local name="$1"
+    local catalog_skill_id="$1"
     local comment="$2"
-    jq -cn --arg name "$name" --arg comment "$comment" '{
-        name:$name,
-        category:"E2E",
+    jq -cn --argjson catalogSkillId "$catalog_skill_id" --arg comment "$comment" '{
+        catalogSkillId:$catalogSkillId,
         skillLevel:"ADVANCED",
         skillVersion:"",
         comment:$comment,
         usageType:"WORK_EXPERIENCE",
-        badgeKey:"",
-        badgeColor:"",
         isCore:true,
         displayOrder:0
     }'
@@ -602,7 +618,7 @@ E2E_CATALOG_SKILL_NAME="$(jq -r '.[0].name // empty' "$E2E_RESPONSE")"
     exit 1
 }
 request "$E2E_COOKIE_A" POST "/api/workspaces/$E2E_SLUG_A/skills" \
-    "$(workspace_skill_payload "$E2E_CATALOG_SKILL_NAME" 'A workspace overlay')"
+    "$(workspace_skill_payload "$E2E_CATALOG_SKILL_ID" 'A workspace overlay')"
 assert_status 200 "A가 공통 Skill을 자기 Workspace에 추가"
 request "$E2E_COOKIE_A" POST "/api/workspaces/$E2E_SLUG_A/competencies" \
     "$(competency_payload 'A isolated competency' "$E2E_CATALOG_SKILL_ID")"
@@ -626,7 +642,7 @@ request "$E2E_COOKIE_B" POST "/api/workspaces/$E2E_SLUG_B/competencies" \
     "$(competency_payload 'B missing overlay competency' "$E2E_CATALOG_SKILL_ID")"
 assert_status 400 "B가 Workspace에 추가하지 않은 catalog Skill을 Competency에 연결하지 못함"
 request "$E2E_COOKIE_B" POST "/api/workspaces/$E2E_SLUG_B/skills" \
-    "$(workspace_skill_payload "$E2E_CATALOG_SKILL_NAME" 'B independent overlay')"
+    "$(workspace_skill_payload "$E2E_CATALOG_SKILL_ID" 'B independent overlay')"
 assert_status 200 "B가 같은 공통 Skill을 독립 overlay로 추가"
 request "$E2E_COOKIE_B" POST "/api/workspaces/$E2E_SLUG_B/competencies" \
     "$(competency_payload 'B isolated competency' "$E2E_CATALOG_SKILL_ID")"
@@ -689,6 +705,7 @@ request "$E2E_COOKIE_A" POST "/api/workspaces/$E2E_SLUG_A/images/presigned-uploa
     '{"scope":"PRINT_TEMPLATE_FINAL_PDF","fileName":"a-final.pdf","contentType":"application/pdf"}'
 assert_status 200 "A 최종 PDF용 presigned key 발급"
 E2E_FINAL_PDF_KEY_A="$(jq -r '.objectKey' "$E2E_RESPONSE")"
+E2E_FINAL_PDF_UPLOAD_URL_A="$(jq -r '.uploadUrl' "$E2E_RESPONSE")"
 [[ "$E2E_FINAL_PDF_KEY_A" =~ ^workspaces/[1-9][0-9]*/print-template/final-pdf/[0-9]{4}/[0-9]{2}/.+\.pdf$ ]] || {
     echo "FAIL: A 최종 PDF object key namespace가 올바르지 않습니다: $E2E_FINAL_PDF_KEY_A" >&2
     exit 1
@@ -697,6 +714,7 @@ request "$E2E_COOKIE_B" POST "/api/workspaces/$E2E_SLUG_B/images/presigned-uploa
     '{"scope":"PRINT_TEMPLATE_FINAL_PDF","fileName":"b-final.pdf","contentType":"application/pdf"}'
 assert_status 200 "B 최종 PDF용 presigned key 발급"
 E2E_FINAL_PDF_KEY_B="$(jq -r '.objectKey' "$E2E_RESPONSE")"
+E2E_FINAL_PDF_UPLOAD_URL_B="$(jq -r '.uploadUrl' "$E2E_RESPONSE")"
 E2E_WORKSPACE_KEY_ID_A="${E2E_FINAL_PDF_KEY_A#workspaces/}"
 E2E_WORKSPACE_KEY_ID_A="${E2E_WORKSPACE_KEY_ID_A%%/*}"
 E2E_WORKSPACE_KEY_ID_B="${E2E_FINAL_PDF_KEY_B#workspaces/}"
@@ -705,6 +723,8 @@ E2E_WORKSPACE_KEY_ID_B="${E2E_WORKSPACE_KEY_ID_B%%/*}"
     echo "FAIL: A와 B의 최종 PDF object key Workspace namespace가 같을 수 없습니다." >&2
     exit 1
 }
+upload_pdf_to_presigned_url "$E2E_FINAL_PDF_UPLOAD_URL_A" "A 최종 PDF 객체 업로드"
+upload_pdf_to_presigned_url "$E2E_FINAL_PDF_UPLOAD_URL_B" "B 최종 PDF 객체 업로드"
 
 request "$E2E_COOKIE_A" POST "/api/workspaces/$E2E_SLUG_A/print-templates/manage/job-applications/$E2E_JOB_POSTING_ID/direct-pdf" \
     "$(jq -cn --arg objectKey "$E2E_FINAL_PDF_KEY_A" '{name:"A final PDF",objectKey:$objectKey}')"

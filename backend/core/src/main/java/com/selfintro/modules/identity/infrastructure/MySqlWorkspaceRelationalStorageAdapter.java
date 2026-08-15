@@ -221,11 +221,11 @@ public class MySqlWorkspaceRelationalStorageAdapter implements WorkspaceRelation
         tables.put("decision_study_link", "CASCADE_WITH_WORKSPACE");
         tables.put("experience", "CASCADE_WITH_WORKSPACE");
         tables.put("portfolio_case_study", "CASCADE_WITH_WORKSPACE");
+        tables.put("print_document_artifact", "CASCADE_WITH_WORKSPACE");
         tables.put("print_template", "CASCADE_WITH_WORKSPACE");
         tables.put("profile", "CASCADE_WITH_WORKSPACE");
         tables.put("security_audit_event", "RETAIN_AND_PSEUDONYMIZE");
         tables.put("study", "CASCADE_WITH_WORKSPACE");
-        tables.put("study_plan", "CASCADE_WITH_WORKSPACE");
         tables.put("study_taxonomy_curation", "CASCADE_WITH_WORKSPACE");
         tables.put("tag", "CASCADE_WITH_WORKSPACE");
         tables.put("workspace_job_application", "CASCADE_WITH_WORKSPACE");
