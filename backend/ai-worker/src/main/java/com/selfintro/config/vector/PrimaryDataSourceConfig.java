@@ -48,8 +48,7 @@ public class PrimaryDataSourceConfig {
                 .packages(
                         "com.selfintro.modules",
                         "com.selfintro.jobposting",
-                        "com.selfintro.portfolio",
-                        "com.selfintro.studyplan")
+                        "com.selfintro.portfolio")
                 .persistenceUnit("default")
                 .build();
     }
