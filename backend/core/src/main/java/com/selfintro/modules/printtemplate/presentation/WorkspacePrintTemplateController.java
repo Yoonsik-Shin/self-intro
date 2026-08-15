@@ -9,6 +9,7 @@ import com.selfintro.modules.printtemplate.application.WorkspaceOutputSourceServ
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.presentation.dto.DirectPdfUploadRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTemplateRequest;
+import com.selfintro.modules.printtemplate.presentation.dto.PrintDocumentArtifactResponse;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateFinalPdfRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateResponse;
@@ -149,6 +150,23 @@ public class WorkspacePrintTemplateController {
             @PathVariable Long id) {
         return printTemplateService.getRevisions(
                 readWorkspaceId(authentication, workspaceSlug), id);
+    }
+
+    @GetMapping("/{id}/artifacts")
+    public List<PrintDocumentArtifactResponse> artifacts(
+            Authentication authentication,
+            @PathVariable String workspaceSlug,
+            @PathVariable Long id) {
+        Long workspaceId = readWorkspaceId(authentication, workspaceSlug);
+        PrintTemplate template = printTemplateService.getOrThrow(workspaceId, id);
+        return printTemplateService.getArtifacts(workspaceId, id).stream()
+                .map(
+                        artifact ->
+                                PrintDocumentArtifactResponse.from(
+                                        artifact,
+                                        storageService::toPublicUrl,
+                                        template.getFinalPdfObjectKey()))
+                .toList();
     }
 
     @PostMapping("/{id}/revisions/{revisionId}/rollback")

@@ -4,8 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
+import com.selfintro.modules.printtemplate.domain.entity.PrintDocumentArtifact;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplateRevision;
+import com.selfintro.modules.printtemplate.domain.repository.PrintDocumentArtifactRepository;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRevisionRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PortfolioPrintTemplateRequest;
@@ -31,6 +33,7 @@ public class PrintTemplateService {
 
     private final PrintTemplateRepository printTemplateRepository;
     private final PrintTemplateRevisionRepository printTemplateRevisionRepository;
+    private final PrintDocumentArtifactRepository printDocumentArtifactRepository;
     private final StorageService storageService;
     private final PublicWorkspaceResolver publicWorkspaceResolver;
     private final PortfolioCaseStudyRepository portfolioCaseStudyRepository;
@@ -408,6 +411,12 @@ public class PrintTemplateService {
                         objectKey,
                         Math.toIntExact(version - 1));
         PrintTemplate saved = printTemplateRepository.save(template);
+        PrintTemplateRevision revision = recordConfigurationSnapshot(saved);
+        registerUploadedArtifact(
+                saved,
+                revision,
+                objectKey,
+                PrintDocumentArtifact.ORIGIN_EXTERNAL_UPLOAD);
         promoteToFinal(saved);
         return saved;
     }
@@ -444,11 +453,11 @@ public class PrintTemplateService {
         return saved;
     }
 
-    private void recordConfigurationSnapshot(PrintTemplate template) {
-        if (!PrintTemplate.DOCUMENT_TYPE_RESUME.equals(template.getDocumentType())) return;
+    private PrintTemplateRevision recordConfigurationSnapshot(PrintTemplate template) {
+        if (!PrintTemplate.DOCUMENT_TYPE_RESUME.equals(template.getDocumentType())) return null;
         ConfigurationSnapshot snapshot = ConfigurationSnapshot.from(template);
         try {
-            printTemplateRevisionRepository.save(
+            return printTemplateRevisionRepository.save(
                     PrintTemplateRevision.create(
                             template.getId(),
                             PrintTemplateRevision.SENDER_SNAPSHOT,
@@ -457,6 +466,43 @@ public class PrintTemplateService {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("출력 구성을 revision으로 저장하지 못했습니다.", exception);
         }
+    }
+
+    public List<PrintDocumentArtifact> getArtifacts(Long workspaceId, Long templateId) {
+        getOrThrow(workspaceId, templateId);
+        return printDocumentArtifactRepository
+                .findByWorkspaceIdAndPrintTemplateIdOrderByIdDesc(workspaceId, templateId);
+    }
+
+    private void registerUploadedArtifact(
+            PrintTemplate template,
+            PrintTemplateRevision revision,
+            String objectKey,
+            String origin) {
+        if (revision == null || revision.getId() == null) {
+            throw new IllegalStateException("PDF 아티팩트에 연결할 출력 revision이 없습니다.");
+        }
+        if (printDocumentArtifactRepository.existsByObjectKey(objectKey)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "이미 출력 아티팩트로 등록된 PDF입니다.");
+        }
+        StorageService.VerifiedPdf verified =
+                storageService.verifyOwnedPdf(
+                        template.getWorkspaceId(),
+                        ImageScope.PRINT_TEMPLATE_FINAL_PDF,
+                        objectKey);
+        printDocumentArtifactRepository.save(
+                PrintDocumentArtifact.uploaded(
+                        template.getWorkspaceId(),
+                        template.getId(),
+                        revision.getId(),
+                        template.getJobPostingId(),
+                        objectKey,
+                        verified.sha256Checksum(),
+                        verified.contentLength(),
+                        verified.contentType(),
+                        origin,
+                        LocalDateTime.now()));
     }
 
     private ConfigurationSnapshot readSnapshot(String content) {
@@ -525,9 +571,17 @@ public class PrintTemplateService {
                 workspaceId, ImageScope.PRINT_TEMPLATE_FINAL_PDF, objectKey);
         PrintTemplate template = getOrThrow(workspaceId, id);
         String previousObjectKey = template.getFinalPdfObjectKey();
+        PrintTemplateRevision revision = recordConfigurationSnapshot(template);
+        registerUploadedArtifact(
+                template,
+                revision,
+                objectKey,
+                PrintDocumentArtifact.ORIGIN_BROWSER_UPLOAD);
         template.attachFinalPdf(objectKey);
         promoteToFinal(template);
-        if (previousObjectKey != null && !previousObjectKey.equals(objectKey)) {
+        if (previousObjectKey != null
+                && !previousObjectKey.equals(objectKey)
+                && !printDocumentArtifactRepository.existsByObjectKey(previousObjectKey)) {
             storageService.delete(previousObjectKey);
         }
         return template;
@@ -539,7 +593,8 @@ public class PrintTemplateService {
         PrintTemplate template = getOrThrow(workspaceId, id);
         String previousObjectKey = template.getFinalPdfObjectKey();
         template.clearFinalPdf();
-        if (previousObjectKey != null) {
+        if (previousObjectKey != null
+                && !printDocumentArtifactRepository.existsByObjectKey(previousObjectKey)) {
             storageService.delete(previousObjectKey);
         }
         return template;
@@ -555,6 +610,11 @@ public class PrintTemplateService {
     @CacheEvict(value = "print_template:public", allEntries = true)
     public void delete(Long workspaceId, Long id) {
         PrintTemplate template = getOrThrow(workspaceId, id);
+        if (printDocumentArtifactRepository.existsByPrintTemplateId(id)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "불변 PDF 아티팩트가 연결된 출력 서식은 삭제할 수 없습니다. 현재 선택만 해제해 주세요.");
+        }
         if (template.getFinalPdfObjectKey() != null) {
             storageService.delete(template.getFinalPdfObjectKey());
         }

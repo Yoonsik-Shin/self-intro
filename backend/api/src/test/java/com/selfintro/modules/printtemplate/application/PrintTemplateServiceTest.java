@@ -1,28 +1,40 @@
 package com.selfintro.modules.printtemplate.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import com.selfintro.modules.portfolio.domain.repository.PortfolioCaseStudyRepository;
+import com.selfintro.modules.printtemplate.domain.entity.PrintDocumentArtifact;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
+import com.selfintro.modules.printtemplate.domain.entity.PrintTemplateRevision;
+import com.selfintro.modules.printtemplate.domain.repository.PrintDocumentArtifactRepository;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRepository;
 import com.selfintro.modules.printtemplate.domain.repository.PrintTemplateRevisionRepository;
 import com.selfintro.modules.printtemplate.presentation.dto.PrintTemplateRequest;
 import com.selfintro.modules.storage.application.StorageService;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class PrintTemplateServiceTest {
     @Mock PrintTemplateRepository repository;
     @Mock PrintTemplateRevisionRepository revisionRepository;
+    @Mock PrintDocumentArtifactRepository artifactRepository;
     @Mock StorageService storageService;
     @Mock PublicWorkspaceResolver publicWorkspaceResolver;
     @Mock PortfolioCaseStudyRepository portfolioCaseStudyRepository;
@@ -35,12 +47,29 @@ class PrintTemplateServiceTest {
                 new PrintTemplateService(
                         repository,
                         revisionRepository,
+                        artifactRepository,
                         storageService,
                         publicWorkspaceResolver,
                         portfolioCaseStudyRepository,
                         new ObjectMapper());
-        when(repository.save(any(PrintTemplate.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(repository.save(any(PrintTemplate.class)))
+                .thenAnswer(
+                        invocation -> {
+                            PrintTemplate template = invocation.getArgument(0);
+                            if (template.getId() == null) {
+                                ReflectionTestUtils.setField(template, "id", 7L);
+                            }
+                            return template;
+                        });
+        lenient()
+                .when(revisionRepository.save(any(PrintTemplateRevision.class)))
+                .thenAnswer(
+                        invocation -> {
+                            PrintTemplateRevision revision = invocation.getArgument(0);
+                            ReflectionTestUtils.setField(revision, "id", 9L);
+                            return revision;
+                        });
     }
 
     @Test
@@ -110,6 +139,12 @@ class PrintTemplateServiceTest {
     @Test
     void createDirectPdfCreatesExternalTemplateAndPromotesToFinal() {
         when(repository.countByWorkspaceIdAndJobPostingId(1L, 10L)).thenReturn(0L);
+        when(storageService.verifyOwnedPdf(any(), any(), any()))
+                .thenReturn(
+                        new StorageService.VerifiedPdf(
+                                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                                123L,
+                                "application/pdf"));
 
         PrintTemplate saved =
                 service.createDirectPdf(
@@ -124,5 +159,74 @@ class PrintTemplateServiceTest {
         assertThat(saved.getFinalPdfObjectKey())
                 .isEqualTo("workspaces/1/print-template/final-pdf/2026/08/test.pdf");
         assertThat(saved.isFinalSubmission()).isTrue();
+        ArgumentCaptor<PrintDocumentArtifact> artifactCaptor =
+                ArgumentCaptor.forClass(PrintDocumentArtifact.class);
+        verify(artifactRepository).save(artifactCaptor.capture());
+        PrintDocumentArtifact artifact = artifactCaptor.getValue();
+        assertThat(artifact.getWorkspaceId()).isEqualTo(1L);
+        assertThat(artifact.getPrintTemplateId()).isEqualTo(7L);
+        assertThat(artifact.getPrintTemplateRevisionId()).isEqualTo(9L);
+        assertThat(artifact.getOrigin()).isEqualTo(PrintDocumentArtifact.ORIGIN_EXTERNAL_UPLOAD);
+        assertThat(artifact.getSha256Checksum()).hasSize(64);
+    }
+
+    @Test
+    void removeFinalPdfKeepsObjectAlreadyRegisteredAsArtifact() {
+        PrintTemplate template =
+                PrintTemplate.createExternalPdf(
+                        1L,
+                        "제출본.pdf",
+                        10L,
+                        "workspaces/1/print-template/final-pdf/2026/08/submitted.pdf",
+                        0);
+        ReflectionTestUtils.setField(template, "id", 7L);
+        when(repository.findByIdAndWorkspaceId(7L, 1L)).thenReturn(Optional.of(template));
+        when(artifactRepository.existsByObjectKey(template.getFinalPdfObjectKey()))
+                .thenReturn(true);
+
+        service.removeFinalPdf(1L, 7L);
+
+        assertThat(template.getFinalPdfObjectKey()).isNull();
+        verify(storageService, never()).delete(any());
+    }
+
+    @Test
+    void deleteRejectsTemplateLinkedToImmutableArtifact() {
+        PrintTemplate template =
+                PrintTemplate.createExternalPdf(
+                        1L,
+                        "제출본.pdf",
+                        10L,
+                        "workspaces/1/print-template/final-pdf/2026/08/submitted.pdf",
+                        0);
+        ReflectionTestUtils.setField(template, "id", 7L);
+        when(repository.findByIdAndWorkspaceId(7L, 1L)).thenReturn(Optional.of(template));
+        when(artifactRepository.existsByPrintTemplateId(7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.delete(1L, 7L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("불변 PDF 아티팩트");
+
+        verify(repository, never()).delete(any());
+        verify(storageService, never()).delete(any());
+    }
+
+    @Test
+    void getArtifactsChecksWorkspaceOwnershipAndUsesScopedQuery() {
+        PrintTemplate template =
+                PrintTemplate.createExternalPdf(
+                        1L,
+                        "제출본.pdf",
+                        10L,
+                        "workspaces/1/print-template/final-pdf/2026/08/submitted.pdf",
+                        0);
+        ReflectionTestUtils.setField(template, "id", 7L);
+        when(repository.findByIdAndWorkspaceId(7L, 1L)).thenReturn(Optional.of(template));
+        when(artifactRepository.findByWorkspaceIdAndPrintTemplateIdOrderByIdDesc(1L, 7L))
+                .thenReturn(List.of());
+
+        assertThat(service.getArtifacts(1L, 7L)).isEmpty();
+
+        verify(artifactRepository).findByWorkspaceIdAndPrintTemplateIdOrderByIdDesc(1L, 7L);
     }
 }

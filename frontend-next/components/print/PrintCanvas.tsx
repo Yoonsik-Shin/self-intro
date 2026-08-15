@@ -77,6 +77,47 @@ import {
 import { usePrintStore } from '@/store/usePrintStore';
 import { PdfPageLayer } from './PdfPageLayer';
 import { PrintPreviewBar } from './PrintPreviewBar';
+
+function PageMarginInput({
+    label,
+    value,
+    onCommit,
+}: {
+    label: string;
+    value: number;
+    onCommit: (value: number) => void;
+}) {
+    const [draft, setDraft] = useState(String(value));
+
+    const commit = () => {
+        const parsed = Number(draft);
+        if (!Number.isFinite(parsed)) {
+            setDraft(String(value));
+            return;
+        }
+        onCommit(parsed);
+    };
+
+    return (
+        <label className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-[10px] font-bold text-slate-300">
+            {label}
+            <input
+                type="number"
+                min={0}
+                max={50}
+                step={0.5}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onBlur={commit}
+                onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    event.currentTarget.blur();
+                }}
+                className="mt-1 block h-9 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm font-black text-white outline-none focus:border-blue-400"
+            />
+        </label>
+    );
+}
 import { PrintPreviewNav } from './PrintPreviewNav';
 import { PrintEyeButton } from './PrintEyeButton';
 import { PrintModeModal } from './PrintModeModal';
@@ -933,14 +974,11 @@ export function PrintCanvas({
         setAddingCatalogSkillId(skill.id);
         try {
             await skillApi.workspaceCreate(workspaceSlug, {
-                name: skill.name,
-                category: skill.category,
+                catalogSkillId: skill.id,
                 skillLevel: '',
                 skillVersion: '',
                 comment: '',
                 usageType: group === 'CORE' ? 'WORK_EXPERIENCE' : 'PROJECT_USE',
-                badgeKey: skill.badgeKey,
-                badgeColor: skill.badgeColor,
                 isCore: group === 'CORE',
                 displayOrder:
                     Math.max(
@@ -1042,6 +1080,13 @@ export function PrintCanvas({
                 store.itemOrderOverrides
             ),
         [resolvedIntroData, store.itemOrderOverrides]
+    );
+    const visibleCompetencies = useMemo(
+        () =>
+            orderedCompetencies.filter(
+                (competency) => !store.printExcludedIds.includes(`competency:${competency.id}`)
+            ),
+        [orderedCompetencies, store.printExcludedIds]
     );
     const orderedMilestones = useMemo(() => {
         const milestones = applyOrder(
@@ -2174,9 +2219,8 @@ export function PrintCanvas({
                 );
 
             case 'competency-item': {
-                const competency = orderedCompetencies.find((c) => c.id === atom.dataId);
+                const competency = visibleCompetencies.find((c) => c.id === atom.dataId);
                 if (!competency) return null;
-                const index = orderedCompetencies.indexOf(competency);
                 const itemId = `competency:${competency.id}`;
 
                 const origComp = introData.competencies.find((c) => c.id === competency.id);
@@ -2191,9 +2235,6 @@ export function PrintCanvas({
                             <article className="print-competency-row grid gap-3 py-3.5 sm:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] sm:gap-6 print:grid-cols-[minmax(0,0.31fr)_minmax(0,0.69fr)] print:gap-4 print:py-3.5 border-b border-slate-100 last:border-b-0 w-full">
                                 <div className="min-w-0">
                                     <div className="flex items-baseline gap-2">
-                                        <span className="resume-label inline-block w-7 shrink-0 font-black tabular-nums tracking-[0.14em] text-slate-400 text-xs">
-                                            {String(index + 1).padStart(2, '0')}
-                                        </span>
                                         <h3 className="resume-item-title font-black text-slate-900 text-xs min-w-0 flex-1">
                                             {renderInlineText({
                                                 value: competency.title,
@@ -2210,9 +2251,13 @@ export function PrintCanvas({
                                             })}
                                         </h3>
                                     </div>
-                                    {competency.skills.length > 0 && (
-                                        <p className="resume-meta mt-1 pl-9 font-bold text-slate-500 text-[10px]">
-                                            {competency.skills
+                                    {((competency.tags ?? []).length > 0 ||
+                                        competency.skills.length > 0) && (
+                                        <p className="resume-meta mt-1 font-bold text-slate-500 text-[10px]">
+                                            {((competency.tags ?? []).length > 0
+                                                ? (competency.tags ?? [])
+                                                : competency.skills
+                                            )
                                                 .slice(0, 6)
                                                 .map((skill) => skill.name)
                                                 .join(' · ')}
@@ -2810,8 +2855,8 @@ export function PrintCanvas({
                                         })),
                                 })}
                             </div>
-                            {inlineEditMode && (
-                                <div className="print:hidden flex shrink-0 items-center gap-1">
+                            <div className="print:hidden flex shrink-0 items-center gap-1">
+                                {inlineEditMode && (
                                     <button
                                         type="button"
                                         onClick={() => addCustomSectionItem(section.id)}
@@ -2819,15 +2864,15 @@ export function PrintCanvas({
                                     >
                                         <Plus className="h-3 w-3" /> 항목 추가
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeCustomSection(section.id)}
-                                        className="rounded bg-rose-500 px-2 py-1 text-[10px] font-bold text-white hover:bg-rose-600"
-                                    >
-                                        섹션 삭제
-                                    </button>
-                                </div>
-                            )}
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => removeCustomSection(section.id)}
+                                    className="rounded bg-rose-500 px-2 py-1 text-[10px] font-bold text-white hover:bg-rose-600"
+                                >
+                                    섹션 삭제
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );
@@ -2848,15 +2893,13 @@ export function PrintCanvas({
                     >
                         {renderItemGap(atomId, 'cover-letter')}
                         {renderItemControls(atomId)}
-                        {inlineEditMode && (
-                            <button
-                                type="button"
-                                onClick={() => removeCustomSectionItem(sectionId, itemId)}
-                                className="print:hidden absolute right-8 top-2 z-20 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white hover:bg-rose-600"
-                            >
-                                삭제
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => removeCustomSectionItem(sectionId, itemId)}
+                            className="print:hidden absolute right-8 top-2 z-20 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white hover:bg-rose-600"
+                        >
+                            삭제
+                        </button>
                         {renderInlineText({
                             value: item.title,
                             baseValue: item.title,
@@ -3457,25 +3500,14 @@ export function PrintCanvas({
                                                     ['left', '왼쪽'],
                                                 ] as const
                                             ).map(([side, label]) => (
-                                                <label
-                                                    key={side}
-                                                    className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-[10px] font-bold text-slate-300"
-                                                >
-                                                    {label}
-                                                    <input
-                                                        type="number"
-                                                        min={5}
-                                                        max={30}
-                                                        step={1}
-                                                        value={store.outputLayout.pageMargins[side]}
-                                                        onChange={(event) =>
-                                                            store.setPageMargins({
-                                                                [side]: Number(event.target.value),
-                                                            })
-                                                        }
-                                                        className="mt-1 block h-9 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm font-black text-white outline-none focus:border-blue-400"
-                                                    />
-                                                </label>
+                                                <PageMarginInput
+                                                    key={`${side}:${store.outputLayout.pageMargins[side]}`}
+                                                    label={label}
+                                                    value={store.outputLayout.pageMargins[side]}
+                                                    onCommit={(value) =>
+                                                        store.setPageMargins({ [side]: value })
+                                                    }
+                                                />
                                             ))}
                                         </div>
                                         <button
@@ -3519,6 +3551,26 @@ export function PrintCanvas({
                                         </p>
                                         <label className="mt-4 block rounded-xl border border-slate-800 bg-slate-900 p-3">
                                             <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
+                                                전체 글자 크기
+                                                <strong className="text-blue-300">
+                                                    {Math.round(store.outputLayout.fontScale * 100)}
+                                                    %
+                                                </strong>
+                                            </span>
+                                            <input
+                                                type="range"
+                                                min={0.8}
+                                                max={1.3}
+                                                step={0.025}
+                                                value={store.outputLayout.fontScale}
+                                                onChange={(event) =>
+                                                    store.setFontScale(Number(event.target.value))
+                                                }
+                                                className="mt-3 h-1 w-full cursor-pointer accent-blue-500"
+                                            />
+                                        </label>
+                                        <label className="mt-3 block rounded-xl border border-slate-800 bg-slate-900 p-3">
+                                            <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
                                                 본문 줄 간격
                                                 <strong className="text-blue-300">
                                                     {store.lineHeight.toFixed(2)}
@@ -3538,10 +3590,13 @@ export function PrintCanvas({
                                         </label>
                                         <button
                                             type="button"
-                                            onClick={() => store.setLineHeight(1.625)}
+                                            onClick={() => {
+                                                store.setFontScale(1);
+                                                store.setLineHeight(1.625);
+                                            }}
                                             className="mt-3 h-9 w-full rounded-lg border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
                                         >
-                                            기본 줄 간격으로 초기화
+                                            기본 글자·줄 간격으로 초기화
                                         </button>
                                     </section>
                                 )}
@@ -3686,6 +3741,7 @@ export function PrintCanvas({
                                 {
                                     zoom: store.zoom,
                                     '--print-line-height': store.lineHeight,
+                                    '--print-font-scale': store.outputLayout.fontScale,
                                 } as CSSProperties
                             }
                         >

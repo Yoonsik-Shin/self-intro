@@ -13,6 +13,13 @@ Accepted — 2026-08-12
 - 방문자용 공개 인쇄는 계속 활성 공개 publication snapshot과 공개된 템플릿만 사용한다.
 - 수동 생성·수정·복원 시 `print_template_revision`에 `SNAPSHOT` revision을 남긴다. 복원도 새
   revision을 만들므로 현재 상태를 잃지 않는다.
+- 최종 PDF를 연결할 때는 현재 출력 구성을 먼저 `SNAPSHOT` revision으로 고정하고,
+  `print_document_artifact`에 해당 revision ID, Workspace ID, 객체 key, 서버가 실제 바이트에서 계산한
+  SHA-256·크기·MIME을 불변 기록한다. 브라우저에서 인쇄 후 올린 파일과 외부에서 만든 PDF는 각각
+  `BROWSER_UPLOAD`, `EXTERNAL_UPLOAD`로 구분한다.
+- 현재 최종 PDF pointer를 해제하거나 다른 파일로 교체해도 이미 등록된 artifact의 객체는 삭제하지
+  않는다. 일반 출력 서식 삭제도 artifact가 연결되어 있으면 거부하며, Workspace 폐쇄·보존기간 만료와
+  같은 명시적 전체 삭제 수명주기에서만 DB row와 객체를 함께 제거한다.
 - `experience_detail.resume_available` 등 레거시 컬럼은 호환 기간 동안 읽기·쓰기 계약에서만
   보존하고 새 UI와 출력 결정에는 사용하지 않는다.
 
@@ -73,3 +80,6 @@ paginator 입력으로 되먹이지 않아 페이지 수가 왕복하지 않게 
   row/column span과 충돌 해결 규칙을 추가한다.
 - 로컬 UAT 후 레거시 `resume_available`, `public_visible`, `visible` 컬럼 제거 migration을 별도
   변경으로 수행한다.
+- 현재 PDF 생성은 여전히 브라우저 `window.print()` 또는 외부 PDF 업로드다. 자동 서버 renderer는
+  구현하지 않았으며, 도입할 때 같은 artifact 계약에 renderer version, font bundle version, page count를
+  채우고 동일 revision 입력에 대한 재현성 검증을 추가한다.

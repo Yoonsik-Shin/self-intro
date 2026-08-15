@@ -4,6 +4,7 @@ import type {
     DirectPdfUploadRequest,
     PortfolioPrintTemplateRequest,
     PrintTemplate,
+    PrintDocumentArtifact,
     PrintTemplateRaw,
     PrintTemplateRequest,
     PrintTemplateRevision,
@@ -115,6 +116,10 @@ export const printTemplateApi = {
     workspaceRevisions: (workspaceSlug: string, templateId: number) =>
         request<PrintTemplateRevision[]>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/${templateId}/revisions`
+        ),
+    workspaceArtifacts: (workspaceSlug: string, templateId: number) =>
+        request<PrintDocumentArtifact[]>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/print-templates/manage/${templateId}/artifacts`
         ),
     workspaceRollbackRevision: async (
         workspaceSlug: string,

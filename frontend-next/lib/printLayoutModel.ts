@@ -1,6 +1,6 @@
 import type { PageOrientation } from '@/lib/pdfLayoutEngine';
 
-export const OUTPUT_LAYOUT_SCHEMA_VERSION = 2;
+export const OUTPUT_LAYOUT_SCHEMA_VERSION = 3;
 
 export type OutputLayoutMode = 'SINGLE_COLUMN' | 'TWO_COLUMN' | 'THREE_COLUMN';
 export type OutputRegionKind = 'FLOW' | 'LEFT_COLUMN' | 'RIGHT_COLUMN' | 'COLUMN';
@@ -64,6 +64,8 @@ export type OutputLayout = {
     regions: OutputRegion[];
     placements: OutputPlacement[];
     pageMargins: OutputPageMargins;
+    /** 문서 전체 타이포그래피 배율. 1은 템플릿 기본 크기다. */
+    fontScale: number;
 };
 
 export type StoredPrintLayoutSettings = {
@@ -118,6 +120,7 @@ export function createDefaultOutputLayout(): OutputLayout {
         ],
         placements: [],
         pageMargins: { ...DEFAULT_OUTPUT_PAGE_MARGINS },
+        fontScale: 1,
     };
 }
 
@@ -201,10 +204,10 @@ function clamp(value: number, min: number, max: number): number {
 function normalizePageMargins(value: unknown): OutputPageMargins {
     const source = isRecord(value) ? value : {};
     return {
-        top: clamp(typeof source.top === 'number' ? source.top : 12, 5, 30),
-        right: clamp(typeof source.right === 'number' ? source.right : 14, 5, 30),
-        bottom: clamp(typeof source.bottom === 'number' ? source.bottom : 12, 5, 30),
-        left: clamp(typeof source.left === 'number' ? source.left : 14, 5, 30),
+        top: clamp(typeof source.top === 'number' ? source.top : 12, 0, 50),
+        right: clamp(typeof source.right === 'number' ? source.right : 14, 0, 50),
+        bottom: clamp(typeof source.bottom === 'number' ? source.bottom : 12, 0, 50),
+        left: clamp(typeof source.left === 'number' ? source.left : 14, 0, 50),
     };
 }
 
@@ -526,6 +529,13 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
         regions: widthNormalizedRegions.filter((region) => normalizedPageIds.has(region.pageId)),
         placements,
         pageMargins: normalizePageMargins(value.pageMargins),
+        fontScale: clamp(
+            typeof value.fontScale === 'number' && Number.isFinite(value.fontScale)
+                ? value.fontScale
+                : 1,
+            0.8,
+            1.3
+        ),
     };
 }
 

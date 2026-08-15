@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    Printer,
     Plus,
     Trash2,
     Eye,
@@ -47,6 +46,7 @@ import {
     type LocalPrintSave,
 } from '@/lib/printTemplateLocal';
 import { PortfolioPrintCanvas } from '@/components/portfolio/PortfolioPrintCanvas';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import { useAiModelStore } from '@/store/useAiModelStore';
 import { AiModelUsageBadge } from '../AiModelUsageBadge';
 
@@ -573,28 +573,22 @@ export function PrintTemplateManagement({
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div>
-                    <h2 className="flex items-center gap-2.5 text-xl font-black text-slate-900">
-                        <Printer className="h-5 w-5 text-slate-700" />
-                        PDF 인쇄 템플릿 관리
-                    </h2>
-                    <p className="mt-1 text-sm font-medium text-slate-500">
-                        방문자가 선택할 수 있는 PDF 인쇄 템플릿 목록입니다. 템플릿
-                        편집(문구/레이아웃)은 인쇄 미리보기에서 실시간 WYSIWYG으로 직접 수정할 수
-                        있습니다.
-                    </p>
-                </div>
-                <a
-                    href={`/workspace/${encodeURIComponent(workspaceSlug)}/print?admin=1`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
-                    title="포트폴리오 배치는 아래 '포트폴리오 배치' 섹션에서 케이스스터디를 선택해 만듭니다."
-                >
-                    <Plus className="h-4 w-4" /> 새 이력서 템플릿 만들기
-                </a>
-            </div>
+            <AdminPageHeader
+                eyebrow="지원·출력"
+                title="PDF 인쇄 템플릿 관리"
+                description="방문자가 선택할 PDF 인쇄 템플릿을 관리합니다. 문구와 레이아웃은 인쇄 미리보기에서 직접 편집할 수 있습니다."
+                actions={
+                    <a
+                        href={`/workspace/${encodeURIComponent(workspaceSlug)}/print?admin=1`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                        title="포트폴리오 배치는 아래 '포트폴리오 배치' 섹션에서 케이스스터디를 선택해 만듭니다."
+                    >
+                        <Plus className="h-4 w-4" /> 새 이력서 템플릿 만들기
+                    </a>
+                }
+            />
             {revisionTemplate && (
                 <section className="rounded-2xl border border-slate-300 bg-slate-50 p-5 shadow-sm">
                     <div className="flex items-start justify-between gap-4">

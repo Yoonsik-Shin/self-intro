@@ -72,6 +72,7 @@ type PrintState = {
     placeAtomsInRegion: (ids: string[], pageIndex: number, regionKind: OutputRegionKind) => void;
     placeAtomsInRegionById: (ids: string[], regionId: string) => void;
     setPageMargins: (margins: Partial<OutputPageMargins>) => void;
+    setFontScale: (value: number) => void;
     addRow: (pageIndex: number, columnCount: number) => void;
     setRowColumnCount: (rowId: string, columnCount: number) => void;
     removeRow: (rowId: string) => void;
@@ -274,6 +275,14 @@ export const usePrintStore = create<PrintState>((set, get) => ({
 
     setPageMargins: (margins) =>
         set((state) => ({ outputLayout: setOutputPageMargins(state.outputLayout, margins) })),
+
+    setFontScale: (value) =>
+        set((state) => ({
+            outputLayout: normalizeOutputLayout({
+                ...state.outputLayout,
+                fontScale: value,
+            }),
+        })),
 
     addRow: (pageIndex, columnCount) =>
         set((state) => ({
