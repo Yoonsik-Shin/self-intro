@@ -66,10 +66,9 @@ Flyway 이력만 기준선 1로 전환한다.
 - V1 스키마 대상 Hibernate `validate`: 완료
 - 전체 백엔드 테스트: 완료 (`./gradlew test`, 20개 task 성공)
 - migration과 엔티티 정의 정합화: 완료 (`BINARY(32)`, `CHAR(64)`, `DECIMAL(4,3)`, `TINYINT`)
-- 로컬 보존 DB 이력 전환: 미실행
-- 운영 DB 백업·복원 rehearsal 및 이력 전환: 미실행
-- main 병합·배포: 미실행
+- 로컬 보존 DB 이력 전환: 완료 (`flyway_schema_history_pre_v1_20260815_1912` 보존, BASELINE version 1 등록, 로컬 API UP)
+- 운영 DB 백업·복원 rehearsal 및 이력 전환: 완료 (`flyway_schema_history_pre_v1_20260815_1930` 보존, BASELINE version 1 등록, `aaf72fc` API / Worker UP)
+- main 병합·배포: 완료 (`aaf72fc` 배포 완료, health check UP, Ingress HTTP 200)
 
-위 완료 항목은 폐기 가능한 MySQL 검증 환경에서 수행했다. 로컬 보존 DB와 운영 DB의 데이터 및
-`flyway_schema_history`에는 아직 어떤 변경도 적용하지 않았다. 운영 전환은 백업을 실제로 별도 DB에
-복원해 검증한 뒤 별도 승인 시점에만 진행한다.
+로컬 보존 DB와 운영 DB의 기존 140개 마이그레이션 이력은 각각 백업 테이블(`flyway_schema_history_pre_v1_...`)로
+보존 중이며, 109개 애플리케이션 테이블 데이터는 온전히 보존된 상태로 `V1` 단일 기준선 전환이 완료되었다.

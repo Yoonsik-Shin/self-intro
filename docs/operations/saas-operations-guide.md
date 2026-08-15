@@ -2607,7 +2607,6 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 기존 DB 전환은 쓰기 중단, 전체 백업, 별도 복원 rehearsal, 기존 이력 보존, 일회성 baseline, 설정 원복,
   행 수·스키마·smoke 검증 순서로 수행한다.
 - 세부 절차와 롤백 조건은 [Flyway V1 재기준화 운영 가이드](./flyway-v1-rebaseline.md)를 따른다.
-- 격리 브랜치에서 기존 140개 migration의 빈 DB 재생과 운영 스키마 정규화 비교, 신규 DB V1 실행,
-  기존 DB 일회성 baseline, Hibernate `validate`, 전체 백엔드 테스트까지 완료했다.
-- 로컬 보존 DB·운영 DB의 데이터와 Flyway 이력, main, 배포는 변경하지 않았다. 운영 이력 전환은 전체
-  백업의 별도 복원 rehearsal과 명시적 승인 전에는 금지한다.
+- 로컬 DB 및 운영 DB의 `V1` 재기준화 전환 및 `aaf72fc` 백엔드 배포를 성공적으로 완료했다.
+- 기존 140개 마이그레이션 이력은 `flyway_schema_history_pre_v1_...` 테이블에 안전하게 보존 중이며,
+  109개 애플리케이션 테이블 데이터와 스키마 무결성, `/actuator/health` UP 및 Ingress 200이 검증되었다.
