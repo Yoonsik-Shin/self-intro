@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import { BookOpenCheck, Library, Plus, Search, Trash2, X } from 'lucide-react';
 import { learningResourceApi } from '@/lib/api';
 import type {
@@ -147,34 +148,29 @@ export function WorkspaceLearningResourceManagement({ workspaceSlug }: { workspa
 
     return (
         <div className="space-y-6">
-            <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">
-                        Workspace Learning
-                    </p>
-                    <h2 className="mt-1 text-2xl font-black text-slate-950">학습 자료</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                        자료 정보는 공통 카탈로그에서 선택하고, 진행 상태와 개인 메모는 이
-                        Workspace에만 저장합니다.
-                    </p>
-                </div>
-                <div className="flex rounded-xl bg-slate-100 p-1">
-                    <button
-                        type="button"
-                        onClick={() => setMode('MINE')}
-                        className={`rounded-lg px-4 py-2 text-sm font-bold ${mode === 'MINE' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
-                    >
-                        내 학습 자료 {workspacePage?.totalElements ?? 0}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMode('CATALOG')}
-                        className={`rounded-lg px-4 py-2 text-sm font-bold ${mode === 'CATALOG' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
-                    >
-                        공통 카탈로그
-                    </button>
-                </div>
-            </header>
+            <AdminPageHeader
+                eyebrow="Workspace Learning"
+                title="학습 자료"
+                description="자료 정보는 공통 카탈로그에서 선택하고, 진행 상태와 개인 메모는 이 Workspace에만 저장합니다."
+                actions={
+                    <div className="flex rounded-xl bg-slate-100 p-1">
+                        <button
+                            type="button"
+                            onClick={() => setMode('MINE')}
+                            className={`rounded-lg px-4 py-2 text-sm font-bold ${mode === 'MINE' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
+                        >
+                            내 학습 자료 {workspacePage?.totalElements ?? 0}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMode('CATALOG')}
+                            className={`rounded-lg px-4 py-2 text-sm font-bold ${mode === 'CATALOG' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`}
+                        >
+                            공통 카탈로그
+                        </button>
+                    </div>
+                }
+            />
 
             <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 <Search className="h-4 w-4 text-slate-400" />

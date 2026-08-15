@@ -3,17 +3,7 @@
 import { useDeferredValue, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-    BookOpen,
-    Columns3,
-    ExternalLink,
-    GitBranch,
-    Link2,
-    Pencil,
-    Search,
-    Trash2,
-    X,
-} from 'lucide-react';
+import { BookOpen, Columns3, ExternalLink, Link2, Pencil, Search, Trash2, X } from 'lucide-react';
 import { experienceTreeApi, studyApi } from '@/lib/api';
 import type {
     DecisionDomain,
@@ -24,6 +14,7 @@ import type {
 } from '@/lib/api/types';
 import { ExperienceTreeCatalogDetail } from './ExperienceTreeCatalogDetail';
 import { categoryBreadcrumb } from '@/lib/experienceTreeTaxonomy';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const DOMAINS: Array<{ value: DecisionDomain | 'ALL'; label: string }> = [
     { value: 'ALL', label: '전체' },
@@ -151,28 +142,21 @@ export function ExperienceTreeManagement({ workspaceSlug }: { workspaceSlug: str
     return (
         <div className="space-y-5">
             <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <span className="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white">
-                            <GitBranch className="h-5 w-5" />
-                        </span>
-                        <div>
-                            <h1 className="text-2xl font-black text-slate-950">
-                                개발자 온톨로지 관리
-                            </h1>
-                            <p className="text-sm text-slate-500">
-                                정적 기술 상황에 Fundamental·Advanced·Retrospect Study를 연결합니다.
-                            </p>
-                        </div>
-                    </div>
-                    <Link
-                        href={`/workspace/${encodeURIComponent(workspaceSlug)}/ontology`}
-                        target="_blank"
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                    >
-                        공개 시각화 열기 <ExternalLink className="h-4 w-4" />
-                    </Link>
-                </div>
+                <AdminPageHeader
+                    headingAs="h1"
+                    eyebrow="원본 기록"
+                    title="개발자 온톨로지 관리"
+                    description="정적 기술 상황에 Fundamental·Advanced·Retrospect 학습 기록을 연결합니다."
+                    actions={
+                        <Link
+                            href={`/workspace/${encodeURIComponent(workspaceSlug)}/ontology`}
+                            target="_blank"
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                            공개 시각화 열기 <ExternalLink className="h-4 w-4" />
+                        </Link>
+                    }
+                />
                 <div className="mt-5 flex w-fit rounded-xl bg-slate-100 p-1">
                     {(
                         [

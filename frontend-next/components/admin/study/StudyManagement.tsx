@@ -24,6 +24,7 @@ import { TagInput } from '../shared/TagInput';
 import { TaxonomyPicker } from '../shared/TaxonomyPicker';
 import { StudyDetailPanel } from './StudyDetailPanel';
 import { AiStageBubble, useAiSuggestionStream } from '../ai/AiDraftAssistant';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const STUDY_AI_FIELD_LABELS: Record<string, string> = {
     text: '사실',
@@ -570,30 +571,28 @@ export function StudyManagement({
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="text-xl font-black text-slate-950">Study 관리</h2>
-                    <p className="text-sm text-slate-500 mt-0.5">
-                        학습 원본과 관련 기술·경험을 기록합니다. 공개할 글과 카테고리는 공개
-                        페이지에서 선택합니다.
-                    </p>
-                </div>
-                <button
-                    onClick={() => {
-                        setSelectedStudyId(null);
-                        setStudyEditingId(null);
-                        setStudyForm(emptyStudyForm);
-                        setStudyAiInstruction('');
-                        setStudyAiSuggestions([]);
-                        resetStudyAiStream();
-                        setIsStudyFormOpen(true);
-                        syncStudyUrlState(null, 'new');
-                    }}
-                    className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
-                >
-                    <Plus className="h-4 w-4" />새 글 작성
-                </button>
-            </div>
+            <AdminPageHeader
+                eyebrow="Source Record"
+                title="학습 기록 관리"
+                description="학습 원본과 관련 기술·경험을 기록합니다. 공개할 글과 카테고리는 공개 페이지에서 선택합니다."
+                actions={
+                    <button
+                        onClick={() => {
+                            setSelectedStudyId(null);
+                            setStudyEditingId(null);
+                            setStudyForm(emptyStudyForm);
+                            setStudyAiInstruction('');
+                            setStudyAiSuggestions([]);
+                            resetStudyAiStream();
+                            setIsStudyFormOpen(true);
+                            syncStudyUrlState(null, 'new');
+                        }}
+                        className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
+                    >
+                        <Plus className="h-4 w-4" />새 글 작성
+                    </button>
+                }
+            />
 
             {!isStudyFormOpen && !selectedStudy && (
                 <div className="sticky top-14 z-20 flex flex-col gap-3 bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm backdrop-blur-xl animate-fadeIn">

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Bot, CalendarDays, Clock, MousePointerClick, Users } from 'lucide-react';
 import { visitorApi } from '@/lib/api';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import { VisitorHourlyChart, VisitorTrendChart } from './VisitorCharts';
 
 const formatLocalDate = (date: Date) => {
@@ -48,16 +49,15 @@ export function AnalyticsPanel({ workspaceSlug }: { workspaceSlug?: string }) {
 
     return (
         <div className="space-y-6">
-            <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-xl font-black text-slate-950">
-                    {workspaceSlug ? 'Workspace 방문자 통계' : '플랫폼 방문자 통계'}
-                </h2>
-                <p className="mt-0.5 text-sm text-slate-500">
-                    {workspaceSlug
+            <AdminPageHeader
+                eyebrow={workspaceSlug ? 'Workspace Analytics' : 'Platform Analytics'}
+                title={workspaceSlug ? 'Workspace 방문자 통계' : '플랫폼 방문자 통계'}
+                description={
+                    workspaceSlug
                         ? '현재 Workspace 공개 페이지의 브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.'
-                        : '전체 공개 페이지의 브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.'}
-                </p>
-            </div>
+                        : '전체 공개 페이지의 브라우저 쿠키 기준 순 방문자와 페이지 조회 수입니다.'
+                }
+            />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {[

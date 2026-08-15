@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, profileApi } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminPreviewStore } from '@/store/useAdminPreviewStore';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const emptyProfileForm = {
     name: '',
@@ -93,12 +94,11 @@ export function ProfileManagement({ workspaceSlug }: { workspaceSlug: string }) 
 
     return (
         <div className="space-y-6">
-            <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-xl font-black text-slate-950">프로필 정보 관리</h2>
-                <p className="text-sm text-slate-500 mt-0.5">
-                    이력서 헤더 및 바이오 요약 영역 정보를 실시간 편집합니다.
-                </p>
-            </div>
+            <AdminPageHeader
+                eyebrow="Source Record"
+                title="프로필 정보 관리"
+                description="이력서 헤더 및 바이오 요약 영역의 원본 정보를 편집합니다."
+            />
 
             <form
                 onSubmit={handleProfileSubmit}

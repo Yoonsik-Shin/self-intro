@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ListTree, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { ApiError, taxonomyApi } from '@/lib/api';
 import type { TaxonomyNode, TaxonomyNodeRequest } from '@/lib/api/types';
 import { useAuthStore } from '@/store/useAuthStore';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const emptyForm: TaxonomyNodeRequest = {
     name: '',
@@ -156,27 +157,21 @@ export function TaxonomyManagement() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="flex items-center gap-2 text-xl font-black text-slate-950">
-                        <ListTree className="h-5 w-5" />
-                        카테고리 체계 관리
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-500">
-                        Study/학습 자료가 함께 쓰는 계층형 카테고리(taxonomy)를 관리합니다. 어느
-                        레벨에든 자유롭게 하위 카테고리를 만들 수 있고, 글 하나가 여러 카테고리에
-                        동시에 속할 수 있습니다.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => openCreateForm(null)}
-                    className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
-                >
-                    <Plus className="h-4 w-4" />
-                    최상위 카테고리 추가
-                </button>
-            </div>
+            <AdminPageHeader
+                eyebrow="Platform Catalog"
+                title="카테고리 체계 관리"
+                description="학습 기록과 학습 자료가 함께 쓰는 계층형 카테고리를 관리합니다. 어느 레벨에든 하위 카테고리를 만들 수 있고, 하나의 기록을 여러 카테고리에 연결할 수 있습니다."
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => openCreateForm(null)}
+                        className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
+                    >
+                        <Plus className="h-4 w-4" />
+                        최상위 카테고리 추가
+                    </button>
+                }
+            />
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 {isFormOpen && (

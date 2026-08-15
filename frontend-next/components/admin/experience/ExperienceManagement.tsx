@@ -31,6 +31,7 @@ import {
     connectionApi,
 } from '@/lib/api';
 import { credentialKindLabel } from '@/lib/format';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import type {
     Experience,
     ExperienceConnections,
@@ -882,33 +883,31 @@ export function ExperienceManagement({
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="text-xl font-black text-slate-950">이력 및 경력 관리</h2>
-                    <p className="text-sm text-slate-500 mt-0.5">
-                        경력·프로젝트·교육·자격 원본을 기록합니다. 공개 범위와 타임라인 구성은 공개
-                        페이지에서 관리합니다.
-                    </p>
-                </div>
-                <button
-                    onClick={() => {
-                        setSelectedExperienceId(null);
-                        setExpEditingId(null);
-                        setExpForm(emptyExperienceForm);
-                        setCreateAsCoreProject(false);
-                        setExpandedDetailIdx(null);
-                        setDetailListSearch('');
-                        setExpAiInstruction('');
-                        setExpAiSuggestions([]);
-                        resetExpAiStream();
-                        setIsExpFormOpen(true);
-                    }}
-                    className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
-                >
-                    <Plus className="h-4 w-4" />
-                    이력 추가
-                </button>
-            </div>
+            <AdminPageHeader
+                eyebrow="Source Record"
+                title="이력 및 경력 관리"
+                description="경력·프로젝트·교육·자격 원본을 기록합니다. 공개 범위와 타임라인 구성은 공개 페이지에서 관리합니다."
+                actions={
+                    <button
+                        onClick={() => {
+                            setSelectedExperienceId(null);
+                            setExpEditingId(null);
+                            setExpForm(emptyExperienceForm);
+                            setCreateAsCoreProject(false);
+                            setExpandedDetailIdx(null);
+                            setDetailListSearch('');
+                            setExpAiInstruction('');
+                            setExpAiSuggestions([]);
+                            resetExpAiStream();
+                            setIsExpFormOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
+                    >
+                        <Plus className="h-4 w-4" />
+                        이력 추가
+                    </button>
+                }
+            />
 
             {!isExpFormOpen && !selectedExperience && (
                 <div className="space-y-3 animate-fadeIn">

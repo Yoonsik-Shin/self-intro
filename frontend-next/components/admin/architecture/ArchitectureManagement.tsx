@@ -2,17 +2,8 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-    ArrowDown,
-    ArrowUp,
-    Eye,
-    EyeOff,
-    Pencil,
-    Plus,
-    Save,
-    Terminal,
-    Trash2,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 import { architectureApi } from '@/lib/api';
 import type {
     ArchitectureLayer,
@@ -57,16 +48,11 @@ export function ArchitectureManagement() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="flex items-center gap-2 text-xl font-black text-slate-950">
-                        <Terminal className="h-5 w-5" /> 시스템 아키텍처 관리
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-500">
-                        공개 아키텍처 페이지에 표시할 개요, 구성 요소, 배포 흐름도를 관리합니다.
-                    </p>
-                </div>
-            </div>
+            <AdminPageHeader
+                eyebrow="플랫폼 운영"
+                title="시스템 아키텍처 관리"
+                description="공개 아키텍처 페이지에 표시할 개요, 구성 요소, 배포 흐름도를 관리합니다."
+            />
 
             <OverviewForm overview={overview} onSaved={refresh} />
             <LayerManagement layers={layers} isLoading={isLayersLoading} onSaved={refresh} />

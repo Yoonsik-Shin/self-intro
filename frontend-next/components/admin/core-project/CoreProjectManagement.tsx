@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowDown,
     ArrowUp,
-    Briefcase,
     Check,
     ChevronDown,
     EyeOff,
@@ -19,6 +18,7 @@ import {
 import { experienceApi, experiencePlacementApi } from '@/lib/api';
 import type { Experience, ExperiencePlacementRequest } from '@/lib/api/types';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 type DraftPlacement = ExperiencePlacementRequest;
 
@@ -210,52 +210,48 @@ export function CoreProjectManagement({
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="flex items-center gap-2 text-xl font-black text-slate-950">
-                        <Briefcase className="h-5 w-5" /> 핵심 프로젝트 관리
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-500">
-                        독립 프로젝트와 직장 소속 프로젝트를 핵심 포트폴리오에 편성하고 노출 순서를
-                        관리합니다.
-                    </p>
-                </div>
-                {isEditing ? (
-                    <div className="flex flex-wrap items-center gap-2">
+            <AdminPageHeader
+                eyebrow="Public Composition"
+                title="핵심 프로젝트 관리"
+                description="독립 프로젝트와 직장 소속 프로젝트를 핵심 포트폴리오에 편성하고 노출 순서를 관리합니다."
+                actions={
+                    isEditing ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={onCreateProject}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-500 hover:text-slate-950"
+                            >
+                                <Plus className="h-4 w-4" /> 새 프로젝트 등록
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelEditing}
+                                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                            >
+                                <X className="h-4 w-4" /> 취소
+                            </button>
+                            <button
+                                type="button"
+                                disabled={saveMutation.isPending || isLoading}
+                                onClick={() => saveMutation.mutate()}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                            >
+                                <Save className="h-4 w-4" />{' '}
+                                {saveMutation.isPending ? '저장 중...' : '편성 저장'}
+                            </button>
+                        </div>
+                    ) : (
                         <button
                             type="button"
-                            onClick={onCreateProject}
+                            onClick={() => setIsEditing(true)}
                             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-500 hover:text-slate-950"
                         >
-                            <Plus className="h-4 w-4" /> 새 프로젝트 등록
+                            <Pencil className="h-4 w-4" /> 편성 편집
                         </button>
-                        <button
-                            type="button"
-                            onClick={cancelEditing}
-                            className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                        >
-                            <X className="h-4 w-4" /> 취소
-                        </button>
-                        <button
-                            type="button"
-                            disabled={saveMutation.isPending || isLoading}
-                            onClick={() => saveMutation.mutate()}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
-                        >
-                            <Save className="h-4 w-4" />{' '}
-                            {saveMutation.isPending ? '저장 중...' : '편성 저장'}
-                        </button>
-                    </div>
-                ) : (
-                    <button
-                        type="button"
-                        onClick={() => setIsEditing(true)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-500 hover:text-slate-950"
-                    >
-                        <Pencil className="h-4 w-4" /> 편성 편집
-                    </button>
-                )}
-            </div>
+                    )
+                }
+            />
 
             {saveMutation.isSuccess && (
                 <p className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">

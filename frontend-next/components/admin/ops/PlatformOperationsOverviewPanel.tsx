@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Building2, RefreshCw, ShieldCheck, UserRoundCheck, UsersRound } from 'lucide-react';
 import { platformOperationsApi } from '@/lib/api';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 const numberFormatter = new Intl.NumberFormat('ko-KR');
 
@@ -15,29 +16,23 @@ export function PlatformOperationsOverviewPanel() {
 
     return (
         <section className="space-y-6 text-slate-800">
-            <header className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <span className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
-                        Platform Operations
-                    </span>
-                    <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-                        사용자·Workspace 운영 현황
-                    </h1>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                        개인정보나 Workspace 콘텐츠를 열람하지 않고 계정, Workspace, Membership의
-                        상태별 집계만 확인합니다.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => void refetch()}
-                    disabled={isFetching}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm disabled:opacity-50"
-                >
-                    <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-                    새로고침
-                </button>
-            </header>
+            <AdminPageHeader
+                headingAs="h1"
+                eyebrow="Platform Operations"
+                title="사용자·Workspace 운영 현황"
+                description="개인정보나 Workspace 콘텐츠를 열람하지 않고 계정, Workspace, Membership의 상태별 집계만 확인합니다."
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => void refetch()}
+                        disabled={isFetching}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                        새로고침
+                    </button>
+                }
+            />
 
             {error && (
                 <p

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Heart } from 'lucide-react';
 import { ApiError, donationApi } from '@/lib/api';
 import type { DonationEventActor, DonationEventType } from '@/lib/api/types';
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
 
 function formatAmount(amount: number, currency: string): string {
     return currency === 'KRW'
@@ -57,28 +58,31 @@ export function DonationsPanel() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                    <h2 className="text-xl font-black text-slate-950">후원 내역</h2>
-                    <p className="mt-0.5 text-sm text-slate-500">Ko-fi 후원 내역입니다.</p>
-                </div>
-                <label className="flex cursor-pointer items-center gap-3">
-                    <span className="text-sm font-bold text-slate-600">후원 버튼 노출</span>
-                    <button
-                        role="switch"
-                        aria-checked={donationConfig?.enabled === true}
-                        disabled={donationConfig === undefined || toggleDonationMutation.isPending}
-                        onClick={() =>
-                            toggleDonationMutation.mutate(!(donationConfig?.enabled === true))
-                        }
-                        className={`relative h-7 w-12 rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${donationConfig?.enabled ? 'bg-blue-600' : 'bg-slate-300'}`}
-                    >
-                        <span
-                            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${donationConfig?.enabled ? 'left-6' : 'left-1'}`}
-                        />
-                    </button>
-                </label>
-            </div>
+            <AdminPageHeader
+                eyebrow="Platform Support"
+                title="후원 내역"
+                description="Ko-fi 후원 내역과 공개 페이지의 후원 버튼 노출 상태를 관리합니다."
+                actions={
+                    <label className="flex cursor-pointer items-center gap-3">
+                        <span className="text-sm font-bold text-slate-600">후원 버튼 노출</span>
+                        <button
+                            role="switch"
+                            aria-checked={donationConfig?.enabled === true}
+                            disabled={
+                                donationConfig === undefined || toggleDonationMutation.isPending
+                            }
+                            onClick={() =>
+                                toggleDonationMutation.mutate(!(donationConfig?.enabled === true))
+                            }
+                            className={`relative h-7 w-12 rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${donationConfig?.enabled ? 'bg-blue-600' : 'bg-slate-300'}`}
+                        >
+                            <span
+                                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${donationConfig?.enabled ? 'left-6' : 'left-1'}`}
+                            />
+                        </button>
+                    </label>
+                }
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
                 {isDonationLoading ? (
