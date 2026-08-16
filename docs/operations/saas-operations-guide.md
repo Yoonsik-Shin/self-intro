@@ -158,6 +158,11 @@ Workspace 집계를 함께 갱신한다. `/api/workspaces/{slug}/visits/manage/*
   최근 개수+최소 기간 retention 정책과 `발행 관리` 이력 UI
 - V213 canonical Workspace slug registry, 기존 slug active alias, 공개 페이지 308 redirect,
   `OWNER`·`ADMIN` 최근 재인증 기반 변경 UI와 보안 감사 이벤트
+- Workspace 대시보드 경량 요약 API (`GET /api/workspaces/{workspaceSlug}/dashboard-summary`) 도입:
+  홈 대시보드 진입 시 전체 엔티티 6종을 로드하던 Over-fetching을 제거하고 단일 집계 쿼리로 최적화
+- 전사 페이지네이션 표준화 (Offset 기반 `Pageable` + QueryDSL + `PageResponse<T>` + `PaginationControls`):
+  공통 채용공고 카탈로그 (`/api/workspaces/{workspaceSlug}/job-applications/manage/catalog`)를
+  In-memory 필터링에서 QueryDSL 기반 DB 페이징·검색으로 최적화 및 UI 탭 지연 로딩(`enabled: mode === 'CATALOG'`) 적용
 - V214 가입 초대와 분리된 Workspace 참여 초대, hash token·이메일 수락, 멤버 역할·제거·소유권 이전,
   최근 재인증과 보안 감사 이벤트
 
