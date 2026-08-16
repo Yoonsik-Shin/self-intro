@@ -6,10 +6,10 @@ import com.selfintro.jobposting.application.JobPostingBackfillService.JobPosting
 import com.selfintro.jobposting.application.JobPostingCollectorService;
 import com.selfintro.jobposting.application.JobPostingCollectorService.JobPostingCollectionResult;
 import com.selfintro.jobposting.application.JobPostingService;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseRequest;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
-import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
-import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingBulkIngestRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
-@RequestMapping("/api/admin/job-postings")
+@RequestMapping("/internal/admin/job-postings")
 @RequiredArgsConstructor
 public class JobPostingController {
 
