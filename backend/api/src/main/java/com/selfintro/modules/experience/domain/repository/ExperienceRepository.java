@@ -15,6 +15,8 @@ public interface ExperienceRepository extends JpaRepository<Experience, Long> {
 
     List<Experience> findAllByWorkspaceIdAndIdIn(Long workspaceId, Collection<Long> ids);
 
+    long countByWorkspaceId(Long workspaceId);
+
     Optional<Experience> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
     @Query("select e.workspaceId as workspaceId, e.id as experienceId from Experience e")

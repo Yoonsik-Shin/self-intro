@@ -13,6 +13,8 @@ public interface CompetencyRepository extends JpaRepository<Competency, Long> {
 
     List<Competency> findAllByWorkspaceIdAndVisibleTrueOrderByDisplayOrderAsc(Long workspaceId);
 
+    long countByWorkspaceId(Long workspaceId);
+
     java.util.Optional<Competency> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
     List<Competency> findAllByWorkspaceIdAndIdIn(Long workspaceId, java.util.Collection<Long> ids);

@@ -165,7 +165,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         removeCustomSectionItem,
         toggleSkillSelection,
         setSkillSelectorModalOpen,
-        atomPageMap,
+        effectivePageMap,
         pageBreakBoundaryAtomIds,
         getAtomDisplayTitle,
         startGapDrag,
@@ -246,19 +246,27 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         );
     };
 
-    const renderPageBreakControl = (id: string, sectionId: string) => {
+    const renderPageBreakControl = (
+        id: string,
+        sectionId: string,
+        options?: { hidePinAndGap?: boolean }
+    ) => {
         if (!isPageBreakBannerVisible(id)) return null;
         void sectionId;
 
         const isBoundary = pageBreakBoundaryAtomIds.has(id);
         const forcedPage = store.forcedPageOverrides[id];
-        const currentPage = atomPageMap.get(id);
+        const currentPage = effectivePageMap.get(id);
         const itemTitle = getAtomDisplayTitle(id);
         const isExcluded = store.printExcludedIds.includes(id);
 
         const shortItemTitle = itemTitle.length > 8 ? `${itemTitle.slice(0, 8)}...` : itemTitle;
 
-        const pinAndGapButtons = (
+        // 섹션 헤더는 renderSectionControls가 같은 섹션 id로 이미 핀/여백 조절을
+        // 제공한다 — 여기서 또 다른 id(헤더 전용 atom id)로 같은 걸 하나 더
+        // 띄우면 두 개의 서로 다른 핀/여백 상태가 생겨 혼란스럽다. 그런 경우
+        // 호출부가 hidePinAndGap로 끈다.
+        const pinAndGapButtons = options?.hidePinAndGap ? null : (
             <>
                 <div
                     onPointerDown={startGapDrag(id)}
@@ -547,6 +555,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
                 >
                     {renderSectionGap('skills')}
+                    {renderPageBreakControl('skills-header', 'skills', { hidePinAndGap: true })}
                     {renderSectionControls('skills')}
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -707,6 +716,9 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     className="resume-competency-header flex flex-col w-full mt-6 pt-2 relative"
                 >
                     {renderSectionGap('competencies')}
+                    {renderPageBreakControl('competencies-header', 'competencies', {
+                        hidePinAndGap: true,
+                    })}
                     {renderSectionControls('competencies')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -795,6 +807,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     className="mb-2 flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
                 >
                     {renderSectionGap('career')}
+                    {renderPageBreakControl('career-header', 'career', { hidePinAndGap: true })}
                     {renderSectionControls('career')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -1022,6 +1035,9 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
                 >
                     {renderSectionGap('credentials')}
+                    {renderPageBreakControl('credentials-header', 'credentials', {
+                        hidePinAndGap: true,
+                    })}
                     {renderSectionControls('credentials')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -1095,6 +1111,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
                 >
                     {renderSectionGap('projects')}
+                    {renderPageBreakControl('projects-header', 'projects', { hidePinAndGap: true })}
                     {renderSectionControls('projects')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -1207,6 +1224,9 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
                 >
                     {renderSectionGap('cover-letter')}
+                    {renderPageBreakControl('cover-letter-header', 'cover-letter', {
+                        hidePinAndGap: true,
+                    })}
                     {renderSectionControls('cover-letter')}
                     <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
@@ -1327,6 +1347,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     className="mt-6 flex w-full flex-col pt-2 font-black text-slate-900 relative"
                 >
                     {renderSectionGap(sectionId)}
+                    {renderPageBreakControl(sectionId, sectionId, { hidePinAndGap: true })}
                     {renderSectionControls(sectionId)}
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
                         <MessageSquareText className="h-4 w-4 shrink-0 text-slate-900" />

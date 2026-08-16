@@ -36,7 +36,25 @@ export type WorkspaceMembershipManagement = {
     invitations: WorkspaceMembershipInvitation[];
 };
 
+export type WorkspaceDashboardSummary = {
+    experienceCount: number;
+    studyCount: number;
+    skillCount: number;
+    competencyCount: number;
+    jobApplicationCount: number;
+    publicationStatus: {
+        publicationStatus: 'PRIVATE' | 'PUBLISHED';
+        revisionNumber: number | null;
+        publishedAt: string | null;
+        hasPublishedRevision: boolean;
+    };
+};
+
 export const workspaceApi = {
+    dashboardSummary: (workspaceSlug: string) =>
+        request<WorkspaceDashboardSummary>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/dashboard-summary`
+        ),
     resolveSlug: (workspaceSlug: string) =>
         request<WorkspaceSlugResolution>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/slug-resolution`

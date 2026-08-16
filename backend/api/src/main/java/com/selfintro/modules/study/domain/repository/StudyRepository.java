@@ -14,6 +14,8 @@ public interface StudyRepository extends JpaRepository<Study, Long>, StudyReposi
 
     boolean existsByWorkspaceIdAndSlugAndIdNot(Long workspaceId, String slug, Long id);
 
+    long countByWorkspaceId(Long workspaceId);
+
     Optional<Study> findBySlug(String slug);
 
     Optional<Study> findByWorkspaceIdAndSlug(Long workspaceId, String slug);

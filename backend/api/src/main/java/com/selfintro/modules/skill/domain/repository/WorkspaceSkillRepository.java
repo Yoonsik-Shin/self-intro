@@ -18,6 +18,8 @@ public interface WorkspaceSkillRepository extends JpaRepository<WorkspaceSkill, 
     List<WorkspaceSkill> findAllByWorkspaceIdAndSkill_IdIn(
             Long workspaceId, Collection<Long> skillIds);
 
+    long countByWorkspaceId(Long workspaceId);
+
     Optional<WorkspaceSkill> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
     Optional<WorkspaceSkill> findByWorkspaceIdAndSkillId(Long workspaceId, Long skillId);

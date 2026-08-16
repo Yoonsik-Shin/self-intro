@@ -16,5 +16,7 @@ public interface WorkspaceJobApplicationRepository
     Optional<WorkspaceJobApplication> findByWorkspaceIdAndJobPostingId(
             Long workspaceId, Long jobPostingId);
 
+    long countByWorkspaceId(Long workspaceId);
+
     boolean existsByWorkspaceIdAndJobPostingId(Long workspaceId, Long jobPostingId);
 }
