@@ -32,6 +32,7 @@ import {
 import {
     A4_HEIGHT_MM,
     MM_TO_PX,
+    computeAtomHeightWithGap,
     partitionAtomsIntoPages,
     type AtomRowGroup,
     type PrintAtomItem,
@@ -51,6 +52,7 @@ import {
     moveSectionRows,
     parseStoredPrintLayout,
     pruneEmptyOutputRows,
+    rebalancePageOverflow,
     replaceOutputPageComposition,
     type OutputLayout,
     type OutputRow,
@@ -1456,6 +1458,20 @@ export function PrintCanvas({
         return map;
     }, [pageLayers]);
 
+    const placementByAtomId = useMemo(
+        () =>
+            new Map(
+                store.outputLayout.placements.map((placement) => [placement.atomId, placement])
+            ),
+        [store.outputLayout.placements]
+    );
+
+    const pageIndexByPageId = useMemo(() => {
+        const map = new Map<string, number>();
+        store.outputLayout.pages.forEach((page, idx) => map.set(page.id, idx));
+        return map;
+    }, [store.outputLayout.pages]);
+
     const pageBreakBoundaryAtomIds = useMemo(() => {
         const set = new Set<string>();
         for (let p = 1; p < pageLayers.length; p++) {
@@ -1670,6 +1686,17 @@ export function PrintCanvas({
         []
     );
 
+    // atom 하나의 실제 렌더 높이(px) 추정(자기 앞의 gap 포함) — rebalancePageOverflow가
+    // 페이지 콘텐츠 총 높이를 계산하고, 넘치는 행을 atom 단위로 쪼갤 때 쓴다.
+    const getOutputAtomHeightPx = useCallback(
+        (atomId: string): number => {
+            const atom = printableAtoms.find((a) => a.id === atomId);
+            if (!atom) return 0;
+            return computeAtomHeightWithGap(atom, store.atomHeights, store.sectionGaps);
+        },
+        [printableAtoms, store.atomHeights, store.sectionGaps]
+    );
+
     // 아직 한 번도 수동 배치된 적 없는 atom은 layout.placements에 아예 항목이
     // 없다(자연 문서 순서 fallback으로만 렌더링됨) — 그래서 행 기반 로직이 "이
     // atom이 속한 행"을 못 찾아 조용히 아무 일도 안 하거나(헤더 드래그 무반응),
@@ -1713,8 +1740,16 @@ export function PrintCanvas({
                 }
             });
 
+            // 어디에도(다른 페이지 포함) 아직 placement가 없는 atom만 "새로 추가해야
+            // 할 atom"이다. 이미 다른 페이지에 있는 atom(사용자가 드래그로 옮긴 것)은
+            // 자연 목록(pageAtoms)에 남아있어도 여기서 되찾아오면 안 된다 — 그러면
+            // cross-page 드래그가 self-heal에 의해 되돌아간다.
+            const placedAnywhereAtomIds = new Set(layout.placements.map((p) => p.atomId));
             const pageAtoms = pageLayers[pageIndex]?.items ?? [];
-            if (pageAtoms.length === 0 || pageAtoms.every((atom) => rowIdByAtomId.has(atom.id))) {
+            const hasNewAtom = pageAtoms.some(
+                (atom) => !rowIdByAtomId.has(atom.id) && !placedAnywhereAtomIds.has(atom.id)
+            );
+            if (!hasNewAtom) {
                 return layout;
             }
 
@@ -1730,6 +1765,11 @@ export function PrintCanvas({
                 }
             };
             for (const atom of pageAtoms) {
+                if (!rowIdByAtomId.has(atom.id) && placedAnywhereAtomIds.has(atom.id)) {
+                    // 다른 페이지에 이미 있는 atom(사용자가 옮김) — 자연 목록에 있어도
+                    // 이 페이지로 되돌리지 않는다.
+                    continue;
+                }
                 const rowId = rowIdByAtomId.get(atom.id);
                 if (rowId) {
                     if (pushedRowIds.has(rowId)) continue;
@@ -1759,6 +1799,27 @@ export function PrintCanvas({
                 }
             }
             flushNatural();
+
+            // pageAtoms(자연 목록)에 없는데 이 페이지에 이미 있는 행(다른 페이지에서
+            // 드래그로 들어온 행 등)은 위 루프에서 전혀 방문되지 않는다.
+            // replaceOutputPageComposition은 넘겨준 composition에 없는 placement를
+            // 이 페이지에서 지워버리므로(printLayoutModel.ts), 보존해 주지 않으면
+            // 사용자가 옮긴 행이 통째로 사라진다 — 기존 순서(row.order) 그대로
+            // 끝에 이어붙인다.
+            const leftoverRows = rows
+                .filter(({ row }) => !pushedRowIds.has(row.id))
+                .sort((a, b) => a.row.order - b.row.order);
+            leftoverRows.forEach(({ regions }) => {
+                composition.push(
+                    regions.map((region) =>
+                        layout.placements
+                            .filter((p) => p.regionId === region.id)
+                            .sort((a, b) => a.order - b.order)
+                            .map((p) => p.atomId)
+                    )
+                );
+            });
+
             return composition.length > 0
                 ? replaceOutputPageComposition(layout, pageIndex, composition)
                 : layout;
@@ -2073,7 +2134,25 @@ export function PrintCanvas({
                 }
                 return true;
             }
-            const isBoundary = pageBreakBoundaryAtomIds.has(id);
+            // pageBreakBoundaryAtomIds는 순수 자연 흐름(pageLayers)만 보고 계산된
+            // "여기가 자연스러운 페이지 분할 지점" 집합이라, 드래그로 이 atom
+            // 자체가 다른 페이지로 옮겨졌거나, 이 atom 앞에 다른 게 끼어들어서
+            // 더 이상 "그 페이지 맨 위"가 아니게 됐으면 더 이상 안 맞는 얘기다 —
+            // 페이지 중간에 떠 있는데 "여기서 분할됨" 배너가 뜨면 혼란만 준다.
+            // placement가 있는(=한 번이라도 명시적으로 배치된) atom은 실제
+            // row.order/placement.order가 0인지(그 페이지의 진짜 첫 행·첫 항목인지)
+            // 로 검증한다. placement가 아직 없는(순수 자연 흐름 그대로인) atom은
+            // pageBreakBoundaryAtomIds를 그대로 신뢰한다.
+            const placement = placementByAtomId.get(id);
+            let isCurrentlyTopOfPage = true;
+            if (placement) {
+                const region = store.outputLayout.regions.find((r) => r.id === placement.regionId);
+                const row = region
+                    ? store.outputLayout.rows.find((r) => r.id === region.rowId)
+                    : undefined;
+                isCurrentlyTopOfPage = row?.order === 0 && placement.order === 0;
+            }
+            const isBoundary = isCurrentlyTopOfPage && pageBreakBoundaryAtomIds.has(id);
             const currentGap = store.sectionGaps[id] ?? 0;
             return isBoundary || currentGap > 0;
         },
@@ -2084,6 +2163,9 @@ export function PrintCanvas({
             orderedCareerCards,
             pageBreakBoundaryAtomIds,
             store.sectionGaps,
+            placementByAtomId,
+            store.outputLayout.regions,
+            store.outputLayout.rows,
         ]
     );
 
@@ -2262,14 +2344,6 @@ export function PrintCanvas({
         ]
     );
 
-    const placementByAtomId = useMemo(
-        () =>
-            new Map(
-                store.outputLayout.placements.map((placement) => [placement.atomId, placement])
-            ),
-        [store.outputLayout.placements]
-    );
-
     // 강제 페이지 배치 시, 목표 페이지에 이미 같은 섹션/항목 콘텐츠가 있으면 그 옆에
     // 정확히 끼워넣고(insertAtomsIntoOutputRegion 재사용), 없으면(그 페이지에 처음
     // 등장하는 섹션) 기존처럼 그 페이지의 기본 영역 맨 끝에 둔다 — 완전히 다른
@@ -2314,12 +2388,10 @@ export function PrintCanvas({
                 // 않고, 그 행을 하나의 단위로 보고 바로 뒤에 새 한 줄 행으로 끼워넣는다.
                 usePrintStore.getState().forceNextToRow(ids, anchorRow.id, 'after');
             } else if (anchorAtom && anchorRegionId) {
-                usePrintStore
-                    .getState()
-                    .forceIntoRegion(ids, anchorRegionId, {
-                        atomId: anchorAtom.id,
-                        position: 'after',
-                    });
+                usePrintStore.getState().forceIntoRegion(ids, anchorRegionId, {
+                    atomId: anchorAtom.id,
+                    position: 'after',
+                });
             } else {
                 // 이 페이지에 같은 섹션 콘텐츠가 아직 없다 — store.forcePage(옛 경로)는
                 // 무조건 페이지의 첫 region에 밀어넣어 그게 다른 섹션이면 섞여버린다.
@@ -2355,40 +2427,68 @@ export function PrintCanvas({
         firstRegionId: string | undefined;
         runsByRegionId: Map<string, RegionScopeRun[]>;
     };
-    const pageRegionRunsList = useMemo<PageRegionRuns[]>(
-        () =>
-            pageLayers.map((page, pageIdx) => {
-                const { rows } = getOutputPageAt(store.outputLayout, pageIdx);
-                const pageRegionIds = new Set(
-                    rows.flatMap(({ regions }) => regions.map((region) => region.id))
-                );
-                const firstRegionId = rows[0]?.regions[0]?.id;
-                const atomsByRegionId = new Map<string, PrintAtomItem[]>();
-                page.items.forEach((atom) => {
-                    const placement = placementByAtomId.get(atom.id);
-                    const regionId =
-                        placement && pageRegionIds.has(placement.regionId)
-                            ? placement.regionId
-                            : firstRegionId;
-                    if (!regionId) return;
-                    atomsByRegionId.set(regionId, [...(atomsByRegionId.get(regionId) ?? []), atom]);
-                });
-                atomsByRegionId.forEach((atoms) =>
-                    atoms.sort((left, right) => {
-                        const leftOrder = placementByAtomId.get(left.id)?.order;
-                        const rightOrder = placementByAtomId.get(right.id)?.order;
-                        if (leftOrder === undefined || rightOrder === undefined) return 0;
-                        return leftOrder - rightOrder;
-                    })
-                );
-                const runsByRegionId = new Map<string, RegionScopeRun[]>();
-                atomsByRegionId.forEach((atoms, regionId) =>
-                    runsByRegionId.set(regionId, computeRegionScopeRuns(regionId, atoms))
-                );
-                return { pageRegionIds, firstRegionId, runsByRegionId };
-            }),
-        [pageLayers, store.outputLayout, placementByAtomId, computeRegionScopeRuns]
-    );
+    const pageRegionRunsList = useMemo<PageRegionRuns[]>(() => {
+        const perPage = pageLayers.map((_, pageIdx) => {
+            const { rows } = getOutputPageAt(store.outputLayout, pageIdx);
+            const pageRegionIds = new Set(
+                rows.flatMap(({ regions }) => regions.map((region) => region.id))
+            );
+            const firstRegionId = rows[0]?.regions[0]?.id;
+            return {
+                pageRegionIds,
+                firstRegionId,
+                atomsByRegionId: new Map<string, PrintAtomItem[]>(),
+            };
+        });
+
+        // atom이 어느 페이지에 그려질지는 placement(사용자가 명시적으로 배치한
+        // pageId)를 최우선으로 신뢰한다 — 자연 흐름(pageLayers[].items)만 훑던
+        // 예전 로직은 placement가 다른 페이지를 가리켜도 무시하고 원래 자연
+        // 페이지에만 그렸다. 그래서 cross-page 드래그가 store 데이터는 바뀌는데
+        // 화면엔 전혀 반영되지 않는 버그가 났다. placement가 아직 없는(한 번도
+        // 수동 배치 안 된) atom만 자연 페이지(atomPageMap)로 폴백한다.
+        printableAtoms.forEach((atom) => {
+            const placement = placementByAtomId.get(atom.id);
+            const targetPageIdx = placement ? pageIndexByPageId.get(placement.pageId) : undefined;
+            const pageIdx = targetPageIdx ?? atomPageMap.get(atom.id);
+            if (pageIdx === undefined) return;
+            const bucket = perPage[pageIdx];
+            if (!bucket) return;
+            const regionId =
+                placement && bucket.pageRegionIds.has(placement.regionId)
+                    ? placement.regionId
+                    : bucket.firstRegionId;
+            if (!regionId) return;
+            bucket.atomsByRegionId.set(regionId, [
+                ...(bucket.atomsByRegionId.get(regionId) ?? []),
+                atom,
+            ]);
+        });
+
+        return perPage.map(({ pageRegionIds, firstRegionId, atomsByRegionId }) => {
+            atomsByRegionId.forEach((atoms) =>
+                atoms.sort((left, right) => {
+                    const leftOrder = placementByAtomId.get(left.id)?.order;
+                    const rightOrder = placementByAtomId.get(right.id)?.order;
+                    if (leftOrder === undefined || rightOrder === undefined) return 0;
+                    return leftOrder - rightOrder;
+                })
+            );
+            const runsByRegionId = new Map<string, RegionScopeRun[]>();
+            atomsByRegionId.forEach((atoms, regionId) =>
+                runsByRegionId.set(regionId, computeRegionScopeRuns(regionId, atoms))
+            );
+            return { pageRegionIds, firstRegionId, runsByRegionId };
+        });
+    }, [
+        pageLayers,
+        store.outputLayout,
+        placementByAtomId,
+        computeRegionScopeRuns,
+        printableAtoms,
+        pageIndexByPageId,
+        atomPageMap,
+    ]);
 
     const placeAtomBeside = useCallback(
         (
@@ -2779,6 +2879,22 @@ export function PrintCanvas({
             changed = true;
         }
 
+        // 드래그로 명시적 배치가 바뀌어 어떤 페이지가 콘텐츠 최대 높이를 넘으면,
+        // 자연 흐름 페이지네이터는 그걸 모르므로(placement가 있는 atom엔 관여
+        // 안 함) 저절로 안 쪼개진다 — 넘치는 뒤쪽 행을 다음 페이지로 밀어낸다.
+        // maxPageCount를 pageLayers.length로 캡핑해서, 렌더 루프가 실제로 그리는
+        // 페이지 수 밖으로 내용이 밀려나 안 보이게 되는 것을 막는다.
+        const rebalanced = rebalancePageOverflow(
+            layout,
+            getOutputAtomHeightPx,
+            pageContentHeightPx,
+            pageLayers.length
+        );
+        if (rebalanced !== layout) {
+            layout = rebalanced;
+            changed = true;
+        }
+
         if (process.env.NODE_ENV !== 'production') {
             const elapsed = performance.now() - debugStart;
             if (elapsed > 4) {
@@ -2790,7 +2906,15 @@ export function PrintCanvas({
         if (changed) {
             usePrintStore.getState().setOutputLayout(layout);
         }
-    }, [store.outputLayout, materializePageIntoRows, getRowSectionId, enforceSectionRowOrder]);
+    }, [
+        store.outputLayout,
+        materializePageIntoRows,
+        getRowSectionId,
+        enforceSectionRowOrder,
+        getOutputAtomHeightPx,
+        pageContentHeightPx,
+        pageLayers.length,
+    ]);
 
     // 헤더/행을 화면 밖 섹션 쪽으로 옮기려면 드래그 중 캔버스가 자동으로
     // 스크롤돼야 한다. window에 capture 단계로 붙여서, 개별 드롭존이

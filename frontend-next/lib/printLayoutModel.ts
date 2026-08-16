@@ -1392,8 +1392,9 @@ export function moveSectionRows(
  */
 export function rebalancePageOverflow(
     source: OutputLayout,
-    getRowHeightPx: (row: OutputRow) => number,
-    maxContentHeightPx: number
+    getAtomHeightPx: (atomId: string) => number,
+    maxContentHeightPx: number,
+    maxPageCount: number
 ): OutputLayout {
     // normalizeOutputLayout을 여기서 무조건 부르면 안 바뀌어도 매번 새 참조가
     // 나와서 self-heal의 참조 비교(changed 감지)가 깨지고 무한 루프가 난다(실제
@@ -1407,6 +1408,20 @@ export function rebalancePageOverflow(
         return layout.placements.some((p) => regionIdSet.has(p.regionId) && p.pageLocked);
     };
 
+    const atomsInRegion = (regionId: string): string[] =>
+        layout.placements
+            .filter((p) => p.regionId === regionId)
+            .sort((a, b) => a.order - b.order)
+            .map((p) => p.atomId);
+
+    const rowHeightPx = (row: OutputRow): number =>
+        Math.max(
+            0,
+            ...row.regionIds.map((regionId) =>
+                atomsInRegion(regionId).reduce((sum, atomId) => sum + getAtomHeightPx(atomId), 0)
+            )
+        );
+
     let pageIndex = 0;
     let guard = 0;
     while (pageIndex < layout.pages.length && guard < 200) {
@@ -1419,7 +1434,7 @@ export function rebalancePageOverflow(
         let cumulative = 0;
         let overflowStartIndex = -1;
         for (let i = 0; i < pageRows.length; i += 1) {
-            const h = getRowHeightPx(pageRows[i]);
+            const h = rowHeightPx(pageRows[i]);
             if (i > 0 && cumulative + h > maxContentHeightPx) {
                 overflowStartIndex = i;
                 break;
@@ -1430,6 +1445,83 @@ export function rebalancePageOverflow(
         if (overflowStartIndex === -1) {
             pageIndex += 1;
             continue;
+        }
+
+        if (pageIndex + 1 >= maxPageCount) {
+            // 렌더 루프가 자연 흐름 페이지 수(maxPageCount)만큼만 화면에 그리므로,
+            // 그 너머로 페이지를 새로 만들면 내용이 화면에 전혀 안 보이는 곳으로
+            // 밀려난다. 이 한계에 닿으면 넘치는 걸 그대로 두고(화면에 넘쳐 보이는
+            // 채로) 다음 페이지 검사로 넘어간다 — 안 보이게 사라지는 것보다 낫다.
+            pageIndex += 1;
+            continue;
+        }
+
+        const overflowRow = pageRows[overflowStartIndex];
+        const remainingBudget = maxContentHeightPx - cumulative;
+
+        // 단일 열 행 하나가 atom을 여러 개 품고 있는 경우가 흔하다
+        // (materializePageIntoRows가 아직 안 건드린 자연 순서 구간을 통째로 하나의
+        // flow row로 묶어두기 때문). 이럴 때 행 전체를 옮기면 수십 개 atom이 한
+        // 덩어리로 다음 페이지로 밀리고, 그 페이지도 곧바로 다시 넘쳐서 페이지 수가
+        // 걷잡을 수 없이 늘어난다(실제 발생 확인됨 — 9페이지가 12페이지로). 실제로
+        // 안 들어가는 atom부터만 다음 페이지 맨 앞에 새 행으로 쪼갠다.
+        if (!isRowLocked(overflowRow) && overflowRow.regionIds.length === 1) {
+            const atomIds = atomsInRegion(overflowRow.regionIds[0]);
+            if (atomIds.length > 1) {
+                let used = 0;
+                let splitAt = atomIds.length;
+                for (let i = 0; i < atomIds.length; i += 1) {
+                    const h = getAtomHeightPx(atomIds[i]);
+                    if (i > 0 && used + h > remainingBudget) {
+                        splitAt = i;
+                        break;
+                    }
+                    used += h;
+                }
+                if (splitAt > 0 && splitAt < atomIds.length) {
+                    const moveIds = atomIds.slice(splitAt);
+                    layout = ensureOutputLayoutPageCount(layout, pageIndex + 2);
+                    const targetPage = layout.pages[pageIndex + 1];
+                    const targetFirstRow = layout.rows
+                        .filter((row) => row.pageId === targetPage.id)
+                        .sort((a, b) => a.order - b.order)[0];
+                    if (targetFirstRow) {
+                        layout = insertAtomsNextToRow(layout, moveIds, targetFirstRow.id, 'before');
+                    } else {
+                        const { row: newRow, regions: newRegions } = createRow(targetPage.id, 1, 1);
+                        const movingSet = new Set(moveIds);
+                        const newPlacements: OutputPlacement[] = moveIds.map((atomId, order) => ({
+                            atomId,
+                            pageId: targetPage.id,
+                            regionId: newRegions[0].id,
+                            order,
+                            columnSpan: 1,
+                            rowSpan: 1,
+                            pageLocked: false,
+                        }));
+                        layout = {
+                            ...layout,
+                            pages: layout.pages.map((p) =>
+                                p.id === targetPage.id
+                                    ? {
+                                          ...p,
+                                          rowIds: [newRow.id],
+                                          regionIds: newRegions.map((r) => r.id),
+                                      }
+                                    : p
+                            ),
+                            rows: [...layout.rows, newRow],
+                            regions: [...layout.regions, ...newRegions],
+                            placements: [
+                                ...layout.placements.filter((p) => !movingSet.has(p.atomId)),
+                                ...newPlacements,
+                            ],
+                        };
+                    }
+                    // pageIndex는 그대로 유지해 같은 페이지를 다시 검사한다.
+                    continue;
+                }
+            }
         }
 
         const rowsToMove = pageRows.slice(overflowStartIndex).filter((row) => !isRowLocked(row));
