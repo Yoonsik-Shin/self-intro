@@ -6,8 +6,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    # SSE 스트리밍(핵심 역량 AI): 응답 버퍼링을 끄고 모델 응답 대기 구간을 견디도록 타임아웃 연장
+    # SSE 스트리밍(AI 초안/문서 생성 등): 응답 버퍼링을 끄고 모델 응답 대기 구간을 견디도록 타임아웃 연장
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "420"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "420"
@@ -21,36 +20,6 @@ spec:
     - host: api.unbrdn.me
       http:
         paths:
-          # AI/스트리밍/크롤링/백필/벡터 동기화 작업은 backend-worker가 직접 서빙한다.
-          # Ingress Gateway가 단일 API 엔드포인트(/api/...) 뒤에서 백엔드 서비스를 투명하게 분기한다.
-          - path: /api/v1/vector-sync
-            pathType: Prefix
-            backend:
-              service:
-                name: self-intro-backend-worker
-                port:
-                  number: 8081
-          - path: /api/admin/job-postings/(parse-url|ingest-url|ingest-images|ingest-urls|refresh-all|collect|backfill-source-urls|.+/refresh).*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: self-intro-backend-worker
-                port:
-                  number: 8081
-          - path: /api/workspaces/[^/]+/portfolio/case-studies/manage/.+/print-draft.*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: self-intro-backend-worker
-                port:
-                  number: 8081
-          - path: /api/workspaces/[^/]+/job-applications/manage/(parse-url|parse-screenshots|.+/(print-template-draft|generate-cover-letter-draft|analyze-appeal|rematch|gap-project-documents)).*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: self-intro-backend-worker
-                port:
-                  number: 8081
           - path: /
             pathType: Prefix
             backend:

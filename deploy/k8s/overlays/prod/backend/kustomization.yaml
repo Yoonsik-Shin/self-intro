@@ -52,6 +52,7 @@ configMapGenerator:
       - REDIS_PORT=6379
       # API의 읽기 전용 Vector inventory client. 삭제 RPC는 노출하지 않는다.
       - GRPC_WORKER_HOST=static://self-intro-backend-worker:9090
+      - WORKER_BASE_URL=http://self-intro-backend-worker:8081
       - WORKSPACE_DELETION_GRACE_PERIOD=30d
       # 로컬 rehearsal은 통과했다. 운영 backup/provider 증적 gate 승인 전까지 모두 잠근다.
       - WORKSPACE_PURGE_EXECUTION_ENABLED=false
