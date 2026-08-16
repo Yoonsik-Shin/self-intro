@@ -18,7 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/worker/workspaces/{workspaceSlug}/portfolio/case-studies/manage")
+@RequestMapping("/api/workspaces/{workspaceSlug}/portfolio/case-studies/manage")
 public class PortfolioPrintDraftController {
 
     private final PortfolioPrintDraftService portfolioPrintDraftService;

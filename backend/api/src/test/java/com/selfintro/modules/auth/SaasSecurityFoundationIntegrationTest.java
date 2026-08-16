@@ -792,7 +792,7 @@ class SaasSecurityFoundationIntegrationTest {
 
         mockMvc.perform(get("/api/admin/job-postings").with(user(principal)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/worker/job-postings/collect").with(user(principal)).with(csrf()))
+        mockMvc.perform(post("/api/admin/job-postings/collect").with(user(principal)).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

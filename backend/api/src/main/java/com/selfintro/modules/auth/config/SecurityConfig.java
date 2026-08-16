@@ -90,17 +90,7 @@ public class SecurityConfig {
                                         .dispatcherTypeMatchers(DispatcherType.ERROR)
                                         .permitAll()
                                         .requestMatchers("/api/admin/**")
-                                        .hasRole("ADMIN")
-                                        // job-posting AI/크롤링 전용 엔드포인트(worker가 직접 서빙,
-                                        // 2026-08). /api/admin/**과 분리된 prefix라 이 규칙이 없으면
-                                        // GET 엔드포인트가 아래 GET permitAll에 먼저 걸려 인증 없이
-                                        // 열려버린다.
-                                        .requestMatchers(
-                                                "/api/worker/workspaces/*/job-applications/manage",
-                                                "/api/worker/workspaces/*/job-applications/manage/**")
-                                        .authenticated()
-                                        .requestMatchers("/api/worker/**")
-                                        .hasAnyRole("PLATFORM_OWNER", "PLATFORM_OPERATOR")
+                                        .hasAnyRole("ADMIN", "PLATFORM_OWNER", "PLATFORM_OPERATOR")
                                         // 수동 vector 동기화는 request의 workspaceId를 직접 처리하는
                                         // 내부 운영 도구다. 일반 Workspace 사용자가 임의 ID로 재색인하지
                                         // 못하도록 Worker 운영 권한과 같은 플랫폼 경계를 적용한다.

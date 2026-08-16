@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
-@RequestMapping("/api/worker/job-postings")
+@RequestMapping("/api/admin/job-postings")
 @RequiredArgsConstructor
 public class JobPostingController {
 
