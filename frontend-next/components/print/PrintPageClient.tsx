@@ -1,9 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import type { IntroductionResponse } from '@/lib/api/types';
-import { jobPostingApi, printTemplateApi } from '@/lib/api';
+import { ApiError, jobPostingApi, printTemplateApi } from '@/lib/api';
+import { useAuthStore } from '@/store/useAuthStore';
 import { PrintCanvas } from './PrintCanvas';
 
 export function PrintPageClient({
@@ -20,6 +22,9 @@ export function PrintPageClient({
     jobPostingId: number | null;
 }) {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const setUnauthenticated = useAuthStore((s) => s.setUnauthenticated);
     const {
         data: outputSource,
         error: outputSourceError,
@@ -58,7 +63,22 @@ export function PrintPageClient({
         enabled: adminMode && jobPostingId != null,
     });
 
-    if ((shouldLoadTemplates && isLoading) || (adminMode && isOutputSourceLoading)) {
+    const isSessionExpired =
+        adminMode && outputSourceError instanceof ApiError && outputSourceError.status === 401;
+
+    useEffect(() => {
+        if (!isSessionExpired) return;
+        setUnauthenticated();
+        const query = searchParams.toString();
+        const next = `${pathname}${query ? `?${query}` : ''}`;
+        router.replace(`/login?next=${encodeURIComponent(next)}`);
+    }, [isSessionExpired, pathname, router, searchParams, setUnauthenticated]);
+
+    const isLoadingScreen =
+        (shouldLoadTemplates && isLoading) ||
+        (adminMode && isOutputSourceLoading) ||
+        isSessionExpired;
+    if (isLoadingScreen) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-900 text-sm font-bold text-slate-300">
                 템플릿을 불러오는 중입니다.
@@ -66,7 +86,7 @@ export function PrintPageClient({
         );
     }
 
-    if (adminMode && isOutputSourceError) {
+    if (adminMode && isOutputSourceError && !isSessionExpired) {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-900 px-6 text-center">
                 <p className="text-sm font-bold text-rose-300">출력 원본을 불러오지 못했습니다.</p>
