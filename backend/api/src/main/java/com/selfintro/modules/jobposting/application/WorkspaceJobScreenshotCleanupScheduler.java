@@ -1,6 +1,5 @@
-package com.selfintro.jobposting;
+package com.selfintro.modules.jobposting.application;
 
-import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

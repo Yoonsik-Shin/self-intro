@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.presentation;
+package com.selfintro.modules.jobposting.presentation;
 
 import com.selfintro.global.worker.AiWorkerClient;
 import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseRequest;

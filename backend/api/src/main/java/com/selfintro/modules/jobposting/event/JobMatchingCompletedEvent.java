@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.event;
+package com.selfintro.modules.jobposting.event;
 
 import java.time.LocalDateTime;
 

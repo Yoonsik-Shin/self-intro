@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.cqrs;
+package com.selfintro.modules.jobposting.cqrs;
 
 import java.io.Serializable;
 

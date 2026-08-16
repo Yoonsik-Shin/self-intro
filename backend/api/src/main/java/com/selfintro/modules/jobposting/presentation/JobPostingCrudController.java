@@ -1,9 +1,9 @@
-package com.selfintro.modules.jobapplication.presentation;
+package com.selfintro.modules.jobposting.presentation;
 
 import com.selfintro.modules.auth.application.AppUserPrincipal;
-import com.selfintro.modules.jobapplication.application.JobPostingCrudService;
-import com.selfintro.modules.jobapplication.application.JobPostingDedupMigrationService;
-import com.selfintro.modules.jobapplication.application.JobPostingGeocodingBackfillRunner;
+import com.selfintro.modules.jobposting.application.JobPostingCrudService;
+import com.selfintro.modules.jobposting.application.JobPostingDedupMigrationService;
+import com.selfintro.modules.jobposting.application.JobPostingGeocodingBackfillRunner;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingPermissionReviewEventResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingPermissionReviewRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;

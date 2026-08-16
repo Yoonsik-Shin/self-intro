@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.application;
+package com.selfintro.modules.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,24 +31,24 @@ class JobplanetCompanyServiceTest {
         service = new JobplanetCompanyService(repository);
         posting =
                 JobPosting.registerApplied(
-                        "테스트㈜",
-                        "백엔드 개발자",
-                        "https://example.com/job",
-                        "직접입력",
-                        LocalDate.now(),
-                        null,
-                        true,
-                        null,
-                        "서울",
-                        "정규직",
-                        null,
-                        "API 개발",
-                        "Java",
-                        "Spring",
-                        null,
-                        null,
-                        null,
-                        LocalDateTime.now());
+                    "테스트㈜",
+                    "백엔드 개발자",
+                    "https://example.com/job",
+                    "직접입력",
+                    LocalDate.now(),
+                    null,
+                    true,
+                    null,
+                    "서울",
+                    "정규직",
+                    null,
+                    "API 개발",
+                    "Java",
+                    "Spring",
+                    null,
+                    null,
+                    null,
+                    LocalDateTime.now());
     }
 
     @Test

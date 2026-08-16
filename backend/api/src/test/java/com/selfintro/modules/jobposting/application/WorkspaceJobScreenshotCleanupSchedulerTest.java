@@ -1,11 +1,10 @@
-package com.selfintro.jobposting;
+package com.selfintro.modules.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService;
 import org.junit.jupiter.api.Test;
 
 class WorkspaceJobScreenshotCleanupSchedulerTest {

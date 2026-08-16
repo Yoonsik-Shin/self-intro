@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.application;
+package com.selfintro.modules.jobposting.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;

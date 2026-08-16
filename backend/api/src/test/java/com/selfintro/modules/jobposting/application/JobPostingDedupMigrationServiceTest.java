@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.application;
+package com.selfintro.modules.jobposting.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

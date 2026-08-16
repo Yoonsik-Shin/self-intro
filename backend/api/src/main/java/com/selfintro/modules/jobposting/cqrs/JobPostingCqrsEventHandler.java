@@ -1,7 +1,7 @@
-package com.selfintro.modules.jobapplication.cqrs;
+package com.selfintro.modules.jobposting.cqrs;
 
 import com.selfintro.global.config.RabbitMqConfig;
-import com.selfintro.modules.jobapplication.event.JobPostingCollectedEvent;
+import com.selfintro.modules.jobposting.event.JobPostingCollectedEvent;
 import java.time.LocalDateTime;
 import lombok.extern.slf4j.Slf4j;
 import oracle.nosql.driver.NoSQLHandle;

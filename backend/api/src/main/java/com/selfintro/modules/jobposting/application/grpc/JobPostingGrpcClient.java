@@ -1,4 +1,4 @@
-package com.selfintro.modules.jobapplication.application.grpc;
+package com.selfintro.modules.jobposting.application.grpc;
 
 import com.selfintro.grpc.jobposting.JobMatchingScoreRequest;
 import com.selfintro.grpc.jobposting.JobMatchingScoreResponse;
