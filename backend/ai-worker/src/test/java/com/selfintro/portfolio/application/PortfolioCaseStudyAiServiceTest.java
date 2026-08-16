@@ -1,4 +1,4 @@
-package com.selfintro.modules.portfolio.application;
+package com.selfintro.portfolio.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;

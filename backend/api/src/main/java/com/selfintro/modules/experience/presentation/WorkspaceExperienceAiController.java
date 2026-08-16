@@ -1,6 +1,6 @@
 package com.selfintro.modules.experience.presentation;
 
-import com.selfintro.modules.experience.application.ExperienceAiService;
+import com.selfintro.global.worker.AiWorkerClient;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;
@@ -16,14 +16,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/workspaces/{workspaceSlug}/experiences/manage/ai")
 @RequiredArgsConstructor
 public class WorkspaceExperienceAiController {
 
-    private final ExperienceAiService experienceAiService;
+    private final AiWorkerClient aiWorkerClient;
     private final WorkspaceAccessPolicy workspaceAccessPolicy;
 
     @PostMapping("/suggestions")
@@ -31,17 +31,22 @@ public class WorkspaceExperienceAiController {
             Authentication authentication,
             @PathVariable String workspaceSlug,
             @Valid @RequestBody ExperienceSuggestionRequest request) {
-        return experienceAiService.suggest(
-                writeWorkspaceId(authentication, workspaceSlug), request);
+        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
+        return aiWorkerClient.post(
+                "/internal/workspaces/" + workspaceId + "/experiences/manage/ai/suggestions",
+                request,
+                ExperienceSuggestionResponse.class);
     }
 
     @PostMapping(value = "/suggestions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter suggestStream(
+    public StreamingResponseBody suggestStream(
             Authentication authentication,
             @PathVariable String workspaceSlug,
             @Valid @RequestBody ExperienceSuggestionRequest request) {
-        return experienceAiService.suggestStream(
-                writeWorkspaceId(authentication, workspaceSlug), request);
+        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
+        String path =
+                "/internal/workspaces/" + workspaceId + "/experiences/manage/ai/suggestions/stream";
+        return outputStream -> aiWorkerClient.pipePost(path, request, outputStream);
     }
 
     @PostMapping("/details/narrative")
@@ -49,8 +54,11 @@ public class WorkspaceExperienceAiController {
             Authentication authentication,
             @PathVariable String workspaceSlug,
             @Valid @RequestBody ExperienceDetailNarrativeRequest request) {
-        writeWorkspaceId(authentication, workspaceSlug);
-        return experienceAiService.generateNarrative(request);
+        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
+        return aiWorkerClient.post(
+                "/internal/workspaces/" + workspaceId + "/experiences/manage/ai/details/narrative",
+                request,
+                ExperienceDetailNarrativeResponse.class);
     }
 
     private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {

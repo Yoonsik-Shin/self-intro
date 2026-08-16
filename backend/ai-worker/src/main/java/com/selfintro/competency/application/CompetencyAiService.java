@@ -1,4 +1,4 @@
-package com.selfintro.modules.competency.application;
+package com.selfintro.competency.application;
 
 import static com.selfintro.global.ai.AiJsonSupport.blankToNull;
 import static com.selfintro.global.ai.AiJsonSupport.distinctBy;

@@ -1,4 +1,4 @@
-package com.selfintro.modules.competency.application;
+package com.selfintro.competency.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

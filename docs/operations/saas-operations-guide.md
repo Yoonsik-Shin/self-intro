@@ -2659,3 +2659,17 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   - K8s ConfigMap: `WORKER_BASE_URL=http://self-intro-backend-worker:8081`
   - Docker Compose: `WORKER_BASE_URL=http://backend-worker:8081`
   - Local default: `http://localhost:8081`
+
+### 15.35 AI 추론 서비스의 `ai-worker` 완전 위임 및 API 프록시 일원화
+
+- `api` 모듈 내에 남아있던 4개 도메인의 AI 추론 로직(`StudyAiService`, `CompetencyAiService`, `ExperienceAiService`, `PortfolioCaseStudyAiService`)을 `ai-worker`로 완전히 이전했다.
+- **Worker 엔드포인트 신설**:
+  - `POST /internal/workspaces/{workspaceId}/studies/manage/ai/suggestions` & `/stream`
+  - `POST /internal/workspaces/{workspaceId}/competencies/ai/suggestions` & `/stream`
+  - `POST /internal/workspaces/{workspaceId}/experiences/manage/ai/suggestions` & `/stream` & `/details/narrative`
+  - `POST /internal/workspaces/{workspaceId}/portfolio/case-studies/manage/{caseStudyId}/revisions/generate`
+- **API 서버 프록시 전환**:
+  - `WorkspaceStudyAiController`, `WorkspaceCompetencyAiController`, `WorkspaceExperienceAiController`, `WorkspacePortfolioCaseStudyAiController`가 `AiWorkerClient`를 통해 `ai-worker`로 요청을 위임하고 SSE 스트림을 중계하도록 전환했다.
+  - `api` 서버에서 `NvidiaNimClient` 직접 호출이 완전히 제거되어 LLM 추론 부하가 `ai-worker`로 100% 격리되었다.
+- **단위 테스트 및 빌드 검증**:
+  - `api` 프록시 컨트롤러 테스트 4종 및 `ai-worker` AI 서비스/컨트롤러 단위 테스트 전체 통과 (`./gradlew test`).

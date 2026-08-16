@@ -1,4 +1,4 @@
-package com.selfintro.modules.study.application;
+package com.selfintro.study.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

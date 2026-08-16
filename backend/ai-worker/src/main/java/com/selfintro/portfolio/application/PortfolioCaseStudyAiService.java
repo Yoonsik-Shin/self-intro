@@ -1,4 +1,4 @@
-package com.selfintro.modules.portfolio.application;
+package com.selfintro.portfolio.application;
 
 import static com.selfintro.global.ai.AiJsonSupport.blankToNull;
 import static com.selfintro.global.ai.AiJsonSupport.hasText;
@@ -33,11 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-/**
- * 포트폴리오 케이스스터디 본문을 "사실 추출 → 초안 작성" 2단계로 생성한다. {@link
- * com.selfintro.modules.experience.application.ExperienceAiService}와 동일한 구조 — 근거 없는 사실은 버리고, 각 사실에
- * experienceDetailId/studyId 근거를 강제해 환각을 막는다.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -337,7 +332,7 @@ public class PortfolioCaseStudyAiService {
                         : new PortfolioCaseStudyContent.Outcome(
                                 limit(content.outcome().summary(), 300),
                                 safe(content.outcome().metrics()).stream()
-                                        .limit(6)
+                                         .limit(6)
                                         .filter(m -> m != null && hasText(m.label()))
                                         .map(
                                                 m ->

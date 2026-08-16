@@ -1,4 +1,4 @@
-package com.selfintro.modules.experience.application;
+package com.selfintro.experience.application;
 
 import static com.selfintro.global.ai.AiJsonSupport.blankToNull;
 import static com.selfintro.global.ai.AiJsonSupport.hasText;
@@ -413,8 +413,10 @@ public class ExperienceAiService {
         }
         NarrativeInput input =
                 new NarrativeInput(
-                        request.content(), blankToNull(request.situation()),
-                        blankToNull(request.actionDetail()), blankToNull(request.outcome()));
+                        request.content(),
+                        blankToNull(request.situation()),
+                        blankToNull(request.actionDetail()),
+                        blankToNull(request.outcome()));
         try {
             String raw =
                     nvidiaNimClient.generate(
