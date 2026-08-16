@@ -1,8 +1,8 @@
 package com.selfintro.modules.printtemplate.presentation;
 
 import com.selfintro.bff.presentation.dto.IntroductionResponse;
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
+import com.selfintro.global.web.CurrentWorkspace;
+import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.application.WorkspaceOutputSourceService;
@@ -20,7 +20,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -40,64 +39,54 @@ public class WorkspacePrintTemplateController {
 
     private final PrintTemplateService printTemplateService;
     private final StorageService storageService;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
     private final WorkspaceJobApplicationRepository workspaceJobApplicationRepository;
     private final WorkspaceOutputSourceService workspaceOutputSourceService;
 
     @GetMapping("/source")
     public IntroductionResponse source(
-            Authentication authentication, @PathVariable String workspaceSlug) {
-        return workspaceOutputSourceService.get(readWorkspaceId(authentication, workspaceSlug));
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
+        return workspaceOutputSourceService.get(workspaceId);
     }
 
     @GetMapping
     public List<PrintTemplateResponse> list(
-            Authentication authentication, @PathVariable String workspaceSlug) {
-        return printTemplateService.listAll(readWorkspaceId(authentication, workspaceSlug)).stream()
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
+        return printTemplateService.listAll(workspaceId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @PostMapping
     public PrintTemplateResponse create(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody PrintTemplateRequest request) {
         requireUnlinkedTemplate(request);
-        return toResponse(
-                printTemplateService.create(
-                        writeWorkspaceId(authentication, workspaceSlug), request));
+        return toResponse(printTemplateService.create(workspaceId, request));
     }
 
     @PutMapping("/{id}")
     public PrintTemplateResponse update(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long id,
             @Valid @RequestBody PrintTemplateRequest request) {
         requireUnlinkedTemplate(request);
-        return toResponse(
-                printTemplateService.update(
-                        writeWorkspaceId(authentication, workspaceSlug), id, request));
+        return toResponse(printTemplateService.update(workspaceId, id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long id) {
-        printTemplateService.delete(writeWorkspaceId(authentication, workspaceSlug), id);
+        printTemplateService.delete(workspaceId, id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/portfolio/{caseStudyId}")
     public List<PrintTemplateResponse> listPortfolio(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long caseStudyId) {
         return printTemplateService
-                .listByPortfolioCaseStudy(
-                        readWorkspaceId(authentication, workspaceSlug), caseStudyId)
+                .listByPortfolioCaseStudy(workspaceId, caseStudyId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -105,13 +94,11 @@ public class WorkspacePrintTemplateController {
 
     @GetMapping("/portfolio/{caseStudyId}/default")
     public PrintTemplateResponse getPortfolioDefault(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long caseStudyId,
             @RequestParam String orientation) {
         return printTemplateService
-                .getDefaultForPortfolio(
-                        readWorkspaceId(authentication, workspaceSlug), caseStudyId, orientation)
+                .getDefaultForPortfolio(workspaceId, caseStudyId, orientation)
                 .map(this::toResponse)
                 .orElseThrow(
                         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "저장된 배치가 없습니다."));
@@ -119,23 +106,19 @@ public class WorkspacePrintTemplateController {
 
     @PostMapping("/portfolio/{caseStudyId}")
     public PrintTemplateResponse createPortfolio(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long caseStudyId,
             @Valid @RequestBody PortfolioPrintTemplateRequest request) {
         return toResponse(
-                printTemplateService.createPortfolio(
-                        writeWorkspaceId(authentication, workspaceSlug), caseStudyId, request));
+                printTemplateService.createPortfolio(workspaceId, caseStudyId, request));
     }
 
     @PutMapping("/portfolio/{caseStudyId}/{id}")
     public PrintTemplateResponse updatePortfolio(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long caseStudyId,
             @PathVariable Long id,
             @Valid @RequestBody PortfolioPrintTemplateRequest request) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         var template = printTemplateService.getOrThrow(workspaceId, id);
         if (!caseStudyId.equals(template.getPortfolioCaseStudyId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "리소스를 찾을 수 없습니다.");
@@ -145,19 +128,15 @@ public class WorkspacePrintTemplateController {
 
     @GetMapping("/{id}/revisions")
     public List<PrintTemplateRevisionResponse> revisions(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long id) {
-        return printTemplateService.getRevisions(
-                readWorkspaceId(authentication, workspaceSlug), id);
+        return printTemplateService.getRevisions(workspaceId, id);
     }
 
     @GetMapping("/{id}/artifacts")
     public List<PrintDocumentArtifactResponse> artifacts(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long id) {
-        Long workspaceId = readWorkspaceId(authentication, workspaceSlug);
         PrintTemplate template = printTemplateService.getOrThrow(workspaceId, id);
         return printTemplateService.getArtifacts(workspaceId, id).stream()
                 .map(
@@ -171,21 +150,17 @@ public class WorkspacePrintTemplateController {
 
     @PostMapping("/{id}/revisions/{revisionId}/rollback")
     public PrintTemplateResponse rollback(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long id,
             @PathVariable Long revisionId) {
         return toResponse(
-                printTemplateService.rollbackConfiguration(
-                        writeWorkspaceId(authentication, workspaceSlug), id, revisionId));
+                printTemplateService.rollbackConfiguration(workspaceId, id, revisionId));
     }
 
     @GetMapping("/job-applications/{jobPostingId}")
     public List<PrintTemplateResponse> listJobApplicationTemplates(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long jobPostingId) {
-        Long workspaceId = readWorkspaceId(authentication, workspaceSlug);
         requireJobApplication(workspaceId, jobPostingId);
         return printTemplateService.listByJobPosting(workspaceId, jobPostingId).stream()
                 .map(this::toResponse)
@@ -194,11 +169,9 @@ public class WorkspacePrintTemplateController {
 
     @PostMapping("/job-applications/{jobPostingId}/direct-pdf")
     public PrintTemplateResponse createDirectPdf(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @Valid @RequestBody DirectPdfUploadRequest request) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         requireJobApplication(workspaceId, jobPostingId);
         return toResponse(
                 printTemplateService.createDirectPdf(
@@ -207,34 +180,28 @@ public class WorkspacePrintTemplateController {
 
     @PatchMapping("/job-applications/{jobPostingId}/{id}/mark-final")
     public PrintTemplateResponse markFinal(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @PathVariable Long id) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         requireJobApplicationTemplate(workspaceId, jobPostingId, id);
         return toResponse(printTemplateService.markFinalSubmission(workspaceId, id));
     }
 
     @PatchMapping("/job-applications/{jobPostingId}/{id}/unmark-final")
     public PrintTemplateResponse unmarkFinal(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @PathVariable Long id) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         requireJobApplicationTemplate(workspaceId, jobPostingId, id);
         return toResponse(printTemplateService.unmarkFinalSubmission(workspaceId, id));
     }
 
     @PutMapping("/job-applications/{jobPostingId}/{id}/final-pdf")
     public PrintTemplateResponse attachFinalPdf(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @PathVariable Long id,
             @Valid @RequestBody PrintTemplateFinalPdfRequest request) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         requireJobApplicationTemplate(workspaceId, jobPostingId, id);
         return toResponse(
                 printTemplateService.attachFinalPdf(workspaceId, id, request.objectKey()));
@@ -242,11 +209,9 @@ public class WorkspacePrintTemplateController {
 
     @DeleteMapping("/job-applications/{jobPostingId}/{id}/final-pdf")
     public PrintTemplateResponse removeFinalPdf(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @PathVariable Long id) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         requireJobApplicationTemplate(workspaceId, jobPostingId, id);
         return toResponse(printTemplateService.removeFinalPdf(workspaceId, id));
     }
@@ -278,30 +243,5 @@ public class WorkspacePrintTemplateController {
     private PrintTemplateResponse toResponse(
             com.selfintro.modules.printtemplate.domain.entity.PrintTemplate entity) {
         return PrintTemplateResponse.from(entity, storageService::toPublicUrl);
-    }
-
-    private Long readWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR,
-                        WorkspaceRole.VIEWER)
-                .getWorkspace()
-                .getId();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
     }
 }

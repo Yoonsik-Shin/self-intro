@@ -1,12 +1,11 @@
 package com.selfintro.modules.skill.presentation;
 
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
+import com.selfintro.global.web.CurrentWorkspace;
+import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.modules.skill.application.SkillConnectionService;
 import com.selfintro.modules.skill.presentation.dto.SkillConnections;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,49 +19,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkspaceSkillConnectionController {
 
     private final SkillConnectionService connectionService;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
 
     @GetMapping("/{skillId}/connections")
     public SkillConnections get(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long skillId) {
-        return connectionService.getSkillConnections(
-                readWorkspaceId(authentication, workspaceSlug), skillId);
+        return connectionService.getSkillConnections(workspaceId, skillId);
     }
 
     @PutMapping("/{skillId}/connections")
     public SkillConnections update(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long skillId,
             @Valid @RequestBody SkillConnections request) {
-        return connectionService.updateSkillConnections(
-                writeWorkspaceId(authentication, workspaceSlug), skillId, request);
-    }
-
-    private Long readWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR,
-                        WorkspaceRole.VIEWER)
-                .getWorkspace()
-                .getId();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
+        return connectionService.updateSkillConnections(workspaceId, skillId, request);
     }
 }

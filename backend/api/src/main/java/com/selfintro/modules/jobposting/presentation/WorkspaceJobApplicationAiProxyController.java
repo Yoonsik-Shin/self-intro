@@ -1,8 +1,8 @@
 package com.selfintro.modules.jobposting.presentation;
 
+import com.selfintro.global.web.CurrentWorkspace;
+import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.global.worker.AiWorkerClient;
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService;
 import com.selfintro.modules.jobposting.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobApplicationImageParseRequest;
@@ -17,7 +17,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,15 +32,12 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public class WorkspaceJobApplicationAiProxyController {
 
     private final AiWorkerClient aiWorkerClient;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
     private final WorkspaceJobScreenshotUploadService screenshotUploadService;
 
     @PostMapping("/parse-url")
     public JobApplicationUrlParseResponse parseUrl(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody JobApplicationUrlParseRequest request) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         return aiWorkerClient.post(
                 "/internal/workspaces/" + workspaceId + "/job-applications/manage/parse-url",
                 request,
@@ -50,10 +46,8 @@ public class WorkspaceJobApplicationAiProxyController {
 
     @PostMapping("/parse-screenshots")
     public JobApplicationUrlParseResponse parseScreenshots(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody WorkspaceJobScreenshotParseRequest request) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         List<WorkspaceJobScreenshotUploadService.ClaimedUpload> uploads =
                 screenshotUploadService.claim(workspaceId, request.uploadIds());
         try {
@@ -76,11 +70,9 @@ public class WorkspaceJobApplicationAiProxyController {
 
     @PostMapping("/{jobPostingId}/generate-cover-letter-draft")
     public JobPostingCoverLetterDraftResponse generateCoverLetterDraft(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @Valid @RequestBody JobPostingCoverLetterDraftRequest request) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         return aiWorkerClient.post(
                 "/internal/workspaces/"
                         + workspaceId
@@ -93,12 +85,10 @@ public class WorkspaceJobApplicationAiProxyController {
 
     @PostMapping("/{jobPostingId}/analyze-appeal")
     public JobPostingResponse analyzeAppeal(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @RequestParam(required = false) String aiModel,
             @RequestParam(required = false) String customModelName) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         String query = buildModelQuery(aiModel, customModelName);
         return aiWorkerClient.post(
                 "/internal/workspaces/"
@@ -113,10 +103,8 @@ public class WorkspaceJobApplicationAiProxyController {
 
     @PostMapping("/{jobPostingId}/rematch")
     public JobPostingResponse rematch(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         return aiWorkerClient.post(
                 "/internal/workspaces/"
                         + workspaceId
@@ -129,10 +117,8 @@ public class WorkspaceJobApplicationAiProxyController {
 
     @GetMapping("/{jobPostingId}/gap-project-documents")
     public List<GapProjectDocumentResponse> listGapDocuments(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long jobPostingId) {
-        Long workspaceId = readWorkspaceId(authentication, workspaceSlug);
         return aiWorkerClient.get(
                 "/internal/workspaces/"
                         + workspaceId
@@ -144,12 +130,10 @@ public class WorkspaceJobApplicationAiProxyController {
 
     @PostMapping("/{jobPostingId}/gap-project-documents")
     public GapProjectDocumentResponse generateGapDocument(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @RequestParam(required = false) String aiModel,
             @RequestParam(required = false) String customModelName) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         String query = buildModelQuery(aiModel, customModelName);
         return aiWorkerClient.post(
                 "/internal/workspaces/"
@@ -166,12 +150,10 @@ public class WorkspaceJobApplicationAiProxyController {
             value = "/{jobPostingId}/print-template-draft/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public StreamingResponseBody streamPrintTemplateDraft(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @RequestParam(required = false) String aiModel,
             @RequestParam(required = false) String customModelName) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         String query = buildModelQuery(aiModel, customModelName);
         String path =
                 "/internal/workspaces/"
@@ -187,14 +169,12 @@ public class WorkspaceJobApplicationAiProxyController {
             value = "/{jobPostingId}/print-template-draft/{templateId}/revise/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public StreamingResponseBody streamRevisePrintTemplateDraft(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @PathVariable Long templateId,
             @Valid @RequestBody PrintTemplateRevisionRequest request,
             @RequestParam(required = false) String aiModel,
             @RequestParam(required = false) String customModelName) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         String query = buildModelQuery(aiModel, customModelName);
         String path =
                 "/internal/workspaces/"
@@ -206,31 +186,6 @@ public class WorkspaceJobApplicationAiProxyController {
                         + "/revise/stream"
                         + query;
         return outputStream -> aiWorkerClient.pipePost(path, request, outputStream);
-    }
-
-    private Long readWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR,
-                        WorkspaceRole.VIEWER)
-                .getWorkspace()
-                .getId();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
     }
 
     private String buildModelQuery(String aiModel, String customModelName) {

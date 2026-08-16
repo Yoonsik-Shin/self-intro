@@ -1,13 +1,11 @@
 package com.selfintro.modules.portfolio.presentation;
 
+import com.selfintro.global.web.CurrentWorkspace;
 import com.selfintro.global.worker.AiWorkerClient;
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.portfolio.presentation.dto.PortfolioPrintDraftRevisionRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,19 +20,16 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public class WorkspacePortfolioCaseStudyPrintDraftProxyController {
 
     private final AiWorkerClient aiWorkerClient;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
 
     @PostMapping(
             value = "/{caseStudyId}/print-draft/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public StreamingResponseBody generatePrintDraftStream(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long caseStudyId,
             @RequestParam String orientation,
             @RequestParam(required = false) String aiModel,
             @RequestParam(required = false) String customModelName) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         String query = buildDraftQuery(orientation, aiModel, customModelName);
         String path =
                 "/internal/workspaces/"
@@ -50,14 +45,12 @@ public class WorkspacePortfolioCaseStudyPrintDraftProxyController {
             value = "/{caseStudyId}/print-draft/{templateId}/revise/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public StreamingResponseBody revisePrintDraftStream(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long caseStudyId,
             @PathVariable Long templateId,
             @Valid @RequestBody PortfolioPrintDraftRevisionRequest request,
             @RequestParam(required = false) String aiModel,
             @RequestParam(required = false) String customModelName) {
-        Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
         String query = buildModelQuery(aiModel, customModelName);
         String path =
                 "/internal/workspaces/"
@@ -69,18 +62,6 @@ public class WorkspacePortfolioCaseStudyPrintDraftProxyController {
                         + "/revise/stream"
                         + query;
         return outputStream -> aiWorkerClient.pipePost(path, request, outputStream);
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
     }
 
     private String buildDraftQuery(String orientation, String aiModel, String customModelName) {

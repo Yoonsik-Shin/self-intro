@@ -11,35 +11,25 @@ import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrati
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailNarrativeResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperienceSuggestionResponse;
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.Workspace;
-import com.selfintro.modules.identity.domain.WorkspaceMember;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 class WorkspaceExperienceAiControllerTest {
 
     private AiWorkerClient aiWorkerClient;
-    private WorkspaceAccessPolicy accessPolicy;
     private WorkspaceExperienceAiController controller;
-    private Authentication authentication;
 
     @BeforeEach
     void setUp() {
         aiWorkerClient = mock(AiWorkerClient.class);
-        accessPolicy = mock(WorkspaceAccessPolicy.class);
-        authentication = mock(Authentication.class);
-        controller = new WorkspaceExperienceAiController(aiWorkerClient, accessPolicy);
+        controller = new WorkspaceExperienceAiController(aiWorkerClient);
     }
 
     @Test
     void suggestDelegatesToWorker() {
-        allowWrite(42L);
         ExperienceSuggestionRequest request =
                 new ExperienceSuggestionRequest(
                         "ins",
@@ -61,15 +51,13 @@ class WorkspaceExperienceAiControllerTest {
                         eq(ExperienceSuggestionResponse.class)))
                 .thenReturn(expected);
 
-        ExperienceSuggestionResponse response =
-                controller.suggest(authentication, "w-demo", request);
+        ExperienceSuggestionResponse response = controller.suggest(42L, request);
 
         assertThat(response).isEqualTo(expected);
     }
 
     @Test
     void suggestStreamPipesToWorker() throws Exception {
-        allowWrite(42L);
         ExperienceSuggestionRequest request =
                 new ExperienceSuggestionRequest(
                         "ins",
@@ -84,8 +72,7 @@ class WorkspaceExperienceAiControllerTest {
                         List.of(2L),
                         List.of(3L));
 
-        StreamingResponseBody body =
-                controller.suggestStream(authentication, "w-demo", request);
+        StreamingResponseBody body = controller.suggestStream(42L, request);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         body.writeTo(out);
 
@@ -98,7 +85,6 @@ class WorkspaceExperienceAiControllerTest {
 
     @Test
     void generateNarrativeDelegatesToWorker() {
-        allowWrite(42L);
         ExperienceDetailNarrativeRequest request =
                 new ExperienceDetailNarrativeRequest("c", "s", "a", "o");
         ExperienceDetailNarrativeResponse expected =
@@ -110,23 +96,8 @@ class WorkspaceExperienceAiControllerTest {
                         eq(ExperienceDetailNarrativeResponse.class)))
                 .thenReturn(expected);
 
-        ExperienceDetailNarrativeResponse response =
-                controller.generateNarrative(authentication, "w-demo", request);
+        ExperienceDetailNarrativeResponse response = controller.generateNarrative(42L, request);
 
         assertThat(response).isEqualTo(expected);
-    }
-
-    private void allowWrite(Long workspaceId) {
-        Workspace workspace = mock(Workspace.class);
-        WorkspaceMember member = mock(WorkspaceMember.class);
-        when(workspace.getId()).thenReturn(workspaceId);
-        when(member.getWorkspace()).thenReturn(workspace);
-        when(accessPolicy.requireAnyRole(
-                        authentication,
-                        "w-demo",
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR))
-                .thenReturn(member);
     }
 }

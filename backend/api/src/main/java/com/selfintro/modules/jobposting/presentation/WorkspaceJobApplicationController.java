@@ -1,7 +1,7 @@
 package com.selfintro.modules.jobposting.presentation;
 
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
+import com.selfintro.global.web.CurrentWorkspace;
+import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.modules.jobposting.application.WorkspaceJobApplicationService;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCatalogResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -15,7 +15,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -33,128 +32,83 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkspaceJobApplicationController {
 
     private final WorkspaceJobApplicationService workspaceJobApplicationService;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
 
     @GetMapping
     public List<JobPostingResponse> list(
-            Authentication authentication, @PathVariable String workspaceSlug) {
-        return workspaceJobApplicationService.list(readWorkspaceId(authentication, workspaceSlug));
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
+        return workspaceJobApplicationService.list(workspaceId);
     }
 
     @GetMapping("/catalog")
     public List<JobPostingCatalogResponse> catalog(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @RequestParam(required = false) String q) {
-        return workspaceJobApplicationService.catalog(
-                readWorkspaceId(authentication, workspaceSlug), q);
+        return workspaceJobApplicationService.catalog(workspaceId, q);
     }
 
     @GetMapping("/map-setting")
     public WorkspaceJobMapSettingResponse mapSetting(
-            Authentication authentication, @PathVariable String workspaceSlug) {
-        return workspaceJobApplicationService.mapSetting(
-                readWorkspaceId(authentication, workspaceSlug));
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
+        return workspaceJobApplicationService.mapSetting(workspaceId);
     }
 
     @PutMapping("/map-setting")
     public WorkspaceJobMapSettingResponse updateMapSetting(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody WorkspaceJobMapSettingRequest request) {
-        return workspaceJobApplicationService.updateMapSetting(
-                writeWorkspaceId(authentication, workspaceSlug), request);
+        return workspaceJobApplicationService.updateMapSetting(workspaceId, request);
     }
 
     @GetMapping("/{jobPostingId}")
     public JobPostingResponse get(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long jobPostingId) {
-        return workspaceJobApplicationService.get(
-                readWorkspaceId(authentication, workspaceSlug), jobPostingId);
+        return workspaceJobApplicationService.get(workspaceId, jobPostingId);
     }
 
     @PostMapping("/{jobPostingId}")
     public JobPostingResponse save(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @Valid @RequestBody WorkspaceJobApplicationRequest request) {
-        return workspaceJobApplicationService.save(
-                writeWorkspaceId(authentication, workspaceSlug), jobPostingId, request);
+        return workspaceJobApplicationService.save(workspaceId, jobPostingId, request);
     }
 
     @PostMapping("/private-sources")
     public JobPostingResponse createPrivateSource(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody WorkspacePrivateJobPostingRequest request) {
-        return workspaceJobApplicationService.createPrivateSource(
-                writeWorkspaceId(authentication, workspaceSlug), request);
+        return workspaceJobApplicationService.createPrivateSource(workspaceId, request);
     }
 
     @PutMapping("/{jobPostingId}")
     public JobPostingResponse update(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @Valid @RequestBody WorkspaceJobApplicationRequest request) {
-        return workspaceJobApplicationService.update(
-                writeWorkspaceId(authentication, workspaceSlug), jobPostingId, request);
+        return workspaceJobApplicationService.update(workspaceId, jobPostingId, request);
     }
 
     @PatchMapping("/{jobPostingId}/status")
     public JobPostingResponse changeStatus(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @Valid @RequestBody WorkspaceJobApplicationStatusRequest request) {
-        return workspaceJobApplicationService.changeStatus(
-                writeWorkspaceId(authentication, workspaceSlug), jobPostingId, request);
+        return workspaceJobApplicationService.changeStatus(workspaceId, jobPostingId, request);
     }
 
     @GetMapping("/{jobPostingId}/status-events")
     public List<WorkspaceJobApplicationStatusEventResponse> statusEvents(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long jobPostingId) {
-        return workspaceJobApplicationService.statusEvents(
-                readWorkspaceId(authentication, workspaceSlug), jobPostingId);
+        return workspaceJobApplicationService.statusEvents(workspaceId, jobPostingId);
     }
 
     @DeleteMapping("/{jobPostingId}")
     public ResponseEntity<Void> remove(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId) {
-        workspaceJobApplicationService.remove(
-                writeWorkspaceId(authentication, workspaceSlug), jobPostingId);
+        workspaceJobApplicationService.remove(workspaceId, jobPostingId);
         return ResponseEntity.noContent().build();
-    }
-
-    private Long readWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR,
-                        WorkspaceRole.VIEWER)
-                .getWorkspace()
-                .getId();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
     }
 }

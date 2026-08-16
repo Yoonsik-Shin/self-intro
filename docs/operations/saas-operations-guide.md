@@ -2673,3 +2673,16 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   - `api` 서버에서 `NvidiaNimClient` 직접 호출이 완전히 제거되어 LLM 추론 부하가 `ai-worker`로 100% 격리되었다.
 - **단위 테스트 및 빌드 검증**:
   - `api` 프록시 컨트롤러 테스트 4종 및 `ai-worker` AI 서비스/컨트롤러 단위 테스트 전체 통과 (`./gradlew test`).
+
+### 15.36 `@CurrentWorkspace` HandlerMethodArgumentResolver 도입
+
+- 컨트롤러 전반에 산재해 있던 `readWorkspaceId()`, `writeWorkspaceId()` private 헬퍼 메서드 및 `WorkspaceAccessPolicy` 보일러플레이트를 선언적 어노테이션(`@CurrentWorkspace`) 및 `HandlerMethodArgumentResolver`로 일원화했다.
+- **`@CurrentWorkspace` & `WorkspaceAccessLevel`**:
+  - `WorkspaceAccessLevel.READ` (OWNER, ADMIN, EDITOR, VIEWER)
+  - `WorkspaceAccessLevel.WRITE` (OWNER, ADMIN, EDITOR - 기본값)
+  - `WorkspaceAccessLevel.ADMIN` (OWNER, ADMIN)
+  - `WorkspaceAccessLevel.OWNER` (OWNER)
+- **적용 및 효과**:
+  - URL 경로 변수의 `workspaceSlug`와 Spring Security `Authentication`을 바탕으로 `WorkspaceAccessPolicy`를 자동 검증하고, 검증된 `Long workspaceId`를 컨트롤러 메서드 인자로 직접 주입한다.
+  - 17개 이상의 Workspace 관리 컨트롤러(`Skill`, `Experience`, `Study`, `JobApplication`, `Portfolio`, `Taxonomy`, `PrintTemplate`, `Profile`, `Visitor`, `AiProxy` 등)에서 불필요한 보일러플레이트를 제거하고 일관된 권한 검증 체계를 확립했다.
+

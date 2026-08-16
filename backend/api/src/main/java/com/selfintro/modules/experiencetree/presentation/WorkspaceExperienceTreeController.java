@@ -1,18 +1,17 @@
 package com.selfintro.modules.experiencetree.presentation;
 
+import com.selfintro.global.web.CurrentWorkspace;
+import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.modules.experiencetree.application.ExperienceTreeService;
 import com.selfintro.modules.experiencetree.domain.enums.DecisionDomain;
 import com.selfintro.modules.experiencetree.presentation.dto.DecisionStudyLinkRequest;
 import com.selfintro.modules.experiencetree.presentation.dto.ExperienceTreeResponse;
 import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
 import com.selfintro.modules.identity.publication.application.WorkspacePublishedContentService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +29,6 @@ public class WorkspaceExperienceTreeController {
 
     private final ExperienceTreeService service;
     private final PublicWorkspaceResolver publicWorkspaceResolver;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
     private final WorkspacePublishedContentService publishedContentService;
 
     @GetMapping
@@ -56,74 +54,44 @@ public class WorkspaceExperienceTreeController {
 
     @GetMapping("/manage")
     public ExperienceTreeResponse.Index manageIndex(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @RequestParam(required = false) DecisionDomain domain,
             @RequestParam(required = false, name = "q") String query) {
-        return service.adminIndex(readWorkspaceId(authentication, workspaceSlug), domain, query);
+        return service.adminIndex(workspaceId, domain, query);
     }
 
     @GetMapping("/manage/situations/{stableKey}")
     public ExperienceTreeResponse.Detail manageDetail(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable String stableKey) {
-        return service.adminDetail(readWorkspaceId(authentication, workspaceSlug), stableKey);
+        return service.adminDetail(workspaceId, stableKey);
     }
 
     @PostMapping("/manage/study-links")
     public ResponseEntity<ExperienceTreeResponse.StudyLink> createLink(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody DecisionStudyLinkRequest request) {
         return ResponseEntity.status(201)
-                .body(service.createLink(writeWorkspaceId(authentication, workspaceSlug), request));
+                .body(service.createLink(workspaceId, request));
     }
 
     @PutMapping("/manage/study-links/{id}")
     public ExperienceTreeResponse.StudyLink updateLink(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long id,
             @Valid @RequestBody DecisionStudyLinkRequest request) {
-        return service.updateLink(writeWorkspaceId(authentication, workspaceSlug), id, request);
+        return service.updateLink(workspaceId, id, request);
     }
 
     @DeleteMapping("/manage/study-links/{id}")
     public ResponseEntity<Void> deleteLink(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long id) {
-        service.deleteLink(writeWorkspaceId(authentication, workspaceSlug), id);
+        service.deleteLink(workspaceId, id);
         return ResponseEntity.noContent().build();
     }
 
     private Long publicWorkspaceId(String workspaceSlug) {
         return publicWorkspaceResolver.requireBySlug(workspaceSlug).getId();
-    }
-
-    private Long readWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR,
-                        WorkspaceRole.VIEWER)
-                .getWorkspace()
-                .getId();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
     }
 }

@@ -1,7 +1,7 @@
 package com.selfintro.modules.learningresource.presentation;
 
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
+import com.selfintro.global.web.CurrentWorkspace;
+import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.modules.learningresource.application.LearningResourceService;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourcePriorityTier;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
@@ -16,7 +16,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -34,12 +33,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkspaceLearningResourceController {
 
     private final LearningResourceService learningResourceService;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
 
     @GetMapping
     public LearningResourcePageResponse search(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long taxonomyNodeId,
             @RequestParam(required = false) List<String> tags,
@@ -50,7 +47,7 @@ public class WorkspaceLearningResourceController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         return learningResourceService.searchWorkspace(
-                readWorkspaceId(authentication, workspaceSlug),
+                workspaceId,
                 q,
                 taxonomyNodeId,
                 tags,
@@ -64,91 +61,54 @@ public class WorkspaceLearningResourceController {
 
     @GetMapping("/catalog")
     public List<LearningResourceCatalogResponse> catalog(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @RequestParam(required = false) String q) {
-        return learningResourceService.listCatalog(
-                readWorkspaceId(authentication, workspaceSlug), q);
+        return learningResourceService.listCatalog(workspaceId, q);
     }
 
     @GetMapping("/graph")
     public LearningResourceGraphResponse graph(
-            Authentication authentication, @PathVariable String workspaceSlug) {
-        return learningResourceService.findWorkspaceGraph(
-                readWorkspaceId(authentication, workspaceSlug));
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
+        return learningResourceService.findWorkspaceGraph(workspaceId);
     }
 
     @GetMapping("/{resourceId}")
     public LearningResourceResponse get(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long resourceId) {
-        return learningResourceService.getWorkspace(
-                readWorkspaceId(authentication, workspaceSlug), resourceId);
+        return learningResourceService.getWorkspace(workspaceId, resourceId);
     }
 
     @PostMapping("/{resourceId}")
     public LearningResourceResponse add(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long resourceId,
             @Valid @RequestBody WorkspaceLearningResourceRequest request) {
-        return learningResourceService.addToWorkspace(
-                writeWorkspaceId(authentication, workspaceSlug), resourceId, request);
+        return learningResourceService.addToWorkspace(workspaceId, resourceId, request);
     }
 
     @PutMapping("/{resourceId}")
     public LearningResourceResponse update(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long resourceId,
             @Valid @RequestBody WorkspaceLearningResourceRequest request) {
-        return learningResourceService.updateWorkspace(
-                writeWorkspaceId(authentication, workspaceSlug), resourceId, request);
+        return learningResourceService.updateWorkspace(workspaceId, resourceId, request);
     }
 
     @PatchMapping("/{resourceId}/status")
     public LearningResourceResponse updateStatus(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long resourceId,
             @Valid @RequestBody LearningResourceStatusRequest request) {
         return learningResourceService.updateWorkspaceStatus(
-                writeWorkspaceId(authentication, workspaceSlug), resourceId, request.status());
+                workspaceId, resourceId, request.status());
     }
 
     @DeleteMapping("/{resourceId}")
     public ResponseEntity<Void> remove(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long resourceId) {
-        learningResourceService.removeFromWorkspace(
-                writeWorkspaceId(authentication, workspaceSlug), resourceId);
+        learningResourceService.removeFromWorkspace(workspaceId, resourceId);
         return ResponseEntity.noContent().build();
-    }
-
-    private Long readWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR,
-                        WorkspaceRole.VIEWER)
-                .getWorkspace()
-                .getId();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
     }
 }

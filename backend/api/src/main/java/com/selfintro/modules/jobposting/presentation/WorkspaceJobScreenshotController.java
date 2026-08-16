@@ -1,14 +1,12 @@
 package com.selfintro.modules.jobposting.presentation;
 
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
+import com.selfintro.global.web.CurrentWorkspace;
 import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobScreenshotUploadRequest;
 import com.selfintro.modules.jobposting.presentation.dto.WorkspaceJobScreenshotUploadResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,34 +21,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkspaceJobScreenshotController {
 
     private final WorkspaceJobScreenshotUploadService uploadService;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
 
     @PostMapping
     public WorkspaceJobScreenshotUploadResponse issue(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @Valid @RequestBody WorkspaceJobScreenshotUploadRequest request) {
-        return uploadService.issue(writeWorkspaceId(authentication, workspaceSlug), request);
+        return uploadService.issue(workspaceId, request);
     }
 
     @DeleteMapping("/{uploadId}")
     public ResponseEntity<Void> cancel(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable String uploadId) {
-        uploadService.cancel(writeWorkspaceId(authentication, workspaceSlug), uploadId);
+        uploadService.cancel(workspaceId, uploadId);
         return ResponseEntity.noContent().build();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
     }
 }

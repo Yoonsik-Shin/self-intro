@@ -1,7 +1,7 @@
 package com.selfintro.modules.jobposting.presentation;
 
-import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
-import com.selfintro.modules.identity.domain.WorkspaceRole;
+import com.selfintro.global.web.CurrentWorkspace;
+import com.selfintro.global.web.WorkspaceAccessLevel;
 import com.selfintro.modules.jobposting.application.WorkspaceJobApplicationCoverLetterService;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterItemResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterRevisionResponse;
@@ -9,7 +9,6 @@ import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSa
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -24,59 +23,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkspaceJobCoverLetterController {
 
     private final WorkspaceJobApplicationCoverLetterService coverLetterService;
-    private final WorkspaceAccessPolicy workspaceAccessPolicy;
 
     @GetMapping
     public List<JobPostingCoverLetterItemResponse> list(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long jobPostingId) {
-        return coverLetterService.list(
-                readWorkspaceId(authentication, workspaceSlug), jobPostingId);
+        return coverLetterService.list(workspaceId, jobPostingId);
     }
 
     @PutMapping
     public List<JobPostingCoverLetterItemResponse> replace(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace Long workspaceId,
             @PathVariable Long jobPostingId,
             @Valid @RequestBody JobPostingCoverLetterSaveRequest request) {
-        return coverLetterService.replace(
-                writeWorkspaceId(authentication, workspaceSlug), jobPostingId, request);
+        return coverLetterService.replace(workspaceId, jobPostingId, request);
     }
 
     @GetMapping("/{itemId}/revisions")
     public List<JobPostingCoverLetterRevisionResponse> revisions(
-            Authentication authentication,
-            @PathVariable String workspaceSlug,
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long jobPostingId,
             @PathVariable Long itemId) {
-        return coverLetterService.revisions(
-                readWorkspaceId(authentication, workspaceSlug), jobPostingId, itemId);
-    }
-
-    private Long readWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR,
-                        WorkspaceRole.VIEWER)
-                .getWorkspace()
-                .getId();
-    }
-
-    private Long writeWorkspaceId(Authentication authentication, String workspaceSlug) {
-        return workspaceAccessPolicy
-                .requireAnyRole(
-                        authentication,
-                        workspaceSlug,
-                        WorkspaceRole.OWNER,
-                        WorkspaceRole.ADMIN,
-                        WorkspaceRole.EDITOR)
-                .getWorkspace()
-                .getId();
+        return coverLetterService.revisions(workspaceId, jobPostingId, itemId);
     }
 }
