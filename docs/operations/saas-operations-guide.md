@@ -108,15 +108,13 @@ Workspace 집계를 함께 갱신한다. `/api/workspaces/{slug}/visits/manage/*
 - V205 자기소개서 문항·답변을 `workspace_job_application` 자식으로 backfill하고 revision FK를
   연결. `/api/workspaces/{slug}/job-applications/manage/{postingId}/cover-letter-items`에서
   Membership과 지원 건 소유권을 검증하며 수동 작성 UI를 일반 Workspace에 개방
-- 기존 `/api/worker/job-postings/**` 자기소개서·Gap 경로는 bootstrap Workspace 호환용으로만
-  유지하고 플랫폼 운영자에게만 허용
 - Workspace 자기소개서 AI는
-  `/api/worker/workspaces/{slug}/job-applications/manage/{postingId}/generate-cover-letter-draft`에서
+  `/api/workspaces/{slug}/job-applications/manage/{postingId}/generate-cover-letter-draft`에서
   지원 건·문항과 경력 RAG의 Workspace를 검증한 뒤 일반 Workspace에 개방
 - V206은 어필 분석을 `workspace_job_application`에 저장하고 Gap 문서를 지원 건 하위로 backfill한다.
   Gap 생성도 명시적 Workspace 경력 RAG만 사용한다.
 - 채용공고 PDF AI 초안은
-  `/api/worker/workspaces/{slug}/job-applications/manage/{postingId}/print-template-draft/stream`에서
+  `/api/workspaces/{slug}/job-applications/manage/{postingId}/print-template-draft/stream`에서
   Workspace 지원 건을 확인하고 해당 Workspace의 이력·벡터만 사용한다. 재생성은 같은 Workspace와
   같은 지원 공고에 연결된 PrintTemplate만 허용한다.
 - 최종 제출 PDF는 `/api/workspaces/{slug}/print-templates/manage/job-applications/**`에서 지원 건과
@@ -125,7 +123,7 @@ Workspace 집계를 함께 갱신한다. `/api/workspaces/{slug}/visits/manage/*
   PrintTemplate CRUD·출력 UI는 일반 Workspace에 개방하되 명시적 Workspace 계약이 없는 Portfolio AI
   revision 버튼은 플랫폼 역할 여부와 무관하게 관리 셸에서 비활성화한다.
 - Workspace 적합도 재계산은
-  `POST /api/worker/workspaces/{slug}/job-applications/manage/{postingId}/rematch`만 canonical 경로로
+  `POST /api/workspaces/{slug}/job-applications/manage/{postingId}/rematch`만 canonical 경로로
   사용한다. `OWNER`, `ADMIN`, `EDITOR` Membership을 확인하고 해당 Workspace의 `workspace_skill`만
   입력으로 사용하며 결과는 `workspace_job_application`에 저장한다. `job_posting_vector`는 공고 원문
   catalog 벡터이므로 `workspace_id`가 없는 것이 정상이다. 공용 수집·등록·새로고침에서 개인화 점수를
@@ -1915,10 +1913,10 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
 - `공고 가져오기`는 V223의 재노출 권한 심사를 통과한 공통 공고 검색과 Workspace 비공개 원본 등록을
   명확히 분리한다. 공통 공고는 플랫폼 원본을 참조하고, URL·직접 입력은 V224의
   `owner_workspace_id`와 `scope_key=WORKSPACE:{id}`가 설정된 별도 원본을 만든다.
-- URL 가져오기는 `POST /api/worker/workspaces/{slug}/job-applications/manage/parse-url`에서
+- URL 가져오기는 `POST /api/workspaces/{slug}/job-applications/manage/parse-url`에서
   Membership 쓰기 권한을 먼저 검사하고 저장 없이 해석 결과만 반환한다. 사용자가 원문과 결과를
   검토한 뒤 `POST .../private-sources`를 호출해야 비공개 원본과 지원 건이 함께 생성된다. 전역
-  `/api/worker/job-postings/parse-url` 또는 운영자용 ingest API를 일반 사용자 UI에서 호출하지 않는다.
+  `/api/admin/job-postings/parse-url` 또는 운영자용 ingest API를 일반 사용자 UI에서 호출하지 않는다.
 - 같은 Workspace와 URL 조합은 하나의 비공개 원본만 가진다. 지원 목록에서 제외하면 지원 건과 그
   하위 상태·자기소개서만 제거되고 원본은 남는다. 다시 가져올 때 기존 비공개 원본의 최신 입력값을
   갱신하고 새 지원 건을 연결하므로 중복 원본과 재등록 막힘이 생기지 않는다.
@@ -2643,3 +2641,14 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - `:ai-worker`는 도메인 엔티티 및 gRPC proto를 공유하기 위해 `:api`의 plain jar를 참조(`api project(':api')`)하도록 정리했다.
 - 백엔드 모듈 빌드 및 테스트 단위는 `:api:test :ai-worker:test`로 확정되었으며, `Dockerfile.api` 및 `Dockerfile.worker`의 빌드 단계와 불필요한 의존성(API 컨테이너 내 Playwright 설치 등)을 제거하여 최적화했다.
 - 전체 빌드 및 테스트 검증: `./gradlew clean compileJava compileTestJava`, `./gradlew test`, `./gradlew spotlessCheck` 성공.
+
+### 15.34 Ingress Gateway 기반 API 라우팅 일원화 (/api/worker 제거)
+
+- 백엔드 서비스 분기(API vs AI-Worker)에 따라 클라이언트에 노출되던 `/api/worker/**` 경로 접두사를 완전히 제거하고, 단일 `/api/**` 엔드포인트 뒤로 게이트웨이 추상화를 적용했다.
+- `ai-worker` 모듈의 Controller 경로를 표준 REST 리소스 체계(`/api/workspaces/...`, `/api/admin/job-postings`)로 정리했다:
+  - `WorkspaceJobPrintDraftController`, `PortfolioPrintDraftController`: SSE 초안 스트리밍 경로 일원화
+  - `WorkspaceCoverLetterDraftAiController`, `WorkspaceJobAppealAiController`, `WorkspaceGapProjectDocumentController`, `WorkspaceJobApplicationMatchingController`: Workspace Job Application 관리 엔드포인트로 통합
+  - `WorkspaceJobPrivateSourceParseController`: Workspace 전용 URL/스크린샷 파싱 엔드포인트로 통합
+  - `JobPostingController`: 공용 공고 수집/인제스트/백필을 `/api/admin/job-postings`로 일원화
+- K8s Ingress(`deploy/k8s/overlays/prod/backend/ingress.yaml`) 및 로컬 Nginx(`docker/nginx/nginx.conf`)에서 AI 생성/스트리밍/크롤링 패턴을 L7 정규식으로 감지하여 `backend-worker:8081`로 투명하게 프록시하고, 일반 CRUD는 `backend:8080`으로 라우팅하도록 구성했다.
+- 프론트엔드 API 클라이언트(`jobPosting.ts`, `portfolioPrintDraft.ts`)와 `SecurityConfig` 인가 규칙을 통일된 `/api/**` 경로로 동기화했다.
