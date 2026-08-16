@@ -56,8 +56,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile.api
     container_name: self-intro-backend
-    # 8080은 더 이상 호스트에 직접 노출하지 않는다 — nginx(로컬 전용 경로 라우팅)가 대신 8080을
-    # 잡고 /api/worker/**는 backend-worker로, 나머지는 이 컨테이너로 넘긴다. 컨테이너 간 통신은
+    # 8080은 더 이상 호스트에 직접 노출하지 않는다 — nginx(로컬 Ingress Gateway)가 대신 8080을
+    # 잡고 AI/스트리밍 경로는 backend-worker로, 나머지는 이 컨테이너로 넘긴다. 컨테이너 간 통신은
     # 그대로 backend:8080으로 붙는다(예: frontend-next의 API_INTERNAL_BASE_URL).
     env_file:
       - .env

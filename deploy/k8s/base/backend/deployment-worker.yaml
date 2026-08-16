@@ -67,8 +67,8 @@ spec:
                 secretKeyRef:
                   name: backend-db-secret
                   key: DB_DRIVER
-            # 어드민 로그인 계정 — worker가 /api/worker/job-postings와 Workspace StudyPlan을
-            # 직접 서빙하게 되면서(2026-08 ingress prefix 라우팅) 필요해졌다.
+            # 어드민 로그인 계정 — worker가 /api/admin/job-postings와 Workspace StudyPlan을
+            # 직접 서빙하게 되면서(2026-08 Ingress Gateway L7 라우팅) 필요해졌다.
             - name: ADMIN_USERNAME
               valueFrom:
                 secretKeyRef:
