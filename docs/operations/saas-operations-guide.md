@@ -2642,13 +2642,19 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 백엔드 모듈 빌드 및 테스트 단위는 `:api:test :ai-worker:test`로 확정되었으며, `Dockerfile.api` 및 `Dockerfile.worker`의 빌드 단계와 불필요한 의존성(API 컨테이너 내 Playwright 설치 등)을 제거하여 최적화했다.
 - 전체 빌드 및 테스트 검증: `./gradlew clean compileJava compileTestJava`, `./gradlew test`, `./gradlew spotlessCheck` 성공.
 
-### 15.34 Ingress Gateway 기반 API 라우팅 일원화 (/api/worker 제거)
+### 15.34 Backend 단일 진입점 및 Worker 내부망 완전 격리 (내부 위임 아키텍처)
 
-- 백엔드 서비스 분기(API vs AI-Worker)에 따라 클라이언트에 노출되던 `/api/worker/**` 경로 접두사를 완전히 제거하고, 단일 `/api/**` 엔드포인트 뒤로 게이트웨이 추상화를 적용했다.
-- `ai-worker` 모듈의 Controller 경로를 표준 REST 리소스 체계(`/api/workspaces/...`, `/api/admin/job-postings`)로 정리했다:
-  - `WorkspaceJobPrintDraftController`, `PortfolioPrintDraftController`: SSE 초안 스트리밍 경로 일원화
-  - `WorkspaceCoverLetterDraftAiController`, `WorkspaceJobAppealAiController`, `WorkspaceGapProjectDocumentController`, `WorkspaceJobApplicationMatchingController`: Workspace Job Application 관리 엔드포인트로 통합
-  - `WorkspaceJobPrivateSourceParseController`: Workspace 전용 URL/스크린샷 파싱 엔드포인트로 통합
-  - `JobPostingController`: 공용 공고 수집/인제스트/백필을 `/api/admin/job-postings`로 일원화
-- K8s Ingress(`deploy/k8s/overlays/prod/backend/ingress.yaml`) 및 로컬 Nginx(`docker/nginx/nginx.conf`)에서 AI 생성/스트리밍/크롤링 패턴을 L7 정규식으로 감지하여 `backend-worker:8081`로 투명하게 프록시하고, 일반 CRUD는 `backend:8080`으로 라우팅하도록 구성했다.
-- 프론트엔드 API 클라이언트(`jobPosting.ts`, `portfolioPrintDraft.ts`)와 `SecurityConfig` 인가 규칙을 통일된 `/api/**` 경로로 동기화했다.
+- `backend-worker`를 외부 인터넷 및 Ingress에서 100% 격리(Private Network / ClusterIP)하고, `backend`(API 서버)가 모든 외부 트래픽(`/api/**`)의 단일 진입점(Entrypoint)이 되도록 아키텍처를 개편했다.
+- **Ingress / Nginx 라우팅 단순화**:
+  - Ingress(`deploy/k8s/overlays/prod/backend/ingress.yaml`) 및 Nginx(`docker/nginx/nginx.conf`)에서 복잡한 L7 정규식과 Worker 라우팅 분기를 모두 제거하고, 모든 `/` 트래픽을 `backend:8080` 단일 대상으로 라우팅하도록 단순화했다.
+  - 외부에서 `backend-worker`로의 직접 접근 경로가 원천 차단되었다.
+- **인증/인가 중앙화 및 내부 위임 (`AiWorkerClient`)**:
+  - `backend` 모듈에서 모든 사용자 세션, CSRF, Workspace 권한(`WorkspaceAccessPolicy`), 관리자 인가(`ADMIN` 역할), 최근 재인증(`RecentReauthenticationPolicy`)을 일괄 검증한다.
+  - `backend`의 Proxy Controller(`WorkspaceJobApplicationAiProxyController`, `WorkspacePortfolioCaseStudyPrintDraftProxyController`, `AdminJobPostingAiProxyController`, `VectorSyncProxyController`)가 `AiWorkerClient`를 통해 k8s 내부망(`http://self-intro-backend-worker:8081/internal/...` 및 `grpc:9090`)으로 작업을 전달한다.
+  - AI 초안 생성 및 공고 수집 등의 SSE(Server-Sent Events) 스트리밍은 `AiWorkerClient.pipePost`와 Spring `StreamingResponseBody`를 통해 `backend`가 Worker 스트림을 클라이언트로 무지연 중계(Zero-delay Relay)한다.
+- **`ai-worker` 내부 전용 서비스 경량화**:
+  - `ai-worker`의 컨트롤러는 `@RequestMapping("/internal/...")` 전용 엔드포인트로 정리되었으며, `Authentication`이나 `WorkspaceAccessPolicy` 의존성 없이 내부 `workspaceId`로 직접 동작하는 순수 연산 Worker로 격리되었다.
+- **배포 환경 설정**:
+  - K8s ConfigMap: `WORKER_BASE_URL=http://self-intro-backend-worker:8081`
+  - Docker Compose: `WORKER_BASE_URL=http://backend-worker:8081`
+  - Local default: `http://localhost:8081`
