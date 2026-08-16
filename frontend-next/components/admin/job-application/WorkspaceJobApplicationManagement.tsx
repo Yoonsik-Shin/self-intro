@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { jobPostingApi } from '@/lib/api';
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+import { PaginationControls } from '@/components/common/PaginationControls';
 import { WorkspacePrivateJobImport } from './WorkspacePrivateJobImport';
 import JobPostingMapView from './JobPostingMapView';
 import type {
@@ -138,19 +139,32 @@ export function WorkspaceJobApplicationManagement({
         return new Date(now.getFullYear(), now.getMonth(), 1);
     });
     const [search, setSearch] = useState('');
+    const [catalogPage, setCatalogPage] = useState(0);
     const [editor, setEditor] = useState<EditorState | null>(null);
     const mineKey = ['job-applications', 'workspace', workspaceSlug];
-    const catalogKey = ['job-applications', 'catalog', workspaceSlug];
+    const catalogKey = [
+        'job-applications',
+        'catalog',
+        workspaceSlug,
+        { q: search.trim(), page: catalogPage },
+    ];
     const mapSettingKey = ['job-applications', 'workspace', workspaceSlug, 'map-setting'];
 
     const { data: applications = [], isLoading: applicationsLoading } = useQuery({
         queryKey: mineKey,
         queryFn: () => jobPostingApi.workspaceList(workspaceSlug),
     });
-    const { data: catalog = [], isLoading: catalogLoading } = useQuery({
+    const { data: catalogPageData, isLoading: catalogLoading } = useQuery({
         queryKey: catalogKey,
-        queryFn: () => jobPostingApi.workspaceCatalog(workspaceSlug),
+        queryFn: () =>
+            jobPostingApi.workspaceCatalog(workspaceSlug, {
+                q: search.trim() || undefined,
+                page: catalogPage,
+                size: 20,
+            }),
+        enabled: mode === 'CATALOG' && catalogSourceMode === 'SHARED',
     });
+    const catalog = catalogPageData?.content ?? [];
     const { data: mapLocation = null } = useQuery({
         queryKey: mapSettingKey,
         queryFn: () => jobPostingApi.workspaceMapSetting(workspaceSlug),
@@ -170,7 +184,9 @@ export function WorkspaceJobApplicationManagement({
     const invalidate = async () => {
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: mineKey }),
-            queryClient.invalidateQueries({ queryKey: catalogKey }),
+            queryClient.invalidateQueries({
+                queryKey: ['job-applications', 'catalog', workspaceSlug],
+            }),
         ]);
     };
 
@@ -260,10 +276,7 @@ export function WorkspaceJobApplicationManagement({
             statusFilter,
         ]
     );
-    const filteredCatalog = useMemo(
-        () => catalog.filter((posting) => matches(posting, normalized)),
-        [catalog, normalized]
-    );
+    const filteredCatalog = catalog;
     const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth]);
     const deadlineApplicationsByDate = useMemo(() => {
         const result = new Map<string, JobPosting[]>();
@@ -383,7 +396,10 @@ export function WorkspaceJobApplicationManagement({
                     <Search className="h-4 w-4 shrink-0 text-slate-400" />
                     <input
                         value={search}
-                        onChange={(event) => setSearch(event.target.value)}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setCatalogPage(0);
+                        }}
                         placeholder="회사·직무·지역 검색"
                         className="w-full min-w-0 bg-transparent text-sm outline-none"
                     />
@@ -581,78 +597,88 @@ export function WorkspaceJobApplicationManagement({
                     }}
                 />
             ) : (
-                <section className="grid gap-3 xl:grid-cols-2">
-                    {catalogLoading ? (
-                        <Empty label="공통 공고를 불러오는 중입니다." />
-                    ) : filteredCatalog.length === 0 ? (
-                        <Empty
-                            label={
-                                catalog.length === 0
-                                    ? '공통 공고가 없습니다.'
-                                    : '검색 결과가 없습니다.'
-                            }
-                            action="URL 가져오기 또는 직접 입력을 사용하면 현재 Workspace에만 비공개로 저장할 수 있습니다."
-                        />
-                    ) : (
-                        filteredCatalog.map((posting) => (
-                            <article
-                                key={posting.id}
-                                className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                            >
-                                <div>
-                                    <p className="text-xs font-bold text-slate-400">
-                                        {posting.location || '지역 미정'} ·{' '}
-                                        {posting.employmentType || '고용 형태 미정'}
-                                    </p>
-                                    <h3 className="mt-2 text-base font-black text-slate-900">
-                                        {posting.companyName}
-                                    </h3>
-                                    <p className="mt-1 text-sm font-bold text-slate-600">
-                                        {posting.positionTitle}
-                                    </p>
-                                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
-                                        <span>
-                                            {posting.alwaysOpen
-                                                ? '상시 채용'
-                                                : `마감 ${posting.deadline || '미정'}`}
-                                        </span>
-                                        {posting.source && (
-                                            <>
-                                                <span aria-hidden="true">·</span>
-                                                <span>{posting.source}</span>
-                                            </>
-                                        )}
+                <section className="space-y-4">
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        {catalogLoading ? (
+                            <Empty label="공통 공고를 불러오는 중입니다." />
+                        ) : filteredCatalog.length === 0 ? (
+                            <Empty
+                                label={
+                                    catalog.length === 0
+                                        ? '공통 공고가 없습니다.'
+                                        : '검색 결과가 없습니다.'
+                                }
+                                action="URL 가져오기 또는 직접 입력을 사용하면 현재 Workspace에만 비공개로 저장할 수 있습니다."
+                            />
+                        ) : (
+                            filteredCatalog.map((posting) => (
+                                <article
+                                    key={posting.id}
+                                    className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                                >
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400">
+                                            {posting.location || '지역 미정'} ·{' '}
+                                            {posting.employmentType || '고용 형태 미정'}
+                                        </p>
+                                        <h3 className="mt-2 text-base font-black text-slate-900">
+                                            {posting.companyName}
+                                        </h3>
+                                        <p className="mt-1 text-sm font-bold text-slate-600">
+                                            {posting.positionTitle}
+                                        </p>
+                                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+                                            <span>
+                                                {posting.alwaysOpen
+                                                    ? '상시 채용'
+                                                    : `마감 ${posting.deadline || '미정'}`}
+                                            </span>
+                                            {posting.source && (
+                                                <>
+                                                    <span aria-hidden="true">·</span>
+                                                    <span>{posting.source}</span>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                                    {posting.postingUrl ? (
-                                        <a
-                                            href={posting.postingUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                                            aria-label={`${posting.companyName} ${posting.positionTitle} 원본 공고 열기`}
+                                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                        {posting.postingUrl ? (
+                                            <a
+                                                href={posting.postingUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                                                aria-label={`${posting.companyName} ${posting.positionTitle} 원본 공고 열기`}
+                                            >
+                                                <ExternalLink className="h-4 w-4" />
+                                                원본 보기
+                                            </a>
+                                        ) : (
+                                            <span className="flex items-center justify-center rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-400">
+                                                원본 링크 없음
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            disabled={posting.saved || saveMutation.isPending}
+                                            onClick={() => saveMutation.mutate(posting)}
+                                            className="flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                                         >
-                                            <ExternalLink className="h-4 w-4" />
-                                            원본 보기
-                                        </a>
-                                    ) : (
-                                        <span className="flex items-center justify-center rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-400">
-                                            원본 링크 없음
-                                        </span>
-                                    )}
-                                    <button
-                                        type="button"
-                                        disabled={posting.saved || saveMutation.isPending}
-                                        onClick={() => saveMutation.mutate(posting)}
-                                        className="flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        {posting.saved ? '이미 가져옴' : '내 지원으로 가져오기'}
-                                    </button>
-                                </div>
-                            </article>
-                        ))
+                                            <Plus className="h-4 w-4" />
+                                            {posting.saved ? '이미 가져옴' : '내 지원으로 가져오기'}
+                                        </button>
+                                    </div>
+                                </article>
+                            ))
+                        )}
+                    </div>
+                    {catalogPageData && catalogPageData.totalPages > 1 && (
+                        <PaginationControls
+                            page={catalogPage}
+                            totalPages={catalogPageData.totalPages}
+                            totalElements={catalogPageData.totalElements}
+                            onPageChange={setCatalogPage}
+                        />
                     )}
                 </section>
             )}

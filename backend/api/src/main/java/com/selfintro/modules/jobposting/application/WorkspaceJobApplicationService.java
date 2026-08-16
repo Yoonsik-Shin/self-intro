@@ -25,7 +25,6 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -77,33 +76,31 @@ public class WorkspaceJobApplicationService {
         return toResponse(findApplication(workspaceId, jobPostingId));
     }
 
-    public List<JobPostingCatalogResponse> catalog(Long workspaceId, String keyword) {
+    public org.springframework.data.domain.Page<JobPostingCatalogResponse> catalog(
+            Long workspaceId,
+            String keyword,
+            org.springframework.data.domain.Pageable pageable) {
         Set<Long> savedIds =
                 workspaceJobApplicationRepository
                         .findAllByWorkspaceIdOrderByUpdatedAtDesc(workspaceId)
                         .stream()
                         .map(application -> application.getJobPosting().getId())
                         .collect(java.util.stream.Collectors.toSet());
-        String normalized =
-                StringUtils.hasText(keyword) ? keyword.trim().toLowerCase(Locale.ROOT) : null;
         LocalDateTime now = LocalDateTime.now();
-        return jobPostingRepository.findAllByOwnerWorkspaceIdIsNull().stream()
-                .filter(posting -> posting.isSharedCatalogEligible(now))
-                .filter(
-                        posting ->
-                                normalized == null
-                                        || contains(posting.getCompanyName(), normalized)
-                                        || contains(posting.getPositionTitle(), normalized)
-                                        || contains(posting.getJobDescription(), normalized))
-                .sorted(
-                        java.util.Comparator.comparing(JobPosting::getCreatedAt)
-                                .reversed()
-                                .thenComparing(JobPosting::getId))
+        return jobPostingRepository
+                .findSharedCatalog(keyword, now, pageable)
                 .map(
                         posting ->
                                 JobPostingCatalogResponse.from(
-                                        posting, savedIds.contains(posting.getId())))
-                .toList();
+                                        posting, savedIds.contains(posting.getId())));
+    }
+
+    public List<JobPostingCatalogResponse> catalog(Long workspaceId, String keyword) {
+        return catalog(
+                        workspaceId,
+                        keyword,
+                        org.springframework.data.domain.Pageable.unpaged())
+                .getContent();
     }
 
     @Transactional
@@ -332,10 +329,6 @@ public class WorkspaceJobApplicationService {
                         posting.getId()),
                 positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),
                 sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()));
-    }
-
-    private boolean contains(String source, String lowerCaseNeedle) {
-        return source != null && source.toLowerCase(Locale.ROOT).contains(lowerCaseNeedle);
     }
 
     private String blankToNull(String value) {

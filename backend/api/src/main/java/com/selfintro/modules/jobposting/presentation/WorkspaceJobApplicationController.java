@@ -40,10 +40,15 @@ public class WorkspaceJobApplicationController {
     }
 
     @GetMapping("/catalog")
-    public List<JobPostingCatalogResponse> catalog(
+    public org.springframework.data.domain.Page<JobPostingCatalogResponse> catalog(
             @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
-            @RequestParam(required = false) String q) {
-        return workspaceJobApplicationService.catalog(workspaceId, q);
+            @RequestParam(required = false) String q,
+            @org.springframework.data.web.PageableDefault(
+                            size = 20,
+                            sort = "createdAt",
+                            direction = org.springframework.data.domain.Sort.Direction.DESC)
+                    org.springframework.data.domain.Pageable pageable) {
+        return workspaceJobApplicationService.catalog(workspaceId, q, pageable);
     }
 
     @GetMapping("/map-setting")

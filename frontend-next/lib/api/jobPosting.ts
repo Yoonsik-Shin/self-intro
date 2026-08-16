@@ -56,11 +56,20 @@ export const jobPostingApi = {
         request<JobPosting[]>(
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage`
         ),
-    workspaceCatalog: (workspaceSlug: string, q?: string) => {
+    workspaceCatalog: (
+        workspaceSlug: string,
+        params?: { q?: string; page?: number; size?: number; sort?: string; direction?: string }
+    ) => {
         const search = new URLSearchParams();
-        if (q) search.set('q', q);
-        return request<JobPostingCatalogItem[]>(
-            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/catalog?${search}`
+        if (params?.q) search.set('q', params.q);
+        if (params?.page !== undefined) search.set('page', String(params.page));
+        if (params?.size !== undefined) search.set('size', String(params.size));
+        if (params?.sort) {
+            search.set('sort', `${params.sort},${params.direction || 'DESC'}`);
+        }
+        const query = search.toString();
+        return request<import('./types').PageResponse<JobPostingCatalogItem>>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/catalog${query ? `?${query}` : ''}`
         );
     },
     workspaceMapSetting: (workspaceSlug: string) =>

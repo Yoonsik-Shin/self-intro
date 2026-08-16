@@ -57,7 +57,11 @@ class WorkspaceJobApplicationPermissionTest {
 
     @Test
     void catalogHidesPostingWithoutRedistributionEvidence() {
-        when(jobPostingRepository.findAllByOwnerWorkspaceIdIsNull()).thenReturn(List.of(posting()));
+        when(jobPostingRepository.findSharedCatalog(
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of()));
 
         assertThat(service.catalog(7L, null)).isEmpty();
     }
@@ -78,8 +82,11 @@ class WorkspaceJobApplicationPermissionTest {
                 now.plusDays(30),
                 1L,
                 now);
-        when(jobPostingRepository.findAllByOwnerWorkspaceIdIsNull())
-                .thenReturn(List.of(posting(), approved));
+        when(jobPostingRepository.findSharedCatalog(
+                        org.mockito.ArgumentMatchers.eq("테스트"),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(approved)));
 
         assertThat(service.catalog(7L, "테스트"))
                 .singleElement()

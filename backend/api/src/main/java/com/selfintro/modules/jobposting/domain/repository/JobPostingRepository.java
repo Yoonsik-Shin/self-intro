@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
+public interface JobPostingRepository
+        extends JpaRepository<JobPosting, Long>, JobPostingRepositoryCustom {
 
     boolean existsByPostingUrl(String postingUrl);
 
