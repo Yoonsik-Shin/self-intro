@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { OutputLayout } from '@/lib/printLayoutModel';
 import type { PrintTemplateContentOverrides } from '@/lib/api/types';
+import { randomId } from '@/lib/uuid';
 
 export type LocalPrintSave = {
     id: string;
@@ -94,7 +95,7 @@ export function saveLocal(save: Omit<LocalPrintSave, 'id' | 'savedAt'>): LocalPr
         // 새로 생성
         entry = {
             ...save,
-            id: crypto.randomUUID(),
+            id: randomId(),
             savedAt: new Date().toISOString(),
         };
         const next = [entry, ...existing];

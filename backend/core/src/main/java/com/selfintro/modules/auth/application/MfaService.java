@@ -33,6 +33,11 @@ public class MfaService {
     @Value("${app.security.mfa.recovery-session-valid-for:15m}")
     private Duration recoverySessionValidFor;
 
+    // 로컬 docker-compose 개발 편의용 — 기본값 false. 운영 배포 매니페스트엔 이 값을
+    // 채우는 MFA_SKIP_IN_DEV 환경변수가 없으므로 항상 false로 남아 MFA가 강제된다.
+    @Value("${app.security.mfa.skip-in-dev:false}")
+    private boolean skipMfaInDev;
+
     public Enrollment beginEnrollment(AppUserPrincipal principal, HttpSession session) {
         requirePlatformAccount(principal);
         if (principal.mfaEnabled()) {
@@ -152,6 +157,9 @@ public class MfaService {
     }
 
     public boolean requiresLoginMfa(AppUserPrincipal principal) {
+        if (skipMfaInDev) {
+            return false;
+        }
         return !principal.platformRoles().isEmpty() && principal.mfaEnabled();
     }
 

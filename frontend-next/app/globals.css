@@ -712,6 +712,15 @@ body {
     pointer-events: auto !important;
 }
 
+/* 터치 기기는 hover 상태를 만들 수 없어 위 규칙이 절대 안 걸린다. 모든 요소에 항상
+   노출하면 촘촘히 쌓인 항목끼리 컨트롤이 겹쳐 클릭이 안 먹는 문제가 생기므로, 탭한
+   요소 하나에만 [data-print-active]를 붙여(PrintCanvas의 위임 클릭 핸들러) 그 요소의
+   컨트롤만 노출한다. */
+[data-print-el][data-print-active] > .pp-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
 /* .pp-controls는 position:absolute라 시각적으로는 공간을 차지하지 않지만, Tailwind의 space-y-*
    유틸리티는 :not([hidden]) 형제 셀렉터로 margin-top을 계산하기 때문에 실제로 있는 것처럼 카운트되어
    버튼 뒤에 이어지는 진짜 콘텐츠(카드)에 원치 않는 margin-top이 붙는다.

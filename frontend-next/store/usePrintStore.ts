@@ -4,11 +4,17 @@ import {
     clearAtomPlacements,
     createDefaultOutputLayout,
     createOutputLayoutFromLegacy,
+    forceAtomsIntoRegion,
     forceAtomsToPage,
+    forceAtomsNextToRow,
     addOutputRow,
+    insertAtomsIntoOutputRegion,
+    insertAtomsNextToRow,
+    mergeAdjacentSingleColumnRows,
+    moveRowNextToAtom,
+    moveSectionRows,
     placeAtomsInOutputRegion,
     placeAtomsInOutputRegionById,
-    removeOutputRow,
     replaceOutputPageComposition,
     resizeOutputRegionPair,
     normalizeOutputLayout,
@@ -65,17 +71,41 @@ type PrintState = {
     setSectionGaps: (gaps: Record<string, number>) => void;
     setLineHeight: (value: number) => void;
     forcePage: (ids: string[], pageIndex: number) => void;
+    forceIntoRegion: (
+        ids: string[],
+        regionId: string,
+        anchor: { atomId: string; position: 'before' | 'after' } | null
+    ) => void;
+    forceNextToRow: (ids: string[], targetRowId: string, position: 'before' | 'after') => void;
     clearForcedPage: (ids: string[]) => void;
     setForcedPageOverrides: (overrides: Record<string, number>) => void;
     setOutputLayout: (layout: OutputLayout) => void;
     setPageLayoutMode: (pageIndex: number, mode: OutputLayoutMode) => void;
     placeAtomsInRegion: (ids: string[], pageIndex: number, regionKind: OutputRegionKind) => void;
     placeAtomsInRegionById: (ids: string[], regionId: string) => void;
+    insertAtomsIntoRegion: (
+        ids: string[],
+        regionId: string,
+        anchor: { atomId: string; position: 'before' | 'after' } | null
+    ) => void;
+    moveRowToAtom: (
+        rowId: string,
+        anchor: { atomId: string; position: 'before' | 'after' }
+    ) => void;
+    insertAtomsNextToRow: (
+        ids: string[],
+        targetRowId: string,
+        position: 'before' | 'after'
+    ) => void;
+    moveSectionRows: (
+        rowIds: string[],
+        anchor: { rowId: string; position: 'before' | 'after' }
+    ) => void;
+    mergeRows: (rowAId: string, rowBId: string) => void;
     setPageMargins: (margins: Partial<OutputPageMargins>) => void;
     setFontScale: (value: number) => void;
     addRow: (pageIndex: number, columnCount: number) => void;
     setRowColumnCount: (rowId: string, columnCount: number) => void;
-    removeRow: (rowId: string) => void;
     setRowGap: (rowId: string, gapMm: number) => void;
     resizeRegionPair: (leftRegionId: string, rightRegionId: string, leftShare: number) => void;
     replacePageComposition: (pageIndex: number, composition: string[][][]) => void;
@@ -213,6 +243,36 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             };
         }),
 
+    forceIntoRegion: (ids, regionId, anchor) =>
+        set((state) => {
+            const movableIds = ids.filter((id) => id !== 'intro-profile');
+            const outputLayout = forceAtomsIntoRegion(
+                state.outputLayout,
+                movableIds,
+                regionId,
+                anchor
+            );
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    forceNextToRow: (ids, targetRowId, position) =>
+        set((state) => {
+            const movableIds = ids.filter((id) => id !== 'intro-profile');
+            const outputLayout = forceAtomsNextToRow(
+                state.outputLayout,
+                movableIds,
+                targetRowId,
+                position
+            );
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
     clearForcedPage: (ids) =>
         set((state) => {
             const outputLayout = clearAtomPlacements(state.outputLayout, ids);
@@ -273,6 +333,63 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             };
         }),
 
+    insertAtomsIntoRegion: (ids, regionId, anchor) =>
+        set((state) => {
+            const movableIds = ids.filter((id) => id !== 'intro-profile');
+            const outputLayout = insertAtomsIntoOutputRegion(
+                state.outputLayout,
+                movableIds,
+                regionId,
+                anchor
+            );
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    moveRowToAtom: (rowId, anchor) =>
+        set((state) => {
+            const outputLayout = moveRowNextToAtom(state.outputLayout, rowId, anchor);
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    insertAtomsNextToRow: (ids, targetRowId, position) =>
+        set((state) => {
+            const movableIds = ids.filter((id) => id !== 'intro-profile');
+            const outputLayout = insertAtomsNextToRow(
+                state.outputLayout,
+                movableIds,
+                targetRowId,
+                position
+            );
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    moveSectionRows: (rowIds, anchor) =>
+        set((state) => {
+            const outputLayout = moveSectionRows(state.outputLayout, rowIds, anchor);
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
+    mergeRows: (rowAId, rowBId) =>
+        set((state) => {
+            const outputLayout = mergeAdjacentSingleColumnRows(state.outputLayout, rowAId, rowBId);
+            return {
+                outputLayout,
+                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
+            };
+        }),
+
     setPageMargins: (margins) =>
         set((state) => ({ outputLayout: setOutputPageMargins(state.outputLayout, margins) })),
 
@@ -293,15 +410,6 @@ export const usePrintStore = create<PrintState>((set, get) => ({
         set((state) => ({
             outputLayout: setOutputRowColumnCount(state.outputLayout, rowId, columnCount),
         })),
-
-    removeRow: (rowId) =>
-        set((state) => {
-            const outputLayout = removeOutputRow(state.outputLayout, rowId);
-            return {
-                outputLayout,
-                forcedPageOverrides: outputLayoutToForcedPageOverrides(outputLayout),
-            };
-        }),
 
     setRowGap: (rowId, gapMm) =>
         set((state) => ({ outputLayout: setOutputRowGap(state.outputLayout, rowId, gapMm) })),
@@ -395,3 +503,9 @@ export const usePrintStore = create<PrintState>((set, get) => ({
         });
     },
 }));
+
+// 임시 디버그 훅 — 실 데이터로 재현 안 되는 버그 진단용. 콘솔에서:
+// copy(JSON.stringify(__printStore.getState().outputLayout))
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    (window as unknown as { __printStore?: typeof usePrintStore }).__printStore = usePrintStore;
+}

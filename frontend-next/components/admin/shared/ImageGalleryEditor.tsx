@@ -84,7 +84,7 @@ export function ImageGalleryEditor({
                     >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={image.url} alt="" className="h-full w-full object-cover" />
-                        <div className="absolute inset-0 flex flex-col justify-between bg-black/0 p-1 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+                        <div className="absolute inset-0 flex flex-col justify-between bg-black/0 p-1 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100 [@media(hover:none)]:bg-black/40 [@media(hover:none)]:opacity-100">
                             <div className="flex w-full justify-end">
                                 <button
                                     type="button"

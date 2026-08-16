@@ -110,7 +110,7 @@ export function ScreenshotIngestPanel({ onSuccess }: ScreenshotIngestPanelProps)
                     >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={image.url} alt="" className="h-full w-full object-cover" />
-                        <div className="absolute inset-0 flex justify-end bg-black/0 p-1 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+                        <div className="absolute inset-0 flex justify-end bg-black/0 p-1 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100 [@media(hover:none)]:bg-black/40 [@media(hover:none)]:opacity-100">
                             <button
                                 type="button"
                                 onClick={() => remove(index)}

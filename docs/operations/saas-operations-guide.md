@@ -2610,3 +2610,28 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 로컬 DB 및 운영 DB의 `V1` 재기준화 전환 및 `aaf72fc` 백엔드 배포를 성공적으로 완료했다.
 - 기존 140개 마이그레이션 이력은 `flyway_schema_history_pre_v1_...` 테이블에 안전하게 보존 중이며,
   109개 애플리케이션 테이블 데이터와 스키마 무결성, `/actuator/health` UP 및 Ingress 200이 검증되었다.
+
+### 15.32 2026-08-15 로컬 Flyway checksum 복구와 운영 분리 원칙
+
+- 로컬 Compose MySQL은 적용 당시와 현재 파일의 checksum이 달랐던 V188·V189·V231 때문에 backend가
+  Flyway validation에서 중단됐다. 기존 schema에 `flyway_schema_history` 전체를 비우고 V1부터 다시
+  적용하는 방식은 데이터·DDL 중복 위험이 있으므로 사용하지 않았다.
+- 복구 전 로컬 DB 전체 dump를
+  `/private/tmp/self_intro_local_before_flyway_checksum_repair_20260815_complete.sql`에 저장했다. 파일 크기는
+  `32675068` bytes이고 SHA-256은
+  `87586f9edbdc362495c09e12f7f798e7840d6a8a7689d1aae896e78292fa1bff`이다.
+- 현재 migration의 실제 결과와 로컬 데이터를 먼저 대조했다. V188 대상 상세 6개, 상세 기술 연결 26개,
+  경험 기술 연결 17개, 임시 표식 0개였고 V189의 RAG 연결 1개·이전 연결 0개, V231 제거 대상 테이블
+  0개였다. 이 불변식이 모두 일치한 뒤 로컬 `flyway_schema_history`의 성공 행 세 개만 현재 파일
+  checksum으로 맞췄다: V188 `-699033632`, V189 `-171393772`, V231 `955932332`.
+- 복구 후 로컬 backend는 Flyway migration 140개를 검증했고 schema v235가 최신임을 확인했다.
+  `SelfIntroApplication`이 정상 기동했으며 컨테이너 health는 `UP`이고 liveness·readiness group도 `UP`이다.
+- 운영은 별도 DB이므로 로컬 checksum 복구를 전파하지 않았다. 현재 운영 API·Worker·Frontend는 image
+  tag `20f45fc`, Ready `1/1`, Pod restart 0회다. 운영 API는 Flyway migration 141개를 검증한 뒤
+  schema v231에서 V232~V235를 적용해 정상 기동했으며 운영 DB의 V188·V189·V231 성공 이력은 기존
+  검증 기록대로 유지한다.
+- 로컬 140개와 운영 141개라는 validation 수 차이는 관측값으로 남기며, 이를 맞추기 위해 운영 history를
+  수정하지 않는다. 다음 배포 전에는 동일 image를 disposable DB와 운영 사전 점검 환경에서 각각 실행해
+  resolved/applied migration 목록 차이를 먼저 비교한다.
+- 앞으로 이미 적용된 versioned migration 파일은 수정하지 않는다. schema나 데이터 보정은 V236 이상의
+  새 migration으로 추가하고, 운영 적용 전 snapshot·불변식 쿼리·rollback 판단 기준을 함께 준비한다.

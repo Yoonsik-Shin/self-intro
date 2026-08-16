@@ -2,36 +2,17 @@
 
 import {
     Fragment,
+    useCallback,
     useEffect,
     useLayoutEffect,
     useMemo,
     useRef,
     useState,
     type CSSProperties,
-    type DragEvent,
     type PointerEvent as ReactPointerEvent,
 } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-    ArrowDown,
-    ArrowUp,
-    Briefcase,
-    Cpu,
-    FolderGit2,
-    GraduationCap,
-    GripVertical,
-    MessageSquareText,
-    MoveVertical,
-    Pin,
-    PinOff,
-    Sparkles,
-    Settings,
-    Plus,
-    RotateCcw,
-    Trash2,
-    X,
-} from 'lucide-react';
+import { MessageSquareText, X } from 'lucide-react';
 import { jobPostingApi, printTemplateApi, skillApi } from '@/lib/api';
 import type {
     IntroductionResponse,
@@ -45,16 +26,14 @@ import {
     buildCareerCards,
     buildMilestones,
     buildOrderedCredentials,
-    groupCoreSkills,
     groupSkillsByUsage,
     type SkillOutputGroup,
 } from '@/lib/introDerivations';
-import { credentialKindLabel, formatCredentialPeriod, graduationStatusLabel } from '@/lib/format';
-import { resumeMarkdownComponents } from '@/lib/markdown';
 import {
     A4_HEIGHT_MM,
     MM_TO_PX,
     partitionAtomsIntoPages,
+    type AtomRowGroup,
     type PrintAtomItem,
 } from '@/lib/pdfLayoutEngine';
 import {
@@ -63,11 +42,18 @@ import {
     reorderablePrintSections,
 } from '@/lib/printSections';
 import { generateUniqueLocalName, getLocalSaves, saveLocal } from '@/lib/printTemplateLocal';
+import { useTouchDrag } from '@/hooks/useTouchDrag';
+import { randomId } from '@/lib/uuid';
 import {
     getOutputPageAt,
     ensureOutputLayoutPageCount,
+    mergeAdjacentSingleColumnRows,
+    moveSectionRows,
     parseStoredPrintLayout,
-    type OutputRegion,
+    pruneEmptyOutputRows,
+    replaceOutputPageComposition,
+    type OutputLayout,
+    type OutputRow,
 } from '@/lib/printLayoutModel';
 import {
     applyPrintTemplateContent,
@@ -77,55 +63,22 @@ import {
 import { usePrintStore } from '@/store/usePrintStore';
 import { PdfPageLayer } from './PdfPageLayer';
 import { PrintPreviewBar } from './PrintPreviewBar';
+import { PrintDocumentSettingsPanel } from './PrintDocumentSettingsPanel';
+import {
+    PrintDragContext,
+    positionFromOrder,
+    type PrintDragContextValue,
+    type RegionScopeRun,
+} from './PrintDragContext';
+import { RowRenderer } from './PrintRegionRenderer';
+import { PrintAtomRenderContext, type PrintAtomRenderContextValue } from './PrintAtomRenderContext';
 
-function PageMarginInput({
-    label,
-    value,
-    onCommit,
-}: {
-    label: string;
-    value: number;
-    onCommit: (value: number) => void;
-}) {
-    const [draft, setDraft] = useState(String(value));
-
-    const commit = () => {
-        const parsed = Number(draft);
-        if (!Number.isFinite(parsed)) {
-            setDraft(String(value));
-            return;
-        }
-        onCommit(parsed);
-    };
-
-    return (
-        <label className="rounded-md border border-slate-800 bg-slate-900 p-2 text-[10px] font-bold text-slate-300">
-            {label}
-            <input
-                type="number"
-                min={0}
-                max={50}
-                step={0.5}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onBlur={commit}
-                onKeyDown={(event) => {
-                    if (event.key !== 'Enter') return;
-                    event.currentTarget.blur();
-                }}
-                className="mt-1 block h-9 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm font-black text-white outline-none focus:border-blue-400"
-            />
-        </label>
-    );
-}
 import { PrintPreviewNav } from './PrintPreviewNav';
-import { PrintEyeButton } from './PrintEyeButton';
 import { PrintModeModal } from './PrintModeModal';
 import { SaveServerTemplateModal } from './SaveServerTemplateModal';
 import { PrintSkillSelectorModal } from './PrintSkillSelectorModal';
 
 const PRINT_HISTORY_LIMIT = 100;
-type DocumentSettingsTab = 'paper' | 'typography' | 'composition' | 'view' | 'template';
 type CustomPrintSection = NonNullable<PrintTemplateContentOverrides['customSections']>[number];
 
 type PrintEditorSnapshot = {
@@ -202,57 +155,6 @@ function getHistoryMergeKey(
     return null;
 }
 
-function InlineEditableText({
-    value,
-    onChange,
-    placeholder,
-    multiline,
-    className = '',
-}: {
-    value: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
-    multiline: boolean;
-    className?: string;
-}) {
-    const editorRef = useRef<HTMLSpanElement | null>(null);
-
-    useLayoutEffect(() => {
-        const editor = editorRef.current;
-        if (!editor || document.activeElement === editor) return;
-        if (editor.innerText !== value) editor.innerText = value;
-    }, [value]);
-
-    return (
-        <span
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            role="textbox"
-            aria-multiline={multiline}
-            aria-label={placeholder || '문구 편집'}
-            data-placeholder={placeholder}
-            onInput={(e) => onChange(e.currentTarget.innerText.replace(/\r/g, ''))}
-            onKeyDown={(e) => {
-                if (!multiline && e.key === 'Enter') e.preventDefault();
-            }}
-            className={`inline-editable-text ${className}`}
-        />
-    );
-}
-
-const EMPLOYMENT_TYPE_LABELS: Record<string, string> = {
-    FULL_TIME: '정규직',
-    PART_TIME: '파트타임',
-    CONTRACT: '계약직',
-    INTERN: '인턴',
-    FREELANCE: '프리랜서',
-};
-
-function getEmploymentTypeLabel(employmentType: string) {
-    return EMPLOYMENT_TYPE_LABELS[employmentType] ?? employmentType;
-}
-
 type Props = {
     workspaceSlug: string;
     introData: IntroductionResponse;
@@ -262,62 +164,6 @@ type Props = {
     coverLetterItems?: JobPostingCoverLetterItem[];
     jobPostingId?: number | null;
 };
-
-function renderDetailFields(
-    detail: {
-        id?: number;
-        narrative?: string;
-        situation?: string;
-        actionDetail?: string;
-        outcome?: string;
-    },
-    inlineEditMode: boolean,
-    origNarrative: string,
-    onNarrativeChange: (val: string | undefined) => void,
-    renderInlineTextHelper: (opts: {
-        value: string;
-        baseValue: string;
-        multiline?: boolean;
-        textClassName?: string;
-        placeholder?: string;
-        onChange: (newValue: string | undefined) => void;
-    }) => React.ReactNode
-) {
-    const merged =
-        detail.narrative ||
-        [detail.situation, detail.actionDetail, detail.outcome].filter(Boolean).join('\n\n');
-    // 편집 모드라는 이유만으로 비어 있던 상세 입력란을 추가하면 atom 높이가 달라져
-    // 일반 미리보기와 페이지 구성이 달라진다. 기존 문구가 있는 필드만 인라인 편집한다.
-    if (!merged) return null;
-
-    if (inlineEditMode) {
-        return (
-            <div className="resume-detail-text relative mt-1 text-[12px] pdf-body-text text-slate-600">
-                {/* 마크다운을 원래 렌더링한 결과가 레이아웃 높이를 계속 담당한다.
-                    원문 textarea는 위에 겹쳐져 편집 모드 전환만으로 높이가 바뀌지 않는다. */}
-                <div aria-hidden="true" className="invisible">
-                    <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
-                </div>
-                <div className="absolute inset-0">
-                    {renderInlineTextHelper({
-                        value: detail.narrative ?? merged ?? '',
-                        baseValue: origNarrative,
-                        multiline: true,
-                        textClassName: 'h-full text-[12px] pdf-body-text text-slate-600',
-                        placeholder: '상세 성과 및 기술적 설명을 입력하세요',
-                        onChange: onNarrativeChange,
-                    })}
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="resume-detail-text mt-1 text-[12px] pdf-body-text text-slate-600">
-            <ReactMarkdown components={resumeMarkdownComponents}>{merged}</ReactMarkdown>
-        </div>
-    );
-}
 
 /** 저장된 순서(override)를 기준으로 자연 순서 배열을 재정렬한다. override에 없는 새 항목은 뒤에 붙는다. */
 function applyOrder<T>(
@@ -366,23 +212,41 @@ export function PrintCanvas({
     const [aiChatOpen, setAiChatOpen] = useState(false);
     const [isRevising, setIsRevising] = useState(false);
     const [draggedCanvasAtomId, setDraggedCanvasAtomId] = useState<string | null>(null);
-    const [dragOverRegion, setDragOverRegion] = useState<{
+    // 완전히 빈 region(runs.length === 0)에 드롭할 때만 쓰는 상태 — 여기엔 어떤
+    // 항목이든 들어가 새 컬럼을 만들 수 있다.
+    const [dragOverEmptyRegion, setDragOverEmptyRegion] = useState<{
         pageIndex: number;
         regionId: string;
+    } | null>(null);
+    // run(같은 섹션·항목 범위) 안의 특정 atom 앞/뒤에 끼워넣을 때 쓰는 상태.
+    const [dragOverRun, setDragOverRun] = useState<{
+        pageIndex: number;
+        regionId: string;
+        runIndex: number;
+        anchorAtomId: string;
+        position: 'before' | 'after';
     } | null>(null);
     const [dragOverAtom, setDragOverAtom] = useState<{
         pageIndex: number;
         atomId: string;
         side: 'left' | 'right';
     } | null>(null);
-    const [marginSettingsOpen, setMarginSettingsOpen] = useState(false);
-    const [documentSettingsTab, setDocumentSettingsTab] = useState<DocumentSettingsTab>('paper');
-    const [documentSettingsWidth, setDocumentSettingsWidth] = useState(288);
-    const documentSettingsResizeRef = useRef<{
-        pointerId: number;
-        startX: number;
-        width: number;
+    // 2/3열 행 자체를 위/아래로 재정렬할 때 쓰는 상태 — atom 드래그와는 별개 소스다.
+    const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
+    const [dragOverRow, setDragOverRow] = useState<{
+        rowId: string;
+        position: 'before' | 'after';
     } | null>(null);
+    // 2/3열 행을 flow 영역의 특정 atom 옆으로 끌 때 — 그 atom 기준 위/아래 표시.
+    const [dragOverRowTarget, setDragOverRowTarget] = useState<{
+        atomId: string;
+        position: 'before' | 'after';
+    } | null>(null);
+    // 그립(행/atom 왼쪽 손잡이)에 마우스를 올렸을 때 그 손잡이가 어떤 대상을
+    // 움직이는지 박스로 보여주기 위한 정적 hover 상태 — 실제 드래그 상태와는 별개.
+    const [hoveredGripRowId, setHoveredGripRowId] = useState<string | null>(null);
+    const [hoveredGripAtomId, setHoveredGripAtomId] = useState<string | null>(null);
+    const [marginSettingsOpen, setMarginSettingsOpen] = useState(false);
     const [overflowRegionKeys, setOverflowRegionKeys] = useState<string[]>([]);
     const reviseAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -447,12 +311,15 @@ export function PrintCanvas({
                 customModelName
             );
         } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') return;
+            if (error instanceof Error && error.name === 'AbortError') {
+                setIsRevising(false);
+                reviseAbortControllerRef.current = null;
+                return;
+            }
             alert('AI 재생성 중 오류가 발생했습니다. 다시 시도해 주세요.');
-        } finally {
-            setIsRevising(false);
-            reviseAbortControllerRef.current = null;
         }
+        setIsRevising(false);
+        reviseAbortControllerRef.current = null;
     };
 
     const updateUrlParams = (tmplId: number | null) => {
@@ -476,115 +343,52 @@ export function PrintCanvas({
         () => applyPrintTemplateContent(introData, contentOverrides),
         [introData, contentOverrides]
     );
+    // introData 전체를 JSON.stringify+해시 — 매 렌더마다 새로 돌리면 드래그 중
+    // 프레임마다 재계산돼 비용이 큼(프로파일 실측 163ms). introData 안 바뀌면 재사용.
+    const baseContentFingerprint = useMemo(
+        () => getPrintContentFingerprint(introData),
+        [introData]
+    );
 
-    const renderInlineText = ({
-        value,
-        baseValue,
-        multiline = false,
-        fullWidth = true,
-        textClassName = '',
-        placeholder = '',
-        onChange,
-    }: {
-        value: string;
-        baseValue: string;
-        multiline?: boolean;
-        fullWidth?: boolean;
-        textClassName?: string;
-        placeholder?: string;
-        onChange: (newValue: string | undefined) => void;
-    }) => {
-        const isOverridden = value !== baseValue;
+    const setProfileOverride = useCallback(
+        (field: 'jobTitle' | 'bio' | 'coreStackSummary', val: string | undefined) => {
+            setContentOverrides((current) => {
+                const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+                const prof = { ...(next.profile ?? {}) };
+                const baseVal = introData.profile?.[field] ?? '';
+                if (val === undefined || (val !== '' && val.trim() === baseVal.trim())) {
+                    delete prof[field];
+                } else {
+                    prof[field] = val;
+                }
+                next.profile = Object.keys(prof).length > 0 ? prof : undefined;
+                return next;
+            });
+        },
+        [introData]
+    );
 
-        if (!inlineEditMode) {
-            return (
-                <span
-                    className={`inline-block max-w-full ${fullWidth ? 'w-full' : 'w-auto'} ${textClassName}`}
-                >
-                    {value}
-                </span>
-            );
-        }
-
-        return (
-            <span
-                className={`group/edit relative inline-block max-w-full ${fullWidth ? 'w-full' : 'w-auto'} ${textClassName}`}
-            >
-                {/* 편집기 자체가 높이를 만들면 textarea의 UA line box/scrollHeight 때문에
-                    일반 문구와 atom 높이가 달라져 페이지 재배치가 발생한다. 동일 문구의
-                    숨은 미러가 원래 레이아웃을 유지하고 textarea는 그 위에 겹친다. */}
-                <span
-                    aria-hidden="true"
-                    className={`invisible block w-full max-w-full ${
-                        multiline ? 'whitespace-pre-line' : ''
-                    }`}
-                >
-                    {value || '\u00a0'}
-                </span>
-                <InlineEditableText
-                    value={value}
-                    onChange={(newValue) => onChange(newValue)}
-                    placeholder={placeholder}
-                    multiline={multiline}
-                    className={`absolute inset-0 block min-h-full w-full overflow-visible box-border rounded-none border-0 outline-2 outline-blue-400 -outline-offset-1 bg-blue-50/30 p-0 m-0 font-[inherit] text-[inherit] leading-[inherit] tracking-[inherit] text-inherit [white-space:inherit] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-                        multiline ? 'whitespace-pre-line' : ''
-                    }`}
-                />
-                {isOverridden && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onChange(undefined);
-                        }}
-                        className="absolute -top-3.5 right-1 z-30 inline-flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-xs hover:bg-amber-600 transition print:hidden"
-                        title={`최신 DB 원본 문구로 복원: "${baseValue}"`}
-                    >
-                        <RotateCcw className="h-2.5 w-2.5" />
-                        <span>원본 복원</span>
-                    </button>
-                )}
-            </span>
-        );
-    };
-
-    const setProfileOverride = (
-        field: 'jobTitle' | 'bio' | 'coreStackSummary',
-        val: string | undefined
-    ) => {
-        setContentOverrides((current) => {
-            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
-            const prof = { ...(next.profile ?? {}) };
-            const baseVal = introData.profile?.[field] ?? '';
-            if (val === undefined || (val !== '' && val.trim() === baseVal.trim())) {
-                delete prof[field];
-            } else {
-                prof[field] = val;
-            }
-            next.profile = Object.keys(prof).length > 0 ? prof : undefined;
-            return next;
-        });
-    };
-
-    const setExperienceOverride = (
-        expId: number,
-        field: 'title' | 'summary' | 'role' | 'takeaway',
-        val: string | undefined,
-        baseVal: string
-    ) => {
-        setContentOverrides((current) => {
-            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
-            const expMap = { ...(next.experiences ?? {}) };
-            const fields = { ...(expMap[String(expId)] ?? {}) };
-            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
-            else fields[field] = val;
-            if (Object.keys(fields).length > 0) expMap[String(expId)] = fields;
-            else delete expMap[String(expId)];
-            next.experiences = Object.keys(expMap).length > 0 ? expMap : undefined;
-            return next;
-        });
-    };
+    const setExperienceOverride = useCallback(
+        (
+            expId: number,
+            field: 'title' | 'summary' | 'role' | 'takeaway',
+            val: string | undefined,
+            baseVal: string
+        ) => {
+            setContentOverrides((current) => {
+                const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+                const expMap = { ...(next.experiences ?? {}) };
+                const fields = { ...(expMap[String(expId)] ?? {}) };
+                if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+                else fields[field] = val;
+                if (Object.keys(fields).length > 0) expMap[String(expId)] = fields;
+                else delete expMap[String(expId)];
+                next.experiences = Object.keys(expMap).length > 0 ? expMap : undefined;
+                return next;
+            });
+        },
+        []
+    );
 
     // 사전질문(자소서) 답변 인라인 수정 — 공통 contentOverrides와 달리 job posting별로
     // 휘발성 있는 데이터라 별도 로컬 상태로 두고, 서버/로컬 템플릿 저장 대상에서는 제외한다.
@@ -740,30 +544,7 @@ export function PrintCanvas({
         return () => window.removeEventListener('keydown', handleHistoryShortcut);
     });
 
-    const handleDocumentSettingsResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0) return;
-        documentSettingsResizeRef.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            width: documentSettingsWidth,
-        };
-        event.currentTarget.setPointerCapture(event.pointerId);
-    };
-
-    const handleDocumentSettingsResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-        const drag = documentSettingsResizeRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        setDocumentSettingsWidth(
-            Math.min(420, Math.max(240, drag.width + event.clientX - drag.startX))
-        );
-    };
-
-    const handleDocumentSettingsResizeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-        if (documentSettingsResizeRef.current?.pointerId !== event.pointerId) return;
-        documentSettingsResizeRef.current = null;
-        event.currentTarget.releasePointerCapture(event.pointerId);
-    };
-    const addCoverLetterItem = () => {
+    const addCoverLetterItem = useCallback(() => {
         const newId = -Date.now();
         setAddedCoverLetterItems((current) => [
             ...current,
@@ -777,23 +558,22 @@ export function PrintCanvas({
                 updatedAt: new Date().toISOString(),
             },
         ]);
-    };
-    const updateAddedCoverLetterItem = (
-        itemId: number,
-        field: 'question' | 'answer',
-        val: string | undefined
-    ) => {
-        setAddedCoverLetterItems((current) =>
-            current.map((i) => (i.id === itemId ? { ...i, [field]: val ?? '' } : i))
-        );
-    };
-    const removeAddedCoverLetterItem = (itemId: number) => {
+    }, [coverLetterItems]);
+    const updateAddedCoverLetterItem = useCallback(
+        (itemId: number, field: 'question' | 'answer', val: string | undefined) => {
+            setAddedCoverLetterItems((current) =>
+                current.map((i) => (i.id === itemId ? { ...i, [field]: val ?? '' } : i))
+            );
+        },
+        []
+    );
+    const removeAddedCoverLetterItem = useCallback((itemId: number) => {
         setAddedCoverLetterItems((current) => current.filter((i) => i.id !== itemId));
-    };
+    }, []);
 
     const addCustomSection = () => {
-        const sectionId = crypto.randomUUID();
-        const itemId = crypto.randomUUID();
+        const sectionId = randomId();
+        const itemId = randomId();
         setInlineEditMode(true);
         setContentOverrides((current) => ({
             ...current,
@@ -816,116 +596,136 @@ export function PrintCanvas({
         });
     };
 
-    const updateCustomSection = (
-        sectionId: string,
-        updater: (section: CustomPrintSection) => CustomPrintSection
-    ) => {
-        setContentOverrides((current) => ({
-            ...current,
-            customSections: (current.customSections ?? []).map((section) =>
-                section.id === sectionId ? updater(section) : section
-            ),
-        }));
-    };
+    const updateCustomSection = useCallback(
+        (sectionId: string, updater: (section: CustomPrintSection) => CustomPrintSection) => {
+            setContentOverrides((current) => ({
+                ...current,
+                customSections: (current.customSections ?? []).map((section) =>
+                    section.id === sectionId ? updater(section) : section
+                ),
+            }));
+        },
+        []
+    );
 
-    const removeCustomSection = (sectionId: string) => {
-        setContentOverrides((current) => ({
-            ...current,
-            customSections: (current.customSections ?? []).filter(
-                (section) => section.id !== sectionId
-            ),
-        }));
-        const printSectionId = `custom-section:${sectionId}`;
-        store.setSectionOrder(store.printSectionOrder.filter((id) => id !== printSectionId));
-        store.setExcludedIds(
-            store.printExcludedIds.filter(
-                (id) => id !== printSectionId && !id.startsWith(`${printSectionId}:`)
-            )
-        );
-    };
+    const removeCustomSection = useCallback(
+        (sectionId: string) => {
+            setContentOverrides((current) => ({
+                ...current,
+                customSections: (current.customSections ?? []).filter(
+                    (section) => section.id !== sectionId
+                ),
+            }));
+            const printSectionId = `custom-section:${sectionId}`;
+            usePrintStore
+                .getState()
+                .setSectionOrder(store.printSectionOrder.filter((id) => id !== printSectionId));
+            usePrintStore
+                .getState()
+                .setExcludedIds(
+                    store.printExcludedIds.filter(
+                        (id) => id !== printSectionId && !id.startsWith(`${printSectionId}:`)
+                    )
+                );
+        },
+        [store.printSectionOrder, store.printExcludedIds]
+    );
 
-    const addCustomSectionItem = (sectionId: string) => {
-        updateCustomSection(sectionId, (section) => ({
-            ...section,
-            items: [...section.items, { id: crypto.randomUUID(), title: '', content: '' }],
-        }));
-    };
+    const addCustomSectionItem = useCallback(
+        (sectionId: string) => {
+            updateCustomSection(sectionId, (section) => ({
+                ...section,
+                items: [...section.items, { id: randomId(), title: '', content: '' }],
+            }));
+        },
+        [updateCustomSection]
+    );
 
-    const updateCustomSectionItem = (
-        sectionId: string,
-        itemId: string,
-        field: 'title' | 'content',
-        value: string | undefined
-    ) => {
-        updateCustomSection(sectionId, (section) => ({
-            ...section,
-            items: section.items.map((item) =>
-                item.id === itemId ? { ...item, [field]: value ?? '' } : item
-            ),
-        }));
-    };
+    const updateCustomSectionItem = useCallback(
+        (
+            sectionId: string,
+            itemId: string,
+            field: 'title' | 'content',
+            value: string | undefined
+        ) => {
+            updateCustomSection(sectionId, (section) => ({
+                ...section,
+                items: section.items.map((item) =>
+                    item.id === itemId ? { ...item, [field]: value ?? '' } : item
+                ),
+            }));
+        },
+        [updateCustomSection]
+    );
 
-    const removeCustomSectionItem = (sectionId: string, itemId: string) => {
-        updateCustomSection(sectionId, (section) => ({
-            ...section,
-            items: section.items.filter((item) => item.id !== itemId),
-        }));
-    };
+    const removeCustomSectionItem = useCallback(
+        (sectionId: string, itemId: string) => {
+            updateCustomSection(sectionId, (section) => ({
+                ...section,
+                items: section.items.filter((item) => item.id !== itemId),
+            }));
+        },
+        [updateCustomSection]
+    );
 
-    const setCoverLetterOverride = (
-        itemId: number,
-        field: 'question' | 'answer',
-        val: string | undefined,
-        baseVal: string
-    ) => {
-        setCoverLetterOverrides((current) => {
-            const next = { ...current };
-            const fields = { ...(next[itemId] ?? {}) };
-            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
-            else fields[field] = val;
-            if (Object.keys(fields).length > 0) next[itemId] = fields;
-            else delete next[itemId];
-            return next;
-        });
-    };
+    const setCoverLetterOverride = useCallback(
+        (
+            itemId: number,
+            field: 'question' | 'answer',
+            val: string | undefined,
+            baseVal: string
+        ) => {
+            setCoverLetterOverrides((current) => {
+                const next = { ...current };
+                const fields = { ...(next[itemId] ?? {}) };
+                if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+                else fields[field] = val;
+                if (Object.keys(fields).length > 0) next[itemId] = fields;
+                else delete next[itemId];
+                return next;
+            });
+        },
+        []
+    );
 
-    const setDetailOverride = (
-        detailId: number,
-        field: 'content' | 'narrative',
-        val: string | undefined,
-        baseVal: string
-    ) => {
-        setContentOverrides((current) => {
-            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
-            const detailMap = { ...(next.details ?? {}) };
-            const fields = { ...(detailMap[String(detailId)] ?? {}) };
-            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
-            else fields[field] = val;
-            if (Object.keys(fields).length > 0) detailMap[String(detailId)] = fields;
-            else delete detailMap[String(detailId)];
-            next.details = Object.keys(detailMap).length > 0 ? detailMap : undefined;
-            return next;
-        });
-    };
+    const setDetailOverride = useCallback(
+        (
+            detailId: number,
+            field: 'content' | 'narrative',
+            val: string | undefined,
+            baseVal: string
+        ) => {
+            setContentOverrides((current) => {
+                const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+                const detailMap = { ...(next.details ?? {}) };
+                const fields = { ...(detailMap[String(detailId)] ?? {}) };
+                if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+                else fields[field] = val;
+                if (Object.keys(fields).length > 0) detailMap[String(detailId)] = fields;
+                else delete detailMap[String(detailId)];
+                next.details = Object.keys(detailMap).length > 0 ? detailMap : undefined;
+                return next;
+            });
+        },
+        []
+    );
 
-    const setCompetencyOverride = (
-        compId: number,
-        field: 'title' | 'summary',
-        val: string | undefined,
-        baseVal: string
-    ) => {
-        setContentOverrides((current) => {
-            const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
-            const compMap = { ...(next.competencies ?? {}) };
-            const fields = { ...(compMap[String(compId)] ?? {}) };
-            if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
-            else fields[field] = val;
-            if (Object.keys(fields).length > 0) compMap[String(compId)] = fields;
-            else delete compMap[String(compId)];
-            next.competencies = Object.keys(compMap).length > 0 ? compMap : undefined;
-            return next;
-        });
-    };
+    const setCompetencyOverride = useCallback(
+        (compId: number, field: 'title' | 'summary', val: string | undefined, baseVal: string) => {
+            setContentOverrides((current) => {
+                const next = JSON.parse(JSON.stringify(current)) as PrintTemplateContentOverrides;
+                const compMap = { ...(next.competencies ?? {}) };
+                const fields = { ...(compMap[String(compId)] ?? {}) };
+                if (val === undefined || val.trim() === baseVal.trim()) delete fields[field];
+                else fields[field] = val;
+                if (Object.keys(fields).length > 0) compMap[String(compId)] = fields;
+                else delete compMap[String(compId)];
+                next.competencies = Object.keys(compMap).length > 0 ? compMap : undefined;
+                return next;
+            });
+        },
+        []
+    );
 
     const [skillSelectorModalOpen, setSkillSelectorModalOpen] = useState(false);
     const [addingCatalogSkillId, setAddingCatalogSkillId] = useState<number | null>(null);
@@ -935,28 +735,33 @@ export function PrintCanvas({
         enabled: adminMode && skillSelectorModalOpen,
     });
 
-    const toggleSkillSelection = (skillId: number) => {
-        setContentOverrides((current) => {
-            const defaultCoreSkillIds = introData.skills.filter((s) => s.isCore).map((s) => s.id);
-            const currentSelected = current.selectedSkillIds ?? defaultCoreSkillIds;
+    const toggleSkillSelection = useCallback(
+        (skillId: number) => {
+            setContentOverrides((current) => {
+                const defaultCoreSkillIds = introData.skills
+                    .filter((s) => s.isCore)
+                    .map((s) => s.id);
+                const currentSelected = current.selectedSkillIds ?? defaultCoreSkillIds;
 
-            let nextSelected: number[];
-            if (currentSelected.includes(skillId)) {
-                nextSelected = currentSelected.filter((id) => id !== skillId);
-            } else {
-                nextSelected = [...currentSelected, skillId];
-            }
+                let nextSelected: number[];
+                if (currentSelected.includes(skillId)) {
+                    nextSelected = currentSelected.filter((id) => id !== skillId);
+                } else {
+                    nextSelected = [...currentSelected, skillId];
+                }
 
-            const isDefaultState =
-                defaultCoreSkillIds.length === nextSelected.length &&
-                defaultCoreSkillIds.every((id) => nextSelected.includes(id));
+                const isDefaultState =
+                    defaultCoreSkillIds.length === nextSelected.length &&
+                    defaultCoreSkillIds.every((id) => nextSelected.includes(id));
 
-            return {
-                ...current,
-                selectedSkillIds: isDefaultState ? undefined : nextSelected,
-            };
-        });
-    };
+                return {
+                    ...current,
+                    selectedSkillIds: isDefaultState ? undefined : nextSelected,
+                };
+            });
+        },
+        [introData]
+    );
 
     const moveSkillToGroup = (skillId: number, group: SkillOutputGroup) => {
         setContentOverrides((current) => {
@@ -1014,9 +819,8 @@ export function PrintCanvas({
                     ? error.message
                     : 'Workspace 원본에 기술을 추가하지 못했습니다.'
             );
-        } finally {
-            setAddingCatalogSkillId(null);
         }
+        setAddingCatalogSkillId(null);
     };
 
     const resetSkillsToDefault = () => {
@@ -1146,16 +950,22 @@ export function PrintCanvas({
         [contentOverrides.customSections, store.itemOrderOverrides]
     );
 
+    // sanitizedInitialTemplate은 매 렌더 새 객체라 그대로 deps에 넣으면 "마운트 시
+    // 한 번만 적용" 의도가 깨진다. ref에 최신값만 계속 반영해두고, 실제 트리거는
+    // id(원시값)로만 잡아 재적용 없이 최신 내용을 읽는다.
+    const sanitizedInitialTemplateRef = useRef(sanitizedInitialTemplate);
     useEffect(() => {
-        if (!sanitizedInitialTemplate) return;
-        const layoutSettings = parseStoredPrintLayout(sanitizedInitialTemplate.sectionGaps);
-        store.applyTemplate({
-            excludedIds: sanitizedInitialTemplate.excludedIds,
-            sectionOrder: sanitizedInitialTemplate.sectionOrder,
+        sanitizedInitialTemplateRef.current = sanitizedInitialTemplate;
+    });
+    useEffect(() => {
+        const template = sanitizedInitialTemplateRef.current;
+        if (!template) return;
+        const layoutSettings = parseStoredPrintLayout(template.sectionGaps);
+        usePrintStore.getState().applyTemplate({
+            excludedIds: template.excludedIds,
+            sectionOrder: template.sectionOrder,
             ...layoutSettings,
         });
-        // 초기 템플릿은 이 컴포넌트가 마운트될 때 한 번만 적용한다.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sanitizedInitialTemplate?.id]);
 
     // 캔버스 마우스 휠 + Ctrl/Cmd로 줌 조절
@@ -1166,13 +976,13 @@ export function PrintCanvas({
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
                 const delta = -e.deltaY;
-                store.setZoom(store.zoom + (delta > 0 ? 0.05 : -0.05));
+                const currentZoom = usePrintStore.getState().zoom;
+                usePrintStore.getState().setZoom(currentZoom + (delta > 0 ? 0.05 : -0.05));
             }
         };
         canvas.addEventListener('wheel', handleWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', handleWheel);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [store.zoom]);
+    }, []);
 
     const handleZoomFit = () => {
         const canvas = canvasRef.current;
@@ -1189,7 +999,7 @@ export function PrintCanvas({
         };
         const restorePrintTitle = () => {
             printLayoutFrozenRef.current = false;
-            store.setPrintPending(false);
+            usePrintStore.getState().setPrintPending(false);
         };
         window.addEventListener('beforeprint', clearPrintTitle);
         window.addEventListener('afterprint', restorePrintTitle);
@@ -1197,7 +1007,6 @@ export function PrintCanvas({
             window.removeEventListener('beforeprint', clearPrintTitle);
             window.removeEventListener('afterprint', restorePrintTitle);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const customPrintableSections = useMemo(
@@ -1213,19 +1022,24 @@ export function PrintCanvas({
         () => [...reorderablePrintSections, ...customPrintableSections],
         [customPrintableSections]
     );
-    const orderedReorderableSections = [
-        ...store.printSectionOrder
-            .map((id) => allReorderableSections.find((section) => section.id === id))
-            .filter((section): section is (typeof allReorderableSections)[number] =>
-                Boolean(section)
+    const orderedReorderableSections = useMemo(
+        () => [
+            ...store.printSectionOrder
+                .map((id) => allReorderableSections.find((section) => section.id === id))
+                .filter((section): section is (typeof allReorderableSections)[number] =>
+                    Boolean(section)
+                ),
+            ...allReorderableSections.filter(
+                (section) => !store.printSectionOrder.includes(section.id)
             ),
-        ...allReorderableSections.filter(
-            (section) => !store.printSectionOrder.includes(section.id)
-        ),
-    ];
+        ],
+        [store.printSectionOrder, allReorderableSections]
+    );
     const lockedPrintSection = printableSections.find((s) => s.id === LOCKED_PRINT_SECTION_ID)!;
-    const orderedPrintableSections = [lockedPrintSection, ...orderedReorderableSections];
-    const orderedSectionIdsKey = orderedPrintableSections.map((s) => s.id).join(',');
+    const orderedPrintableSections = useMemo(
+        () => [lockedPrintSection, ...orderedReorderableSections],
+        [lockedPrintSection, orderedReorderableSections]
+    );
 
     const printableAtoms = useMemo(() => {
         const atoms: PrintAtomItem[] = [];
@@ -1412,10 +1226,9 @@ export function PrintCanvas({
             }
         });
         return atoms;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         store.printExcludedIds,
-        orderedSectionIdsKey,
+        orderedPrintableSections,
         orderedSkillGroups,
         orderedCompetencies,
         orderedCareerCards,
@@ -1436,6 +1249,36 @@ export function PrintCanvas({
         [store.outputLayout.pageMargins.bottom, store.outputLayout.pageMargins.top]
     );
 
+    // 나란히 배치된 2-3열 행이 페이지 경계에서 컬럼끼리 찢어지지 않도록, 각 atom을
+    // 자신이 속한 행 그룹과 매핑한다. store.outputLayout만으로 계산하므로 pageLayers가
+    // 현재 뭘 어디에 뒀다고 생각하는지와 무관하게 항상 정확하다. 단일 열 행(대부분의
+    // 콘텐츠)은 매핑에서 아예 제외된다.
+    const rowGroupsByAtomId = useMemo(() => {
+        const printableIds = new Set(printableAtoms.map((a) => a.id));
+        const map = new Map<string, AtomRowGroup>();
+
+        for (const row of store.outputLayout.rows) {
+            if (row.regionIds.length <= 1) continue;
+
+            const columns = row.regionIds.map((regionId) =>
+                store.outputLayout.placements
+                    .filter((p) => p.regionId === regionId && printableIds.has(p.atomId))
+                    .sort((a, b) => a.order - b.order)
+                    .map((p) => p.atomId)
+            );
+            const memberCount = columns.reduce((n, col) => n + col.length, 0);
+            if (memberCount <= 1) continue;
+
+            const group: AtomRowGroup = {
+                rowId: row.id,
+                columns,
+                measuredHeight: store.atomHeights.get(`row:${row.id}`),
+            };
+            columns.flat().forEach((atomId) => map.set(atomId, group));
+        }
+        return map;
+    }, [store.outputLayout.rows, store.outputLayout.placements, printableAtoms, store.atomHeights]);
+
     const pageLayers = useMemo(
         () =>
             partitionAtomsIntoPages(
@@ -1444,7 +1287,8 @@ export function PrintCanvas({
                 store.sectionGaps,
                 store.forcedPageOverrides,
                 pageContentHeightPx,
-                store.outputLayout.pages.map((page) => page.id)
+                store.outputLayout.pages.map((page) => page.id),
+                rowGroupsByAtomId
             ),
         [
             printableAtoms,
@@ -1453,6 +1297,7 @@ export function PrintCanvas({
             store.forcedPageOverrides,
             store.outputLayout.pages,
             pageContentHeightPx,
+            rowGroupsByAtomId,
         ]
     );
 
@@ -1472,6 +1317,7 @@ export function PrintCanvas({
         const measure = () => {
             frame = 0;
             if (disposed || printLayoutFrozenRef.current) return;
+            const debugStart = process.env.NODE_ENV !== 'production' ? performance.now() : 0;
 
             const elements = Array.from(canvas.querySelectorAll<HTMLElement>('[data-atom-id]'));
             const newHeights = new Map<string, number>();
@@ -1511,6 +1357,30 @@ export function PrintCanvas({
                 newHeights.set(atomId, Math.max(0, height));
             });
 
+            // 2-3열 행은 컬럼 폭이 좁아 개별 atom의 (1열 기준으로 동결된) 높이 합으로는
+            // 실제 줄바꿈을 반영 못 한다. 행 컨테이너 자체의 실측 높이를 별도로 재서
+            // `row:<rowId>` 키로 저장해두면, 페이지 분할 엔진이 정확한 행 높이를 쓸 수
+            // 있다. 열 폭은 행이 어느 페이지에 있든 동일(페이지 너비 비율)하므로, 개별
+            // atom 동결과 달리 이 값은 페이지 이동에 따라 흔들리지 않는다.
+            const rowElements = Array.from(
+                canvas.querySelectorAll<HTMLElement>('[data-output-row]')
+            );
+            rowElements.forEach((rowEl) => {
+                const rowId = rowEl.dataset.outputRow;
+                if (!rowId) return;
+                if (rowEl.dataset.layoutMode === 'SINGLE_COLUMN') return;
+                const computedStyle = window.getComputedStyle(rowEl);
+                const marginTop = Number.parseFloat(computedStyle.marginTop) || 0;
+                const marginBottom = Number.parseFloat(computedStyle.marginBottom) || 0;
+                const renderedHeight =
+                    rowEl.offsetHeight ||
+                    Math.round(rowEl.getBoundingClientRect().height / (store.zoom || 1));
+                newHeights.set(
+                    `row:${rowId}`,
+                    Math.max(0, renderedHeight + marginTop + marginBottom)
+                );
+            });
+
             const previous = previousHeights;
             const changed =
                 previous.size !== newHeights.size ||
@@ -1519,7 +1389,15 @@ export function PrintCanvas({
                     return previousHeight === undefined || Math.abs(previousHeight - height) > 1;
                 });
 
-            if (changed) store.setAtomHeights(newHeights);
+            if (process.env.NODE_ENV !== 'production') {
+                const elapsed = performance.now() - debugStart;
+                if (elapsed > 4) {
+                    console.log(
+                        `[measure] ${elapsed.toFixed(1)}ms, atoms=${elements.length}, rows=${rowElements.length}, changed=${changed}`
+                    );
+                }
+            }
+            if (changed) usePrintStore.getState().setAtomHeights(newHeights);
         };
 
         const scheduleMeasure = () => {
@@ -1545,7 +1423,6 @@ export function PrintCanvas({
             observer.disconnect();
         };
         // pageLayers가 바뀌면 새 페이지 부모 아래에 마운트된 atom들을 다시 관찰한다.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pageLayers, printableAtoms, store.sectionGaps, store.zoom, contentOverrides]);
 
     useLayoutEffect(() => {
@@ -1596,1337 +1473,619 @@ export function PrintCanvas({
         return set;
     }, [pageLayers]);
 
-    const getAssociatedAtomIds = (id: string): string[] => {
-        if (id.startsWith('project-details-header:')) {
-            const milestoneId = id.replace('project-details-header:', '');
-            const m = orderedMilestones.find((item) => String(item.id) === milestoneId);
-            if (m) return [id, ...m.details.map((d) => `project-detail:${d.id}`)];
-        }
-        if (id.startsWith('career-details-header:')) {
-            const projectId = id.replace('career-details-header:', '');
-            const p = orderedCareerCards
-                .flatMap((c) => c.projects)
-                .find((item) => String(item.id) === projectId);
-            if (p) return [id, ...p.details.map((d) => `career-detail:${d.id}`)];
-        }
-        return [id];
-    };
+    const getAssociatedAtomIds = useCallback(
+        (id: string): string[] => {
+            if (id.startsWith('project-details-header:')) {
+                const milestoneId = id.replace('project-details-header:', '');
+                const m = orderedMilestones.find((item) => String(item.id) === milestoneId);
+                if (m) return [id, ...m.details.map((d) => `project-detail:${d.id}`)];
+            }
+            if (id.startsWith('career-details-header:')) {
+                const projectId = id.replace('career-details-header:', '');
+                const p = orderedCareerCards
+                    .flatMap((c) => c.projects)
+                    .find((item) => String(item.id) === projectId);
+                if (p) return [id, ...p.details.map((d) => `career-detail:${d.id}`)];
+            }
+            // 섹션 헤더를 끌면 그 섹션에 속한 모든 요소가 함께 이동한다 — 구성 단위
+            // 통째로 재정렬하기 위함.
+            const atom = printableAtoms.find((a) => a.id === id);
+            if (atom?.isHeader) {
+                return printableAtoms
+                    .filter((a) => a.sectionId === atom.sectionId)
+                    .map((a) => a.id);
+            }
+            return [id];
+        },
+        [orderedMilestones, orderedCareerCards, printableAtoms]
+    );
 
-    const startGapDrag = (id: string) => (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const startY = e.clientY;
-        const startGap = Math.max(0, store.sectionGaps[id] ?? 0);
-        const onMove = (me: MouseEvent) => {
-            const next = Math.max(0, Math.round(startGap + (me.clientY - startY)));
-            store.setGap(id, next);
-        };
-        const onUp = () => {
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-        };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-    };
+    // 강제 페이지 이동/해제 전용. 2-3열로 나란히 배치된 행에서 한 컬럼만 옮기면
+    // 나머지 컬럼이 이전/다음 페이지에 남아 레이아웃이 찢어지므로, 여기서는 같은 행의
+    // 다른 컬럼 atom까지 모두 묶어서 반환한다. 드래그앤드롭(placeAtomBeside 등)은 이
+    // 확장을 타지 않고 기존 getAssociatedAtomIds만 써서 컬럼 하나만 떼어내는 동작을
+    // 그대로 유지한다.
+    const getForcePageAssociatedAtomIds = useCallback(
+        (id: string): string[] => {
+            const visited = new Set<string>([id]);
+            const queue: string[] = [id];
 
-    const getAtomDisplayTitle = (atomId: string): string => {
-        if (atomId === 'intro-profile') return '소개 / 프로필';
-        if (atomId === 'skills' || atomId === 'skills-group') return '기술 스택';
-        if (atomId === 'competency-header' || atomId === 'competencies') return '핵심 역량';
-        if (atomId === 'career-header' || atomId === 'career') return '경력 사항';
-        if (atomId === 'credentials-header' || atomId === 'credentials') return '학력 / 자격증';
-        if (atomId === 'projects-header' || atomId === 'projects') return '프로젝트 목록';
-        if (atomId === 'cover-letter-header' || atomId === 'cover-letter') return '지원 문항';
+            while (queue.length > 0) {
+                const current = queue.shift()!;
 
-        if (atomId.startsWith('custom-section:')) {
-            const sectionId = atomId.replace('custom-section:', '');
-            return (
-                contentOverrides.customSections?.find((section) => section.id === sectionId)
-                    ?.title || '사용자 정의 섹션'
+                for (const childId of getAssociatedAtomIds(current)) {
+                    if (!visited.has(childId)) {
+                        visited.add(childId);
+                        queue.push(childId);
+                    }
+                }
+
+                const placement = store.outputLayout.placements.find((p) => p.atomId === current);
+                if (!placement) continue;
+                const region = store.outputLayout.regions.find((r) => r.id === placement.regionId);
+                if (!region) continue;
+                const row = store.outputLayout.rows.find((r) => r.id === region.rowId);
+                if (!row || row.regionIds.length <= 1) continue;
+
+                const siblingRegionIds = new Set(row.regionIds);
+                const siblingAtomIds = store.outputLayout.placements
+                    .filter((p) => siblingRegionIds.has(p.regionId))
+                    .map((p) => p.atomId);
+                for (const siblingId of siblingAtomIds) {
+                    if (!visited.has(siblingId)) {
+                        visited.add(siblingId);
+                        queue.push(siblingId);
+                    }
+                }
+            }
+
+            return Array.from(visited);
+        },
+        [getAssociatedAtomIds, store.outputLayout]
+    );
+
+    // 드래그로 나란히 배치 가능한 "항목" 단위 키. 같은 헤더/디테일끼리는 같은 키가
+    // 나오고, 서로 다른 회사/프로젝트/섹션의 항목은 다른 키가 나온다. career-detail-item/
+    // project-detail-item만 부모 항목까지 역추적하고, 그 외 타입은 자기 id 자체가 이미
+    // 고유한 항목 단위라 별도 조회 없이 그대로 쓴다.
+    const getRowPairingKey = useCallback(
+        (atomId: string): string => {
+            const atom = printableAtoms.find((a) => a.id === atomId);
+            if (!atom) return atomId;
+            // 직장경력/프로젝트는 회사·프로젝트 하위에 상세 항목이 딸린 계층 구조라, 그
+            // 경계(회사·프로젝트 단위)를 넘어 섞이면 안 된다 — 원래 문제였던 케이스.
+            if (atom.type === 'career-detail-item') {
+                const project = orderedCareerCards
+                    .flatMap((c) => c.projects)
+                    .find((p) => p.details?.some((d) => `career-detail:${d.id}` === atomId));
+                return project ? `career-project:${project.id}` : atom.sectionId;
+            }
+            if (atom.type === 'project-detail-item') {
+                const milestone = orderedMilestones.find((m) =>
+                    m.details?.some((d) => `project-detail:${d.id}` === atomId)
+                );
+                return milestone ? `project:${milestone.id}` : atom.sectionId;
+            }
+            if (atom.type === 'career-item' || atom.type === 'career-company') {
+                return atomId;
+            }
+            if (atom.type === 'project-item') {
+                return atomId;
+            }
+            // 그 외(핵심역량/자격증/스킬그룹/자기소개 문항/커스텀 섹션 등 하위 계층 없는
+            // 평평한 목록과 각종 헤더)는 같은 섹션 안에서는 자유롭게 나란히 배치·재배치
+            // 가능해야 하므로 섹션 단위로만 구분한다.
+            return atom.sectionId;
+        },
+        [printableAtoms, orderedCareerCards, orderedMilestones]
+    );
+
+    // getRowPairingKey가 같은 값끼리 묶은 연속 구간. printableAtoms가 이미 섹션별
+    // 순서대로 쌓이므로, 연속 구간 단위로만 나누면 "명시적 순서 없으면 문서 순서 유지"
+    // 라는 기존 규칙을 절대 어기지 않는다(전역 Map으로 묶으면 순서가 흐트러질 위험).
+    const computeRegionScopeRuns = useCallback(
+        (regionId: string, atoms: PrintAtomItem[]): RegionScopeRun[] => {
+            const runs: RegionScopeRun[] = [];
+            for (const atom of atoms) {
+                const scopeKey = getRowPairingKey(atom.id);
+                const last = runs[runs.length - 1];
+                if (last && last.scopeKey === scopeKey) {
+                    last.atoms.push(atom);
+                } else {
+                    runs.push({ regionId, runIndex: runs.length, scopeKey, atoms: [atom] });
+                }
+            }
+            return runs;
+        },
+        [getRowPairingKey]
+    );
+
+    // 어떤 항목도 자기 섹션의 헤더보다 앞(위)으로 갈 수 없다. 헤더 atom을 anchor로
+    // 'before' 위치에 끼워넣으려는 시도만 'after'로 강제 클램프한다 — 헤더가 아닌
+    // anchor는 원래도 헤더보다 뒤에 있으므로 건드릴 필요 없다.
+    const clampAtomPositionPastHeader = useCallback(
+        (
+            movingAtomIds: string[],
+            anchorAtomId: string,
+            position: 'before' | 'after'
+        ): 'before' | 'after' => {
+            if (position === 'after') return position;
+            const anchorAtom = printableAtoms.find((a) => a.id === anchorAtomId);
+            if (!anchorAtom?.isHeader) return position;
+            const blocked = movingAtomIds.some(
+                (id) => printableAtoms.find((a) => a.id === id)?.sectionId === anchorAtom.sectionId
             );
-        }
-        if (atomId.startsWith('custom-section-item:')) {
-            const [, sectionId, itemId] = atomId.split(':');
-            const item = contentOverrides.customSections
-                ?.find((section) => section.id === sectionId)
-                ?.items.find((entry) => entry.id === itemId);
-            return item?.title || '사용자 정의 항목';
-        }
+            return blocked ? 'after' : position;
+        },
+        [printableAtoms]
+    );
 
-        if (atomId.startsWith('cover-letter-item:')) {
-            const itemId = atomId.replace('cover-letter-item:', '');
-            const item = orderedCoverLetterItems.find((c) => String(c.id) === itemId);
-            if (item?.question) return `'${item.question}'`;
-            return '지원 문항 항목';
-        }
-        if (atomId.startsWith('competency:')) {
-            const compId = atomId.replace('competency:', '');
-            const c = (resolvedIntroData.competencies || []).find(
-                (item) => String(item.id) === compId
+    const getRowAtomIds = useCallback((rowId: string, layout: OutputLayout): string[] => {
+        const regionIds = layout.regions
+            .filter((region) => region.rowId === rowId)
+            .map((region) => region.id);
+        return layout.placements
+            .filter((placement) => regionIds.includes(placement.regionId))
+            .map((placement) => placement.atomId);
+    }, []);
+
+    // 행 단위 이동(행↔행, atom↔행)용 버전 — 대상 행 안에 이동 대상과 같은 섹션의
+    // 헤더가 있으면 그 행의 앞쪽에 끼워넣는 걸 막는다.
+    const clampRowPositionPastHeader = useCallback(
+        (
+            movingAtomIds: string[],
+            targetRowId: string,
+            position: 'before' | 'after'
+        ): 'before' | 'after' => {
+            if (position === 'after') return position;
+            const targetAtomIds = new Set(getRowAtomIds(targetRowId, store.outputLayout));
+            const movingSectionIds = new Set(
+                movingAtomIds
+                    .map((id) => printableAtoms.find((a) => a.id === id)?.sectionId)
+                    .filter((v): v is string => v !== undefined)
             );
-            if (c?.title) return `'${c.title}'`;
-            return '핵심 역량 항목';
-        }
-        if (atomId.startsWith('career-company:')) {
-            const compId = atomId.replace('career-company:', '');
-            const card = orderedCareerCards.find((c) => String(c.id) === compId);
-            if (card?.companyName) return `'${card.companyName}'`;
-            return '경력 회사';
-        }
-        if (atomId.startsWith('career-project:')) {
-            const projId = atomId.replace('career-project:', '');
-            const p = orderedCareerCards
-                .flatMap((c) => c.projects)
-                .find((item) => String(item.id) === projId);
-            if (p?.title) return `'${p.title}'`;
-            return '경력 프로젝트';
-        }
-        if (atomId.startsWith('career-details-header:')) {
-            const projId = atomId.replace('career-details-header:', '');
-            const p = orderedCareerCards
-                .flatMap((c) => c.projects)
-                .find((item) => String(item.id) === projId);
-            if (p?.title) return `'${p.title}' 세부 내용`;
-            return '경력 프로젝트 세부 내용';
-        }
-        if (atomId.startsWith('project:')) {
-            const mId = atomId.replace('project:', '');
-            const m = orderedMilestones.find((item) => String(item.id) === mId);
-            if (m?.title) return `'${m.title}'`;
-            return '프로젝트';
-        }
-        if (atomId.startsWith('project-details-header:')) {
-            const mId = atomId.replace('project-details-header:', '');
-            const m = orderedMilestones.find((item) => String(item.id) === mId);
-            if (m?.title) return `'${m.title}' 세부 내용`;
-            return '프로젝트 세부 내용';
-        }
-        if (atomId.startsWith('credential:')) {
-            const credId = atomId.replace('credential:', '');
-            const cred = orderedCredentialExperiences.find((item) => String(item.id) === credId);
-            const title = cred?.title || cred?.companyName;
-            if (title) return `'${title}'`;
-            return '학력/자격증';
-        }
+            const blocked = printableAtoms.some(
+                (atom) =>
+                    atom.isHeader &&
+                    targetAtomIds.has(atom.id) &&
+                    movingSectionIds.has(atom.sectionId)
+            );
+            return blocked ? 'after' : position;
+        },
+        [getRowAtomIds, store.outputLayout, printableAtoms]
+    );
 
-        const atom = printableAtoms.find((a) => a.id === atomId);
-        if (atom?.title) return `'${atom.title}'`;
-        return '해당 항목';
+    const isHeaderAtom = useCallback(
+        (atomId: string): boolean => printableAtoms.find((a) => a.id === atomId)?.isHeader === true,
+        [printableAtoms]
+    );
+
+    const getRowIdForAtom = useCallback(
+        (atomId: string, layout: OutputLayout): string | undefined => {
+            const placement = layout.placements.find((p) => p.atomId === atomId);
+            if (!placement) return undefined;
+            const region = layout.regions.find((r) => r.id === placement.regionId);
+            return region?.rowId;
+        },
+        []
+    );
+
+    // 아직 한 번도 수동 배치된 적 없는 atom은 layout.placements에 아예 항목이
+    // 없다(자연 문서 순서 fallback으로만 렌더링됨) — 그래서 행 기반 로직이 "이
+    // atom이 속한 행"을 못 찾아 조용히 아무 일도 안 하거나(헤더 드래그 무반응),
+    // 섹션의 placement 있는 일부만 옮기고 나머지는 그대로 둬서 열 구조가 깨지는
+    // 버그가 났다. 이 페이지의 현재 자연 순서를 명시적 row로 확정해, 이후 행
+    // 기반 로직이 확실히 모든 atom을 찾을 수 있게 한다 — 이미 명시적 배치된
+    // 행은 그대로 두고 자연 순서 구간만 새 단일열 행으로 감싼다(비파괴적).
+    // 순수 함수 — layout을 받아 새 layout을 반환할 뿐 store를 직접 건드리지
+    // 않는다. 자동 정리(자동 병합 useEffect)가 이 함수를 여러 페이지에 걸쳐
+    // 반복 호출한 뒤 결과를 한 번에만 커밋해야, 실행마다 undo 히스토리에 자동
+    // 정리 스냅샷이 따로따로 쌓이는 걸 막을 수 있다.
+    const materializePageIntoRows = useCallback(
+        (layout: OutputLayout, pageIndex: number): OutputLayout => {
+            const { rows } = getOutputPageAt(layout, pageIndex);
+            const rowIdByAtomId = new Map<string, string>();
+            rows.forEach(({ row, regions }) => {
+                regions.forEach((region) => {
+                    layout.placements
+                        .filter((p) => p.regionId === region.id)
+                        .forEach((p) => rowIdByAtomId.set(p.atomId, row.id));
+                });
+            });
+
+            // 단일열 행에 서로 다른 섹션의 atom이 섞여 있으면(과거 버그로 이미 오염된
+            // 상태) 그 행을 명시적 행으로 그대로 보존하면 오염이 계속 이어진다 — 실제로
+            // intro-profile/skills/competencies가 region 하나에 다 섞인 채로 발견됐다.
+            // 그런 행은 rowIdByAtomId에서 지워 "자연 순서" 취급으로 되돌리면, 아래
+            // 버킷팅(섹션 경계에서 새 행으로 끊기)이 섹션별로 다시 갈라준다.
+            rows.forEach(({ regions }) => {
+                if (regions.length !== 1) return;
+                const atomIds = layout.placements
+                    .filter((p) => p.regionId === regions[0].id)
+                    .map((p) => p.atomId);
+                const sectionIds = new Set(
+                    atomIds
+                        .map((id) => printableAtoms.find((a) => a.id === id)?.sectionId)
+                        .filter((v): v is string => v !== undefined)
+                );
+                if (sectionIds.size > 1) {
+                    atomIds.forEach((id) => rowIdByAtomId.delete(id));
+                }
+            });
+
+            const pageAtoms = pageLayers[pageIndex]?.items ?? [];
+            if (pageAtoms.length === 0 || pageAtoms.every((atom) => rowIdByAtomId.has(atom.id))) {
+                return layout;
+            }
+
+            const composition: string[][][] = [];
+            let naturalBuffer: string[] = [];
+            let naturalBufferSectionId: string | undefined;
+            const pushedRowIds = new Set<string>();
+            const flushNatural = () => {
+                if (naturalBuffer.length > 0) {
+                    composition.push([naturalBuffer]);
+                    naturalBuffer = [];
+                    naturalBufferSectionId = undefined;
+                }
+            };
+            for (const atom of pageAtoms) {
+                const rowId = rowIdByAtomId.get(atom.id);
+                if (rowId) {
+                    if (pushedRowIds.has(rowId)) continue;
+                    flushNatural();
+                    pushedRowIds.add(rowId);
+                    const rowEntry = rows.find(({ row }) => row.id === rowId);
+                    if (!rowEntry) continue;
+                    composition.push(
+                        rowEntry.regions.map((region) =>
+                            layout.placements
+                                .filter((p) => p.regionId === region.id)
+                                .sort((a, b) => a.order - b.order)
+                                .map((p) => p.atomId)
+                        )
+                    );
+                } else {
+                    // 자연 순서 구간도 섹션 경계에서는 새 행으로 끊는다 — 그렇지 않으면
+                    // 서로 다른 섹션의 손 안 댄 콘텐츠가 한 region에 섞여버린다.
+                    if (
+                        naturalBufferSectionId !== undefined &&
+                        naturalBufferSectionId !== atom.sectionId
+                    ) {
+                        flushNatural();
+                    }
+                    naturalBufferSectionId = atom.sectionId;
+                    naturalBuffer.push(atom.id);
+                }
+            }
+            flushNatural();
+            return composition.length > 0
+                ? replaceOutputPageComposition(layout, pageIndex, composition)
+                : layout;
+        },
+        [printableAtoms, pageLayers]
+    );
+
+    // atom 카드를 끌든(어느 atom이든) 행 그립을 끌든, 대상이 다른 섹션의 헤더면
+    // 그 섹션 전체(헤더 + 소속된 모든 행, 2/3/4열 구조 포함)를 통째로 그 섹션의
+    // 앞/뒤로 옮긴다 — 오른쪽 "구성 관리" 패널과 동일하게 구성끼리만 상하 순서를
+    // 바꾸는 동작.
+    const moveWholeSectionOnto = useCallback(
+        (movingMemberAtomId: string, targetHeaderId: string, position: 'before' | 'after') => {
+            const movingAtom = printableAtoms.find((a) => a.id === movingMemberAtomId);
+            const targetAtom = printableAtoms.find((a) => a.id === targetHeaderId);
+            if (!movingAtom || !targetAtom?.isHeader) return;
+            if (movingAtom.sectionId === targetAtom.sectionId) return;
+
+            // 이동/대상 섹션 atom이 걸쳐있는 모든 페이지를 먼저 명시적 row로 확정.
+            // materialize 결과를 로컬 변수에만 누적하고 store엔 아직 안 쓴다 —
+            // 페이지마다 store.replacePageComposition을 따로 부르면 undo 히스토리에
+            // 자동 정리 스냅샷이 여러 개 쌓이고, 다음 페이지 계산도 이 함수 안의
+            // store.outputLayout(이 렌더 시점 스냅샷)에 반영이 안 돼 있어 꼬인다.
+            const touchedPageIndexes = new Set<number>();
+            printableAtoms.forEach((atom) => {
+                if (
+                    atom.sectionId === movingAtom.sectionId ||
+                    atom.sectionId === targetAtom.sectionId
+                ) {
+                    const p = atomPageMap.get(atom.id);
+                    if (p !== undefined) touchedPageIndexes.add(p);
+                }
+            });
+            let workingLayout = store.outputLayout;
+            touchedPageIndexes.forEach((pageIndex) => {
+                workingLayout = materializePageIntoRows(workingLayout, pageIndex);
+            });
+
+            const rowIdsOfSection = (sectionId: string): string[] =>
+                Array.from(
+                    new Set(
+                        printableAtoms
+                            .filter((a) => a.sectionId === sectionId)
+                            .map((a) => getRowIdForAtom(a.id, workingLayout))
+                            .filter((id): id is string => id !== undefined)
+                    )
+                );
+
+            const movingRowIds = rowIdsOfSection(movingAtom.sectionId);
+            const targetRowIds = rowIdsOfSection(targetAtom.sectionId);
+            if (movingRowIds.length === 0 || targetRowIds.length === 0) return;
+
+            // row.order는 같은 페이지 안에서만 의미 있는 값이라, 섹션이 여러 페이지에
+            // 걸쳐 있으면(예: projects가 5개 페이지에 걸침) 페이지 인덱스로 먼저
+            // 정렬해야 진짜 "첫 행"/"마지막 행"을 고를 수 있다.
+            const pageIndexById = new Map(
+                workingLayout.pages.map((page, index) => [page.id, index])
+            );
+            const orderedTargetRows = targetRowIds
+                .map((id) => workingLayout.rows.find((row) => row.id === id))
+                .filter((row): row is OutputRow => !!row)
+                .sort((a, b) => {
+                    const pageA = pageIndexById.get(a.pageId) ?? 0;
+                    const pageB = pageIndexById.get(b.pageId) ?? 0;
+                    return pageA !== pageB ? pageA - pageB : a.order - b.order;
+                });
+            if (orderedTargetRows.length === 0) return;
+            const anchorRowId =
+                position === 'before'
+                    ? orderedTargetRows[0].id
+                    : orderedTargetRows[orderedTargetRows.length - 1].id;
+
+            const finalLayout = moveSectionRows(workingLayout, movingRowIds, {
+                rowId: anchorRowId,
+                position,
+            });
+            usePrintStore.getState().setOutputLayout(finalLayout);
+        },
+        [printableAtoms, atomPageMap, store.outputLayout, materializePageIntoRows, getRowIdForAtom]
+    );
+
+    // 오른쪽 "구성 관리" 패널은 printSectionOrder라는 별도의 자연 순서 배열만
+    // 바꾼다 — 이미 명시적으로 배치된(캔버스에서 손댄) 섹션엔 아무 영향이 없어서,
+    // 패널 목록 순서와 실제 캔버스 렌더 순서가 서로 어긋나는 버그가 났다.
+    // printSectionOrder도 그대로 갱신하되, 캔버스 쪽 실제 행 순서도 같이
+    // moveWholeSectionOnto로 맞춰서 두 표현이 항상 일치하게 한다.
+    const reorderSectionsAndSync = (
+        draggedSectionId: string,
+        targetSectionId: string,
+        position: 'before' | 'after' = 'before'
+    ) => {
+        store.reorderSections(draggedSectionId, targetSectionId, position);
+        const draggedHeaderAtom = printableAtoms.find(
+            (a) => a.isHeader && a.sectionId === draggedSectionId
+        );
+        const targetHeaderAtom = printableAtoms.find(
+            (a) => a.isHeader && a.sectionId === targetSectionId
+        );
+        if (draggedHeaderAtom && targetHeaderAtom) {
+            moveWholeSectionOnto(draggedHeaderAtom.id, targetHeaderAtom.id, position);
+        }
     };
+
+    const getRowSectionId = useCallback(
+        (rowId: string, layout: OutputLayout): string | undefined =>
+            getRowAtomIds(rowId, layout)
+                .map((id) => printableAtoms.find((a) => a.id === id)?.sectionId)
+                .find((v): v is string => v !== undefined),
+        [getRowAtomIds, printableAtoms]
+    );
+
+    // 행 대 행 재정렬은 섹션 경계를 전혀 모르는 단순 순서 교환이면, 다른 섹션의
+    // 행 사이에 끼워넣으면 그 섹션 내용이 섞여버린다(실제 리포트된 버그). 여기서
+    // 먼저 두 행이 같은 섹션인지 확인해 안전할 때만 이동하고, 다른 섹션이면 그
+    // 섹션의 헤더 행일 때만 "섹션 전체 이동"으로 처리하며, 그 외(다른 섹션의
+    // 중간 행)는 아예 무시한다.
+    //
+    // moveOutputRow(구 store.moveRow)는 같은 페이지 안에서만 order를 다시 매겨서
+    // 타겟 행이 다른 페이지에 있으면 조용히 무시됐다(실제 리포트된 버그 —
+    // 핵심역량 3열 행을 다음 페이지 행 사이로 끌어도 순서가 안 바뀜). 행 하나만
+    // 옮기더라도 페이지를 넘나들 수 있어야 하므로, moveWholeSectionOnto와 같은
+    // moveSectionRows(페이지 간 이동을 정식으로 지원하는 함수)를 [movingRowId]
+    // 하나짜리 배열로 재사용한다.
+    const resolveRowToRowMove = useCallback(
+        (movingRowId: string, targetRowId: string, position: 'before' | 'after') => {
+            const movingSectionId = getRowSectionId(movingRowId, store.outputLayout);
+            const targetSectionId = getRowSectionId(targetRowId, store.outputLayout);
+            // 둘 중 하나라도 섹션을 확실히 못 구하면(예: 그 행의 유일한 atom이 인쇄
+            // 제외됨) 안전하게 아무 것도 하지 않는다 — 예전엔 이 경우 아래 같은-섹션
+            // 분기로 빠져 가드 없이 store.moveRow가 실행됐다.
+            if (!movingSectionId || !targetSectionId) {
+                return;
+            }
+            if (movingSectionId !== targetSectionId) {
+                const targetHeaderAtom = getRowAtomIds(targetRowId, store.outputLayout)
+                    .map((id) => printableAtoms.find((a) => a.id === id))
+                    .find((a) => a?.isHeader);
+                if (targetHeaderAtom) {
+                    const anyMovingAtomId = getRowAtomIds(movingRowId, store.outputLayout)[0];
+                    if (anyMovingAtomId)
+                        moveWholeSectionOnto(anyMovingAtomId, targetHeaderAtom.id, position);
+                }
+                return;
+            }
+            const clampedPosition = clampRowPositionPastHeader(
+                getRowAtomIds(movingRowId, store.outputLayout),
+                targetRowId,
+                position
+            );
+            usePrintStore
+                .getState()
+                .moveSectionRows([movingRowId], { rowId: targetRowId, position: clampedPosition });
+        },
+        [
+            getRowSectionId,
+            store.outputLayout,
+            getRowAtomIds,
+            printableAtoms,
+            moveWholeSectionOnto,
+            clampRowPositionPastHeader,
+        ]
+    );
+
+    const startGapDrag = useCallback(
+        (id: string) => (e: ReactPointerEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const startY = e.clientY;
+            const startGap = Math.max(0, store.sectionGaps[id] ?? 0);
+            const onMove = (me: PointerEvent) => {
+                const next = Math.max(0, Math.round(startGap + (me.clientY - startY)));
+                usePrintStore.getState().setGap(id, next);
+            };
+            const onUp = () => {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+                window.removeEventListener('pointercancel', onUp);
+            };
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+            window.addEventListener('pointercancel', onUp);
+        },
+        [store.sectionGaps]
+    );
+
+    const getAtomDisplayTitle = useCallback(
+        (atomId: string): string => {
+            if (atomId === 'intro-profile') return '소개 / 프로필';
+            if (atomId === 'skills' || atomId === 'skills-group') return '기술 스택';
+            if (atomId === 'competency-header' || atomId === 'competencies') return '핵심 역량';
+            if (atomId === 'career-header' || atomId === 'career') return '경력 사항';
+            if (atomId === 'credentials-header' || atomId === 'credentials') return '학력 / 자격증';
+            if (atomId === 'projects-header' || atomId === 'projects') return '프로젝트 목록';
+            if (atomId === 'cover-letter-header' || atomId === 'cover-letter') return '지원 문항';
+
+            if (atomId.startsWith('custom-section:')) {
+                const sectionId = atomId.replace('custom-section:', '');
+                return (
+                    contentOverrides.customSections?.find((section) => section.id === sectionId)
+                        ?.title || '사용자 정의 섹션'
+                );
+            }
+            if (atomId.startsWith('custom-section-item:')) {
+                const [, sectionId, itemId] = atomId.split(':');
+                const item = contentOverrides.customSections
+                    ?.find((section) => section.id === sectionId)
+                    ?.items.find((entry) => entry.id === itemId);
+                return item?.title || '사용자 정의 항목';
+            }
+
+            if (atomId.startsWith('cover-letter-item:')) {
+                const itemId = atomId.replace('cover-letter-item:', '');
+                const item = orderedCoverLetterItems.find((c) => String(c.id) === itemId);
+                if (item?.question) return `'${item.question}'`;
+                return '지원 문항 항목';
+            }
+            if (atomId.startsWith('competency:')) {
+                const compId = atomId.replace('competency:', '');
+                const c = (resolvedIntroData.competencies || []).find(
+                    (item) => String(item.id) === compId
+                );
+                if (c?.title) return `'${c.title}'`;
+                return '핵심 역량 항목';
+            }
+            if (atomId.startsWith('career-company:')) {
+                const compId = atomId.replace('career-company:', '');
+                const card = orderedCareerCards.find((c) => String(c.id) === compId);
+                if (card?.companyName) return `'${card.companyName}'`;
+                return '경력 회사';
+            }
+            if (atomId.startsWith('career-project:')) {
+                const projId = atomId.replace('career-project:', '');
+                const p = orderedCareerCards
+                    .flatMap((c) => c.projects)
+                    .find((item) => String(item.id) === projId);
+                if (p?.title) return `'${p.title}'`;
+                return '경력 프로젝트';
+            }
+            if (atomId.startsWith('career-details-header:')) {
+                const projId = atomId.replace('career-details-header:', '');
+                const p = orderedCareerCards
+                    .flatMap((c) => c.projects)
+                    .find((item) => String(item.id) === projId);
+                if (p?.title) return `'${p.title}' 세부 내용`;
+                return '경력 프로젝트 세부 내용';
+            }
+            if (atomId.startsWith('project:')) {
+                const mId = atomId.replace('project:', '');
+                const m = orderedMilestones.find((item) => String(item.id) === mId);
+                if (m?.title) return `'${m.title}'`;
+                return '프로젝트';
+            }
+            if (atomId.startsWith('project-details-header:')) {
+                const mId = atomId.replace('project-details-header:', '');
+                const m = orderedMilestones.find((item) => String(item.id) === mId);
+                if (m?.title) return `'${m.title}' 세부 내용`;
+                return '프로젝트 세부 내용';
+            }
+            if (atomId.startsWith('credential:')) {
+                const credId = atomId.replace('credential:', '');
+                const cred = orderedCredentialExperiences.find(
+                    (item) => String(item.id) === credId
+                );
+                const title = cred?.title || cred?.companyName;
+                if (title) return `'${title}'`;
+                return '학력/자격증';
+            }
+
+            const atom = printableAtoms.find((a) => a.id === atomId);
+            if (atom?.title) return `'${atom.title}'`;
+            return '해당 항목';
+        },
+        [
+            contentOverrides,
+            orderedCoverLetterItems,
+            resolvedIntroData,
+            orderedCareerCards,
+            orderedMilestones,
+            orderedCredentialExperiences,
+            printableAtoms,
+        ]
+    );
 
     // 배지(강제배치/분할지점) 안에서 이미 핀·여백조절을 제공하는지 판별.
     // 호버 시 뜨는 .pp-controls 알약과 좌표가 겹치므로, 배지가 보이는 항목은
     // 알약을 아예 띄우지 않고 배지 하나로 컨트롤을 통일한다.
-    const isPageBreakBannerVisible = (id: string): boolean => {
-        if (store.hidePrintGuides) return false;
-        if (id === 'intro-profile') return false;
-        const forcedPage = store.forcedPageOverrides[id];
-        if (forcedPage !== undefined) {
-            const isChildDetail =
-                id.startsWith('project-detail:') || id.startsWith('career-detail:');
-            if (isChildDetail) {
-                let parentHeaderId: string | null = null;
-                if (id.startsWith('project-detail:')) {
-                    const detailId = id.replace('project-detail:', '');
-                    const m = orderedMilestones.find((item) =>
-                        item.details.some((d) => String(d.id) === detailId)
-                    );
-                    if (m) parentHeaderId = `project-details-header:${m.id}`;
-                } else if (id.startsWith('career-detail:')) {
-                    const detailId = id.replace('career-detail:', '');
-                    const p = orderedCareerCards
-                        .flatMap((c) => c.projects)
-                        .find((proj) => proj.details.some((d) => String(d.id) === detailId));
-                    if (p) parentHeaderId = `career-details-header:${p.id}`;
+    const isPageBreakBannerVisible = useCallback(
+        (id: string): boolean => {
+            if (store.hidePrintGuides) return false;
+            if (id === 'intro-profile') return false;
+            const forcedPage = store.forcedPageOverrides[id];
+            if (forcedPage !== undefined) {
+                const isChildDetail =
+                    id.startsWith('project-detail:') || id.startsWith('career-detail:');
+                if (isChildDetail) {
+                    let parentHeaderId: string | null = null;
+                    if (id.startsWith('project-detail:')) {
+                        const detailId = id.replace('project-detail:', '');
+                        const m = orderedMilestones.find((item) =>
+                            item.details.some((d) => String(d.id) === detailId)
+                        );
+                        if (m) parentHeaderId = `project-details-header:${m.id}`;
+                    } else if (id.startsWith('career-detail:')) {
+                        const detailId = id.replace('career-detail:', '');
+                        const p = orderedCareerCards
+                            .flatMap((c) => c.projects)
+                            .find((proj) => proj.details.some((d) => String(d.id) === detailId));
+                        if (p) parentHeaderId = `career-details-header:${p.id}`;
+                    }
+                    if (parentHeaderId && store.forcedPageOverrides[parentHeaderId] !== undefined)
+                        return false;
                 }
-                if (parentHeaderId && store.forcedPageOverrides[parentHeaderId] !== undefined)
-                    return false;
+                return true;
             }
-            return true;
-        }
-        const isBoundary = pageBreakBoundaryAtomIds.has(id);
-        const currentGap = store.sectionGaps[id] ?? 0;
-        return isBoundary || currentGap > 0;
-    };
-
-    const renderPageBreakControl = (id: string, sectionId: string) => {
-        if (!isPageBreakBannerVisible(id)) return null;
-        void sectionId;
-
-        const isBoundary = pageBreakBoundaryAtomIds.has(id);
-        const forcedPage = store.forcedPageOverrides[id];
-        const currentPage = atomPageMap.get(id);
-        const itemTitle = getAtomDisplayTitle(id);
-        const isExcluded = store.printExcludedIds.includes(id);
-
-        const shortItemTitle = itemTitle.length > 8 ? `${itemTitle.slice(0, 8)}...` : itemTitle;
-
-        const pinAndGapButtons = (
-            <>
-                <div
-                    onMouseDown={startGapDrag(id)}
-                    title="위치/여백 조절 (마우스로 위아래를 끌어서 간격 세밀 조절)"
-                    className="flex h-6 w-6 cursor-ns-resize items-center justify-center rounded-full bg-blue-600 hover:bg-blue-500 active:scale-95 transition shadow-sm shrink-0"
-                >
-                    <MoveVertical className="h-3 w-3 text-white" />
-                </div>
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        store.toggleExcluded(id);
-                    }}
-                    title={isExcluded ? '핀 고정하여 인쇄 포함' : '핀 해제하여 인쇄 제외'}
-                    className={`flex h-6 w-6 items-center justify-center rounded-full shadow-sm transition cursor-pointer shrink-0 ${
-                        isExcluded
-                            ? 'bg-slate-700 hover:bg-slate-600'
-                            : 'bg-blue-600 hover:bg-blue-500'
-                    }`}
-                >
-                    {isExcluded ? (
-                        <PinOff className="h-3 w-3 text-white" />
-                    ) : (
-                        <Pin className="h-3 w-3 text-white" />
-                    )}
-                </button>
-            </>
-        );
-
-        if (forcedPage !== undefined) {
-            const labelText = `${shortItemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
-
-            return (
-                <div className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto">
-                    <div className="flex items-center gap-2 min-w-0 shrink">
-                        <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
-                            강제 위치 배치됨
-                        </span>
-                        <span
-                            className="text-[11px] text-indigo-100 font-semibold truncate max-w-[220px]"
-                            title={`${itemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`}
-                        >
-                            {labelText}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        {forcedPage > 0 && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    store.forcePage(getAssociatedAtomIds(id), forcedPage - 1);
-                                }}
-                                className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
-                                title={`'${itemTitle}' 항목을 ${forcedPage}페이지로 한 단계 더 끌어올립니다.`}
-                            >
-                                <ArrowUp className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate max-w-[150px]">
-                                    {forcedPage}페이지로 더 올리기
-                                </span>
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                store.clearForcedPage(getAssociatedAtomIds(id));
-                            }}
-                            className="flex items-center gap-1 rounded bg-rose-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-rose-700 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
-                            title="강제 위치 배제를 해제하고 원래 자동 배치 상태로 복원합니다."
-                        >
-                            <ArrowDown className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate max-w-[160px]">
-                                강제 배치 해제 (원래 위치로)
-                            </span>
-                        </button>
-                        {pinAndGapButtons}
-                    </div>
-                </div>
-            );
-        }
-
-        const targetPrevPage = (currentPage ?? 1) - 1;
-
-        return (
-            <div
-                className={`absolute -top-7 ${isBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto`}
-            >
-                <div className="flex items-center gap-2 min-w-0 shrink">
-                    <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
-                        페이지 분할 지점
-                    </span>
-                    <span
-                        className="text-[11px] text-slate-200 font-semibold truncate max-w-[220px]"
-                        title={
-                            isBoundary
-                                ? `${itemTitle} 항목부터 다음 페이지로 분할되었습니다.`
-                                : `${itemTitle} 여백 세밀 조절 중`
-                        }
-                    >
-                        {isBoundary
-                            ? `${shortItemTitle} 항목부터 다음 페이지로 분할`
-                            : `${shortItemTitle} 여백 세밀 조절 중`}
-                    </span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    {isBoundary && targetPrevPage >= 0 && (
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                store.forcePage(getAssociatedAtomIds(id), targetPrevPage);
-                            }}
-                            title={`'${itemTitle}' 항목을 ${targetPrevPage + 1}페이지로 강제 올립니다.`}
-                            className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
-                        >
-                            <ArrowUp className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate max-w-[160px]">
-                                &apos;{shortItemTitle}&apos; {targetPrevPage + 1}페이지로 강제
-                                올리기
-                            </span>
-                        </button>
-                    )}
-                    {pinAndGapButtons}
-                </div>
-            </div>
-        );
-    };
-
-    const renderSectionControls = (id: string) => {
-        if (store.hidePrintGuides) return null;
-        return (
-            <div className="pp-controls print:hidden">
-                <PrintEyeButton
-                    id={id}
-                    excluded={store.printExcludedIds.includes(id)}
-                    onToggle={store.toggleExcluded}
-                />
-                <div
-                    onMouseDown={startGapDrag(id)}
-                    title="위쪽 간격 조절 (아래로 끌면 넓어짐)"
-                    className="grid h-7 w-7 cursor-ns-resize place-items-center rounded-full bg-slate-900/90 text-white shadow-lg transition hover:bg-slate-900"
-                >
-                    <MoveVertical className="h-3.5 w-3.5" />
-                </div>
-            </div>
-        );
-    };
-
-    const renderItemControls = (id: string) => {
-        // 배지(강제배치/분할지점)가 이미 핀·여백조절을 제공하는 항목은
-        // 좌표가 겹치는 호버 알약을 띄우지 않는다.
-        if (isPageBreakBannerVisible(id)) return null;
-
-        const isForced = store.forcedPageOverrides[id] !== undefined;
-        const forcedPage = store.forcedPageOverrides[id];
-        const nextPageNum = (forcedPage ?? 0) + 2;
-
-        return (
-            <div className="pp-controls print:hidden flex items-center gap-1 bg-slate-900/90 p-1 rounded-full shadow-lg backdrop-blur-md z-40">
-                <PrintEyeButton
-                    id={id}
-                    excluded={store.printExcludedIds.includes(id)}
-                    onToggle={store.toggleExcluded}
-                />
-                {isForced && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            store.clearForcedPage(getAssociatedAtomIds(id));
-                        }}
-                        title={`원래 위치(${nextPageNum}페이지)로 다시 내리기`}
-                        className="flex h-6 items-center gap-1 rounded-full bg-rose-600 px-2.5 text-[10px] font-black text-white hover:bg-rose-700 transition cursor-pointer shadow-sm"
-                    >
-                        <ArrowDown className="h-3 w-3" />
-                        <span>{nextPageNum}p로 내리기</span>
-                    </button>
-                )}
-                <div
-                    onMouseDown={startGapDrag(id)}
-                    title="마우스를 위아래로 끌어서 간격 세밀 조절"
-                    className="grid h-6 w-6 cursor-ns-resize place-items-center rounded-full bg-slate-700/90 text-white transition hover:bg-blue-600 hover:scale-110"
-                >
-                    <MoveVertical className="h-3 w-3" />
-                </div>
-            </div>
-        );
-    };
-
-    const renderSectionGap = (id: string) => {
-        const h = Math.max(0, store.sectionGaps[id] ?? 0);
-        if (h === 0 || store.printExcludedIds.includes(id)) return null;
-        return (
-            <div
-                aria-hidden
-                data-print-gap
-                className="print-gap-spacer shrink-0 w-full"
-                style={{ height: `${h}px` }}
-            />
-        );
-    };
-
-    const renderItemGap = (id: string, sectionId?: string) => {
-        const h = Math.max(0, store.sectionGaps[id] ?? 0);
-        return (
-            <Fragment key={`gap:${id}`}>
-                {sectionId && renderPageBreakControl(id, sectionId)}
-                {h > 0 && (
-                    <div
-                        aria-hidden
-                        data-print-gap
-                        className="print-gap-spacer shrink-0 w-full"
-                        style={{ height: `${h}px` }}
-                    />
-                )}
-            </Fragment>
-        );
-    };
-
-    const renderAtomContent = (atom: PrintAtomItem) => {
-        switch (atom.type) {
-            case 'intro-profile':
-                if (!profile) return null;
-                const origProfile = introData.profile;
-                return (
-                    <div
-                        id="intro-profile"
-                        data-print-el
-                        className="resume-profile-card relative p-0 pb-3 border-b border-slate-200 shadow-none rounded-none bg-transparent"
-                    >
-                        {renderSectionGap('intro-profile')}
-                        {renderSectionControls('intro-profile')}
-                        <div className="relative z-10 space-y-4">
-                            <div className="resume-profile-toprow flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-b border-slate-100 pb-3">
-                                <div className="space-y-1 shrink-0 min-w-0 flex-1">
-                                    <h2 className="resume-profile-role font-black tracking-tight text-slate-900 whitespace-nowrap text-sm">
-                                        {renderInlineText({
-                                            value: profile.jobTitle,
-                                            baseValue: origProfile?.jobTitle ?? '',
-                                            textClassName:
-                                                'font-black tracking-tight text-slate-900 text-sm',
-                                            placeholder: '직무명을 입력하세요',
-                                            onChange: (val) => setProfileOverride('jobTitle', val),
-                                        })}
-                                    </h2>
-                                    <div className="flex items-baseline gap-2 whitespace-nowrap">
-                                        <h1 className="resume-profile-name font-black text-slate-900 whitespace-nowrap text-lg sm:text-xl">
-                                            {profile.name}
-                                        </h1>
-                                        <span className="resume-profile-name-en font-bold text-slate-400 font-mono whitespace-nowrap text-xs">
-                                            {profile.nameEn}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="resume-print-contact flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-200 pb-2 text-slate-600 text-xs font-mono">
-                                <span>{profile.email}</span>
-                                <span>{profile.phone}</span>
-                                <span>{profile.githubUrl.replace(/^https?:\/\//, '')}</span>
-                                <span>unbrdn.me</span>
-                            </div>
-                            <div>
-                                <div className="resume-body mt-1 max-w-4xl whitespace-pre-line break-words text-slate-600 text-xs pdf-body-text">
-                                    {renderInlineText({
-                                        value: profile.bio,
-                                        baseValue: origProfile?.bio ?? '',
-                                        multiline: true,
-                                        textClassName: 'text-slate-600 text-xs pdf-body-text',
-                                        placeholder: '자기소개 및 소개 문구를 입력하세요',
-                                        onChange: (val) => setProfileOverride('bio', val),
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-
-            case 'skills':
-                return (
-                    <div
-                        data-print-el
-                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
-                    >
-                        {renderSectionGap('skills')}
-                        {renderSectionControls('skills')}
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-2 w-full">
-                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                                <Cpu className="h-4 w-4 text-slate-900" />
-                                기술 스택
-                            </h2>
-                            {inlineEditMode && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setSkillSelectorModalOpen(true);
-                                    }}
-                                    className="absolute bottom-1 right-0 z-10 inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white shadow-xs hover:bg-blue-700 transition cursor-pointer print:hidden"
-                                    title="DB 전체 기술 스택 선택 및 관리 모달 열기"
-                                >
-                                    <Settings className="h-3.5 w-3.5" />
-                                    <span>DB 기술스택 선택/관리</span>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                );
-
-            case 'skills-group': {
-                const fullGroup = groupCoreSkills(introData.skills).find(
-                    (g) => g.value === atom.dataId
-                );
-                const activeGroup = groupedCoreSkills.find((g) => g.value === atom.dataId);
-                // 편집 모드에서도 현재 선택된 기술만 렌더링해야 A4 높이와 줄바꿈이
-                // 일반 미리보기와 동일하다. 추가 선택은 상단 기술 선택 모달에서 처리한다.
-                const displaySkills = activeGroup?.skills ?? [];
-
-                if (displaySkills.length === 0) return null;
-                const itemId = `skills-group:${atom.dataId}`;
-                const groupLabel = fullGroup?.label ?? activeGroup?.label ?? '';
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'skills')}
-                        <div
-                            data-print-el
-                            className="py-3.5 border-b border-slate-100 last:border-b-0 w-full relative"
-                        >
-                            {renderItemControls(itemId)}
-                            <div className="resume-skill-group space-y-1.5">
-                                <div className="flex items-center justify-between border-b border-slate-100 pb-0.5">
-                                    <h4 className="resume-skill-group-title resume-subtitle flex items-center gap-2 font-black text-slate-500 text-xs">
-                                        <span
-                                            className="resume-skill-group-bar h-3 w-1 shrink-0 rounded-full bg-slate-900"
-                                            aria-hidden
-                                        />
-                                        {groupLabel}
-                                    </h4>
-                                </div>
-                                <div className="resume-skill-badges flex flex-wrap items-center gap-x-0.5 gap-y-1 border-l-2 border-slate-100 pl-2 pt-0.5">
-                                    {displaySkills.map((skill, idx) => {
-                                        const isSelected =
-                                            !contentOverrides.selectedSkillIds ||
-                                            contentOverrides.selectedSkillIds.includes(skill.id);
-                                        const separator = idx > 0 && (
-                                            <span
-                                                aria-hidden
-                                                className="mx-1.5 text-slate-300 font-normal"
-                                            >
-                                                ·
-                                            </span>
-                                        );
-
-                                        if (!inlineEditMode) {
-                                            return (
-                                                <span
-                                                    key={skill.id}
-                                                    className="inline-flex items-center"
-                                                >
-                                                    {separator}
-                                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-800">
-                                                        {skill.name}
-                                                        {skill.skillVersion && (
-                                                            <span className="text-[8px] font-bold text-slate-400">
-                                                                v{skill.skillVersion}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </span>
-                                            );
-                                        }
-
-                                        return (
-                                            <Fragment key={skill.id}>
-                                                <span className="inline-flex items-center print:hidden">
-                                                    {separator}
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            toggleSkillSelection(skill.id);
-                                                        }}
-                                                        className={`inline-flex items-center gap-0.5 text-[10px] font-bold transition cursor-pointer ${
-                                                            isSelected
-                                                                ? 'text-slate-900 hover:text-rose-600'
-                                                                : 'text-slate-400 line-through opacity-70 hover:text-blue-600'
-                                                        }`}
-                                                        title={
-                                                            isSelected
-                                                                ? `'${skill.name}' 템플릿에서 제외하기 (클릭)`
-                                                                : `'${skill.name}' 템플릿에 포함하기 (클릭)`
-                                                        }
-                                                    >
-                                                        <span>{skill.name}</span>
-                                                        {skill.skillVersion && (
-                                                            <span
-                                                                className={
-                                                                    isSelected
-                                                                        ? 'text-[8px] font-bold text-slate-400'
-                                                                        : 'text-[8px] font-bold text-slate-300'
-                                                                }
-                                                            >
-                                                                v{skill.skillVersion}
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                </span>
-                                                <span className="hidden items-center print:inline-flex">
-                                                    {idx > 0 && (
-                                                        <span
-                                                            aria-hidden
-                                                            className="mx-1.5 text-slate-300 font-normal"
-                                                        >
-                                                            ·
-                                                        </span>
-                                                    )}
-                                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-800">
-                                                        {skill.name}
-                                                        {skill.skillVersion && (
-                                                            <span className="text-[8px] font-bold text-slate-400">
-                                                                v{skill.skillVersion}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </span>
-                                            </Fragment>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    </Fragment>
-                );
-            }
-
-            case 'competency-header':
-                return (
-                    <div
-                        data-print-el
-                        className="resume-competency-header flex flex-col w-full mt-6 pt-2 relative"
-                    >
-                        {renderSectionGap('competencies')}
-                        {renderSectionControls('competencies')}
-                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                                <Sparkles className="h-4 w-4 text-slate-900" />
-                                핵심 역량
-                            </h2>
-                        </div>
-                    </div>
-                );
-
-            case 'competency-item': {
-                const competency = visibleCompetencies.find((c) => c.id === atom.dataId);
-                if (!competency) return null;
-                const itemId = `competency:${competency.id}`;
-
-                const origComp = introData.competencies.find((c) => c.id === competency.id);
-                const origTitle = origComp?.title ?? competency.title;
-                const origSummary = origComp?.summary ?? competency.summary;
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'competencies')}
-                        <div data-print-el className="relative w-full">
-                            {renderItemControls(itemId)}
-                            <article className="print-competency-row grid gap-3 py-3.5 sm:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] sm:gap-6 print:grid-cols-[minmax(0,0.31fr)_minmax(0,0.69fr)] print:gap-4 print:py-3.5 border-b border-slate-100 last:border-b-0 w-full">
-                                <div className="min-w-0">
-                                    <div className="flex items-baseline gap-2">
-                                        <h3 className="resume-item-title font-black text-slate-900 text-xs min-w-0 flex-1">
-                                            {renderInlineText({
-                                                value: competency.title,
-                                                baseValue: origTitle,
-                                                textClassName: 'font-black text-slate-900 text-xs',
-                                                placeholder: '핵심 역량 제목을 입력하세요',
-                                                onChange: (val) =>
-                                                    setCompetencyOverride(
-                                                        competency.id,
-                                                        'title',
-                                                        val,
-                                                        origTitle
-                                                    ),
-                                            })}
-                                        </h3>
-                                    </div>
-                                    {((competency.tags ?? []).length > 0 ||
-                                        competency.skills.length > 0) && (
-                                        <p className="resume-meta mt-1 font-bold text-slate-500 text-[10px]">
-                                            {((competency.tags ?? []).length > 0
-                                                ? (competency.tags ?? [])
-                                                : competency.skills
-                                            )
-                                                .slice(0, 6)
-                                                .map((skill) => skill.name)
-                                                .join(' · ')}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="min-w-0">
-                                    <div className="resume-body font-semibold text-slate-700 text-xs pdf-body-text">
-                                        {renderInlineText({
-                                            value: competency.summary,
-                                            baseValue: origSummary,
-                                            multiline: true,
-                                            textClassName:
-                                                'font-semibold text-slate-700 text-xs pdf-body-text',
-                                            placeholder: '핵심 역량 요약 및 설명을 입력하세요',
-                                            onChange: (val) =>
-                                                setCompetencyOverride(
-                                                    competency.id,
-                                                    'summary',
-                                                    val,
-                                                    origSummary
-                                                ),
-                                        })}
-                                    </div>
-                                </div>
-                            </article>
-                        </div>
-                    </Fragment>
-                );
-            }
-
-            case 'career-header':
-                return (
-                    <div
-                        data-print-el
-                        className="mb-2 flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
-                    >
-                        {renderSectionGap('career')}
-                        {renderSectionControls('career')}
-                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                                <Briefcase className="h-4 w-4 text-slate-900" />
-                                {careerSummary.trim()
-                                    ? `직장 경력 (총 ${careerSummary})`
-                                    : '직장 경력'}
-                            </h2>
-                        </div>
-                    </div>
-                );
-
-            case 'career-company': {
-                const career = orderedCareerCards.find((c) => c.id === atom.dataId);
-                if (!career) return null;
-                const itemId = `career-company:${career.id}`;
-                const origExp = introData.experiences.find((e) => e.id === career.id);
-                const origCompanyName = origExp?.companyName ?? career.companyName;
-                const origSummary = origExp?.summary ?? career.summary ?? '';
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'career')}
-                        <div
-                            data-print-el
-                            className="resume-career-company border-b border-slate-100 py-2.5 w-full relative"
-                        >
-                            {renderItemControls(itemId)}
-                            <div className="resume-career-company-header flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                <div className="resume-item-title flex min-w-0 flex-1 items-baseline gap-1.5 font-black text-slate-800 text-sm">
-                                    {renderInlineText({
-                                        value: career.companyName,
-                                        baseValue: origCompanyName,
-                                        fullWidth: false,
-                                        textClassName: 'min-w-0 font-black text-slate-800 text-sm',
-                                        placeholder: '회사명을 입력하세요',
-                                        onChange: (val) =>
-                                            setExperienceOverride(
-                                                career.id,
-                                                'title',
-                                                val,
-                                                origCompanyName
-                                            ),
-                                    })}
-                                    {career.employmentType && (
-                                        <span className="resume-meta shrink-0 whitespace-nowrap text-[10px] font-bold text-slate-500">
-                                            {getEmploymentTypeLabel(career.employmentType)}
-                                        </span>
-                                    )}
-                                </div>
-                                <span className="resume-career-period resume-print-plain resume-meta shrink-0 whitespace-nowrap text-[10px] font-bold text-slate-500">
-                                    {career.period}
-                                </span>
-                            </div>
-                            {(career.department || career.role) && (
-                                <p className="resume-meta mt-0.5 font-semibold text-slate-500 text-xs">
-                                    {[career.department, career.role].filter(Boolean).join(' · ')}
-                                </p>
-                            )}
-                            {career.summary && (
-                                <div className="resume-body mt-1 text-xs pdf-body-text text-slate-600">
-                                    {renderInlineText({
-                                        value: career.summary ?? '',
-                                        baseValue: origSummary,
-                                        multiline: true,
-                                        textClassName: 'text-xs text-slate-600',
-                                        placeholder: '회사 및 담당업무 개요를 입력하세요',
-                                        onChange: (val) =>
-                                            setExperienceOverride(
-                                                career.id,
-                                                'summary',
-                                                val,
-                                                origSummary
-                                            ),
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </Fragment>
-                );
-            }
-
-            case 'career-item': {
-                const career = orderedCareerCards.find((c) =>
-                    c.projects.some((p) => p.id === atom.dataId)
-                );
-                const project = career?.projects.find((p) => p.id === atom.dataId);
-                if (!project || !career) return null;
-                const itemId = `career-project:${project.id}`;
-                const hasDetails = project.details && project.details.length > 0;
-
-                const origExp = introData.experiences
-                    .flatMap((e) => (e.details ? [e] : []))
-                    .find((e) => e.id === project.id);
-                const origTitle = origExp?.title ?? project.title;
-                const origSummary = origExp?.summary ?? project.summary ?? '';
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'career')}
-                        <div
-                            data-print-el
-                            className={`w-full relative ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}
-                        >
-                            {renderItemControls(itemId)}
-                            <div className="flex w-full items-start gap-2.5 text-left">
-                                <span className="min-w-0 flex-1">
-                                    <span className="resume-body block font-bold text-slate-900 text-[13px]">
-                                        {renderInlineText({
-                                            value: project.title,
-                                            baseValue: origTitle,
-                                            textClassName: 'font-bold text-slate-900 text-[13px]',
-                                            placeholder: '프로젝트 제목을 입력하세요',
-                                            onChange: (val) =>
-                                                setExperienceOverride(
-                                                    project.id,
-                                                    'title',
-                                                    val,
-                                                    origTitle
-                                                ),
-                                        })}
-                                    </span>
-                                    <span className="resume-meta mt-0.5 block text-slate-400 text-[10px]">
-                                        {project.periodStart.replace(/-/g, '.').substring(0, 7)} -{' '}
-                                        {project.periodEnd
-                                            ? project.periodEnd.replace(/-/g, '.').substring(0, 7)
-                                            : '진행 중'}
-                                        {project.contributionRate != null
-                                            ? ` · 기여도 ${project.contributionRate}%`
-                                            : ''}
-                                    </span>
-                                </span>
-                            </div>
-                            {project.summary && (
-                                <div className="mt-1.5">
-                                    <h4 className="resume-label font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-                                        프로젝트 설명 및 역할
-                                    </h4>
-                                    <div className="resume-body mt-0.5 text-xs pdf-body-text text-slate-600">
-                                        {renderInlineText({
-                                            value: project.summary ?? '',
-                                            baseValue: origSummary,
-                                            multiline: true,
-                                            textClassName: 'text-xs text-slate-600',
-                                            placeholder: '프로젝트 설명 및 역할을 입력하세요',
-                                            onChange: (val) =>
-                                                setExperienceOverride(
-                                                    project.id,
-                                                    'summary',
-                                                    val,
-                                                    origSummary
-                                                ),
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                            {project.skills && project.skills.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                    {project.skills.map((s) => (
-                                        <span
-                                            key={s.id}
-                                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60"
-                                        >
-                                            {s.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </Fragment>
-                );
-            }
-
-            case 'career-detail-item': {
-                const allProjects = orderedCareerCards.flatMap((c) => c.projects);
-                const p = allProjects.find((proj) =>
-                    proj.details?.some((d) => d.id === atom.dataId)
-                );
-                const detail = p?.details?.find((d) => d.id === atom.dataId);
-                if (!detail || !p) return null;
-                const itemId = `career-detail:${detail.id}`;
-
-                const origDetail = introData.experiences
-                    .flatMap((e) => e.details)
-                    .find((d) => d?.id === detail.id);
-                const origContent = origDetail?.content ?? detail.content;
-                const origNarrative =
-                    origDetail?.narrative ||
-                    [origDetail?.situation, origDetail?.actionDetail, origDetail?.outcome]
-                        .filter(Boolean)
-                        .join('\n\n') ||
-                    '';
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'career')}
-                        <div
-                            data-print-el
-                            className="py-1.5 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
-                        >
-                            {renderItemControls(itemId)}
-                            <div className="flex items-start gap-1 font-semibold text-slate-700 text-xs">
-                                <span className="shrink-0">•</span>
-                                {renderInlineText({
-                                    value: detail.content,
-                                    baseValue: origContent,
-                                    textClassName: 'font-semibold text-slate-700 text-xs',
-                                    placeholder: '상세 성과 제목을 입력하세요',
-                                    onChange: (val) =>
-                                        setDetailOverride(detail.id, 'content', val, origContent),
-                                })}
-                            </div>
-                            {renderDetailFields(
-                                detail,
-                                inlineEditMode,
-                                origNarrative,
-                                (val) =>
-                                    setDetailOverride(detail.id, 'narrative', val, origNarrative),
-                                renderInlineText
-                            )}
-                        </div>
-                    </Fragment>
-                );
-            }
-
-            case 'credentials-header':
-                return (
-                    <div
-                        data-print-el
-                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
-                    >
-                        {renderSectionGap('credentials')}
-                        {renderSectionControls('credentials')}
-                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                                <GraduationCap className="h-4 w-4 text-slate-900" />
-                                학력·교육 및 자격증
-                            </h2>
-                        </div>
-                    </div>
-                );
-
-            case 'credential-item': {
-                const cred = orderedCredentialExperiences.find((c) => c.id === atom.dataId);
-                if (!cred) return null;
-                const itemId = `credential:${cred.id}`;
-                const kind = credentialKindLabel(cred);
-                const academicMeta =
-                    kind === '학력'
-                        ? [
-                              cred.institutionName,
-                              cred.degree,
-                              cred.major,
-                              cred.gpa ? `학점 ${cred.gpa}` : undefined,
-                              cred.graduationStatus
-                                  ? graduationStatusLabel(cred.graduationStatus)
-                                  : undefined,
-                          ]
-                              .filter(Boolean)
-                              .join(' · ')
-                        : undefined;
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'credentials')}
-                        <article
-                            data-print-el
-                            className="py-2.5 border-b border-slate-100 last:border-b-0 w-full relative flex flex-col"
-                        >
-                            {renderItemControls(itemId)}
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <span className="resume-label rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 shrink-0">
-                                        {kind}
-                                    </span>
-                                    <h3 className="font-bold text-slate-900 text-xs truncate">
-                                        {cred.title}
-                                    </h3>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                                    {formatCredentialPeriod(cred)}
-                                </span>
-                            </div>
-                            {academicMeta && (
-                                <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                                    {academicMeta}
-                                </p>
-                            )}
-                            {kind === '교육' && cred.summary && (
-                                <p className="mt-1 text-xs text-slate-600 pdf-body-text">
-                                    {cred.summary}
-                                </p>
-                            )}
-                        </article>
-                    </Fragment>
-                );
-            }
-
-            case 'projects-header':
-                return (
-                    <div
-                        data-print-el
-                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
-                    >
-                        {renderSectionGap('projects')}
-                        {renderSectionControls('projects')}
-                        <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
-                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                                <FolderGit2 className="h-4 w-4 text-slate-900" />
-                                핵심 프로젝트 포트폴리오
-                            </h2>
-                        </div>
-                    </div>
-                );
-
-            case 'project-item': {
-                const m = orderedMilestones.find((item) => item.id === atom.dataId);
-                if (!m) return null;
-                const itemId = `project:${m.id}`;
-                const hasDetails = m.details && m.details.length > 0;
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'projects')}
-                        <article
-                            data-print-el
-                            className={`w-full relative flex flex-col ${hasDetails ? 'pt-3.5 pb-2' : 'py-3.5 border-b border-slate-100 last:border-b-0'}`}
-                        >
-                            {renderItemControls(itemId)}
-                            <div className="resume-project-heading flex items-baseline justify-between gap-2">
-                                <h3 className="font-black text-slate-900 text-xs">{m.title}</h3>
-                                <span className="resume-project-period text-[10px] text-slate-400 font-mono shrink-0">
-                                    {m.period}
-                                </span>
-                            </div>
-                            {m.role && (
-                                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                                    {m.role}
-                                </p>
-                            )}
-                            {m.description && (
-                                <p className="mt-1 text-xs text-slate-600">{m.description}</p>
-                            )}
-                            {m.skills && m.skills.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                    {m.skills.map((s) => (
-                                        <span
-                                            key={s}
-                                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-200/60"
-                                        >
-                                            {s}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </article>
-                    </Fragment>
-                );
-            }
-
-            case 'project-detail-item': {
-                const m = orderedMilestones.find((item) =>
-                    item.details?.some((d) => d.id === atom.dataId)
-                );
-                const detail = m?.details?.find((d) => d.id === atom.dataId);
-                if (!detail || !m) return null;
-                const itemId = `project-detail:${detail.id}`;
-
-                const origDetail = introData.experiences
-                    .flatMap((e) => e.details)
-                    .find((d) => d?.id === detail.id);
-                const origContent = origDetail?.content ?? detail.content;
-                const origNarrative =
-                    origDetail?.narrative ||
-                    [origDetail?.situation, origDetail?.actionDetail, origDetail?.outcome]
-                        .filter(Boolean)
-                        .join('\n\n') ||
-                    '';
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'projects')}
-                        <div
-                            data-print-el
-                            className="py-1.5 pl-0 border-b border-slate-100/60 last:border-b-0 w-full relative"
-                        >
-                            {renderItemControls(itemId)}
-                            <div className="flex items-start gap-1 font-bold text-slate-900 text-xs">
-                                <span className="shrink-0">•</span>
-                                {renderInlineText({
-                                    value: detail.content,
-                                    baseValue: origContent,
-                                    textClassName: 'font-bold text-slate-900 text-xs',
-                                    placeholder: '상세 성과 제목을 입력하세요',
-                                    onChange: (val) =>
-                                        setDetailOverride(detail.id, 'content', val, origContent),
-                                })}
-                            </div>
-                            {renderDetailFields(
-                                detail,
-                                inlineEditMode,
-                                origNarrative,
-                                (val) =>
-                                    setDetailOverride(detail.id, 'narrative', val, origNarrative),
-                                renderInlineText
-                            )}
-                        </div>
-                    </Fragment>
-                );
-            }
-
-            case 'cover-letter-header':
-                return (
-                    <div
-                        data-print-el
-                        className="flex flex-col font-black text-slate-900 w-full mt-6 pt-2 relative"
-                    >
-                        {renderSectionGap('cover-letter')}
-                        {renderSectionControls('cover-letter')}
-                        <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 w-full">
-                            <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
-                                <MessageSquareText className="h-4 w-4 text-slate-900" />
-                                {inlineEditMode ? (
-                                    renderInlineText({
-                                        value: coverLetterSectionTitle,
-                                        baseValue: '지원 문항',
-                                        textClassName:
-                                            'font-black text-slate-900 text-sm sm:text-base',
-                                        placeholder: '섹션 제목 입력 (예: 사전질문, 추가 항목)',
-                                        onChange: (val) =>
-                                            setCoverLetterSectionTitle(val ?? '지원 문항'),
-                                    })
-                                ) : (
-                                    <span>{coverLetterSectionTitle || '지원 문항'}</span>
-                                )}
-                            </h2>
-                            {inlineEditMode && (
-                                <button
-                                    type="button"
-                                    onClick={addCoverLetterItem}
-                                    className="absolute bottom-1 right-0 z-10 print:hidden flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
-                                >
-                                    <Plus className="h-3 w-3" />
-                                    항목 추가
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                );
-
-            case 'cover-letter-item': {
-                const item = orderedCoverLetterItems.find((c) => c.id === atom.dataId);
-                if (!item) return null;
-                const itemId = `cover-letter-item:${item.id}`;
-                const isAdded = item.id < 0;
-                const origItem = coverLetterItems.find((c) => c.id === item.id);
-                const origQuestion = isAdded
-                    ? item.question
-                    : (origItem?.question ?? item.question);
-                const origAnswer = isAdded ? item.answer : (origItem?.answer ?? item.answer);
-                const onQuestionChange = isAdded
-                    ? (val: string | undefined) =>
-                          updateAddedCoverLetterItem(item.id, 'question', val)
-                    : (val: string | undefined) =>
-                          setCoverLetterOverride(item.id, 'question', val, origQuestion);
-                const onAnswerChange = isAdded
-                    ? (val: string | undefined) =>
-                          updateAddedCoverLetterItem(item.id, 'answer', val)
-                    : (val: string | undefined) =>
-                          setCoverLetterOverride(item.id, 'answer', val, origAnswer);
-
-                return (
-                    <Fragment key={atom.id}>
-                        {renderItemGap(itemId, 'cover-letter')}
-                        <div
-                            data-print-el
-                            className="py-2.5 border-b border-slate-100 last:border-b-0 w-full relative"
-                        >
-                            {renderItemControls(itemId)}
-                            {inlineEditMode && isAdded && (
-                                <button
-                                    type="button"
-                                    onClick={() => removeAddedCoverLetterItem(item.id)}
-                                    title="추가한 질문 삭제"
-                                    className="print:hidden absolute right-8 top-2 z-20 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white hover:bg-rose-600"
-                                >
-                                    삭제
-                                </button>
-                            )}
-                            <div className="flex items-start gap-1 font-bold text-slate-900 text-xs">
-                                <span className="shrink-0">Q.</span>
-                                {renderInlineText({
-                                    value: item.question,
-                                    baseValue: origQuestion,
-                                    textClassName: 'font-bold text-slate-900 text-xs',
-                                    placeholder: '질문을 입력하세요',
-                                    onChange: onQuestionChange,
-                                })}
-                            </div>
-                            {inlineEditMode ? (
-                                <div className="resume-detail-text relative mt-1 text-[12px] pdf-body-text text-slate-600">
-                                    <div aria-hidden="true" className="invisible">
-                                        <ReactMarkdown components={resumeMarkdownComponents}>
-                                            {item.answer}
-                                        </ReactMarkdown>
-                                    </div>
-                                    <div className="absolute inset-0">
-                                        {renderInlineText({
-                                            value: item.answer,
-                                            baseValue: origAnswer,
-                                            multiline: true,
-                                            textClassName:
-                                                'h-full text-[12px] pdf-body-text text-slate-600',
-                                            placeholder: '답변을 입력하세요',
-                                            onChange: onAnswerChange,
-                                        })}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="resume-detail-text mt-1 text-[12px] pdf-body-text text-slate-600">
-                                    <ReactMarkdown components={resumeMarkdownComponents}>
-                                        {item.answer}
-                                    </ReactMarkdown>
-                                </div>
-                            )}
-                        </div>
-                    </Fragment>
-                );
-            }
-
-            case 'custom-section-header': {
-                const section = contentOverrides.customSections?.find(
-                    (entry) => entry.id === atom.dataId
-                );
-                if (!section) return null;
-                const sectionId = `custom-section:${section.id}`;
-                return (
-                    <div
-                        id={sectionId}
-                        data-print-el
-                        className="mt-6 flex w-full flex-col pt-2 font-black text-slate-900 relative"
-                    >
-                        {renderSectionGap(sectionId)}
-                        {renderSectionControls(sectionId)}
-                        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                            <MessageSquareText className="h-4 w-4 shrink-0 text-slate-900" />
-                            <div className="min-w-0 flex-1">
-                                {renderInlineText({
-                                    value: section.title,
-                                    baseValue: section.title,
-                                    textClassName: 'font-black text-slate-900 text-sm sm:text-base',
-                                    placeholder: '섹션 제목을 입력하세요',
-                                    onChange: (value) =>
-                                        updateCustomSection(section.id, (current) => ({
-                                            ...current,
-                                            title: value ?? '',
-                                        })),
-                                })}
-                            </div>
-                            <div className="print:hidden flex shrink-0 items-center gap-1">
-                                {inlineEditMode && (
-                                    <button
-                                        type="button"
-                                        onClick={() => addCustomSectionItem(section.id)}
-                                        className="inline-flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
-                                    >
-                                        <Plus className="h-3 w-3" /> 항목 추가
-                                    </button>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={() => removeCustomSection(section.id)}
-                                    className="rounded bg-rose-500 px-2 py-1 text-[10px] font-bold text-white hover:bg-rose-600"
-                                >
-                                    섹션 삭제
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            case 'custom-section-item': {
-                const [sectionId, itemId] = String(atom.dataId).split(':');
-                const section = contentOverrides.customSections?.find(
-                    (entry) => entry.id === sectionId
-                );
-                const item = section?.items.find((entry) => entry.id === itemId);
-                if (!section || !item) return null;
-                const atomId = `custom-section-item:${sectionId}:${itemId}`;
-                return (
-                    <div
-                        data-print-el
-                        className="relative w-full border-b border-slate-100 py-2.5 last:border-b-0"
-                    >
-                        {renderItemGap(atomId, 'cover-letter')}
-                        {renderItemControls(atomId)}
-                        <button
-                            type="button"
-                            onClick={() => removeCustomSectionItem(sectionId, itemId)}
-                            className="print:hidden absolute right-8 top-2 z-20 rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white hover:bg-rose-600"
-                        >
-                            삭제
-                        </button>
-                        {renderInlineText({
-                            value: item.title,
-                            baseValue: item.title,
-                            textClassName: 'font-bold text-slate-900 text-xs',
-                            placeholder: '항목 제목을 입력하세요',
-                            onChange: (value) =>
-                                updateCustomSectionItem(sectionId, itemId, 'title', value),
-                        })}
-                        <div className="mt-1 text-[12px] text-slate-600">
-                            {renderInlineText({
-                                value: item.content,
-                                baseValue: item.content,
-                                multiline: true,
-                                textClassName: 'text-[12px] pdf-body-text text-slate-600',
-                                placeholder: '항목 내용을 입력하세요',
-                                onChange: (value) =>
-                                    updateCustomSectionItem(sectionId, itemId, 'content', value),
-                            })}
-                        </div>
-                    </div>
-                );
-            }
-
-            default:
-                return null;
-        }
-    };
+            const isBoundary = pageBreakBoundaryAtomIds.has(id);
+            const currentGap = store.sectionGaps[id] ?? 0;
+            return isBoundary || currentGap > 0;
+        },
+        [
+            store.hidePrintGuides,
+            store.forcedPageOverrides,
+            orderedMilestones,
+            orderedCareerCards,
+            pageBreakBoundaryAtomIds,
+            store.sectionGaps,
+        ]
+    );
 
     const handlePrintConfirm = () => {
         printLayoutFrozenRef.current = false;
@@ -2982,15 +2141,13 @@ export function PrintCanvas({
                 window.print();
             } catch {
                 printLayoutFrozenRef.current = false;
-            } finally {
-                if (!cancelled) store.setPrintPending(false);
             }
+            if (!cancelled) usePrintStore.getState().setPrintPending(false);
         };
         void printWhenLayoutIsStable();
         return () => {
             cancelled = true;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [store.printPending]);
 
     const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
@@ -3112,931 +2269,1076 @@ export function PrintCanvas({
             ),
         [store.outputLayout.placements]
     );
-    const placeAtomBeside = (
-        pageIndex: number,
-        draggedAtomId: string,
-        targetAtomId: string,
-        side: 'left' | 'right'
-    ) => {
-        if (draggedAtomId === targetAtomId) return;
-        const pageLayer = pageLayers[pageIndex];
-        if (!pageLayer) return;
-        const { rows } = getOutputPageAt(store.outputLayout, pageIndex);
-        const validAtomIds = new Set(pageLayer.items.map((atom) => atom.id));
-        const firstRegionId = rows[0]?.regions[0]?.id;
-        const atomsByRegionId = new Map<string, string[]>();
-        pageLayer.items.forEach((atom) => {
-            const placement = placementByAtomId.get(atom.id);
-            const regionId =
-                placement &&
-                rows.some(({ regions }) => regions.some((r) => r.id === placement.regionId))
-                    ? placement.regionId
-                    : firstRegionId;
-            if (!regionId) return;
-            atomsByRegionId.set(regionId, [...(atomsByRegionId.get(regionId) ?? []), atom.id]);
-        });
-        atomsByRegionId.forEach((atomIds) =>
-            atomIds.sort((left, right) => {
-                const leftOrder = placementByAtomId.get(left)?.order;
-                const rightOrder = placementByAtomId.get(right)?.order;
-                if (leftOrder === undefined || rightOrder === undefined) return 0;
-                return leftOrder - rightOrder;
-            })
-        );
 
-        const draggedIds = getAssociatedAtomIds(draggedAtomId).filter((id) => validAtomIds.has(id));
-        const draggedSet = new Set(draggedIds);
-        const targetIds = new Set(
-            getAssociatedAtomIds(targetAtomId).filter(
-                (id) => validAtomIds.has(id) && !draggedSet.has(id)
-            )
-        );
-        if (draggedIds.length === 0 || targetIds.size === 0) return;
-
-        const composition = rows
-            .map(({ regions }) =>
-                regions
-                    .map((region) =>
-                        (atomsByRegionId.get(region.id) ?? []).filter((id) => !draggedSet.has(id))
-                    )
-                    .filter((column) => column.length > 0)
-            )
-            .filter((row) => row.length > 0);
-        const rowIndex = composition.findIndex((row) =>
-            row.some((column) => column.some((id) => targetIds.has(id)))
-        );
-        if (rowIndex < 0) return;
-        const columnIndex = composition[rowIndex].findIndex((column) =>
-            column.some((id) => targetIds.has(id))
-        );
-        if (columnIndex < 0) return;
-
-        const targetRow = composition[rowIndex];
-        if (targetRow.length === 1) {
-            const targetColumn = targetRow[0];
-            const targetIndexes = targetColumn.flatMap((id, index) =>
-                targetIds.has(id) ? [index] : []
+    // 강제 페이지 배치 시, 목표 페이지에 이미 같은 섹션/항목 콘텐츠가 있으면 그 옆에
+    // 정확히 끼워넣고(insertAtomsIntoOutputRegion 재사용), 없으면(그 페이지에 처음
+    // 등장하는 섹션) 기존처럼 그 페이지의 기본 영역 맨 끝에 둔다 — 완전히 다른
+    // 섹션끼리 같은 공용 영역에서 뒤섞이는 걸 막는다.
+    const forceMoveToPage = useCallback(
+        (ids: string[], pageIndex: number) => {
+            if (ids.length === 0) return;
+            const scopeKey = getRowPairingKey(ids[0]);
+            const movingSet = new Set(ids);
+            // 자기 섹션 헤더보다 앞 페이지로는 강제 배치할 수 없다 — 헤더가 이미 놓인
+            // 페이지보다 이른 페이지가 요청되면 헤더의 페이지로 끌어올린다.
+            const sectionIds = new Set(
+                ids
+                    .map((id) => printableAtoms.find((a) => a.id === id)?.sectionId)
+                    .filter((v): v is string => v !== undefined)
             );
-            const start = Math.min(...targetIndexes);
-            const end = Math.max(...targetIndexes);
-            const before = targetColumn.slice(0, start);
-            const targetUnit = targetColumn.slice(start, end + 1);
-            const after = targetColumn.slice(end + 1);
-            const replacement = [
-                ...(before.length > 0 ? [[before]] : []),
-                [
-                    side === 'left' ? draggedIds : targetUnit,
-                    side === 'left' ? targetUnit : draggedIds,
-                ],
-                ...(after.length > 0 ? [[after]] : []),
-            ];
-            composition.splice(rowIndex, 1, ...replacement);
-        } else if (targetRow.length < 3) {
-            targetRow.splice(side === 'left' ? columnIndex : columnIndex + 1, 0, draggedIds);
-        } else {
-            return;
-        }
-        store.replacePageComposition(pageIndex, composition);
-    };
+            const headerPages = printableAtoms
+                .filter(
+                    (atom) =>
+                        atom.isHeader && sectionIds.has(atom.sectionId) && !movingSet.has(atom.id)
+                )
+                .map((atom) => atomPageMap.get(atom.id))
+                .filter((p): p is number => p !== undefined);
+            const minAllowedPage = headerPages.length > 0 ? Math.max(...headerPages) : 0;
+            const targetPageIndex = Math.max(pageIndex, minAllowedPage);
+            const targetPageAtoms = pageLayers[targetPageIndex]?.items ?? [];
+            const anchorAtom = [...targetPageAtoms]
+                .reverse()
+                .find((atom) => !movingSet.has(atom.id) && getRowPairingKey(atom.id) === scopeKey);
+            const anchorRegionId = anchorAtom
+                ? placementByAtomId.get(anchorAtom.id)?.regionId
+                : undefined;
+            const anchorRowId = anchorRegionId
+                ? store.outputLayout.regions.find((region) => region.id === anchorRegionId)?.rowId
+                : undefined;
+            const anchorRow = anchorRowId
+                ? store.outputLayout.rows.find((row) => row.id === anchorRowId)
+                : undefined;
 
-    const renderCanvasAtom = (atom: PrintAtomItem, draggable: boolean, pageIndex: number) => (
-        <div
-            key={atom.id}
-            data-atom-id={atom.id}
-            draggable={draggable && atom.id !== 'intro-profile' && !inlineEditMode}
-            onDragStart={(event: DragEvent<HTMLDivElement>) => {
-                if (!draggable || atom.id === 'intro-profile' || inlineEditMode) {
-                    event.preventDefault();
-                    return;
+            if (anchorRow && anchorRow.regionIds.length > 1) {
+                // anchor가 2열 이상 행의 한 컬럼 안에 있으면 그 좁은 컬럼에 욱여넣지
+                // 않고, 그 행을 하나의 단위로 보고 바로 뒤에 새 한 줄 행으로 끼워넣는다.
+                usePrintStore.getState().forceNextToRow(ids, anchorRow.id, 'after');
+            } else if (anchorAtom && anchorRegionId) {
+                usePrintStore
+                    .getState()
+                    .forceIntoRegion(ids, anchorRegionId, {
+                        atomId: anchorAtom.id,
+                        position: 'after',
+                    });
+            } else {
+                // 이 페이지에 같은 섹션 콘텐츠가 아직 없다 — store.forcePage(옛 경로)는
+                // 무조건 페이지의 첫 region에 밀어넣어 그게 다른 섹션이면 섞여버린다.
+                // 대신 그 페이지의 마지막 행 뒤에 새 한 줄 행으로 끼워넣어 어떤 기존
+                // 섹션과도 안 섞이게 한다.
+                const { rows: targetPageRows } = getOutputPageAt(
+                    store.outputLayout,
+                    targetPageIndex
+                );
+                const lastRow = targetPageRows[targetPageRows.length - 1]?.row;
+                if (lastRow) {
+                    usePrintStore.getState().forceNextToRow(ids, lastRow.id, 'after');
+                } else {
+                    usePrintStore.getState().forcePage(ids, targetPageIndex);
                 }
-                event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('text/plain', atom.id);
-                const dragPreview = document.createElement('canvas');
-                dragPreview.width = 220;
-                dragPreview.height = 40;
-                const context = dragPreview.getContext('2d');
-                if (context) {
-                    context.fillStyle = '#0f172a';
-                    context.beginPath();
-                    context.roundRect(0, 0, 220, 40, 10);
-                    context.fill();
-                    context.fillStyle = '#ffffff';
-                    context.font = '700 13px sans-serif';
-                    context.fillText('블록 이동 중', 16, 25);
-                }
-                event.dataTransfer.setDragImage(dragPreview, 18, 20);
-                setDraggedCanvasAtomId(atom.id);
-            }}
-            onDragEnd={() => {
-                setDraggedCanvasAtomId(null);
-                setDragOverRegion(null);
-                setDragOverAtom(null);
-            }}
-            className={`group/atom relative w-full min-w-0 ${
-                draggable && atom.id !== 'intro-profile' && !inlineEditMode
-                    ? 'cursor-grab active:cursor-grabbing'
-                    : ''
-            }`}
-            title={
-                draggable && atom.id !== 'intro-profile' && !inlineEditMode
-                    ? '항목을 끌어 왼쪽 또는 오른쪽 열로 옮길 수 있습니다.'
-                    : undefined
             }
-        >
-            {draggable &&
-                atom.id !== 'intro-profile' &&
-                !inlineEditMode &&
-                !store.hidePrintGuides && (
-                    <span className="pointer-events-none absolute -left-4 top-1 z-20 hidden h-5 w-4 items-center justify-center rounded bg-slate-900/85 text-white shadow-sm group-hover/atom:flex print:hidden">
-                        <GripVertical className="h-3 w-3" />
-                    </span>
-                )}
-            {draggable &&
-                atom.id !== 'intro-profile' &&
-                !inlineEditMode &&
-                draggedCanvasAtomId &&
-                draggedCanvasAtomId !== atom.id && (
-                    <>
-                        {(['left', 'right'] as const).map((side) => {
-                            const active =
-                                dragOverAtom?.pageIndex === pageIndex &&
-                                dragOverAtom.atomId === atom.id &&
-                                dragOverAtom.side === side;
-                            return (
-                                <div
-                                    key={side}
-                                    className={`absolute inset-y-0 z-40 w-[22%] min-w-10 max-w-20 print:hidden ${side === 'left' ? '-left-2' : '-right-2'}`}
-                                    onDragEnter={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        setDragOverAtom({ pageIndex, atomId: atom.id, side });
-                                    }}
-                                    onDragOver={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        event.dataTransfer.dropEffect = 'move';
-                                        setDragOverAtom({ pageIndex, atomId: atom.id, side });
-                                    }}
-                                    onDrop={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        const draggedId =
-                                            draggedCanvasAtomId ||
-                                            event.dataTransfer.getData('text/plain');
-                                        if (draggedId)
-                                            placeAtomBeside(pageIndex, draggedId, atom.id, side);
-                                        setDraggedCanvasAtomId(null);
-                                        setDragOverRegion(null);
-                                        setDragOverAtom(null);
-                                    }}
-                                >
-                                    {active && (
-                                        <span
-                                            className={`pointer-events-none absolute inset-y-1 flex w-1 items-center rounded-full bg-blue-600 shadow-[0_0_0_4px_rgba(59,130,246,0.18)] ${side === 'left' ? 'left-0' : 'right-0'}`}
-                                        >
-                                            <span
-                                                className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-blue-600 px-2 py-1 text-[9px] font-black text-white shadow-lg ${side === 'left' ? 'left-2' : 'right-2'}`}
-                                            >
-                                                {side === 'left' ? '왼쪽에 배치' : '오른쪽에 배치'}
-                                            </span>
-                                        </span>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </>
-                )}
-            {renderAtomContent(atom)}
-        </div>
+        },
+        [
+            getRowPairingKey,
+            printableAtoms,
+            atomPageMap,
+            pageLayers,
+            placementByAtomId,
+            store.outputLayout,
+        ]
     );
 
-    const renderOutputRegion = (
-        pageIndex: number,
-        region: OutputRegion,
-        columnIndex: number,
-        atoms: PrintAtomItem[]
-    ) => {
-        const isOver =
-            dragOverRegion?.pageIndex === pageIndex && dragOverRegion.regionId === region.id;
-        const regionKey = `${pageIndex}:${region.id}`;
-        const isOverflowing = overflowRegionKeys.includes(regionKey);
-        const label = `${columnIndex + 1}번째 열`;
-
-        return (
-            <div
-                key={region.id}
-                data-output-region-key={regionKey}
-                className={`relative h-full min-w-0 ${!store.hidePrintGuides ? 'min-h-[24mm]' : ''}`}
-                onDragEnter={(event) => {
-                    if (!draggedCanvasAtomId) return;
-                    event.preventDefault();
-                    setDragOverRegion({ pageIndex, regionId: region.id });
-                }}
-                onDragOver={(event) => {
-                    if (!draggedCanvasAtomId) return;
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'move';
-                    setDragOverRegion({ pageIndex, regionId: region.id });
-                }}
-                onDrop={(event) => {
-                    event.preventDefault();
-                    const atomId = draggedCanvasAtomId || event.dataTransfer.getData('text/plain');
-                    if (atomId) {
-                        store.placeAtomsInRegionById(getAssociatedAtomIds(atomId), region.id);
-                    }
-                    setDraggedCanvasAtomId(null);
-                    setDragOverRegion(null);
-                }}
-            >
-                {!store.hidePrintGuides && (
-                    <div
-                        aria-hidden="true"
-                        className={`pointer-events-none absolute inset-0 z-10 rounded-md border-2 border-dashed transition print:hidden ${
-                            isOverflowing
-                                ? 'border-rose-500 bg-rose-50/20'
-                                : isOver
-                                  ? 'border-blue-500 bg-blue-100/35 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.16)]'
-                                  : 'border-slate-300/70'
-                        }`}
-                    >
-                        {isOver && (
-                            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-950 px-3 py-1 text-[10px] font-black text-white shadow-xl">
-                                {label}에 배치
-                            </span>
-                        )}
-                        {isOverflowing && (
-                            <span className="absolute bottom-1 right-1 rounded bg-rose-600 px-2 py-1 text-[9px] font-black text-white shadow">
-                                열 높이 초과
-                            </span>
-                        )}
-                    </div>
-                )}
-                <div className="relative z-0 flex min-w-0 flex-col">
-                    {atoms.map((atom) => renderCanvasAtom(atom, true, pageIndex))}
-                </div>
-            </div>
-        );
+    // 페이지별로 "어느 atom이 어느 region에, 그 안에서 어떤 항목 범위(run)로" 속하는지
+    // 미리 계산해둔다. 렌더 루프와 placeAtomBeside 둘 다 이 하나의 파생값만 쓰도록
+    // 통합해서, 예전처럼 같은 버킷팅 로직이 두 곳에 따로 있다가 어긋나는 걸 막는다.
+    type PageRegionRuns = {
+        pageRegionIds: Set<string>;
+        firstRegionId: string | undefined;
+        runsByRegionId: Map<string, RegionScopeRun[]>;
     };
+    const pageRegionRunsList = useMemo<PageRegionRuns[]>(
+        () =>
+            pageLayers.map((page, pageIdx) => {
+                const { rows } = getOutputPageAt(store.outputLayout, pageIdx);
+                const pageRegionIds = new Set(
+                    rows.flatMap(({ regions }) => regions.map((region) => region.id))
+                );
+                const firstRegionId = rows[0]?.regions[0]?.id;
+                const atomsByRegionId = new Map<string, PrintAtomItem[]>();
+                page.items.forEach((atom) => {
+                    const placement = placementByAtomId.get(atom.id);
+                    const regionId =
+                        placement && pageRegionIds.has(placement.regionId)
+                            ? placement.regionId
+                            : firstRegionId;
+                    if (!regionId) return;
+                    atomsByRegionId.set(regionId, [...(atomsByRegionId.get(regionId) ?? []), atom]);
+                });
+                atomsByRegionId.forEach((atoms) =>
+                    atoms.sort((left, right) => {
+                        const leftOrder = placementByAtomId.get(left.id)?.order;
+                        const rightOrder = placementByAtomId.get(right.id)?.order;
+                        if (leftOrder === undefined || rightOrder === undefined) return 0;
+                        return leftOrder - rightOrder;
+                    })
+                );
+                const runsByRegionId = new Map<string, RegionScopeRun[]>();
+                atomsByRegionId.forEach((atoms, regionId) =>
+                    runsByRegionId.set(regionId, computeRegionScopeRuns(regionId, atoms))
+                );
+                return { pageRegionIds, firstRegionId, runsByRegionId };
+            }),
+        [pageLayers, store.outputLayout, placementByAtomId, computeRegionScopeRuns]
+    );
+
+    const placeAtomBeside = useCallback(
+        (
+            pageIndex: number,
+            draggedAtomId: string,
+            targetAtomId: string,
+            side: 'left' | 'right'
+        ) => {
+            if (draggedAtomId === targetAtomId) return;
+            // 헤더는 좌우 2열 페어링 대상이 될 수 없다 — getAssociatedAtomIds가 헤더를
+            // 섹션 전체(모든 하위 행 포함)로 묶어 반환하므로, 여기서 걸러내지 않으면
+            // 섹션 전체가 다른 항목 옆 한 컬럼으로 욱여넣어지려는 시도가 생긴다.
+            if (isHeaderAtom(draggedAtomId) || isHeaderAtom(targetAtomId)) return;
+            const pageLayer = pageLayers[pageIndex];
+            if (!pageLayer) return;
+            const { rows } = getOutputPageAt(store.outputLayout, pageIndex);
+            const validAtomIds = new Set(pageLayer.items.map((atom) => atom.id));
+            const atomsByRegionId = new Map<string, string[]>();
+            pageRegionRunsList[pageIndex]?.runsByRegionId.forEach((runs, regionId) => {
+                atomsByRegionId.set(
+                    regionId,
+                    runs.flatMap((run) => run.atoms.map((atom) => atom.id))
+                );
+            });
+
+            const draggedIds = getAssociatedAtomIds(draggedAtomId).filter((id) =>
+                validAtomIds.has(id)
+            );
+            const draggedSet = new Set(draggedIds);
+            const targetIds = new Set(
+                getAssociatedAtomIds(targetAtomId).filter(
+                    (id) => validAtomIds.has(id) && !draggedSet.has(id)
+                )
+            );
+            if (draggedIds.length === 0 || targetIds.size === 0) return;
+            // 서로 다른 회사/프로젝트/섹션의 항목은 나란히 배치할 수 없다.
+            if (getRowPairingKey(draggedAtomId) !== getRowPairingKey(targetAtomId)) return;
+
+            const composition = rows
+                .map(({ regions }) =>
+                    regions
+                        .map((region) =>
+                            (atomsByRegionId.get(region.id) ?? []).filter(
+                                (id) => !draggedSet.has(id)
+                            )
+                        )
+                        .filter((column) => column.length > 0)
+                )
+                .filter((row) => row.length > 0);
+            const rowIndex = composition.findIndex((row) =>
+                row.some((column) => column.some((id) => targetIds.has(id)))
+            );
+            if (rowIndex < 0) return;
+            const columnIndex = composition[rowIndex].findIndex((column) =>
+                column.some((id) => targetIds.has(id))
+            );
+            if (columnIndex < 0) return;
+
+            const targetRow = composition[rowIndex];
+            if (targetRow.length === 1) {
+                const targetColumn = targetRow[0];
+                const targetIndexes = targetColumn.flatMap((id, index) =>
+                    targetIds.has(id) ? [index] : []
+                );
+                const start = Math.min(...targetIndexes);
+                const end = Math.max(...targetIndexes);
+                const before = targetColumn.slice(0, start);
+                const targetUnit = targetColumn.slice(start, end + 1);
+                const after = targetColumn.slice(end + 1);
+                const replacement = [
+                    ...(before.length > 0 ? [[before]] : []),
+                    [
+                        side === 'left' ? draggedIds : targetUnit,
+                        side === 'left' ? targetUnit : draggedIds,
+                    ],
+                    ...(after.length > 0 ? [[after]] : []),
+                ];
+                composition.splice(rowIndex, 1, ...replacement);
+            } else if (targetRow.length < 4) {
+                targetRow.splice(side === 'left' ? columnIndex : columnIndex + 1, 0, draggedIds);
+            } else {
+                return;
+            }
+            usePrintStore.getState().replacePageComposition(pageIndex, composition);
+        },
+        [
+            isHeaderAtom,
+            pageLayers,
+            store.outputLayout,
+            pageRegionRunsList,
+            getAssociatedAtomIds,
+            getRowPairingKey,
+        ]
+    );
+
+    const clearDragOverStates = useCallback(() => {
+        setDragOverAtom(null);
+        setDragOverRun(null);
+        setDragOverEmptyRegion(null);
+        setDragOverRow(null);
+        setDragOverRowTarget(null);
+    }, []);
+
+    const touchCanvasDrag = useTouchDrag({
+        disabled: inlineEditMode,
+        onDragStart: (sourceId) => setDraggedCanvasAtomId(sourceId),
+        onDragOver: (sourceId, targetId) => {
+            if (!targetId) {
+                clearDragOverStates();
+                return;
+            }
+            const [kind, pageIndexRaw, ...rest] = targetId.split(':');
+            const pageIndex = Number(pageIndexRaw);
+            if (kind === 'atom') {
+                const [side, ...atomIdParts] = rest;
+                setDragOverAtom({
+                    pageIndex,
+                    atomId: atomIdParts.join(':'),
+                    side: side as 'left' | 'right',
+                });
+                setDragOverRun(null);
+                setDragOverEmptyRegion(null);
+            } else if (kind === 'run') {
+                const [regionId, runIndexRaw, ...atomIdParts] = rest;
+                const anchorAtomId = atomIdParts.join(':');
+                const runIndex = Number(runIndexRaw);
+                const orderedIds =
+                    pageRegionRunsList[pageIndex]?.runsByRegionId
+                        .get(regionId)
+                        ?.find((run) => run.runIndex === runIndex)
+                        ?.atoms.map((atom) => atom.id) ?? [];
+                setDragOverRun({
+                    pageIndex,
+                    regionId,
+                    runIndex,
+                    anchorAtomId,
+                    position: positionFromOrder(sourceId, anchorAtomId, orderedIds),
+                });
+                setDragOverAtom(null);
+                setDragOverEmptyRegion(null);
+            } else if (kind === 'region') {
+                setDragOverEmptyRegion({ pageIndex, regionId: rest.join(':') });
+                setDragOverAtom(null);
+                setDragOverRun(null);
+            } else if (kind === 'atomrow') {
+                // 다열 행 옆으로 atom을 끼워넣는 경우 — 터치는 정확한 clientY가 없으니
+                // 항상 'after'(행 다음)로 취급한다.
+                setDragOverRow({ rowId: rest.join(':'), position: 'after' });
+            }
+        },
+        onDrop: (sourceId, targetId) => {
+            const [kind, pageIndexRaw, ...rest] = targetId.split(':');
+            const pageIndex = Number(pageIndexRaw);
+            if (kind === 'atom') {
+                const [side, ...atomIdParts] = rest;
+                placeAtomBeside(
+                    pageIndex,
+                    sourceId,
+                    atomIdParts.join(':'),
+                    side as 'left' | 'right'
+                );
+            } else if (kind === 'run') {
+                const [regionId, , ...atomIdParts] = rest;
+                const anchorAtomId = atomIdParts.join(':');
+                const anchorAtom = printableAtoms.find((a) => a.id === anchorAtomId);
+                const sourceAtom = printableAtoms.find((a) => a.id === sourceId);
+                if (
+                    anchorAtom?.isHeader &&
+                    sourceAtom &&
+                    sourceAtom.sectionId !== anchorAtom.sectionId
+                ) {
+                    const position =
+                        dragOverRun?.anchorAtomId === anchorAtomId ? dragOverRun.position : 'after';
+                    moveWholeSectionOnto(sourceId, anchorAtomId, position);
+                } else {
+                    const movingIds = getAssociatedAtomIds(sourceId);
+                    const position = clampAtomPositionPastHeader(
+                        movingIds,
+                        anchorAtomId,
+                        dragOverRun?.anchorAtomId === anchorAtomId ? dragOverRun.position : 'after'
+                    );
+                    store.insertAtomsIntoRegion(movingIds, regionId, {
+                        atomId: anchorAtomId,
+                        position,
+                    });
+                }
+            } else if (kind === 'region') {
+                store.insertAtomsIntoRegion(getAssociatedAtomIds(sourceId), rest.join(':'), null);
+            } else if (kind === 'atomrow') {
+                store.insertAtomsNextToRow(getAssociatedAtomIds(sourceId), rest.join(':'), 'after');
+            }
+        },
+        onDragEnd: () => {
+            setDraggedCanvasAtomId(null);
+            clearDragOverStates();
+        },
+    });
+
+    // 2/3열 행 자체를 통째로 위/아래 재정렬하는 별도 드래그 소스 — atom 드래그와
+    // id 스킴이 겹치지 않도록 완전히 분리된 useTouchDrag 인스턴스를 쓴다.
+    const touchRowDrag = useTouchDrag({
+        onDragStart: (sourceId) => setDraggedRowId(sourceId),
+        onDragOver: (sourceId, targetId) => {
+            if (!targetId) {
+                setDragOverRow(null);
+                setDragOverRowTarget(null);
+                return;
+            }
+            const [kind, ...rest] = targetId.split(':');
+            if (kind === 'row') {
+                const [pageIndexRaw, targetRowId] = rest;
+                if (targetRowId === sourceId) {
+                    setDragOverRow(null);
+                    return;
+                }
+                const orderedRowIds = getOutputPageAt(
+                    store.outputLayout,
+                    Number(pageIndexRaw)
+                ).rows.map(({ row }) => row.id);
+                setDragOverRow({
+                    rowId: targetRowId,
+                    position: positionFromOrder(sourceId, targetRowId, orderedRowIds),
+                });
+                setDragOverRowTarget(null);
+            } else if (kind === 'atom') {
+                // 터치는 정확한 clientY가 없어 항상 'after'(그 atom 다음)로 취급한다.
+                setDragOverRowTarget({ atomId: rest.join(':'), position: 'after' });
+                setDragOverRow(null);
+            }
+        },
+        onDrop: (sourceId, targetId) => {
+            if (!targetId) return;
+            const [kind, ...rest] = targetId.split(':');
+            if (kind === 'row') {
+                const [, targetRowId] = rest;
+                if (targetRowId === sourceId) return;
+                const position =
+                    dragOverRow?.rowId === targetRowId ? dragOverRow.position : 'after';
+                resolveRowToRowMove(sourceId, targetRowId, position);
+            } else if (kind === 'atom') {
+                const targetAtomId = rest.join(':');
+                const rowAtomIds = getRowAtomIds(sourceId, store.outputLayout);
+                const rowSectionId = rowAtomIds
+                    .map((id) => printableAtoms.find((a) => a.id === id)?.sectionId)
+                    .find((v): v is string => v !== undefined);
+                const targetAtomForRow = printableAtoms.find((a) => a.id === targetAtomId);
+                if (
+                    targetAtomForRow?.isHeader &&
+                    rowSectionId &&
+                    rowSectionId !== targetAtomForRow.sectionId &&
+                    rowAtomIds[0]
+                ) {
+                    moveWholeSectionOnto(rowAtomIds[0], targetAtomId, 'after');
+                } else if (
+                    rowSectionId &&
+                    targetAtomForRow &&
+                    rowSectionId === targetAtomForRow.sectionId
+                ) {
+                    // 같은 섹션일 때만 위치 재조정 — 다른 섹션의 일반 항목(헤더 아님) 위에
+                    // 놓였다면 아무 것도 하지 않는다(구조가 무관한 섹션과 섞이는 것 방지).
+                    store.moveRowToAtom(sourceId, { atomId: targetAtomId, position: 'after' });
+                }
+            }
+        },
+        onDragEnd: () => {
+            setDraggedRowId(null);
+            setDragOverRow(null);
+            setDragOverRowTarget(null);
+        },
+    });
+
+    // 개별 드래그/삭제/병합 함수마다 "섹션 섞이면 안 된다" 가드를 따로 넣는
+    // 방식은 함수 하나라도 빠뜨리면 바로 다시 섞이는 문제가 반복됐다(실제로
+    // 여러 번 재발). 대신 여기서 매번 무조건 강제한다 — 이 페이지의 모든 행을
+    // "섹션의 자연 문서 순서" 기준으로 재정렬한다. 같은 섹션에 속한 행끼리는
+    // 서로의 상대 순서를 보존하되(안정 정렬), 다른 섹션 행이 그 사이에 끼어들
+    // 수는 구조적으로 없어진다 — 2/3/4열 행이 "구성 범위를 벗어나는" 경로를
+    // 어떤 버그가 만들어내든, 다음 렌더에서 무조건 제자리로 스냅백된다.
+    const enforceSectionRowOrder = useCallback(
+        (layout: OutputLayout): OutputLayout => {
+            const sectionRankById = new Map<string, number>();
+            printableAtoms.forEach((atom) => {
+                if (!sectionRankById.has(atom.sectionId)) {
+                    sectionRankById.set(atom.sectionId, sectionRankById.size);
+                }
+            });
+
+            const orderUpdates = new Map<string, number>();
+            layout.pages.forEach((page) => {
+                const pageRowsOrdered = layout.rows
+                    .filter((row) => row.pageId === page.id)
+                    .sort((a, b) => a.order - b.order);
+                const ranked = pageRowsOrdered.map((row, originalIndex) => ({
+                    row,
+                    rank:
+                        sectionRankById.get(getRowSectionId(row.id, layout) ?? '') ??
+                        Number.MAX_SAFE_INTEGER,
+                    originalIndex,
+                }));
+                const sorted = [...ranked].sort((a, b) =>
+                    a.rank !== b.rank ? a.rank - b.rank : a.originalIndex - b.originalIndex
+                );
+                sorted.forEach(({ row }, index) => {
+                    if (row.order !== index) orderUpdates.set(row.id, index);
+                });
+            });
+
+            if (orderUpdates.size === 0) return layout;
+
+            const rows = layout.rows.map((row) =>
+                orderUpdates.has(row.id) ? { ...row, order: orderUpdates.get(row.id)! } : row
+            );
+            const pages = layout.pages.map((page) => {
+                const pageRowIds = rows
+                    .filter((row) => row.pageId === page.id)
+                    .sort((a, b) => a.order - b.order)
+                    .map((row) => row.id);
+                const pageRegionIds = pageRowIds.flatMap(
+                    (id) => rows.find((row) => row.id === id)?.regionIds ?? []
+                );
+                return { ...page, rowIds: pageRowIds, regionIds: pageRegionIds };
+            });
+
+            return { ...layout, rows, pages };
+        },
+        [printableAtoms, getRowSectionId]
+    );
+
+    // 어떤 열이 비어 완전히 사라지면 그 행은 단일열로 줄어드는데, 이웃 행과
+    // 다시 합칠지는 printLayoutModel.ts가 판단할 수 없다(그 계층은 atomId 문자열만
+    // 다뤄 섹션 개념이 없다). 여기서 sectionId를 알고 있는 상태로, 인접한 두
+    // 단일열 행이 "같은 섹션"일 때만 합친다 — 예전에 섹션 구분 없이 무조건
+    // 합치던 로직이 다른 섹션끼리 섞이는 버그를 냈던 것을 대체한다.
+    //
+    // materialize와 병합 전부를 로컬 layout 변수 위에서 수렴할 때까지 계산한
+    // 뒤 store.setOutputLayout으로 딱 한 번만 커밋한다 — 예전처럼 병합 한 쌍마다
+    // store를 따로 갱신하면 undo 히스토리에 자동 정리 스냅샷이 여러 개 쌓여서,
+    // 사용자가 실제로 한 액션 하나를 되돌리려 해도 중간 자동 정리 단계로만
+    // 한 걸음씩 되돌아가는 문제가 있었다.
+    useEffect(() => {
+        const debugStart = process.env.NODE_ENV !== 'production' ? performance.now() : 0;
+        let layout = store.outputLayout;
+        let changed = false;
+
+        for (let pageIndex = 0; pageIndex < layout.pages.length; pageIndex += 1) {
+            const next = materializePageIntoRows(layout, pageIndex);
+            if (next !== layout) {
+                layout = next;
+                changed = true;
+            }
+        }
+
+        const pruned = pruneEmptyOutputRows(layout);
+        if (pruned !== layout) {
+            layout = pruned;
+            changed = true;
+        }
+
+        let guard = 0;
+        while (guard < 500) {
+            guard += 1;
+            let mergedPair: [string, string] | null = null;
+            for (const page of layout.pages) {
+                const pageRows = layout.rows
+                    .filter((row) => row.pageId === page.id)
+                    .sort((a, b) => a.order - b.order);
+                for (let i = 0; i < pageRows.length - 1; i += 1) {
+                    const rowA = pageRows[i];
+                    const rowB = pageRows[i + 1];
+                    if (rowA.regionIds.length !== 1 || rowB.regionIds.length !== 1) continue;
+                    const sectionA = getRowSectionId(rowA.id, layout);
+                    const sectionB = getRowSectionId(rowB.id, layout);
+                    if (sectionA && sectionB && sectionA === sectionB) {
+                        mergedPair = [rowA.id, rowB.id];
+                        break;
+                    }
+                }
+                if (mergedPair) break;
+            }
+            if (!mergedPair) break;
+            layout = mergeAdjacentSingleColumnRows(layout, mergedPair[0], mergedPair[1]);
+            changed = true;
+        }
+
+        const reordered = enforceSectionRowOrder(layout);
+        if (reordered !== layout) {
+            layout = reordered;
+            changed = true;
+        }
+
+        if (process.env.NODE_ENV !== 'production') {
+            const elapsed = performance.now() - debugStart;
+            if (elapsed > 4) {
+                console.log(
+                    `[self-heal] ${elapsed.toFixed(1)}ms, changed=${changed}, pages=${layout.pages.length}, rows=${layout.rows.length}, guard=${guard}`
+                );
+            }
+        }
+        if (changed) {
+            usePrintStore.getState().setOutputLayout(layout);
+        }
+    }, [store.outputLayout, materializePageIntoRows, getRowSectionId, enforceSectionRowOrder]);
+
+    // 헤더/행을 화면 밖 섹션 쪽으로 옮기려면 드래그 중 캔버스가 자동으로
+    // 스크롤돼야 한다. window에 capture 단계로 붙여서, 개별 드롭존이
+    // stopPropagation을 불러도(대부분 그렇다) 항상 먼저 실행되게 한다.
+    useEffect(() => {
+        const isDragging = !!draggedCanvasAtomId || !!draggedRowId;
+        if (!isDragging) return;
+
+        const EDGE = 90;
+        const MAX_SPEED = 24;
+
+        const scrollFromClientY = (clientY: number) => {
+            const container = canvasRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            const fromTop = clientY - rect.top;
+            const fromBottom = rect.bottom - clientY;
+            if (fromTop < EDGE) {
+                container.scrollTop -= Math.ceil(
+                    ((EDGE - Math.max(0, fromTop)) / EDGE) * MAX_SPEED
+                );
+            } else if (fromBottom < EDGE) {
+                container.scrollTop += Math.ceil(
+                    ((EDGE - Math.max(0, fromBottom)) / EDGE) * MAX_SPEED
+                );
+            }
+        };
+
+        const handleDragOver = (event: globalThis.DragEvent) => scrollFromClientY(event.clientY);
+        const handlePointerMove = (event: PointerEvent) => {
+            if (event.pointerType === 'mouse') return;
+            scrollFromClientY(event.clientY);
+        };
+
+        window.addEventListener('dragover', handleDragOver, true);
+        window.addEventListener('pointermove', handlePointerMove, true);
+        return () => {
+            window.removeEventListener('dragover', handleDragOver, true);
+            window.removeEventListener('pointermove', handlePointerMove, true);
+        };
+    }, [draggedCanvasAtomId, draggedRowId]);
+
+    // 행/region/atom 렌더러(RowRenderer/RegionRenderer/RegionRunRenderer/
+    // CanvasAtomRenderer)가 읽는 DnD 상태·핸들러 전부를 하나로 묶는다.
+    // atomRenderContextValue와 같은 이유로 useMemo 필수 — 안 그러면 dragOver*
+    // 상태 하나 바뀔 때마다 이 값 전체가 새로 만들어져 memo가 무력화된다.
+    // (10개 useState/touchCanvasDrag/touchRowDrag 자체는 그대로 PrintCanvas에
+    // 남아있고, 이 context는 그 "현재 값"을 읽기 전용으로 노출만 한다.)
+    const dragContextValue: PrintDragContextValue = useMemo(
+        () => ({
+            draggedCanvasAtomId,
+            setDraggedCanvasAtomId,
+            dragOverEmptyRegion,
+            setDragOverEmptyRegion,
+            dragOverRun,
+            setDragOverRun,
+            dragOverAtom,
+            setDragOverAtom,
+            draggedRowId,
+            setDraggedRowId,
+            dragOverRow,
+            setDragOverRow,
+            dragOverRowTarget,
+            setDragOverRowTarget,
+            hoveredGripRowId,
+            setHoveredGripRowId,
+            hoveredGripAtomId,
+            setHoveredGripAtomId,
+            overflowRegionKeys,
+            touchCanvasDrag,
+            touchRowDrag,
+            printableAtoms,
+            getRowPairingKey,
+            isHeaderAtom,
+            getRowAtomIds,
+            getRowSectionId,
+            getAssociatedAtomIds,
+            placeAtomBeside,
+            moveWholeSectionOnto,
+            clampAtomPositionPastHeader,
+            clampRowPositionPastHeader,
+            clearDragOverStates,
+            resolveRowToRowMove,
+        }),
+        [
+            draggedCanvasAtomId,
+            dragOverEmptyRegion,
+            dragOverRun,
+            dragOverAtom,
+            draggedRowId,
+            dragOverRow,
+            dragOverRowTarget,
+            hoveredGripRowId,
+            hoveredGripAtomId,
+            overflowRegionKeys,
+            touchCanvasDrag,
+            touchRowDrag,
+            printableAtoms,
+            getRowPairingKey,
+            isHeaderAtom,
+            getRowAtomIds,
+            getRowSectionId,
+            getAssociatedAtomIds,
+            placeAtomBeside,
+            moveWholeSectionOnto,
+            clampAtomPositionPastHeader,
+            clampRowPositionPastHeader,
+            clearDragOverStates,
+            resolveRowToRowMove,
+        ]
+    );
+
+    // atom 콘텐츠 카드(AtomCard)가 읽는 파생값·핸들러 전부를 하나로 묶는다. 드래그
+    // 중 dragOver* 상태가 바뀌어도 이 값의 의존성엔 전혀 없으므로 참조가 그대로
+    // 유지되고, AtomCard(React.memo)가 재조정을 건너뛴다 — 그냥 매 렌더 새
+    // 객체 리터럴로 만들면 memo가 무력화되므로 useMemo가 필수다.
+    const atomRenderContextValue: PrintAtomRenderContextValue = useMemo(
+        () => ({
+            introData,
+            inlineEditMode,
+            contentOverrides,
+            profile,
+            careerSummary,
+            groupedCoreSkills,
+            orderedCareerCards,
+            visibleCompetencies,
+            orderedMilestones,
+            orderedCredentialExperiences,
+            coverLetterItems,
+            orderedCoverLetterItems,
+            coverLetterSectionTitle,
+            setCoverLetterSectionTitle,
+            setProfileOverride,
+            setExperienceOverride,
+            setCompetencyOverride,
+            setDetailOverride,
+            setCoverLetterOverride,
+            addCoverLetterItem,
+            updateAddedCoverLetterItem,
+            removeAddedCoverLetterItem,
+            updateCustomSection,
+            removeCustomSection,
+            addCustomSectionItem,
+            updateCustomSectionItem,
+            removeCustomSectionItem,
+            toggleSkillSelection,
+            setSkillSelectorModalOpen,
+            atomPageMap,
+            pageBreakBoundaryAtomIds,
+            getAtomDisplayTitle,
+            startGapDrag,
+            getForcePageAssociatedAtomIds,
+            forceMoveToPage,
+            isPageBreakBannerVisible,
+        }),
+        [
+            introData,
+            inlineEditMode,
+            contentOverrides,
+            profile,
+            careerSummary,
+            groupedCoreSkills,
+            orderedCareerCards,
+            visibleCompetencies,
+            orderedMilestones,
+            orderedCredentialExperiences,
+            coverLetterItems,
+            orderedCoverLetterItems,
+            coverLetterSectionTitle,
+            setCoverLetterSectionTitle,
+            setProfileOverride,
+            setExperienceOverride,
+            setCompetencyOverride,
+            setDetailOverride,
+            setCoverLetterOverride,
+            addCoverLetterItem,
+            updateAddedCoverLetterItem,
+            removeAddedCoverLetterItem,
+            updateCustomSection,
+            removeCustomSection,
+            addCustomSectionItem,
+            updateCustomSectionItem,
+            removeCustomSectionItem,
+            toggleSkillSelection,
+            setSkillSelectorModalOpen,
+            atomPageMap,
+            pageBreakBoundaryAtomIds,
+            getAtomDisplayTitle,
+            startGapDrag,
+            getForcePageAssociatedAtomIds,
+            forceMoveToPage,
+            isPageBreakBannerVisible,
+        ]
+    );
 
     return (
-        <>
-            <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
-                <PrintPreviewBar
-                    excludedCount={store.printExcludedIds.length}
-                    totalPages={pageLayers.length}
-                    navOpen={store.navPanelOpen}
-                    activeTemplateName={activeTemplateName}
-                    onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
-                    onSaveLocal={handleSaveLocalTemplate}
-                    onSaveServer={adminMode ? () => setSaveTemplateModalOpen(true) : undefined}
-                    onOpenTemplateModal={() => setModeModalOpen(true)}
-                    onPrint={handlePrintConfirm}
-                    onCancel={onExit}
-                    zoom={store.zoom}
-                    onZoomChange={store.setZoom}
-                    onZoomFit={handleZoomFit}
-                    lineHeight={store.lineHeight}
-                    onLineHeightChange={store.setLineHeight}
-                    hideGuides={store.hidePrintGuides}
-                    onToggleHideGuides={store.toggleHidePrintGuides}
-                    inlineEditMode={inlineEditMode}
-                    onToggleInlineEditMode={() => setInlineEditMode(!inlineEditMode)}
-                    aiChatOpen={aiChatOpen}
-                    onToggleAiChat={canRevise ? () => setAiChatOpen((v) => !v) : undefined}
-                    canUndo={historyAvailability.canUndo}
-                    canRedo={historyAvailability.canRedo}
-                    onUndo={handleUndo}
-                    onRedo={handleRedo}
-                    marginSettingsOpen={marginSettingsOpen}
-                    onToggleMarginSettings={() => setMarginSettingsOpen((open) => !open)}
-                    integratedDocumentSettings
-                />
-
-                {inlineEditMode && (
-                    <div className="bg-slate-950 border-b border-blue-500/40 px-4 py-2 text-xs font-bold text-blue-200 flex items-center justify-center gap-3 shadow-md print:hidden shrink-0 z-40">
-                        <div className="flex min-w-0 items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
-                            <span>
-                                인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리 텍스트를
-                                클릭하여 맞춤 문구를 직접 수정하세요. 상단 &apos;템플릿으로
-                                저장&apos; 클릭 시 함께 저장됩니다.
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                <div className="flex-1 min-h-0 flex">
-                    {marginSettingsOpen && (
-                        <aside
-                            className="relative shrink-0 overflow-y-auto border-r border-slate-700 bg-slate-950 text-white shadow-2xl print:hidden"
-                            style={{ width: documentSettingsWidth }}
-                            aria-label="문서 설정"
-                        >
-                            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950 px-4 py-3">
-                                <div>
-                                    <p className="text-sm font-black">문서 설정</p>
-                                    <p className="mt-0.5 text-[10px] font-bold text-slate-400">
-                                        현재 템플릿의 모든 페이지에 적용
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setMarginSettingsOpen(false)}
-                                    className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white"
-                                    aria-label="문서 설정 닫기"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-                            <nav
-                                className="grid grid-cols-3 gap-1 border-b border-slate-800 p-2"
-                                aria-label="문서 설정 분류"
-                            >
-                                {(
-                                    [
-                                        ['paper', '용지'],
-                                        ['typography', '글꼴·간격'],
-                                        ['composition', '구성'],
-                                        ['view', '보기'],
-                                        ['template', '템플릿'],
-                                    ] as const
-                                ).map(([tab, label]) => (
-                                    <button
-                                        key={tab}
-                                        type="button"
-                                        onClick={() => setDocumentSettingsTab(tab)}
-                                        aria-pressed={documentSettingsTab === tab}
-                                        className={`h-8 rounded-md px-2 text-[10px] font-black transition ${
-                                            documentSettingsTab === tab
-                                                ? 'bg-blue-600 text-white'
-                                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                                        }`}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </nav>
-                            <div className="space-y-5 p-4">
-                                {documentSettingsTab === 'paper' && (
-                                    <section>
-                                        <div className="mb-3 flex items-center justify-between">
-                                            <div>
-                                                <h2 className="text-xs font-black">페이지 여백</h2>
-                                                <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                                                    위·오른쪽·아래·왼쪽 순서로 A4 공통 여백을
-                                                    설정합니다.
-                                                </p>
-                                            </div>
-                                            <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-black text-slate-300">
-                                                mm
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {(
-                                                [
-                                                    ['top', '위'],
-                                                    ['right', '오른쪽'],
-                                                    ['bottom', '아래'],
-                                                    ['left', '왼쪽'],
-                                                ] as const
-                                            ).map(([side, label]) => (
-                                                <PageMarginInput
-                                                    key={`${side}:${store.outputLayout.pageMargins[side]}`}
-                                                    label={label}
-                                                    value={store.outputLayout.pageMargins[side]}
-                                                    onCommit={(value) =>
-                                                        store.setPageMargins({ [side]: value })
-                                                    }
-                                                />
-                                            ))}
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                store.setPageMargins({
-                                                    top: 12,
-                                                    right: 14,
-                                                    bottom: 12,
-                                                    left: 14,
-                                                })
-                                            }
-                                            className="mt-3 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
-                                        >
-                                            기본 여백으로 초기화
-                                        </button>
-                                    </section>
-                                )}
-                                {documentSettingsTab === 'paper' && (
-                                    <section className="border-t border-slate-800 pt-4">
-                                        <h2 className="text-xs font-black">페이지 구성</h2>
-                                        <dl className="mt-3 space-y-2 text-[10px]">
-                                            <div className="flex justify-between gap-3">
-                                                <dt className="text-slate-400">용지</dt>
-                                                <dd className="font-black text-slate-200">A4</dd>
-                                            </div>
-                                            <div className="flex justify-between gap-3">
-                                                <dt className="text-slate-400">현재 페이지</dt>
-                                                <dd className="font-black text-slate-200">
-                                                    {pageLayers.length}페이지
-                                                </dd>
-                                            </div>
-                                        </dl>
-                                    </section>
-                                )}
-                                {documentSettingsTab === 'typography' && (
-                                    <section>
-                                        <h2 className="text-xs font-black">타이포그래피</h2>
-                                        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                                            모든 페이지 본문에 적용되는 읽기 간격입니다.
-                                        </p>
-                                        <label className="mt-4 block rounded-md border border-slate-800 bg-slate-900 p-3">
-                                            <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
-                                                전체 글자 크기
-                                                <strong className="text-blue-300">
-                                                    {Math.round(store.outputLayout.fontScale * 100)}
-                                                    %
-                                                </strong>
-                                            </span>
-                                            <input
-                                                type="range"
-                                                min={0.8}
-                                                max={1.3}
-                                                step={0.025}
-                                                value={store.outputLayout.fontScale}
-                                                onChange={(event) =>
-                                                    store.setFontScale(Number(event.target.value))
-                                                }
-                                                className="mt-3 h-1 w-full cursor-pointer accent-blue-500"
-                                            />
-                                        </label>
-                                        <label className="mt-3 block rounded-md border border-slate-800 bg-slate-900 p-3">
-                                            <span className="flex items-center justify-between text-[10px] font-black text-slate-300">
-                                                본문 줄 간격
-                                                <strong className="text-blue-300">
-                                                    {store.lineHeight.toFixed(2)}
-                                                </strong>
-                                            </span>
-                                            <input
-                                                type="range"
-                                                min={1}
-                                                max={2.2}
-                                                step={0.025}
-                                                value={store.lineHeight}
-                                                onChange={(event) =>
-                                                    store.setLineHeight(Number(event.target.value))
-                                                }
-                                                className="mt-3 h-1 w-full cursor-pointer accent-blue-500"
-                                            />
-                                        </label>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                store.setFontScale(1);
-                                                store.setLineHeight(1.625);
-                                            }}
-                                            className="mt-3 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
-                                        >
-                                            기본 글자·줄 간격으로 초기화
-                                        </button>
-                                    </section>
-                                )}
-                                {documentSettingsTab === 'composition' && (
-                                    <section>
-                                        <h2 className="text-xs font-black">문서 구성</h2>
-                                        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                                            섹션 노출, 순서와 세부 항목 배치를 관리합니다.
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                store.setNavPanelOpen(!store.navPanelOpen)
-                                            }
-                                            aria-pressed={store.navPanelOpen}
-                                            className={`mt-4 flex w-full items-center justify-between rounded-md border p-3 text-left transition ${
-                                                store.navPanelOpen
-                                                    ? 'border-blue-400 bg-blue-600/20 text-white'
-                                                    : 'border-slate-800 bg-slate-900 text-slate-200 hover:border-slate-600'
-                                            }`}
-                                        >
-                                            <span>
-                                                <strong className="block text-xs">
-                                                    구성 관리 패널
-                                                </strong>
-                                                <span className="mt-1 block text-[10px] text-slate-400">
-                                                    {store.printExcludedIds.length}개 제외 · 드래그
-                                                    순서 편집
-                                                </span>
-                                            </span>
-                                            <Settings className="h-4 w-4 shrink-0" />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={store.toggleAllExcluded}
-                                            className="mt-2 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
-                                        >
-                                            {store.printExcludedIds.length > 0
-                                                ? '모든 섹션 다시 포함'
-                                                : '편집 가능한 섹션 모두 제외'}
-                                        </button>
-                                    </section>
-                                )}
-                                {documentSettingsTab === 'view' && (
-                                    <section>
-                                        <h2 className="text-xs font-black">편집 화면 보기</h2>
-                                        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                                            화면에서만 바뀌며 실제 인쇄 결과에는 영향을 주지
-                                            않습니다.
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={store.toggleHidePrintGuides}
-                                            aria-pressed={!store.hidePrintGuides}
-                                            className="mt-4 flex w-full items-center justify-between rounded-md border border-slate-800 bg-slate-900 p-3 text-left text-slate-200 transition hover:border-slate-600"
-                                        >
-                                            <span>
-                                                <strong className="block text-xs">
-                                                    편집 가이드
-                                                </strong>
-                                                <span className="mt-1 block text-[10px] text-slate-400">
-                                                    여백선·열 경계·배치 도구
-                                                </span>
-                                            </span>
-                                            <span
-                                                className={`rounded-full px-2 py-1 text-[9px] font-black ${
-                                                    store.hidePrintGuides
-                                                        ? 'bg-slate-800 text-slate-400'
-                                                        : 'bg-emerald-500/20 text-emerald-300'
-                                                }`}
-                                            >
-                                                {store.hidePrintGuides ? '숨김' : '표시'}
-                                            </span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleZoomFit}
-                                            className="mt-2 h-9 w-full rounded-md border border-slate-700 text-[10px] font-black text-slate-200 transition hover:bg-slate-800"
-                                        >
-                                            화면에 페이지 맞춤
-                                        </button>
-                                    </section>
-                                )}
-                                {documentSettingsTab === 'template' && (
-                                    <section>
-                                        <h2 className="text-xs font-black">템플릿</h2>
-                                        <div className="mt-3 rounded-md border border-slate-800 bg-slate-900 p-3">
-                                            <span className="text-[9px] font-black text-slate-500">
-                                                현재 적용 중
-                                            </span>
-                                            <strong className="mt-1 block truncate text-xs text-white">
-                                                {activeTemplateName || '기본 이력서'}
-                                            </strong>
-                                        </div>
-                                        <div className="mt-3 space-y-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setModeModalOpen(true)}
-                                                className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-100 transition hover:border-blue-400"
-                                            >
-                                                다른 템플릿 불러오기
-                                            </button>
-                                            {adminMode && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSaveTemplateModalOpen(true)}
-                                                    className="h-10 w-full rounded-md bg-blue-600 text-[10px] font-black text-white transition hover:bg-blue-500"
-                                                >
-                                                    Workspace 템플릿으로 저장
-                                                </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={handleSaveLocalTemplate}
-                                                className="h-10 w-full rounded-md border border-amber-500/50 bg-amber-500/10 text-[10px] font-black text-amber-300 transition hover:bg-amber-500/20"
-                                            >
-                                                브라우저에 임시 저장
-                                            </button>
-                                        </div>
-                                    </section>
-                                )}
-                            </div>
-                            <div
-                                role="separator"
-                                aria-orientation="vertical"
-                                aria-label="문서 설정 패널 너비 조절"
-                                onPointerDown={handleDocumentSettingsResizeStart}
-                                onPointerMove={handleDocumentSettingsResizeMove}
-                                onPointerUp={handleDocumentSettingsResizeEnd}
-                                onPointerCancel={handleDocumentSettingsResizeEnd}
-                                className="absolute inset-y-0 right-0 w-1.5 cursor-col-resize touch-none bg-transparent transition hover:bg-blue-500/70"
-                            />
-                        </aside>
-                    )}
-                    <div
-                        ref={canvasRef}
-                        className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
-                    >
-                        <div
-                            className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
-                            style={
-                                {
-                                    zoom: store.zoom,
-                                    '--print-line-height': store.lineHeight,
-                                    '--print-font-scale': store.outputLayout.fontScale,
-                                } as CSSProperties
-                            }
-                        >
-                            {pageLayers.map((page, pageIdx) => {
-                                const { page: outputPage, rows } = getOutputPageAt(
-                                    store.outputLayout,
-                                    pageIdx
-                                );
-                                const pageRegionIds = new Set(
-                                    rows.flatMap(({ regions }) =>
-                                        regions.map((region) => region.id)
-                                    )
-                                );
-                                const firstRegionId = rows[0]?.regions[0]?.id;
-                                const atomsByRegionId = new Map<string, PrintAtomItem[]>();
-                                page.items.forEach((atom) => {
-                                    const placement = placementByAtomId.get(atom.id);
-                                    const regionId =
-                                        placement && pageRegionIds.has(placement.regionId)
-                                            ? placement.regionId
-                                            : firstRegionId;
-                                    if (!regionId) return;
-                                    atomsByRegionId.set(regionId, [
-                                        ...(atomsByRegionId.get(regionId) ?? []),
-                                        atom,
-                                    ]);
-                                });
-                                atomsByRegionId.forEach((atoms) =>
-                                    atoms.sort((left, right) => {
-                                        const leftOrder = placementByAtomId.get(left.id)?.order;
-                                        const rightOrder = placementByAtomId.get(right.id)?.order;
-                                        if (leftOrder === undefined || rightOrder === undefined)
-                                            return 0;
-                                        return leftOrder - rightOrder;
-                                    })
-                                );
-                                const populatedRows = rows.filter(({ regions }) =>
-                                    regions.some(
-                                        (region) =>
-                                            (atomsByRegionId.get(region.id)?.length ?? 0) > 0
-                                    )
-                                );
-                                const renderedRows =
-                                    populatedRows.length > 0 ? populatedRows : rows.slice(0, 1);
-
-                                return (
-                                    <PdfPageLayer
-                                        key={page.pageId}
-                                        pageId={page.pageId}
-                                        pageIndex={pageIdx}
-                                        totalPages={pageLayers.length}
-                                        hideGuides={store.hidePrintGuides}
-                                        showFrameLabel={false}
-                                        orientation={outputPage.orientation}
-                                        margins={store.outputLayout.pageMargins}
-                                    >
-                                        {!store.hidePrintGuides && (
-                                            <div className="pointer-events-none absolute -top-7 left-0 z-40 flex h-7 items-center gap-2 rounded-t-md bg-slate-950 px-3 shadow-md print:hidden">
-                                                <span className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
-                                                <span className="whitespace-nowrap text-[10px] font-black text-white">
-                                                    {pageIdx + 1}페이지 · A4{' '}
-                                                    {outputPage.orientation === 'landscape'
-                                                        ? '가로'
-                                                        : '세로'}
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        <div className="flex w-full min-w-0 flex-col">
-                                            {renderedRows.map(({ row, regions }) => (
-                                                <div
-                                                    key={row.id}
-                                                    data-output-row={row.id}
-                                                    data-layout-mode={row.layoutMode}
-                                                    className="group/output-row relative grid min-w-0 items-start"
-                                                    style={{
-                                                        gridTemplateColumns: regions
-                                                            .map(
-                                                                (region) =>
-                                                                    `${region.widthFraction}fr`
-                                                            )
-                                                            .join(' '),
-                                                        columnGap: `${row.gapMm}mm`,
-                                                    }}
-                                                >
-                                                    {!store.hidePrintGuides && (
-                                                        <div className="absolute right-0 top-0 z-30 hidden -translate-y-full items-center gap-1 rounded-t-md bg-slate-950 px-1.5 py-1 shadow-xl group-hover/output-row:flex print:hidden">
-                                                            {regions.length > 1 && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        store.setRowColumnCount(
-                                                                            row.id,
-                                                                            1
-                                                                        )
-                                                                    }
-                                                                    className="h-5 rounded px-1.5 text-[9px] font-black text-slate-300 hover:bg-slate-800 hover:text-white"
-                                                                    title="이 행의 블록을 다시 세로 한 줄로 합칩니다."
-                                                                >
-                                                                    한 줄로 합치기
-                                                                </button>
-                                                            )}
-                                                            {regions.length === 2 && (
-                                                                <label className="flex items-center gap-1 px-1 text-[8px] font-bold text-slate-300">
-                                                                    폭
-                                                                    <input
-                                                                        type="range"
-                                                                        min={20}
-                                                                        max={80}
-                                                                        value={Math.round(
-                                                                            (regions[0]
-                                                                                .widthFraction /
-                                                                                (regions[0]
-                                                                                    .widthFraction +
-                                                                                    regions[1]
-                                                                                        .widthFraction)) *
-                                                                                100
-                                                                        )}
-                                                                        onChange={(event) =>
-                                                                            store.resizeRegionPair(
-                                                                                regions[0].id,
-                                                                                regions[1].id,
-                                                                                Number(
-                                                                                    event.target
-                                                                                        .value
-                                                                                ) / 100
-                                                                            )
-                                                                        }
-                                                                        className="w-16 accent-blue-500"
-                                                                    />
-                                                                </label>
-                                                            )}
-                                                            <label className="flex items-center gap-1 px-1 text-[8px] font-bold text-slate-300">
-                                                                간격
-                                                                <input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    max={20}
-                                                                    value={row.gapMm}
-                                                                    onChange={(event) =>
-                                                                        store.setRowGap(
-                                                                            row.id,
-                                                                            Number(
-                                                                                event.target.value
-                                                                            )
-                                                                        )
-                                                                    }
-                                                                    className="h-5 w-10 rounded border border-slate-600 bg-slate-900 px-1 text-white"
-                                                                />
-                                                            </label>
-                                                            {renderedRows.length > 1 && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        store.removeRow(row.id)
-                                                                    }
-                                                                    className="inline-flex h-5 w-5 items-center justify-center rounded text-rose-300 hover:bg-rose-500/20"
-                                                                    title="행 삭제 — 항목은 첫 행으로 이동"
-                                                                >
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {regions.map((region, columnIndex) =>
-                                                        renderOutputRegion(
-                                                            pageIdx,
-                                                            region,
-                                                            columnIndex,
-                                                            atomsByRegionId.get(region.id) ?? []
-                                                        )
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </PdfPageLayer>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div
-                        className="print:hidden shrink-0 transition-all duration-300"
-                        style={{ width: store.navPanelOpen ? 256 : 56 }}
-                    >
-                        <PrintPreviewNav
-                            sections={orderedPrintableSections}
-                            excludedIds={store.printExcludedIds}
-                            itemGroups={navItemGroups}
-                            lockedSectionIds={[LOCKED_PRINT_SECTION_ID]}
-                            open={store.navPanelOpen}
-                            onRequestToggle={() => store.setNavPanelOpen(!store.navPanelOpen)}
-                            onToggle={store.toggleExcluded}
-                            onReorderItem={store.reorderItemInScope}
-                            onReorder={store.reorderSections}
-                            onNavigate={(id) => {
-                                const el =
-                                    document.getElementById(id) ??
-                                    document.querySelector<HTMLElement>(
-                                        `[data-print-id="${CSS.escape(id)}"]`
-                                    );
-                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }}
-                            onToggleAll={store.toggleAllExcluded}
+        <PrintDragContext.Provider value={dragContextValue}>
+            <PrintAtomRenderContext.Provider value={atomRenderContextValue}>
+                <>
+                    <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
+                        <PrintPreviewBar
                             excludedCount={store.printExcludedIds.length}
-                            onAddCustomSection={addCustomSection}
+                            totalPages={pageLayers.length}
+                            navOpen={store.navPanelOpen}
+                            activeTemplateName={activeTemplateName}
+                            onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
+                            onSaveLocal={handleSaveLocalTemplate}
+                            onSaveServer={
+                                adminMode ? () => setSaveTemplateModalOpen(true) : undefined
+                            }
+                            onOpenTemplateModal={() => setModeModalOpen(true)}
+                            onPrint={handlePrintConfirm}
+                            onCancel={onExit}
+                            zoom={store.zoom}
+                            onZoomChange={store.setZoom}
+                            onZoomFit={handleZoomFit}
+                            lineHeight={store.lineHeight}
+                            onLineHeightChange={store.setLineHeight}
+                            hideGuides={store.hidePrintGuides}
+                            onToggleHideGuides={store.toggleHidePrintGuides}
+                            inlineEditMode={inlineEditMode}
+                            onToggleInlineEditMode={() => setInlineEditMode(!inlineEditMode)}
+                            aiChatOpen={aiChatOpen}
+                            onToggleAiChat={canRevise ? () => setAiChatOpen((v) => !v) : undefined}
+                            canUndo={historyAvailability.canUndo}
+                            canRedo={historyAvailability.canRedo}
+                            onUndo={handleUndo}
+                            onRedo={handleRedo}
+                            marginSettingsOpen={marginSettingsOpen}
+                            onToggleMarginSettings={() => setMarginSettingsOpen((open) => !open)}
+                            integratedDocumentSettings
                         />
+
+                        {inlineEditMode && (
+                            <div className="bg-slate-950 border-b border-blue-500/40 px-4 py-2 text-xs font-bold text-blue-200 flex items-center justify-center gap-3 shadow-md print:hidden shrink-0 z-40">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                                    <span>
+                                        인라인 문구 편집 모드 활성화: A4 종이 위의 파란색 테두리
+                                        텍스트를 클릭하여 맞춤 문구를 직접 수정하세요. 상단
+                                        &apos;템플릿으로 저장&apos; 클릭 시 함께 저장됩니다.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex-1 min-h-0 flex">
+                            {marginSettingsOpen && (
+                                <PrintDocumentSettingsPanel
+                                    onClose={() => setMarginSettingsOpen(false)}
+                                    pageCount={pageLayers.length}
+                                    onZoomFit={handleZoomFit}
+                                    activeTemplateName={activeTemplateName}
+                                    adminMode={adminMode}
+                                    onOpenTemplateModal={() => setModeModalOpen(true)}
+                                    onSaveServerTemplate={
+                                        adminMode ? () => setSaveTemplateModalOpen(true) : undefined
+                                    }
+                                    onSaveLocalTemplate={handleSaveLocalTemplate}
+                                />
+                            )}
+                            <div
+                                ref={canvasRef}
+                                onClick={(event) => {
+                                    const target = (
+                                        event.target as HTMLElement
+                                    ).closest<HTMLElement>('[data-print-el]');
+                                    const previous =
+                                        canvasRef.current?.querySelector<HTMLElement>(
+                                            '[data-print-active]'
+                                        );
+                                    if (previous && previous !== target) {
+                                        previous.removeAttribute('data-print-active');
+                                    }
+                                    if (target) {
+                                        if (target.hasAttribute('data-print-active')) {
+                                            target.removeAttribute('data-print-active');
+                                        } else {
+                                            target.setAttribute('data-print-active', '');
+                                        }
+                                    }
+                                }}
+                                className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
+                            >
+                                <div
+                                    className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
+                                    style={
+                                        {
+                                            zoom: store.zoom,
+                                            '--print-line-height': store.lineHeight,
+                                            '--print-font-scale': store.outputLayout.fontScale,
+                                        } as CSSProperties
+                                    }
+                                >
+                                    {pageLayers.map((page, pageIdx) => {
+                                        const { page: outputPage, rows } = getOutputPageAt(
+                                            store.outputLayout,
+                                            pageIdx
+                                        );
+                                        const pageRuns = pageRegionRunsList[pageIdx];
+                                        const populatedRows = rows.filter(({ regions }) =>
+                                            regions.some(
+                                                (region) =>
+                                                    (pageRuns?.runsByRegionId.get(region.id)
+                                                        ?.length ?? 0) > 0
+                                            )
+                                        );
+                                        const renderedRows =
+                                            populatedRows.length > 0
+                                                ? populatedRows
+                                                : rows.slice(0, 1);
+
+                                        // 2/3/4열 하위 행 때문에 한 섹션이 여러 OutputRow로 쪼개져도
+                                        // (구조상 불가피 — row 하나는 열 개수 하나만 가질 수 있다)
+                                        // 화면에서는 연속된 같은 섹션 행들을 하나의 박스로 묶어 보여준다
+                                        // — "2열짜리도 이 구성의 범위 안에 있다"가 시각적으로 명확해진다.
+                                        const sectionChunks: Array<{
+                                            sectionId: string | undefined;
+                                            rows: typeof renderedRows;
+                                        }> = [];
+                                        renderedRows.forEach((entry) => {
+                                            const sectionId = getRowSectionId(
+                                                entry.row.id,
+                                                store.outputLayout
+                                            );
+                                            const last = sectionChunks[sectionChunks.length - 1];
+                                            if (
+                                                last &&
+                                                sectionId !== undefined &&
+                                                last.sectionId === sectionId
+                                            ) {
+                                                last.rows.push(entry);
+                                            } else {
+                                                sectionChunks.push({ sectionId, rows: [entry] });
+                                            }
+                                        });
+
+                                        return (
+                                            <PdfPageLayer
+                                                key={page.pageId}
+                                                pageId={page.pageId}
+                                                pageIndex={pageIdx}
+                                                totalPages={pageLayers.length}
+                                                hideGuides={store.hidePrintGuides}
+                                                showFrameLabel={false}
+                                                orientation={outputPage.orientation}
+                                                margins={store.outputLayout.pageMargins}
+                                            >
+                                                {!store.hidePrintGuides && (
+                                                    <div className="pointer-events-none absolute -top-7 left-0 z-40 flex h-7 items-center gap-2 rounded-t-md bg-slate-950 px-3 shadow-md print:hidden">
+                                                        <span className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
+                                                        <span className="whitespace-nowrap text-[10px] font-black text-white">
+                                                            {pageIdx + 1}페이지 · A4{' '}
+                                                            {outputPage.orientation === 'landscape'
+                                                                ? '가로'
+                                                                : '세로'}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex w-full min-w-0 flex-col">
+                                                    {sectionChunks.map((chunk, chunkIndex) => {
+                                                        const rowElements = chunk.rows.map(
+                                                            ({ row, regions: rawRegions }) => (
+                                                                <RowRenderer
+                                                                    key={row.id}
+                                                                    pageIndex={pageIdx}
+                                                                    row={row}
+                                                                    rawRegions={rawRegions}
+                                                                    pageRuns={pageRuns}
+                                                                />
+                                                            )
+                                                        );
+                                                        if (chunk.rows.length <= 1) {
+                                                            return (
+                                                                <Fragment
+                                                                    key={`chunk:${chunkIndex}`}
+                                                                >
+                                                                    {rowElements}
+                                                                </Fragment>
+                                                            );
+                                                        }
+                                                        // 이 청크(2/3/4열 하위 행 포함, 여러 OutputRow로
+                                                        // 쪼개진 하나의 섹션) 안의 어떤 행이든, 또는 그
+                                                        // 안의 어떤 atom이든 호버 중이면 청크 전체를
+                                                        // 파란 테두리로 감싼다 — atom 하나만 호버해도
+                                                        // "이게 이 구성 범위 안에 있다"가 보이게.
+                                                        const chunkRowIds = new Set(
+                                                            chunk.rows.map(({ row }) => row.id)
+                                                        );
+                                                        const isChunkHovered =
+                                                            (hoveredGripRowId !== null &&
+                                                                chunkRowIds.has(
+                                                                    hoveredGripRowId
+                                                                )) ||
+                                                            (hoveredGripAtomId !== null &&
+                                                                chunk.rows.some(({ row }) =>
+                                                                    getRowAtomIds(
+                                                                        row.id,
+                                                                        store.outputLayout
+                                                                    ).includes(hoveredGripAtomId)
+                                                                ));
+                                                        return (
+                                                            <div
+                                                                key={`chunk:${chunkIndex}`}
+                                                                className={`relative rounded-md transition ${
+                                                                    isChunkHovered
+                                                                        ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-white'
+                                                                        : ''
+                                                                }`}
+                                                            >
+                                                                {!store.hidePrintGuides && (
+                                                                    <div
+                                                                        aria-hidden="true"
+                                                                        className="pointer-events-none absolute inset-0 z-0 rounded-md border-2 border-dashed border-slate-300/70 print:hidden"
+                                                                    />
+                                                                )}
+                                                                <div className="relative">
+                                                                    {rowElements}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </PdfPageLayer>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div
+                                className="print:hidden shrink-0 transition-all duration-300"
+                                style={{ width: store.navPanelOpen ? 256 : 56 }}
+                            >
+                                <PrintPreviewNav
+                                    sections={orderedPrintableSections}
+                                    excludedIds={store.printExcludedIds}
+                                    itemGroups={navItemGroups}
+                                    lockedSectionIds={[LOCKED_PRINT_SECTION_ID]}
+                                    open={store.navPanelOpen}
+                                    onRequestToggle={() =>
+                                        store.setNavPanelOpen(!store.navPanelOpen)
+                                    }
+                                    onToggle={store.toggleExcluded}
+                                    onReorderItem={store.reorderItemInScope}
+                                    onReorder={reorderSectionsAndSync}
+                                    onNavigate={(id) => {
+                                        const el =
+                                            document.getElementById(id) ??
+                                            document.querySelector<HTMLElement>(
+                                                `[data-print-id="${CSS.escape(id)}"]`
+                                            );
+                                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }}
+                                    onToggleAll={store.toggleAllExcluded}
+                                    excludedCount={store.printExcludedIds.length}
+                                    onAddCustomSection={addCustomSection}
+                                />
+                            </div>
+
+                            {aiChatOpen && canRevise && (
+                                <div className="print:hidden shrink-0 w-[360px] border-l border-slate-800 bg-white relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAiChatOpen(false)}
+                                        className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                        aria-label="AI 대화 패널 닫기"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                    <AiRevisionChat
+                                        revisions={revisions}
+                                        isRevisionsLoading={isRevisionsLoading}
+                                        isGenerating={isRevising}
+                                        onGenerate={handleReviseGenerate}
+                                        onCancelGenerate={handleCancelRevise}
+                                        title="AI 이력서 초안 다듬기"
+                                        subtitle="지적사항을 입력하면 현재 초안을 다시 구성합니다."
+                                        generateButtonLabel="피드백 없이 재구성"
+                                        emptyTitle="아직 대화 이력이 없습니다."
+                                        emptyDescription="지적사항을 입력해 현재 이력서 초안을 계속 다듬어 보세요."
+                                        inputPlaceholder="지적사항이나 보완 요청을 입력하세요 (전송 시 현재 초안에 반영)"
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {aiChatOpen && canRevise && (
-                        <div className="print:hidden shrink-0 w-[360px] border-l border-slate-800 bg-white relative">
-                            <button
-                                type="button"
-                                onClick={() => setAiChatOpen(false)}
-                                className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                                aria-label="AI 대화 패널 닫기"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                            <AiRevisionChat
-                                revisions={revisions}
-                                isRevisionsLoading={isRevisionsLoading}
-                                isGenerating={isRevising}
-                                onGenerate={handleReviseGenerate}
-                                onCancelGenerate={handleCancelRevise}
-                                title="AI 이력서 초안 다듬기"
-                                subtitle="지적사항을 입력하면 현재 초안을 다시 구성합니다."
-                                generateButtonLabel="피드백 없이 재구성"
-                                emptyTitle="아직 대화 이력이 없습니다."
-                                emptyDescription="지적사항을 입력해 현재 이력서 초안을 계속 다듬어 보세요."
-                                inputPlaceholder="지적사항이나 보완 요청을 입력하세요 (전송 시 현재 초안에 반영)"
-                            />
-                        </div>
+                    <PrintModeModal
+                        workspaceSlug={workspaceSlug}
+                        open={modeModalOpen}
+                        onClose={() => setModeModalOpen(false)}
+                        onManual={() => {
+                            store.resetManual();
+                            setActiveTemplate(null);
+                            setActiveTemplateName('기본 이력서');
+                            setContentOverrides({});
+                            setModeModalOpen(false);
+                            updateUrlParams(null);
+                        }}
+                        onApplyTemplate={(settings) => {
+                            store.applyTemplate(settings);
+                            const tmpl = settings.selectedTemplate ?? null;
+                            setActiveTemplate(tmpl);
+                            setActiveTemplateName(tmpl ? tmpl.name : '맞춤 인쇄 템플릿');
+                            setContentOverrides(settings.contentOverrides ?? {});
+                            setModeModalOpen(false);
+                            updateUrlParams(tmpl?.id ?? null);
+                        }}
+                    />
+
+                    <SaveServerTemplateModal
+                        workspaceSlug={workspaceSlug}
+                        key={`${activeTemplate?.id ?? 'new'}-${saveTemplateModalOpen ? 'open' : 'closed'}`}
+                        open={saveTemplateModalOpen}
+                        onClose={() => setSaveTemplateModalOpen(false)}
+                        currentSettings={{
+                            excludedIds: store.printExcludedIds,
+                            sectionOrder: store.printSectionOrder,
+                            sectionGaps: store.sectionGaps,
+                            forcedPageOverrides: store.forcedPageOverrides,
+                            outputLayout: store.outputLayout,
+                            itemOrderOverrides: store.itemOrderOverrides,
+                            targetRole: activeTemplate?.targetRole ?? 'GENERAL',
+                            contentOverrides,
+                            baseContentFingerprint,
+                            lineHeight: store.lineHeight,
+                        }}
+                        editingTemplate={activeTemplate}
+                        defaultJobPostingId={jobPostingId}
+                    />
+
+                    {skillSelectorModalOpen && (
+                        <PrintSkillSelectorModal
+                            workspaceSkills={introData.skills}
+                            catalogSkills={catalogSkills}
+                            selectedSkillIds={contentOverrides.selectedSkillIds}
+                            skillGroupOverrides={contentOverrides.skillGroupOverrides}
+                            addingCatalogSkillId={addingCatalogSkillId}
+                            onToggleSkill={toggleSkillSelection}
+                            onMoveSkill={moveSkillToGroup}
+                            onAddCatalogSkill={addCatalogSkillToWorkspace}
+                            onResetToDefault={resetSkillsToDefault}
+                            onClose={() => setSkillSelectorModalOpen(false)}
+                        />
                     )}
-                </div>
-            </div>
-
-            <PrintModeModal
-                workspaceSlug={workspaceSlug}
-                open={modeModalOpen}
-                onClose={() => setModeModalOpen(false)}
-                onManual={() => {
-                    store.resetManual();
-                    setActiveTemplate(null);
-                    setActiveTemplateName('기본 이력서');
-                    setContentOverrides({});
-                    setModeModalOpen(false);
-                    updateUrlParams(null);
-                }}
-                onApplyTemplate={(settings) => {
-                    store.applyTemplate(settings);
-                    const tmpl = settings.selectedTemplate ?? null;
-                    setActiveTemplate(tmpl);
-                    setActiveTemplateName(tmpl ? tmpl.name : '맞춤 인쇄 템플릿');
-                    setContentOverrides(settings.contentOverrides ?? {});
-                    setModeModalOpen(false);
-                    updateUrlParams(tmpl?.id ?? null);
-                }}
-            />
-
-            <SaveServerTemplateModal
-                workspaceSlug={workspaceSlug}
-                key={`${activeTemplate?.id ?? 'new'}-${saveTemplateModalOpen ? 'open' : 'closed'}`}
-                open={saveTemplateModalOpen}
-                onClose={() => setSaveTemplateModalOpen(false)}
-                currentSettings={{
-                    excludedIds: store.printExcludedIds,
-                    sectionOrder: store.printSectionOrder,
-                    sectionGaps: store.sectionGaps,
-                    forcedPageOverrides: store.forcedPageOverrides,
-                    outputLayout: store.outputLayout,
-                    itemOrderOverrides: store.itemOrderOverrides,
-                    targetRole: activeTemplate?.targetRole ?? 'GENERAL',
-                    contentOverrides,
-                    baseContentFingerprint: getPrintContentFingerprint(introData),
-                    lineHeight: store.lineHeight,
-                }}
-                editingTemplate={activeTemplate}
-                defaultJobPostingId={jobPostingId}
-            />
-
-            {skillSelectorModalOpen && (
-                <PrintSkillSelectorModal
-                    workspaceSkills={introData.skills}
-                    catalogSkills={catalogSkills}
-                    selectedSkillIds={contentOverrides.selectedSkillIds}
-                    skillGroupOverrides={contentOverrides.skillGroupOverrides}
-                    addingCatalogSkillId={addingCatalogSkillId}
-                    onToggleSkill={toggleSkillSelection}
-                    onMoveSkill={moveSkillToGroup}
-                    onAddCatalogSkill={addCatalogSkillToWorkspace}
-                    onResetToDefault={resetSkillsToDefault}
-                    onClose={() => setSkillSelectorModalOpen(false)}
-                />
-            )}
-        </>
+                </>
+            </PrintAtomRenderContext.Provider>
+        </PrintDragContext.Provider>
     );
 }

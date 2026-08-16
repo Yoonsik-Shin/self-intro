@@ -100,6 +100,17 @@ export interface PageLayerData {
     heightUsedPx: number;
 }
 
+export function computeAtomHeightWithGap(
+    atom: PrintAtomItem,
+    itemHeights: Map<string, number>,
+    sectionGaps: Record<string, number> = {}
+): number {
+    const measuredHeight = itemHeights.get(atom.id) ?? getAtomEstimatedHeight(atom);
+    const gap =
+        sectionGaps[atom.id] ?? (atom.isHeader ? sectionGaps[atom.sectionId] : undefined) ?? 0;
+    return measuredHeight + gap;
+}
+
 function getAtomEstimatedHeight(atom: PrintAtomItem): number {
     switch (atom.type) {
         case 'intro-profile':
@@ -170,9 +181,25 @@ function getAtomEstimatedHeight(atom: PrintAtomItem): number {
 }
 
 /**
+ * 나란히 배치된 2-3열 행을 페이지 분할 시 하나의 단위로 묶기 위한 그룹 정보.
+ * rowId는 표시되지 않는 그룹 식별용 키이고, columns는 열(region) 순서를 보존한
+ * atom id 배열이다. measuredHeight는 좁아진 컬럼 폭에서 실제로 렌더링된 행 컨테이너의
+ * DOM 실측 높이 — 개별 atom 높이는 1열 기준으로 동결돼 있어 열이 좁아지며 늘어난
+ * 줄바꿈을 반영하지 못하므로, 있으면 이 값을 우선한다.
+ */
+export interface AtomRowGroup {
+    rowId: string;
+    columns: string[][];
+    measuredHeight?: number;
+}
+
+/**
  * Packs ordered printable atom items into discrete page layers.
  * Uses item heights measured from DOM or fallback heights.
  * Ensures headers are not orphaned at page bottoms.
+ * 2-3열 행(rowGroupsByAtomId로 표시)은 분할 시 항상 한 단위로 취급되어, 한 페이지에
+ * 다 들어가지 않으면 통째로 다음 페이지로 넘어간다 — 컬럼끼리 서로 다른 페이지로
+ * 찢어지지 않는다.
  */
 export function partitionAtomsIntoPages(
     atoms: PrintAtomItem[],
@@ -180,7 +207,8 @@ export function partitionAtomsIntoPages(
     sectionGaps: Record<string, number> = {},
     forcedPageOverrides: Record<string, number> = {},
     contentHeightPx: number = CONTENT_HEIGHT_PX,
-    stablePageIds: string[] = []
+    stablePageIds: string[] = [],
+    rowGroupsByAtomId: Map<string, AtomRowGroup> = new Map()
 ): PageLayerData[] {
     const pageIdAt = (pageIndex: number) =>
         stablePageIds[pageIndex] ?? `auto-page-${pageIndex + 1}`;
@@ -208,51 +236,102 @@ export function partitionAtomsIntoPages(
         }
     };
 
-    for (let i = 0; i < atoms.length; i++) {
-        const atom = atoms[i];
+    const atomHeightWithGap = (atom: PrintAtomItem): number =>
+        computeAtomHeightWithGap(atom, itemHeights, sectionGaps);
+
+    // 나란히 배치된 2-3열 행은 페이지 분할 시 절대 컬럼끼리 찢어지면 안 되므로, 순차
+    // 패킹 전에 행에 속한 atom들을 하나의 "pack unit"으로 미리 접어넣는다. 단일
+    // atom(전체의 대다수)은 그대로 싱글턴 unit이 되어 기존 알고리즘과 동일하게 동작한다.
+    type PackUnit =
+        | { kind: 'single'; atom: PrintAtomItem }
+        | {
+              kind: 'group';
+              atoms: PrintAtomItem[];
+              columns: PrintAtomItem[][];
+              measuredHeight?: number;
+          };
+
+    // 그룹(2-3열 행)의 높이는 가능하면 실제 렌더링된 행 컨테이너의 DOM 실측값
+    // (measuredHeight)을 쓴다 — 컬럼별 atom 높이는 1열 기준으로 동결돼 있어 좁아진
+    // 열의 실제 줄바꿈을 반영 못 하므로, 그 합/최댓값은 폴백으로만 쓴다.
+    const groupHeight = (unit: Extract<PackUnit, { kind: 'group' }>): number => {
+        if (unit.measuredHeight !== undefined) return unit.measuredHeight;
+        return Math.max(
+            ...unit.columns.map((col) => col.reduce((sum, a) => sum + atomHeightWithGap(a), 0)),
+            0
+        );
+    };
+
+    const atomsById = new Map(atoms.map((a) => [a.id, a]));
+    const emitted = new Set<string>();
+    const units: PackUnit[] = [];
+
+    for (const atom of atoms) {
+        if (emitted.has(atom.id)) continue;
+        const group = rowGroupsByAtomId.get(atom.id);
+        if (!group) {
+            units.push({ kind: 'single', atom });
+            emitted.add(atom.id);
+            continue;
+        }
+        const columns = group.columns.map((colIds) =>
+            colIds.map((id) => atomsById.get(id)).filter((a): a is PrintAtomItem => a !== undefined)
+        );
+        const groupAtoms = columns.flat();
+        groupAtoms.forEach((a) => emitted.add(a.id));
+        units.push({
+            kind: 'group',
+            atoms: groupAtoms,
+            columns,
+            measuredHeight: group.measuredHeight,
+        });
+    }
+
+    for (let u = 0; u < units.length; u++) {
+        const unit = units[u];
+        const primaryAtom = unit.kind === 'single' ? unit.atom : unit.atoms[0];
+
         // 0px도 유효한 실측값이다. 조건부 렌더링으로 내용이 없는 atom을 `||`로
         // fallback 처리하면 화면에는 없는데 계산상으로만 수십~수백 px를 차지한다.
-        const measuredHeight = itemHeights.get(atom.id) ?? getAtomEstimatedHeight(atom);
-        const customGap =
-            sectionGaps[atom.id] ?? (atom.isHeader ? sectionGaps[atom.sectionId] : undefined) ?? 0;
-        // 각 atom 컴포넌트가 자신의 padding/margin을 실제 DOM 높이에 이미 포함한다.
-        // 여기서 항목마다 별도 기본 간격까지 더하면 화면에는 없는 높이가 누적되어,
-        // 항목 수가 많은 이력서에서 다음 섹션이 통째로 넘어가고 페이지 하단이 크게 빈다.
-        // 레이아웃 엔진은 측정 높이와 사용자가 명시한 간격만 합산한다.
-        const gap = customGap;
+        // 그룹(2-3열 행)은 열끼리 나란히 렌더링되므로, 행 전체 높이는 각 열의 세로
+        // 누적 높이 중 최댓값이다(합이 아니다).
+        const unitHeight =
+            unit.kind === 'single' ? atomHeightWithGap(unit.atom) : groupHeight(unit);
 
-        const itemTotalHeight = measuredHeight + gap;
-
-        const forcedPage = forcedPageOverrides[atom.id];
+        const forcedPage = forcedPageOverrides[primaryAtom.id];
 
         // 순차 패킹이 이미 다음 페이지로 넘어간 뒤에도 사용자가 지정한 페이지에
         // 직접 배치한다. 이 명시적 override가 없을 때만 아래의 자동 경계를 적용한다.
         if (forcedPage !== undefined && forcedPage >= 0 && forcedPage < pages.length) {
             const targetPage = pages[forcedPage];
-            const targetGap = customGap;
-            const targetItemTotalHeight = measuredHeight + targetGap;
-
-            targetPage.items.push(atom);
-            targetPage.heightUsedPx += targetItemTotalHeight;
+            const unitAtoms = unit.kind === 'single' ? [unit.atom] : unit.atoms;
+            for (const a of unitAtoms) {
+                targetPage.items.push(a);
+                targetPage.heightUsedPx += atomHeightWithGap(a);
+            }
             continue;
         }
 
         const isForcedCurrentPage = forcedPage !== undefined && forcedPage === pages.length;
 
-        // If an item is a header (e.g., 'career-header'), check if the NEXT item fits on this page too.
-        // If header fits but next item doesn't, push header to next page so it's not orphaned.
+        // If a lone header (e.g., 'career-header') fits on this page but the next unit
+        // doesn't, push the header to the next page so it's not orphaned. 그룹(행) unit은
+        // 이 대상이 아니다 — 행 자체가 "고아"가 되는 개념은 없다.
         let pushHeaderToNextPage = false;
-        if (!isForcedCurrentPage && atom.isHeader && i + 1 < atoms.length) {
-            const nextAtom = atoms[i + 1];
-            const nextHeight = itemHeights.get(nextAtom.id) ?? getAtomEstimatedHeight(nextAtom);
-            const nextCustomGap =
-                sectionGaps[nextAtom.id] ??
-                (nextAtom.isHeader ? sectionGaps[nextAtom.sectionId] : undefined) ??
-                0;
-            const nextGap = nextCustomGap;
+        if (
+            !isForcedCurrentPage &&
+            unit.kind === 'single' &&
+            unit.atom.isHeader &&
+            u + 1 < units.length
+        ) {
+            const nextUnit = units[u + 1];
+            const nextHeight =
+                nextUnit.kind === 'single'
+                    ? atomHeightWithGap(nextUnit.atom)
+                    : groupHeight(nextUnit);
 
             if (
-                currentHeight + itemTotalHeight + nextHeight + nextGap > maxContentHeight &&
+                currentHeight + unitHeight + nextHeight > maxContentHeight &&
                 currentPageItems.length > 0
             ) {
                 pushHeaderToNextPage = true;
@@ -261,14 +340,15 @@ export function partitionAtomsIntoPages(
 
         if (
             !isForcedCurrentPage &&
-            ((currentHeight + itemTotalHeight > maxContentHeight && currentPageItems.length > 0) ||
+            ((currentHeight + unitHeight > maxContentHeight && currentPageItems.length > 0) ||
                 pushHeaderToNextPage)
         ) {
             startNewPage();
         }
 
-        currentPageItems.push(atom);
-        currentHeight += itemTotalHeight;
+        const unitAtoms = unit.kind === 'single' ? [unit.atom] : unit.atoms;
+        currentPageItems.push(...unitAtoms);
+        currentHeight += unitHeight;
     }
 
     if (currentPageItems.length > 0) {

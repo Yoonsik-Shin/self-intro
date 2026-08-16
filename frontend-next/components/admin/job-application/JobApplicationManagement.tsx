@@ -63,6 +63,7 @@ import { SourceImagesPopover } from './SourceImagesPopover';
 import { SourceLinksPopover } from './SourceLinksPopover';
 import { JobCoverLetterDrawer } from './JobCoverLetterDrawer';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
+import { randomId } from '@/lib/uuid';
 import type {
     GapProjectDocument,
     JobPosting,
@@ -799,7 +800,7 @@ function newCoverLetterDraft(
 ): CoverLetterDraft {
     return {
         ...item,
-        clientId: crypto.randomUUID(),
+        clientId: randomId(),
     };
 }
 
@@ -2453,13 +2454,13 @@ export function JobApplicationManagement({
     const [isResizingDrawer, setIsResizingDrawer] = useState<boolean>(false);
 
     const handleDrawerResizeStart = useCallback(
-        (e: React.MouseEvent) => {
+        (e: React.PointerEvent) => {
             e.preventDefault();
             setIsResizingDrawer(true);
             const startX = e.clientX;
             const startWidth = detailDrawerWidth;
 
-            const handleMouseMove = (moveEvent: MouseEvent) => {
+            const handlePointerMove = (moveEvent: PointerEvent) => {
                 const deltaX = startX - moveEvent.clientX;
                 const minWidth = 450; // 최소 크기 하한
                 const maxWidth = Math.min(1400, Math.floor(window.innerWidth * 0.88)); // 최대 크기 상한
@@ -2467,16 +2468,18 @@ export function JobApplicationManagement({
                 setDetailDrawerWidth(newWidth);
             };
 
-            const handleMouseUp = () => {
+            const handlePointerUp = () => {
                 setIsResizingDrawer(false);
-                window.removeEventListener('mousemove', handleMouseMove);
-                window.removeEventListener('mouseup', handleMouseUp);
+                window.removeEventListener('pointermove', handlePointerMove);
+                window.removeEventListener('pointerup', handlePointerUp);
+                window.removeEventListener('pointercancel', handlePointerUp);
                 document.body.style.removeProperty('user-select');
             };
 
             document.body.style.userSelect = 'none';
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
+            window.addEventListener('pointermove', handlePointerMove);
+            window.addEventListener('pointerup', handlePointerUp);
+            window.addEventListener('pointercancel', handlePointerUp);
         },
         [detailDrawerWidth]
     );
@@ -5077,9 +5080,9 @@ export function JobApplicationManagement({
                         >
                             {/* Resize Handle (Left Edge) */}
                             <div
-                                onMouseDown={handleDrawerResizeStart}
+                                onPointerDown={handleDrawerResizeStart}
                                 title="좌우로 드래그하여 공고 상세 창 크기 조절 (최소 450px ~ 최대 1400px)"
-                                className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-indigo-500/25 active:bg-indigo-600/40 transition-colors z-50 flex items-center justify-center group"
+                                className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize touch-none hover:bg-indigo-500/25 active:bg-indigo-600/40 transition-colors z-50 flex items-center justify-center group"
                             >
                                 <div className="w-1 h-12 rounded-full bg-slate-300 group-hover:bg-indigo-600 transition-colors" />
                             </div>
@@ -6053,7 +6056,7 @@ export function JobApplicationManagement({
                                                                                             imgIndex
                                                                                         )
                                                                                     }
-                                                                                    className="absolute inset-0 hidden items-center justify-center bg-black/50 text-white group-hover:flex"
+                                                                                    className="absolute inset-0 hidden items-center justify-center bg-black/50 text-white group-hover:flex [@media(hover:none)]:flex"
                                                                                 >
                                                                                     <X className="h-3 w-3" />
                                                                                 </button>

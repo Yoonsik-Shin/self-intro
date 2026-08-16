@@ -14,9 +14,22 @@ const buildDate = new Intl.DateTimeFormat('ko-KR', {
     hour12: false,
 }).format(new Date());
 
+// LAN 기기(태블릿 등)로 dev 서버 접속 테스트할 때만 쓴다. Next.js dev 서버는 기본적으로
+// 자기 자신의 dev 리소스(HMR 웹소켓, 폰트 등)에 대한 cross-origin 요청을 막는데, LAN IP로
+// 접속하면 그 IP가 매번 "외부 origin"으로 취급돼 차단된다. 개인 LAN IP를 리포에 커밋하지
+// 않도록 docker-compose.override.yml(git-ignored)에서 콤마로 구분해 주입한다.
+const allowedDevOrigins = process.env.NEXT_DEV_ALLOWED_ORIGINS?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 const nextConfig: NextConfig = {
     output: 'standalone',
     transpilePackages: ['remark-gfm', 'remark-breaks'],
+    ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
+    // 자동 메모이제이션 — PrintCanvas처럼 거대한 컴포넌트에서 상태 하나 바뀔 때마다
+    // 전체 서브트리가 동기 재렌더되는 비용을 줄인다. dev:docker가 --webpack으로
+    // 고정돼있어(turbopack 아님) babel-plugin-react-compiler 경로를 쓴다.
+    reactCompiler: true,
     turbopack: {
         root: path.resolve(__dirname),
     },
