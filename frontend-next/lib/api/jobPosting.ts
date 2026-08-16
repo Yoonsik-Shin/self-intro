@@ -91,7 +91,7 @@ export const jobPostingApi = {
         ),
     workspaceParsePrivateSourceUrl: (workspaceSlug: string, url: string) =>
         request<JobApplicationUrlParseResponse>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/parse-url`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/parse-url`,
             { method: 'POST', body: JSON.stringify({ url }) }
         ),
     workspaceIssueScreenshotUpload: (
@@ -109,7 +109,7 @@ export const jobPostingApi = {
         ),
     workspaceParsePrivateSourceScreenshots: (workspaceSlug: string, uploadIds: string[]) =>
         request<JobApplicationUrlParseResponse>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/parse-screenshots`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/parse-screenshots`,
             { method: 'POST', body: JSON.stringify({ uploadIds }) }
         ),
     workspaceCancelScreenshotUpload: (workspaceSlug: string, uploadId: string) =>
@@ -161,7 +161,7 @@ export const jobPostingApi = {
         options?: { signal?: AbortSignal }
     ) =>
         request<JobPostingCoverLetterDraftResponse>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/generate-cover-letter-draft`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/generate-cover-letter-draft`,
             { method: 'POST', body: JSON.stringify(payload), signal: options?.signal }
         ),
     workspaceAnalyzeAppeal: (
@@ -171,17 +171,17 @@ export const jobPostingApi = {
         customModelName?: string
     ) =>
         request<JobPosting>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/analyze-appeal${aiModelQuery(aiModel, customModelName)}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/analyze-appeal${aiModelQuery(aiModel, customModelName)}`,
             { method: 'POST' }
         ),
     workspaceRematch: (workspaceSlug: string, id: number) =>
         request<JobPosting>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/rematch`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/rematch`,
             { method: 'POST' }
         ),
     workspaceGapProjectDocuments: (workspaceSlug: string, id: number) =>
         request<GapProjectDocument[]>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/gap-project-documents`
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/gap-project-documents`
         ),
     workspaceGenerateGapProjectDocument: (
         workspaceSlug: string,
@@ -190,7 +190,7 @@ export const jobPostingApi = {
         customModelName?: string
     ) =>
         request<GapProjectDocument>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/gap-project-documents${aiModelQuery(aiModel, customModelName)}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/gap-project-documents${aiModelQuery(aiModel, customModelName)}`,
             { method: 'POST' }
         ),
     workspaceGeneratePrintDraftStream: (
@@ -202,7 +202,7 @@ export const jobPostingApi = {
         customModelName?: string
     ) =>
         requestEventStream<JobPostingPrintDraftStreamEvent>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/print-template-draft/stream${aiModelQuery(aiModel, customModelName)}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/print-template-draft/stream${aiModelQuery(aiModel, customModelName)}`,
             {},
             onEvent,
             signal
@@ -218,7 +218,7 @@ export const jobPostingApi = {
         customModelName?: string
     ) =>
         requestEventStream<JobPostingPrintDraftStreamEvent>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/print-template-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/job-applications/manage/${id}/print-template-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
             { feedbackInstruction },
             onEvent,
             signal
@@ -249,7 +249,7 @@ export const jobPostingApi = {
     /** @deprecated 개인 지원 관리는 Workspace canonical API만 사용한다. */
     remove: (id: number) => removedPersonalJobApplicationRoute<void>(id),
     parseUrl: (url: string) =>
-        request<JobApplicationUrlParseResponse>('/api/worker/job-postings/parse-url', {
+        request<JobApplicationUrlParseResponse>('/api/admin/job-postings/parse-url', {
             method: 'POST',
             body: JSON.stringify({ url }),
         }),
@@ -259,7 +259,7 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobApplicationUrlParseStreamEvent>(
-            '/api/worker/job-postings/parse-url/stream',
+            '/api/admin/job-postings/parse-url/stream',
             { url },
             onEvent,
             signal
@@ -270,7 +270,7 @@ export const jobPostingApi = {
     updateSettings: (payload: JobPostingSettingRequest) =>
         removedPersonalJobApplicationRoute<JobPostingSetting>(payload),
     ingestUrl: (url: string) =>
-        request<JobPosting>('/api/worker/job-postings/ingest-url', {
+        request<JobPosting>('/api/admin/job-postings/ingest-url', {
             method: 'POST',
             body: JSON.stringify({ url }),
         }),
@@ -280,7 +280,7 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingIngestStreamEvent>(
-            '/api/worker/job-postings/ingest-url/stream',
+            '/api/admin/job-postings/ingest-url/stream',
             { url },
             onEvent,
             signal
@@ -293,7 +293,7 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingIngestStreamEvent>(
-            '/api/worker/job-postings/ingest-images/stream',
+            '/api/admin/job-postings/ingest-images/stream',
             { images, sourceUrl },
             onEvent,
             signal
@@ -305,18 +305,18 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingBulkIngestStreamEvent>(
-            '/api/worker/job-postings/ingest-urls/stream',
+            '/api/admin/job-postings/ingest-urls/stream',
             { rows },
             onEvent,
             signal
         ),
     collect: () =>
-        request<JobPostingCollectionResult>('/api/worker/job-postings/collect', {
+        request<JobPostingCollectionResult>('/api/admin/job-postings/collect', {
             method: 'POST',
         }),
     /** 이미 수집/등록된 공고를 원본 URL에서 다시 읽어 최신 정보(마감일 등)로 갱신한다. */
     refresh: (id: number) =>
-        request<JobPosting>(`/api/worker/job-postings/${id}/refresh`, {
+        request<JobPosting>(`/api/admin/job-postings/${id}/refresh`, {
             method: 'POST',
         }),
     /** 등록된 공고 전체를 원본 URL에서 일괄 다시 읽어 최신 정보로 백필/갱신한다. */
@@ -327,7 +327,7 @@ export const jobPostingApi = {
             failedCount: number;
             skippedCount: number;
             logs: string[];
-        }>(`/api/worker/job-postings/refresh-all?onlyActive=${onlyActive}`, {
+        }>(`/api/admin/job-postings/refresh-all?onlyActive=${onlyActive}`, {
             method: 'POST',
         }),
     /** 등록된 공고 전체 백필 재수집을 SSE 스트림으로 실시간 진행상황 받아오며 수행한다. */
@@ -337,7 +337,7 @@ export const jobPostingApi = {
         signal?: AbortSignal
     ) =>
         requestEventStream<JobPostingBulkIngestStreamEvent>(
-            `/api/worker/job-postings/refresh-all/stream?onlyActive=${onlyActive}`,
+            `/api/admin/job-postings/refresh-all/stream?onlyActive=${onlyActive}`,
             {},
             onEvent,
             signal
