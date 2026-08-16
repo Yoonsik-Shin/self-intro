@@ -413,10 +413,7 @@ public class PrintTemplateService {
         PrintTemplate saved = printTemplateRepository.save(template);
         PrintTemplateRevision revision = recordConfigurationSnapshot(saved);
         registerUploadedArtifact(
-                saved,
-                revision,
-                objectKey,
-                PrintDocumentArtifact.ORIGIN_EXTERNAL_UPLOAD);
+                saved, revision, objectKey, PrintDocumentArtifact.ORIGIN_EXTERNAL_UPLOAD);
         promoteToFinal(saved);
         return saved;
     }
@@ -470,8 +467,8 @@ public class PrintTemplateService {
 
     public List<PrintDocumentArtifact> getArtifacts(Long workspaceId, Long templateId) {
         getOrThrow(workspaceId, templateId);
-        return printDocumentArtifactRepository
-                .findByWorkspaceIdAndPrintTemplateIdOrderByIdDesc(workspaceId, templateId);
+        return printDocumentArtifactRepository.findByWorkspaceIdAndPrintTemplateIdOrderByIdDesc(
+                workspaceId, templateId);
     }
 
     private void registerUploadedArtifact(
@@ -483,14 +480,11 @@ public class PrintTemplateService {
             throw new IllegalStateException("PDF 아티팩트에 연결할 출력 revision이 없습니다.");
         }
         if (printDocumentArtifactRepository.existsByObjectKey(objectKey)) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "이미 출력 아티팩트로 등록된 PDF입니다.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 출력 아티팩트로 등록된 PDF입니다.");
         }
         StorageService.VerifiedPdf verified =
                 storageService.verifyOwnedPdf(
-                        template.getWorkspaceId(),
-                        ImageScope.PRINT_TEMPLATE_FINAL_PDF,
-                        objectKey);
+                        template.getWorkspaceId(), ImageScope.PRINT_TEMPLATE_FINAL_PDF, objectKey);
         printDocumentArtifactRepository.save(
                 PrintDocumentArtifact.uploaded(
                         template.getWorkspaceId(),
@@ -573,10 +567,7 @@ public class PrintTemplateService {
         String previousObjectKey = template.getFinalPdfObjectKey();
         PrintTemplateRevision revision = recordConfigurationSnapshot(template);
         registerUploadedArtifact(
-                template,
-                revision,
-                objectKey,
-                PrintDocumentArtifact.ORIGIN_BROWSER_UPLOAD);
+                template, revision, objectKey, PrintDocumentArtifact.ORIGIN_BROWSER_UPLOAD);
         template.attachFinalPdf(objectKey);
         promoteToFinal(template);
         if (previousObjectKey != null
@@ -612,8 +603,7 @@ public class PrintTemplateService {
         PrintTemplate template = getOrThrow(workspaceId, id);
         if (printDocumentArtifactRepository.existsByPrintTemplateId(id)) {
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "불변 PDF 아티팩트가 연결된 출력 서식은 삭제할 수 없습니다. 현재 선택만 해제해 주세요.");
+                    HttpStatus.CONFLICT, "불변 PDF 아티팩트가 연결된 출력 서식은 삭제할 수 없습니다. 현재 선택만 해제해 주세요.");
         }
         if (template.getFinalPdfObjectKey() != null) {
             storageService.delete(template.getFinalPdfObjectKey());

@@ -10,9 +10,8 @@ WORKDIR /app
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
-COPY core/build.gradle core/
-COPY ai-worker/build.gradle ai-worker/
 COPY api/build.gradle api/
+COPY ai-worker/build.gradle ai-worker/
 
 RUN chmod +x gradlew
 
@@ -20,9 +19,8 @@ RUN chmod +x gradlew
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked ./gradlew :ai-worker:copyPlaywrightClasspath --no-daemon
 
 # 소스코드 복사 및 Jar 빌드 (ai-worker 전용)
-COPY core core
-COPY ai-worker ai-worker
 COPY api api
+COPY ai-worker ai-worker
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked ./gradlew :ai-worker:bootJar --no-daemon -x test
 
 # Stage 2: Runtime stage

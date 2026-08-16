@@ -1,11 +1,11 @@
 package com.selfintro.modules.storage.application;
 
-import java.time.Duration;
-import java.time.LocalDate;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -75,9 +75,7 @@ public class StorageService {
         }
     }
 
-    /**
-     * 업로드 완료 콜백에서 객체 저장소의 실제 PDF 바이트를 검증한다. 클라이언트가 전달한 파일명이나 해시를 신뢰하지 않는다.
-     */
+    /** 업로드 완료 콜백에서 객체 저장소의 실제 PDF 바이트를 검증한다. 클라이언트가 전달한 파일명이나 해시를 신뢰하지 않는다. */
     public VerifiedPdf verifyOwnedPdf(Long workspaceId, ImageScope scope, String objectKey) {
         requireOwnedObjectKey(workspaceId, scope, objectKey);
         ObjectStoragePort.ObjectMetadata metadata = objectStoragePort.stat(objectKey);
@@ -100,8 +98,7 @@ public class StorageService {
                 || content[4] != '-') {
             throw new IllegalArgumentException("유효한 PDF 파일 헤더가 아닙니다.");
         }
-        return new VerifiedPdf(
-                sha256(content), metadata.contentLength(), metadata.contentType());
+        return new VerifiedPdf(sha256(content), metadata.contentLength(), metadata.contentType());
     }
 
     private String sha256(byte[] content) {

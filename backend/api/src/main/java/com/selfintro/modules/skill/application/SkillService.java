@@ -132,10 +132,7 @@ public class SkillService {
                         .findById(id)
                         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기술 스택입니다."));
         skill.updateCatalogDefinition(
-                request.name(),
-                request.category(),
-                request.badgeKey(),
-                request.badgeColor());
+                request.name(), request.category(), request.badgeKey(), request.badgeColor());
         return skillRepository.save(skill);
     }
 

@@ -2635,3 +2635,11 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   resolved/applied migration 목록 차이를 먼저 비교한다.
 - 앞으로 이미 적용된 versioned migration 파일은 수정하지 않는다. schema나 데이터 보정은 V236 이상의
   새 migration으로 추가하고, 운영 적용 전 snapshot·불변식 쿼리·rollback 판단 기준을 함께 준비한다.
+
+### 15.33 백엔드 멀티 모듈 구조 단순화 (:api + :ai-worker 2모듈 체제)
+
+- `:core` 모듈에 모여 있던 엔티티, 비즈니스 로직, REST Controller(50여 개), Proto 정의, 리소스 파일들을 메인 서버 모듈인 `:api`로 완전히 일원화했다.
+- `:api` 모듈에서 불필요한 `:ai-worker` 의존성을 제거하고, `SelfIntroApplication`의 복잡한 정규식 컴포넌트 스캔 제외 필터(`@ComponentScan.Filter`)를 제거하여 표준 Spring Boot 구성으로 정리했다.
+- `:ai-worker`는 도메인 엔티티 및 gRPC proto를 공유하기 위해 `:api`의 plain jar를 참조(`api project(':api')`)하도록 정리했다.
+- 백엔드 모듈 빌드 및 테스트 단위는 `:api:test :ai-worker:test`로 확정되었으며, `Dockerfile.api` 및 `Dockerfile.worker`의 빌드 단계와 불필요한 의존성(API 컨테이너 내 Playwright 설치 등)을 제거하여 최적화했다.
+- 전체 빌드 및 테스트 검증: `./gradlew clean compileJava compileTestJava`, `./gradlew test`, `./gradlew spotlessCheck` 성공.

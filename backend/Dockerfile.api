@@ -8,18 +8,12 @@ WORKDIR /app
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
-COPY core/build.gradle core/
-COPY ai-worker/build.gradle ai-worker/
 COPY api/build.gradle api/
+COPY ai-worker/build.gradle ai-worker/
 
 RUN chmod +x gradlew
 
-# Playwright 클래스패스 추출
-RUN --mount=type=cache,target=/root/.gradle,sharing=locked ./gradlew :api:copyPlaywrightClasspath --no-daemon
-
 # 소스코드 복사 및 Jar 빌드
-COPY core core
-COPY ai-worker ai-worker
 COPY api api
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked ./gradlew :api:bootJar --no-daemon -x test
 
@@ -28,15 +22,11 @@ FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-
-RUN --mount=type=bind,from=builder,source=/app/api/build/playwright-classpath,target=/tmp/playwright-classpath \
-    apt-get update \
-    && java -cp "/tmp/playwright-classpath/*" com.microsoft.playwright.CLI install --with-deps \
+RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r spring && useradd -r -g spring spring \
     && mkdir -p /app/logs \
-    && chown -R spring:spring /app /ms-playwright
+    && chown -R spring:spring /app
 
 COPY --from=builder /app/api/build/libs/*.jar app.jar
 

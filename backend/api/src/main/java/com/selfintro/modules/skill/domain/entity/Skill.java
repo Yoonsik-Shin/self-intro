@@ -108,16 +108,7 @@ public class Skill {
     public static Skill createCatalog(
             String name, String category, String badgeKey, String badgeColor) {
         return new Skill(
-                name,
-                category,
-                null,
-                null,
-                null,
-                "CATALOG",
-                badgeKey,
-                badgeColor,
-                false,
-                0);
+                name, category, null, null, null, "CATALOG", badgeKey, badgeColor, false, 0);
     }
 
     /** Workspace별 숙련도·버전·메모·노출 순서는 건드리지 않고 공통 정의만 변경한다. */

@@ -8,8 +8,7 @@ import org.junit.jupiter.api.Test;
 
 class MfaSecretCipherTest {
 
-    private static final String ENCODED_KEY =
-            Base64.getEncoder().encodeToString(new byte[32]);
+    private static final String ENCODED_KEY = Base64.getEncoder().encodeToString(new byte[32]);
 
     @Test
     void ignoresTrailingNewlineFromSecretGenerationTools() {

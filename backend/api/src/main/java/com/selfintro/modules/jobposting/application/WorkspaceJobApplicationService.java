@@ -61,10 +61,7 @@ public class WorkspaceJobApplicationService {
                         .findById(workspaceId)
                         .orElseGet(() -> WorkspaceJobMapSetting.create(workspaceId, now));
         setting.update(
-                request.homeAddress().trim(),
-                request.homeLatitude(),
-                request.homeLongitude(),
-                now);
+                request.homeAddress().trim(), request.homeLatitude(), request.homeLongitude(), now);
         return WorkspaceJobMapSettingResponse.from(workspaceJobMapSettingRepository.save(setting));
     }
 
