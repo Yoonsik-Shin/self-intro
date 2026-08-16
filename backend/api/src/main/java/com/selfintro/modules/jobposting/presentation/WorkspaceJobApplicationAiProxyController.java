@@ -3,7 +3,9 @@ package com.selfintro.modules.jobposting.presentation;
 import com.selfintro.global.worker.AiWorkerClient;
 import com.selfintro.modules.identity.application.WorkspaceAccessPolicy;
 import com.selfintro.modules.identity.domain.WorkspaceRole;
+import com.selfintro.modules.jobposting.application.WorkspaceJobScreenshotUploadService;
 import com.selfintro.modules.jobposting.presentation.dto.GapProjectDocumentResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationImageParseRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterDraftRequest;
@@ -32,6 +34,7 @@ public class WorkspaceJobApplicationAiProxyController {
 
     private final AiWorkerClient aiWorkerClient;
     private final WorkspaceAccessPolicy workspaceAccessPolicy;
+    private final WorkspaceJobScreenshotUploadService screenshotUploadService;
 
     @PostMapping("/parse-url")
     public JobApplicationUrlParseResponse parseUrl(
@@ -51,12 +54,24 @@ public class WorkspaceJobApplicationAiProxyController {
             @PathVariable String workspaceSlug,
             @Valid @RequestBody WorkspaceJobScreenshotParseRequest request) {
         Long workspaceId = writeWorkspaceId(authentication, workspaceSlug);
-        return aiWorkerClient.post(
-                "/internal/workspaces/"
-                        + workspaceId
-                        + "/job-applications/manage/parse-screenshots",
-                request,
-                JobApplicationUrlParseResponse.class);
+        List<WorkspaceJobScreenshotUploadService.ClaimedUpload> uploads =
+                screenshotUploadService.claim(workspaceId, request.uploadIds());
+        try {
+            List<JobApplicationImageParseRequest.ImagePart> images =
+                    uploads.stream()
+                            .map(
+                                    upload ->
+                                            new JobApplicationImageParseRequest.ImagePart(
+                                                    screenshotUploadService.read(upload),
+                                                    upload.contentType()))
+                            .toList();
+            return aiWorkerClient.post(
+                    "/internal/workspaces/" + workspaceId + "/job-applications/manage/parse-images",
+                    new JobApplicationImageParseRequest(images),
+                    JobApplicationUrlParseResponse.class);
+        } finally {
+            screenshotUploadService.deleteClaimed(workspaceId, uploads);
+        }
     }
 
     @PostMapping("/{jobPostingId}/generate-cover-letter-draft")

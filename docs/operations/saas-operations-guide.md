@@ -2654,6 +2654,7 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   - AI 초안 생성 및 공고 수집 등의 SSE(Server-Sent Events) 스트리밍은 `AiWorkerClient.pipePost`와 Spring `StreamingResponseBody`를 통해 `backend`가 Worker 스트림을 클라이언트로 무지연 중계(Zero-delay Relay)한다.
 - **`ai-worker` 내부 전용 서비스 경량화**:
   - `ai-worker`의 컨트롤러는 `@RequestMapping("/internal/...")` 전용 엔드포인트로 정리되었으며, `Authentication`이나 `WorkspaceAccessPolicy` 의존성 없이 내부 `workspaceId`로 직접 동작하는 순수 연산 Worker로 격리되었다.
+  - 비공개 공고 스크린샷 파싱의 경우 S3 임시 객체 및 DB 티켓 관리(`WorkspaceJobScreenshotUploadService`)는 `api` 서버의 `WorkspaceJobApplicationAiProxyController`에서 전담하며, `ai-worker`(`WorkspaceJobPrivateSourceParseController`)에는 순수 이미지 바이트/MIME 페이로드(`/internal/.../parse-images`)만 전달하도록 분리하여 워커의 상태 의존성을 완전히 제거했다.
 - **배포 환경 설정**:
   - K8s ConfigMap: `WORKER_BASE_URL=http://self-intro-backend-worker:8081`
   - Docker Compose: `WORKER_BASE_URL=http://backend-worker:8081`
