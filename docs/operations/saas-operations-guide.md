@@ -2699,3 +2699,12 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 위 작업 중 `JobPostingCrudService`에 메서드 시그니처·로직 내부에 패키지 경로를 포함한 FQCN(예: `java.util.Map`, `com.selfintro.modules...JobPostingPermissionReviewEvent`)을 인라인으로 직접 쓴 코드가 있어 정리했고, 재발을 막기 위해 `AGENTS.md`에 "FQCN 인라인 사용 금지 — 반드시 파일 상단 `import`로 참조" 규칙을 신설했다.
 - 규칙 신설 후 전체 코드베이스를 재검사한 결과 이 규칙이 생기기 이전부터 있던 FQCN 인라인 잔재가 `api`·`ai-worker` 양쪽에 60개 파일·150곳 넘게 남아 있어 함께 정리했다(`java.util.stream.Collectors`, `java.util.Comparator`, `org.springframework.data.domain.Page`/`Pageable`, `org.springframework.security.core.Authentication` 등). JPQL `@Query` 문자열 내부의 enum 참조(`WorkspacePurgeJobRepository`)는 Java import로 대체할 수 없어 대상에서 제외했다.
 - 검증: `./gradlew :api:compileJava :ai-worker:compileJava`, 대상 파일로 범위를 좁힌 `spotlessApply`/`spotlessCheck`(`-PspotlessFiles`), `./gradlew :api:test :ai-worker:test` 전체 통과. 순수 리팩터링으로 동작 변경은 없다. 로컬 코드에만 적용했으며 stage·운영 배포는 하지 않았다.
+- `-PspotlessFiles`는 이 저장소의 spotless 설정에서 범위를 제대로 좁히지 못하고 대상 밖 파일까지 재포맷하는 경우가 있었다. 매번 `spotlessApply` 뒤 `git status`로 의도한 파일만 바뀌었는지 확인하고, 무관한 재포맷은 `git restore`로 되돌린 뒤 커밋했다.
+
+### 15.38 Workspace 학습 자료 카탈로그 페이지네이션
+
+- 15.37과 같은 전사 페이지네이션 표준화를 학습 자료 공통 카탈로그(`/api/workspaces/{workspaceSlug}/learning-resources/manage/catalog`)에도 적용했다. 기존에는 `learningResourceRepository.findAll()`로 전체를 로드한 뒤 애플리케이션 메모리에서 키워드 필터링·정렬하던 방식(`WorkspaceJobApplicationManagement`에서 이미 걷어낸 것과 동일한 anti-pattern)이었다.
+- `LearningResourceService.listCatalog(workspaceId, keyword)`를 `catalog(workspaceId, keyword, pageable)`로 교체해, 이미 존재하던 `LearningResourceRepositoryCustom.search(condition, pageable)` QueryDSL 구현(제목·요약·본문·태그·기술·제공처·강사명 키워드 검색, `displayOrder`/`id` 정렬)을 그대로 재사용했다. 새 QueryDSL 코드를 작성하지 않고 기존 인프라를 확장만 했다.
+- `WorkspaceLearningResourceController.catalog`가 `List<LearningResourceCatalogResponse>` 대신 `Page<LearningResourceCatalogResponse>`를 반환한다. 프런트(`WorkspaceLearningResourceManagement.tsx`)는 `PaginationControls` + `mode === 'CATALOG'`일 때만 조회하는 지연 로딩을 적용했다(잡포스팅 카탈로그 탭과 동일 패턴). "내 학습 자료" 목록은 Workspace 범위로 크기가 작아 기존 클라이언트 검색을 유지했다.
+- `SaasSecurityFoundationIntegrationTest`의 카탈로그 응답 형태 검증을 배열(`$[?(...)]`)에서 페이지 객체(`$.content[?(...)]`)로 갱신했다.
+- 검증: `./gradlew :api:compileJava`, `SaasSecurityFoundationIntegrationTest` 통과, 프런트 `tsc --noEmit`·`eslint`·`next build` 전체 통과. 로컬 코드에만 적용했으며 stage·운영 배포는 하지 않았다.
