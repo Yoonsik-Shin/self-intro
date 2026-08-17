@@ -1722,7 +1722,9 @@ class SaasSecurityFoundationIntegrationTest {
                                         + "/learning-resources/manage/catalog")
                                 .with(user(AppUserPrincipal.of(secondOwner, Set.of()))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == " + catalog.getId() + ")].saved").value(true));
+                .andExpect(
+                        jsonPath("$.content[?(@.id == " + catalog.getId() + ")].saved")
+                                .value(true));
     }
 
     @Test

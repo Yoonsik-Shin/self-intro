@@ -8,6 +8,7 @@ import type {
     LearningResourceRequest,
     LearningResourceStatus,
     LearningResourceType,
+    PageResponse,
     WorkspaceLearningResourceRequest,
 } from './types';
 
@@ -29,11 +30,17 @@ export const learningResourceApi = {
             `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage?${search}`
         );
     },
-    workspaceCatalog: (workspaceSlug: string, q?: string) => {
+    workspaceCatalog: (
+        workspaceSlug: string,
+        params?: { q?: string; page?: number; size?: number }
+    ) => {
         const search = new URLSearchParams();
-        if (q) search.set('q', q);
-        return request<LearningResourceCatalogItem[]>(
-            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/catalog?${search}`
+        if (params?.q) search.set('q', params.q);
+        if (params?.page !== undefined) search.set('page', String(params.page));
+        if (params?.size !== undefined) search.set('size', String(params.size));
+        const query = search.toString();
+        return request<PageResponse<LearningResourceCatalogItem>>(
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/learning-resources/manage/catalog${query ? `?${query}` : ''}`
         );
     },
     workspaceGet: (workspaceSlug: string, id: number) =>

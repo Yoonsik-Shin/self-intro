@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader';
+import { PaginationControls } from '@/components/common/PaginationControls';
 import { BookOpenCheck, Library, Plus, Search, Trash2, X } from 'lucide-react';
 import { learningResourceApi } from '@/lib/api';
 import type {
@@ -58,18 +59,31 @@ export function WorkspaceLearningResourceManagement({ workspaceSlug }: { workspa
     const queryClient = useQueryClient();
     const [mode, setMode] = useState<'MINE' | 'CATALOG'>('MINE');
     const [search, setSearch] = useState('');
+    const [catalogPage, setCatalogPage] = useState(0);
     const [editor, setEditor] = useState<EditorState | null>(null);
 
     const workspaceQueryKey = ['learning-resources', 'workspace', workspaceSlug];
-    const catalogQueryKey = ['learning-resources', 'catalog', workspaceSlug];
+    const catalogQueryKey = [
+        'learning-resources',
+        'catalog',
+        workspaceSlug,
+        { q: search.trim(), page: catalogPage },
+    ];
     const { data: workspacePage, isLoading: workspaceLoading } = useQuery({
         queryKey: workspaceQueryKey,
         queryFn: () => learningResourceApi.workspaceList(workspaceSlug),
     });
-    const { data: catalog = [], isLoading: catalogLoading } = useQuery({
+    const { data: catalogPageData, isLoading: catalogLoading } = useQuery({
         queryKey: catalogQueryKey,
-        queryFn: () => learningResourceApi.workspaceCatalog(workspaceSlug),
+        queryFn: () =>
+            learningResourceApi.workspaceCatalog(workspaceSlug, {
+                q: search.trim() || undefined,
+                page: catalogPage,
+                size: 20,
+            }),
+        enabled: mode === 'CATALOG',
     });
+    const catalog = catalogPageData?.content ?? [];
 
     const invalidate = async () => {
         await Promise.all([
@@ -124,17 +138,6 @@ export function WorkspaceLearningResourceManagement({ workspaceSlug }: { workspa
         );
     }, [search, workspacePage]);
 
-    const catalogItems = useMemo(() => {
-        const normalized = search.trim().toLowerCase();
-        return catalog.filter(
-            (resource) =>
-                !normalized ||
-                resource.title.toLowerCase().includes(normalized) ||
-                (resource.provider ?? '').toLowerCase().includes(normalized) ||
-                (resource.instructorOrAuthor ?? '').toLowerCase().includes(normalized)
-        );
-    }, [catalog, search]);
-
     const openEditor = (resource: LearningResource) =>
         setEditor({
             resource,
@@ -176,7 +179,10 @@ export function WorkspaceLearningResourceManagement({ workspaceSlug }: { workspa
                 <Search className="h-4 w-4 text-slate-400" />
                 <input
                     value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) => {
+                        setSearch(event.target.value);
+                        setCatalogPage(0);
+                    }}
                     placeholder={mode === 'MINE' ? '내 자료와 메모 검색' : '카탈로그 검색'}
                     className="w-full bg-transparent text-sm outline-none"
                 />
@@ -259,46 +265,56 @@ export function WorkspaceLearningResourceManagement({ workspaceSlug }: { workspa
                     )}
                 </section>
             ) : (
-                <section className="grid gap-3 xl:grid-cols-2">
-                    {catalogLoading ? (
-                        <EmptyState label="공통 카탈로그를 불러오는 중입니다." />
-                    ) : (
-                        catalogItems.map((resource) => (
-                            <article
-                                key={resource.id}
-                                className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                            >
-                                <div>
-                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                                        <Library className="h-4 w-4" />
-                                        {resource.provider || '제공처 미정'} ·{' '}
-                                        {formatDuration(resource.durationMinutes)}
-                                    </div>
-                                    <h3 className="mt-2 text-base font-black text-slate-900">
-                                        {resource.title}
-                                    </h3>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        {resource.instructorOrAuthor || '저자·강사 정보 없음'}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    disabled={resource.saved || addMutation.isPending}
-                                    onClick={() => addMutation.mutate(resource)}
-                                    className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                <section className="space-y-3">
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        {catalogLoading ? (
+                            <EmptyState label="공통 카탈로그를 불러오는 중입니다." />
+                        ) : (
+                            catalog.map((resource) => (
+                                <article
+                                    key={resource.id}
+                                    className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                                 >
-                                    {resource.saved ? (
-                                        <>
-                                            <BookOpenCheck className="h-4 w-4" /> 이미 저장됨
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Plus className="h-4 w-4" /> 내 Workspace에 추가
-                                        </>
-                                    )}
-                                </button>
-                            </article>
-                        ))
+                                    <div>
+                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                                            <Library className="h-4 w-4" />
+                                            {resource.provider || '제공처 미정'} ·{' '}
+                                            {formatDuration(resource.durationMinutes)}
+                                        </div>
+                                        <h3 className="mt-2 text-base font-black text-slate-900">
+                                            {resource.title}
+                                        </h3>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            {resource.instructorOrAuthor || '저자·강사 정보 없음'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        disabled={resource.saved || addMutation.isPending}
+                                        onClick={() => addMutation.mutate(resource)}
+                                        className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                                    >
+                                        {resource.saved ? (
+                                            <>
+                                                <BookOpenCheck className="h-4 w-4" /> 이미 저장됨
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Plus className="h-4 w-4" /> 내 Workspace에 추가
+                                            </>
+                                        )}
+                                    </button>
+                                </article>
+                            ))
+                        )}
+                    </div>
+                    {catalogPageData && catalogPageData.totalPages > 1 && (
+                        <PaginationControls
+                            page={catalogPage}
+                            totalPages={catalogPageData.totalPages}
+                            totalElements={catalogPageData.totalElements}
+                            onPageChange={setCatalogPage}
+                        />
                     )}
                 </section>
             )}

@@ -8,6 +8,7 @@ import com.selfintro.modules.learningresource.domain.enums.LearningResourcePrior
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceStatus;
 import com.selfintro.modules.learningresource.domain.enums.LearningResourceType;
 import com.selfintro.modules.learningresource.domain.repository.LearningResourceRepository;
+import com.selfintro.modules.learningresource.domain.repository.LearningResourceSearchCondition;
 import com.selfintro.modules.learningresource.domain.repository.WorkspaceLearningResourceRepository;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceCatalogResponse;
 import com.selfintro.modules.learningresource.presentation.dto.LearningResourceGraphResponse;
@@ -25,7 +26,6 @@ import com.selfintro.modules.taxonomy.domain.repository.TaxonomyNodeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -39,6 +39,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -137,37 +138,22 @@ public class LearningResourceService {
         return LearningResourceResponse.from(overlay.getLearningResource(), overlay);
     }
 
-    public List<LearningResourceCatalogResponse> listCatalog(Long workspaceId, String keyword) {
+    public Page<LearningResourceCatalogResponse> catalog(
+            Long workspaceId, String keyword, Pageable pageable) {
         Set<Long> savedIds =
                 workspaceLearningResourceRepository
                         .findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(workspaceId)
                         .stream()
                         .map(overlay -> overlay.getLearningResource().getId())
                         .collect(Collectors.toSet());
-        String normalizedKeyword =
-                StringUtils.hasText(keyword) ? keyword.trim().toLowerCase(Locale.ROOT) : null;
-        return learningResourceRepository.findAll().stream()
-                .filter(
-                        resource ->
-                                normalizedKeyword == null
-                                        || contains(resource.getTitle(), normalizedKeyword)
-                                        || contains(resource.getProvider(), normalizedKeyword)
-                                        || contains(
-                                                resource.getInstructorOrAuthor(), normalizedKeyword)
-                                        || resource.getSkills().stream()
-                                                .anyMatch(
-                                                        skill ->
-                                                                contains(
-                                                                        skill.getName(),
-                                                                        normalizedKeyword)))
-                .sorted(
-                        Comparator.comparing(LearningResource::getTitle)
-                                .thenComparing(LearningResource::getId))
+        LearningResourceSearchCondition condition =
+                new LearningResourceSearchCondition(keyword, null, null, null, null, null, null);
+        return learningResourceRepository
+                .search(condition, pageable)
                 .map(
                         resource ->
                                 LearningResourceCatalogResponse.from(
-                                        resource, savedIds.contains(resource.getId())))
-                .toList();
+                                        resource, savedIds.contains(resource.getId())));
     }
 
     public LearningResourceGraphResponse findWorkspaceGraph(Long workspaceId) {

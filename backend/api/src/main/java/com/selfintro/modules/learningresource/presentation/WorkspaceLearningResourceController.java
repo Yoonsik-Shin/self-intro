@@ -15,6 +15,9 @@ import com.selfintro.modules.learningresource.presentation.dto.WorkspaceLearning
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -60,10 +63,11 @@ public class WorkspaceLearningResourceController {
     }
 
     @GetMapping("/catalog")
-    public List<LearningResourceCatalogResponse> catalog(
+    public Page<LearningResourceCatalogResponse> catalog(
             @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
-            @RequestParam(required = false) String q) {
-        return learningResourceService.listCatalog(workspaceId, q);
+            @RequestParam(required = false) String q,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return learningResourceService.catalog(workspaceId, q, pageable);
     }
 
     @GetMapping("/graph")
@@ -106,8 +110,7 @@ public class WorkspaceLearningResourceController {
 
     @DeleteMapping("/{resourceId}")
     public ResponseEntity<Void> remove(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long resourceId) {
+            @CurrentWorkspace Long workspaceId, @PathVariable Long resourceId) {
         learningResourceService.removeFromWorkspace(workspaceId, resourceId);
         return ResponseEntity.noContent().build();
     }
