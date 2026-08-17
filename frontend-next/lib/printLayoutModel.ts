@@ -1,4 +1,5 @@
 import type { PageOrientation } from '@/lib/pdfLayoutEngine';
+import { randomId } from '@/lib/uuid';
 
 export const OUTPUT_LAYOUT_SCHEMA_VERSION = 3;
 
@@ -230,7 +231,16 @@ function createRow(
     rowNumber: number,
     columnCount = 1
 ): { row: OutputRow; regions: OutputRegion[] } {
-    const rowId = `${pageId}-row-${rowNumber}`;
+    // 예전엔 id를 `${pageId}-row-${rowNumber}`로 지었다 — 그런데 행을 다른
+    // 페이지로 옮기는 함수들(moveSectionRows 등)은 pageId 필드만 바꾸고 id는
+    // 안 바꾼다(대부분의 코드가 id로 페이지를 판별하지 않는다는 전제 위에서
+    // 그래왔다). 그 결과 "이름은 A페이지, 실제로는 B페이지"인 행이 계속
+    // 생겼고, 원래 페이지(A)가 자기 행을 처음부터 다시 매기면(materialize 등)
+    // 그 떠도는 이름과 겹쳐 React 중복 key 크래시가 났다(이번 세션에 반복
+    // 발생 확인됨 — 번호 채번을 아무리 충돌회피로 고쳐도 다시 재발했다).
+    // 페이지 이름이 아니라 전역 고유값으로 지으면 애초에 이런 충돌 자체가
+    // 구조적으로 불가능해진다.
+    const rowId = `row-${randomId()}`;
     const normalizedCount = clamp(Math.round(columnCount), 1, 4);
     const mode = modeForColumnCount(normalizedCount);
     const regions = Array.from({ length: normalizedCount }, (_, index): OutputRegion => {
@@ -477,20 +487,28 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
             Math.max(0.05, region.widthFraction) / (widthSumByRowId.get(region.rowId) ?? 1),
     }));
 
-    const normalizedPages = parsedPages
-        .map((page): OutputPage | null => {
-            const pageRows = normalizedRows
-                .filter((row) => row.pageId === page.id && normalizedRowIds.has(row.id))
-                .sort((left, right) => left.order - right.order);
-            if (pageRows.length === 0) return null;
-            return {
-                ...page,
-                rowIds: pageRows.map((row) => row.id),
-                regionIds: pageRows.flatMap((row) => row.regionIds),
-                layoutMode: pageRows.length === 1 ? pageRows[0].layoutMode : 'SINGLE_COLUMN',
-            };
-        })
-        .filter((page): page is OutputPage => page !== null);
+    // 예전엔 행이 하나도 없는 페이지를 통째로 걸러냈다(손상된 문서의 유령
+    // 페이지 정리용). 그런데 store.setOutputLayout이 커밋할 때마다 이 함수를
+    // 무조건 거치므로, "다음 페이지에 넘칠 내용을 받으려고 미리 만들어둔 빈
+    // 페이지"(grow-pages 이펙트가 자연 페이지 수만큼 미리 만들어두는 페이지,
+    // self-heal이 아직 거기로 아무것도 안 옮겼거나 다 옮겼다 되돌린 경우)도
+    // 똑같이 걸러졌다. 그러면 grow-pages가 다시 "부족하다"고 판단해 같은 빈
+    // 페이지를 새로 만들고, self-heal이 다시 정리하고, 커밋할 때 또 걸러지는
+    // 무한 루프가 났다(실제 발생 확인됨 — actual/natural 페이지 수가 9↔10을
+    // 영원히 오간다). 미리보기 렌더는 store.outputLayout.pages가 아니라
+    // pageLayers(자연 계산)로 페이지 수를 정하므로, 빈 페이지가 남아있어도
+    // 화면에 빈 페이지로 보이지 않는다 — 안전하게 그대로 둔다.
+    const normalizedPages = parsedPages.map((page): OutputPage => {
+        const pageRows = normalizedRows
+            .filter((row) => row.pageId === page.id && normalizedRowIds.has(row.id))
+            .sort((left, right) => left.order - right.order);
+        return {
+            ...page,
+            rowIds: pageRows.map((row) => row.id),
+            regionIds: pageRows.flatMap((row) => row.regionIds),
+            layoutMode: pageRows.length === 1 ? pageRows[0].layoutMode : 'SINGLE_COLUMN',
+        };
+    });
     if (normalizedPages.length === 0) return createDefaultOutputLayout();
     const normalizedPageIds = new Set(normalizedPages.map((page) => page.id));
 
@@ -697,8 +715,81 @@ export function replaceOutputPageComposition(
         layout.placements.map((placement) => [placement.atomId, placement])
     );
 
-    normalizedComposition.forEach((columns, rowIndex) => {
-        const { row, regions } = createRow(page.id, rowIndex + 1, columns.length);
+    // row id는 생성 시점 페이지 이름을 그대로 담아 만들어지는데(`${pageId}-row-${n}`),
+    // 크로스페이지 이동은 pageId 필드만 바꾸고 id는 안 바꾼다(다른 곳에서 id를
+    // 페이지 판별에 쓰지 않는다는 전제 — 대부분 맞다). 근데 그렇게 다른 페이지로
+    // 옮겨진 "이름만 이 페이지인" 행이 있는 상태에서 이 페이지 자체를 처음부터
+    // rowIndex+1로 순번을 다시 매기면, 그 옮겨진 행과 이름이 겹칠 수 있다(실제
+    // 발생 확인됨 — React "duplicate key" 경고, page-10-row-1이 실제로는 page-9에
+    // 있는 행과 이 페이지에서 새로 만든 행 둘 다에 붙음). 이 페이지에서 없어질
+    // 행(oldRowIds)을 뺀 나머지 전체 행 id와 안 겹치는 번호만 골라 쓴다.
+    const reservedRowIds = new Set(
+        layout.rows.filter((row) => !oldRowIds.has(row.id)).map((row) => row.id)
+    );
+    let nextRowNumber = 1;
+    const pickRowNumber = (): number => {
+        while (reservedRowIds.has(`${page.id}-row-${nextRowNumber}`)) {
+            nextRowNumber += 1;
+        }
+        return nextRowNumber++;
+    };
+
+    // 행 id가 전역 랜덤값이라(createRow), composition에 변화가 없는 행도 매번
+    // 새로 만들면 매 self-heal 패스마다 안 바뀐 행까지 새 id를 받는다. 그러면
+    // `row:<rowId>` 키로 캐시된 실측 높이(atomHeights)가 매번 무효화되고,
+    // 그 여파로 pageLayers가 다시 계산되며 다른 페이지의 hasNewAtom 판정이
+    // 흔들려 self-heal이 영영 수렴하지 않는 무한 루프가 났다(실제 발생 확인—
+    // outputLayout이 매 렌더 계속 바뀌며 "Maximum update depth exceeded").
+    // 기존 행 중 이번 구성과 열 구성·atom 순서가 완전히 같은 행이 있으면 그
+    // 행(과 그 region들, id 포함)을 그대로 재사용해 불필요한 id churn을 막는다.
+    const oldRowSignature = (rowId: string): string => {
+        const regionsForRow = layout.regions
+            .filter((region) => region.rowId === rowId)
+            .sort((a, b) => a.order - b.order);
+        const cols = regionsForRow.map((region) =>
+            layout.placements
+                .filter((p) => p.regionId === region.id)
+                .sort((a, b) => a.order - b.order)
+                .map((p) => p.atomId)
+        );
+        return JSON.stringify(cols);
+    };
+    const signatureToOldRow = new Map<string, OutputRow>();
+    layout.rows
+        .filter((row) => oldRowIds.has(row.id))
+        .forEach((row) => {
+            const sig = oldRowSignature(row.id);
+            if (!signatureToOldRow.has(sig)) signatureToOldRow.set(sig, row);
+        });
+
+    normalizedComposition.forEach((columns) => {
+        const sig = JSON.stringify(columns);
+        const matchedRow = signatureToOldRow.get(sig);
+        if (matchedRow) {
+            signatureToOldRow.delete(sig);
+            const reusedRegions = layout.regions
+                .filter((region) => region.rowId === matchedRow.id)
+                .sort((a, b) => a.order - b.order);
+            const reusedRow: OutputRow = { ...matchedRow, order: nextRows.length };
+            nextRows.push(reusedRow);
+            nextRegions.push(...reusedRegions);
+            columns.forEach((atomIds, columnIndex) => {
+                atomIds.forEach((atomId, order) => {
+                    nextPlacements.push({
+                        atomId,
+                        pageId: page.id,
+                        regionId: reusedRegions[columnIndex].id,
+                        order,
+                        columnSpan: 1,
+                        rowSpan: 1,
+                        pageLocked: previousPlacementByAtomId.get(atomId)?.pageLocked === true,
+                    });
+                });
+            });
+            return;
+        }
+
+        const { row, regions } = createRow(page.id, pickRowNumber(), columns.length);
         nextRows.push(row);
         nextRegions.push(...regions);
         columns.forEach((atomIds, columnIndex) => {
@@ -808,6 +899,68 @@ export function setOutputRowColumnCount(
         };
     });
     return { ...layout, pages, rows, regions, placements };
+}
+
+/**
+ * row id는 생성 시점 페이지 이름을 그대로 담는다(`${pageId}-row-${n}`). 크로스
+ * 페이지 이동 함수들은 pageId 필드만 바꾸고 id는 그대로 두므로(대부분의 코드가
+ * id를 페이지 판별에 안 쓴다는 전제 — 맞다), 원래 페이지 이름을 담은 행이 다른
+ * 페이지로 옮겨간 채 떠돌 수 있다. 그 상태에서 원래 페이지가 자기 행을 처음부터
+ * 순번으로 다시 매기면(materialize/replaceOutputPageComposition 등) 그 떠도는
+ * 행과 이름이 겹칠 수 있었다(실제 발생 확인됨 — React "duplicate key" 경고,
+ * 저장된 상태에 이미 박혀 있던 손상). 새로 만드는 곳들은 이제 겹치지 않게
+ * 고치지만, 이미 저장돼 있는 손상은 이 함수로 한 번 걸러 고친다 — self-heal이
+ * 매 패스마다 불러서 저장된 문서에 남아있는 중복도 정리한다.
+ */
+export function deduplicateRowIds(source: OutputLayout): OutputLayout {
+    const idCounts = new Map<string, number>();
+    source.rows.forEach((row) => idCounts.set(row.id, (idCounts.get(row.id) ?? 0) + 1));
+    if (![...idCounts.values()].some((count) => count > 1)) return source;
+
+    const allIds = new Set(source.rows.map((row) => row.id));
+    const seen = new Set<string>();
+    const renameByIndex = new Map<number, string>();
+
+    source.rows.forEach((row, index) => {
+        if (!seen.has(row.id)) {
+            seen.add(row.id);
+            return;
+        }
+        let n = 1;
+        let candidate = `${row.pageId}-row-dup${n}`;
+        while (allIds.has(candidate) || seen.has(candidate)) {
+            n += 1;
+            candidate = `${row.pageId}-row-dup${n}`;
+        }
+        seen.add(candidate);
+        allIds.add(candidate);
+        renameByIndex.set(index, candidate);
+    });
+
+    const rows = source.rows.map((row, index) => {
+        const newId = renameByIndex.get(index);
+        return newId ? { ...row, id: newId } : row;
+    });
+
+    let regions = source.regions;
+    let pages = source.pages;
+    renameByIndex.forEach((newId, index) => {
+        const original = source.rows[index];
+        const oldId = original.id;
+        const pageId = original.pageId;
+        regions = regions.map((region) =>
+            region.rowId === oldId && region.pageId === pageId
+                ? { ...region, rowId: newId }
+                : region
+        );
+        pages = pages.map((page) =>
+            page.id === pageId
+                ? { ...page, rowIds: page.rowIds.map((id) => (id === oldId ? newId : id)) }
+                : page
+        );
+    });
+
+    return { ...source, rows, regions, pages };
 }
 
 /**
@@ -1386,9 +1539,19 @@ export function moveSectionRows(
  *
  * pageLocked가 걸린 행(사용자가 명시적으로 "N페이지로 강제"한 것)은 절대 옮기지
  * 않는다 — 그 행 자체가 넘쳐도 그대로 두고, 그 뒤에 오는 잠기지 않은 행들만
- * 다음 페이지로 넘긴다. "당겨오기"(다음 페이지 내용을 앞으로 끌어와 빈 공간을
- * 채우는 것)는 하지 않는다 — 사용자가 의도적으로 만든 페이지 분할을 건드릴
- * 위험이 커서, 넘치는 것을 뒤로 미는 방향만 다룬다.
+ * 다음 페이지로 넘긴다.
+ *
+ * 넘치는 걸 뒤로 미는 것과 별개로, 페이지에 남는 공간이 있으면 다음 페이지의
+ * (잠기지 않은) 선두 콘텐츠를 당겨와 채운다 — 이것도 pageLocked 행은 절대
+ * 건드리지 않는다(사용자가 의도적으로 만든 페이지 분할을 지킨다). 밀어내기
+ * 패스가 먼저 끝나 "넘치는 페이지는 없다"를 보장해 놓은 뒤에 당겨오기 패스가
+ * 도니, 밀었다 당겼다 하는 왕복은 생기지 않는다.
+ *
+ * (이전 시도 기록: createRow가 id를 `${pageId}-row-N`으로 짓던 시절엔, 당겨오기로
+ * 행을 옮기면 id가 원래 페이지 이름을 유지한 채 다른 페이지에 남고, 원래 페이지가
+ * 자기 행을 처음부터 다시 매기면 그 이름과 겹쳐 React 중복 key 크래시가 반복
+ * 재발했다 — 두 번 되돌렸었다. createRow를 전역 고유 id(uuid)로 바꿔서 근본
+ * 원인을 없앴다.)
  */
 export function rebalancePageOverflow(
     source: OutputLayout,
@@ -1485,39 +1648,9 @@ export function rebalancePageOverflow(
                     const targetFirstRow = layout.rows
                         .filter((row) => row.pageId === targetPage.id)
                         .sort((a, b) => a.order - b.order)[0];
-                    if (targetFirstRow) {
-                        layout = insertAtomsNextToRow(layout, moveIds, targetFirstRow.id, 'before');
-                    } else {
-                        const { row: newRow, regions: newRegions } = createRow(targetPage.id, 1, 1);
-                        const movingSet = new Set(moveIds);
-                        const newPlacements: OutputPlacement[] = moveIds.map((atomId, order) => ({
-                            atomId,
-                            pageId: targetPage.id,
-                            regionId: newRegions[0].id,
-                            order,
-                            columnSpan: 1,
-                            rowSpan: 1,
-                            pageLocked: false,
-                        }));
-                        layout = {
-                            ...layout,
-                            pages: layout.pages.map((p) =>
-                                p.id === targetPage.id
-                                    ? {
-                                          ...p,
-                                          rowIds: [newRow.id],
-                                          regionIds: newRegions.map((r) => r.id),
-                                      }
-                                    : p
-                            ),
-                            rows: [...layout.rows, newRow],
-                            regions: [...layout.regions, ...newRegions],
-                            placements: [
-                                ...layout.placements.filter((p) => !movingSet.has(p.atomId)),
-                                ...newPlacements,
-                            ],
-                        };
-                    }
+                    layout = targetFirstRow
+                        ? insertAtomsNextToRow(layout, moveIds, targetFirstRow.id, 'before')
+                        : appendAtomsAsNewRowToPage(layout, moveIds, targetPage.id);
                     // pageIndex는 그대로 유지해 같은 페이지를 다시 검사한다.
                     continue;
                 }
@@ -1588,7 +1721,147 @@ export function rebalancePageOverflow(
         // 자연스럽게 다시 검사된다.
     }
 
+    let pullPageIndex = 0;
+    let pullGuard = 0;
+    while (pullPageIndex < layout.pages.length - 1 && pullGuard < 200) {
+        pullGuard += 1;
+        const page = layout.pages[pullPageIndex];
+        const nextPage = layout.pages[pullPageIndex + 1];
+        const pageRows = layout.rows
+            .filter((row) => row.pageId === page.id)
+            .sort((a, b) => a.order - b.order);
+        const usedHeight = pageRows.reduce((sum, row) => sum + rowHeightPx(row), 0);
+        const remainingBudget = maxContentHeightPx - usedHeight;
+
+        if (remainingBudget <= 0) {
+            pullPageIndex += 1;
+            continue;
+        }
+
+        const nextPageRows = layout.rows
+            .filter((row) => row.pageId === nextPage.id)
+            .sort((a, b) => a.order - b.order);
+        const firstNextRow = nextPageRows[0];
+        if (!firstNextRow || isRowLocked(firstNextRow)) {
+            pullPageIndex += 1;
+            continue;
+        }
+
+        const lastRowOnPage = pageRows[pageRows.length - 1];
+        const rowH = rowHeightPx(firstNextRow);
+
+        if (rowH <= remainingBudget) {
+            layout = lastRowOnPage
+                ? moveSectionRows(layout, [firstNextRow.id], {
+                      rowId: lastRowOnPage.id,
+                      position: 'after',
+                  })
+                : reassignRowToPage(layout, firstNextRow, page.id, 0);
+            // pullPageIndex 유지하고 이 페이지에 더 당겨올 게 있는지 계속 검사한다.
+            continue;
+        }
+
+        // 행 전체는 안 들어가지만, 단일 열 다중 atom 행이면(자연 순서 구간을 통째로
+        // 하나의 flow row로 묶어두는 materializePageIntoRows 특성상 흔함) 앞부분
+        // atom만 잘라서 당겨온다.
+        if (firstNextRow.regionIds.length === 1) {
+            const atomIds = atomsInRegion(firstNextRow.regionIds[0]);
+            if (atomIds.length > 1) {
+                let used = 0;
+                let splitAt = 0;
+                for (let i = 0; i < atomIds.length; i += 1) {
+                    const h = getAtomHeightPx(atomIds[i]);
+                    if (used + h > remainingBudget) break;
+                    used += h;
+                    splitAt = i + 1;
+                }
+                if (splitAt > 0) {
+                    const moveIds = atomIds.slice(0, splitAt);
+                    layout = lastRowOnPage
+                        ? insertAtomsNextToRow(layout, moveIds, lastRowOnPage.id, 'after')
+                        : appendAtomsAsNewRowToPage(layout, moveIds, page.id);
+                }
+            }
+        }
+
+        // 더 못 당기면(행도 못 넣고 atom도 못 쪼갬) 이 페이지는 끝 — 다음 페이지로.
+        pullPageIndex += 1;
+    }
+
     return pruneEmptyOutputRows(layout);
+}
+
+function reassignRowToPage(
+    layout: OutputLayout,
+    row: OutputRow,
+    targetPageId: string,
+    order: number
+): OutputLayout {
+    const movingRegionIds = new Set(
+        layout.regions.filter((r) => r.rowId === row.id).map((r) => r.id)
+    );
+    return {
+        ...layout,
+        rows: layout.rows.map((r) => (r.id === row.id ? { ...r, pageId: targetPageId, order } : r)),
+        regions: layout.regions.map((region) =>
+            movingRegionIds.has(region.id) ? { ...region, pageId: targetPageId } : region
+        ),
+        placements: layout.placements.map((placement) =>
+            movingRegionIds.has(placement.regionId)
+                ? { ...placement, pageId: targetPageId }
+                : placement
+        ),
+        pages: layout.pages.map((p) =>
+            p.id === targetPageId
+                ? {
+                      ...p,
+                      rowIds: [row.id],
+                      regionIds: [...movingRegionIds],
+                      layoutMode: row.layoutMode,
+                  }
+                : p
+        ),
+    };
+}
+
+function appendAtomsAsNewRowToPage(
+    layout: OutputLayout,
+    atomIds: string[],
+    targetPageId: string
+): OutputLayout {
+    // 크로스페이지 이동으로 이름만 이 페이지인(pageId는 다른 페이지) 행이 떠돌 수
+    // 있어(실제 발생 확인됨), 하드코딩된 "row-1"이 그런 행과 이름이 겹칠 수 있다.
+    // 전체 레이아웃에서 안 겹치는 번호를 고른다.
+    const existingRowIds = new Set(layout.rows.map((r) => r.id));
+    let rowNumber = 1;
+    while (existingRowIds.has(`${targetPageId}-row-${rowNumber}`)) {
+        rowNumber += 1;
+    }
+    const { row: newRow, regions: newRegions } = createRow(targetPageId, rowNumber, 1);
+    const movingSet = new Set(atomIds);
+    const newPlacements: OutputPlacement[] = atomIds.map((atomId, order) => ({
+        atomId,
+        pageId: targetPageId,
+        regionId: newRegions[0].id,
+        order,
+        columnSpan: 1,
+        rowSpan: 1,
+        pageLocked: false,
+    }));
+    return {
+        ...layout,
+        pages: layout.pages.map((p) =>
+            p.id === targetPageId
+                ? { ...p, rowIds: [newRow.id], regionIds: newRegions.map((r) => r.id) }
+                : p
+        ),
+        rows: [...layout.rows, newRow],
+        regions: [...layout.regions, ...newRegions],
+        placements: [
+            ...layout.placements.filter((p) => !movingSet.has(p.atomId)),
+            ...newPlacements,
+        ],
+    };
 }
 
 /**

@@ -81,6 +81,7 @@ export type PrintAtomRenderContextValue = {
     toggleSkillSelection: (skillId: number) => void;
     setSkillSelectorModalOpen: (open: boolean) => void;
     atomPageMap: Map<string, number>;
+    effectivePageMap: Map<string, number>;
     pageBreakBoundaryAtomIds: Set<string>;
     getAtomDisplayTitle: (atomId: string) => string;
     startGapDrag: (id: string) => (e: ReactPointerEvent<HTMLDivElement>) => void;

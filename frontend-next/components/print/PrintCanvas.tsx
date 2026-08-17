@@ -47,6 +47,7 @@ import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { randomId } from '@/lib/uuid';
 import {
     getOutputPageAt,
+    deduplicateRowIds,
     ensureOutputLayoutPageCount,
     mergeAdjacentSingleColumnRows,
     moveSectionRows,
@@ -202,6 +203,13 @@ export function PrintCanvas({
     const queryClient = useQueryClient();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const printLayoutFrozenRef = useRef(false);
+    // 간격 드래그 중엔 pointermove마다 sectionGaps가 바뀌고, 그때마다
+    // rebalancePageOverflow가 그 순간의(아직 확정 안 된) 간격값으로 오버플로우
+    // 여부를 다시 판단해 페이지 사이로 콘텐츠를 밀었다 당겼다 반복한다 — 드래그
+    // 중 화면이 뒤죽박죽 흔들리는 원인이었다(실제 발생 확인됨). 드래그가 끝난
+    // 뒤 확정된 값 한 번만 재배치를 반영하면 되므로, 드래그 중엔 자동 재배치를
+    // 건너뛴다.
+    const gapDragActiveRef = useRef(false);
     const [inlineEditMode, setInlineEditMode] = useState(false);
     const [modeModalOpen, setModeModalOpen] = useState(
         () => !store.printModeResolved && !initialTemplate
@@ -406,6 +414,7 @@ export function PrintCanvas({
     const [addedCoverLetterItems, setAddedCoverLetterItems] = useState<JobPostingCoverLetterItem[]>(
         []
     );
+    const selfHealBurstRef = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
     const historyPastRef = useRef<PrintEditorSnapshot[]>([]);
     const historyFutureRef = useRef<PrintEditorSnapshot[]>([]);
     const historyCurrentRef = useRef<PrintEditorSnapshot | null>(null);
@@ -1322,8 +1331,14 @@ export function PrintCanvas({
             const debugStart = process.env.NODE_ENV !== 'production' ? performance.now() : 0;
 
             const elements = Array.from(canvas.querySelectorAll<HTMLElement>('[data-atom-id]'));
-            const newHeights = new Map<string, number>();
             const previousHeights = usePrintStore.getState().atomHeights;
+            // 지금 이 순간 화면에 안 그려진 atom(강제 배치 등으로 대량 재배치 중,
+            // 어느 페이지에도 잠깐 안 걸리는 경우)의 높이를 통째로 지우면 안 된다 —
+            // 그러면 자연 페이지네이터가 그 atom을 추정치로 다시 계산하고, 추정치가
+            // 실측과 다르면 페이지 배치가 바뀌어 다시 화면에 나타났다 사라졌다를
+            // 반복하는 순환이 생긴다(실제 발생 확인됨). 마지막으로 잰 값을 기본으로
+            // 깔고, 지금 화면에 있는 것만 덮어쓴다.
+            const newHeights = new Map<string, number>(previousHeights);
             elements.forEach((el) => {
                 const atomId = el.dataset.atomId;
                 if (!atomId) return;
@@ -1472,22 +1487,99 @@ export function PrintCanvas({
         return map;
     }, [store.outputLayout.pages]);
 
+    // "이 atom이 지금 몇 페이지에 있나"의 진짜 답 — placement가 있으면(한 번이라도
+    // 명시적으로 배치됨) 그 실제 페이지를, 없으면 자연 흐름(atomPageMap) 페이지를
+    // 쓴다. "N페이지로 강제 올리기" 버튼의 목표 페이지 계산이 atomPageMap(자연
+    // 페이지)만 썼더니, 크로스페이지 드래그로 실제로는 뒤쪽 페이지에 있는 atom도
+    // 자연 계산상 앞쪽 페이지로 나와서 "한 페이지 더 올리기" 목표가 음수가 되어
+    // 버튼 자체가 안 뜨는 버그가 있었다(실제 발생 확인됨).
+    const effectivePageMap = useMemo(() => {
+        const map = new Map<string, number>();
+        printableAtoms.forEach((atom) => {
+            const placement = placementByAtomId.get(atom.id);
+            const actualPageIdx = placement ? pageIndexByPageId.get(placement.pageId) : undefined;
+            const pageIdx = actualPageIdx ?? atomPageMap.get(atom.id);
+            if (pageIdx !== undefined) map.set(atom.id, pageIdx);
+        });
+        return map;
+    }, [printableAtoms, placementByAtomId, pageIndexByPageId, atomPageMap]);
+
+    // 페이지 분할 지점(어느 atom 앞에 "여기서 페이지가 갈립니다" 배너를 띄울지)은
+    // 원래 순수 자연 흐름(pageLayers)만 보고 계산했다 — 그래서 사용자가 드래그로
+    // 페이지를 재배치하면 실제로는 페이지 중간에 있는 atom이 배너를 못 받고, 실제
+    // 페이지 맨 위로 옮겨온 atom은 자연 계산이 몰라서 배너를 못 받는 불일치가 났다
+    // (실제 발생 확인됨 — 크로스페이지 드래그로 옮긴 competency가 실제로 페이지
+    // 맨 위인데도 배너가 안 뜸). materialize된 페이지(명시적 row/placement가 있는
+    // 페이지)는 실제 레이아웃 기준으로, 아직 한 번도 안 건드린(자연 흐름 그대로인)
+    // 페이지는 자연 계산으로 폴백한다.
     const pageBreakBoundaryAtomIds = useMemo(() => {
         const set = new Set<string>();
+
+        const rowsForPage = (pageId: string) =>
+            store.outputLayout.rows
+                .filter((r) => r.pageId === pageId)
+                .sort((a, b) => a.order - b.order);
+
+        const firstAtomOfActualPage = (pageId: string) => {
+            const firstRow = rowsForPage(pageId)[0];
+            const regionId = firstRow?.regionIds[0];
+            const placement = regionId
+                ? store.outputLayout.placements
+                      .filter((p) => p.regionId === regionId)
+                      .sort((a, b) => a.order - b.order)[0]
+                : undefined;
+            return placement ? printableAtoms.find((a) => a.id === placement.atomId) : undefined;
+        };
+
+        const lastAtomOfActualPage = (pageId: string) => {
+            const rows = rowsForPage(pageId);
+            const lastRow = rows[rows.length - 1];
+            const regionId = lastRow?.regionIds[lastRow.regionIds.length - 1];
+            const placement = regionId
+                ? store.outputLayout.placements
+                      .filter((p) => p.regionId === regionId)
+                      .sort((a, b) => b.order - a.order)[0]
+                : undefined;
+            return placement ? printableAtoms.find((a) => a.id === placement.atomId) : undefined;
+        };
+
         for (let p = 1; p < pageLayers.length; p++) {
+            const currentPage = store.outputLayout.pages[p];
+            const prevPage = store.outputLayout.pages[p - 1];
+            const actualFirst = currentPage ? firstAtomOfActualPage(currentPage.id) : undefined;
+            const actualPrevLast = prevPage ? lastAtomOfActualPage(prevPage.id) : undefined;
+
+            if (actualFirst && actualPrevLast) {
+                if (actualFirst.sectionId === actualPrevLast.sectionId || actualFirst.isHeader) {
+                    set.add(actualFirst.id);
+                }
+                continue;
+            }
+
             const prevPageItems = pageLayers[p - 1].items;
             const currentPageItems = pageLayers[p].items;
             if (currentPageItems.length > 0) {
                 const firstAtomOnNewPage = currentPageItems[0];
-                const sectionId = firstAtomOnNewPage.sectionId;
                 const hasPrevItemsInSameSection = prevPageItems.some(
-                    (it) => it.sectionId === sectionId
+                    (it) => it.sectionId === firstAtomOnNewPage.sectionId
                 );
-                if (hasPrevItemsInSameSection) set.add(firstAtomOnNewPage.id);
+                // 섹션이 이어지는 경우뿐 아니라, 새 페이지 맨 위가 새 섹션의 헤더로
+                // 시작하는 경우도 분할 지점으로 취급한다 — 그래야 이전 페이지에
+                // 여유 공간이 있을 때 그 헤더(와 섹션 전체)를 앞으로 강제 당겨올
+                // 수단(배너의 "N페이지로 강제 올리기")이 생긴다.
+                if (hasPrevItemsInSameSection || firstAtomOnNewPage.isHeader) {
+                    set.add(firstAtomOnNewPage.id);
+                }
             }
         }
         return set;
-    }, [pageLayers]);
+    }, [
+        pageLayers,
+        store.outputLayout.pages,
+        store.outputLayout.rows,
+        store.outputLayout.placements,
+        printableAtoms,
+    ]);
 
     const getAssociatedAtomIds = useCallback(
         (id: string): string[] => {
@@ -1754,16 +1846,7 @@ export function PrintCanvas({
             }
 
             const composition: string[][][] = [];
-            let naturalBuffer: string[] = [];
-            let naturalBufferSectionId: string | undefined;
             const pushedRowIds = new Set<string>();
-            const flushNatural = () => {
-                if (naturalBuffer.length > 0) {
-                    composition.push([naturalBuffer]);
-                    naturalBuffer = [];
-                    naturalBufferSectionId = undefined;
-                }
-            };
             for (const atom of pageAtoms) {
                 if (!rowIdByAtomId.has(atom.id) && placedAnywhereAtomIds.has(atom.id)) {
                     // 다른 페이지에 이미 있는 atom(사용자가 옮김) — 자연 목록에 있어도
@@ -1773,7 +1856,6 @@ export function PrintCanvas({
                 const rowId = rowIdByAtomId.get(atom.id);
                 if (rowId) {
                     if (pushedRowIds.has(rowId)) continue;
-                    flushNatural();
                     pushedRowIds.add(rowId);
                     const rowEntry = rows.find(({ row }) => row.id === rowId);
                     if (!rowEntry) continue;
@@ -1786,19 +1868,15 @@ export function PrintCanvas({
                         )
                     );
                 } else {
-                    // 자연 순서 구간도 섹션 경계에서는 새 행으로 끊는다 — 그렇지 않으면
-                    // 서로 다른 섹션의 손 안 댄 콘텐츠가 한 region에 섞여버린다.
-                    if (
-                        naturalBufferSectionId !== undefined &&
-                        naturalBufferSectionId !== atom.sectionId
-                    ) {
-                        flushNatural();
-                    }
-                    naturalBufferSectionId = atom.sectionId;
-                    naturalBuffer.push(atom.id);
+                    // atom마다 독립된 단일열 행 하나씩 만든다 — 여러 atom을 한 행에
+                    // 묶으면(예전 방식) 오버플로우 재배치·페이지 분할 지점 배너 등
+                    // 행 단위로 동작하는 로직이 "행 안 몇 번째 atom인지"를 몰라 페이지
+                    // 중간에 있는 atom도 행의 첫 자리로 착각하는 등 오동작했다. 섹션
+                    // 경계 처리도 필요 없다 — 애초에 행마다 atom이 하나뿐이라 섞일 일이
+                    // 없다.
+                    composition.push([[atom.id]]);
                 }
             }
-            flushNatural();
 
             // pageAtoms(자연 목록)에 없는데 이 페이지에 이미 있는 행(다른 페이지에서
             // 드래그로 들어온 행 등)은 위 루프에서 전혀 방문되지 않는다.
@@ -1989,11 +2067,19 @@ export function PrintCanvas({
             e.stopPropagation();
             const startY = e.clientY;
             const startGap = Math.max(0, store.sectionGaps[id] ?? 0);
+            let lastValue = startGap;
+            gapDragActiveRef.current = true;
             const onMove = (me: PointerEvent) => {
                 const next = Math.max(0, Math.round(startGap + (me.clientY - startY)));
+                lastValue = next;
                 usePrintStore.getState().setGap(id, next);
             };
             const onUp = () => {
+                gapDragActiveRef.current = false;
+                // 드래그 중 건너뛴 자동 재배치를 확정된 최종 간격값으로 한 번 더
+                // 반영해야 하므로, 같은 값이라도 다시 dispatch해 self-heal을
+                // 한 번 더 깨운다(ref만 바꾸는 건 렌더를 안 일으켜서 부족하다).
+                usePrintStore.getState().setGap(id, lastValue);
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onUp);
                 window.removeEventListener('pointercancel', onUp);
@@ -2829,6 +2915,30 @@ export function PrintCanvas({
     // 사용자가 실제로 한 액션 하나를 되돌리려 해도 중간 자동 정리 단계로만
     // 한 걸음씩 되돌아가는 문제가 있었다.
     useEffect(() => {
+        // 위 id 재사용 수정으로 대부분의 무한 루프 원인(행 id churn)은 없앴지만,
+        // push/pull 재배치 자체가 두 페이지 사이에서 진짜로 수렴하지 않는 경계
+        // 케이스가 이론적으로 남을 수 있다 — 그 경우를 대비한 최종 안전장치.
+        // 50ms 이내에 이 effect가 12번 넘게 연속으로 도는 건 사용자의 정상적인
+        // 상호작용으로는 발생하지 않는다(무한 루프의 특징적인 패턴). 감지되면
+        // 그 순간의 layout을 그대로 유지하고 building을 건너뛰어 크래시 대신
+        // "약간 안 다듬어진 상태로 멈춤"을 택한다.
+        const burst = selfHealBurstRef.current;
+        const now = performance.now();
+        if (now - burst.last < 50) {
+            burst.count += 1;
+        } else {
+            burst.count = 1;
+        }
+        burst.last = now;
+        if (burst.count > 12) {
+            if (process.env.NODE_ENV !== 'production') {
+                console.warn(
+                    '[self-heal] runaway loop detected, holding layout to break infinite update cycle'
+                );
+            }
+            return;
+        }
+
         const debugStart = process.env.NODE_ENV !== 'production' ? performance.now() : 0;
         let layout = store.outputLayout;
         let changed = false;
@@ -2839,6 +2949,12 @@ export function PrintCanvas({
                 layout = next;
                 changed = true;
             }
+        }
+
+        const deduped = deduplicateRowIds(layout);
+        if (deduped !== layout) {
+            layout = deduped;
+            changed = true;
         }
 
         const pruned = pruneEmptyOutputRows(layout);
@@ -2859,6 +2975,16 @@ export function PrintCanvas({
                     const rowA = pageRows[i];
                     const rowB = pageRows[i + 1];
                     if (rowA.regionIds.length !== 1 || rowB.regionIds.length !== 1) continue;
+                    // region.kind가 여전히 'FLOW'가 아니면(LEFT_COLUMN/RIGHT_COLUMN/COLUMN)
+                    // 원래 다열이었다가 컬럼이 비어 단일열로 줄어든 잔재다 — 그런 행만
+                    // 이웃과 재결합 대상이다. 둘 다 처음부터 'FLOW'(materialize가 만든
+                    // atom 하나짜리 독립 행 등)면 합칠 이유가 없다 — 합치면 atom을 하나씩
+                    // 독립된 행으로 유지하는 의미가 없어진다.
+                    const regionA = layout.regions.find((r) => r.id === rowA.regionIds[0]);
+                    const regionB = layout.regions.find((r) => r.id === rowB.regionIds[0]);
+                    const isFragment = (region: typeof regionA) =>
+                        region !== undefined && region.kind !== 'FLOW';
+                    if (!isFragment(regionA) && !isFragment(regionB)) continue;
                     const sectionA = getRowSectionId(rowA.id, layout);
                     const sectionB = getRowSectionId(rowB.id, layout);
                     if (sectionA && sectionB && sectionA === sectionB) {
@@ -2884,15 +3010,20 @@ export function PrintCanvas({
         // 안 함) 저절로 안 쪼개진다 — 넘치는 뒤쪽 행을 다음 페이지로 밀어낸다.
         // maxPageCount를 pageLayers.length로 캡핑해서, 렌더 루프가 실제로 그리는
         // 페이지 수 밖으로 내용이 밀려나 안 보이게 되는 것을 막는다.
-        const rebalanced = rebalancePageOverflow(
-            layout,
-            getOutputAtomHeightPx,
-            pageContentHeightPx,
-            pageLayers.length
-        );
-        if (rebalanced !== layout) {
-            layout = rebalanced;
-            changed = true;
+        // 간격 드래그가 진행 중이면 건너뛴다 — pointermove마다 아직 확정 안 된
+        // 간격값으로 다시 판단하면 콘텐츠가 페이지 사이를 왔다갔다한다(실제 발생
+        // 확인됨). 드래그가 끝나면 확정값으로 한 번 더 self-heal이 돌아 반영된다.
+        if (!gapDragActiveRef.current) {
+            const rebalanced = rebalancePageOverflow(
+                layout,
+                getOutputAtomHeightPx,
+                pageContentHeightPx,
+                pageLayers.length
+            );
+            if (rebalanced !== layout) {
+                layout = rebalanced;
+                changed = true;
+            }
         }
 
         if (process.env.NODE_ENV !== 'production') {
@@ -3063,6 +3194,7 @@ export function PrintCanvas({
             toggleSkillSelection,
             setSkillSelectorModalOpen,
             atomPageMap,
+            effectivePageMap,
             pageBreakBoundaryAtomIds,
             getAtomDisplayTitle,
             startGapDrag,
@@ -3101,6 +3233,7 @@ export function PrintCanvas({
             toggleSkillSelection,
             setSkillSelectorModalOpen,
             atomPageMap,
+            effectivePageMap,
             pageBreakBoundaryAtomIds,
             getAtomDisplayTitle,
             startGapDrag,
