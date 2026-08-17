@@ -2691,3 +2691,11 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
   - URL 경로 변수의 `workspaceSlug`와 Spring Security `Authentication`을 바탕으로 `WorkspaceAccessPolicy`를 자동 검증하고, 검증된 `Long workspaceId`를 컨트롤러 메서드 인자로 직접 주입한다.
   - 17개 이상의 Workspace 관리 컨트롤러(`Skill`, `Experience`, `Study`, `JobApplication`, `Portfolio`, `Taxonomy`, `PrintTemplate`, `Profile`, `Visitor`, `AiProxy` 등)에서 불필요한 보일러플레이트를 제거하고 일관된 권한 검증 체계를 확립했다.
 
+### 15.37 관리자 공고 심사 페이지네이션과 FQCN 인라인 사용 금지 규칙
+
+- 15.4·15.5에서 다룬 전사 페이지네이션 표준화(`PageResponse<T>`/`PageRequest`/`PaginationControls`, offset 기반 `Pageable` + QueryDSL)를 관리자 공고 심사(`/api/admin/job-postings`)에도 적용했다.
+  - `JobPostingCrudService.list(keyword, reviewStatus, pageable)`가 `JobPostingRepositoryImpl`의 신규 QueryDSL 구현(`JobPostingRepositoryCustom`)으로 키워드 검색·심사 상태 필터·DB 페이징을 처리한다. 기존 전체 조회 `list()`는 `list(null, null, Pageable.unpaged())`로 위임해 하위 호환을 유지한다.
+  - `JobCatalogPermissionOperations.tsx`가 `PaginationControls`를 사용하도록 전환했다.
+- 위 작업 중 `JobPostingCrudService`에 메서드 시그니처·로직 내부에 패키지 경로를 포함한 FQCN(예: `java.util.Map`, `com.selfintro.modules...JobPostingPermissionReviewEvent`)을 인라인으로 직접 쓴 코드가 있어 정리했고, 재발을 막기 위해 `AGENTS.md`에 "FQCN 인라인 사용 금지 — 반드시 파일 상단 `import`로 참조" 규칙을 신설했다.
+- 규칙 신설 후 전체 코드베이스를 재검사한 결과 이 규칙이 생기기 이전부터 있던 FQCN 인라인 잔재가 `api`·`ai-worker` 양쪽에 60개 파일·150곳 넘게 남아 있어 함께 정리했다(`java.util.stream.Collectors`, `java.util.Comparator`, `org.springframework.data.domain.Page`/`Pageable`, `org.springframework.security.core.Authentication` 등). JPQL `@Query` 문자열 내부의 enum 참조(`WorkspacePurgeJobRepository`)는 Java import로 대체할 수 없어 대상에서 제외했다.
+- 검증: `./gradlew :api:compileJava :ai-worker:compileJava`, 대상 파일로 범위를 좁힌 `spotlessApply`/`spotlessCheck`(`-PspotlessFiles`), `./gradlew :api:test :ai-worker:test` 전체 통과. 순수 리팩터링으로 동작 변경은 없다. 로컬 코드에만 적용했으며 stage·운영 배포는 하지 않았다.
