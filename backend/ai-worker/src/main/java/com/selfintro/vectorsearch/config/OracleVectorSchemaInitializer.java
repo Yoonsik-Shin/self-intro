@@ -6,7 +6,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import javax.sql.DataSource;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,16 +27,19 @@ import org.springframework.util.StreamUtils;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class OracleVectorSchemaInitializer implements ApplicationRunner {
 
     private static final String SCHEMA_RESOURCE = "oracle-schema.sql";
 
-    @Qualifier("vectorDataSource")
     private final DataSource vectorDataSource;
-
-    @Value("${oracle.vector.schema-init.enabled:true}")
     private final boolean enabled;
+
+    public OracleVectorSchemaInitializer(
+            @Qualifier("vectorDataSource") DataSource vectorDataSource,
+            @Value("${oracle.vector.schema-init.enabled:true}") boolean enabled) {
+        this.vectorDataSource = vectorDataSource;
+        this.enabled = enabled;
+    }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
