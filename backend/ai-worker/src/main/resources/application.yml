@@ -133,6 +133,11 @@ oracle:
       username: ${DB_USERNAME:sa}
       password: ${DB_PASSWORD:}
       driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    # prod Oracle ATP에 oracle-schema.sql을 부팅마다 적용한다. 로컬 docker-compose의 Oracle Free
+    # 컨테이너는 vector_memory_size=0이라 이 스크립트의 CREATE VECTOR INDEX가 실패하므로(로컬은 자체
+    # startup 스크립트로 별도 스키마를 적용한다) docker-compose.yml에서 이 값을 false로 덮어쓴다.
+    schema-init:
+      enabled: ${ORACLE_VECTOR_SCHEMA_INIT_ENABLED:true}
 
 management:
   tracing:

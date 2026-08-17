@@ -175,6 +175,9 @@ services:
       - DB_USERNAME=self_intro_vector
       - DB_PASSWORD=self_intro_vector_local
       - DB_DRIVER=oracle.jdbc.OracleDriver
+      # 로컬 Oracle Free는 vector_memory_size=0이라 oracle-schema.sql의 CREATE VECTOR INDEX가 실패한다.
+      # 로컬 스키마는 01-init-vector-schema.sql(oracle-schema-local.sql)이 컨테이너 startup에서 대신 적용한다.
+      - ORACLE_VECTOR_SCHEMA_INIT_ENABLED=false
       - WORKSPACE_PURGE_VECTOR_DELETE_ENABLED=${WORKSPACE_PURGE_VECTOR_DELETE_ENABLED:-false}
       - WORKSPACE_PURGE_EXECUTION_ENABLED=${WORKSPACE_PURGE_EXECUTION_ENABLED:-false}
       - WORKSPACE_PURGE_EXECUTION_CRON=${WORKSPACE_PURGE_EXECUTION_CRON:-0 */10 * * * *}
