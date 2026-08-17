@@ -4,6 +4,9 @@ import com.selfintro.modules.jobposting.domain.entity.JobPostingPositionChoice;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface JobPostingPositionChoiceRepository
         extends JpaRepository<JobPostingPositionChoice, Long> {
@@ -15,10 +18,8 @@ public interface JobPostingPositionChoiceRepository
 
     void deleteByJobPostingId(Long jobPostingId);
 
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.data.jpa.repository.Query(
+    @Modifying
+    @Query(
             "UPDATE JobPostingPositionChoice c SET c.jobPostingId = :winnerId WHERE c.jobPostingId = :loserId")
-    void reassignToWinner(
-            @org.springframework.data.repository.query.Param("loserId") Long loserId,
-            @org.springframework.data.repository.query.Param("winnerId") Long winnerId);
+    void reassignToWinner(@Param("loserId") Long loserId, @Param("winnerId") Long winnerId);
 }

@@ -2,6 +2,7 @@ package com.selfintro.modules.jobposting.presentation.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * 채용 공고를 수동으로 등록하거나(이미 지원 완료한 건을 바로 기록) 편집할 때 쓰는 요청. 지원 전/후 어느 단계든 동일한 형태로 편집하며, 상태 전이(저장/제외/지원
@@ -14,7 +15,7 @@ public record JobPostingRequest(
         @NotBlank String source,
         LocalDate appliedAt,
         LocalDate deadline,
-        java.time.LocalTime deadlineTime,
+        LocalTime deadlineTime,
         boolean alwaysOpen,
         String salaryNote,
         String location,

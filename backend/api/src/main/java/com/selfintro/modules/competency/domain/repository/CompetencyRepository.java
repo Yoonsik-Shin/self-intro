@@ -1,7 +1,9 @@
 package com.selfintro.modules.competency.domain.repository;
 
 import com.selfintro.modules.competency.domain.entity.*;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CompetencyRepository extends JpaRepository<Competency, Long> {
@@ -15,9 +17,9 @@ public interface CompetencyRepository extends JpaRepository<Competency, Long> {
 
     long countByWorkspaceId(Long workspaceId);
 
-    java.util.Optional<Competency> findByIdAndWorkspaceId(Long id, Long workspaceId);
+    Optional<Competency> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
-    List<Competency> findAllByWorkspaceIdAndIdIn(Long workspaceId, java.util.Collection<Long> ids);
+    List<Competency> findAllByWorkspaceIdAndIdIn(Long workspaceId, Collection<Long> ids);
 
     boolean existsByWorkspaceIdAndSkillLinks_Skill_Id(Long workspaceId, Long skillId);
 }

@@ -2,6 +2,7 @@ package com.selfintro.modules.identity.domain;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -60,8 +61,7 @@ public class AppUser {
         user.passwordHash = passwordHash;
         user.displayName = displayName;
         user.email = email;
-        user.emailCanonical =
-                email == null ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
+        user.emailCanonical = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
         user.status = UserStatus.ACTIVE;
         user.mfaEnabled = false;
         user.createdAt = LocalDateTime.now();

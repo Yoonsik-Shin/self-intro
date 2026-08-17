@@ -11,6 +11,7 @@ import com.selfintro.modules.jobposting.presentation.dto.JobPostingCoverLetterSa
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +54,7 @@ public class WorkspaceJobApplicationCoverLetterService {
 
         LocalDateTime now = LocalDateTime.now();
         List<JobPostingCoverLetterItem> items =
-                java.util.stream.IntStream.range(0, request.items().size())
+                IntStream.range(0, request.items().size())
                         .mapToObj(
                                 index -> {
                                     var item = request.items().get(index);

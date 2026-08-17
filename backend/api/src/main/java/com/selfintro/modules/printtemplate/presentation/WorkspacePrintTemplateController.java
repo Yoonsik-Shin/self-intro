@@ -51,15 +51,12 @@ public class WorkspacePrintTemplateController {
     @GetMapping
     public List<PrintTemplateResponse> list(
             @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId) {
-        return printTemplateService.listAll(workspaceId).stream()
-                .map(this::toResponse)
-                .toList();
+        return printTemplateService.listAll(workspaceId).stream().map(this::toResponse).toList();
     }
 
     @PostMapping
     public PrintTemplateResponse create(
-            @CurrentWorkspace Long workspaceId,
-            @Valid @RequestBody PrintTemplateRequest request) {
+            @CurrentWorkspace Long workspaceId, @Valid @RequestBody PrintTemplateRequest request) {
         requireUnlinkedTemplate(request);
         return toResponse(printTemplateService.create(workspaceId, request));
     }
@@ -74,9 +71,7 @@ public class WorkspacePrintTemplateController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long id) {
+    public ResponseEntity<Void> delete(@CurrentWorkspace Long workspaceId, @PathVariable Long id) {
         printTemplateService.delete(workspaceId, id);
         return ResponseEntity.noContent().build();
     }
@@ -85,9 +80,7 @@ public class WorkspacePrintTemplateController {
     public List<PrintTemplateResponse> listPortfolio(
             @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @PathVariable Long caseStudyId) {
-        return printTemplateService
-                .listByPortfolioCaseStudy(workspaceId, caseStudyId)
-                .stream()
+        return printTemplateService.listByPortfolioCaseStudy(workspaceId, caseStudyId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -109,8 +102,7 @@ public class WorkspacePrintTemplateController {
             @CurrentWorkspace Long workspaceId,
             @PathVariable Long caseStudyId,
             @Valid @RequestBody PortfolioPrintTemplateRequest request) {
-        return toResponse(
-                printTemplateService.createPortfolio(workspaceId, caseStudyId, request));
+        return toResponse(printTemplateService.createPortfolio(workspaceId, caseStudyId, request));
     }
 
     @PutMapping("/portfolio/{caseStudyId}/{id}")
@@ -128,15 +120,13 @@ public class WorkspacePrintTemplateController {
 
     @GetMapping("/{id}/revisions")
     public List<PrintTemplateRevisionResponse> revisions(
-            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
-            @PathVariable Long id) {
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId, @PathVariable Long id) {
         return printTemplateService.getRevisions(workspaceId, id);
     }
 
     @GetMapping("/{id}/artifacts")
     public List<PrintDocumentArtifactResponse> artifacts(
-            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
-            @PathVariable Long id) {
+            @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId, @PathVariable Long id) {
         PrintTemplate template = printTemplateService.getOrThrow(workspaceId, id);
         return printTemplateService.getArtifacts(workspaceId, id).stream()
                 .map(
@@ -153,8 +143,7 @@ public class WorkspacePrintTemplateController {
             @CurrentWorkspace Long workspaceId,
             @PathVariable Long id,
             @PathVariable Long revisionId) {
-        return toResponse(
-                printTemplateService.rollbackConfiguration(workspaceId, id, revisionId));
+        return toResponse(printTemplateService.rollbackConfiguration(workspaceId, id, revisionId));
     }
 
     @GetMapping("/job-applications/{jobPostingId}")
@@ -240,8 +229,7 @@ public class WorkspacePrintTemplateController {
         return template;
     }
 
-    private PrintTemplateResponse toResponse(
-            com.selfintro.modules.printtemplate.domain.entity.PrintTemplate entity) {
+    private PrintTemplateResponse toResponse(PrintTemplate entity) {
         return PrintTemplateResponse.from(entity, storageService::toPublicUrl);
     }
 }

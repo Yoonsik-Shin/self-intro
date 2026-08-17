@@ -1,11 +1,13 @@
 package com.selfintro.modules.jobposting.application;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
 import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
 import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplicationStatusEvent;
 import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobMapSetting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
@@ -25,8 +27,12 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -76,16 +82,14 @@ public class WorkspaceJobApplicationService {
         return toResponse(findApplication(workspaceId, jobPostingId));
     }
 
-    public org.springframework.data.domain.Page<JobPostingCatalogResponse> catalog(
-            Long workspaceId,
-            String keyword,
-            org.springframework.data.domain.Pageable pageable) {
+    public Page<JobPostingCatalogResponse> catalog(
+            Long workspaceId, String keyword, Pageable pageable) {
         Set<Long> savedIds =
                 workspaceJobApplicationRepository
                         .findAllByWorkspaceIdOrderByUpdatedAtDesc(workspaceId)
                         .stream()
                         .map(application -> application.getJobPosting().getId())
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         LocalDateTime now = LocalDateTime.now();
         return jobPostingRepository
                 .findSharedCatalog(keyword, now, pageable)
@@ -96,11 +100,7 @@ public class WorkspaceJobApplicationService {
     }
 
     public List<JobPostingCatalogResponse> catalog(Long workspaceId, String keyword) {
-        return catalog(
-                        workspaceId,
-                        keyword,
-                        org.springframework.data.domain.Pageable.unpaged())
-                .getContent();
+        return catalog(workspaceId, keyword, Pageable.unpaged()).getContent();
     }
 
     @Transactional
@@ -182,7 +182,7 @@ public class WorkspaceJobApplicationService {
 
             if (postingUrl != null) {
                 sourceUrlRepository.save(
-                        com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl.primary(
+                        JobPostingSourceUrl.primary(
                                 posting.getId(),
                                 scopeKey,
                                 postingUrl,
@@ -250,7 +250,7 @@ public class WorkspaceJobApplicationService {
                 request.matchScore(),
                 blankToNull(request.matchReason()));
         if (application.getStatus() != request.status()
-                || !java.util.Objects.equals(
+                || !Objects.equals(
                         application.getAppliedAt(),
                         normalizeAppliedAt(request.status(), request.appliedAt()))) {
             changeStatus(application, request.status(), request.appliedAt(), "지원 정보 수정");
@@ -283,7 +283,7 @@ public class WorkspaceJobApplicationService {
 
     private void changeStatus(
             WorkspaceJobApplication application,
-            com.selfintro.modules.jobposting.domain.enums.JobPostingStatus status,
+            JobPostingStatus status,
             LocalDate appliedAt,
             String memo) {
         LocalDateTime now = LocalDateTime.now();
@@ -293,9 +293,7 @@ public class WorkspaceJobApplicationService {
                         application.getId(), status, blankToNull(memo), now));
     }
 
-    private LocalDate normalizeAppliedAt(
-            com.selfintro.modules.jobposting.domain.enums.JobPostingStatus status,
-            LocalDate appliedAt) {
+    private LocalDate normalizeAppliedAt(JobPostingStatus status, LocalDate appliedAt) {
         if (status.isPreApplication()) {
             return null;
         }

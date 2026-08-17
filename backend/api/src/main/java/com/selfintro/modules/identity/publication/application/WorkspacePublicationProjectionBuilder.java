@@ -34,6 +34,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -103,7 +104,7 @@ public class WorkspacePublicationProjectionBuilder {
                                         PublicProfileDraft.ItemSelection::displayOrder))
                         .map(PublicProfileDraft.ItemSelection::id)
                         .map(workspaceSkills::get)
-                        .filter(java.util.Objects::nonNull)
+                        .filter(Objects::nonNull)
                         .map(SkillResponse::from)
                         .toList();
         List<Long> competencyIds =
@@ -160,7 +161,7 @@ public class WorkspacePublicationProjectionBuilder {
                                                     item.showOnTimeline(),
                                                     item.timelineLabel());
                                 })
-                        .filter(java.util.Objects::nonNull)
+                        .filter(Objects::nonNull)
                         .toList();
         Map<Long, ExperienceResponse> selectedById =
                 experiences.stream()
@@ -174,7 +175,7 @@ public class WorkspacePublicationProjectionBuilder {
                                         PublicExperienceDraft.PlacementSelection::displayOrder))
                         .map(PublicExperienceDraft.PlacementSelection::experienceId)
                         .map(selectedById::get)
-                        .filter(java.util.Objects::nonNull)
+                        .filter(Objects::nonNull)
                         .toList();
         Map<Long, PortfolioCaseStudyPublicSummaryResponse> publishedPortfolios =
                 portfolioCaseStudyService.listPublished(workspaceId).stream()
@@ -190,7 +191,7 @@ public class WorkspacePublicationProjectionBuilder {
                                         PublicExperienceDraft.PortfolioSelection::displayOrder))
                         .map(PublicExperienceDraft.PortfolioSelection::id)
                         .map(publishedPortfolios::get)
-                        .filter(java.util.Objects::nonNull)
+                        .filter(Objects::nonNull)
                         .toList();
         return new PublicExperienceSnapshot(experiences, coreProjects, portfolios);
     }
@@ -268,7 +269,7 @@ public class WorkspacePublicationProjectionBuilder {
                                     node.getParent() == null ? null : node.getParent().getId(),
                                     counts.getOrDefault(node.getId(), 0L));
                         })
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .toList();
     }
 

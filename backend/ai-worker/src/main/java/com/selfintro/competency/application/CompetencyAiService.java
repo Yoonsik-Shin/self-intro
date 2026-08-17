@@ -28,6 +28,9 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -619,17 +622,16 @@ public class CompetencyAiService {
 
     private <T> List<T> fetchAndValidate(
             List<Long> requestedIds,
-            java.util.function.Function<List<Long>, List<T>> batchFetcher,
-            java.util.function.Supplier<List<T>> fallbackAll,
-            java.util.function.Function<T, Long> idExtractor,
+            Function<List<Long>, List<T>> batchFetcher,
+            Supplier<List<T>> fallbackAll,
+            Function<T, Long> idExtractor,
             String label) {
         if (requestedIds == null || requestedIds.isEmpty()) {
             return fallbackAll.get();
         }
         List<T> found = batchFetcher.apply(requestedIds);
         if (found.size() != requestedIds.size()) {
-            Set<Long> foundIds =
-                    found.stream().map(idExtractor).collect(java.util.stream.Collectors.toSet());
+            Set<Long> foundIds = found.stream().map(idExtractor).collect(Collectors.toSet());
             List<Long> missing =
                     requestedIds.stream().filter(id -> !foundIds.contains(id)).toList();
             throw new ResponseStatusException(

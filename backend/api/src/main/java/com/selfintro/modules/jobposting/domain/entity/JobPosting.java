@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -84,7 +85,7 @@ public class JobPosting {
     private LocalDate deadline;
 
     @Column(name = "deadline_time")
-    private java.time.LocalTime deadlineTime;
+    private LocalTime deadlineTime;
 
     /** 마감일이 없으면서 공고 원문에 상시채용이라고 명시된 경우 true. 단순히 마감일을 못 읽은 경우와 구분하는 용도다. */
     @Column(name = "is_always_open", nullable = false)
@@ -315,7 +316,7 @@ public class JobPosting {
             JobPostingSource collectionMethod,
             String requiredSkillsRaw,
             LocalDate deadline,
-            java.time.LocalTime deadlineTime,
+            LocalTime deadlineTime,
             boolean alwaysOpen,
             String salaryNote,
             String location,
@@ -353,14 +354,14 @@ public class JobPosting {
         this.updatedAt = now;
     }
 
-    public java.time.LocalTime getDeadlineTime() {
+    public LocalTime getDeadlineTime() {
         if (alwaysOpen || deadline == null) {
             return null;
         }
-        return deadlineTime != null ? deadlineTime : java.time.LocalTime.of(23, 59, 59);
+        return deadlineTime != null ? deadlineTime : LocalTime.of(23, 59, 59);
     }
 
-    public void setDeadlineTime(java.time.LocalTime deadlineTime) {
+    public void setDeadlineTime(LocalTime deadlineTime) {
         this.deadlineTime = deadlineTime;
     }
 
@@ -378,7 +379,7 @@ public class JobPosting {
             String source,
             LocalDate appliedAt,
             LocalDate deadline,
-            java.time.LocalTime deadlineTime,
+            LocalTime deadlineTime,
             boolean alwaysOpen,
             String salaryNote,
             String location,
@@ -470,7 +471,7 @@ public class JobPosting {
             String postingUrl,
             String source,
             LocalDate deadline,
-            java.time.LocalTime deadlineTime,
+            LocalTime deadlineTime,
             boolean alwaysOpen,
             String salaryNote,
             String location,
@@ -758,7 +759,7 @@ public class JobPosting {
             String location,
             String employmentType,
             LocalDate deadline,
-            java.time.LocalTime deadlineTime,
+            LocalTime deadlineTime,
             boolean alwaysOpen,
             String salaryNote,
             String jobDescription,

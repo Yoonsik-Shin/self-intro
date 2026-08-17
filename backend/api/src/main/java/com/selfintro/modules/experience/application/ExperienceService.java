@@ -17,6 +17,7 @@ import com.selfintro.modules.storage.application.StorageService;
 import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.repository.TagRepository;
 import java.text.Normalizer;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -374,10 +375,7 @@ public class ExperienceService {
     }
 
     private Career resolveCareer(
-            Long workspaceId,
-            Long careerId,
-            java.time.LocalDate projectStart,
-            java.time.LocalDate projectEnd) {
+            Long workspaceId, Long careerId, LocalDate projectStart, LocalDate projectEnd) {
         if (careerId == null) {
             return null;
         }

@@ -25,6 +25,7 @@ import com.selfintro.modules.taxonomy.domain.repository.TaxonomyNodeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
@@ -141,7 +143,7 @@ public class LearningResourceService {
                         .findAllByWorkspaceIdOrderByDisplayOrderAscIdDesc(workspaceId)
                         .stream()
                         .map(overlay -> overlay.getLearningResource().getId())
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         String normalizedKeyword =
                 StringUtils.hasText(keyword) ? keyword.trim().toLowerCase(Locale.ROOT) : null;
         return learningResourceRepository.findAll().stream()
@@ -159,7 +161,7 @@ public class LearningResourceService {
                                                                         skill.getName(),
                                                                         normalizedKeyword)))
                 .sorted(
-                        java.util.Comparator.comparing(LearningResource::getTitle)
+                        Comparator.comparing(LearningResource::getTitle)
                                 .thenComparing(LearningResource::getId))
                 .map(
                         resource ->
@@ -177,7 +179,7 @@ public class LearningResourceService {
         Set<Long> visibleResourceIds =
                 overlays.stream()
                         .map(overlay -> overlay.getLearningResource().getId())
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         List<LearningResourceGraphResponse.EdgeResponse> edges =
                 overlays.stream()
                         .flatMap(overlay -> overlay.getLearningResource().getRelations().stream())

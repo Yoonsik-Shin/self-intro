@@ -2,6 +2,7 @@ package com.selfintro.modules.auth.application;
 
 import com.selfintro.modules.identity.domain.AppUser;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -18,7 +19,7 @@ public record AppUserPrincipal(
         implements UserDetails {
 
     public static AppUserPrincipal of(AppUser user, Set<String> platformRoles) {
-        Set<SimpleGrantedAuthority> authorities = new java.util.HashSet<>();
+        Set<SimpleGrantedAuthority> authorities = new HashSet<>();
         boolean platformAccount = !platformRoles.isEmpty();
         if (platformAccount && !user.isMfaEnabled()) {
             authorities.add(new SimpleGrantedAuthority("ROLE_MFA_ENROLLMENT_REQUIRED"));

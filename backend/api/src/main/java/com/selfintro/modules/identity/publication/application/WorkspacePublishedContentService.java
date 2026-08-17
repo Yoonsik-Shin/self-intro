@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -164,7 +165,7 @@ public class WorkspacePublishedContentService {
         Set<String> keys =
                 situations.stream()
                         .map(ExperienceTreeResponse.SituationSummary::stableKey)
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         return new ExperienceTreeResponse.Index(
                 snapshot.version(),
                 situations,

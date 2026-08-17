@@ -6,6 +6,7 @@ import com.selfintro.modules.experiencetree.domain.repository.*;
 import com.selfintro.modules.experiencetree.presentation.dto.DecisionStudyLinkRequest;
 import com.selfintro.modules.experiencetree.presentation.dto.ExperienceTreeResponse;
 import com.selfintro.modules.study.domain.entity.Study;
+import com.selfintro.modules.study.domain.enums.StudySection;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
 import com.selfintro.modules.study.domain.repository.StudyRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -94,7 +96,7 @@ public class ExperienceTreeService {
         Set<String> visibleKeys =
                 summaries.stream()
                         .map(ExperienceTreeResponse.SituationSummary::stableKey)
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         List<ExperienceTreeResponse.SituationRelation> relations =
                 relationRepository.findAllByOrderByDisplayOrderAsc().stream()
                         .filter(
@@ -345,8 +347,7 @@ public class ExperienceTreeService {
                                 DecisionStudyRelationType.REPLACED,
                                 DecisionStudyRelationType.RETROSPECT)
                         .contains(relationType)
-                && study.getSection()
-                        != com.selfintro.modules.study.domain.enums.StudySection.RETROSPECT) {
+                && study.getSection() != StudySection.RETROSPECT) {
             throw new IllegalArgumentException("회고 관계는 RETROSPECT Study에만 연결할 수 있습니다.");
         }
     }
@@ -375,7 +376,7 @@ public class ExperienceTreeService {
         Map<String, String> hashes =
                 situations.stream()
                         .collect(
-                                java.util.stream.Collectors.toMap(
+                                Collectors.toMap(
                                         DecisionSituation::getStableKey,
                                         DecisionSituation::getContentHash));
         String situationPart =
@@ -389,7 +390,7 @@ public class ExperienceTreeService {
                                                 + hashes.get(value.stableKey())
                                                 + ':'
                                                 + value.studyCount())
-                        .collect(java.util.stream.Collectors.joining("|"));
+                        .collect(Collectors.joining("|"));
         String relationPart =
                 relations.stream()
                         .map(
@@ -399,7 +400,7 @@ public class ExperienceTreeService {
                                                 + value.targetKey()
                                                 + ':'
                                                 + value.relationType())
-                        .collect(java.util.stream.Collectors.joining("|"));
+                        .collect(Collectors.joining("|"));
         return situationPart + "#" + relationPart;
     }
 }

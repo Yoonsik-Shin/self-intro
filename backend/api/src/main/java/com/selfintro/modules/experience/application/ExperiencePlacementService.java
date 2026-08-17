@@ -5,12 +5,15 @@ import com.selfintro.modules.experience.domain.enums.*;
 import com.selfintro.modules.experience.domain.repository.*;
 import com.selfintro.modules.experience.presentation.dto.ExperiencePlacementRequest;
 import com.selfintro.modules.experience.presentation.dto.ExperiencePlacementResponse;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -166,7 +169,7 @@ public class ExperiencePlacementService {
                                             placementsByExperienceId.get(request.experienceId());
                                     List<Long> detailIds =
                                             selectedDetailIds.get(request.experienceId());
-                                    return java.util.stream.IntStream.range(0, detailIds.size())
+                                    return IntStream.range(0, detailIds.size())
                                             .mapToObj(
                                                     index ->
                                                             ExperiencePlacementDetail.create(
@@ -183,7 +186,7 @@ public class ExperiencePlacementService {
     private List<ExperiencePlacementResponse> toResponses(
             List<ExperiencePlacement> saved, Map<Long, List<Long>> selectedDetailIds) {
         return saved.stream()
-                .sorted(java.util.Comparator.comparingInt(ExperiencePlacement::getDisplayOrder))
+                .sorted(Comparator.comparingInt(ExperiencePlacement::getDisplayOrder))
                 .map(
                         placement ->
                                 ExperiencePlacementResponse.from(
@@ -192,7 +195,7 @@ public class ExperiencePlacementService {
                 .toList();
     }
 
-    private void validateProjects(java.util.Collection<Experience> experiences) {
+    private void validateProjects(Collection<Experience> experiences) {
         for (Experience experience : experiences) {
             if (!"PROJECT".equals(experience.getType())) {
                 throw new IllegalArgumentException("프로젝트만 핵심 프로젝트로 편성할 수 있습니다.");

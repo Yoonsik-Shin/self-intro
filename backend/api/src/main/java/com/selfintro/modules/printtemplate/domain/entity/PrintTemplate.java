@@ -2,6 +2,7 @@ package com.selfintro.modules.printtemplate.domain.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "print_template")
@@ -327,7 +328,7 @@ public class PrintTemplate {
         this.schemaVersion = schemaVersion;
         this.visible = visible;
         this.displayOrder = displayOrder;
-        if (!java.util.Objects.equals(this.jobPostingId, jobPostingId)) {
+        if (!Objects.equals(this.jobPostingId, jobPostingId)) {
             // 연동된 공고 자체가 바뀌면 이전 공고 기준의 "최종 제출" 표시는 의미가 없다.
             this.finalSubmission = false;
         }

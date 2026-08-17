@@ -1,10 +1,12 @@
 package com.selfintro.modules.auth.application;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.util.Locale;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
@@ -76,8 +78,8 @@ public class TotpService {
     }
 
     private byte[] decodeBase32(String value) {
-        String normalized = value.replace("=", "").toUpperCase(java.util.Locale.ROOT);
-        java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+        String normalized = value.replace("=", "").toUpperCase(Locale.ROOT);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
         int buffer = 0;
         int bitsLeft = 0;
         for (char character : normalized.toCharArray()) {

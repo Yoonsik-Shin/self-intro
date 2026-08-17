@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -59,9 +60,7 @@ public class JobPostingCrudService {
     private final JobPostingPermissionReviewEventRepository permissionReviewEventRepository;
 
     public Page<JobPostingResponse> list(
-            String keyword,
-            JobPostingPermissionReviewStatus reviewStatus,
-            Pageable pageable) {
+            String keyword, JobPostingPermissionReviewStatus reviewStatus, Pageable pageable) {
         Page<JobPosting> page =
                 jobPostingRepository.findAdminPostings(keyword, reviewStatus, pageable);
         List<Long> ids = page.getContent().stream().map(JobPosting::getId).toList();
@@ -80,10 +79,8 @@ public class JobPostingCrudService {
                         JobPostingResponse.from(
                                 posting,
                                 sourceUrlsByPostingId.getOrDefault(posting.getId(), List.of()),
-                                positionChoicesByPostingId.getOrDefault(
-                                        posting.getId(), List.of()),
-                                sourceImagesByPostingId.getOrDefault(
-                                        posting.getId(), List.of())));
+                                positionChoicesByPostingId.getOrDefault(posting.getId(), List.of()),
+                                sourceImagesByPostingId.getOrDefault(posting.getId(), List.of())));
     }
 
     public List<JobPostingResponse> list() {
@@ -111,8 +108,7 @@ public class JobPostingCrudService {
                 request.expiresAt(),
                 reviewerUserId,
                 now);
-        permissionReviewEventRepository.save(
-                JobPostingPermissionReviewEvent.snapshot(posting));
+        permissionReviewEventRepository.save(JobPostingPermissionReviewEvent.snapshot(posting));
         return toResponse(posting);
     }
 
@@ -216,7 +212,7 @@ public class JobPostingCrudService {
         LocalDateTime now = LocalDateTime.now();
         String previousUrl = posting.getPostingUrl();
         String newUrl = request.postingUrl();
-        boolean urlChanged = !java.util.Objects.equals(previousUrl, newUrl);
+        boolean urlChanged = !Objects.equals(previousUrl, newUrl);
         if (urlChanged
                 && AiJsonSupport.hasText(newUrl)
                 && sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, newUrl)) {

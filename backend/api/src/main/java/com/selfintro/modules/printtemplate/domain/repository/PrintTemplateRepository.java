@@ -2,6 +2,7 @@ package com.selfintro.modules.printtemplate.domain.repository;
 
 import com.selfintro.modules.printtemplate.domain.entity.*;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -36,14 +37,13 @@ public interface PrintTemplateRepository extends JpaRepository<PrintTemplate, Lo
             findAllByWorkspaceIdAndPortfolioCaseStudyIdOrderByOrientationAscDisplayOrderAsc(
                     Long workspaceId, Long portfolioCaseStudyId);
 
-    java.util.Optional<PrintTemplate>
-            findByWorkspaceIdAndPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
-                    Long workspaceId, Long portfolioCaseStudyId, String orientation);
+    Optional<PrintTemplate> findByWorkspaceIdAndPortfolioCaseStudyIdAndOrientationAndVisibleTrue(
+            Long workspaceId, Long portfolioCaseStudyId, String orientation);
 
     long countByWorkspaceIdAndPortfolioCaseStudyIdAndOrientation(
             Long workspaceId, Long portfolioCaseStudyId, String orientation);
 
-    java.util.Optional<PrintTemplate> findByIdAndWorkspaceId(Long id, Long workspaceId);
+    Optional<PrintTemplate> findByIdAndWorkspaceId(Long id, Long workspaceId);
 
     /**
      * 중복 채용공고 병합(백필) 전용. 인쇄 템플릿이 연동하던 공고 행이 다른 승자 행으로 합쳐질 때, finalSubmission 등 다른 필드는 건드리지 않고

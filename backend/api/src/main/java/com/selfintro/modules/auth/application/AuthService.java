@@ -14,6 +14,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -51,7 +52,7 @@ public class AuthService {
             authentication =
                     authenticationManager.authenticate(
                             new UsernamePasswordAuthenticationToken(username, password));
-        } catch (org.springframework.security.core.AuthenticationException exception) {
+        } catch (AuthenticationException exception) {
             audit("LOGIN_FAILURE", null, "DENIED", "PRIMARY_CREDENTIALS_REJECTED");
             throw exception;
         }
@@ -64,7 +65,7 @@ public class AuthService {
             }
             try {
                 mfaVerification = mfaService.verifyLogin(principal, totpCode);
-            } catch (org.springframework.security.core.AuthenticationException exception) {
+            } catch (AuthenticationException exception) {
                 audit("LOGIN_FAILURE", principal.userId(), "DENIED", "MFA_REJECTED");
                 throw exception;
             }
@@ -122,7 +123,7 @@ public class AuthService {
             if (!passwordEncoder.matches(password, user.getPasswordHash())) {
                 throw new BadCredentialsException("Invalid credentials");
             }
-        } catch (org.springframework.security.core.AuthenticationException exception) {
+        } catch (AuthenticationException exception) {
             audit(
                     "REAUTHENTICATION_FAILURE",
                     principal.userId(),

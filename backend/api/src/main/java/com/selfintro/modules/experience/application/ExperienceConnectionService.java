@@ -18,6 +18,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
@@ -128,7 +129,7 @@ public class ExperienceConnectionService {
         Set<Long> targetIds =
                 relatedRequests.stream()
                         .map(RelatedExperienceRequest::experienceId)
-                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
         if (targetIds.contains(experienceId)) {
             throw new IllegalArgumentException("이력은 자기 자신과 연결할 수 없습니다.");
         }

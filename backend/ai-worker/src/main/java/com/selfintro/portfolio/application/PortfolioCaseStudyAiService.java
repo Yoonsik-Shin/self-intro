@@ -7,6 +7,7 @@ import static com.selfintro.global.ai.AiJsonSupport.safe;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
 import com.selfintro.modules.experience.domain.entity.Experience;
 import com.selfintro.modules.experience.domain.entity.ExperienceDetail;
@@ -24,6 +25,7 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -255,11 +257,8 @@ public class PortfolioCaseStudyAiService {
                         studies.stream().map(StudyFact::from).toList());
 
         Set<Long> allowedDetailIds =
-                details.stream()
-                        .map(ExperienceDetail::getId)
-                        .collect(java.util.stream.Collectors.toSet());
-        Set<Long> allowedStudyIds =
-                studies.stream().map(Study::getId).collect(java.util.stream.Collectors.toSet());
+                details.stream().map(ExperienceDetail::getId).collect(Collectors.toSet());
+        Set<Long> allowedStudyIds = studies.stream().map(Study::getId).collect(Collectors.toSet());
 
         return new PreparedGeneration(
                 extractionContext,
@@ -332,7 +331,7 @@ public class PortfolioCaseStudyAiService {
                         : new PortfolioCaseStudyContent.Outcome(
                                 limit(content.outcome().summary(), 300),
                                 safe(content.outcome().metrics()).stream()
-                                         .limit(6)
+                                        .limit(6)
                                         .filter(m -> m != null && hasText(m.label()))
                                         .map(
                                                 m ->
@@ -375,7 +374,7 @@ public class PortfolioCaseStudyAiService {
 
     private <T> T parseJson(String raw, Class<T> type, String stage)
             throws JsonProcessingException {
-        return com.selfintro.global.ai.AiJsonSupport.parseJson(objectMapper, raw, type, stage);
+        return AiJsonSupport.parseJson(objectMapper, raw, type, stage);
     }
 
     private void send(SseEmitter emitter, Object payload) {

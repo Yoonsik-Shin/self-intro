@@ -2,11 +2,13 @@ package com.selfintro.global.ai;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -302,7 +304,7 @@ public class NvidiaNimClient {
                 exception);
     }
 
-    private <T> T executeWithRetry(java.util.function.Supplier<T> supplier) {
+    private <T> T executeWithRetry(Supplier<T> supplier) {
         int maxAttempts = 3;
         long backoffMs = 500;
         Exception lastException = null;
@@ -328,7 +330,7 @@ public class NvidiaNimClient {
         throw translate(lastException);
     }
 
-    private <T> T executeWithTimeout(java.util.concurrent.Callable<T> callable, Duration timeout) {
+    private <T> T executeWithTimeout(Callable<T> callable, Duration timeout) {
         FutureTask<T> task = new FutureTask<>(callable);
         Thread worker = Thread.ofVirtual().name("nvidia-nim-bounded-call").start(task);
         try {

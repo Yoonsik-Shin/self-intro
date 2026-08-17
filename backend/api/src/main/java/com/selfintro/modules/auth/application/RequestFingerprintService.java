@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.HexFormat;
+import java.util.Locale;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,7 +32,7 @@ public class RequestFingerprintService {
 
     /** 인증 제한 키에 이메일/아이디 원문이 남지 않도록 동일한 HMAC 경계로 식별자를 변환한다. */
     public String hashIdentifier(String value) {
-        return hash(nullToEmpty(value).trim().toLowerCase(java.util.Locale.ROOT));
+        return hash(nullToEmpty(value).trim().toLowerCase(Locale.ROOT));
     }
 
     private String hash(String value) {

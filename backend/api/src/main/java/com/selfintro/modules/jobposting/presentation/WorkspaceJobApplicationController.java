@@ -14,6 +14,10 @@ import com.selfintro.modules.jobposting.presentation.dto.WorkspacePrivateJobPost
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,14 +44,11 @@ public class WorkspaceJobApplicationController {
     }
 
     @GetMapping("/catalog")
-    public org.springframework.data.domain.Page<JobPostingCatalogResponse> catalog(
+    public Page<JobPostingCatalogResponse> catalog(
             @CurrentWorkspace(WorkspaceAccessLevel.READ) Long workspaceId,
             @RequestParam(required = false) String q,
-            @org.springframework.data.web.PageableDefault(
-                            size = 20,
-                            sort = "createdAt",
-                            direction = org.springframework.data.domain.Sort.Direction.DESC)
-                    org.springframework.data.domain.Pageable pageable) {
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+                    Pageable pageable) {
         return workspaceJobApplicationService.catalog(workspaceId, q, pageable);
     }
 
@@ -111,8 +112,7 @@ public class WorkspaceJobApplicationController {
 
     @DeleteMapping("/{jobPostingId}")
     public ResponseEntity<Void> remove(
-            @CurrentWorkspace Long workspaceId,
-            @PathVariable Long jobPostingId) {
+            @CurrentWorkspace Long workspaceId, @PathVariable Long jobPostingId) {
         workspaceJobApplicationService.remove(workspaceId, jobPostingId);
         return ResponseEntity.noContent().build();
     }

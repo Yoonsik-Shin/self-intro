@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -231,7 +232,7 @@ public class Study {
                             existing -> existing.updateDisplayOrder(incoming.getDisplayOrder()),
                             () -> relations.add(incoming));
         }
-        relations.sort(java.util.Comparator.comparingInt(StudyRelation::getDisplayOrder));
+        relations.sort(Comparator.comparingInt(StudyRelation::getDisplayOrder));
     }
 
     public void setSkillLinked(Skill skill, boolean linked) {
@@ -290,6 +291,6 @@ public class Study {
             }
         }
 
-        images.sort(java.util.Comparator.comparingInt(StudyImage::getDisplayOrder));
+        images.sort(Comparator.comparingInt(StudyImage::getDisplayOrder));
     }
 }

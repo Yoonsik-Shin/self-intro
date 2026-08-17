@@ -11,6 +11,8 @@ import com.selfintro.modules.storage.application.ObjectStoragePort;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -295,7 +297,7 @@ public class WorkspacePurgeService {
         Set<WorkspacePurgeStore> existing =
                 checkpointRepository.findAllByPurgeJobIdOrderByStoreTypeAsc(jobId).stream()
                         .map(WorkspacePurgeCheckpoint::getStoreType)
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         for (WorkspacePurgeStore store : WorkspacePurgeStore.values()) {
             if (!existing.contains(store)) {
                 checkpointRepository.save(WorkspacePurgeCheckpoint.pending(jobId, store, now));
@@ -334,7 +336,7 @@ public class WorkspacePurgeService {
     public record PurgeJobView(
             Long id,
             Long workspaceId,
-            java.util.UUID workspacePublicKey,
+            UUID workspacePublicKey,
             String status,
             LocalDateTime eligibleAt,
             LocalDateTime lastInspectedAt,

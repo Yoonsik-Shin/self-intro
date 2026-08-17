@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -190,7 +191,7 @@ public class SaraminJobPostingClient {
                                 .atZone(SEOUL)
                                 .toLocalDate()
                         : null;
-        java.time.LocalTime deadlineTime =
+        LocalTime deadlineTime =
                 job.expirationTimestamp() != null
                         ? Instant.ofEpochSecond(job.expirationTimestamp())
                                 .atZone(SEOUL)

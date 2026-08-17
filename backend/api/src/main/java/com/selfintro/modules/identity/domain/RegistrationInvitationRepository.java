@@ -1,6 +1,7 @@
 package com.selfintro.modules.identity.domain;
 
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,5 @@ public interface RegistrationInvitationRepository
                or (invitation.status = 'REVOKED' and invitation.revokedAt < :cutoff)
             order by invitation.id
             """)
-    List<Long> findRetentionCandidateIds(
-            @Param("cutoff") java.time.LocalDateTime cutoff, Pageable pageable);
+    List<Long> findRetentionCandidateIds(@Param("cutoff") LocalDateTime cutoff, Pageable pageable);
 }

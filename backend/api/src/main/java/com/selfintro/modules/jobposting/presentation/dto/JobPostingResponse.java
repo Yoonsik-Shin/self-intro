@@ -13,6 +13,7 @@ import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 public record JobPostingResponse(
@@ -30,7 +31,7 @@ public record JobPostingResponse(
         JobPostingStatus status,
         LocalDate appliedAt,
         LocalDate deadline,
-        java.time.LocalTime deadlineTime,
+        LocalTime deadlineTime,
         boolean alwaysOpen,
         String salaryNote,
         String location,

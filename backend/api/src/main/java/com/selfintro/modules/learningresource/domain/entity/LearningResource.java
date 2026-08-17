@@ -23,6 +23,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -234,7 +235,6 @@ public class LearningResource {
                             existing -> existing.updateDisplayOrder(incoming.getDisplayOrder()),
                             () -> relations.add(incoming));
         }
-        relations.sort(
-                java.util.Comparator.comparingInt(LearningResourceRelation::getDisplayOrder));
+        relations.sort(Comparator.comparingInt(LearningResourceRelation::getDisplayOrder));
     }
 }

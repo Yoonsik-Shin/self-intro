@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,8 +37,7 @@ public class WorkspaceSlugController {
 
     @GetMapping("/slug-resolution")
     public WorkspaceSlugResolutionResponse resolution(
-            org.springframework.security.core.Authentication authentication,
-            @PathVariable String workspaceSlug) {
+            Authentication authentication, @PathVariable String workspaceSlug) {
         WorkspaceMember member =
                 workspaceAccessPolicy.requireAnyRole(
                         authentication,
@@ -51,8 +51,7 @@ public class WorkspaceSlugController {
 
     @GetMapping("/settings/slug")
     public WorkspaceSlugSettingsResponse settings(
-            org.springframework.security.core.Authentication authentication,
-            @PathVariable String workspaceSlug) {
+            Authentication authentication, @PathVariable String workspaceSlug) {
         WorkspaceMember member = manageMember(authentication, workspaceSlug);
         return slugService.settings(member.getWorkspace().getId());
     }
@@ -60,7 +59,7 @@ public class WorkspaceSlugController {
     @PutMapping("/settings/slug")
     @Transactional
     public WorkspaceSlugSettingsResponse changeSlug(
-            org.springframework.security.core.Authentication authentication,
+            Authentication authentication,
             HttpSession session,
             @PathVariable String workspaceSlug,
             @Valid @RequestBody WorkspaceSlugChangeRequest request) {
@@ -73,8 +72,7 @@ public class WorkspaceSlugController {
         return response;
     }
 
-    private WorkspaceMember manageMember(
-            org.springframework.security.core.Authentication authentication, String workspaceSlug) {
+    private WorkspaceMember manageMember(Authentication authentication, String workspaceSlug) {
         return workspaceAccessPolicy.requireAnyRole(
                 authentication, workspaceSlug, WorkspaceRole.OWNER, WorkspaceRole.ADMIN);
     }

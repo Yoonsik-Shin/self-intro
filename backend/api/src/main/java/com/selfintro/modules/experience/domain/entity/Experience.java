@@ -7,7 +7,9 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "experience")
@@ -163,7 +165,7 @@ public abstract class Experience {
                                         d.resumeAvailable(),
                                         d.displayOrder(),
                                         d.skills()))
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**
@@ -213,7 +215,7 @@ public abstract class Experience {
             }
         }
 
-        this.details.sort(java.util.Comparator.comparingInt(ExperienceDetail::getDisplayOrder));
+        this.details.sort(Comparator.comparingInt(ExperienceDetail::getDisplayOrder));
     }
 
     public void replaceTags(Collection<Tag> values) {
@@ -257,7 +259,7 @@ public abstract class Experience {
             }
         }
 
-        images.sort(java.util.Comparator.comparingInt(ExperienceImage::getDisplayOrder));
+        images.sort(Comparator.comparingInt(ExperienceImage::getDisplayOrder));
     }
 
     // Getters

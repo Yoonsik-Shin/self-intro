@@ -1,6 +1,7 @@
 package com.selfintro.modules.auth.application;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Comparator;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,7 +36,7 @@ public class SessionSecurityService {
                 principal.platformRoles().isEmpty() ? defaultMaxConcurrent : platformMaxConcurrent;
         var sessions =
                 repository.findByPrincipalName(principal.getUsername()).values().stream()
-                        .sorted(java.util.Comparator.comparing(Session::getLastAccessedTime))
+                        .sorted(Comparator.comparing(Session::getLastAccessedTime))
                         .toList();
         int deleteCount = Math.max(0, sessions.size() - maximum + 1);
         for (int index = 0; index < deleteCount; index++) {

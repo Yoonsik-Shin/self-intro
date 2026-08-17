@@ -1,5 +1,6 @@
 package com.selfintro.global.ai;
 
+import java.util.Locale;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -53,7 +54,7 @@ public class VectorEmbeddingService {
     private String formatAsOracleVectorString(float[] vector) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < vector.length; i++) {
-            sb.append(String.format(java.util.Locale.US, "%.6f", vector[i]));
+            sb.append(String.format(Locale.US, "%.6f", vector[i]));
             if (i < vector.length - 1) {
                 sb.append(",");
             }

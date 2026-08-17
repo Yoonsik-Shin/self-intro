@@ -1,6 +1,7 @@
 package com.selfintro.modules.identity.domain;
 
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -44,7 +45,7 @@ public interface WorkspaceMembershipInvitationRepository
             order by invitation.id
             """)
     List<Long> findRetentionCandidateIds(
-            @Param("cutoff") java.time.LocalDateTime cutoff,
+            @Param("cutoff") LocalDateTime cutoff,
             @Param("pending") WorkspaceMembershipInvitationStatus pending,
             @Param("accepted") WorkspaceMembershipInvitationStatus accepted,
             @Param("revoked") WorkspaceMembershipInvitationStatus revoked,

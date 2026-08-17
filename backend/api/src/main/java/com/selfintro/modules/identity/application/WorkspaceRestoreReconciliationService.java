@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -159,7 +160,7 @@ public class WorkspaceRestoreReconciliationService {
         Set<WorkspacePurgeStore> stores =
                 checkpointRepository.findAllByPurgeJobIdOrderByStoreTypeAsc(jobId).stream()
                         .map(checkpoint -> checkpoint.getStoreType())
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         return stores.size() == WorkspacePurgeStore.values().length
                 && stores.containsAll(List.of(WorkspacePurgeStore.values()));
     }

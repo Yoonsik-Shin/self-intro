@@ -3,6 +3,7 @@ package com.selfintro.modules.identity.application;
 import com.selfintro.modules.identity.domain.RegistrationInvitation;
 import com.selfintro.modules.identity.domain.RegistrationInvitationRepository;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
@@ -98,9 +99,7 @@ public class InvitationAdministrationService {
             existing.revoke(now);
         }
         int validForHours =
-                Math.max(
-                        1,
-                        (int) java.time.Duration.between(now, existing.getExpiresAt()).toHours());
+                Math.max(1, (int) Duration.between(now, existing.getExpiresAt()).toHours());
         return issue(
                 actorUserId,
                 existing.getLabel(),

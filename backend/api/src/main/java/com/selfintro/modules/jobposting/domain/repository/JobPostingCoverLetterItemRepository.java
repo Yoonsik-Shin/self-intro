@@ -2,6 +2,7 @@ package com.selfintro.modules.jobposting.domain.repository;
 
 import com.selfintro.modules.jobposting.domain.entity.JobPostingCoverLetterItem;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,7 +16,7 @@ public interface JobPostingCoverLetterItemRepository
     List<JobPostingCoverLetterItem> findAllByWorkspaceJobApplicationIdOrderByDisplayOrderAsc(
             Long workspaceJobApplicationId);
 
-    java.util.Optional<JobPostingCoverLetterItem> findByIdAndWorkspaceJobApplicationId(
+    Optional<JobPostingCoverLetterItem> findByIdAndWorkspaceJobApplicationId(
             Long id, Long workspaceJobApplicationId);
 
     void deleteAllByJobPostingId(Long jobPostingId);

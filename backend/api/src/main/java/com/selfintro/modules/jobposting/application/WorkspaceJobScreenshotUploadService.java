@@ -9,7 +9,9 @@ import com.selfintro.modules.storage.application.ImageScope;
 import com.selfintro.modules.storage.application.ObjectStoragePort;
 import com.selfintro.modules.storage.application.StorageService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -68,7 +70,7 @@ public class WorkspaceJobScreenshotUploadService {
         }
         LocalDateTime now = LocalDateTime.now();
         long totalBytes = 0;
-        java.util.ArrayList<ClaimedUpload> claimed = new java.util.ArrayList<>();
+        ArrayList<ClaimedUpload> claimed = new ArrayList<>();
         for (String uploadId : uploadIds) {
             WorkspaceJobScreenshotUpload upload =
                     repository
@@ -186,7 +188,7 @@ public class WorkspaceJobScreenshotUploadService {
         int separator = contentType.indexOf(';');
         return (separator >= 0 ? contentType.substring(0, separator) : contentType)
                 .trim()
-                .toLowerCase(java.util.Locale.ROOT);
+                .toLowerCase(Locale.ROOT);
     }
 
     public record ClaimedUpload(String uploadId, String objectKey, String contentType) {}

@@ -1,5 +1,6 @@
 package com.selfintro.modules.jobposting.domain.enums;
 
+import com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer;
 import java.util.Locale;
 
 /** 등록된 공고 URL이 어느 채용 플랫폼 소속인지 호스트 기준으로 판별한다. 원본보기 팝오버에 플랫폼 라벨을 붙이는 용도다. */
@@ -14,9 +15,7 @@ public enum JobPostingPlatform {
         if (url == null || url.isBlank()) {
             return OTHER;
         }
-        String host =
-                com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.extractHost(
-                        url);
+        String host = JobPostingUrlNormalizer.extractHost(url);
         if (host == null) {
             return OTHER;
         }

@@ -35,6 +35,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -221,25 +222,24 @@ public class StudyService {
         return studyRepository.findAllByWorkspaceIdOrderByTitleAsc(workspaceId).stream()
                 .filter(study -> study.getStatus() == StudyStatus.PUBLISHED)
                 .sorted(
-                        java.util.Comparator.comparing(
+                        Comparator.comparing(
                                         Study::getLearnedAt,
-                                        java.util.Comparator.nullsLast(
-                                                java.util.Comparator.reverseOrder()))
-                                .thenComparing(Study::getId, java.util.Comparator.reverseOrder()))
+                                        Comparator.nullsLast(Comparator.reverseOrder()))
+                                .thenComparing(Study::getId, Comparator.reverseOrder()))
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<StudyResponse> getForPublication(
-            Long workspaceId, List<Long> orderedIds, java.util.Set<Long> taxonomyIds) {
+            Long workspaceId, List<Long> orderedIds, Set<Long> taxonomyIds) {
         List<Long> distinctIds = orderedIds.stream().distinct().toList();
         Map<Long, Study> selected =
                 studyRepository.findAllByWorkspaceIdAndIdIn(workspaceId, distinctIds).stream()
-                        .collect(java.util.stream.Collectors.toMap(Study::getId, study -> study));
+                        .collect(Collectors.toMap(Study::getId, study -> study));
         if (selected.size() != distinctIds.size()) {
             throw new IllegalArgumentException("다른 Workspace의 Study가 포함되어 있습니다.");
         }
-        java.util.Set<Long> selectedIds = java.util.Set.copyOf(distinctIds);
+        Set<Long> selectedIds = Set.copyOf(distinctIds);
         return distinctIds.stream()
                 .map(selected::get)
                 .map(this::toResponse)

@@ -6,6 +6,7 @@ import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.modules.study.domain.entity.Study;
 import com.selfintro.modules.study.domain.entity.StudyImage;
 import com.selfintro.modules.study.domain.entity.StudyRelation;
+import com.selfintro.modules.study.domain.entity.Tag;
 import com.selfintro.modules.study.domain.enums.StudyRelationType;
 import com.selfintro.modules.study.domain.enums.StudySection;
 import com.selfintro.modules.study.domain.enums.StudyStatus;
@@ -99,7 +100,7 @@ public record StudyResponse(
     }
 
     public record TagResponse(Long id, String name, String slug) {
-        public static TagResponse from(com.selfintro.modules.study.domain.entity.Tag tag) {
+        public static TagResponse from(Tag tag) {
             return new TagResponse(tag.getId(), tag.getName(), tag.getSlug());
         }
     }

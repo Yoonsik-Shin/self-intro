@@ -3,6 +3,7 @@ package com.selfintro.modules.experiencetree.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.selfintro.modules.experiencetree.domain.entity.*;
+import com.selfintro.modules.experiencetree.domain.enums.TradeoffCriterion;
 import com.selfintro.modules.experiencetree.domain.repository.*;
 import com.selfintro.modules.identity.application.PublicWorkspaceResolver;
 import com.selfintro.modules.study.domain.entity.Study;
@@ -12,12 +13,14 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,7 +66,7 @@ public class ExperienceTreeImporter {
     private boolean isMySql() {
         Boolean result =
                 jdbcTemplate.execute(
-                        (org.springframework.jdbc.core.ConnectionCallback<Boolean>)
+                        (ConnectionCallback<Boolean>)
                                 connection ->
                                         connection
                                                 .getMetaData()
@@ -374,10 +377,10 @@ public class ExperienceTreeImporter {
 
     private void reconcileTradeoffs(
             DecisionOption option, ExperienceTreeDocument.OptionDocument draft) {
-        Set<com.selfintro.modules.experiencetree.domain.enums.TradeoffCriterion> desired =
+        Set<TradeoffCriterion> desired =
                 safe(draft.tradeoffs()).stream()
                         .map(ExperienceTreeDocument.TradeoffDocument::criterion)
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         tradeoffRepository.findAllByOptionId(option.getId()).stream()
                 .filter(value -> !desired.contains(value.getCriterion()))
                 .forEach(tradeoffRepository::delete);

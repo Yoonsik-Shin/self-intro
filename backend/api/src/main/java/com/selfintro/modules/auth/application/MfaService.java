@@ -6,9 +6,11 @@ import jakarta.servlet.http.HttpSession;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,8 +43,7 @@ public class MfaService {
     public Enrollment beginEnrollment(AppUserPrincipal principal, HttpSession session) {
         requirePlatformAccount(principal);
         if (principal.mfaEnabled()) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "MFA 재등록은 복구 절차를 통해서만 가능합니다.");
+            throw new AccessDeniedException("MFA 재등록은 복구 절차를 통해서만 가능합니다.");
         }
         String secret = totpService.newSecret();
         session.setAttribute(PENDING_SECRET, secret);
@@ -165,8 +166,7 @@ public class MfaService {
 
     private void requirePlatformAccount(AppUserPrincipal principal) {
         if (principal.platformRoles().isEmpty()) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "플랫폼 계정만 MFA를 등록할 수 있습니다.");
+            throw new AccessDeniedException("플랫폼 계정만 MFA를 등록할 수 있습니다.");
         }
     }
 
@@ -178,8 +178,7 @@ public class MfaService {
                     principal.userId(),
                     "DENIED",
                     "RECOVERY_SESSION_REQUIRED");
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "복구 코드로 로그인한 세션에서만 MFA를 재등록할 수 있습니다.");
+            throw new AccessDeniedException("복구 코드로 로그인한 세션에서만 MFA를 재등록할 수 있습니다.");
         }
     }
 
@@ -194,7 +193,7 @@ public class MfaService {
 
     public record Enrollment(String secret, String otpauthUri) {}
 
-    public record RecoveryCodes(java.util.List<String> codes) {}
+    public record RecoveryCodes(List<String> codes) {}
 
     public enum LoginVerification {
         NOT_REQUIRED,
