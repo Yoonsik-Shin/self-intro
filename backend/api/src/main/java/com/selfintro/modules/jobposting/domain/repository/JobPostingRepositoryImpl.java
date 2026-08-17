@@ -10,6 +10,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionBasis;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionReviewStatus;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -70,6 +71,39 @@ public class JobPostingRepositoryImpl implements JobPostingRepositoryCustom {
         List<JobPosting> content = query.fetch();
 
         // 4. Count 쿼리 최적화
+        JPAQuery<Long> countQuery =
+                queryFactory
+                        .select(jobPosting.id.countDistinct())
+                        .from(jobPosting)
+                        .where(where);
+
+        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+    }
+
+    @Override
+    public Page<JobPosting> findAdminPostings(
+            String keyword,
+            JobPostingPermissionReviewStatus reviewStatus,
+            Pageable pageable) {
+        BooleanBuilder where = new BooleanBuilder();
+        where.and(jobPosting.ownerWorkspaceId.isNull());
+        where.and(jobPosting.status.ne(JobPostingStatus.EXPIRED));
+        if (reviewStatus != null) {
+            where.and(jobPosting.permissionReviewStatus.eq(reviewStatus));
+        }
+        where.and(keywordContains(keyword));
+
+        JPAQuery<JobPosting> query =
+                queryFactory
+                        .selectFrom(jobPosting)
+                        .where(where)
+                        .offset(pageable.getOffset())
+                        .limit(pageable.getPageSize());
+
+        applySorting(query, pageable.getSort());
+
+        List<JobPosting> content = query.fetch();
+
         JPAQuery<Long> countQuery =
                 queryFactory
                         .select(jobPosting.id.countDistinct())

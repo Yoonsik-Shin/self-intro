@@ -2,11 +2,13 @@ package com.selfintro.modules.jobposting.application;
 
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
+import com.selfintro.modules.jobposting.domain.entity.JobPostingPermissionReviewEvent;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingPositionChoice;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSetting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingStatusEvent;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionReviewStatus;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingPlatform;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPermissionReviewEventRepository;
@@ -27,9 +29,12 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
@@ -53,32 +58,36 @@ public class JobPostingCrudService {
     private final JobPostingSettingRepository settingRepository;
     private final JobPostingPermissionReviewEventRepository permissionReviewEventRepository;
 
-    public List<JobPostingResponse> list() {
-        List<JobPosting> postings =
-                jobPostingRepository.findByOwnerWorkspaceIdIsNullAndStatusNotOrderByCreatedAtDesc(
-                        JobPostingStatus.EXPIRED);
-        List<Long> ids = postings.stream().map(JobPosting::getId).toList();
-        java.util.Map<Long, List<JobPostingSourceUrl>> sourceUrlsByPostingId =
+    public Page<JobPostingResponse> list(
+            String keyword,
+            JobPostingPermissionReviewStatus reviewStatus,
+            Pageable pageable) {
+        Page<JobPosting> page =
+                jobPostingRepository.findAdminPostings(keyword, reviewStatus, pageable);
+        List<Long> ids = page.getContent().stream().map(JobPosting::getId).toList();
+        Map<Long, List<JobPostingSourceUrl>> sourceUrlsByPostingId =
                 sourceUrlRepository.findByJobPostingIdInOrderByPrimaryDescCreatedAtAsc(ids).stream()
                         .collect(Collectors.groupingBy(JobPostingSourceUrl::getJobPostingId));
-        java.util.Map<Long, List<JobPostingPositionChoice>> positionChoicesByPostingId =
+        Map<Long, List<JobPostingPositionChoice>> positionChoicesByPostingId =
                 positionChoiceRepository.findByJobPostingIdInOrderByRankOrderAsc(ids).stream()
                         .collect(Collectors.groupingBy(JobPostingPositionChoice::getJobPostingId));
-        java.util.Map<Long, List<JobPostingSourceImage>> sourceImagesByPostingId =
+        Map<Long, List<JobPostingSourceImage>> sourceImagesByPostingId =
                 sourceImageRepository.findByJobPostingIdInOrderByDisplayOrderAsc(ids).stream()
                         .collect(Collectors.groupingBy(JobPostingSourceImage::getJobPostingId));
-        return postings.stream()
-                .map(
-                        posting ->
-                                JobPostingResponse.from(
-                                        posting,
-                                        sourceUrlsByPostingId.getOrDefault(
-                                                posting.getId(), List.of()),
-                                        positionChoicesByPostingId.getOrDefault(
-                                                posting.getId(), List.of()),
-                                        sourceImagesByPostingId.getOrDefault(
-                                                posting.getId(), List.of())))
-                .toList();
+
+        return page.map(
+                posting ->
+                        JobPostingResponse.from(
+                                posting,
+                                sourceUrlsByPostingId.getOrDefault(posting.getId(), List.of()),
+                                positionChoicesByPostingId.getOrDefault(
+                                        posting.getId(), List.of()),
+                                sourceImagesByPostingId.getOrDefault(
+                                        posting.getId(), List.of())));
+    }
+
+    public List<JobPostingResponse> list() {
+        return list(null, null, Pageable.unpaged()).getContent();
     }
 
     public JobPostingResponse get(Long id) {
@@ -103,8 +112,7 @@ public class JobPostingCrudService {
                 reviewerUserId,
                 now);
         permissionReviewEventRepository.save(
-                com.selfintro.modules.jobposting.domain.entity.JobPostingPermissionReviewEvent
-                        .snapshot(posting));
+                JobPostingPermissionReviewEvent.snapshot(posting));
         return toResponse(posting);
     }
 

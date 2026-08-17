@@ -1,6 +1,7 @@
 'use client';
 
 import { request } from './client';
+import type { PageResponse } from './types';
 
 export type JobCatalogPermissionBasis =
     'UNKNOWN' | 'EMPLOYER_DIRECT_SUBMISSION' | 'WRITTEN_LICENSE' | 'OFFICIAL_API_LICENSE';
@@ -55,8 +56,31 @@ export type JobCatalogPermissionReviewEvent = {
     reviewedAt: string;
 };
 
+export type JobCatalogPermissionQueryParams = {
+    q?: string;
+    reviewStatus?: JobCatalogPermissionReviewStatus;
+    page?: number;
+    size?: number;
+    sort?: string;
+    direction?: 'ASC' | 'DESC';
+};
+
 export const jobCatalogPermissionApi = {
-    list: () => request<JobCatalogPermissionPosting[]>('/api/admin/job-postings'),
+    list: (params?: JobCatalogPermissionQueryParams) => {
+        const search = new URLSearchParams();
+        if (params?.q) search.set('q', params.q);
+        if (params?.reviewStatus) search.set('reviewStatus', params.reviewStatus);
+        if (params?.page !== undefined) search.set('page', String(params.page));
+        if (params?.size !== undefined) search.set('size', String(params.size));
+        if (params?.sort) {
+            search.set('sort', `${params.sort},${(params.direction || 'DESC').toLowerCase()}`);
+        }
+        const queryString = search.toString();
+        const url = queryString
+            ? `/api/admin/job-postings?${queryString}`
+            : '/api/admin/job-postings';
+        return request<PageResponse<JobCatalogPermissionPosting>>(url);
+    },
     review: (id: number, payload: JobCatalogPermissionReviewRequest) =>
         request<JobCatalogPermissionPosting>(`/api/admin/job-postings/${id}/permission-review`, {
             method: 'PUT',

@@ -4,6 +4,7 @@ import com.selfintro.modules.auth.application.AppUserPrincipal;
 import com.selfintro.modules.jobposting.application.JobPostingCrudService;
 import com.selfintro.modules.jobposting.application.JobPostingDedupMigrationService;
 import com.selfintro.modules.jobposting.application.JobPostingGeocodingBackfillRunner;
+import com.selfintro.modules.jobposting.domain.enums.JobPostingPermissionReviewStatus;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingPermissionReviewEventResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingPermissionReviewRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
@@ -12,6 +13,10 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -47,8 +53,12 @@ public class JobPostingCrudController {
     }
 
     @GetMapping
-    public List<JobPostingResponse> list() {
-        return crudService.list();
+    public Page<JobPostingResponse> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) JobPostingPermissionReviewStatus reviewStatus,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+                    Pageable pageable) {
+        return crudService.list(q, reviewStatus, pageable);
     }
 
     @GetMapping("/{id}")
