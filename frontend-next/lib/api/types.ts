@@ -102,13 +102,22 @@ export type StudyRequest = {
     publishedAt?: string | null;
 };
 
-export type StudyPage = {
-    content: Study[];
+export type PageResponse<T> = {
+    content: T[];
     page: number;
     size: number;
     totalElements: number;
     totalPages: number;
 };
+
+export type PageRequest = {
+    page?: number;
+    size?: number;
+    sort?: string;
+    direction?: 'ASC' | 'DESC';
+};
+
+export type StudyPage = PageResponse<Study>;
 
 export type StudySuggestionRequest = {
     instruction: string;

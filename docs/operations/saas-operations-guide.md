@@ -108,15 +108,13 @@ Workspace 집계를 함께 갱신한다. `/api/workspaces/{slug}/visits/manage/*
 - V205 자기소개서 문항·답변을 `workspace_job_application` 자식으로 backfill하고 revision FK를
   연결. `/api/workspaces/{slug}/job-applications/manage/{postingId}/cover-letter-items`에서
   Membership과 지원 건 소유권을 검증하며 수동 작성 UI를 일반 Workspace에 개방
-- 기존 `/api/worker/job-postings/**` 자기소개서·Gap 경로는 bootstrap Workspace 호환용으로만
-  유지하고 플랫폼 운영자에게만 허용
 - Workspace 자기소개서 AI는
-  `/api/worker/workspaces/{slug}/job-applications/manage/{postingId}/generate-cover-letter-draft`에서
+  `/api/workspaces/{slug}/job-applications/manage/{postingId}/generate-cover-letter-draft`에서
   지원 건·문항과 경력 RAG의 Workspace를 검증한 뒤 일반 Workspace에 개방
 - V206은 어필 분석을 `workspace_job_application`에 저장하고 Gap 문서를 지원 건 하위로 backfill한다.
   Gap 생성도 명시적 Workspace 경력 RAG만 사용한다.
 - 채용공고 PDF AI 초안은
-  `/api/worker/workspaces/{slug}/job-applications/manage/{postingId}/print-template-draft/stream`에서
+  `/api/workspaces/{slug}/job-applications/manage/{postingId}/print-template-draft/stream`에서
   Workspace 지원 건을 확인하고 해당 Workspace의 이력·벡터만 사용한다. 재생성은 같은 Workspace와
   같은 지원 공고에 연결된 PrintTemplate만 허용한다.
 - 최종 제출 PDF는 `/api/workspaces/{slug}/print-templates/manage/job-applications/**`에서 지원 건과
@@ -125,7 +123,7 @@ Workspace 집계를 함께 갱신한다. `/api/workspaces/{slug}/visits/manage/*
   PrintTemplate CRUD·출력 UI는 일반 Workspace에 개방하되 명시적 Workspace 계약이 없는 Portfolio AI
   revision 버튼은 플랫폼 역할 여부와 무관하게 관리 셸에서 비활성화한다.
 - Workspace 적합도 재계산은
-  `POST /api/worker/workspaces/{slug}/job-applications/manage/{postingId}/rematch`만 canonical 경로로
+  `POST /api/workspaces/{slug}/job-applications/manage/{postingId}/rematch`만 canonical 경로로
   사용한다. `OWNER`, `ADMIN`, `EDITOR` Membership을 확인하고 해당 Workspace의 `workspace_skill`만
   입력으로 사용하며 결과는 `workspace_job_application`에 저장한다. `job_posting_vector`는 공고 원문
   catalog 벡터이므로 `workspace_id`가 없는 것이 정상이다. 공용 수집·등록·새로고침에서 개인화 점수를
@@ -160,6 +158,11 @@ Workspace 집계를 함께 갱신한다. `/api/workspaces/{slug}/visits/manage/*
   최근 개수+최소 기간 retention 정책과 `발행 관리` 이력 UI
 - V213 canonical Workspace slug registry, 기존 slug active alias, 공개 페이지 308 redirect,
   `OWNER`·`ADMIN` 최근 재인증 기반 변경 UI와 보안 감사 이벤트
+- Workspace 대시보드 경량 요약 API (`GET /api/workspaces/{workspaceSlug}/dashboard-summary`) 도입:
+  홈 대시보드 진입 시 전체 엔티티 6종을 로드하던 Over-fetching을 제거하고 단일 집계 쿼리로 최적화
+- 전사 페이지네이션 표준화 (Offset 기반 `Pageable` + QueryDSL + `PageResponse<T>` + `PaginationControls`):
+  공통 채용공고 카탈로그 (`/api/workspaces/{workspaceSlug}/job-applications/manage/catalog`)를
+  In-memory 필터링에서 QueryDSL 기반 DB 페이징·검색으로 최적화 및 UI 탭 지연 로딩(`enabled: mode === 'CATALOG'`) 적용
 - V214 가입 초대와 분리된 Workspace 참여 초대, hash token·이메일 수락, 멤버 역할·제거·소유권 이전,
   최근 재인증과 보안 감사 이벤트
 
@@ -1915,10 +1918,10 @@ macOS Finder로 프로젝트를 휴지통에서 복원하면 복원된 디렉터
 - `공고 가져오기`는 V223의 재노출 권한 심사를 통과한 공통 공고 검색과 Workspace 비공개 원본 등록을
   명확히 분리한다. 공통 공고는 플랫폼 원본을 참조하고, URL·직접 입력은 V224의
   `owner_workspace_id`와 `scope_key=WORKSPACE:{id}`가 설정된 별도 원본을 만든다.
-- URL 가져오기는 `POST /api/worker/workspaces/{slug}/job-applications/manage/parse-url`에서
+- URL 가져오기는 `POST /api/workspaces/{slug}/job-applications/manage/parse-url`에서
   Membership 쓰기 권한을 먼저 검사하고 저장 없이 해석 결과만 반환한다. 사용자가 원문과 결과를
   검토한 뒤 `POST .../private-sources`를 호출해야 비공개 원본과 지원 건이 함께 생성된다. 전역
-  `/api/worker/job-postings/parse-url` 또는 운영자용 ingest API를 일반 사용자 UI에서 호출하지 않는다.
+  `/api/admin/job-postings/parse-url` 또는 운영자용 ingest API를 일반 사용자 UI에서 호출하지 않는다.
 - 같은 Workspace와 URL 조합은 하나의 비공개 원본만 가진다. 지원 목록에서 제외하면 지원 건과 그
   하위 상태·자기소개서만 제거되고 원본은 남는다. 다시 가져올 때 기존 비공개 원본의 최신 입력값을
   갱신하고 새 지원 건을 연결하므로 중복 원본과 재등록 막힘이 생기지 않는다.
@@ -2610,3 +2613,98 @@ SELECT 'portfolio_case_study_study', COUNT(*) FROM portfolio_case_study_study;
 - 로컬 DB 및 운영 DB의 `V1` 재기준화 전환 및 `aaf72fc` 백엔드 배포를 성공적으로 완료했다.
 - 기존 140개 마이그레이션 이력은 `flyway_schema_history_pre_v1_...` 테이블에 안전하게 보존 중이며,
   109개 애플리케이션 테이블 데이터와 스키마 무결성, `/actuator/health` UP 및 Ingress 200이 검증되었다.
+
+### 15.32 2026-08-15 로컬 Flyway checksum 복구와 운영 분리 원칙
+
+- 로컬 Compose MySQL은 적용 당시와 현재 파일의 checksum이 달랐던 V188·V189·V231 때문에 backend가
+  Flyway validation에서 중단됐다. 기존 schema에 `flyway_schema_history` 전체를 비우고 V1부터 다시
+  적용하는 방식은 데이터·DDL 중복 위험이 있으므로 사용하지 않았다.
+- 복구 전 로컬 DB 전체 dump를
+  `/private/tmp/self_intro_local_before_flyway_checksum_repair_20260815_complete.sql`에 저장했다. 파일 크기는
+  `32675068` bytes이고 SHA-256은
+  `87586f9edbdc362495c09e12f7f798e7840d6a8a7689d1aae896e78292fa1bff`이다.
+- 현재 migration의 실제 결과와 로컬 데이터를 먼저 대조했다. V188 대상 상세 6개, 상세 기술 연결 26개,
+  경험 기술 연결 17개, 임시 표식 0개였고 V189의 RAG 연결 1개·이전 연결 0개, V231 제거 대상 테이블
+  0개였다. 이 불변식이 모두 일치한 뒤 로컬 `flyway_schema_history`의 성공 행 세 개만 현재 파일
+  checksum으로 맞췄다: V188 `-699033632`, V189 `-171393772`, V231 `955932332`.
+- 복구 후 로컬 backend는 Flyway migration 140개를 검증했고 schema v235가 최신임을 확인했다.
+  `SelfIntroApplication`이 정상 기동했으며 컨테이너 health는 `UP`이고 liveness·readiness group도 `UP`이다.
+- 운영은 별도 DB이므로 로컬 checksum 복구를 전파하지 않았다. 현재 운영 API·Worker·Frontend는 image
+  tag `20f45fc`, Ready `1/1`, Pod restart 0회다. 운영 API는 Flyway migration 141개를 검증한 뒤
+  schema v231에서 V232~V235를 적용해 정상 기동했으며 운영 DB의 V188·V189·V231 성공 이력은 기존
+  검증 기록대로 유지한다.
+- 로컬 140개와 운영 141개라는 validation 수 차이는 관측값으로 남기며, 이를 맞추기 위해 운영 history를
+  수정하지 않는다. 다음 배포 전에는 동일 image를 disposable DB와 운영 사전 점검 환경에서 각각 실행해
+  resolved/applied migration 목록 차이를 먼저 비교한다.
+- 앞으로 이미 적용된 versioned migration 파일은 수정하지 않는다. schema나 데이터 보정은 V236 이상의
+  새 migration으로 추가하고, 운영 적용 전 snapshot·불변식 쿼리·rollback 판단 기준을 함께 준비한다.
+
+### 15.33 백엔드 멀티 모듈 구조 단순화 (:api + :ai-worker 2모듈 체제)
+
+- `:core` 모듈에 모여 있던 엔티티, 비즈니스 로직, REST Controller(50여 개), Proto 정의, 리소스 파일들을 메인 서버 모듈인 `:api`로 완전히 일원화했다.
+- `:api` 모듈에서 불필요한 `:ai-worker` 의존성을 제거하고, `SelfIntroApplication`의 복잡한 정규식 컴포넌트 스캔 제외 필터(`@ComponentScan.Filter`)를 제거하여 표준 Spring Boot 구성으로 정리했다.
+- `:ai-worker`는 도메인 엔티티 및 gRPC proto를 공유하기 위해 `:api`의 plain jar를 참조(`api project(':api')`)하도록 정리했다.
+- 백엔드 모듈 빌드 및 테스트 단위는 `:api:test :ai-worker:test`로 확정되었으며, `Dockerfile.api` 및 `Dockerfile.worker`의 빌드 단계와 불필요한 의존성(API 컨테이너 내 Playwright 설치 등)을 제거하여 최적화했다.
+- 전체 빌드 및 테스트 검증: `./gradlew clean compileJava compileTestJava`, `./gradlew test`, `./gradlew spotlessCheck` 성공.
+
+### 15.34 Backend 단일 진입점 및 Worker 내부망 완전 격리 (내부 위임 아키텍처)
+
+- `backend-worker`를 외부 인터넷 및 Ingress에서 100% 격리(Private Network / ClusterIP)하고, `backend`(API 서버)가 모든 외부 트래픽(`/api/**`)의 단일 진입점(Entrypoint)이 되도록 아키텍처를 개편했다.
+- **Ingress / Nginx 라우팅 단순화**:
+  - Ingress(`deploy/k8s/overlays/prod/backend/ingress.yaml`) 및 Nginx(`docker/nginx/nginx.conf`)에서 복잡한 L7 정규식과 Worker 라우팅 분기를 모두 제거하고, 모든 `/` 트래픽을 `backend:8080` 단일 대상으로 라우팅하도록 단순화했다.
+  - 외부에서 `backend-worker`로의 직접 접근 경로가 원천 차단되었다.
+- **인증/인가 중앙화 및 내부 위임 (`AiWorkerClient`)**:
+  - `backend` 모듈에서 모든 사용자 세션, CSRF, Workspace 권한(`WorkspaceAccessPolicy`), 관리자 인가(`ADMIN` 역할), 최근 재인증(`RecentReauthenticationPolicy`)을 일괄 검증한다.
+  - `backend`의 Proxy Controller(`WorkspaceJobApplicationAiProxyController`, `WorkspacePortfolioCaseStudyPrintDraftProxyController`, `AdminJobPostingAiProxyController`, `VectorSyncProxyController`)가 `AiWorkerClient`를 통해 k8s 내부망(`http://self-intro-backend-worker:8081/internal/...` 및 `grpc:9090`)으로 작업을 전달한다.
+  - AI 초안 생성 및 공고 수집 등의 SSE(Server-Sent Events) 스트리밍은 `AiWorkerClient.pipePost`와 Spring `StreamingResponseBody`를 통해 `backend`가 Worker 스트림을 클라이언트로 무지연 중계(Zero-delay Relay)한다.
+- **`ai-worker` 내부 전용 서비스 경량화**:
+  - `ai-worker`의 컨트롤러는 `@RequestMapping("/internal/...")` 전용 엔드포인트로 정리되었으며, `Authentication`이나 `WorkspaceAccessPolicy` 의존성 없이 내부 `workspaceId`로 직접 동작하는 순수 연산 Worker로 격리되었다.
+  - 비공개 공고 스크린샷 파싱의 경우 S3 임시 객체 및 DB 티켓 관리(`WorkspaceJobScreenshotUploadService`)는 `api` 서버의 `WorkspaceJobApplicationAiProxyController`에서 전담하며, `ai-worker`(`WorkspaceJobPrivateSourceParseController`)에는 순수 이미지 바이트/MIME 페이로드(`/internal/.../parse-images`)만 전달하도록 분리하여 워커의 상태 의존성을 완전히 제거했다.
+- **배포 환경 설정**:
+  - K8s ConfigMap: `WORKER_BASE_URL=http://self-intro-backend-worker:8081`
+  - Docker Compose: `WORKER_BASE_URL=http://backend-worker:8081`
+  - Local default: `http://localhost:8081`
+
+### 15.35 AI 추론 서비스의 `ai-worker` 완전 위임 및 API 프록시 일원화
+
+- `api` 모듈 내에 남아있던 4개 도메인의 AI 추론 로직(`StudyAiService`, `CompetencyAiService`, `ExperienceAiService`, `PortfolioCaseStudyAiService`)을 `ai-worker`로 완전히 이전했다.
+- **Worker 엔드포인트 신설**:
+  - `POST /internal/workspaces/{workspaceId}/studies/manage/ai/suggestions` & `/stream`
+  - `POST /internal/workspaces/{workspaceId}/competencies/ai/suggestions` & `/stream`
+  - `POST /internal/workspaces/{workspaceId}/experiences/manage/ai/suggestions` & `/stream` & `/details/narrative`
+  - `POST /internal/workspaces/{workspaceId}/portfolio/case-studies/manage/{caseStudyId}/revisions/generate`
+- **API 서버 프록시 전환**:
+  - `WorkspaceStudyAiController`, `WorkspaceCompetencyAiController`, `WorkspaceExperienceAiController`, `WorkspacePortfolioCaseStudyAiController`가 `AiWorkerClient`를 통해 `ai-worker`로 요청을 위임하고 SSE 스트림을 중계하도록 전환했다.
+  - `api` 서버에서 `NvidiaNimClient` 직접 호출이 완전히 제거되어 LLM 추론 부하가 `ai-worker`로 100% 격리되었다.
+- **단위 테스트 및 빌드 검증**:
+  - `api` 프록시 컨트롤러 테스트 4종 및 `ai-worker` AI 서비스/컨트롤러 단위 테스트 전체 통과 (`./gradlew test`).
+
+### 15.36 `@CurrentWorkspace` HandlerMethodArgumentResolver 도입
+
+- 컨트롤러 전반에 산재해 있던 `readWorkspaceId()`, `writeWorkspaceId()` private 헬퍼 메서드 및 `WorkspaceAccessPolicy` 보일러플레이트를 선언적 어노테이션(`@CurrentWorkspace`) 및 `HandlerMethodArgumentResolver`로 일원화했다.
+- **`@CurrentWorkspace` & `WorkspaceAccessLevel`**:
+  - `WorkspaceAccessLevel.READ` (OWNER, ADMIN, EDITOR, VIEWER)
+  - `WorkspaceAccessLevel.WRITE` (OWNER, ADMIN, EDITOR - 기본값)
+  - `WorkspaceAccessLevel.ADMIN` (OWNER, ADMIN)
+  - `WorkspaceAccessLevel.OWNER` (OWNER)
+- **적용 및 효과**:
+  - URL 경로 변수의 `workspaceSlug`와 Spring Security `Authentication`을 바탕으로 `WorkspaceAccessPolicy`를 자동 검증하고, 검증된 `Long workspaceId`를 컨트롤러 메서드 인자로 직접 주입한다.
+  - 17개 이상의 Workspace 관리 컨트롤러(`Skill`, `Experience`, `Study`, `JobApplication`, `Portfolio`, `Taxonomy`, `PrintTemplate`, `Profile`, `Visitor`, `AiProxy` 등)에서 불필요한 보일러플레이트를 제거하고 일관된 권한 검증 체계를 확립했다.
+
+### 15.37 관리자 공고 심사 페이지네이션과 FQCN 인라인 사용 금지 규칙
+
+- 15.4·15.5에서 다룬 전사 페이지네이션 표준화(`PageResponse<T>`/`PageRequest`/`PaginationControls`, offset 기반 `Pageable` + QueryDSL)를 관리자 공고 심사(`/api/admin/job-postings`)에도 적용했다.
+  - `JobPostingCrudService.list(keyword, reviewStatus, pageable)`가 `JobPostingRepositoryImpl`의 신규 QueryDSL 구현(`JobPostingRepositoryCustom`)으로 키워드 검색·심사 상태 필터·DB 페이징을 처리한다. 기존 전체 조회 `list()`는 `list(null, null, Pageable.unpaged())`로 위임해 하위 호환을 유지한다.
+  - `JobCatalogPermissionOperations.tsx`가 `PaginationControls`를 사용하도록 전환했다.
+- 위 작업 중 `JobPostingCrudService`에 메서드 시그니처·로직 내부에 패키지 경로를 포함한 FQCN(예: `java.util.Map`, `com.selfintro.modules...JobPostingPermissionReviewEvent`)을 인라인으로 직접 쓴 코드가 있어 정리했고, 재발을 막기 위해 `AGENTS.md`에 "FQCN 인라인 사용 금지 — 반드시 파일 상단 `import`로 참조" 규칙을 신설했다.
+- 규칙 신설 후 전체 코드베이스를 재검사한 결과 이 규칙이 생기기 이전부터 있던 FQCN 인라인 잔재가 `api`·`ai-worker` 양쪽에 60개 파일·150곳 넘게 남아 있어 함께 정리했다(`java.util.stream.Collectors`, `java.util.Comparator`, `org.springframework.data.domain.Page`/`Pageable`, `org.springframework.security.core.Authentication` 등). JPQL `@Query` 문자열 내부의 enum 참조(`WorkspacePurgeJobRepository`)는 Java import로 대체할 수 없어 대상에서 제외했다.
+- 검증: `./gradlew :api:compileJava :ai-worker:compileJava`, 대상 파일로 범위를 좁힌 `spotlessApply`/`spotlessCheck`(`-PspotlessFiles`), `./gradlew :api:test :ai-worker:test` 전체 통과. 순수 리팩터링으로 동작 변경은 없다. 로컬 코드에만 적용했으며 stage·운영 배포는 하지 않았다.
+- `-PspotlessFiles`는 이 저장소의 spotless 설정에서 범위를 제대로 좁히지 못하고 대상 밖 파일까지 재포맷하는 경우가 있었다. 매번 `spotlessApply` 뒤 `git status`로 의도한 파일만 바뀌었는지 확인하고, 무관한 재포맷은 `git restore`로 되돌린 뒤 커밋했다.
+
+### 15.38 Workspace 학습 자료 카탈로그 페이지네이션
+
+- 15.37과 같은 전사 페이지네이션 표준화를 학습 자료 공통 카탈로그(`/api/workspaces/{workspaceSlug}/learning-resources/manage/catalog`)에도 적용했다. 기존에는 `learningResourceRepository.findAll()`로 전체를 로드한 뒤 애플리케이션 메모리에서 키워드 필터링·정렬하던 방식(`WorkspaceJobApplicationManagement`에서 이미 걷어낸 것과 동일한 anti-pattern)이었다.
+- `LearningResourceService.listCatalog(workspaceId, keyword)`를 `catalog(workspaceId, keyword, pageable)`로 교체해, 이미 존재하던 `LearningResourceRepositoryCustom.search(condition, pageable)` QueryDSL 구현(제목·요약·본문·태그·기술·제공처·강사명 키워드 검색, `displayOrder`/`id` 정렬)을 그대로 재사용했다. 새 QueryDSL 코드를 작성하지 않고 기존 인프라를 확장만 했다.
+- `WorkspaceLearningResourceController.catalog`가 `List<LearningResourceCatalogResponse>` 대신 `Page<LearningResourceCatalogResponse>`를 반환한다. 프런트(`WorkspaceLearningResourceManagement.tsx`)는 `PaginationControls` + `mode === 'CATALOG'`일 때만 조회하는 지연 로딩을 적용했다(잡포스팅 카탈로그 탭과 동일 패턴). "내 학습 자료" 목록은 Workspace 범위로 크기가 작아 기존 클라이언트 검색을 유지했다.
+- `SaasSecurityFoundationIntegrationTest`의 카탈로그 응답 형태 검증을 배열(`$[?(...)]`)에서 페이지 객체(`$.content[?(...)]`)로 갱신했다.
+- 검증: `./gradlew :api:compileJava`, `SaasSecurityFoundationIntegrationTest` 통과, 프런트 `tsc --noEmit`·`eslint`·`next build` 전체 통과. 로컬 코드에만 적용했으며 stage·운영 배포는 하지 않았다.

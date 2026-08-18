@@ -1,5 +1,7 @@
 'use client';
 
+import { randomId } from '@/lib/uuid';
+
 export type AuthSessionEventType = 'AUTHENTICATED' | 'UNAUTHENTICATED';
 
 type AuthSessionEvent = {
@@ -11,7 +13,7 @@ type AuthSessionEvent = {
 
 const CHANNEL_NAME = 'self-intro-auth-session';
 const STORAGE_KEY = 'self-intro-auth-session-event';
-const sourceId = typeof crypto === 'undefined' ? 'server' : crypto.randomUUID();
+const sourceId = typeof crypto === 'undefined' ? 'server' : randomId();
 
 function isAuthSessionEvent(value: unknown): value is AuthSessionEvent {
     if (!value || typeof value !== 'object') return false;
@@ -27,7 +29,7 @@ function isAuthSessionEvent(value: unknown): value is AuthSessionEvent {
 export function publishAuthSessionEvent(type: AuthSessionEventType) {
     if (typeof window === 'undefined') return;
     const event: AuthSessionEvent = {
-        eventId: crypto.randomUUID(),
+        eventId: randomId(),
         sourceId,
         type,
         emittedAt: Date.now(),

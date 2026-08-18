@@ -16,7 +16,8 @@ import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseResponse;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.observation.annotation.Observed;
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -38,6 +40,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +60,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * 채용공고 URL 하나를 서버에서 단건으로 가져와 AI로 회사명/직무명/마감일 등을 추출한다. 별도의 on/off 플래그 없이 {@link NvidiaNimClient}에
@@ -210,8 +218,7 @@ public class JobApplicationUrlParseService {
     private final ObjectMapper objectMapper;
     private final String visionModel;
     private final MeterRegistry meterRegistry;
-    private final java.util.concurrent.Semaphore parseSemaphore =
-            new java.util.concurrent.Semaphore(3);
+    private final Semaphore parseSemaphore = new Semaphore(3);
 
     public JobApplicationUrlParseService(
             NvidiaNimClient nvidiaNimClient,
@@ -257,7 +264,7 @@ public class JobApplicationUrlParseService {
     private void streamParse(String url, SseEmitter emitter) {
         boolean acquired = false;
         try {
-            if (!parseSemaphore.tryAcquire(10, java.util.concurrent.TimeUnit.SECONDS)) {
+            if (!parseSemaphore.tryAcquire(10, TimeUnit.SECONDS)) {
                 throw new ResponseStatusException(
                         HttpStatus.TOO_MANY_REQUESTS,
                         "현재 처리 중인 공고 분석 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
@@ -666,7 +673,7 @@ public class JobApplicationUrlParseService {
             companyName = extractRegexGroup(html, "pinTitle=([^&\"\\s]+)");
             if (AiJsonSupport.hasText(companyName)) {
                 try {
-                    companyName = java.net.URLDecoder.decode(companyName, StandardCharsets.UTF_8);
+                    companyName = URLDecoder.decode(companyName, StandardCharsets.UTF_8);
                 } catch (Exception ignored) {
                 }
             }
@@ -759,9 +766,7 @@ public class JobApplicationUrlParseService {
                 rawTitle.replace("| 잡코리아", "").replace("- 잡코리아", "").replace("잡코리아 - ", "").trim();
 
         if (companyName != null && !companyName.isBlank()) {
-            String normCompany =
-                    com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer
-                            .normalizeCompanyName(companyName);
+            String normCompany = JobPostingNormalizer.normalizeCompanyName(companyName);
             if (cleaned.startsWith("[" + companyName + "]")) {
                 cleaned = cleaned.substring(("[" + companyName + "]").length()).trim();
             } else if (!normCompany.isEmpty() && cleaned.startsWith("[" + normCompany + "]")) {
@@ -775,13 +780,13 @@ public class JobApplicationUrlParseService {
                     cleaned = cleaned.substring(1).trim();
                 }
             } else if (!normCompany.isEmpty()) {
-                java.util.regex.Pattern compPrefixPattern =
-                        java.util.regex.Pattern.compile(
+                Pattern compPrefixPattern =
+                        Pattern.compile(
                                 "^[\\[\\(\\s]*(?:\\(주\\)|㈜|주식회사)?\\s*"
-                                        + java.util.regex.Pattern.quote(normCompany)
+                                        + Pattern.quote(normCompany)
                                         + "\\s*(?:\\(주\\)|㈜|주식회사)?\\s*[\\]\\)\\s]*(?:채용)?\\s*[-:]?\\s*",
-                                java.util.regex.Pattern.CASE_INSENSITIVE);
-                java.util.regex.Matcher m = compPrefixPattern.matcher(cleaned);
+                                Pattern.CASE_INSENSITIVE);
+                Matcher m = compPrefixPattern.matcher(cleaned);
                 if (m.find()) {
                     cleaned = cleaned.substring(m.end()).trim();
                 }
@@ -796,8 +801,8 @@ public class JobApplicationUrlParseService {
 
     private static String extractRegexGroup(String text, String regex) {
         if (text == null) return null;
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
-        java.util.regex.Matcher matcher = pattern.matcher(text);
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
         if (matcher.find()) {
             return matcher.group(1).trim();
         }
@@ -870,7 +875,7 @@ public class JobApplicationUrlParseService {
     }
 
     private static long elapsedMillis(long startedAt) {
-        return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
     boolean looksLikeMissingDetailSection(String pageText) {
@@ -1118,11 +1123,7 @@ public class JobApplicationUrlParseService {
                 // new URI(String)이 실패하는 전형적인 원인은 쿼리스트링 등에 인코딩되지 않은 문자가
                 // 섞여 있는 경우다. UriComponentsBuilder로 느슨하게 파싱한 뒤 encode()로 문제
                 // 문자만 퍼센트 인코딩해 재시도한다.
-                uri =
-                        org.springframework.web.util.UriComponentsBuilder.fromUriString(cleaned)
-                                .build(false)
-                                .encode()
-                                .toUri();
+                uri = UriComponentsBuilder.fromUriString(cleaned).build(false).encode().toUri();
             } catch (Exception ex) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바르지 않은 URL입니다.");
             }
@@ -1275,11 +1276,11 @@ public class JobApplicationUrlParseService {
             return Optional.empty();
         }
 
-        List<java.util.concurrent.CompletableFuture<ImageCandidate>> futures =
+        List<CompletableFuture<ImageCandidate>> futures =
                 candidates.stream()
                         .map(
                                 src ->
-                                        java.util.concurrent.CompletableFuture.supplyAsync(
+                                        CompletableFuture.supplyAsync(
                                                 () -> {
                                                     try {
                                                         byte[] bytes =
@@ -1301,12 +1302,10 @@ public class JobApplicationUrlParseService {
                                                 }))
                         .toList();
 
-        java.util.concurrent.CompletableFuture.allOf(
-                        futures.toArray(new java.util.concurrent.CompletableFuture[0]))
-                .join();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         ImageCandidate best = null;
-        for (java.util.concurrent.CompletableFuture<ImageCandidate> future : futures) {
+        for (CompletableFuture<ImageCandidate> future : futures) {
             ImageCandidate candidate = future.join();
             if (candidate != null) {
                 if (best == null || candidate.bytes().length > best.bytes().length) {
@@ -1425,9 +1424,7 @@ public class JobApplicationUrlParseService {
     LocalTime parseTime(String value) {
         if (!AiJsonSupport.hasText(value)) return null;
         String trimmed = value.trim();
-        java.util.regex.Matcher m1 =
-                java.util.regex.Pattern.compile("(\\d{1,2}):(\\d{2})(?::(\\d{2}))?")
-                        .matcher(trimmed);
+        Matcher m1 = Pattern.compile("(\\d{1,2}):(\\d{2})(?::(\\d{2}))?").matcher(trimmed);
         if (m1.find()) {
             int h = Integer.parseInt(m1.group(1));
             int m = Integer.parseInt(m1.group(2));
@@ -1437,9 +1434,7 @@ public class JobApplicationUrlParseService {
                 return LocalTime.of(h, m, s);
             }
         }
-        java.util.regex.Matcher m2 =
-                java.util.regex.Pattern.compile("(\\d{1,2})\\s*시(?:\\s*(\\d{1,2})\\s*분)?")
-                        .matcher(trimmed);
+        Matcher m2 = Pattern.compile("(\\d{1,2})\\s*시(?:\\s*(\\d{1,2})\\s*분)?").matcher(trimmed);
         if (m2.find()) {
             int h = Integer.parseInt(m2.group(1));
             int m = m2.group(2) != null ? Integer.parseInt(m2.group(2)) : 0;

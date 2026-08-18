@@ -9,8 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
-import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingSource;
 import com.selfintro.modules.jobposting.domain.enums.JobPostingStatus;
@@ -18,6 +16,8 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoi
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingBulkIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;

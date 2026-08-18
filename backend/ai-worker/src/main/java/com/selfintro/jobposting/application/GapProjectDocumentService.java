@@ -7,13 +7,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.jobposting.domain.entity.GapProjectDocument;
 import com.selfintro.jobposting.domain.repository.GapProjectDocumentRepository;
-import com.selfintro.jobposting.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.WorkspaceJobApplication;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoiceRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
+import com.selfintro.modules.jobposting.presentation.dto.GapProjectDocumentResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
@@ -83,7 +83,7 @@ public class GapProjectDocumentService {
         return repository
                 .findAllByWorkspaceJobApplicationIdOrderByVersionDesc(application.getId())
                 .stream()
-                .map(GapProjectDocumentResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -139,7 +139,7 @@ public class GapProjectDocumentService {
                         writeJson(content.path("gaps")),
                         writeJson(content),
                         renderMarkdown(content, version));
-        return GapProjectDocumentResponse.from(repository.save(document));
+        return toResponse(repository.save(document));
     }
 
     private String renderMarkdown(JsonNode content, int version) {
@@ -243,5 +243,20 @@ public class GapProjectDocumentService {
                         posting.getId()),
                 positionChoiceRepository.findByJobPostingIdOrderByRankOrderAsc(posting.getId()),
                 sourceImageRepository.findByJobPostingIdOrderByDisplayOrderAsc(posting.getId()));
+    }
+
+    private GapProjectDocumentResponse toResponse(GapProjectDocument doc) {
+        return new GapProjectDocumentResponse(
+                doc.getId(),
+                doc.getJobPostingId(),
+                doc.getVersion(),
+                doc.getTitle(),
+                doc.getGapSnapshot(),
+                doc.getContentJson(),
+                doc.getRenderedMarkdown(),
+                doc.getStatus(),
+                doc.getSourceAppealAnalyzedAt(),
+                doc.getCreatedAt(),
+                doc.getUpdatedAt());
     }
 }

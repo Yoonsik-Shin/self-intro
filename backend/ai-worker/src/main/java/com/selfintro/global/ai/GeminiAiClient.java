@@ -1,5 +1,7 @@
 package com.selfintro.global.ai;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -147,11 +149,9 @@ public class GeminiAiClient {
     private record GeminiContent(String role, List<GeminiPart> parts) {}
 
     private record GeminiGenerationConfig(
-            @com.fasterxml.jackson.annotation.JsonProperty("responseMimeType")
-                    String responseMimeType) {}
+            @JsonProperty("responseMimeType") String responseMimeType) {}
 
-    @com.fasterxml.jackson.annotation.JsonInclude(
-            com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private record GeminiRequest(
             List<GeminiContent> contents, GeminiGenerationConfig generationConfig) {}
 

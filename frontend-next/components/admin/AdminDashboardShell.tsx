@@ -6,7 +6,7 @@ import {
     useMemo,
     useRef,
     useState,
-    type MouseEvent as ReactMouseEvent,
+    type PointerEvent as ReactPointerEvent,
 } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -725,7 +725,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [previewSupported]);
 
-    const handlePreviewResizeStart = (event: ReactMouseEvent) => {
+    const handlePreviewResizeStart = (event: ReactPointerEvent) => {
         event.preventDefault();
         previewResizeStartRef.current = { x: event.clientX, width: effectivePreviewWidth };
         setIsResizingPreview(true);
@@ -734,7 +734,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
     useEffect(() => {
         if (!isResizingPreview) return;
 
-        const handleMouseMove = (event: MouseEvent) => {
+        const handlePointerMove = (event: PointerEvent) => {
             const start = previewResizeStartRef.current;
             if (!start) return;
             const delta = start.x - event.clientX;
@@ -745,19 +745,21 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
             setPreviewWidth(nextWidth);
         };
 
-        const handleMouseUp = () => {
+        const handlePointerUp = () => {
             previewResizeStartRef.current = null;
             setIsResizingPreview(false);
         };
 
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+        window.addEventListener('pointercancel', handlePointerUp);
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
 
         return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+            window.removeEventListener('pointercancel', handlePointerUp);
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
         };
@@ -1387,7 +1389,7 @@ export function AdminDashboardShell({ workspaceSlug }: { workspaceSlug: string }
                         }}
                     >
                         <div
-                            onMouseDown={handlePreviewResizeStart}
+                            onPointerDown={handlePreviewResizeStart}
                             className="absolute left-0 top-0 z-10 hidden h-full w-2.5 -translate-x-1/2 cursor-col-resize touch-none group sm:block"
                             title="드래그하여 너비 조절"
                         >

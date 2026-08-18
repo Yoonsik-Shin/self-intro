@@ -9,6 +9,7 @@ import com.selfintro.modules.jobposting.domain.util.JobPostingNormalizer;
 import com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +49,7 @@ public class JobPostingDedupService {
             return Optional.empty();
         }
 
-        java.util.List<JobPosting> companyPostings =
+        List<JobPosting> companyPostings =
                 jobPostingRepository.findByOwnerWorkspaceIdIsNullAndCompanyNameNormalized(
                         normalizedCompany);
         for (JobPosting candidate : companyPostings) {

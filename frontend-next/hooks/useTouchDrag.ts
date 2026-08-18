@@ -6,6 +6,8 @@ import type { HTMLAttributes, PointerEvent as ReactPointerEvent } from 'react';
 type TouchDragOptions = {
     disabled?: boolean;
     activationDistance?: number;
+    /** 정확한 드롭존 밖이어도 이 거리(px) 안이면 가장 가까운 드롭존으로 스냅한다. */
+    snapDistance?: number;
     onDragStart?: (sourceId: string) => void;
     onDragOver?: (sourceId: string, targetId: string | null) => void;
     onDrop: (sourceId: string, targetId: string) => void;
@@ -32,6 +34,7 @@ type TouchDropTargetProps = HTMLAttributes<HTMLElement> & {
 export function useTouchDrag({
     disabled = false,
     activationDistance = 6,
+    snapDistance = 48,
     onDragStart,
     onDragOver,
     onDrop,
@@ -44,6 +47,9 @@ export function useTouchDrag({
     const callbacksRef = useRef({ onDragStart, onDragOver, onDrop, onDragEnd });
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const [dragOverId, setDragOverId] = useState<string | null>(null);
+    // 드래그 시작 시점에 한 번만 스냅샷 — 매 pointermove마다 전체 드롭존을
+    // 다시 측정하면 레이아웃 강제 리플로우가 반복돼 드래그 중 렉이 생긴다.
+    const dropZoneRectsRef = useRef<Array<{ id: string; rect: DOMRect }> | null>(null);
 
     useEffect(() => {
         callbacksRef.current = { onDragStart, onDragOver, onDrop, onDragEnd };
@@ -60,6 +66,7 @@ export function useTouchDrag({
 
         activePointerRef.current = null;
         overIdRef.current = null;
+        dropZoneRectsRef.current = null;
         setDraggedId(null);
         setDragOverId(null);
     }, []);
@@ -74,9 +81,26 @@ export function useTouchDrag({
                 target =
                     target.parentElement?.closest<HTMLElement>('[data-touch-drop-zone]') ?? null;
             }
-            return target?.dataset.touchDropId ?? null;
+            if (target) return target.dataset.touchDropId ?? null;
+
+            // 손가락이 드롭존을 살짝 벗어나도(카드 사이 여백, 위에 뜬 컨트롤
+            // 버튼 등) snapDistance 안이면 가장 가까운 드롭존으로 스냅한다.
+            const candidates = dropZoneRectsRef.current;
+            if (!candidates) return null;
+            let nearestId: string | null = null;
+            let nearestDistance = Infinity;
+            for (const { id, rect } of candidates) {
+                const dx = Math.max(rect.left - clientX, 0, clientX - rect.right);
+                const dy = Math.max(rect.top - clientY, 0, clientY - rect.bottom);
+                const distance = Math.hypot(dx, dy);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestId = id;
+                }
+            }
+            return nearestDistance <= snapDistance ? nearestId : null;
         },
-        [zoneId]
+        [zoneId, snapDistance]
     );
 
     const dragHandleProps = useCallback(
@@ -104,6 +128,12 @@ export function useTouchDrag({
                     if (distance < activationDistance) return;
                     activePointer.active = true;
                     setDraggedId(activePointer.sourceId);
+                    dropZoneRectsRef.current = Array.from(
+                        document.querySelectorAll<HTMLElement>(`[data-touch-drop-zone="${zoneId}"]`)
+                    ).map((el) => ({
+                        id: el.dataset.touchDropId ?? '',
+                        rect: el.getBoundingClientRect(),
+                    }));
                     callbacksRef.current.onDragStart?.(activePointer.sourceId);
                 }
 
@@ -128,7 +158,7 @@ export function useTouchDrag({
                 if (activePointerRef.current) finishDrag(false);
             },
         }),
-        [activationDistance, disabled, findDropTarget, finishDrag]
+        [activationDistance, disabled, findDropTarget, finishDrag, zoneId]
     );
 
     const dropTargetProps = useCallback(

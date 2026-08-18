@@ -9,6 +9,7 @@ import {
     type JobCatalogPermissionPosting,
     type JobCatalogPermissionReviewStatus,
 } from '@/lib/api/jobCatalogPermission';
+import { PaginationControls } from '@/components/common/PaginationControls';
 import { JobPostingPermissionReviewPanel } from './JobPostingPermissionReviewPanel';
 
 type ReviewFilter = 'ALL' | JobCatalogPermissionReviewStatus;
@@ -23,33 +24,27 @@ const FILTERS: Array<{ value: ReviewFilter; label: string }> = [
 export function JobCatalogPermissionOperations() {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<ReviewFilter>('REVIEW_REQUIRED');
+    const [page, setPage] = useState(0);
     const [selectedId, setSelectedId] = useState<number | null>(null);
-    const { data: postings = [], isLoading } = useQuery({
-        queryKey: ['jobPostings'],
-        queryFn: jobCatalogPermissionApi.list,
+
+    const queryKey = useMemo(
+        () => ['adminJobPostings', { q: search.trim(), filter, page }],
+        [search, filter, page]
+    );
+
+    const { data: pageData, isLoading } = useQuery({
+        queryKey,
+        queryFn: () =>
+            jobCatalogPermissionApi.list({
+                q: search.trim() || undefined,
+                reviewStatus: filter === 'ALL' ? undefined : filter,
+                page,
+                size: 20,
+            }),
     });
 
-    const counts = useMemo(() => {
-        const result: Record<ReviewFilter, number> = {
-            ALL: postings.length,
-            REVIEW_REQUIRED: 0,
-            APPROVED: 0,
-            REJECTED: 0,
-        };
-        postings.forEach((posting) => result[posting.permissionReviewStatus]++);
-        return result;
-    }, [postings]);
-
-    const filtered = useMemo(() => {
-        const keyword = search.trim().toLowerCase();
-        return postings.filter((posting) => {
-            if (filter !== 'ALL' && posting.permissionReviewStatus !== filter) return false;
-            if (!keyword) return true;
-            return `${posting.companyName} ${posting.positionTitle} ${posting.source}`
-                .toLowerCase()
-                .includes(keyword);
-        });
-    }, [filter, postings, search]);
+    const postings = useMemo(() => pageData?.content ?? [], [pageData]);
+    const filtered = postings;
 
     const selected = postings.find((posting) => posting.id === selectedId) ?? null;
 
@@ -66,7 +61,10 @@ export function JobCatalogPermissionOperations() {
                     <button
                         key={item.value}
                         type="button"
-                        onClick={() => setFilter(item.value)}
+                        onClick={() => {
+                            setFilter(item.value);
+                            setPage(0);
+                        }}
                         className={`rounded-2xl border p-4 text-left transition ${
                             filter === item.value
                                 ? 'border-slate-950 bg-slate-950 text-white shadow-lg'
@@ -75,7 +73,7 @@ export function JobCatalogPermissionOperations() {
                     >
                         <span className="text-xs font-bold opacity-70">{item.label}</span>
                         <strong className="mt-2 block text-2xl font-black">
-                            {counts[item.value]}
+                            {filter === item.value ? (pageData?.totalElements ?? '-') : '-'}
                         </strong>
                     </button>
                 ))}
@@ -85,7 +83,10 @@ export function JobCatalogPermissionOperations() {
                 <Search className="h-4 w-4 text-slate-400" />
                 <input
                     value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) => {
+                        setSearch(event.target.value);
+                        setPage(0);
+                    }}
                     placeholder="회사·직무·출처 검색"
                     className="min-w-0 flex-1 bg-transparent text-sm outline-none"
                 />
@@ -96,19 +97,29 @@ export function JobCatalogPermissionOperations() {
             ) : filtered.length === 0 ? (
                 <EmptyState label="조건에 맞는 심사 대상이 없습니다." />
             ) : (
-                <section className="grid gap-3 xl:grid-cols-2">
-                    {filtered.map((posting) => (
-                        <PostingReviewCard
-                            key={posting.id}
-                            posting={posting}
-                            selected={selectedId === posting.id}
-                            onSelect={() =>
-                                setSelectedId((current) =>
-                                    current === posting.id ? null : posting.id
-                                )
-                            }
+                <section className="space-y-4">
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        {filtered.map((posting) => (
+                            <PostingReviewCard
+                                key={posting.id}
+                                posting={posting}
+                                selected={selectedId === posting.id}
+                                onSelect={() =>
+                                    setSelectedId((current) =>
+                                        current === posting.id ? null : posting.id
+                                    )
+                                }
+                            />
+                        ))}
+                    </div>
+                    {pageData && pageData.totalPages > 1 && (
+                        <PaginationControls
+                            page={page}
+                            totalPages={pageData.totalPages}
+                            totalElements={pageData.totalElements}
+                            onPageChange={setPage}
                         />
-                    ))}
+                    )}
                 </section>
             )}
 

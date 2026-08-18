@@ -32,7 +32,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 const DEFAULT_HEADING = '시스템 아키텍처 (Self-Intro Enterprise Architecture)';
 const DEFAULT_SUBHEADING =
-    '최근 3-Tier Multi-Module Microservices(core, api, ai-worker)로 백엔드를 고도화하고, Kubernetes Pod 독립 배포, Oracle 26ai Native Vector Search + MySQL HeatWave 기반 Dual DB, gRPC / RabbitMQ CQRS 이벤트 기반 아키텍처, 그리고 Prometheus & Grafana 관측 환경과 ArgoCD GitOps 무중단 배포 시스템을 완성한 전체 설계 명세입니다.';
+    '최근 Multi-Module Microservices(api, ai-worker)로 백엔드를 고도화하고, Kubernetes Pod 독립 배포, Oracle 26ai Native Vector Search + MySQL HeatWave 기반 Dual DB, gRPC / RabbitMQ CQRS 이벤트 기반 아키텍처, 그리고 Prometheus & Grafana 관측 환경과 ArgoCD GitOps 무중단 배포 시스템을 완성한 전체 설계 명세입니다.';
 
 const architectureSections: SectionNavItem[] = [
     { id: 'product-overview', label: '제품 개요', icon: Sparkles },
@@ -69,8 +69,8 @@ const productWorkflow = [
 const engineeringHighlights = [
     {
         label: 'Architecture',
-        value: '3-Tier Multi-Module',
-        detail: ':core / :api / :ai-worker Pod 분리',
+        value: 'Multi-Module Microservices',
+        detail: ':api / :ai-worker Pod 분리',
         icon: Box,
     },
     {

@@ -22,3 +22,6 @@ cookies.txt
 # Personal Career Drafts
 경력정리.md
 경력기술서.md
+
+# Local docker-compose overrides (may contain LAN IPs, personal env tweaks)
+docker-compose.override.yml

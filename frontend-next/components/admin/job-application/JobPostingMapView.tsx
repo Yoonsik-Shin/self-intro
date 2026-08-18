@@ -330,13 +330,13 @@ export default function JobPostingMapView({
     }, []);
 
     // ↔️ 패널 드래그앤드롭 리사이저 이벤트 핸들러
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const handlePointerDown = useCallback((e: React.PointerEvent) => {
         e.preventDefault();
         setIsResizing(true);
     }, []);
 
     useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
+        const handlePointerMove = (e: PointerEvent) => {
             if (!isResizing || !splitContainerRef.current) return;
             const containerRect = splitContainerRef.current.getBoundingClientRect();
             const newWidth = containerRect.right - e.clientX;
@@ -345,18 +345,20 @@ export default function JobPostingMapView({
             }
         };
 
-        const handleMouseUp = () => {
+        const handlePointerUp = () => {
             setIsResizing(false);
         };
 
         if (isResizing) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
+            window.addEventListener('pointermove', handlePointerMove);
+            window.addEventListener('pointerup', handlePointerUp);
+            window.addEventListener('pointercancel', handlePointerUp);
         }
 
         return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+            window.removeEventListener('pointercancel', handlePointerUp);
         };
     }, [isResizing]);
 
@@ -1104,8 +1106,8 @@ export default function JobPostingMapView({
                 {/* ↔️ 🎯 [황금 비율 조정] 패널 열림 시 구분선 오버레이 접기 탭 버튼 (손가락/마우스 클릭 최적화) */}
                 {isDetailPanelOpen && (
                     <div
-                        onMouseDown={handleMouseDown}
-                        className={`w-1 hover:w-1.5 bg-slate-200 hover:bg-indigo-500 cursor-col-resize flex items-center justify-center transition-all z-20 relative group ${
+                        onPointerDown={handlePointerDown}
+                        className={`w-1 hover:w-1.5 bg-slate-200 hover:bg-indigo-500 cursor-col-resize touch-none flex items-center justify-center transition-all z-20 relative group ${
                             isResizing ? 'bg-indigo-600 w-1.5' : ''
                         }`}
                         title="좌우 드래그하여 패널 너비 조절"

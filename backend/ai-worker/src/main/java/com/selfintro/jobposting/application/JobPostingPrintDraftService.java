@@ -11,7 +11,6 @@ import com.selfintro.bff.presentation.dto.IntroductionResponse;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.LlmDispatcher;
 import com.selfintro.global.ai.PrintDraftStreamSupport;
-import com.selfintro.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.competency.presentation.dto.CompetencyResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceDetailResponse;
 import com.selfintro.modules.experience.presentation.dto.ExperienceResponse;
@@ -21,6 +20,7 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoi
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
 import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicationRepository;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingPrintDraftResponse;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import com.selfintro.modules.printtemplate.application.PrintTemplateService;
 import com.selfintro.modules.printtemplate.domain.entity.PrintTemplate;
@@ -31,9 +31,11 @@ import com.selfintro.modules.skill.presentation.dto.SkillResponse;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService.RelevantMatches;
 import com.selfintro.vectorsearch.application.RelevantProfileDigestService.TopK;
+import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -486,7 +488,7 @@ public class JobPostingPrintDraftService {
                 .findByWorkspaceIdAndJobPostingId(workspaceId, jobPostingId)
                 .orElseThrow(
                         () ->
-                                new jakarta.persistence.EntityNotFoundException(
+                                new EntityNotFoundException(
                                         "Workspace 지원 건을 찾을 수 없습니다: " + jobPostingId));
     }
 
@@ -775,9 +777,7 @@ public class JobPostingPrintDraftService {
     private String join(String... values) {
         return String.join(
                 " ",
-                java.util.Arrays.stream(values)
-                        .filter(value -> value != null && !value.isBlank())
-                        .toList());
+                Arrays.stream(values).filter(value -> value != null && !value.isBlank()).toList());
     }
 
     private record DraftArtifacts(

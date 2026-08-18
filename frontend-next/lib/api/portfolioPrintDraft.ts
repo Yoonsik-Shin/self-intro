@@ -31,7 +31,7 @@ export const portfolioPrintDraftApi = {
         customModelName?: string
     ) =>
         requestEventStream<PortfolioPrintDraftStreamEvent>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${caseStudyId}/print-draft/stream${draftQuery(orientation, aiModel, customModelName)}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${caseStudyId}/print-draft/stream${draftQuery(orientation, aiModel, customModelName)}`,
             {},
             onEvent,
             signal
@@ -47,7 +47,7 @@ export const portfolioPrintDraftApi = {
         customModelName?: string
     ) =>
         requestEventStream<PortfolioPrintDraftStreamEvent>(
-            `/api/worker/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${caseStudyId}/print-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
+            `/api/workspaces/${encodeURIComponent(workspaceSlug)}/portfolio/case-studies/manage/${caseStudyId}/print-draft/${templateId}/revise/stream${aiModelQuery(aiModel, customModelName)}`,
             { feedbackInstruction },
             onEvent,
             signal

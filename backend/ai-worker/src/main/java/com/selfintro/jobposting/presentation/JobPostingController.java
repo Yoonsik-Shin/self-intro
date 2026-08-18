@@ -6,10 +6,10 @@ import com.selfintro.jobposting.application.JobPostingBackfillService.JobPosting
 import com.selfintro.jobposting.application.JobPostingCollectorService;
 import com.selfintro.jobposting.application.JobPostingCollectorService.JobPostingCollectionResult;
 import com.selfintro.jobposting.application.JobPostingService;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseRequest;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
-import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
-import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingBulkIngestRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
@@ -21,11 +21,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
-@RequestMapping("/api/worker/job-postings")
+@RequestMapping("/internal/admin/job-postings")
 @RequiredArgsConstructor
 public class JobPostingController {
 
@@ -72,15 +73,12 @@ public class JobPostingController {
 
     @PostMapping("/refresh-all")
     public JobPostingService.JobPostingBulkRefreshResult refreshAll(
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true")
-                    boolean onlyActive) {
+            @RequestParam(defaultValue = "true") boolean onlyActive) {
         return jobPostingService.refreshAll(onlyActive);
     }
 
     @PostMapping(value = "/refresh-all/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter refreshAllStream(
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true")
-                    boolean onlyActive) {
+    public SseEmitter refreshAllStream(@RequestParam(defaultValue = "true") boolean onlyActive) {
         return jobPostingService.refreshAllStream(onlyActive);
     }
 

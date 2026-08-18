@@ -3,9 +3,6 @@ package com.selfintro.jobposting.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.selfintro.global.ai.AiJsonSupport;
 import com.selfintro.global.ai.NvidiaNimClient;
-import com.selfintro.jobposting.presentation.dto.JobApplicationUrlParseResponse;
-import com.selfintro.jobposting.presentation.dto.JobPostingBulkIngestRequest;
-import com.selfintro.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.domain.entity.JobPosting;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceImage;
 import com.selfintro.modules.jobposting.domain.entity.JobPostingSourceUrl;
@@ -15,6 +12,10 @@ import com.selfintro.modules.jobposting.domain.repository.JobPostingPositionChoi
 import com.selfintro.modules.jobposting.domain.repository.JobPostingRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceImageRepository;
 import com.selfintro.modules.jobposting.domain.repository.JobPostingSourceUrlRepository;
+import com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer;
+import com.selfintro.modules.jobposting.presentation.dto.JobApplicationUrlParseResponse;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingBulkIngestRequest;
+import com.selfintro.modules.jobposting.presentation.dto.JobPostingImageIngestRequest;
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.IOException;
@@ -22,8 +23,10 @@ import java.io.UncheckedIOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -97,9 +100,7 @@ public class JobPostingService {
 
     public SseEmitter ingestUrlStream(String url) {
         String trimmed = url.trim();
-        String normalized =
-                com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(
-                        trimmed);
+        String normalized = JobPostingUrlNormalizer.normalizeUrl(trimmed);
         String targetUrl = normalized != null ? normalized : trimmed;
         if (sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, targetUrl)
                 || sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, trimmed)) {
@@ -223,12 +224,9 @@ public class JobPostingService {
     private void streamBulkIngest(List<JobPostingBulkIngestRequest.Row> rows, SseEmitter emitter) {
         Thread heartbeat = startHeartbeat(emitter);
         int total = rows.size();
-        java.util.concurrent.atomic.AtomicInteger completed =
-                new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger successCount =
-                new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger errorCount =
-                new java.util.concurrent.atomic.AtomicInteger(0);
+        AtomicInteger completed = new AtomicInteger(0);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger errorCount = new AtomicInteger(0);
 
         try {
             List<Thread> threads = new ArrayList<>();
@@ -407,9 +405,7 @@ public class JobPostingService {
 
     private IngestResult ingestUrlInternal(String url) {
         String trimmed = url.trim();
-        String normalized =
-                com.selfintro.modules.jobposting.domain.util.JobPostingUrlNormalizer.normalizeUrl(
-                        trimmed);
+        String normalized = JobPostingUrlNormalizer.normalizeUrl(trimmed);
         String targetUrl = normalized != null ? normalized : trimmed;
         if (sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, targetUrl)
                 || sourceUrlRepository.existsByScopeKeyAndUrl(JobPosting.PLATFORM_SCOPE, trimmed)) {
@@ -428,7 +424,7 @@ public class JobPostingService {
 
         // 다른 플랫폼(원티드/잡코리아/사람인 등)에 이미 같은 회사+직무 공고가 있으면 새 행을 만들지
         // 않고 이번 URL을 그 공고의 출처로만 추가한다.
-        java.util.Optional<JobPosting> existingMatch =
+        Optional<JobPosting> existingMatch =
                 dedupService.findExistingMatch(parsed.companyName(), parsed.positionTitle());
         if (existingMatch.isPresent()) {
             return new IngestResult(
@@ -683,12 +679,9 @@ public class JobPostingService {
                         .toList();
 
         int total = list.size();
-        java.util.concurrent.atomic.AtomicInteger completed =
-                new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger successCount =
-                new java.util.concurrent.atomic.AtomicInteger(0);
-        java.util.concurrent.atomic.AtomicInteger errorCount =
-                new java.util.concurrent.atomic.AtomicInteger(0);
+        AtomicInteger completed = new AtomicInteger(0);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger errorCount = new AtomicInteger(0);
 
         try {
             send(

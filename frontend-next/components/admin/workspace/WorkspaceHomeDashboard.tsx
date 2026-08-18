@@ -2,12 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, BookOpen, BriefcaseBusiness, Cpu, Radio, Sparkles } from 'lucide-react';
-import { competencyApi } from '@/lib/api/competency';
-import { experienceApi } from '@/lib/api/experience';
-import { jobPostingApi } from '@/lib/api/jobPosting';
-import { publicationApi } from '@/lib/api/publication';
-import { skillApi } from '@/lib/api/skill';
-import { studyApi } from '@/lib/api/study';
+import { workspaceApi } from '@/lib/api/workspace';
 
 export type WorkspaceHomeDestination =
     'EXPERIENCE' | 'STUDY' | 'SKILLS' | 'COMPETENCIES' | 'JOB_APPLICATIONS' | 'PUBLICATION';
@@ -71,38 +66,17 @@ export function WorkspaceHomeDashboard({
     workspaceRole,
     onNavigate,
 }: Props) {
-    const experienceQuery = useQuery({
-        queryKey: ['experiences', workspaceSlug],
-        queryFn: () => experienceApi.workspaceList(workspaceSlug),
-    });
-    const studyQuery = useQuery({
-        queryKey: ['studies', 'workspace', workspaceSlug],
-        queryFn: () => studyApi.workspaceAdminList(workspaceSlug),
-    });
-    const skillQuery = useQuery({
-        queryKey: ['skills', workspaceSlug],
-        queryFn: () => skillApi.workspaceList(workspaceSlug),
-    });
-    const competencyQuery = useQuery({
-        queryKey: ['competencies', 'workspace', workspaceSlug],
-        queryFn: () => competencyApi.workspaceList(workspaceSlug),
-    });
-    const applicationQuery = useQuery({
-        queryKey: ['job-applications', 'workspace', workspaceSlug],
-        queryFn: () => jobPostingApi.workspaceList(workspaceSlug),
-    });
-    const publicationQuery = useQuery({
-        queryKey: ['workspace-publication', workspaceSlug],
-        queryFn: () => publicationApi.status(workspaceSlug),
+    const summaryQuery = useQuery({
+        queryKey: ['workspace-dashboard-summary', workspaceSlug],
+        queryFn: () => workspaceApi.dashboardSummary(workspaceSlug),
+        staleTime: 30 * 1000,
     });
 
-    const sourceRecordCount =
-        (experienceQuery.data?.length ?? 0) + (studyQuery.data?.totalElements ?? 0);
-    const sourceRecordLoading = experienceQuery.isLoading || studyQuery.isLoading;
-    const sourceRecordError = experienceQuery.isError || studyQuery.isError;
-    const published = publicationQuery.data?.publicationStatus === 'PUBLISHED';
+    const summary = summaryQuery.data;
+    const sourceRecordCount = (summary?.experienceCount ?? 0) + (summary?.studyCount ?? 0);
+    const published = summary?.publicationStatus?.publicationStatus === 'PUBLISHED';
     const publicationValue = published
-        ? `공개 중 · v${publicationQuery.data?.revisionNumber ?? '-'}`
+        ? `공개 중 · v${summary?.publicationStatus?.revisionNumber ?? '-'}`
         : '비공개';
 
     return (
@@ -131,44 +105,44 @@ export function WorkspaceHomeDashboard({
                     value={`${sourceRecordCount}개`}
                     description="경력·프로젝트와 학습 기록의 합계"
                     icon={BriefcaseBusiness}
-                    loading={sourceRecordLoading}
-                    error={sourceRecordError}
+                    loading={summaryQuery.isLoading}
+                    error={summaryQuery.isError}
                     onClick={() => onNavigate('EXPERIENCE')}
                 />
                 <SummaryCard
                     label="학습 기록"
-                    value={`${studyQuery.data?.totalElements ?? 0}개`}
+                    value={`${summary?.studyCount ?? 0}개`}
                     description="Workspace에 축적한 학습 문서"
                     icon={BookOpen}
-                    loading={studyQuery.isLoading}
-                    error={studyQuery.isError}
+                    loading={summaryQuery.isLoading}
+                    error={summaryQuery.isError}
                     onClick={() => onNavigate('STUDY')}
                 />
                 <SummaryCard
                     label="기술 스택"
-                    value={`${skillQuery.data?.length ?? 0}개`}
+                    value={`${summary?.skillCount ?? 0}개`}
                     description="공통 카탈로그와 연결한 Workspace 기술"
                     icon={Cpu}
-                    loading={skillQuery.isLoading}
-                    error={skillQuery.isError}
+                    loading={summaryQuery.isLoading}
+                    error={summaryQuery.isError}
                     onClick={() => onNavigate('SKILLS')}
                 />
                 <SummaryCard
                     label="역량 원본"
-                    value={`${competencyQuery.data?.length ?? 0}개`}
+                    value={`${summary?.competencyCount ?? 0}개`}
                     description="경험 근거와 연결한 대표 역량"
                     icon={Sparkles}
-                    loading={competencyQuery.isLoading}
-                    error={competencyQuery.isError}
+                    loading={summaryQuery.isLoading}
+                    error={summaryQuery.isError}
                     onClick={() => onNavigate('COMPETENCIES')}
                 />
                 <SummaryCard
                     label="지원 현황"
-                    value={`${applicationQuery.data?.length ?? 0}건`}
+                    value={`${summary?.jobApplicationCount ?? 0}건`}
                     description="현재 Workspace에서 관리하는 지원 기록"
                     icon={BriefcaseBusiness}
-                    loading={applicationQuery.isLoading}
-                    error={applicationQuery.isError}
+                    loading={summaryQuery.isLoading}
+                    error={summaryQuery.isError}
                     onClick={() => onNavigate('JOB_APPLICATIONS')}
                 />
                 <SummaryCard
@@ -180,8 +154,8 @@ export function WorkspaceHomeDashboard({
                             : '발행 전이거나 공개를 중지한 상태'
                     }
                     icon={Radio}
-                    loading={publicationQuery.isLoading}
-                    error={publicationQuery.isError}
+                    loading={summaryQuery.isLoading}
+                    error={summaryQuery.isError}
                     onClick={() => onNavigate('PUBLICATION')}
                 />
             </div>

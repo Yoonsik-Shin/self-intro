@@ -1,5 +1,7 @@
 package com.selfintro.global.ai;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -138,13 +140,11 @@ public class OpenAiClient {
 
     private record OpenAiResponseFormat(String type) {}
 
-    @com.fasterxml.jackson.annotation.JsonInclude(
-            com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private record OpenAiRequest(
             String model,
             List<OpenAiMessage> messages,
-            @com.fasterxml.jackson.annotation.JsonProperty("response_format")
-                    OpenAiResponseFormat responseFormat) {}
+            @JsonProperty("response_format") OpenAiResponseFormat responseFormat) {}
 
     private static class OpenAiResponse {
         public List<OpenAiChoice> choices;

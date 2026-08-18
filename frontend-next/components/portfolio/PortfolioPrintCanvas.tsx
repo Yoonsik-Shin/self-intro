@@ -492,22 +492,24 @@ export function PortfolioPrintCanvas({
 
     const renderGapControl = (id: string) => (
         <div
-            onMouseDown={(e) => {
+            onPointerDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const startY = e.clientY;
                 const startGap = Math.max(0, store.sectionGaps[id] ?? 0);
-                const onMove = (me: MouseEvent) =>
+                const onMove = (me: PointerEvent) =>
                     store.setGap(id, Math.max(0, Math.round(startGap + (me.clientY - startY))));
                 const onUp = () => {
-                    window.removeEventListener('mousemove', onMove);
-                    window.removeEventListener('mouseup', onUp);
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                    window.removeEventListener('pointercancel', onUp);
                 };
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+                window.addEventListener('pointercancel', onUp);
             }}
             title="위아래로 끌어서 간격 조절"
-            className="grid h-6 w-6 cursor-ns-resize place-items-center rounded-full bg-slate-700/90 text-white transition hover:bg-blue-600 hover:scale-110"
+            className="grid h-6 w-6 touch-none cursor-ns-resize place-items-center rounded-full bg-slate-700/90 text-white transition hover:bg-blue-600 hover:scale-110"
         >
             <MoveVertical className="h-3 w-3" />
         </div>
@@ -766,6 +768,23 @@ export function PortfolioPrintCanvas({
             <div className="flex flex-1 min-h-0">
                 <div
                     ref={canvasRef}
+                    onClick={(event) => {
+                        const target = (event.target as HTMLElement).closest<HTMLElement>(
+                            '[data-print-el]'
+                        );
+                        const previous =
+                            canvasRef.current?.querySelector<HTMLElement>('[data-print-active]');
+                        if (previous && previous !== target) {
+                            previous.removeAttribute('data-print-active');
+                        }
+                        if (target) {
+                            if (target.hasAttribute('data-print-active')) {
+                                target.removeAttribute('data-print-active');
+                            } else {
+                                target.setAttribute('data-print-active', '');
+                            }
+                        }
+                    }}
                     className="relative flex-1 overflow-auto bg-slate-950 py-10"
                     style={{ scrollbarGutter: 'stable' }}
                 >

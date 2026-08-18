@@ -9,6 +9,8 @@ import com.selfintro.modules.jobposting.domain.repository.WorkspaceJobApplicatio
 import com.selfintro.modules.jobposting.presentation.dto.JobPostingResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,12 +49,12 @@ public class WorkspaceJobApplicationMatchingService {
     }
 
     private String matchingText(JobPosting posting) {
-        return java.util.stream.Stream.of(
+        return Stream.of(
                         posting.getRequiredSkillsRaw(),
                         posting.getJobDescription(),
                         posting.getRequiredQualifications(),
                         posting.getPreferredQualifications())
                 .filter(value -> value != null && !value.isBlank())
-                .collect(java.util.stream.Collectors.joining("\n"));
+                .collect(Collectors.joining("\n"));
     }
 }

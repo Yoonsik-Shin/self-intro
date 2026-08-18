@@ -89,37 +89,39 @@ export type Milestone = {
 };
 
 export function buildMilestones(introData: IntroductionResponse): Milestone[] {
-    return (introData.coreProjects ?? []).map((exp) => {
-        const label = exp.title.split(' (')[0];
-        const career = exp.careerId
-            ? introData.experiences.find(
-                  (item) => item.id === exp.careerId && item.type === 'CAREER'
-              )
-            : undefined;
+    // careerId로 특정 경력에 연결된 프로젝트는 이미 그 경력 카드 아래
+    // "career.projects"로 노출된다(buildCareerCards) — 여기서 또 노출하면 같은
+    // 프로젝트가 "경력"과 "핵심 프로젝트" 두 섹션에 중복으로 보인다.
+    const isUnderCareer = (exp: Experience): boolean =>
+        exp.careerId !== undefined &&
+        introData.experiences.some((item) => item.id === exp.careerId && item.type === 'CAREER');
 
-        // 공개 페이지와 출력 관리 API가 각자 선택을 마친 projection을 반환한다.
-        // 원본의 legacy visible 값으로 출력 항목을 다시 거르지 않는다.
-        const visibleDetails = exp.details ?? [];
+    return (introData.coreProjects ?? [])
+        .filter((exp) => !isUnderCareer(exp))
+        .map((exp) => {
+            const label = exp.title.split(' (')[0];
 
-        return {
-            id: exp.slug ?? exp.id.toString(),
-            label,
-            period: formatShortPeriod(exp.periodStart, exp.periodEnd),
-            title: exp.title,
-            body: visibleDetails.map((d) => d.content).join(', '),
-            skills: exp.skills.map((s) => s.name),
-            tags: exp.tags?.map((t) => t.name) ?? [],
-            role: career
-                ? `${career.companyName || career.title} · ${exp.role || career.role || ''}`
-                : (exp.role ?? ''),
-            description: exp.summary ?? '',
-            takeaway: exp.takeaway ?? '',
-            contributionRate: exp.contributionRate,
-            details: [...visibleDetails].sort((a, b) => a.displayOrder - b.displayOrder),
-            repositoryUrl: exp.repositoryUrl,
-            experienceId: exp.id,
-        };
-    });
+            // 공개 페이지와 출력 관리 API가 각자 선택을 마친 projection을 반환한다.
+            // 원본의 legacy visible 값으로 출력 항목을 다시 거르지 않는다.
+            const visibleDetails = exp.details ?? [];
+
+            return {
+                id: exp.slug ?? exp.id.toString(),
+                label,
+                period: formatShortPeriod(exp.periodStart, exp.periodEnd),
+                title: exp.title,
+                body: visibleDetails.map((d) => d.content).join(', '),
+                skills: exp.skills.map((s) => s.name),
+                tags: exp.tags?.map((t) => t.name) ?? [],
+                role: exp.role ?? '',
+                description: exp.summary ?? '',
+                takeaway: exp.takeaway ?? '',
+                contributionRate: exp.contributionRate,
+                details: [...visibleDetails].sort((a, b) => a.displayOrder - b.displayOrder),
+                repositoryUrl: exp.repositoryUrl,
+                experienceId: exp.id,
+            };
+        });
 }
 
 export function credentialSortRank(exp: Experience): number {

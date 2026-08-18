@@ -792,7 +792,7 @@ class SaasSecurityFoundationIntegrationTest {
 
         mockMvc.perform(get("/api/admin/job-postings").with(user(principal)))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/worker/job-postings/collect").with(user(principal)).with(csrf()))
+        mockMvc.perform(post("/api/admin/job-postings/collect").with(user(principal)).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
@@ -1722,7 +1722,9 @@ class SaasSecurityFoundationIntegrationTest {
                                         + "/learning-resources/manage/catalog")
                                 .with(user(AppUserPrincipal.of(secondOwner, Set.of()))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == " + catalog.getId() + ")].saved").value(true));
+                .andExpect(
+                        jsonPath("$.content[?(@.id == " + catalog.getId() + ")].saved")
+                                .value(true));
     }
 
     @Test
