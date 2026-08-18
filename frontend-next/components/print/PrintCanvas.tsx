@@ -3068,23 +3068,74 @@ export function PrintCanvas({
     // 어떤 버그가 만들어내든, 다음 렌더에서 무조건 제자리로 스냅백된다.
     const enforceSectionRowOrder = useCallback(
         (layout: OutputLayout): OutputLayout => {
-            const sectionRankById = new Map<string, number>();
-            printableAtoms.forEach((atom) => {
-                if (!sectionRankById.has(atom.sectionId)) {
-                    sectionRankById.set(atom.sectionId, sectionRankById.size);
-                }
+            // 예전엔 "섹션 랭크"로만 정렬해서, 같은 섹션 안에서 구성 관리 패널로
+            // 항목 순서(itemOrderOverrides)를 바꿔도 이미 명시적으로 배치(materialize)된
+            // 행끼리는 서로의 상대 순서가 안정 정렬로 그대로 보존돼 절대 안 바뀌었다
+            // (실제 발생 확인됨 — 기술 스택 섹션에서 "프로젝트/학습"을 "핵심 기술
+            // 스택"보다 위로 옮겨도 캔버스 렌더는 그대로였음). 섹션 단위가 아니라
+            // atom 하나하나의 전체 문서상 순서(printableAtoms 인덱스)로 랭크를
+            // 매기면, 섹션 간 순서는 물론 같은 섹션 안의 항목 순서 변경도 즉시
+            // 반영된다.
+            const atomRankById = new Map<string, number>();
+            printableAtoms.forEach((atom, index) => {
+                atomRankById.set(atom.id, index);
             });
+            const rowRank = (row: OutputRow): number => {
+                const ranks = getRowAtomIds(row.id, layout)
+                    .map((id) => atomRankById.get(id))
+                    .filter((r): r is number => r !== undefined);
+                return ranks.length > 0 ? Math.min(...ranks) : Number.MAX_SAFE_INTEGER;
+            };
+
+            // 랭크 기반 정렬은 같은 페이지 안에서만 행 순서를 바꾼다 — 이미 다른
+            // 페이지에 materialize돼 있는 행은 페이지를 넘나들며 옮길 방법이
+            // 없어서, 순서가 바뀐 항목이 이미 뒤 페이지로 넘어가 있으면 여전히
+            // 안 맞았다(실제 발생 확인됨 — "프로토콜을 지키며..."가 이미 2페이지에
+            // materialize돼 있어서 순서상 1페이지로 와야 하는데도 그대로 2페이지에
+            // 남음). 페이지 순서대로 훑으며 랭크가 이전 페이지의 최댓값보다 낮게
+            // "역행"하는 행을 찾으면, 그 행의 배치를 아예 지워 순수 자연 흐름으로
+            // 돌려보낸다 — 다음 self-heal에서 새로 갱신된 순서 기준으로 올바른
+            // 페이지에 다시 배치된다. 강제 배치(pageLocked)된 행은 사용자의 명시적
+            // 의도이므로 절대 건드리지 않는다.
+            const isRowLocked = (row: OutputRow): boolean => {
+                const regionIds = new Set(row.regionIds);
+                return layout.placements.some((p) => regionIds.has(p.regionId) && p.pageLocked);
+            };
+            let runningMaxRank = -Infinity;
+            const displacedAtomIds: string[] = [];
+            layout.pages.forEach((page) => {
+                const pageRows = layout.rows
+                    .filter((row) => row.pageId === page.id)
+                    .sort((a, b) => a.order - b.order);
+                pageRows.forEach((row) => {
+                    if (isRowLocked(row)) return;
+                    const rank = rowRank(row);
+                    if (rank === Number.MAX_SAFE_INTEGER) return;
+                    if (rank < runningMaxRank) {
+                        displacedAtomIds.push(...getRowAtomIds(row.id, layout));
+                    } else {
+                        runningMaxRank = rank;
+                    }
+                });
+            });
+            const workingLayout =
+                displacedAtomIds.length > 0
+                    ? {
+                          ...layout,
+                          placements: layout.placements.filter(
+                              (p) => !displacedAtomIds.includes(p.atomId)
+                          ),
+                      }
+                    : layout;
 
             const orderUpdates = new Map<string, number>();
-            layout.pages.forEach((page) => {
-                const pageRowsOrdered = layout.rows
+            workingLayout.pages.forEach((page) => {
+                const pageRowsOrdered = workingLayout.rows
                     .filter((row) => row.pageId === page.id)
                     .sort((a, b) => a.order - b.order);
                 const ranked = pageRowsOrdered.map((row, originalIndex) => ({
                     row,
-                    rank:
-                        sectionRankById.get(getRowSectionId(row.id, layout) ?? '') ??
-                        Number.MAX_SAFE_INTEGER,
+                    rank: rowRank(row),
                     originalIndex,
                 }));
                 const sorted = [...ranked].sort((a, b) =>
@@ -3095,12 +3146,12 @@ export function PrintCanvas({
                 });
             });
 
-            if (orderUpdates.size === 0) return layout;
+            if (orderUpdates.size === 0 && displacedAtomIds.length === 0) return layout;
 
-            const rows = layout.rows.map((row) =>
+            const rows = workingLayout.rows.map((row) =>
                 orderUpdates.has(row.id) ? { ...row, order: orderUpdates.get(row.id)! } : row
             );
-            const pages = layout.pages.map((page) => {
+            const pages = workingLayout.pages.map((page) => {
                 const pageRowIds = rows
                     .filter((row) => row.pageId === page.id)
                     .sort((a, b) => a.order - b.order)
@@ -3111,9 +3162,9 @@ export function PrintCanvas({
                 return { ...page, rowIds: pageRowIds, regionIds: pageRegionIds };
             });
 
-            return { ...layout, rows, pages };
+            return { ...workingLayout, rows, pages };
         },
-        [printableAtoms, getRowSectionId]
+        [printableAtoms, getRowAtomIds]
     );
 
     // 어떤 열이 비어 완전히 사라지면 그 행은 단일열로 줄어드는데, 이웃 행과
