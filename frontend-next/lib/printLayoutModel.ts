@@ -598,11 +598,20 @@ export function forceAtomsToPage(
 export function clearAtomPlacements(source: OutputLayout, atomIds: string[]): OutputLayout {
     const atomIdSet = new Set(atomIds);
     const layout = normalizeOutputLayout(source);
+    // pageLocked만 false로 내리고 placement(행/페이지 위치) 자체는 그대로 두면,
+    // 이 atom은 여전히 "명시적으로 배치됨" 취급이라 순수 자연 계산
+    // (partitionAtomsIntoPages)에서 제외된 채 예전 위치에 그대로 눌러앉는다.
+    // 그런데 같은 섹션의 아직 한 번도 배치 안 된(순수 자연 흐름) 형제 atom들은
+    // 그 눌러앉은 자리를 전혀 모르고 자기 계산대로 같은 페이지에 계속 쌓여서,
+    // 오버플로 감지가 놓치는 "이중 배정"이 생겼다(실제 발생 확인됨 — 헤더+회사+
+    // 상세 몇 개를 해제했는데도 그 페이지에 물리적으로 눌러앉아 있고, 그 뒤
+    // 아직 안 배치된 상세 항목들이 페이지 용량을 모른 채 같은 페이지에 계속
+    // 얹혀 실제 렌더가 여백을 뚫고 넘침). placement를 완전히 지워 순수 자연
+    // 흐름으로 되돌리면, materializePageIntoRows가 다음 self-heal에서 신선한
+    // 자연 계산(atomPageMap) 기준으로 다시 배치해 이런 이중 배정이 안 생긴다.
     return {
         ...layout,
-        placements: layout.placements.map((item) =>
-            atomIdSet.has(item.atomId) ? { ...item, pageLocked: false } : item
-        ),
+        placements: layout.placements.filter((item) => !atomIdSet.has(item.atomId)),
     };
 }
 

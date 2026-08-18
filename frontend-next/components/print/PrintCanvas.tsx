@@ -1290,6 +1290,12 @@ export function PrintCanvas({
         return map;
     }, [store.outputLayout.rows, store.outputLayout.placements, printableAtoms, store.atomHeights]);
 
+    // 강제 배치로 옮겨간 큰 섹션(항목이 수십 개인 경우)의 원래 자리를 높이 그대로
+    // 빈 공간으로 예약해봤지만, 그 섹션 자체가 페이지 하나보다 커지면 예약된
+    // 빈 공간도 페이지 하나 이상을 통째로 잡아먹어 완전히 빈 페이지가 나타났다
+    // (실제 발생 확인됨). 큰 섹션을 옮길 때는 빈 공간을 남기지 않고 뒤따르는
+    // 내용이 자연스럽게 당겨져 다시 채워지는 쪽이 통짜 빈 페이지보다 낫다 —
+    // 그래서 예약 공간 없이 순수 자연 재계산으로 되돌린다.
     const pageLayers = useMemo(
         () =>
             partitionAtomsIntoPages(
@@ -1739,6 +1745,9 @@ export function PrintCanvas({
             const visited = new Set<string>([id]);
             const queue: string[] = [id];
 
+            // 섹션 헤더를 강제 배치하면 getAssociatedAtomIds의 "헤더면 섹션
+            // 전체" 규칙을 그대로 따라 섹션 전체가 함께 옮겨진다 — 하위 항목이
+            // 위에 남아 찢어지는 걸 원치 않는다는 실사용 요청에 따른 것이다.
             while (queue.length > 0) {
                 const current = queue.shift()!;
 
@@ -2666,9 +2675,27 @@ export function PrintCanvas({
                     ? targetPageRows[0]?.row.id
                     : targetPageRows[targetPageRows.length - 1]?.row.id);
             let insertPosition: 'before' | 'after' = isMovingDown ? 'before' : 'after';
-            for (const atomId of ids) {
+            ids.forEach((atomId, index) => {
                 if (anchorRowId) {
-                    usePrintStore.getState().forceNextToRow([atomId], anchorRowId, insertPosition);
+                    // 그룹(헤더+섹션 전체 등) 전체를 강제 배치할 때, ids의 첫 번째
+                    // (대표 atom, 보통 헤더)만 실제로 pageLocked를 건다. 나머지
+                    // atom까지 전부 개별로 잠그면, 큰 섹션을 옮길 때 수십 개
+                    // atom이 전부 "강제 배치됨" 배너를 달고 여러 페이지에 걸쳐
+                    // 흩어지며 rebalance의 예약된 빈 공간이 페이지 하나를 통째로
+                    // 잡아먹는 참사가 났다(실제 발생 확인됨). 대표 atom 하나만
+                    // 옮긴 지점의 "표식"으로 잠그고, 나머지는 그 뒤에 물리적으로
+                    // 이어붙이기만 하고 잠그지 않아 — 이후 자연 넘침 재계산
+                    // (rebalancePageOverflow)이 나머지 내용을 정상적인 자연
+                    // 콘텐츠처럼 자유롭게 다시 흘려보낼 수 있다.
+                    if (index === 0) {
+                        usePrintStore
+                            .getState()
+                            .forceNextToRow([atomId], anchorRowId, insertPosition);
+                    } else {
+                        usePrintStore
+                            .getState()
+                            .insertAtomsNextToRow([atomId], anchorRowId, insertPosition);
+                    }
                     // 첫 삽입 이후로는 방금 넣은 행을 기준으로 계속 '뒤에' 이어붙여야
                     // ids 내부 순서가 그대로 유지된다(맨 위에 붙는 경우도 두 번째
                     // atom부터는 첫 atom 뒤에 이어져야지, 매번 원래 anchorRow 앞에
@@ -2686,7 +2713,7 @@ export function PrintCanvas({
                     ? latestLayout.regions.find((r) => r.id === placement.regionId)
                     : undefined;
                 anchorRowId = region?.rowId ?? anchorRowId;
-            }
+            });
         },
         [getRowPairingKey, printableAtoms, effectivePageMap, store.outputLayout]
     );
