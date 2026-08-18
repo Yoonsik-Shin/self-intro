@@ -3112,6 +3112,16 @@ export function PrintCanvas({
                     const rank = rowRank(row);
                     if (rank === Number.MAX_SAFE_INTEGER) return;
                     if (rank < runningMaxRank) {
+                        // 2-4열로 나란히 배치된(컬럼 페어링된) 행이 역행 대상이면
+                        // 행에 속한 atom을 전부 배치 해제한다 — 컬럼 페어링은
+                        // 순서와 무관한 별도 구조라서 "순서만 바로잡고 페어링은
+                        // 그대로 유지"가 불가능하다. 그래서 페어링째로 풀어
+                        // 자연 흐름(단일열)으로 돌려보내고, 나란히 배치를 다시
+                        // 원하면 사용자가 드래그로 재조립해야 한다. 순서 변경과
+                        // 동시에 컬럼 재구성까지 자동으로 맞추는 건 이 함수의
+                        // 책임 밖으로 남겨둔 개선 여지다 — TODO(print-canvas):
+                        // 구성 관리에서 순서를 바꿨을 때 멀티컬럼 페어링을
+                        // 새 순서에 맞게 자동으로 재구성하는 전용 로직.
                         displacedAtomIds.push(...getRowAtomIds(row.id, layout));
                     } else {
                         runningMaxRank = rank;
