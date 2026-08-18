@@ -208,6 +208,21 @@ export function PrintCanvas({
     const queryClient = useQueryClient();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const printLayoutFrozenRef = useRef(false);
+    // Figma처럼: 스페이스바를 누른 채(또는 마우스 가운데 버튼으로) 회색 배경을
+    // 드래그하면 화면을 이동(pan)한다. 실제 카드 드래그(재정렬)와 충돌하지 않게
+    // 왼쪽 버튼 드래그는 스페이스가 눌려 있을 때만 pan으로 취급한다.
+    const [isSpacePanMode, setIsSpacePanMode] = useState(false);
+    const panStateRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        scrollLeft: number;
+        scrollTop: number;
+        moved: boolean;
+    } | null>(null);
+    // pointerup 시점에 panStateRef는 이미 비워지므로, 뒤이어 발생하는 click
+    // 이벤트에서 "방금 pan 드래그였는지"를 판별하려면 별도로 남겨둬야 한다.
+    const suppressNextCanvasClickRef = useRef(false);
     // 간격 드래그 중엔 pointermove마다 sectionGaps가 바뀌고, 그때마다
     // rebalancePageOverflow가 그 순간의(아직 확정 안 된) 간격값으로 오버플로우
     // 여부를 다시 판단해 페이지 사이로 콘텐츠를 밀었다 당겼다 반복한다 — 드래그
@@ -1004,6 +1019,73 @@ export function PrintCanvas({
         canvas.addEventListener('wheel', handleWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', handleWheel);
     }, []);
+
+    // 스페이스바를 누르고 있는 동안만 왼쪽 버튼 드래그를 pan으로 취급한다. 텍스트
+    // 입력 중(인라인 편집, 검색창 등)에는 스페이스가 실제 공백 입력이어야 하므로
+    // 편집 가능한 요소에 포커스가 있을 땐 무시한다.
+    useEffect(() => {
+        const isEditableTarget = (target: EventTarget | null) => {
+            const el = target as HTMLElement | null;
+            if (!el) return false;
+            const tag = el.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code !== 'Space' || isEditableTarget(e.target)) return;
+            // 키를 누르고 있는 동안 브라우저가 계속 keydown을 반복 발생시키는데(auto-repeat),
+            // 매번 preventDefault를 걸어줘야 한다 — 첫 이벤트에서만 막으면 그 뒤 반복
+            // 이벤트에서 스페이스바 기본 동작(페이지 아래로 스크롤)이 그대로 실행된다
+            // (실제 발생 확인됨: 스페이스를 누르고 있으면 화면이 계속 내려감).
+            e.preventDefault();
+            if (e.repeat) return;
+            setIsSpacePanMode(true);
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.code !== 'Space') return;
+            setIsSpacePanMode(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
+
+    const handleCanvasPanPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        if (e.button === 1 || (e.button === 0 && isSpacePanMode)) {
+            e.preventDefault();
+            canvas.setPointerCapture(e.pointerId);
+            panStateRef.current = {
+                pointerId: e.pointerId,
+                startX: e.clientX,
+                startY: e.clientY,
+                scrollLeft: canvas.scrollLeft,
+                scrollTop: canvas.scrollTop,
+                moved: false,
+            };
+        }
+    };
+    const handleCanvasPanPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        const pan = panStateRef.current;
+        if (!canvas || !pan || pan.pointerId !== e.pointerId) return;
+        const dx = e.clientX - pan.startX;
+        const dy = e.clientY - pan.startY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pan.moved = true;
+        canvas.scrollLeft = pan.scrollLeft - dx;
+        canvas.scrollTop = pan.scrollTop - dy;
+    };
+    const handleCanvasPanPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        const pan = panStateRef.current;
+        if (!pan || pan.pointerId !== e.pointerId) return;
+        suppressNextCanvasClickRef.current = pan.moved;
+        canvas?.releasePointerCapture(e.pointerId);
+        panStateRef.current = null;
+    };
 
     const handleZoomFit = () => {
         const canvas = canvasRef.current;
@@ -3630,7 +3712,15 @@ export function PrintCanvas({
                             )}
                             <div
                                 ref={canvasRef}
+                                onPointerDown={handleCanvasPanPointerDown}
+                                onPointerMove={handleCanvasPanPointerMove}
+                                onPointerUp={handleCanvasPanPointerUp}
+                                onPointerCancel={handleCanvasPanPointerUp}
                                 onClick={(event) => {
+                                    if (suppressNextCanvasClickRef.current) {
+                                        suppressNextCanvasClickRef.current = false;
+                                        return;
+                                    }
                                     const target = (
                                         event.target as HTMLElement
                                     ).closest<HTMLElement>('[data-print-el]');
@@ -3649,7 +3739,7 @@ export function PrintCanvas({
                                         }
                                     }
                                 }}
-                                className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
+                                className={`pdf-canvas flex-1 min-h-0 overflow-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0 ${isSpacePanMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             >
                                 <div
                                     className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
