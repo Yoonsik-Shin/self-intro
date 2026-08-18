@@ -649,7 +649,8 @@ body {
     }
 
     /* 프리뷰 전용 컨트롤(핀/여백 조절/페이지 배치 배지)은 실제 인쇄에 노출되지 않는다 */
-    .pp-controls {
+    .pp-controls,
+    .pp-page-break-banner {
         display: none !important;
     }
 
@@ -727,6 +728,58 @@ body {
    섹션/아이템 모두 .pp-controls가 항상 첫 자식이므로 바로 다음 형제의 margin만 0으로 되돌린다. */
 .pp-controls + * {
     margin-top: 0 !important;
+}
+
+/* 강제 배치/페이지 분할 배너(renderPageBreakControl)는 위치·너비를 Tailwind
+   유틸리티로 직접 지정하므로(.pp-controls의 top/right 고정 위치와 충돌),
+   .pp-controls 자체를 재사용하지 않고 같은 호버 표시 동작만 별도 클래스로
+   재현한다 — 항상 떠 있으면 경계 행이 많은 페이지에서 배너가 겹겹이 쌓여
+   너무 어수선했다(실사용 요청 — "호버했을 때만 보이도록").
+   position/top/right는 이 클래스가 아니라 각 배너 자체의 Tailwind 클래스가
+   담당한다.
+
+   이 배너는 renderItemGap을 통해 해당 항목의 [data-print-el] 안이 아니라
+   "바로 앞 형제"로 렌더링된다(간격 스페이서용 div가 그 사이에 하나 더
+   끼기도 한다) — .pp-controls처럼 부모 자식(> ) 관계의 :hover로는 안 잡혀서
+   호버해도 전혀 안 뜨는 문제가 있었다(실제 발생 확인됨). React Fragment는
+   DOM 노드를 안 만들어서 실제로는 이 문서의 모든 항목 배너·카드가 전부
+   진짜 형제로 한 부모 아래 나열돼 있다 — 그래서 범위를 안 좁힌 일반 형제
+   결합자(~)를 쓰면 "다른(더 뒤에 있는) 항목을 호버해도 이 배너가 뜨는"
+   오작동이 난다. 반드시 인접 형제(+)만 써서 "바로 다음"(간격 스페이서가
+   끼는 경우까지 정확히 두 단계)까지만 검사한다.
+
+   :has() 인자 안에 또 :has()를 중첩하면(예: 중첩 data-print-el 호버를
+   제외하려던 :not(:has(...))) 명세상 무효 선택자가 되어 규칙 전체가
+   조용히 하나도 안 먹힌다(실제 발생 확인됨 — 배너 요소는 DOM에 있는데
+   호버해도 전혀 안 뜸). 그래서 중첩 제외 없이 단순하게 "바로 다음
+   형제가 지금 호버 중인가"만 검사한다. */
+.pp-page-break-banner {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.pp-page-break-banner:has(+ [data-print-el]:hover),
+.pp-page-break-banner:has(+ [data-print-gap] + [data-print-el]:hover),
+.pp-page-break-banner:hover {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.pp-page-break-banner:has(+ [data-print-el][data-print-active]),
+.pp-page-break-banner:has(+ [data-print-gap] + [data-print-el][data-print-active]) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* 섹션 헤더(career-header 등)는 renderItemGap 형제 패턴이 아니라 .pp-controls처럼
+   [data-print-el] 자신의 자식으로 렌더된다(실제 발생 확인됨 — 헤더 배너는 DOM엔
+   있지만 위 형제 결합자로는 절대 안 잡혀서 호버해도 안 뜸). .pp-controls와 동일한
+   부모 자식(>) 호버 규칙을 그대로 추가한다. */
+[data-print-el]:hover:not(:has([data-print-el]:hover)) > .pp-page-break-banner,
+[data-print-el][data-print-active] > .pp-page-break-banner {
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 /* textarea는 자체 line box와 내부 스크롤 영역 때문에 마지막 줄이 잘릴 수 있다.

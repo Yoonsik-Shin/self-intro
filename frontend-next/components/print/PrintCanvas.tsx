@@ -1598,6 +1598,29 @@ export function PrintCanvas({
         printableAtoms,
     ]);
 
+    // 각 페이지의 "맨 마지막 행"도 강제 배치 컨트롤이 있어야 한다 — 다음
+    // 페이지로 자연스럽게 넘어가는 진짜 경계 행이기 때문이다(실사용 요청 —
+    // "각 페이지의 마지막 행들은 노출되고 하단배치가 가능했으면"). 위
+    // pageBreakBoundaryAtomIds는 "다음 페이지의 첫 행"만 다루므로(같은 섹션이
+    // 이어지거나 헤더로 시작할 때만), 여기서는 섹션 연속 여부와 무관하게
+    // 모든 실제 페이지의 마지막 행을 그대로 모은다.
+    const pageBreakBottomBoundaryAtomIds = useMemo(() => {
+        const set = new Set<string>();
+        store.outputLayout.pages.forEach((page) => {
+            const rows = store.outputLayout.rows
+                .filter((r) => r.pageId === page.id)
+                .sort((a, b) => a.order - b.order);
+            const lastRow = rows[rows.length - 1];
+            const regionId = lastRow?.regionIds[lastRow.regionIds.length - 1];
+            if (!regionId) return;
+            const placement = store.outputLayout.placements
+                .filter((p) => p.regionId === regionId)
+                .sort((a, b) => b.order - a.order)[0];
+            if (placement) set.add(placement.atomId);
+        });
+        return set;
+    }, [store.outputLayout.pages, store.outputLayout.rows, store.outputLayout.placements]);
+
     const getAssociatedAtomIds = useCallback(
         (id: string): string[] => {
             if (id.startsWith('project-details-header:')) {
@@ -2320,7 +2343,12 @@ export function PrintCanvas({
                 // 항목(진짜 페이지 경계)은 예외다 — 그건 소유자 배너로는 손댈
                 // 수 없는 진짜 새 분할 지점이라 자기 배너가 있어야 한다(실사용
                 // 요청 — "밀려난 맨 위 항목엔 강제배치 컨트롤이 있어야 한다").
-                if (isForcedViaGroupOwner(id) && !isCurrentlyTopOfPage) return false;
+                if (
+                    isForcedViaGroupOwner(id) &&
+                    !isCurrentlyTopOfPage &&
+                    !pageBreakBottomBoundaryAtomIds.has(id)
+                )
+                    return false;
                 return true;
             }
             // pageBreakBoundaryAtomIds는 순수 자연 흐름(pageLayers)만 보고 계산된
@@ -2329,13 +2357,17 @@ export function PrintCanvas({
             // 더 이상 "그 페이지 맨 위"가 아니게 됐으면 더 이상 안 맞는 얘기다 —
             // 페이지 중간에 떠 있는데 "여기서 분할됨" 배너가 뜨면 혼란만 준다.
             const isBoundary = isCurrentlyTopOfPage && pageBreakBoundaryAtomIds.has(id);
+            // 페이지 맨 마지막 행도 배너 대상이다 — 다음 페이지로 넘어가기 직전인
+            // 진짜 경계 행이라 강제 배치 컨트롤이 있어야 한다(실사용 요청).
+            const isBottomBoundary = pageBreakBottomBoundaryAtomIds.has(id);
             const currentGap = store.sectionGaps[id] ?? 0;
-            return isBoundary || currentGap > 0;
+            return isBoundary || isBottomBoundary || currentGap > 0;
         },
         [
             store.hidePrintGuides,
             store.forcedPageOverrides,
             pageBreakBoundaryAtomIds,
+            pageBreakBottomBoundaryAtomIds,
             store.sectionGaps,
             placementByAtomId,
             store.outputLayout.regions,
@@ -2557,7 +2589,17 @@ export function PrintCanvas({
             // 예고 없이 그 페이지 맨 아래로 옮겨진다(실제 발생 확인됨 — "2페이지로
             // 올리기"를 눌렀는데 페이지는 안 바뀌고 3페이지 맨 아래로 이동).
             // 실제로 페이지가 바뀌지 않는다면 아무것도 하지 않는다.
-            if (effectivePageMap.get(ids[0]) === targetPageIndex) return;
+            const currentActualPage = effectivePageMap.get(ids[0]);
+            if (currentActualPage === targetPageIndex) return;
+            // 아래로 내리는 경우(현재 페이지보다 뒤로)와 위로 올리는 경우(현재
+            // 페이지보다 앞으로)는 문서 순서상 붙어야 할 위치가 정반대다.
+            // 아래로 내릴 땐 대상 페이지의 자연 컨텐츠보다 문서상 먼저 오므로
+            // 그 페이지 "맨 위"(첫 행 앞)에 붙어야 하고, 위로 끌어올릴 땐 대상
+            // 페이지의 자연 컨텐츠보다 문서상 나중이므로 그 페이지 "맨 아래"
+            // (마지막 행 뒤)에 붙어야 한다(실제 발생 확인됨 — 아래로 내렸는데
+            // 다음 페이지 맨 아래에 붙어서 순서가 뒤바뀜).
+            const isMovingDown =
+                currentActualPage === undefined || targetPageIndex > currentActualPage;
             // "다음 페이지로 내리기"는 자연 흐름이 아직 만들지 않은 페이지를
             // 목표로 삼을 수 있다(문서 맨 끝 근처 항목을 그 다음 페이지로 밀 때
             // 등). getOutputPageAt은 store에 없는 페이지를 요청받으면 반환값
@@ -2591,7 +2633,10 @@ export function PrintCanvas({
                 targetPageIndex
             );
             let anchorRow: OutputRow | undefined;
-            for (let i = targetPageRows.length - 1; i >= 0; i -= 1) {
+            const rowIndices = isMovingDown
+                ? targetPageRows.map((_, i) => i)
+                : targetPageRows.map((_, i) => targetPageRows.length - 1 - i);
+            for (const i of rowIndices) {
                 const { row, regions } = targetPageRows[i];
                 const hasMatchingAtom = regions.some((region) =>
                     outputLayoutForAnchor.placements.some(
@@ -2615,10 +2660,20 @@ export function PrintCanvas({
             // 하나를 절대 못 쪼개고 페이지 경계를 그냥 뚫고 넘쳤다). atom을
             // 하나씩 순서대로 별도 행으로 끼워넣어 atom-per-row 구조를 유지해야
             // push가 넘치는 부분을 정상적으로 다음 페이지로 쪼갤 수 있다.
-            let anchorRowId = anchorRow?.id ?? targetPageRows[targetPageRows.length - 1]?.row.id;
+            let anchorRowId =
+                anchorRow?.id ??
+                (isMovingDown
+                    ? targetPageRows[0]?.row.id
+                    : targetPageRows[targetPageRows.length - 1]?.row.id);
+            let insertPosition: 'before' | 'after' = isMovingDown ? 'before' : 'after';
             for (const atomId of ids) {
                 if (anchorRowId) {
-                    usePrintStore.getState().forceNextToRow([atomId], anchorRowId, 'after');
+                    usePrintStore.getState().forceNextToRow([atomId], anchorRowId, insertPosition);
+                    // 첫 삽입 이후로는 방금 넣은 행을 기준으로 계속 '뒤에' 이어붙여야
+                    // ids 내부 순서가 그대로 유지된다(맨 위에 붙는 경우도 두 번째
+                    // atom부터는 첫 atom 뒤에 이어져야지, 매번 원래 anchorRow 앞에
+                    // 다시 끼어들면 순서가 뒤집힌다).
+                    insertPosition = 'after';
                 } else {
                     // 이 페이지에 행이 하나도 없다(완전히 빈 페이지) — 첫 atom만
                     // forcePage로 넣고, 그 뒤부터는 방금 만들어진 행을 앵커 삼아
@@ -3327,6 +3382,7 @@ export function PrintCanvas({
             atomPageMap,
             effectivePageMap,
             pageBreakBoundaryAtomIds,
+            pageBreakBottomBoundaryAtomIds,
             getAtomDisplayTitle,
             startGapDrag,
             getForcePageAssociatedAtomIds,
@@ -3367,6 +3423,7 @@ export function PrintCanvas({
             atomPageMap,
             effectivePageMap,
             pageBreakBoundaryAtomIds,
+            pageBreakBottomBoundaryAtomIds,
             getAtomDisplayTitle,
             startGapDrag,
             getForcePageAssociatedAtomIds,

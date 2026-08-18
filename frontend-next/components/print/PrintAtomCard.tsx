@@ -167,6 +167,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         setSkillSelectorModalOpen,
         effectivePageMap,
         pageBreakBoundaryAtomIds,
+        pageBreakBottomBoundaryAtomIds,
         getAtomDisplayTitle,
         startGapDrag,
         getForcePageAssociatedAtomIds,
@@ -256,6 +257,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         void sectionId;
 
         const isBoundary = pageBreakBoundaryAtomIds.has(id);
+        const isBottomBoundary = pageBreakBottomBoundaryAtomIds.has(id);
         const forcedPage = store.forcedPageOverrides[id];
         const currentPage = effectivePageMap.get(id);
         const itemTitle = getAtomDisplayTitle(id);
@@ -310,7 +312,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
             const isSingleAtomGroup = getForcePageAssociatedAtomIds(id).length === 1;
 
             return (
-                <div className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto">
+                <div className="pp-page-break-banner absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden">
                     <div className="flex items-center gap-2 min-w-0 shrink">
                         <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
                             강제 위치 배치됨
@@ -382,10 +384,11 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         }
 
         const targetPrevPage = (currentPage ?? 1) - 1;
+        const targetNextPage = (currentPage ?? 0) + 1;
 
         return (
             <div
-                className={`absolute -top-7 ${isBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto`}
+                className={`pp-page-break-banner absolute -top-7 ${isBoundary || isBottomBoundary ? 'left-[112px]' : 'left-0'} right-0 z-30 flex items-center justify-between rounded-md border border-blue-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden`}
             >
                 <div className="flex items-center gap-2 min-w-0 shrink">
                     <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white shrink-0">
@@ -396,12 +399,16 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                         title={
                             isBoundary
                                 ? `${itemTitle} 항목부터 다음 페이지로 분할되었습니다.`
-                                : `${itemTitle} 여백 세밀 조절 중`
+                                : isBottomBoundary
+                                  ? `${itemTitle} 항목이 이 페이지의 마지막 행입니다.`
+                                  : `${itemTitle} 여백 세밀 조절 중`
                         }
                     >
                         {isBoundary
                             ? `${shortItemTitle} 항목부터 다음 페이지로 분할`
-                            : `${shortItemTitle} 여백 세밀 조절 중`}
+                            : isBottomBoundary
+                              ? `${shortItemTitle} 항목이 페이지 마지막 행`
+                              : `${shortItemTitle} 여백 세밀 조절 중`}
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
@@ -419,6 +426,23 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                             <span className="truncate max-w-[160px]">
                                 &apos;{shortItemTitle}&apos; {targetPrevPage + 1}페이지로 강제
                                 올리기
+                            </span>
+                        </button>
+                    )}
+                    {isBottomBoundary && currentPage !== undefined && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                forceMoveToPage(getForcePageAssociatedAtomIds(id), targetNextPage);
+                            }}
+                            title={`'${itemTitle}' 항목을 ${targetNextPage + 1}페이지로 강제 내립니다.`}
+                            className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
+                        >
+                            <ArrowDown className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate max-w-[160px]">
+                                &apos;{shortItemTitle}&apos; {targetNextPage + 1}페이지로 강제
+                                내리기
                             </span>
                         </button>
                     )}

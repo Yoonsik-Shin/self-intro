@@ -83,6 +83,7 @@ export type PrintAtomRenderContextValue = {
     atomPageMap: Map<string, number>;
     effectivePageMap: Map<string, number>;
     pageBreakBoundaryAtomIds: Set<string>;
+    pageBreakBottomBoundaryAtomIds: Set<string>;
     getAtomDisplayTitle: (atomId: string) => string;
     startGapDrag: (id: string) => (e: ReactPointerEvent<HTMLDivElement>) => void;
     getForcePageAssociatedAtomIds: (id: string) => string[];

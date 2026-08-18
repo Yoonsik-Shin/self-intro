@@ -1757,10 +1757,16 @@ export function rebalancePageOverflow(
             continue;
         }
 
-        // push와 같은 이유로, 이 페이지에 강제 배치된 행이 있으면 당겨오기도
-        // 건너뛴다 — 안 그러면 강제 배치된 행 뒤에 새로 당겨온 내용이 끼어들어
-        // "맨 아래에 고정" 이라는 강제 배치의 의미가 깨진다.
-        if (pageRows.some((row) => isRowLocked(row))) {
+        // 당겨온 내용은 항상 페이지 맨 끝(마지막 행 뒤)에만 붙는다. 그러니 실제로
+        // 조심해야 할 건 "마지막 행 자체가 잠겨있는가"뿐이다 — 잠긴 행이 페이지
+        // 중간/맨 위에 있어도 그 뒤 순서는 안 건드리므로 끝에 붙이는 건 안전하다.
+        // 예전엔 페이지에 잠긴 행이 하나라도 있으면 통째로 건너뛰었는데, 그러면
+        // "맨 위로 강제 배치된 행"이 있는 페이지는 다른 강제 배치를 해제해도
+        // 영원히 아무것도 안 당겨와서 원래 자리로 못 돌아왔다(실제 발생 확인됨
+        // — career-header를 해제해도 그 페이지 맨 위에 다른 강제 배치 행이
+        // 있다는 이유만으로 계속 다음 페이지에 머묾).
+        const lastRowOnPageBeforePull = pageRows[pageRows.length - 1];
+        if (lastRowOnPageBeforePull && isRowLocked(lastRowOnPageBeforePull)) {
             pullPageIndex += 1;
             continue;
         }
