@@ -88,6 +88,7 @@ export type PrintAtomRenderContextValue = {
     getForcePageAssociatedAtomIds: (id: string) => string[];
     forceMoveToPage: (ids: string[], pageIndex: number) => void;
     isPageBreakBannerVisible: (id: string) => boolean;
+    isForcedViaGroupOwner: (id: string) => boolean;
 };
 
 export const PrintAtomRenderContext = createContext<PrintAtomRenderContextValue | null>(null);

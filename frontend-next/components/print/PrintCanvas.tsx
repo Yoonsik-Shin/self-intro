@@ -1612,6 +1612,23 @@ export function PrintCanvas({
                     .find((item) => String(item.id) === projectId);
                 if (p) return [id, ...p.details.map((d) => `career-detail:${d.id}`)];
             }
+            if (id.startsWith('career-company:')) {
+                // 회사 카드 자체는 isHeader가 아니라서 아래 헤더 분기를 안 타지만,
+                // 그 회사에 속한 프로젝트/상세와 항상 하나의 단위로 움직여야 한다
+                // — 그렇지 않으면 강제 배치 시 회사 타이틀만 옮겨지고 소속
+                // 프로젝트/상세는 원래 페이지에 남아 내용이 찢어진다.
+                const companyId = id.replace('career-company:', '');
+                const card = orderedCareerCards.find((c) => String(c.id) === companyId);
+                if (card) {
+                    return [
+                        id,
+                        ...card.projects.map((p) => `career-project:${p.id}`),
+                        ...card.projects.flatMap((p) =>
+                            p.details.map((d) => `career-detail:${d.id}`)
+                        ),
+                    ];
+                }
+            }
             // 섹션 헤더를 끌면 그 섹션에 속한 모든 요소가 함께 이동한다 — 구성 단위
             // 통째로 재정렬하기 위함.
             const atom = printableAtoms.find((a) => a.id === id);
@@ -1623,6 +1640,63 @@ export function PrintCanvas({
             return [id];
         },
         [orderedMilestones, orderedCareerCards, printableAtoms]
+    );
+
+    // 헤더(섹션 전체) 또는 career-company(회사+소속 프로젝트/상세)를 통째로
+    // 강제 배치하면, 그 그룹에 속한 모든 하위 atom도 각자 pageLocked/
+    // forcedPageOverrides를 갖게 된다. 그러면 하위 atom 하나하나가 자기도
+    // "강제 배치됨" 배너를 독립적으로 띄워서, 회사 카드 하나만 내렸는데도
+    // 그 안의 모든 프로젝트·상세 항목에 배너가 중복으로 뜨는 문제가 났다
+    // (실제 발생 확인됨). 이 atom이 속할 수 있는 "그룹 소유자" 후보들
+    // (섹션 헤더, 또는 career-company/career-details-header/
+    // project-details-header)을 찾아, 그 소유자가 강제 배치돼 있으면 자기
+    // 배너는 숨기고 소유자의 배너만 보이게 한다.
+    const getPossibleGroupOwnerIds = useCallback(
+        (id: string): string[] => {
+            const owners: string[] = [];
+            const atom = printableAtoms.find((a) => a.id === id);
+            if (atom && !atom.isHeader) {
+                const header = printableAtoms.find(
+                    (a) => a.isHeader && a.sectionId === atom.sectionId
+                );
+                if (header) owners.push(header.id);
+            }
+            if (id.startsWith('career-project:')) {
+                const projectId = id.replace('career-project:', '');
+                const company = orderedCareerCards.find((c) =>
+                    c.projects.some((p) => String(p.id) === projectId)
+                );
+                if (company) owners.push(`career-company:${company.id}`);
+            }
+            if (id.startsWith('career-detail:')) {
+                const detailId = id.replace('career-detail:', '');
+                const company = orderedCareerCards.find((c) =>
+                    c.projects.some((p) => p.details.some((d) => String(d.id) === detailId))
+                );
+                if (company) owners.push(`career-company:${company.id}`);
+                const project = orderedCareerCards
+                    .flatMap((c) => c.projects)
+                    .find((p) => p.details.some((d) => String(d.id) === detailId));
+                if (project) owners.push(`career-details-header:${project.id}`);
+            }
+            if (id.startsWith('project-detail:')) {
+                const detailId = id.replace('project-detail:', '');
+                const m = orderedMilestones.find((item) =>
+                    item.details.some((d) => String(d.id) === detailId)
+                );
+                if (m) owners.push(`project-details-header:${m.id}`);
+            }
+            return owners;
+        },
+        [printableAtoms, orderedCareerCards, orderedMilestones]
+    );
+
+    const isForcedViaGroupOwner = useCallback(
+        (id: string): boolean =>
+            getPossibleGroupOwnerIds(id).some(
+                (ownerId) => ownerId !== id && store.forcedPageOverrides[ownerId] !== undefined
+            ),
+        [getPossibleGroupOwnerIds, store.forcedPageOverrides]
     );
 
     // 강제 페이지 이동/해제 전용. 2-3열로 나란히 배치된 행에서 한 컬럼만 옮기면
@@ -2215,26 +2289,13 @@ export function PrintCanvas({
             if (id === 'intro-profile') return false;
             const forcedPage = store.forcedPageOverrides[id];
             if (forcedPage !== undefined) {
-                const isChildDetail =
-                    id.startsWith('project-detail:') || id.startsWith('career-detail:');
-                if (isChildDetail) {
-                    let parentHeaderId: string | null = null;
-                    if (id.startsWith('project-detail:')) {
-                        const detailId = id.replace('project-detail:', '');
-                        const m = orderedMilestones.find((item) =>
-                            item.details.some((d) => String(d.id) === detailId)
-                        );
-                        if (m) parentHeaderId = `project-details-header:${m.id}`;
-                    } else if (id.startsWith('career-detail:')) {
-                        const detailId = id.replace('career-detail:', '');
-                        const p = orderedCareerCards
-                            .flatMap((c) => c.projects)
-                            .find((proj) => proj.details.some((d) => String(d.id) === detailId));
-                        if (p) parentHeaderId = `career-details-header:${p.id}`;
-                    }
-                    if (parentHeaderId && store.forcedPageOverrides[parentHeaderId] !== undefined)
-                        return false;
-                }
+                // 이 atom이 강제 배치돼 있어도, 그게 자기 의지가 아니라 소속된
+                // 그룹(섹션 헤더 전체, 또는 career-company/career-details-header/
+                // project-details-header)이 통째로 강제 배치되면서 같이 딸려온
+                // 것이면 배너를 또 띄우지 않는다 — 그룹 소유자 쪽 배너 하나로
+                // 충분하다(실제 발생 확인됨 — 회사 카드 하나 내렸는데 그 안의
+                // 모든 프로젝트·상세에마다 배너가 중복으로 뜸).
+                if (isForcedViaGroupOwner(id)) return false;
                 return true;
             }
             // pageBreakBoundaryAtomIds는 순수 자연 흐름(pageLayers)만 보고 계산된
@@ -2262,13 +2323,12 @@ export function PrintCanvas({
         [
             store.hidePrintGuides,
             store.forcedPageOverrides,
-            orderedMilestones,
-            orderedCareerCards,
             pageBreakBoundaryAtomIds,
             store.sectionGaps,
             placementByAtomId,
             store.outputLayout.regions,
             store.outputLayout.rows,
+            isForcedViaGroupOwner,
         ]
     );
 
@@ -2472,6 +2532,25 @@ export function PrintCanvas({
                 .filter((p): p is number => p !== undefined);
             const minAllowedPage = headerPages.length > 0 ? Math.max(...headerPages) : 0;
             const targetPageIndex = Math.max(pageIndex, minAllowedPage);
+            // "다음 페이지로 내리기"는 자연 흐름이 아직 만들지 않은 페이지를
+            // 목표로 삼을 수 있다(문서 맨 끝 근처 항목을 그 다음 페이지로 밀 때
+            // 등). getOutputPageAt은 store에 없는 페이지를 요청받으면 반환값
+            // 안에서만 임시로 만들어 돌려주므로, 그 임시 페이지의 행을 앵커로
+            // 잡아도 실제 store에는 없는 행이라 이후 forceNextToRow가 조용히
+            // 아무 일도 안 하고 끝난다(실제 발생 확인됨). 목표 페이지가 아직
+            // 없으면 먼저 실제로 store를 키우고, 이후 전부 그 커밋된 최신
+            // 상태를 기준으로 진행한다.
+            const outputLayoutForAnchor =
+                targetPageIndex >= store.outputLayout.pages.length
+                    ? (() => {
+                          const grown = ensureOutputLayoutPageCount(
+                              store.outputLayout,
+                              targetPageIndex + 1
+                          );
+                          usePrintStore.getState().setOutputLayout(grown);
+                          return usePrintStore.getState().outputLayout;
+                      })()
+                    : store.outputLayout;
             // 앵커(강제 배치 항목을 바로 뒤에 붙일 기준 행)는 자연 계산
             // (pageLayers)이 아니라 실제로 저장된(materialize된) 행을 기준으로
             // 찾는다. pageLayers는 이전에 남아있는 forcedPageOverrides 등의
@@ -2481,12 +2560,15 @@ export function PrintCanvas({
             // 마지막으로 있었다), 그러면 강제 배치가 진짜 마지막 항목이 아니라
             // 중간 항목 뒤에 끼어들어간다. store.outputLayout(실제 상태)에서
             // 뒤에서부터 찾으면 항상 진짜 마지막에 붙는다.
-            const { rows: targetPageRows } = getOutputPageAt(store.outputLayout, targetPageIndex);
+            const { rows: targetPageRows } = getOutputPageAt(
+                outputLayoutForAnchor,
+                targetPageIndex
+            );
             let anchorRow: OutputRow | undefined;
             for (let i = targetPageRows.length - 1; i >= 0; i -= 1) {
                 const { row, regions } = targetPageRows[i];
                 const hasMatchingAtom = regions.some((region) =>
-                    store.outputLayout.placements.some(
+                    outputLayoutForAnchor.placements.some(
                         (p) =>
                             p.regionId === region.id &&
                             !movingSet.has(p.atomId) &&
@@ -3223,6 +3305,7 @@ export function PrintCanvas({
             getForcePageAssociatedAtomIds,
             forceMoveToPage,
             isPageBreakBannerVisible,
+            isForcedViaGroupOwner,
         }),
         [
             introData,
@@ -3262,6 +3345,7 @@ export function PrintCanvas({
             getForcePageAssociatedAtomIds,
             forceMoveToPage,
             isPageBreakBannerVisible,
+            isForcedViaGroupOwner,
         ]
     );
 

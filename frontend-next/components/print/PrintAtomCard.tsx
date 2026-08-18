@@ -172,6 +172,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         getForcePageAssociatedAtomIds,
         forceMoveToPage,
         isPageBreakBannerVisible,
+        isForcedViaGroupOwner,
     } = usePrintAtomRenderContext();
 
     const renderInlineText = ({
@@ -299,6 +300,14 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
 
         if (forcedPage !== undefined) {
             const labelText = `${shortItemTitle} 항목이 ${forcedPage + 1}페이지로 강제 배치되었습니다.`;
+            // 헤더/회사 카드처럼 여러 행으로 이뤄진 그룹을 통째로 강제 배치한
+            // 뒤 "한 단계 더" 올리거나 내리면, 그 그룹이 이미 하나의 행으로
+            // 합쳐진 상태에서 다시 forceNextToRow로 재배치하며 행 구조가
+            // 깨졌다(실제 발생 확인됨 — 두 번째로 누르면 뒤쪽 페이지 레이아웃이
+            // 통째로 흐트러짐). 원자 하나짜리 그룹(atom 1개)만 안전이 확인돼서,
+            // 여러 행짜리 그룹은 "한 단계 더" 이동 없이 해제 후 재배치만
+            // 지원한다.
+            const isSingleAtomGroup = getForcePageAssociatedAtomIds(id).length === 1;
 
             return (
                 <div className="absolute -top-7 left-[112px] right-0 z-30 flex items-center justify-between rounded-md border border-indigo-400/50 bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md print:hidden pointer-events-auto">
@@ -314,7 +323,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                         </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        {forcedPage > 0 && (
+                        {isSingleAtomGroup && forcedPage > 0 && (
                             <button
                                 type="button"
                                 onClick={(e) => {
@@ -330,6 +339,25 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                                 <ArrowUp className="h-3.5 w-3.5 shrink-0" />
                                 <span className="truncate max-w-[150px]">
                                     {forcedPage}페이지로 더 올리기
+                                </span>
+                            </button>
+                        )}
+                        {isSingleAtomGroup && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    forceMoveToPage(
+                                        getForcePageAssociatedAtomIds(id),
+                                        forcedPage + 1
+                                    );
+                                }}
+                                className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
+                                title={`'${itemTitle}' 항목을 ${forcedPage + 2}페이지로 한 단계 더 내립니다.`}
+                            >
+                                <ArrowDown className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate max-w-[150px]">
+                                    {forcedPage + 2}페이지로 더 내리기
                                 </span>
                             </button>
                         )}
@@ -354,6 +382,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         }
 
         const targetPrevPage = (currentPage ?? 1) - 1;
+        const targetNextPage = (currentPage ?? 0) + 1;
 
         return (
             <div
@@ -394,21 +423,107 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                             </span>
                         </button>
                     )}
+                    {currentPage !== undefined && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                forceMoveToPage(getForcePageAssociatedAtomIds(id), targetNextPage);
+                            }}
+                            title={`'${itemTitle}' 항목을 ${targetNextPage + 1}페이지로 강제 내립니다.`}
+                            className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
+                        >
+                            <ArrowDown className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate max-w-[160px]">
+                                &apos;{shortItemTitle}&apos; {targetNextPage + 1}페이지로 강제
+                                내리기
+                            </span>
+                        </button>
+                    )}
                     {pinAndGapButtons}
                 </div>
             </div>
         );
     };
 
-    const renderSectionControls = (id: string) => {
+    const renderSectionControls = (id: string, headerAtomId?: string) => {
         if (store.hidePrintGuides) return null;
+        // 섹션 헤더는 자연 페이지 분할 지점에 있을 때만 renderPageBreakControl이
+        // "강제 올리기" 배너를 띄운다 — 페이지 중간에 얌전히 있는 헤더는 배너 자체가
+        // 안 뜨니 내릴 방법이 아예 없었다(실제 보고됨). intro-profile은 항상 맨 위
+        // 고정이라 대상에서 제외한다.
+        const targetHeaderId = headerAtomId ?? id;
+        const isForced =
+            targetHeaderId !== 'intro-profile' &&
+            store.forcedPageOverrides[targetHeaderId] !== undefined;
+        const forcedPage = store.forcedPageOverrides[targetHeaderId];
+        const currentPage = effectivePageMap.get(targetHeaderId);
+        // renderPageBreakControl이 이 헤더용 큰 배너(강제 배치됨/페이지 분할
+        // 지점)를 이미 보여주고 있으면, 여기서 또 강제 배치 버튼들을 띄우면
+        // 두 컨트롤이 겹쳐 보인다(실제 발생 확인됨). 그 배너 안에도 이제
+        // 위/아래 강제 이동이 다 있으니, 여기서는 배너가 없을 때만(페이지
+        // 중간에 얌전히 있는 헤더) 강제 이동 버튼을 보여준다.
+        const bannerAlreadyVisible =
+            targetHeaderId !== 'intro-profile' && isPageBreakBannerVisible(targetHeaderId);
+
         return (
-            <div className="pp-controls print:hidden">
+            <div className="pp-controls print:hidden flex items-center gap-1">
                 <PrintEyeButton
                     id={id}
                     excluded={store.printExcludedIds.includes(id)}
                     onToggle={store.toggleExcluded}
                 />
+                {!bannerAlreadyVisible && targetHeaderId !== 'intro-profile' && isForced && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            forceMoveToPage(
+                                getForcePageAssociatedAtomIds(targetHeaderId),
+                                forcedPage! + 1
+                            );
+                        }}
+                        title={`'${getAtomDisplayTitle(targetHeaderId)}' 섹션을 ${forcedPage! + 2}페이지로 한 단계 더 내립니다.`}
+                        className="flex h-7 items-center gap-1 rounded-full bg-blue-600 px-2.5 text-[10px] font-black text-white shadow-lg transition hover:bg-blue-500"
+                    >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                        <span>{forcedPage! + 2}p로 더 내리기</span>
+                    </button>
+                )}
+                {!bannerAlreadyVisible && targetHeaderId !== 'intro-profile' && isForced && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            store.clearForcedPage(getForcePageAssociatedAtomIds(targetHeaderId));
+                        }}
+                        title="강제 배치를 해제하고 원래 자동 배치 상태로 복원합니다."
+                        className="flex h-7 items-center gap-1 rounded-full bg-rose-600 px-2.5 text-[10px] font-black text-white shadow-lg transition hover:bg-rose-700"
+                    >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                        <span>원래 위치로</span>
+                    </button>
+                )}
+                {!bannerAlreadyVisible &&
+                    targetHeaderId !== 'intro-profile' &&
+                    !isForced &&
+                    currentPage !== undefined && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                forceMoveToPage(
+                                    getForcePageAssociatedAtomIds(targetHeaderId),
+                                    currentPage + 1
+                                );
+                            }}
+                            title={`'${getAtomDisplayTitle(targetHeaderId)}' 섹션 전체를 다음 페이지로 강제로 내립니다.`}
+                            className="flex h-7 items-center gap-1 rounded-full bg-blue-600 px-2.5 text-[10px] font-black text-white shadow-lg transition hover:bg-blue-500"
+                        >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                            <span>다음 페이지로 내리기</span>
+                        </button>
+                    )}
                 <div
                     onPointerDown={startGapDrag(id)}
                     title="위쪽 간격 조절 (아래로 끌면 넓어짐)"
@@ -428,6 +543,20 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         const isForced = store.forcedPageOverrides[id] !== undefined;
         const forcedPage = store.forcedPageOverrides[id];
         const nextPageNum = (forcedPage ?? 0) + 2;
+        const currentPage = effectivePageMap.get(id);
+        // 이 항목이 속한 회사 카드/섹션 헤더가 통째로 강제 배치돼서 나도
+        // pageLocked를 같이 물려받은 경우, 나까지 독립적으로 "강제 배치됨"
+        // 버튼들을 띄우면 같은 그룹 안에서 배지가 항목 수만큼 중복으로 뜬다
+        // (실제 발생 확인됨 — 회사 카드 하나 내렸는데 그 안의 모든 프로젝트·
+        // 상세에 배너가 다 뜸). 그룹 소유자가 강제 배치돼 있으면 개별 강제
+        // 배치 버튼은 숨기고 눈(제외)·간격 조절만 남긴다 — 위치는 그룹
+        // 소유자 쪽에서만 조절한다.
+        const suppressedByGroupOwner = isForcedViaGroupOwner(id);
+        // 회사 카드처럼 여러 행짜리 그룹을 강제 배치한 뒤 "한 단계 더"
+        // 내리면 행 구조가 깨진다(renderPageBreakControl과 동일한 원인 —
+        // forceNextToRow가 그룹 전체를 행 하나로 합쳐버림). 원자 하나짜리
+        // 그룹만 안전하다고 확인됐다.
+        const isSingleAtomGroup = getForcePageAssociatedAtomIds(id).length === 1;
 
         return (
             <div className="pp-controls print:hidden flex items-center gap-1 bg-slate-900/90 p-1 rounded-full shadow-lg backdrop-blur-md z-40">
@@ -436,7 +565,21 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     excluded={store.printExcludedIds.includes(id)}
                     onToggle={store.toggleExcluded}
                 />
-                {isForced && (
+                {!suppressedByGroupOwner && isSingleAtomGroup && isForced && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            forceMoveToPage(getForcePageAssociatedAtomIds(id), forcedPage + 1);
+                        }}
+                        title={`'${getAtomDisplayTitle(id)}' 항목을 ${forcedPage + 2}페이지로 한 단계 더 내립니다.`}
+                        className="flex h-6 items-center gap-1 rounded-full bg-blue-600 px-2.5 text-[10px] font-black text-white hover:bg-blue-500 transition cursor-pointer shadow-sm"
+                    >
+                        <ArrowDown className="h-3 w-3" />
+                        <span>{forcedPage + 2}p로 더 내리기</span>
+                    </button>
+                )}
+                {!suppressedByGroupOwner && isForced && (
                     <button
                         type="button"
                         onClick={(e) => {
@@ -447,7 +590,21 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                         className="flex h-6 items-center gap-1 rounded-full bg-rose-600 px-2.5 text-[10px] font-black text-white hover:bg-rose-700 transition cursor-pointer shadow-sm"
                     >
                         <ArrowDown className="h-3 w-3" />
-                        <span>{nextPageNum}p로 내리기</span>
+                        <span>원래 위치로</span>
+                    </button>
+                )}
+                {!suppressedByGroupOwner && !isForced && currentPage !== undefined && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            forceMoveToPage(getForcePageAssociatedAtomIds(id), currentPage + 1);
+                        }}
+                        title={`'${getAtomDisplayTitle(id)}' 항목을 ${currentPage + 2}페이지로 강제로 내립니다.`}
+                        className="flex h-6 items-center gap-1 rounded-full bg-blue-600 px-2.5 text-[10px] font-black text-white hover:bg-blue-500 transition cursor-pointer shadow-sm"
+                    >
+                        <ArrowDown className="h-3 w-3" />
+                        <span>다음 페이지로 내리기</span>
                     </button>
                 )}
                 <div
@@ -556,7 +713,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                 >
                     {renderSectionGap('skills')}
                     {renderPageBreakControl('skills-header', 'skills', { hidePinAndGap: true })}
-                    {renderSectionControls('skills')}
+                    {renderSectionControls('skills', 'skills-header')}
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                             <Cpu className="h-4 w-4 text-slate-900" />
@@ -719,7 +876,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     {renderPageBreakControl('competencies-header', 'competencies', {
                         hidePinAndGap: true,
                     })}
-                    {renderSectionControls('competencies')}
+                    {renderSectionControls('competencies', 'competencies-header')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                             <Sparkles className="h-4 w-4 text-slate-900" />
@@ -808,7 +965,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                 >
                     {renderSectionGap('career')}
                     {renderPageBreakControl('career-header', 'career', { hidePinAndGap: true })}
-                    {renderSectionControls('career')}
+                    {renderSectionControls('career', 'career-header')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                             <Briefcase className="h-4 w-4 text-slate-900" />
@@ -1038,7 +1195,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     {renderPageBreakControl('credentials-header', 'credentials', {
                         hidePinAndGap: true,
                     })}
-                    {renderSectionControls('credentials')}
+                    {renderSectionControls('credentials', 'credentials-header')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                             <GraduationCap className="h-4 w-4 text-slate-900" />
@@ -1112,7 +1269,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                 >
                     {renderSectionGap('projects')}
                     {renderPageBreakControl('projects-header', 'projects', { hidePinAndGap: true })}
-                    {renderSectionControls('projects')}
+                    {renderSectionControls('projects', 'projects-header')}
                     <div className="flex items-center justify-start gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                             <FolderGit2 className="h-4 w-4 text-slate-900" />
@@ -1227,7 +1384,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                     {renderPageBreakControl('cover-letter-header', 'cover-letter', {
                         hidePinAndGap: true,
                     })}
-                    {renderSectionControls('cover-letter')}
+                    {renderSectionControls('cover-letter', 'cover-letter-header')}
                     <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 w-full">
                         <h2 className="resume-section-title flex items-center gap-2 font-black text-slate-900">
                             <MessageSquareText className="h-4 w-4 text-slate-900" />
