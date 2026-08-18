@@ -246,7 +246,7 @@ export function SiteHeader() {
                         canManageCurrentWorkspace && (
                             <Link
                                 href={`${workspaceBase}/manage`}
-                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-slate-950 px-2.5 text-sm font-black text-white shadow-sm shadow-slate-800/20 transition hover:bg-slate-800"
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-slate-950 px-3 text-sm font-black text-white shadow-sm shadow-slate-800/20 transition hover:bg-slate-800"
                                 title="Workspace 관리"
                             >
                                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -259,7 +259,7 @@ export function SiteHeader() {
                         isPlatformOperator && (
                             <Link
                                 href="/ops"
-                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
                                 title="플랫폼 운영"
                             >
                                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -271,16 +271,20 @@ export function SiteHeader() {
                             <Link
                                 href="/login"
                                 className="hidden h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
+                                title="로그인"
                             >
                                 <LogIn className="h-3.5 w-3.5" />
-                                로그인
+                                <span className="hidden min-[1100px]:inline">로그인</span>
                             </Link>
                             <Link
                                 href="/signup"
                                 className="hidden h-9 items-center justify-center gap-1.5 rounded-md bg-slate-950 px-3 text-sm font-black text-white transition hover:bg-slate-800 sm:inline-flex"
+                                title="초대받아 가입하기"
                             >
                                 <UserPlus className="h-3.5 w-3.5" />
-                                초대받아 가입하기
+                                <span className="hidden min-[1100px]:inline">
+                                    초대받아 가입하기
+                                </span>
                             </Link>
                         </>
                     )}
@@ -302,18 +306,18 @@ export function SiteHeader() {
                             title="후원하기"
                         >
                             <Heart className="h-3.5 w-3.5 fill-white text-white" />
-                            <span>후원하기</span>
+                            <span className="hidden min-[1100px]:inline">후원하기</span>
                         </button>
                     )}
 
                     {isIntro && (
                         <button
                             onClick={() => setPrintModalOpen(true)}
-                            className="hidden h-9 items-center justify-center gap-1.5 rounded-md bg-slate-950 px-3 text-sm font-bold text-white transition hover:bg-slate-800 min-[900px]:flex"
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-slate-950 px-3 text-sm font-bold text-white transition hover:bg-slate-800"
                             title="PDF 인쇄"
                         >
                             <Printer className="h-3.5 w-3.5" />
-                            <span>PDF 인쇄</span>
+                            <span className="hidden min-[1100px]:inline">PDF 인쇄</span>
                         </button>
                     )}
                     {!isCheckingSession && isAuthenticated && (
@@ -341,7 +345,7 @@ export function SiteHeader() {
                                         .slice(0, 1)
                                         .toUpperCase()}
                                 </span>
-                                <span className="hidden max-w-28 truncate px-1 text-xs font-black min-[1250px]:block">
+                                <span className="hidden max-w-28 truncate px-1 text-xs font-black min-[1100px]:block">
                                     {me?.nickname || me?.username}
                                 </span>
                                 <ChevronDown
