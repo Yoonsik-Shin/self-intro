@@ -52,6 +52,7 @@ type PrintState = {
     atomHeights: Map<string, number>;
     printModalOpen: boolean;
     printModeResolved: boolean;
+    autoPrintRequested: boolean;
 
     setZoom: (zoom: number) => void;
     toggleExcluded: (id: string) => void;
@@ -116,6 +117,7 @@ type PrintState = {
     setAtomHeights: (heights: Map<string, number>) => void;
     setPrintPending: (pending: boolean) => void;
     setPrintModalOpen: (open: boolean) => void;
+    setAutoPrintRequested: (requested: boolean) => void;
     resetManual: () => void;
     applyTemplate: (settings: {
         excludedIds: string[];
@@ -155,6 +157,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     atomHeights: new Map(),
     printModalOpen: false,
     printModeResolved: false,
+    autoPrintRequested: false,
 
     setZoom: (zoom) => set({ zoom: Math.min(Math.max(zoom, 0.3), 2.0) }),
 
@@ -461,6 +464,8 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     setPrintPending: (pending) => set({ printPending: pending }),
 
     setPrintModalOpen: (open) => set({ printModalOpen: open }),
+
+    setAutoPrintRequested: (requested) => set({ autoPrintRequested: requested }),
 
     resetManual: () =>
         set({

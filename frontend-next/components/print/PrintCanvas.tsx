@@ -166,6 +166,10 @@ type Props = {
     initialTemplate?: PrintTemplate | null;
     coverLetterItems?: JobPostingCoverLetterItem[];
     jobPostingId?: number | null;
+    /** 페이지 이동 없이 현재 화면 위에 잠깐 떠서 인쇄 대화상자만 띄우고 사라지는
+     *  용도로 마운트된 인스턴스인지 — true면 인쇄가 끝나는 즉시 onExit()으로
+     *  스스로를 정리한다(편집 캔버스를 남에게 보여줄 필요가 없으므로). */
+    quickPrintMode?: boolean;
 };
 
 /** 저장된 순서(override)를 기준으로 자연 순서 배열을 재정렬한다. override에 없는 새 항목은 뒤에 붙는다. */
@@ -198,6 +202,7 @@ export function PrintCanvas({
     initialTemplate = null,
     coverLetterItems = [],
     jobPostingId = null,
+    quickPrintMode = false,
 }: Props) {
     const store = usePrintStore();
     const queryClient = useQueryClient();
@@ -210,6 +215,11 @@ export function PrintCanvas({
     // 뒤 확정된 값 한 번만 재배치를 반영하면 되므로, 드래그 중엔 자동 재배치를
     // 건너뛴다.
     const gapDragActiveRef = useRef(false);
+    // 공개 워크스페이스 방문자가 템플릿을 고르면 편집 화면을 보여주지 않고 곧장
+    // 인쇄 대화상자로 넘어간다 — autoPrintRequested가 켜지는 순간 이 화면을
+    // 가리고, 인쇄가 끝나면(printPending이 다시 꺼지면) onExit으로 빠져나간다.
+    const [autoPrintActive, setAutoPrintActive] = useState(false);
+    const autoPrintStartedRef = useRef(false);
     const [inlineEditMode, setInlineEditMode] = useState(false);
     const [modeModalOpen, setModeModalOpen] = useState(
         () => !store.printModeResolved && !initialTemplate
@@ -2391,6 +2401,31 @@ export function PrintCanvas({
     };
 
     useEffect(() => {
+        if (!store.autoPrintRequested || autoPrintStartedRef.current) return;
+        autoPrintStartedRef.current = true;
+        setAutoPrintActive(true);
+        printLayoutFrozenRef.current = false;
+        store.setPrintPending(true);
+        store.setAutoPrintRequested(false);
+    }, [store, store.autoPrintRequested]);
+
+    // window.print()가 대화상자를 닫을 때까지 스크립트를 막아준다는 보장이 없다
+    // (브라우저에 따라 즉시 반환됨) — printPending이 꺼졌다고 router.push 같은
+    // 실제 페이지 이동을 시키면 방금 뜬 인쇄 대화상자가 그 내비게이션에 휘말려
+    // 끊길 수 있다(실제 발생 확인됨: 대화상자가 뜨자마자 홈으로 튕김).
+    // quickPrintMode(현재 페이지 이동 없이 화면 위에 잠깐 떠서 인쇄만 하고 사라지는
+    // 용도)에서는 onExit이 실제 내비게이션이 아니라 이 인스턴스를 그냥
+    // 언마운트하는 로컬 상태 변경이라 안전하므로, 인쇄가 끝나면 곧장 정리한다.
+    // 그 외(직접 /print URL로 들어온 경우 등)에는 오버레이만 걷고 편집 화면을
+    // 그대로 드러낸다.
+    const showAutoPrintOverlay = autoPrintActive && store.printPending;
+
+    useEffect(() => {
+        if (!quickPrintMode || !autoPrintActive || store.printPending) return;
+        onExit();
+    }, [quickPrintMode, autoPrintActive, store.printPending, onExit]);
+
+    useEffect(() => {
         if (!store.printPending) return;
         let cancelled = false;
         const nextFrame = () =>
@@ -3525,6 +3560,12 @@ export function PrintCanvas({
         <PrintDragContext.Provider value={dragContextValue}>
             <PrintAtomRenderContext.Provider value={atomRenderContextValue}>
                 <>
+                    {showAutoPrintOverlay && (
+                        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-slate-950 text-white print:hidden">
+                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-white" />
+                            <p className="text-sm font-bold">PDF 인쇄를 준비하는 중입니다…</p>
+                        </div>
+                    )}
                     <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
                         <PrintPreviewBar
                             excludedCount={store.printExcludedIds.length}
@@ -3834,7 +3875,9 @@ export function PrintCanvas({
                             setContentOverrides(settings.contentOverrides ?? {});
                             setModeModalOpen(false);
                             updateUrlParams(tmpl?.id ?? null);
+                            if (!adminMode) store.setAutoPrintRequested(true);
                         }}
+                        restricted={!adminMode}
                     />
 
                     <SaveServerTemplateModal

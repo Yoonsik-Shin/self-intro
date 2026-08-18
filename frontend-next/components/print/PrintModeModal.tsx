@@ -41,25 +41,32 @@ type PrintModeModalProps = {
     onClose: () => void;
     onManual: () => void;
     onApplyTemplate: (settings: PrintSettings) => void;
+    /** 공개 워크스페이스 방문자용 축소 모드: 직접 조정하기/로컬 저장 목록을 감추고
+     *  워크스페이스 주인이 공개해 둔 서버 템플릿 목록만 바로 보여준다. */
+    restricted?: boolean;
 };
 
 /** PDF 인쇄 버튼 클릭 시 나타나는 모드 선택 모달.
  *  Step 1 (MAIN): "직접 조정하기" vs "저장된 템플릿 선택하기" 선택
- *  Step 2 (TEMPLATE_LIST): 저장된 템플릿 목록 (서버 템플릿 + 내 브라우저 로컬 저장) */
+ *  Step 2 (TEMPLATE_LIST): 저장된 템플릿 목록 (서버 템플릿 + 내 브라우저 로컬 저장)
+ *  restricted 모드에서는 MAIN 단계 없이 곧장 TEMPLATE_LIST(서버 템플릿만)로 연다. */
 export function PrintModeModal({
     workspaceSlug,
     open,
     onClose,
     onManual,
     onApplyTemplate,
+    restricted = false,
 }: PrintModeModalProps) {
-    const [step, setStep] = useState<'MAIN' | 'TEMPLATE_LIST'>('MAIN');
+    const [step, setStep] = useState<'MAIN' | 'TEMPLATE_LIST'>(
+        restricted ? 'TEMPLATE_LIST' : 'MAIN'
+    );
     const [prevOpen, setPrevOpen] = useState(open);
 
     if (open !== prevOpen) {
         setPrevOpen(open);
         if (open) {
-            setStep('MAIN');
+            setStep(restricted ? 'TEMPLATE_LIST' : 'MAIN');
         }
     }
 
@@ -123,6 +130,7 @@ export function PrintModeModal({
     if (!open) return null;
 
     const totalTemplateCount = serverTemplates.length + localSaves.length;
+    const visibleTemplateCount = restricted ? serverTemplates.length : totalTemplateCount;
 
     return (
         <div
@@ -137,7 +145,7 @@ export function PrintModeModal({
             >
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 pt-6 pb-4.5">
                     <div className="flex items-center gap-3">
-                        {step === 'TEMPLATE_LIST' ? (
+                        {step === 'TEMPLATE_LIST' && !restricted ? (
                             <button
                                 onClick={() => setStep('MAIN')}
                                 className="grid h-8.5 w-8.5 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
@@ -217,9 +225,11 @@ export function PrintModeModal({
 
                 {step === 'TEMPLATE_LIST' && (
                     <div className="max-h-[55vh] overflow-y-auto px-6 pt-5 pb-4 space-y-5">
-                        {totalTemplateCount === 0 ? (
+                        {visibleTemplateCount === 0 ? (
                             <div className="py-8 text-center text-sm font-semibold text-slate-400">
-                                저장된 템플릿이나 로컬 설정이 없습니다.
+                                {restricted
+                                    ? '공개된 인쇄 템플릿이 아직 없습니다.'
+                                    : '저장된 템플릿이나 로컬 설정이 없습니다.'}
                             </div>
                         ) : (
                             <>
@@ -267,7 +277,7 @@ export function PrintModeModal({
                                     </div>
                                 )}
 
-                                {localSaves.length > 0 && (
+                                {!restricted && localSaves.length > 0 && (
                                     <div>
                                         <div className="mb-2.5 flex items-center gap-2">
                                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -335,7 +345,7 @@ export function PrintModeModal({
                 )}
 
                 <div className="flex items-center gap-2.5 border-t border-slate-100 px-6 pt-3.5 pb-5">
-                    {step === 'TEMPLATE_LIST' && (
+                    {step === 'TEMPLATE_LIST' && !restricted && (
                         <button
                             onClick={() => setStep('MAIN')}
                             className="flex-1 rounded-md border border-slate-200/90 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
