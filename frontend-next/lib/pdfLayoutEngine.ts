@@ -302,8 +302,24 @@ export function partitionAtomsIntoPages(
 
         // 순차 패킹이 이미 다음 페이지로 넘어간 뒤에도 사용자가 지정한 페이지에
         // 직접 배치한다. 이 명시적 override가 없을 때만 아래의 자동 경계를 적용한다.
-        if (forcedPage !== undefined && forcedPage >= 0 && forcedPage < pages.length) {
-            const targetPage = pages[forcedPage];
+        //
+        // forcedPage는 버튼을 누른 "그 순간"의 절대 페이지 번호를 저장한다. 그
+        // 뒤에 다른 섹션 제외/편집으로 자연 페이지 수 자체가 바뀌면(실제 발생
+        // 확인됨 — 총 페이지 10→9), 저장된 번호가 가리키는 페이지가 이 시점엔
+        // 아직 안 만들어졌을 수 있다(forcedPage >= pages.length). 예전엔 이 경우
+        // 조용히 강제 배치를 무시하고 그냥 자연 순서대로 쌓았다 — "강제 배치됨"
+        // 배너는 뜨는데 실제로는 같은 페이지 안에서 순서만 밀리는 버그가 났다
+        // (실제 발생 확인됨, 간헐적). 목표 페이지가 아직 없으면 지금까지 만들어진
+        // 마지막 페이지로 대신 보내 — 강제 이동이 항상 눈에 보이는 효과를 내게
+        // 한다(제자리에 머무는 것보다 "너무 안 올라가는" 쪽이 사용자 의도에 더
+        // 가깝다).
+        const isStaleForcedPage = forcedPage !== undefined && forcedPage > pages.length;
+        if (
+            forcedPage !== undefined &&
+            forcedPage >= 0 &&
+            (forcedPage < pages.length || (isStaleForcedPage && pages.length > 0))
+        ) {
+            const targetPage = pages[Math.min(forcedPage, pages.length - 1)];
             const unitAtoms = unit.kind === 'single' ? [unit.atom] : unit.atoms;
             for (const a of unitAtoms) {
                 targetPage.items.push(a);

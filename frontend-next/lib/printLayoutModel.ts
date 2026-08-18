@@ -715,25 +715,6 @@ export function replaceOutputPageComposition(
         layout.placements.map((placement) => [placement.atomId, placement])
     );
 
-    // row id는 생성 시점 페이지 이름을 그대로 담아 만들어지는데(`${pageId}-row-${n}`),
-    // 크로스페이지 이동은 pageId 필드만 바꾸고 id는 안 바꾼다(다른 곳에서 id를
-    // 페이지 판별에 쓰지 않는다는 전제 — 대부분 맞다). 근데 그렇게 다른 페이지로
-    // 옮겨진 "이름만 이 페이지인" 행이 있는 상태에서 이 페이지 자체를 처음부터
-    // rowIndex+1로 순번을 다시 매기면, 그 옮겨진 행과 이름이 겹칠 수 있다(실제
-    // 발생 확인됨 — React "duplicate key" 경고, page-10-row-1이 실제로는 page-9에
-    // 있는 행과 이 페이지에서 새로 만든 행 둘 다에 붙음). 이 페이지에서 없어질
-    // 행(oldRowIds)을 뺀 나머지 전체 행 id와 안 겹치는 번호만 골라 쓴다.
-    const reservedRowIds = new Set(
-        layout.rows.filter((row) => !oldRowIds.has(row.id)).map((row) => row.id)
-    );
-    let nextRowNumber = 1;
-    const pickRowNumber = (): number => {
-        while (reservedRowIds.has(`${page.id}-row-${nextRowNumber}`)) {
-            nextRowNumber += 1;
-        }
-        return nextRowNumber++;
-    };
-
     // 행 id가 전역 랜덤값이라(createRow), composition에 변화가 없는 행도 매번
     // 새로 만들면 매 self-heal 패스마다 안 바뀐 행까지 새 id를 받는다. 그러면
     // `row:<rowId>` 키로 캐시된 실측 높이(atomHeights)가 매번 무효화되고,
@@ -789,7 +770,14 @@ export function replaceOutputPageComposition(
             return;
         }
 
-        const { row, regions } = createRow(page.id, pickRowNumber(), columns.length);
+        // 새로 만드는 행의 순번은 반드시 "지금까지 nextRows에 쌓인 개수"와
+        // 일치해야 한다. 예전엔 별도의 pickRowNumber() 카운터를 썼는데, 재사용된
+        // 행(order: nextRows.length)과 새로 만든 행(pickRowNumber() 기반)이 서로
+        // 다른 카운터를 쓰는 바람에 순서가 어긋났다 — 예를 들어 헤더 행이
+        // 재사용되고 그다음 합쳐진 2열 행이 새로 만들어지면 둘 다 order 0을
+        // 받아 헤더가 콘텐츠 뒤로 밀리는 버그가 났다(실제 발생 확인됨 — 2열
+        // 배치 드래그 직후 섹션 헤더가 자기 콘텐츠 아래로 내려감).
+        const { row, regions } = createRow(page.id, nextRows.length + 1, columns.length);
         nextRows.push(row);
         nextRegions.push(...regions);
         columns.forEach((atomIds, columnIndex) => {
@@ -1594,6 +1582,19 @@ export function rebalancePageOverflow(
             .filter((row) => row.pageId === page.id)
             .sort((a, b) => a.order - b.order);
 
+        // 이 페이지에 강제 배치(고정)된 행이 하나라도 있으면 자동 넘침 정리를
+        // 아예 건너뛴다. 사용자가 "N페이지로 강제 배치"를 누르는 이유 자체가
+        // 페이지 규격을 벗어나도 그 자리(맨 아래)에 붙어있길 원해서인데,
+        // 자동 push가 그 넘친 만큼을 다시 정리하려고 무관한 다른 행을 다음
+        // 페이지로 밀어내 버렸다(실제 발생 확인됨 — 강제 배치 항목 자체는
+        // 그대로 있는데, 원래 그 페이지에 있던 다른 항목이 다음 페이지로
+        // 사라짐). 고정 행이 있는 페이지는 사용자가 이미 명시적으로 넘침을
+        // 감수한 것으로 보고 손대지 않는다.
+        if (pageRows.some((row) => isRowLocked(row))) {
+            pageIndex += 1;
+            continue;
+        }
+
         let cumulative = 0;
         let overflowStartIndex = -1;
         for (let i = 0; i < pageRows.length; i += 1) {
@@ -1734,6 +1735,14 @@ export function rebalancePageOverflow(
         const remainingBudget = maxContentHeightPx - usedHeight;
 
         if (remainingBudget <= 0) {
+            pullPageIndex += 1;
+            continue;
+        }
+
+        // push와 같은 이유로, 이 페이지에 강제 배치된 행이 있으면 당겨오기도
+        // 건너뛴다 — 안 그러면 강제 배치된 행 뒤에 새로 당겨온 내용이 끼어들어
+        // "맨 아래에 고정" 이라는 강제 배치의 의미가 깨진다.
+        if (pageRows.some((row) => isRowLocked(row))) {
             pullPageIndex += 1;
             continue;
         }

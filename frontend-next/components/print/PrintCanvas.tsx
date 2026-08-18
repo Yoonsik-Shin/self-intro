@@ -1317,6 +1317,23 @@ export function PrintCanvas({
         store.setOutputLayout(ensureOutputLayoutPageCount(store.outputLayout, pageLayers.length));
     }, [pageLayers.length, store]);
 
+    // pageLayers(자연 계산)는 push/pull 리밸런스를 모르는 단순 순차 패킹이라,
+    // 실제로 rebalance가 콘텐츠를 더 촘촘히 눌러 담으면 자연 계산이 예상한
+    // 마지막 페이지가 실제로는 완전히 빈 채로 남을 수 있다(실제 발생 확인됨 —
+    // store.outputLayout의 마지막 페이지 rowIds가 0개인데도 pageLayers.length가
+    // 그 페이지를 포함해 총 페이지 수를 그대로 보고해서 진짜 빈 페이지가
+    // 화면/출력에 그대로 나타났다). 렌더링에 쓰는 목록에서만 "실제로 행이 하나도
+    // 없는" 꼬리 페이지를 잘라낸다 — self-heal/maxPageCount 등 내부 계산용
+    // pageLayers 자체는 안 건드린다(그쪽까지 건드리면 이번 세션 내내 잡은
+    // 수렴 안정성이 다시 흔들릴 위험이 있다).
+    const visiblePageLayers = useMemo(() => {
+        let end = pageLayers.length;
+        while (end > 1 && getOutputPageAt(store.outputLayout, end - 1).rows.length === 0) {
+            end -= 1;
+        }
+        return end === pageLayers.length ? pageLayers : pageLayers.slice(0, end);
+    }, [pageLayers, store.outputLayout]);
+
     useLayoutEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || printLayoutFrozenRef.current) return;
@@ -2455,38 +2472,50 @@ export function PrintCanvas({
                 .filter((p): p is number => p !== undefined);
             const minAllowedPage = headerPages.length > 0 ? Math.max(...headerPages) : 0;
             const targetPageIndex = Math.max(pageIndex, minAllowedPage);
-            const targetPageAtoms = pageLayers[targetPageIndex]?.items ?? [];
-            const anchorAtom = [...targetPageAtoms]
-                .reverse()
-                .find((atom) => !movingSet.has(atom.id) && getRowPairingKey(atom.id) === scopeKey);
-            const anchorRegionId = anchorAtom
-                ? placementByAtomId.get(anchorAtom.id)?.regionId
-                : undefined;
-            const anchorRowId = anchorRegionId
-                ? store.outputLayout.regions.find((region) => region.id === anchorRegionId)?.rowId
-                : undefined;
-            const anchorRow = anchorRowId
-                ? store.outputLayout.rows.find((row) => row.id === anchorRowId)
-                : undefined;
+            // 앵커(강제 배치 항목을 바로 뒤에 붙일 기준 행)는 자연 계산
+            // (pageLayers)이 아니라 실제로 저장된(materialize된) 행을 기준으로
+            // 찾는다. pageLayers는 이전에 남아있는 forcedPageOverrides 등의
+            // 영향으로 실제 배치와 어긋날 수 있는데(실제 발생 확인됨 — 자연
+            // 계산상 "요구 정의부터..."가 페이지의 마지막인 줄 알고 앵커로
+            // 골랐지만, 실제로는 "문제가 터지기 전에..."가 그 뒤에 진짜
+            // 마지막으로 있었다), 그러면 강제 배치가 진짜 마지막 항목이 아니라
+            // 중간 항목 뒤에 끼어들어간다. store.outputLayout(실제 상태)에서
+            // 뒤에서부터 찾으면 항상 진짜 마지막에 붙는다.
+            const { rows: targetPageRows } = getOutputPageAt(store.outputLayout, targetPageIndex);
+            let anchorRow: OutputRow | undefined;
+            for (let i = targetPageRows.length - 1; i >= 0; i -= 1) {
+                const { row, regions } = targetPageRows[i];
+                const hasMatchingAtom = regions.some((region) =>
+                    store.outputLayout.placements.some(
+                        (p) =>
+                            p.regionId === region.id &&
+                            !movingSet.has(p.atomId) &&
+                            getRowPairingKey(p.atomId) === scopeKey
+                    )
+                );
+                if (hasMatchingAtom) {
+                    anchorRow = row;
+                    break;
+                }
+            }
 
-            if (anchorRow && anchorRow.regionIds.length > 1) {
-                // anchor가 2열 이상 행의 한 컬럼 안에 있으면 그 좁은 컬럼에 욱여넣지
-                // 않고, 그 행을 하나의 단위로 보고 바로 뒤에 새 한 줄 행으로 끼워넣는다.
+            if (anchorRow) {
+                // anchor가 속한 행이 몇 열이든(1열이든 2열 이상이든) 그 좁은 region
+                // 안에 욱여넣지 않고, 행을 하나의 단위로 보고 바로 뒤에 새 한 줄 행으로
+                // 끼워넣는다. 예전엔 1열 anchor일 때만 forceIntoRegion으로 같은
+                // region 안에 두 atom을 함께 쌓았는데, 그러면 원래 독립돼 있던
+                // 한 줄짜리 행이 갑자기 atom 2개짜리 행으로 바뀌면서 — 이 세션
+                // 내내 atom-per-row로 고쳐온 오버플로 분할/재배치 granularity가
+                // 다시 깨졌다(실제 발생 확인됨 — 강제 배치 하나 눌렀을 뿐인데
+                // 같은 페이지의 무관한 다른 항목이 다음 페이지로 밀려남). 항상
+                // 새 행으로 끼워넣으면 강제 배치는 그 항목 하나만 움직이고 기존
+                // 배치는 그대로 유지된다.
                 usePrintStore.getState().forceNextToRow(ids, anchorRow.id, 'after');
-            } else if (anchorAtom && anchorRegionId) {
-                usePrintStore.getState().forceIntoRegion(ids, anchorRegionId, {
-                    atomId: anchorAtom.id,
-                    position: 'after',
-                });
             } else {
                 // 이 페이지에 같은 섹션 콘텐츠가 아직 없다 — store.forcePage(옛 경로)는
                 // 무조건 페이지의 첫 region에 밀어넣어 그게 다른 섹션이면 섞여버린다.
                 // 대신 그 페이지의 마지막 행 뒤에 새 한 줄 행으로 끼워넣어 어떤 기존
                 // 섹션과도 안 섞이게 한다.
-                const { rows: targetPageRows } = getOutputPageAt(
-                    store.outputLayout,
-                    targetPageIndex
-                );
                 const lastRow = targetPageRows[targetPageRows.length - 1]?.row;
                 if (lastRow) {
                     usePrintStore.getState().forceNextToRow(ids, lastRow.id, 'after');
@@ -2495,14 +2524,7 @@ export function PrintCanvas({
                 }
             }
         },
-        [
-            getRowPairingKey,
-            printableAtoms,
-            atomPageMap,
-            pageLayers,
-            placementByAtomId,
-            store.outputLayout,
-        ]
+        [getRowPairingKey, printableAtoms, atomPageMap, store.outputLayout]
     );
 
     // 페이지별로 "어느 atom이 어느 region에, 그 안에서 어떤 항목 범위(run)로" 속하는지
@@ -3250,7 +3272,7 @@ export function PrintCanvas({
                     <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
                         <PrintPreviewBar
                             excludedCount={store.printExcludedIds.length}
-                            totalPages={pageLayers.length}
+                            totalPages={visiblePageLayers.length}
                             navOpen={store.navPanelOpen}
                             activeTemplateName={activeTemplateName}
                             onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
@@ -3342,7 +3364,7 @@ export function PrintCanvas({
                                         } as CSSProperties
                                     }
                                 >
-                                    {pageLayers.map((page, pageIdx) => {
+                                    {visiblePageLayers.map((page, pageIdx) => {
                                         const { page: outputPage, rows } = getOutputPageAt(
                                             store.outputLayout,
                                             pageIdx
@@ -3390,7 +3412,7 @@ export function PrintCanvas({
                                                 key={page.pageId}
                                                 pageId={page.pageId}
                                                 pageIndex={pageIdx}
-                                                totalPages={pageLayers.length}
+                                                totalPages={visiblePageLayers.length}
                                                 hideGuides={store.hidePrintGuides}
                                                 showFrameLabel={false}
                                                 orientation={outputPage.orientation}
