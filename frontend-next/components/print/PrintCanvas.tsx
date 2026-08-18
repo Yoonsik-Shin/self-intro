@@ -1691,6 +1691,13 @@ export function PrintCanvas({
         [printableAtoms, orderedCareerCards, orderedMilestones]
     );
 
+    // 그룹 소유자(회사 카드/섹션 헤더)가 강제 배치돼 있으면 나(그 그룹
+    // 하위 항목)는 항상 배너를 숨긴다. 한때 소유자와 다른 페이지로 밀려난
+    // 항목만 예외로 개별 배너를 보여줬는데, 그러면 그룹이 여러 페이지에
+    // 걸쳐 자연 분할될 때(atom-per-row라 흔함) 그 안의 수십 개 항목이 전부
+    // 자기 배너를 띄워버렸다(실제 발생 확인됨 — 페이지 4~6 모든 항목에
+    // 배너). 그룹 안에서 세밀한 위치 조정이 필요하면 배너 대신 드래그로
+    // 옮기고, 배너는 그룹 소유자 하나만 보여준다.
     const isForcedViaGroupOwner = useCallback(
         (id: string): boolean =>
             getPossibleGroupOwnerIds(id).some(
@@ -2287,26 +2294,11 @@ export function PrintCanvas({
         (id: string): boolean => {
             if (store.hidePrintGuides) return false;
             if (id === 'intro-profile') return false;
-            const forcedPage = store.forcedPageOverrides[id];
-            if (forcedPage !== undefined) {
-                // 이 atom이 강제 배치돼 있어도, 그게 자기 의지가 아니라 소속된
-                // 그룹(섹션 헤더 전체, 또는 career-company/career-details-header/
-                // project-details-header)이 통째로 강제 배치되면서 같이 딸려온
-                // 것이면 배너를 또 띄우지 않는다 — 그룹 소유자 쪽 배너 하나로
-                // 충분하다(실제 발생 확인됨 — 회사 카드 하나 내렸는데 그 안의
-                // 모든 프로젝트·상세에마다 배너가 중복으로 뜸).
-                if (isForcedViaGroupOwner(id)) return false;
-                return true;
-            }
-            // pageBreakBoundaryAtomIds는 순수 자연 흐름(pageLayers)만 보고 계산된
-            // "여기가 자연스러운 페이지 분할 지점" 집합이라, 드래그로 이 atom
-            // 자체가 다른 페이지로 옮겨졌거나, 이 atom 앞에 다른 게 끼어들어서
-            // 더 이상 "그 페이지 맨 위"가 아니게 됐으면 더 이상 안 맞는 얘기다 —
-            // 페이지 중간에 떠 있는데 "여기서 분할됨" 배너가 뜨면 혼란만 준다.
             // placement가 있는(=한 번이라도 명시적으로 배치된) atom은 실제
             // row.order/placement.order가 0인지(그 페이지의 진짜 첫 행·첫 항목인지)
-            // 로 검증한다. placement가 아직 없는(순수 자연 흐름 그대로인) atom은
-            // pageBreakBoundaryAtomIds를 그대로 신뢰한다.
+            // 로 "지금 실제로 페이지 맨 위인지"를 검증한다. placement가 아직
+            // 없는(순수 자연 흐름 그대로인) atom은 자기 자리를 아직 모르니
+            // true로 둔다(아래 자연 흐름 pageBreakBoundaryAtomIds 판단에 맡김).
             const placement = placementByAtomId.get(id);
             let isCurrentlyTopOfPage = true;
             if (placement) {
@@ -2316,6 +2308,26 @@ export function PrintCanvas({
                     : undefined;
                 isCurrentlyTopOfPage = row?.order === 0 && placement.order === 0;
             }
+            const forcedPage = store.forcedPageOverrides[id];
+            if (forcedPage !== undefined) {
+                // 이 atom이 강제 배치돼 있어도, 그게 자기 의지가 아니라 소속된
+                // 그룹(섹션 헤더 전체, 또는 career-company/career-details-header/
+                // project-details-header)이 통째로 강제 배치되면서 같이 딸려온
+                // 것이면 배너를 또 띄우지 않는다 — 그룹 소유자 쪽 배너 하나로
+                // 충분하다(실제 발생 확인됨 — 회사 카드 하나 내렸는데 그 안의
+                // 모든 프로젝트·상세에마다 배너가 중복으로 뜸). 단, 그 그룹이
+                // 한 페이지에 다 안 들어가 오버플로로 넘어간 부분의 맨 위
+                // 항목(진짜 페이지 경계)은 예외다 — 그건 소유자 배너로는 손댈
+                // 수 없는 진짜 새 분할 지점이라 자기 배너가 있어야 한다(실사용
+                // 요청 — "밀려난 맨 위 항목엔 강제배치 컨트롤이 있어야 한다").
+                if (isForcedViaGroupOwner(id) && !isCurrentlyTopOfPage) return false;
+                return true;
+            }
+            // pageBreakBoundaryAtomIds는 순수 자연 흐름(pageLayers)만 보고 계산된
+            // "여기가 자연스러운 페이지 분할 지점" 집합이라, 드래그로 이 atom
+            // 자체가 다른 페이지로 옮겨졌거나, 이 atom 앞에 다른 게 끼어들어서
+            // 더 이상 "그 페이지 맨 위"가 아니게 됐으면 더 이상 안 맞는 얘기다 —
+            // 페이지 중간에 떠 있는데 "여기서 분할됨" 배너가 뜨면 혼란만 준다.
             const isBoundary = isCurrentlyTopOfPage && pageBreakBoundaryAtomIds.has(id);
             const currentGap = store.sectionGaps[id] ?? 0;
             return isBoundary || currentGap > 0;
@@ -2517,7 +2529,13 @@ export function PrintCanvas({
             const scopeKey = getRowPairingKey(ids[0]);
             const movingSet = new Set(ids);
             // 자기 섹션 헤더보다 앞 페이지로는 강제 배치할 수 없다 — 헤더가 이미 놓인
-            // 페이지보다 이른 페이지가 요청되면 헤더의 페이지로 끌어올린다.
+            // 페이지보다 이른 페이지가 요청되면 헤더의 페이지로 끌어올린다. 여기서
+            // "헤더가 이미 놓인 페이지"는 반드시 effectivePageMap(실제 현재 위치)을
+            // 써야 한다 — atomPageMap(순수 자연 계산)을 쓰면 헤더가 실제로는
+            // 이미 다른 페이지로 옮겨져 있어도 그걸 모르고 예전 자연 위치로
+            // 계산해서, 실제로는 갈 수 있는 페이지인데도 못 가게 잘못 막았다
+            // (실제 발생 확인됨 — 헤더가 실제로는 2페이지에 있는데 자연 계산은
+            // 3페이지라고 착각해서 프로젝트를 2페이지로 못 올리게 막음).
             const sectionIds = new Set(
                 ids
                     .map((id) => printableAtoms.find((a) => a.id === id)?.sectionId)
@@ -2528,10 +2546,18 @@ export function PrintCanvas({
                     (atom) =>
                         atom.isHeader && sectionIds.has(atom.sectionId) && !movingSet.has(atom.id)
                 )
-                .map((atom) => atomPageMap.get(atom.id))
+                .map((atom) => effectivePageMap.get(atom.id))
                 .filter((p): p is number => p !== undefined);
             const minAllowedPage = headerPages.length > 0 ? Math.max(...headerPages) : 0;
             const targetPageIndex = Math.max(pageIndex, minAllowedPage);
+            // 자기 섹션 헤더의 자연 위치가 이미 요청한 목표 페이지보다 뒤라서
+            // minAllowedPage에 걸리면, targetPageIndex가 지금 있는 페이지
+            // 그대로로 클램프된다. 이때도 아래 로직을 그대로 진행하면 "같은
+            // 페이지 안에서 앵커 뒤에 다시 끼워넣기"가 실행돼 항목이 아무
+            // 예고 없이 그 페이지 맨 아래로 옮겨진다(실제 발생 확인됨 — "2페이지로
+            // 올리기"를 눌렀는데 페이지는 안 바뀌고 3페이지 맨 아래로 이동).
+            // 실제로 페이지가 바뀌지 않는다면 아무것도 하지 않는다.
+            if (effectivePageMap.get(ids[0]) === targetPageIndex) return;
             // "다음 페이지로 내리기"는 자연 흐름이 아직 만들지 않은 페이지를
             // 목표로 삼을 수 있다(문서 맨 끝 근처 항목을 그 다음 페이지로 밀 때
             // 등). getOutputPageAt은 store에 없는 페이지를 요청받으면 반환값
@@ -2581,32 +2607,33 @@ export function PrintCanvas({
                 }
             }
 
-            if (anchorRow) {
-                // anchor가 속한 행이 몇 열이든(1열이든 2열 이상이든) 그 좁은 region
-                // 안에 욱여넣지 않고, 행을 하나의 단위로 보고 바로 뒤에 새 한 줄 행으로
-                // 끼워넣는다. 예전엔 1열 anchor일 때만 forceIntoRegion으로 같은
-                // region 안에 두 atom을 함께 쌓았는데, 그러면 원래 독립돼 있던
-                // 한 줄짜리 행이 갑자기 atom 2개짜리 행으로 바뀌면서 — 이 세션
-                // 내내 atom-per-row로 고쳐온 오버플로 분할/재배치 granularity가
-                // 다시 깨졌다(실제 발생 확인됨 — 강제 배치 하나 눌렀을 뿐인데
-                // 같은 페이지의 무관한 다른 항목이 다음 페이지로 밀려남). 항상
-                // 새 행으로 끼워넣으면 강제 배치는 그 항목 하나만 움직이고 기존
-                // 배치는 그대로 유지된다.
-                usePrintStore.getState().forceNextToRow(ids, anchorRow.id, 'after');
-            } else {
-                // 이 페이지에 같은 섹션 콘텐츠가 아직 없다 — store.forcePage(옛 경로)는
-                // 무조건 페이지의 첫 region에 밀어넣어 그게 다른 섹션이면 섞여버린다.
-                // 대신 그 페이지의 마지막 행 뒤에 새 한 줄 행으로 끼워넣어 어떤 기존
-                // 섹션과도 안 섞이게 한다.
-                const lastRow = targetPageRows[targetPageRows.length - 1]?.row;
-                if (lastRow) {
-                    usePrintStore.getState().forceNextToRow(ids, lastRow.id, 'after');
+            // ids를 통째로 forceNextToRow(ids, ...)에 한 번에 넘기면
+            // insertAtomsNextToRow가 전부를 컬럼 하나짜리 행 '하나'로 뭉쳐버린다
+            // (실제 발생 확인됨 — 회사 카드+프로젝트+상세 약 20개 atom이 행 1개로
+            // 뭉쳐서 페이지 하나에 다 안 들어가는데도, 오버플로 스캔이 "행이
+            // 페이지의 첫 행이면 넘침으로 안 본다"는 규칙 때문에 그 거대한 행
+            // 하나를 절대 못 쪼개고 페이지 경계를 그냥 뚫고 넘쳤다). atom을
+            // 하나씩 순서대로 별도 행으로 끼워넣어 atom-per-row 구조를 유지해야
+            // push가 넘치는 부분을 정상적으로 다음 페이지로 쪼갤 수 있다.
+            let anchorRowId = anchorRow?.id ?? targetPageRows[targetPageRows.length - 1]?.row.id;
+            for (const atomId of ids) {
+                if (anchorRowId) {
+                    usePrintStore.getState().forceNextToRow([atomId], anchorRowId, 'after');
                 } else {
-                    usePrintStore.getState().forcePage(ids, targetPageIndex);
+                    // 이 페이지에 행이 하나도 없다(완전히 빈 페이지) — 첫 atom만
+                    // forcePage로 넣고, 그 뒤부터는 방금 만들어진 행을 앵커 삼아
+                    // 이어붙인다.
+                    usePrintStore.getState().forcePage([atomId], targetPageIndex);
                 }
+                const latestLayout = usePrintStore.getState().outputLayout;
+                const placement = latestLayout.placements.find((p) => p.atomId === atomId);
+                const region = placement
+                    ? latestLayout.regions.find((r) => r.id === placement.regionId)
+                    : undefined;
+                anchorRowId = region?.rowId ?? anchorRowId;
             }
         },
-        [getRowPairingKey, printableAtoms, atomPageMap, store.outputLayout]
+        [getRowPairingKey, printableAtoms, effectivePageMap, store.outputLayout]
     );
 
     // 페이지별로 "어느 atom이 어느 region에, 그 안에서 어떤 항목 범위(run)로" 속하는지

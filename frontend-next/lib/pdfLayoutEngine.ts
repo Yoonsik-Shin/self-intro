@@ -376,6 +376,31 @@ export function partitionAtomsIntoPages(
         });
     }
 
+    // 강제 배치(locked)된 atom의 높이는 위 순차 패킹의 currentHeight 누적에
+    // 전혀 안 들어간다 — 그냥 목표 페이지의 heightUsedPx에만 더해질 뿐이다.
+    // 그래서 회사 카드 하나를 통째로 강제 배치하는 것처럼 큰 그룹이 한
+    // 페이지에 다 안 들어갈 만큼 쌓이면, 여기서 계산하는 자연 페이지 수
+    // (pages.length)가 실제보다 적게 잡힌다. 이 수가 maxPageCount로 쓰이는
+    // rebalancePageOverflow의 push는 그 한도를 못 넘어 새 페이지를 못 만들고,
+    // 넘친 내용이 페이지 경계를 그냥 뚫고 나갔다(실제 발생 확인됨). 예산을
+    // 넘긴 각 페이지마다 그 넘친 만큼을 페이지 개수로 환산해 배열 끝에 빈
+    // 페이지로 덧붙인다 — 실제 내용 배치는 row/rebalance 엔진(push)이 나중에
+    // 이 빈 페이지들로 밀어넣으므로 여기선 개수만 맞추면 된다.
+    let phantomPageCount = 0;
+    for (const page of pages) {
+        if (page.heightUsedPx > maxContentHeight) {
+            phantomPageCount += Math.floor(page.heightUsedPx / maxContentHeight);
+        }
+    }
+    for (let i = 0; i < phantomPageCount; i += 1) {
+        pages.push({
+            pageId: pageIdAt(pages.length),
+            pageIndex: pages.length,
+            items: [],
+            heightUsedPx: 0,
+        });
+    }
+
     return pages.length > 0
         ? pages
         : [{ pageId: pageIdAt(0), pageIndex: 0, items: [], heightUsedPx: 0 }];

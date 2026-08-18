@@ -342,7 +342,7 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                                 </span>
                             </button>
                         )}
-                        {isSingleAtomGroup && (
+                        {isSingleAtomGroup && options?.hidePinAndGap && (
                             <button
                                 type="button"
                                 onClick={(e) => {
@@ -382,7 +382,6 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
         }
 
         const targetPrevPage = (currentPage ?? 1) - 1;
-        const targetNextPage = (currentPage ?? 0) + 1;
 
         return (
             <div
@@ -420,23 +419,6 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                             <span className="truncate max-w-[160px]">
                                 &apos;{shortItemTitle}&apos; {targetPrevPage + 1}페이지로 강제
                                 올리기
-                            </span>
-                        </button>
-                    )}
-                    {currentPage !== undefined && (
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                forceMoveToPage(getForcePageAssociatedAtomIds(id), targetNextPage);
-                            }}
-                            title={`'${itemTitle}' 항목을 ${targetNextPage + 1}페이지로 강제 내립니다.`}
-                            className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-[11px] font-black text-white hover:bg-blue-500 active:scale-95 transition shadow-sm cursor-pointer shrink-0"
-                        >
-                            <ArrowDown className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate max-w-[160px]">
-                                &apos;{shortItemTitle}&apos; {targetNextPage + 1}페이지로 강제
-                                내리기
                             </span>
                         </button>
                     )}
@@ -593,20 +575,23 @@ export const AtomCard = memo(function AtomCard({ atom }: { atom: PrintAtomItem }
                         <span>원래 위치로</span>
                     </button>
                 )}
-                {!suppressedByGroupOwner && !isForced && currentPage !== undefined && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            forceMoveToPage(getForcePageAssociatedAtomIds(id), currentPage + 1);
-                        }}
-                        title={`'${getAtomDisplayTitle(id)}' 항목을 ${currentPage + 2}페이지로 강제로 내립니다.`}
-                        className="flex h-6 items-center gap-1 rounded-full bg-blue-600 px-2.5 text-[10px] font-black text-white hover:bg-blue-500 transition cursor-pointer shadow-sm"
-                    >
-                        <ArrowDown className="h-3 w-3" />
-                        <span>다음 페이지로 내리기</span>
-                    </button>
-                )}
+                {!suppressedByGroupOwner &&
+                    !isSingleAtomGroup &&
+                    !isForced &&
+                    currentPage !== undefined && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                forceMoveToPage(getForcePageAssociatedAtomIds(id), currentPage + 1);
+                            }}
+                            title={`'${getAtomDisplayTitle(id)}' 항목을 ${currentPage + 2}페이지로 강제로 내립니다.`}
+                            className="flex h-6 items-center gap-1 rounded-full bg-blue-600 px-2.5 text-[10px] font-black text-white hover:bg-blue-500 transition cursor-pointer shadow-sm"
+                        >
+                            <ArrowDown className="h-3 w-3" />
+                            <span>다음 페이지로 내리기</span>
+                        </button>
+                    )}
                 <div
                     onPointerDown={startGapDrag(id)}
                     title="위아래로 끌어서 간격 세밀 조절"

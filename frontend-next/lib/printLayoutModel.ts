@@ -1582,19 +1582,17 @@ export function rebalancePageOverflow(
             .filter((row) => row.pageId === page.id)
             .sort((a, b) => a.order - b.order);
 
-        // 이 페이지에 강제 배치(고정)된 행이 하나라도 있으면 자동 넘침 정리를
-        // 아예 건너뛴다. 사용자가 "N페이지로 강제 배치"를 누르는 이유 자체가
-        // 페이지 규격을 벗어나도 그 자리(맨 아래)에 붙어있길 원해서인데,
-        // 자동 push가 그 넘친 만큼을 다시 정리하려고 무관한 다른 행을 다음
-        // 페이지로 밀어내 버렸다(실제 발생 확인됨 — 강제 배치 항목 자체는
-        // 그대로 있는데, 원래 그 페이지에 있던 다른 항목이 다음 페이지로
-        // 사라짐). 고정 행이 있는 페이지는 사용자가 이미 명시적으로 넘침을
-        // 감수한 것으로 보고 손대지 않는다.
-        if (pageRows.some((row) => isRowLocked(row))) {
-            pageIndex += 1;
-            continue;
-        }
-
+        // 페이지 전체를 건너뛰지 않는다 — 강제 배치(고정)된 행이 여러 개
+        // 모여 페이지 하나를 통째로 넘칠 만큼 크면(예: 회사 카드 하나를
+        // 통째로 강제 배치), 그 넘친 부분이 페이지 하단을 그냥 뚫고
+        // 나가버렸다(실제 발생 확인됨 — 강제 배치 후 하단 콘텐츠가 페이지
+        // 경계를 넘어 다음 페이지 내용과 겹침). 아래의 넘침 계산과 이동은
+        // 행 단위로 isRowLocked를 개별 검사해 고정된 행 자체는 옮기지 않고
+        // 제자리를 지키면서도, 고정 행들이 페이지를 넘치면 그 넘친 뒤쪽
+        // 고정 행들이 다음 페이지로 이어지도록 허용한다 — "강제 배치는
+        // 페이지 규격을 넘어도 된다"는 원래 의도를 "페이지 경계를 그냥
+        // 뚫고 나간다"가 아니라 "다음 페이지로 자연스럽게 이어진다"로
+        // 정확히 구현한다.
         let cumulative = 0;
         let overflowStartIndex = -1;
         for (let i = 0; i < pageRows.length; i += 1) {
@@ -1629,7 +1627,7 @@ export function rebalancePageOverflow(
         // 덩어리로 다음 페이지로 밀리고, 그 페이지도 곧바로 다시 넘쳐서 페이지 수가
         // 걷잡을 수 없이 늘어난다(실제 발생 확인됨 — 9페이지가 12페이지로). 실제로
         // 안 들어가는 atom부터만 다음 페이지 맨 앞에 새 행으로 쪼갠다.
-        if (!isRowLocked(overflowRow) && overflowRow.regionIds.length === 1) {
+        if (overflowRow.regionIds.length === 1) {
             const atomIds = atomsInRegion(overflowRow.regionIds[0]);
             if (atomIds.length > 1) {
                 let used = 0;
@@ -1658,9 +1656,29 @@ export function rebalancePageOverflow(
             }
         }
 
-        const rowsToMove = pageRows.slice(overflowStartIndex).filter((row) => !isRowLocked(row));
+        // push는 "이 페이지에 고정(locked)된 행이 여러 개 모여서" 넘칠 때만
+        // 그 고정 행들도 함께 다음 페이지로 옮긴다 — outputLayoutToForcedPageOverrides가
+        // "강제 배치된 페이지"를 그 행의 현재 pageId에서 매번 다시 계산하므로
+        // (고정 시점에 저장해둔 페이지 번호가 아니라), 행이 다음 페이지로
+        // 넘어가면 "강제 배치됨" 배지도 자동으로 그 새 페이지를 가리키게
+        // 갱신된다 — 고정을 어기는 게 아니라 고정된 채로 자연스럽게 다음
+        // 페이지로 이어지는 것이다(회사 카드 하나를 통째로 강제 배치했을 때
+        // 처럼 고정된 행 여러 개가 한 페이지에 다 안 들어가는 경우, 실제
+        // 발생 확인됨). 하지만 이 페이지에 고정된 행이 "딱 하나뿐"이면
+        // 얘기가 다르다 — 그건 사용자가 방금 "여기로 올려줘/내려줘"라고
+        // 명시적으로 지정한 단일 항목이라는 뜻이라, 그게 넘친다고 push가
+        // 도로 다른 페이지로 옮겨버리면 강제 배치 자체가 무의미해진다(실제
+        // 발생 확인됨 — 프로젝트 하나를 2페이지로 끌어올렸는데 그 페이지가
+        // 꽉 차 있어서 push가 즉시 3페이지로 도로 밀어내 버림, 마치 강제
+        // 배치가 전혀 안 먹힌 것처럼 보임). 그런 단일 고정 행은 페이지
+        // 규격을 넘어도 그 자리에 그대로 둔다.
+        const lockedRowCountOnPage = pageRows.filter((row) => isRowLocked(row)).length;
+        const rowsToMove =
+            lockedRowCountOnPage > 1
+                ? pageRows.slice(overflowStartIndex)
+                : pageRows.slice(overflowStartIndex).filter((row) => !isRowLocked(row));
         if (rowsToMove.length === 0) {
-            // 넘치는 나머지가 전부 잠긴 행 — 옮길 게 없으니 다음 페이지로 넘어간다.
+            // 넘치는 나머지가 (단일) 고정 행뿐 — 옮기지 않고 다음 페이지로 넘어간다.
             pageIndex += 1;
             continue;
         }
