@@ -43,10 +43,12 @@ import {
     reorderablePrintSections,
 } from '@/lib/printSections';
 import { generateUniqueLocalName, getLocalSaves, saveLocal } from '@/lib/printTemplateLocal';
+import { loadAllCustomFontsIntoDocument } from '@/lib/customFontStorage';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { randomId } from '@/lib/uuid';
 import {
     getOutputPageAt,
+    deduplicateRowIds,
     ensureOutputLayoutPageCount,
     mergeAdjacentSingleColumnRows,
     moveSectionRows,
@@ -54,6 +56,8 @@ import {
     pruneEmptyOutputRows,
     rebalancePageOverflow,
     replaceOutputPageComposition,
+    resolvePrintFontStack,
+    isPresetPrintFontFamily,
     type OutputLayout,
     type OutputRow,
 } from '@/lib/printLayoutModel';
@@ -165,6 +169,10 @@ type Props = {
     initialTemplate?: PrintTemplate | null;
     coverLetterItems?: JobPostingCoverLetterItem[];
     jobPostingId?: number | null;
+    /** 페이지 이동 없이 현재 화면 위에 잠깐 떠서 인쇄 대화상자만 띄우고 사라지는
+     *  용도로 마운트된 인스턴스인지 — true면 인쇄가 끝나는 즉시 onExit()으로
+     *  스스로를 정리한다(편집 캔버스를 남에게 보여줄 필요가 없으므로). */
+    quickPrintMode?: boolean;
 };
 
 /** 저장된 순서(override)를 기준으로 자연 순서 배열을 재정렬한다. override에 없는 새 항목은 뒤에 붙는다. */
@@ -197,11 +205,27 @@ export function PrintCanvas({
     initialTemplate = null,
     coverLetterItems = [],
     jobPostingId = null,
+    quickPrintMode = false,
 }: Props) {
     const store = usePrintStore();
     const queryClient = useQueryClient();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const printLayoutFrozenRef = useRef(false);
+    // Figma처럼: 스페이스바를 누른 채(또는 마우스 가운데 버튼으로) 회색 배경을
+    // 드래그하면 화면을 이동(pan)한다. 실제 카드 드래그(재정렬)와 충돌하지 않게
+    // 왼쪽 버튼 드래그는 스페이스가 눌려 있을 때만 pan으로 취급한다.
+    const [isSpacePanMode, setIsSpacePanMode] = useState(false);
+    const panStateRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        scrollLeft: number;
+        scrollTop: number;
+        moved: boolean;
+    } | null>(null);
+    // pointerup 시점에 panStateRef는 이미 비워지므로, 뒤이어 발생하는 click
+    // 이벤트에서 "방금 pan 드래그였는지"를 판별하려면 별도로 남겨둬야 한다.
+    const suppressNextCanvasClickRef = useRef(false);
     // 간격 드래그 중엔 pointermove마다 sectionGaps가 바뀌고, 그때마다
     // rebalancePageOverflow가 그 순간의(아직 확정 안 된) 간격값으로 오버플로우
     // 여부를 다시 판단해 페이지 사이로 콘텐츠를 밀었다 당겼다 반복한다 — 드래그
@@ -209,6 +233,11 @@ export function PrintCanvas({
     // 뒤 확정된 값 한 번만 재배치를 반영하면 되므로, 드래그 중엔 자동 재배치를
     // 건너뛴다.
     const gapDragActiveRef = useRef(false);
+    // 공개 워크스페이스 방문자가 템플릿을 고르면 편집 화면을 보여주지 않고 곧장
+    // 인쇄 대화상자로 넘어간다 — autoPrintRequested가 켜지는 순간 이 화면을
+    // 가리고, 인쇄가 끝나면(printPending이 다시 꺼지면) onExit으로 빠져나간다.
+    const [autoPrintActive, setAutoPrintActive] = useState(false);
+    const autoPrintStartedRef = useRef(false);
     const [inlineEditMode, setInlineEditMode] = useState(false);
     const [modeModalOpen, setModeModalOpen] = useState(
         () => !store.printModeResolved && !initialTemplate
@@ -413,12 +442,28 @@ export function PrintCanvas({
     const [addedCoverLetterItems, setAddedCoverLetterItems] = useState<JobPostingCoverLetterItem[]>(
         []
     );
+    const selfHealBurstRef = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
     const historyPastRef = useRef<PrintEditorSnapshot[]>([]);
     const historyFutureRef = useRef<PrintEditorSnapshot[]>([]);
     const historyCurrentRef = useRef<PrintEditorSnapshot | null>(null);
     const historyCurrentSignatureRef = useRef('');
     const historyMergeRef = useRef<{ key: string | null }>({ key: null });
     const historyMergeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // self-heal(자동 재배치 effect)이 setOutputLayout을 부르기 직전에 true로 세워둔다.
+    // 히스토리 effect는 이걸 보고 그 변화를 "사용자 액션"으로 기록하지 않는다 —
+    // 안 그러면 사용자가 되돌리기를 눌러도 self-heal이 outputLayout 변화를 감지하고
+    // 바로 다시 같은 결과로 재배치해버려 되돌리기가 안 먹히는 것처럼 보인다
+    // (실제 발생 확인됨).
+    const skipHistoryForOutputLayoutRef = useRef(false);
+    // forceMoveToPage처럼 atom 하나당 store를 여러 번 나눠 커밋하는 작업 도중엔
+    // 이걸 true로 켜서 히스토리 effect가 아예 아무것도 안 하게(스냅샷도 안 갱신)
+    // 막는다 — 그래야 함수가 끝난 뒤 딱 한 번, 작업 시작 전 상태 대비 최종 상태로
+    // 히스토리 항목이 정확히 하나만 쌓인다. 중간에 갱신해버리면(스킵만 하고
+    // historyCurrentRef는 계속 따라가면) "현재" 기준점이 작업 도중의 중간 상태로
+    // 밀려서, 되돌리기를 눌러도 전체 작업이 아니라 마지막 한 조각만 되돌아간다
+    // (실제 발생 확인됨 — 섹션 전체를 다음 페이지로 내렸는데 되돌리기를 여러 번
+    // 눌러야 겨우 원상복구됨).
+    const historyBatchActiveRef = useRef(false);
     const [historyAvailability, setHistoryAvailability] = useState({
         canUndo: false,
         canRedo: false,
@@ -432,13 +477,34 @@ export function PrintCanvas({
 
     const applyHistorySnapshot = (snapshot: PrintEditorSnapshot) => {
         const restored = clonePrintEditorSnapshot(snapshot);
-        historyCurrentRef.current = restored;
-        historyCurrentSignatureRef.current = JSON.stringify(restored);
         store.applyTemplate(restored);
         setContentOverrides(restored.contentOverrides);
         setCoverLetterOverrides(restored.coverLetterOverrides);
         setCoverLetterSectionTitle(restored.coverLetterSectionTitle);
         setAddedCoverLetterItems(restored.addedCoverLetterItems);
+        // historyCurrentRef는 반드시 store에 "실제로 커밋된" 값을 기준으로 잡아야 한다.
+        // applyTemplate 내부의 normalizeOutputLayout이 rows 배열 순서 등을 정규화하면서
+        // 넘겨준 restored와 미묘하게 달라질 수 있는데(실제 발생 확인됨 — 페이지 순서와
+        // 안 맞게 뒤섞여 있던 예전 rows 배열이 정규화 과정에서 올바른 순서로 바로잡히면서
+        // restored 원본과 값이 달라짐), historyCurrentRef를 restored(정규화 전 원본)로
+        // 잡아두면 다음 렌더에서 "실제 store 값과 다르다"는 가짜 변경으로 잡혀 되돌리기
+        // 직후 매번 유령 히스토리 항목이 쌓이고 다시하기 스택도 그때마다 지워졌다.
+        const committed = usePrintStore.getState();
+        const settled = clonePrintEditorSnapshot({
+            excludedIds: committed.printExcludedIds,
+            sectionOrder: committed.printSectionOrder,
+            sectionGaps: committed.sectionGaps,
+            lineHeight: committed.lineHeight,
+            forcedPageOverrides: committed.forcedPageOverrides,
+            outputLayout: committed.outputLayout,
+            itemOrderOverrides: committed.itemOrderOverrides,
+            contentOverrides: restored.contentOverrides,
+            coverLetterOverrides: restored.coverLetterOverrides,
+            coverLetterSectionTitle: restored.coverLetterSectionTitle,
+            addedCoverLetterItems: restored.addedCoverLetterItems,
+        });
+        historyCurrentRef.current = settled;
+        historyCurrentSignatureRef.current = JSON.stringify(settled);
     };
 
     const handleUndo = () => {
@@ -464,6 +530,7 @@ export function PrintCanvas({
     };
 
     useEffect(() => {
+        if (historyBatchActiveRef.current) return;
         const snapshot = clonePrintEditorSnapshot({
             excludedIds: store.printExcludedIds,
             sectionOrder: store.printSectionOrder,
@@ -480,15 +547,11 @@ export function PrintCanvas({
         const signature = JSON.stringify(snapshot);
         if (signature === historyCurrentSignatureRef.current) return;
 
-        if (process.env.NODE_ENV !== 'production' && historyCurrentRef.current) {
-            const prev = historyCurrentRef.current as unknown as Record<string, unknown>;
-            const next = snapshot as unknown as Record<string, unknown>;
-            const diffKeys = Object.keys(next).filter(
-                (key) => JSON.stringify(prev[key]) !== JSON.stringify(next[key])
-            );
-            console.log('[DEBUG history signature changed]', diffKeys, {
-                sectionGaps: snapshot.sectionGaps,
-            });
+        if (skipHistoryForOutputLayoutRef.current) {
+            skipHistoryForOutputLayoutRef.current = false;
+            historyCurrentRef.current = snapshot;
+            historyCurrentSignatureRef.current = signature;
+            return;
         }
 
         const current = historyCurrentRef.current;
@@ -939,6 +1002,54 @@ export function PrintCanvas({
             ),
         [resolvedIntroData, store.itemOrderOverrides]
     );
+
+    // "직접 조정하기"로 완전히 새 템플릿을 시작할 때 쓰는 기본 제외 목록 — 경력/
+    // 프로젝트/자격증/핵심역량이 쌓일수록 전부 기본 노출되면 편집하기 버거워지므로
+    // (실사용 요청), 각 섹션에서 이미 최신순/우선순위순으로 정렬된 목록의 앞쪽
+    // N개만 남기고 나머지는 기본 제외 상태로 시작한다. 회사/프로젝트 같은 상위
+    // 항목뿐 아니라, 회사 하나 안에 딸린 프로젝트의 세부 불릿(career-detail)도
+    // 한 프로젝트에 10개 넘게 쌓일 수 있어 똑같이 앞쪽 N개만 남긴다. 자식(프로젝트/
+    // 상세)은 부모 id 하나만 제외해도 printableAtoms 빌더가 함께 걸러낸다.
+    const DEFAULT_CORE_CAREER_COUNT = 2;
+    const DEFAULT_CORE_CAREER_PROJECT_COUNT = 2;
+    const DEFAULT_CORE_PROJECT_COUNT = 2;
+    const DEFAULT_CORE_CREDENTIAL_COUNT = 2;
+    const DEFAULT_CORE_COMPETENCY_COUNT = 3;
+    const DEFAULT_CORE_DETAIL_COUNT = 5;
+    const buildDefaultCoreExcludedIds = useCallback(
+        () => [
+            ...orderedCareerCards
+                .slice(DEFAULT_CORE_CAREER_COUNT)
+                .map((c) => `career-company:${c.id}`),
+            ...orderedCareerCards.flatMap((c) =>
+                c.projects
+                    .slice(DEFAULT_CORE_CAREER_PROJECT_COUNT)
+                    .map((p) => `career-project:${p.id}`)
+            ),
+            ...orderedCareerCards.flatMap((c) =>
+                c.projects
+                    .slice(0, DEFAULT_CORE_CAREER_PROJECT_COUNT)
+                    .flatMap((p) =>
+                        (p.details ?? [])
+                            .slice(DEFAULT_CORE_DETAIL_COUNT)
+                            .map((d) => `career-detail:${d.id}`)
+                    )
+            ),
+            ...orderedMilestones.slice(DEFAULT_CORE_PROJECT_COUNT).map((m) => `project:${m.id}`),
+            ...orderedMilestones.flatMap((m) =>
+                (m.details ?? [])
+                    .slice(DEFAULT_CORE_DETAIL_COUNT)
+                    .map((d) => `project-detail:${d.id}`)
+            ),
+            ...orderedCredentialExperiences
+                .slice(DEFAULT_CORE_CREDENTIAL_COUNT)
+                .map((c) => `credential:${c.id}`),
+            ...orderedCompetencies
+                .slice(DEFAULT_CORE_COMPETENCY_COUNT)
+                .map((c) => `competency:${c.id}`),
+        ],
+        [orderedCareerCards, orderedMilestones, orderedCredentialExperiences, orderedCompetencies]
+    );
     const orderedCoverLetterItems = useMemo(() => {
         const merged = [...coverLetterItems, ...addedCoverLetterItems].map((item) => {
             const override = coverLetterOverrides[item.id];
@@ -988,6 +1099,35 @@ export function PrintCanvas({
         });
     }, [sanitizedInitialTemplate?.id]);
 
+    // 이전에 업로드해 브라우저에 저장해 둔 폰트를, 설정 패널을 열지 않은 채로
+    // 인쇄해도 반영되도록 마운트 시점에 미리 document.fonts에 등록해 둔다.
+    useEffect(() => {
+        void loadAllCustomFontsIntoDocument();
+    }, []);
+
+    // 사용자가 프리셋(고딕/명조/모노) 외에 구글 폰트 이름을 직접 입력하면, 그 폰트는
+    // app/layout.tsx에 미리 <link>로 로드돼 있지 않으므로 여기서 동적으로 불러온다.
+    // 폰트 이름별로 <link> id를 둬서, 세션 중 여러 커스텀 폰트를 오갔을 때 중복
+    // 삽입 없이 이미 불러온 폰트는 재사용한다.
+    useEffect(() => {
+        const fontFamily = store.outputLayout.fontFamily;
+        if (isPresetPrintFontFamily(fontFamily)) return;
+        // 업로드한 폰트 파일은 이름 앞에 'Uploaded-'를 붙여 관리한다(handleFontFileUpload
+        // 참고) — 구글 폰트가 아니므로 시도할 필요가 없다. document.fonts.check()로
+        // "이미 로드됐는지" 판단하려 했었는데, 이 API는 요청한 폰트가 실제로는 없어도
+        // 브라우저가 대체 폰트로라도 렌더 가능하면 true를 돌려주는 경우가 있어(크로미움
+        // 확인됨) 신뢰할 수 없었다 — 그래서 몇몇 폰트만 랜덤하게 안 불러와졌다(실제
+        // 발생 확인됨). id 존재 여부만으로 판단하는 게 훨씬 확실하다.
+        if (fontFamily.startsWith('Uploaded-')) return;
+        const linkId = `print-custom-font-${encodeURIComponent(fontFamily)}`;
+        if (document.getElementById(linkId)) return;
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@400;700&display=swap`;
+        document.head.appendChild(link);
+    }, [store.outputLayout.fontFamily]);
+
     // 캔버스 마우스 휠 + Ctrl/Cmd로 줌 조절
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -1003,6 +1143,73 @@ export function PrintCanvas({
         canvas.addEventListener('wheel', handleWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', handleWheel);
     }, []);
+
+    // 스페이스바를 누르고 있는 동안만 왼쪽 버튼 드래그를 pan으로 취급한다. 텍스트
+    // 입력 중(인라인 편집, 검색창 등)에는 스페이스가 실제 공백 입력이어야 하므로
+    // 편집 가능한 요소에 포커스가 있을 땐 무시한다.
+    useEffect(() => {
+        const isEditableTarget = (target: EventTarget | null) => {
+            const el = target as HTMLElement | null;
+            if (!el) return false;
+            const tag = el.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code !== 'Space' || isEditableTarget(e.target)) return;
+            // 키를 누르고 있는 동안 브라우저가 계속 keydown을 반복 발생시키는데(auto-repeat),
+            // 매번 preventDefault를 걸어줘야 한다 — 첫 이벤트에서만 막으면 그 뒤 반복
+            // 이벤트에서 스페이스바 기본 동작(페이지 아래로 스크롤)이 그대로 실행된다
+            // (실제 발생 확인됨: 스페이스를 누르고 있으면 화면이 계속 내려감).
+            e.preventDefault();
+            if (e.repeat) return;
+            setIsSpacePanMode(true);
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.code !== 'Space') return;
+            setIsSpacePanMode(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
+
+    const handleCanvasPanPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        if (e.button === 1 || (e.button === 0 && isSpacePanMode)) {
+            e.preventDefault();
+            canvas.setPointerCapture(e.pointerId);
+            panStateRef.current = {
+                pointerId: e.pointerId,
+                startX: e.clientX,
+                startY: e.clientY,
+                scrollLeft: canvas.scrollLeft,
+                scrollTop: canvas.scrollTop,
+                moved: false,
+            };
+        }
+    };
+    const handleCanvasPanPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        const pan = panStateRef.current;
+        if (!canvas || !pan || pan.pointerId !== e.pointerId) return;
+        const dx = e.clientX - pan.startX;
+        const dy = e.clientY - pan.startY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pan.moved = true;
+        canvas.scrollLeft = pan.scrollLeft - dx;
+        canvas.scrollTop = pan.scrollTop - dy;
+    };
+    const handleCanvasPanPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        const pan = panStateRef.current;
+        if (!pan || pan.pointerId !== e.pointerId) return;
+        suppressNextCanvasClickRef.current = pan.moved;
+        canvas?.releasePointerCapture(e.pointerId);
+        panStateRef.current = null;
+    };
 
     const handleZoomFit = () => {
         const canvas = canvasRef.current;
@@ -1299,6 +1506,12 @@ export function PrintCanvas({
         return map;
     }, [store.outputLayout.rows, store.outputLayout.placements, printableAtoms, store.atomHeights]);
 
+    // 강제 배치로 옮겨간 큰 섹션(항목이 수십 개인 경우)의 원래 자리를 높이 그대로
+    // 빈 공간으로 예약해봤지만, 그 섹션 자체가 페이지 하나보다 커지면 예약된
+    // 빈 공간도 페이지 하나 이상을 통째로 잡아먹어 완전히 빈 페이지가 나타났다
+    // (실제 발생 확인됨). 큰 섹션을 옮길 때는 빈 공간을 남기지 않고 뒤따르는
+    // 내용이 자연스럽게 당겨져 다시 채워지는 쪽이 통짜 빈 페이지보다 낫다 —
+    // 그래서 예약 공간 없이 순수 자연 재계산으로 되돌린다.
     const pageLayers = useMemo(
         () =>
             partitionAtomsIntoPages(
@@ -1323,8 +1536,26 @@ export function PrintCanvas({
 
     useEffect(() => {
         if (store.outputLayout.pages.length >= pageLayers.length) return;
+        skipHistoryForOutputLayoutRef.current = true;
         store.setOutputLayout(ensureOutputLayoutPageCount(store.outputLayout, pageLayers.length));
     }, [pageLayers.length, store]);
+
+    // pageLayers(자연 계산)는 push/pull 리밸런스를 모르는 단순 순차 패킹이라,
+    // 실제로 rebalance가 콘텐츠를 더 촘촘히 눌러 담으면 자연 계산이 예상한
+    // 마지막 페이지가 실제로는 완전히 빈 채로 남을 수 있다(실제 발생 확인됨 —
+    // store.outputLayout의 마지막 페이지 rowIds가 0개인데도 pageLayers.length가
+    // 그 페이지를 포함해 총 페이지 수를 그대로 보고해서 진짜 빈 페이지가
+    // 화면/출력에 그대로 나타났다). 렌더링에 쓰는 목록에서만 "실제로 행이 하나도
+    // 없는" 꼬리 페이지를 잘라낸다 — self-heal/maxPageCount 등 내부 계산용
+    // pageLayers 자체는 안 건드린다(그쪽까지 건드리면 이번 세션 내내 잡은
+    // 수렴 안정성이 다시 흔들릴 위험이 있다).
+    const visiblePageLayers = useMemo(() => {
+        let end = pageLayers.length;
+        while (end > 1 && getOutputPageAt(store.outputLayout, end - 1).rows.length === 0) {
+            end -= 1;
+        }
+        return end === pageLayers.length ? pageLayers : pageLayers.slice(0, end);
+    }, [pageLayers, store.outputLayout]);
 
     useLayoutEffect(() => {
         const canvas = canvasRef.current;
@@ -1572,6 +1803,10 @@ export function PrintCanvas({
                 const hasPrevItemsInSameSection = prevPageItems.some(
                     (it) => it.sectionId === firstAtomOnNewPage.sectionId
                 );
+                // 섹션이 이어지는 경우뿐 아니라, 새 페이지 맨 위가 새 섹션의 헤더로
+                // 시작하는 경우도 분할 지점으로 취급한다 — 그래야 이전 페이지에
+                // 여유 공간이 있을 때 그 헤더(와 섹션 전체)를 앞으로 강제 당겨올
+                // 수단(배너의 "N페이지로 강제 올리기")이 생긴다.
                 if (hasPrevItemsInSameSection || firstAtomOnNewPage.isHeader) {
                     set.add(firstAtomOnNewPage.id);
                 }
@@ -1585,6 +1820,29 @@ export function PrintCanvas({
         store.outputLayout.placements,
         printableAtoms,
     ]);
+
+    // 각 페이지의 "맨 마지막 행"도 강제 배치 컨트롤이 있어야 한다 — 다음
+    // 페이지로 자연스럽게 넘어가는 진짜 경계 행이기 때문이다(실사용 요청 —
+    // "각 페이지의 마지막 행들은 노출되고 하단배치가 가능했으면"). 위
+    // pageBreakBoundaryAtomIds는 "다음 페이지의 첫 행"만 다루므로(같은 섹션이
+    // 이어지거나 헤더로 시작할 때만), 여기서는 섹션 연속 여부와 무관하게
+    // 모든 실제 페이지의 마지막 행을 그대로 모은다.
+    const pageBreakBottomBoundaryAtomIds = useMemo(() => {
+        const set = new Set<string>();
+        store.outputLayout.pages.forEach((page) => {
+            const rows = store.outputLayout.rows
+                .filter((r) => r.pageId === page.id)
+                .sort((a, b) => a.order - b.order);
+            const lastRow = rows[rows.length - 1];
+            const regionId = lastRow?.regionIds[lastRow.regionIds.length - 1];
+            if (!regionId) return;
+            const placement = store.outputLayout.placements
+                .filter((p) => p.regionId === regionId)
+                .sort((a, b) => b.order - a.order)[0];
+            if (placement) set.add(placement.atomId);
+        });
+        return set;
+    }, [store.outputLayout.pages, store.outputLayout.rows, store.outputLayout.placements]);
 
     const getAssociatedAtomIds = useCallback(
         (id: string): string[] => {
@@ -1600,6 +1858,23 @@ export function PrintCanvas({
                     .find((item) => String(item.id) === projectId);
                 if (p) return [id, ...p.details.map((d) => `career-detail:${d.id}`)];
             }
+            if (id.startsWith('career-company:')) {
+                // 회사 카드 자체는 isHeader가 아니라서 아래 헤더 분기를 안 타지만,
+                // 그 회사에 속한 프로젝트/상세와 항상 하나의 단위로 움직여야 한다
+                // — 그렇지 않으면 강제 배치 시 회사 타이틀만 옮겨지고 소속
+                // 프로젝트/상세는 원래 페이지에 남아 내용이 찢어진다.
+                const companyId = id.replace('career-company:', '');
+                const card = orderedCareerCards.find((c) => String(c.id) === companyId);
+                if (card) {
+                    return [
+                        id,
+                        ...card.projects.map((p) => `career-project:${p.id}`),
+                        ...card.projects.flatMap((p) =>
+                            p.details.map((d) => `career-detail:${d.id}`)
+                        ),
+                    ];
+                }
+            }
             // 섹션 헤더를 끌면 그 섹션에 속한 모든 요소가 함께 이동한다 — 구성 단위
             // 통째로 재정렬하기 위함.
             const atom = printableAtoms.find((a) => a.id === id);
@@ -1613,6 +1888,70 @@ export function PrintCanvas({
         [orderedMilestones, orderedCareerCards, printableAtoms]
     );
 
+    // 헤더(섹션 전체) 또는 career-company(회사+소속 프로젝트/상세)를 통째로
+    // 강제 배치하면, 그 그룹에 속한 모든 하위 atom도 각자 pageLocked/
+    // forcedPageOverrides를 갖게 된다. 그러면 하위 atom 하나하나가 자기도
+    // "강제 배치됨" 배너를 독립적으로 띄워서, 회사 카드 하나만 내렸는데도
+    // 그 안의 모든 프로젝트·상세 항목에 배너가 중복으로 뜨는 문제가 났다
+    // (실제 발생 확인됨). 이 atom이 속할 수 있는 "그룹 소유자" 후보들
+    // (섹션 헤더, 또는 career-company/career-details-header/
+    // project-details-header)을 찾아, 그 소유자가 강제 배치돼 있으면 자기
+    // 배너는 숨기고 소유자의 배너만 보이게 한다.
+    const getPossibleGroupOwnerIds = useCallback(
+        (id: string): string[] => {
+            const owners: string[] = [];
+            const atom = printableAtoms.find((a) => a.id === id);
+            if (atom && !atom.isHeader) {
+                const header = printableAtoms.find(
+                    (a) => a.isHeader && a.sectionId === atom.sectionId
+                );
+                if (header) owners.push(header.id);
+            }
+            if (id.startsWith('career-project:')) {
+                const projectId = id.replace('career-project:', '');
+                const company = orderedCareerCards.find((c) =>
+                    c.projects.some((p) => String(p.id) === projectId)
+                );
+                if (company) owners.push(`career-company:${company.id}`);
+            }
+            if (id.startsWith('career-detail:')) {
+                const detailId = id.replace('career-detail:', '');
+                const company = orderedCareerCards.find((c) =>
+                    c.projects.some((p) => p.details.some((d) => String(d.id) === detailId))
+                );
+                if (company) owners.push(`career-company:${company.id}`);
+                const project = orderedCareerCards
+                    .flatMap((c) => c.projects)
+                    .find((p) => p.details.some((d) => String(d.id) === detailId));
+                if (project) owners.push(`career-details-header:${project.id}`);
+            }
+            if (id.startsWith('project-detail:')) {
+                const detailId = id.replace('project-detail:', '');
+                const m = orderedMilestones.find((item) =>
+                    item.details.some((d) => String(d.id) === detailId)
+                );
+                if (m) owners.push(`project-details-header:${m.id}`);
+            }
+            return owners;
+        },
+        [printableAtoms, orderedCareerCards, orderedMilestones]
+    );
+
+    // 그룹 소유자(회사 카드/섹션 헤더)가 강제 배치돼 있으면 나(그 그룹
+    // 하위 항목)는 항상 배너를 숨긴다. 한때 소유자와 다른 페이지로 밀려난
+    // 항목만 예외로 개별 배너를 보여줬는데, 그러면 그룹이 여러 페이지에
+    // 걸쳐 자연 분할될 때(atom-per-row라 흔함) 그 안의 수십 개 항목이 전부
+    // 자기 배너를 띄워버렸다(실제 발생 확인됨 — 페이지 4~6 모든 항목에
+    // 배너). 그룹 안에서 세밀한 위치 조정이 필요하면 배너 대신 드래그로
+    // 옮기고, 배너는 그룹 소유자 하나만 보여준다.
+    const isForcedViaGroupOwner = useCallback(
+        (id: string): boolean =>
+            getPossibleGroupOwnerIds(id).some(
+                (ownerId) => ownerId !== id && store.forcedPageOverrides[ownerId] !== undefined
+            ),
+        [getPossibleGroupOwnerIds, store.forcedPageOverrides]
+    );
+
     // 강제 페이지 이동/해제 전용. 2-3열로 나란히 배치된 행에서 한 컬럼만 옮기면
     // 나머지 컬럼이 이전/다음 페이지에 남아 레이아웃이 찢어지므로, 여기서는 같은 행의
     // 다른 컬럼 atom까지 모두 묶어서 반환한다. 드래그앤드롭(placeAtomBeside 등)은 이
@@ -1623,6 +1962,9 @@ export function PrintCanvas({
             const visited = new Set<string>([id]);
             const queue: string[] = [id];
 
+            // 섹션 헤더를 강제 배치하면 getAssociatedAtomIds의 "헤더면 섹션
+            // 전체" 규칙을 그대로 따라 섹션 전체가 함께 옮겨진다 — 하위 항목이
+            // 위에 남아 찢어지는 걸 원치 않는다는 실사용 요청에 따른 것이다.
             while (queue.length > 0) {
                 const current = queue.shift()!;
 
@@ -2201,39 +2543,11 @@ export function PrintCanvas({
         (id: string): boolean => {
             if (store.hidePrintGuides) return false;
             if (id === 'intro-profile') return false;
-            const forcedPage = store.forcedPageOverrides[id];
-            if (forcedPage !== undefined) {
-                const isChildDetail =
-                    id.startsWith('project-detail:') || id.startsWith('career-detail:');
-                if (isChildDetail) {
-                    let parentHeaderId: string | null = null;
-                    if (id.startsWith('project-detail:')) {
-                        const detailId = id.replace('project-detail:', '');
-                        const m = orderedMilestones.find((item) =>
-                            item.details.some((d) => String(d.id) === detailId)
-                        );
-                        if (m) parentHeaderId = `project-details-header:${m.id}`;
-                    } else if (id.startsWith('career-detail:')) {
-                        const detailId = id.replace('career-detail:', '');
-                        const p = orderedCareerCards
-                            .flatMap((c) => c.projects)
-                            .find((proj) => proj.details.some((d) => String(d.id) === detailId));
-                        if (p) parentHeaderId = `career-details-header:${p.id}`;
-                    }
-                    if (parentHeaderId && store.forcedPageOverrides[parentHeaderId] !== undefined)
-                        return false;
-                }
-                return true;
-            }
-            // pageBreakBoundaryAtomIds는 순수 자연 흐름(pageLayers)만 보고 계산된
-            // "여기가 자연스러운 페이지 분할 지점" 집합이라, 드래그로 이 atom
-            // 자체가 다른 페이지로 옮겨졌거나, 이 atom 앞에 다른 게 끼어들어서
-            // 더 이상 "그 페이지 맨 위"가 아니게 됐으면 더 이상 안 맞는 얘기다 —
-            // 페이지 중간에 떠 있는데 "여기서 분할됨" 배너가 뜨면 혼란만 준다.
             // placement가 있는(=한 번이라도 명시적으로 배치된) atom은 실제
             // row.order/placement.order가 0인지(그 페이지의 진짜 첫 행·첫 항목인지)
-            // 로 검증한다. placement가 아직 없는(순수 자연 흐름 그대로인) atom은
-            // pageBreakBoundaryAtomIds를 그대로 신뢰한다.
+            // 로 "지금 실제로 페이지 맨 위인지"를 검증한다. placement가 아직
+            // 없는(순수 자연 흐름 그대로인) atom은 자기 자리를 아직 모르니
+            // true로 둔다(아래 자연 흐름 pageBreakBoundaryAtomIds 판단에 맡김).
             const placement = placementByAtomId.get(id);
             let isCurrentlyTopOfPage = true;
             if (placement) {
@@ -2243,20 +2557,48 @@ export function PrintCanvas({
                     : undefined;
                 isCurrentlyTopOfPage = row?.order === 0 && placement.order === 0;
             }
+            const forcedPage = store.forcedPageOverrides[id];
+            if (forcedPage !== undefined) {
+                // 이 atom이 강제 배치돼 있어도, 그게 자기 의지가 아니라 소속된
+                // 그룹(섹션 헤더 전체, 또는 career-company/career-details-header/
+                // project-details-header)이 통째로 강제 배치되면서 같이 딸려온
+                // 것이면 배너를 또 띄우지 않는다 — 그룹 소유자 쪽 배너 하나로
+                // 충분하다(실제 발생 확인됨 — 회사 카드 하나 내렸는데 그 안의
+                // 모든 프로젝트·상세에마다 배너가 중복으로 뜸). 단, 그 그룹이
+                // 한 페이지에 다 안 들어가 오버플로로 넘어간 부분의 맨 위
+                // 항목(진짜 페이지 경계)은 예외다 — 그건 소유자 배너로는 손댈
+                // 수 없는 진짜 새 분할 지점이라 자기 배너가 있어야 한다(실사용
+                // 요청 — "밀려난 맨 위 항목엔 강제배치 컨트롤이 있어야 한다").
+                if (
+                    isForcedViaGroupOwner(id) &&
+                    !isCurrentlyTopOfPage &&
+                    !pageBreakBottomBoundaryAtomIds.has(id)
+                )
+                    return false;
+                return true;
+            }
+            // pageBreakBoundaryAtomIds는 순수 자연 흐름(pageLayers)만 보고 계산된
+            // "여기가 자연스러운 페이지 분할 지점" 집합이라, 드래그로 이 atom
+            // 자체가 다른 페이지로 옮겨졌거나, 이 atom 앞에 다른 게 끼어들어서
+            // 더 이상 "그 페이지 맨 위"가 아니게 됐으면 더 이상 안 맞는 얘기다 —
+            // 페이지 중간에 떠 있는데 "여기서 분할됨" 배너가 뜨면 혼란만 준다.
             const isBoundary = isCurrentlyTopOfPage && pageBreakBoundaryAtomIds.has(id);
+            // 페이지 맨 마지막 행도 배너 대상이다 — 다음 페이지로 넘어가기 직전인
+            // 진짜 경계 행이라 강제 배치 컨트롤이 있어야 한다(실사용 요청).
+            const isBottomBoundary = pageBreakBottomBoundaryAtomIds.has(id);
             const currentGap = store.sectionGaps[id] ?? 0;
-            return isBoundary || currentGap > 0;
+            return isBoundary || isBottomBoundary || currentGap > 0;
         },
         [
             store.hidePrintGuides,
             store.forcedPageOverrides,
-            orderedMilestones,
-            orderedCareerCards,
             pageBreakBoundaryAtomIds,
+            pageBreakBottomBoundaryAtomIds,
             store.sectionGaps,
             placementByAtomId,
             store.outputLayout.regions,
             store.outputLayout.rows,
+            isForcedViaGroupOwner,
         ]
     );
 
@@ -2264,6 +2606,31 @@ export function PrintCanvas({
         printLayoutFrozenRef.current = false;
         store.setPrintPending(true);
     };
+
+    useEffect(() => {
+        if (!store.autoPrintRequested || autoPrintStartedRef.current) return;
+        autoPrintStartedRef.current = true;
+        setAutoPrintActive(true);
+        printLayoutFrozenRef.current = false;
+        store.setPrintPending(true);
+        store.setAutoPrintRequested(false);
+    }, [store, store.autoPrintRequested]);
+
+    // window.print()가 대화상자를 닫을 때까지 스크립트를 막아준다는 보장이 없다
+    // (브라우저에 따라 즉시 반환됨) — printPending이 꺼졌다고 router.push 같은
+    // 실제 페이지 이동을 시키면 방금 뜬 인쇄 대화상자가 그 내비게이션에 휘말려
+    // 끊길 수 있다(실제 발생 확인됨: 대화상자가 뜨자마자 홈으로 튕김).
+    // quickPrintMode(현재 페이지 이동 없이 화면 위에 잠깐 떠서 인쇄만 하고 사라지는
+    // 용도)에서는 onExit이 실제 내비게이션이 아니라 이 인스턴스를 그냥
+    // 언마운트하는 로컬 상태 변경이라 안전하므로, 인쇄가 끝나면 곧장 정리한다.
+    // 그 외(직접 /print URL로 들어온 경우 등)에는 오버레이만 걷고 편집 화면을
+    // 그대로 드러낸다.
+    const showAutoPrintOverlay = autoPrintActive && store.printPending;
+
+    useEffect(() => {
+        if (!quickPrintMode || !autoPrintActive || store.printPending) return;
+        onExit();
+    }, [quickPrintMode, autoPrintActive, store.printPending, onExit]);
 
     useEffect(() => {
         if (!store.printPending) return;
@@ -2445,7 +2812,13 @@ export function PrintCanvas({
             const scopeKey = getRowPairingKey(ids[0]);
             const movingSet = new Set(ids);
             // 자기 섹션 헤더보다 앞 페이지로는 강제 배치할 수 없다 — 헤더가 이미 놓인
-            // 페이지보다 이른 페이지가 요청되면 헤더의 페이지로 끌어올린다.
+            // 페이지보다 이른 페이지가 요청되면 헤더의 페이지로 끌어올린다. 여기서
+            // "헤더가 이미 놓인 페이지"는 반드시 effectivePageMap(실제 현재 위치)을
+            // 써야 한다 — atomPageMap(순수 자연 계산)을 쓰면 헤더가 실제로는
+            // 이미 다른 페이지로 옮겨져 있어도 그걸 모르고 예전 자연 위치로
+            // 계산해서, 실제로는 갈 수 있는 페이지인데도 못 가게 잘못 막았다
+            // (실제 발생 확인됨 — 헤더가 실제로는 2페이지에 있는데 자연 계산은
+            // 3페이지라고 착각해서 프로젝트를 2페이지로 못 올리게 막음).
             const sectionIds = new Set(
                 ids
                     .map((id) => printableAtoms.find((a) => a.id === id)?.sectionId)
@@ -2456,58 +2829,137 @@ export function PrintCanvas({
                     (atom) =>
                         atom.isHeader && sectionIds.has(atom.sectionId) && !movingSet.has(atom.id)
                 )
-                .map((atom) => atomPageMap.get(atom.id))
+                .map((atom) => effectivePageMap.get(atom.id))
                 .filter((p): p is number => p !== undefined);
             const minAllowedPage = headerPages.length > 0 ? Math.max(...headerPages) : 0;
             const targetPageIndex = Math.max(pageIndex, minAllowedPage);
-            const targetPageAtoms = pageLayers[targetPageIndex]?.items ?? [];
-            const anchorAtom = [...targetPageAtoms]
-                .reverse()
-                .find((atom) => !movingSet.has(atom.id) && getRowPairingKey(atom.id) === scopeKey);
-            const anchorRegionId = anchorAtom
-                ? placementByAtomId.get(anchorAtom.id)?.regionId
-                : undefined;
-            const anchorRowId = anchorRegionId
-                ? store.outputLayout.regions.find((region) => region.id === anchorRegionId)?.rowId
-                : undefined;
-            const anchorRow = anchorRowId
-                ? store.outputLayout.rows.find((row) => row.id === anchorRowId)
-                : undefined;
-
-            if (anchorRow && anchorRow.regionIds.length > 1) {
-                // anchor가 2열 이상 행의 한 컬럼 안에 있으면 그 좁은 컬럼에 욱여넣지
-                // 않고, 그 행을 하나의 단위로 보고 바로 뒤에 새 한 줄 행으로 끼워넣는다.
-                usePrintStore.getState().forceNextToRow(ids, anchorRow.id, 'after');
-            } else if (anchorAtom && anchorRegionId) {
-                usePrintStore.getState().forceIntoRegion(ids, anchorRegionId, {
-                    atomId: anchorAtom.id,
-                    position: 'after',
-                });
-            } else {
-                // 이 페이지에 같은 섹션 콘텐츠가 아직 없다 — store.forcePage(옛 경로)는
-                // 무조건 페이지의 첫 region에 밀어넣어 그게 다른 섹션이면 섞여버린다.
-                // 대신 그 페이지의 마지막 행 뒤에 새 한 줄 행으로 끼워넣어 어떤 기존
-                // 섹션과도 안 섞이게 한다.
-                const { rows: targetPageRows } = getOutputPageAt(
-                    store.outputLayout,
-                    targetPageIndex
+            // 자기 섹션 헤더의 자연 위치가 이미 요청한 목표 페이지보다 뒤라서
+            // minAllowedPage에 걸리면, targetPageIndex가 지금 있는 페이지
+            // 그대로로 클램프된다. 이때도 아래 로직을 그대로 진행하면 "같은
+            // 페이지 안에서 앵커 뒤에 다시 끼워넣기"가 실행돼 항목이 아무
+            // 예고 없이 그 페이지 맨 아래로 옮겨진다(실제 발생 확인됨 — "2페이지로
+            // 올리기"를 눌렀는데 페이지는 안 바뀌고 3페이지 맨 아래로 이동).
+            // 실제로 페이지가 바뀌지 않는다면 아무것도 하지 않는다.
+            const currentActualPage = effectivePageMap.get(ids[0]);
+            if (currentActualPage === targetPageIndex) return;
+            historyBatchActiveRef.current = true;
+            // 아래로 내리는 경우(현재 페이지보다 뒤로)와 위로 올리는 경우(현재
+            // 페이지보다 앞으로)는 문서 순서상 붙어야 할 위치가 정반대다.
+            // 아래로 내릴 땐 대상 페이지의 자연 컨텐츠보다 문서상 먼저 오므로
+            // 그 페이지 "맨 위"(첫 행 앞)에 붙어야 하고, 위로 끌어올릴 땐 대상
+            // 페이지의 자연 컨텐츠보다 문서상 나중이므로 그 페이지 "맨 아래"
+            // (마지막 행 뒤)에 붙어야 한다(실제 발생 확인됨 — 아래로 내렸는데
+            // 다음 페이지 맨 아래에 붙어서 순서가 뒤바뀜).
+            const isMovingDown =
+                currentActualPage === undefined || targetPageIndex > currentActualPage;
+            // "다음 페이지로 내리기"는 자연 흐름이 아직 만들지 않은 페이지를
+            // 목표로 삼을 수 있다(문서 맨 끝 근처 항목을 그 다음 페이지로 밀 때
+            // 등). getOutputPageAt은 store에 없는 페이지를 요청받으면 반환값
+            // 안에서만 임시로 만들어 돌려주므로, 그 임시 페이지의 행을 앵커로
+            // 잡아도 실제 store에는 없는 행이라 이후 forceNextToRow가 조용히
+            // 아무 일도 안 하고 끝난다(실제 발생 확인됨). 목표 페이지가 아직
+            // 없으면 먼저 실제로 store를 키우고, 이후 전부 그 커밋된 최신
+            // 상태를 기준으로 진행한다.
+            const outputLayoutForAnchor =
+                targetPageIndex >= store.outputLayout.pages.length
+                    ? (() => {
+                          const grown = ensureOutputLayoutPageCount(
+                              store.outputLayout,
+                              targetPageIndex + 1
+                          );
+                          usePrintStore.getState().setOutputLayout(grown);
+                          return usePrintStore.getState().outputLayout;
+                      })()
+                    : store.outputLayout;
+            // 앵커(강제 배치 항목을 바로 뒤에 붙일 기준 행)는 자연 계산
+            // (pageLayers)이 아니라 실제로 저장된(materialize된) 행을 기준으로
+            // 찾는다. pageLayers는 이전에 남아있는 forcedPageOverrides 등의
+            // 영향으로 실제 배치와 어긋날 수 있는데(실제 발생 확인됨 — 자연
+            // 계산상 "요구 정의부터..."가 페이지의 마지막인 줄 알고 앵커로
+            // 골랐지만, 실제로는 "문제가 터지기 전에..."가 그 뒤에 진짜
+            // 마지막으로 있었다), 그러면 강제 배치가 진짜 마지막 항목이 아니라
+            // 중간 항목 뒤에 끼어들어간다. store.outputLayout(실제 상태)에서
+            // 뒤에서부터 찾으면 항상 진짜 마지막에 붙는다.
+            const { rows: targetPageRows } = getOutputPageAt(
+                outputLayoutForAnchor,
+                targetPageIndex
+            );
+            let anchorRow: OutputRow | undefined;
+            const rowIndices = isMovingDown
+                ? targetPageRows.map((_, i) => i)
+                : targetPageRows.map((_, i) => targetPageRows.length - 1 - i);
+            for (const i of rowIndices) {
+                const { row, regions } = targetPageRows[i];
+                const hasMatchingAtom = regions.some((region) =>
+                    outputLayoutForAnchor.placements.some(
+                        (p) =>
+                            p.regionId === region.id &&
+                            !movingSet.has(p.atomId) &&
+                            getRowPairingKey(p.atomId) === scopeKey
+                    )
                 );
-                const lastRow = targetPageRows[targetPageRows.length - 1]?.row;
-                if (lastRow) {
-                    usePrintStore.getState().forceNextToRow(ids, lastRow.id, 'after');
-                } else {
-                    usePrintStore.getState().forcePage(ids, targetPageIndex);
+                if (hasMatchingAtom) {
+                    anchorRow = row;
+                    break;
                 }
             }
+
+            // ids를 통째로 forceNextToRow(ids, ...)에 한 번에 넘기면
+            // insertAtomsNextToRow가 전부를 컬럼 하나짜리 행 '하나'로 뭉쳐버린다
+            // (실제 발생 확인됨 — 회사 카드+프로젝트+상세 약 20개 atom이 행 1개로
+            // 뭉쳐서 페이지 하나에 다 안 들어가는데도, 오버플로 스캔이 "행이
+            // 페이지의 첫 행이면 넘침으로 안 본다"는 규칙 때문에 그 거대한 행
+            // 하나를 절대 못 쪼개고 페이지 경계를 그냥 뚫고 넘쳤다). atom을
+            // 하나씩 순서대로 별도 행으로 끼워넣어 atom-per-row 구조를 유지해야
+            // push가 넘치는 부분을 정상적으로 다음 페이지로 쪼갤 수 있다.
+            let anchorRowId =
+                anchorRow?.id ??
+                (isMovingDown
+                    ? targetPageRows[0]?.row.id
+                    : targetPageRows[targetPageRows.length - 1]?.row.id);
+            let insertPosition: 'before' | 'after' = isMovingDown ? 'before' : 'after';
+            ids.forEach((atomId, index) => {
+                if (anchorRowId) {
+                    // 그룹(헤더+섹션 전체 등) 전체를 강제 배치할 때, ids의 첫 번째
+                    // (대표 atom, 보통 헤더)만 실제로 pageLocked를 건다. 나머지
+                    // atom까지 전부 개별로 잠그면, 큰 섹션을 옮길 때 수십 개
+                    // atom이 전부 "강제 배치됨" 배너를 달고 여러 페이지에 걸쳐
+                    // 흩어지며 rebalance의 예약된 빈 공간이 페이지 하나를 통째로
+                    // 잡아먹는 참사가 났다(실제 발생 확인됨). 대표 atom 하나만
+                    // 옮긴 지점의 "표식"으로 잠그고, 나머지는 그 뒤에 물리적으로
+                    // 이어붙이기만 하고 잠그지 않아 — 이후 자연 넘침 재계산
+                    // (rebalancePageOverflow)이 나머지 내용을 정상적인 자연
+                    // 콘텐츠처럼 자유롭게 다시 흘려보낼 수 있다.
+                    if (index === 0) {
+                        usePrintStore
+                            .getState()
+                            .forceNextToRow([atomId], anchorRowId, insertPosition);
+                    } else {
+                        usePrintStore
+                            .getState()
+                            .insertAtomsNextToRow([atomId], anchorRowId, insertPosition);
+                    }
+                    // 첫 삽입 이후로는 방금 넣은 행을 기준으로 계속 '뒤에' 이어붙여야
+                    // ids 내부 순서가 그대로 유지된다(맨 위에 붙는 경우도 두 번째
+                    // atom부터는 첫 atom 뒤에 이어져야지, 매번 원래 anchorRow 앞에
+                    // 다시 끼어들면 순서가 뒤집힌다).
+                    insertPosition = 'after';
+                } else {
+                    // 이 페이지에 행이 하나도 없다(완전히 빈 페이지) — 첫 atom만
+                    // forcePage로 넣고, 그 뒤부터는 방금 만들어진 행을 앵커 삼아
+                    // 이어붙인다.
+                    usePrintStore.getState().forcePage([atomId], targetPageIndex);
+                }
+                const latestLayout = usePrintStore.getState().outputLayout;
+                const placement = latestLayout.placements.find((p) => p.atomId === atomId);
+                const region = placement
+                    ? latestLayout.regions.find((r) => r.id === placement.regionId)
+                    : undefined;
+                anchorRowId = region?.rowId ?? anchorRowId;
+            });
+            historyBatchActiveRef.current = false;
         },
-        [
-            getRowPairingKey,
-            printableAtoms,
-            atomPageMap,
-            pageLayers,
-            placementByAtomId,
-            store.outputLayout,
-        ]
+        [getRowPairingKey, printableAtoms, effectivePageMap, store.outputLayout]
     );
 
     // 페이지별로 "어느 atom이 어느 region에, 그 안에서 어떤 항목 범위(run)로" 속하는지
@@ -2860,23 +3312,91 @@ export function PrintCanvas({
     // 어떤 버그가 만들어내든, 다음 렌더에서 무조건 제자리로 스냅백된다.
     const enforceSectionRowOrder = useCallback(
         (layout: OutputLayout): OutputLayout => {
-            const sectionRankById = new Map<string, number>();
-            printableAtoms.forEach((atom) => {
-                if (!sectionRankById.has(atom.sectionId)) {
-                    sectionRankById.set(atom.sectionId, sectionRankById.size);
-                }
+            // 예전엔 "섹션 랭크"로만 정렬해서, 같은 섹션 안에서 구성 관리 패널로
+            // 항목 순서(itemOrderOverrides)를 바꿔도 이미 명시적으로 배치(materialize)된
+            // 행끼리는 서로의 상대 순서가 안정 정렬로 그대로 보존돼 절대 안 바뀌었다
+            // (실제 발생 확인됨 — 기술 스택 섹션에서 "프로젝트/학습"을 "핵심 기술
+            // 스택"보다 위로 옮겨도 캔버스 렌더는 그대로였음). 섹션 단위가 아니라
+            // atom 하나하나의 전체 문서상 순서(printableAtoms 인덱스)로 랭크를
+            // 매기면, 섹션 간 순서는 물론 같은 섹션 안의 항목 순서 변경도 즉시
+            // 반영된다.
+            const atomRankById = new Map<string, number>();
+            printableAtoms.forEach((atom, index) => {
+                atomRankById.set(atom.id, index);
             });
+            const rowRank = (row: OutputRow): number => {
+                const ranks = getRowAtomIds(row.id, layout)
+                    .map((id) => atomRankById.get(id))
+                    .filter((r): r is number => r !== undefined);
+                return ranks.length > 0 ? Math.min(...ranks) : Number.MAX_SAFE_INTEGER;
+            };
+
+            // 랭크 기반 정렬은 같은 페이지 안에서만 행 순서를 바꾼다 — 이미 다른
+            // 페이지에 materialize돼 있는 행은 페이지를 넘나들며 옮길 방법이
+            // 없어서, 순서가 바뀐 항목이 이미 뒤 페이지로 넘어가 있으면 여전히
+            // 안 맞았다(실제 발생 확인됨 — "프로토콜을 지키며..."가 이미 2페이지에
+            // materialize돼 있어서 순서상 1페이지로 와야 하는데도 그대로 2페이지에
+            // 남음). 페이지 순서대로 훑으며 랭크가 이전 페이지의 최댓값보다 낮게
+            // "역행"하는 행을 찾으면, 그 행의 배치를 아예 지워 순수 자연 흐름으로
+            // 돌려보낸다 — 다음 self-heal에서 새로 갱신된 순서 기준으로 올바른
+            // 페이지에 다시 배치된다. 강제 배치(pageLocked)된 행은 사용자의 명시적
+            // 의도이므로 절대 건드리지 않는다.
+            const isRowLocked = (row: OutputRow): boolean => {
+                const regionIds = new Set(row.regionIds);
+                return layout.placements.some((p) => regionIds.has(p.regionId) && p.pageLocked);
+            };
+            let runningMaxRank = -Infinity;
+            const displacedAtomIds: string[] = [];
+            layout.pages.forEach((page) => {
+                const pageRows = layout.rows
+                    .filter((row) => row.pageId === page.id)
+                    .sort((a, b) => a.order - b.order);
+                pageRows.forEach((row) => {
+                    // 2-4열로 나란히 배치된 행은 pageLocked 행과 마찬가지로 사용자가
+                    // 드래그로 명시적으로 만든 구조다 — 이 스캔은 self-heal이 outputLayout
+                    // 바뀔 때마다(되돌리기/다시실행 포함) 무조건 도는데, 컬럼 페어링된
+                    // 행까지 랭크 역행 검사 대상에 넣으면 방금 만든 2열 배치가 되돌리기와
+                    // 무관하게 다음 self-heal 패스에서 조용히 단일열로 풀려버린다(실제
+                    // 발생 확인됨 — 2열로 나눈 직후/되돌리기 후 화면이 계속 단일열로
+                    // 되돌아감). 그래서 여기서도 아예 검사 대상에서 뺀다.
+                    if (isRowLocked(row) || row.regionIds.length > 1) return;
+                    const rank = rowRank(row);
+                    if (rank === Number.MAX_SAFE_INTEGER) return;
+                    if (rank < runningMaxRank) {
+                        // 2-4열로 나란히 배치된(컬럼 페어링된) 행이 역행 대상이면
+                        // 행에 속한 atom을 전부 배치 해제한다 — 컬럼 페어링은
+                        // 순서와 무관한 별도 구조라서 "순서만 바로잡고 페어링은
+                        // 그대로 유지"가 불가능하다. 그래서 페어링째로 풀어
+                        // 자연 흐름(단일열)으로 돌려보내고, 나란히 배치를 다시
+                        // 원하면 사용자가 드래그로 재조립해야 한다. 순서 변경과
+                        // 동시에 컬럼 재구성까지 자동으로 맞추는 건 이 함수의
+                        // 책임 밖으로 남겨둔 개선 여지다 — TODO(print-canvas):
+                        // 구성 관리에서 순서를 바꿨을 때 멀티컬럼 페어링을
+                        // 새 순서에 맞게 자동으로 재구성하는 전용 로직.
+                        displacedAtomIds.push(...getRowAtomIds(row.id, layout));
+                    } else {
+                        runningMaxRank = rank;
+                    }
+                });
+            });
+            const workingLayout =
+                displacedAtomIds.length > 0
+                    ? {
+                          ...layout,
+                          placements: layout.placements.filter(
+                              (p) => !displacedAtomIds.includes(p.atomId)
+                          ),
+                      }
+                    : layout;
 
             const orderUpdates = new Map<string, number>();
-            layout.pages.forEach((page) => {
-                const pageRowsOrdered = layout.rows
+            workingLayout.pages.forEach((page) => {
+                const pageRowsOrdered = workingLayout.rows
                     .filter((row) => row.pageId === page.id)
                     .sort((a, b) => a.order - b.order);
                 const ranked = pageRowsOrdered.map((row, originalIndex) => ({
                     row,
-                    rank:
-                        sectionRankById.get(getRowSectionId(row.id, layout) ?? '') ??
-                        Number.MAX_SAFE_INTEGER,
+                    rank: rowRank(row),
                     originalIndex,
                 }));
                 const sorted = [...ranked].sort((a, b) =>
@@ -2887,12 +3407,12 @@ export function PrintCanvas({
                 });
             });
 
-            if (orderUpdates.size === 0) return layout;
+            if (orderUpdates.size === 0 && displacedAtomIds.length === 0) return layout;
 
-            const rows = layout.rows.map((row) =>
+            const rows = workingLayout.rows.map((row) =>
                 orderUpdates.has(row.id) ? { ...row, order: orderUpdates.get(row.id)! } : row
             );
-            const pages = layout.pages.map((page) => {
+            const pages = workingLayout.pages.map((page) => {
                 const pageRowIds = rows
                     .filter((row) => row.pageId === page.id)
                     .sort((a, b) => a.order - b.order)
@@ -2903,9 +3423,9 @@ export function PrintCanvas({
                 return { ...page, rowIds: pageRowIds, regionIds: pageRegionIds };
             });
 
-            return { ...layout, rows, pages };
+            return { ...workingLayout, rows, pages };
         },
-        [printableAtoms, getRowSectionId]
+        [printableAtoms, getRowAtomIds]
     );
 
     // 어떤 열이 비어 완전히 사라지면 그 행은 단일열로 줄어드는데, 이웃 행과
@@ -2920,6 +3440,30 @@ export function PrintCanvas({
     // 사용자가 실제로 한 액션 하나를 되돌리려 해도 중간 자동 정리 단계로만
     // 한 걸음씩 되돌아가는 문제가 있었다.
     useEffect(() => {
+        // 위 id 재사용 수정으로 대부분의 무한 루프 원인(행 id churn)은 없앴지만,
+        // push/pull 재배치 자체가 두 페이지 사이에서 진짜로 수렴하지 않는 경계
+        // 케이스가 이론적으로 남을 수 있다 — 그 경우를 대비한 최종 안전장치.
+        // 50ms 이내에 이 effect가 12번 넘게 연속으로 도는 건 사용자의 정상적인
+        // 상호작용으로는 발생하지 않는다(무한 루프의 특징적인 패턴). 감지되면
+        // 그 순간의 layout을 그대로 유지하고 building을 건너뛰어 크래시 대신
+        // "약간 안 다듬어진 상태로 멈춤"을 택한다.
+        const burst = selfHealBurstRef.current;
+        const now = performance.now();
+        if (now - burst.last < 50) {
+            burst.count += 1;
+        } else {
+            burst.count = 1;
+        }
+        burst.last = now;
+        if (burst.count > 12) {
+            if (process.env.NODE_ENV !== 'production') {
+                console.warn(
+                    '[self-heal] runaway loop detected, holding layout to break infinite update cycle'
+                );
+            }
+            return;
+        }
+
         const debugStart = process.env.NODE_ENV !== 'production' ? performance.now() : 0;
         let layout = store.outputLayout;
         let changed = false;
@@ -2930,6 +3474,12 @@ export function PrintCanvas({
                 layout = next;
                 changed = true;
             }
+        }
+
+        const deduped = deduplicateRowIds(layout);
+        if (deduped !== layout) {
+            layout = deduped;
+            changed = true;
         }
 
         const pruned = pruneEmptyOutputRows(layout);
@@ -2985,15 +3535,20 @@ export function PrintCanvas({
         // 안 함) 저절로 안 쪼개진다 — 넘치는 뒤쪽 행을 다음 페이지로 밀어낸다.
         // maxPageCount를 pageLayers.length로 캡핑해서, 렌더 루프가 실제로 그리는
         // 페이지 수 밖으로 내용이 밀려나 안 보이게 되는 것을 막는다.
-        const rebalanced = rebalancePageOverflow(
-            layout,
-            getOutputAtomHeightPx,
-            pageContentHeightPx,
-            pageLayers.length
-        );
-        if (rebalanced !== layout) {
-            layout = rebalanced;
-            changed = true;
+        // 간격 드래그가 진행 중이면 건너뛴다 — pointermove마다 아직 확정 안 된
+        // 간격값으로 다시 판단하면 콘텐츠가 페이지 사이를 왔다갔다한다(실제 발생
+        // 확인됨). 드래그가 끝나면 확정값으로 한 번 더 self-heal이 돌아 반영된다.
+        if (!gapDragActiveRef.current) {
+            const rebalanced = rebalancePageOverflow(
+                layout,
+                getOutputAtomHeightPx,
+                pageContentHeightPx,
+                pageLayers.length
+            );
+            if (rebalanced !== layout) {
+                layout = rebalanced;
+                changed = true;
+            }
         }
 
         if (process.env.NODE_ENV !== 'production') {
@@ -3005,6 +3560,7 @@ export function PrintCanvas({
             }
         }
         if (changed) {
+            skipHistoryForOutputLayoutRef.current = true;
             usePrintStore.getState().setOutputLayout(layout);
         }
     }, [
@@ -3166,11 +3722,13 @@ export function PrintCanvas({
             atomPageMap,
             effectivePageMap,
             pageBreakBoundaryAtomIds,
+            pageBreakBottomBoundaryAtomIds,
             getAtomDisplayTitle,
             startGapDrag,
             getForcePageAssociatedAtomIds,
             forceMoveToPage,
             isPageBreakBannerVisible,
+            isForcedViaGroupOwner,
         }),
         [
             introData,
@@ -3205,11 +3763,13 @@ export function PrintCanvas({
             atomPageMap,
             effectivePageMap,
             pageBreakBoundaryAtomIds,
+            pageBreakBottomBoundaryAtomIds,
             getAtomDisplayTitle,
             startGapDrag,
             getForcePageAssociatedAtomIds,
             forceMoveToPage,
             isPageBreakBannerVisible,
+            isForcedViaGroupOwner,
         ]
     );
 
@@ -3217,10 +3777,16 @@ export function PrintCanvas({
         <PrintDragContext.Provider value={dragContextValue}>
             <PrintAtomRenderContext.Provider value={atomRenderContextValue}>
                 <>
+                    {showAutoPrintOverlay && (
+                        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-slate-950 text-white print:hidden">
+                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-white" />
+                            <p className="text-sm font-bold">PDF 인쇄를 준비하는 중입니다…</p>
+                        </div>
+                    )}
                     <div className="h-screen overflow-hidden flex flex-col bg-slate-900 print:h-auto print:overflow-visible print:bg-white">
                         <PrintPreviewBar
                             excludedCount={store.printExcludedIds.length}
-                            totalPages={pageLayers.length}
+                            totalPages={visiblePageLayers.length}
                             navOpen={store.navPanelOpen}
                             activeTemplateName={activeTemplateName}
                             onToggleNav={() => store.setNavPanelOpen(!store.navPanelOpen)}
@@ -3281,7 +3847,15 @@ export function PrintCanvas({
                             )}
                             <div
                                 ref={canvasRef}
+                                onPointerDown={handleCanvasPanPointerDown}
+                                onPointerMove={handleCanvasPanPointerMove}
+                                onPointerUp={handleCanvasPanPointerUp}
+                                onPointerCancel={handleCanvasPanPointerUp}
                                 onClick={(event) => {
+                                    if (suppressNextCanvasClickRef.current) {
+                                        suppressNextCanvasClickRef.current = false;
+                                        return;
+                                    }
                                     const target = (
                                         event.target as HTMLElement
                                     ).closest<HTMLElement>('[data-print-el]');
@@ -3300,7 +3874,7 @@ export function PrintCanvas({
                                         }
                                     }
                                 }}
-                                className="pdf-canvas flex-1 min-h-0 overflow-y-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0"
+                                className={`pdf-canvas flex-1 min-h-0 overflow-auto bg-[#cbd5e1] flex flex-col items-center pt-10 pb-4 relative print:block print:h-auto print:w-full print:bg-transparent print:p-0 print:m-0 ${isSpacePanMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             >
                                 <div
                                     className="resume-page resume-print-shell transition-all duration-300 flex flex-col items-center gap-10 print:gap-0 print:w-full print:max-w-none print:m-0 print:p-0 print:bg-transparent"
@@ -3309,10 +3883,13 @@ export function PrintCanvas({
                                             zoom: store.zoom,
                                             '--print-line-height': store.lineHeight,
                                             '--print-font-scale': store.outputLayout.fontScale,
+                                            fontFamily: resolvePrintFontStack(
+                                                store.outputLayout.fontFamily
+                                            ),
                                         } as CSSProperties
                                     }
                                 >
-                                    {pageLayers.map((page, pageIdx) => {
+                                    {visiblePageLayers.map((page, pageIdx) => {
                                         const { page: outputPage, rows } = getOutputPageAt(
                                             store.outputLayout,
                                             pageIdx
@@ -3360,7 +3937,7 @@ export function PrintCanvas({
                                                 key={page.pageId}
                                                 pageId={page.pageId}
                                                 pageIndex={pageIdx}
-                                                totalPages={pageLayers.length}
+                                                totalPages={visiblePageLayers.length}
                                                 hideGuides={store.hidePrintGuides}
                                                 showFrameLabel={false}
                                                 orientation={outputPage.orientation}
@@ -3512,6 +4089,7 @@ export function PrintCanvas({
                         onClose={() => setModeModalOpen(false)}
                         onManual={() => {
                             store.resetManual();
+                            store.setExcludedIds(buildDefaultCoreExcludedIds());
                             setActiveTemplate(null);
                             setActiveTemplateName('기본 이력서');
                             setContentOverrides({});
@@ -3526,7 +4104,9 @@ export function PrintCanvas({
                             setContentOverrides(settings.contentOverrides ?? {});
                             setModeModalOpen(false);
                             updateUrlParams(tmpl?.id ?? null);
+                            if (!adminMode) store.setAutoPrintRequested(true);
                         }}
+                        restricted={!adminMode}
                     />
 
                     <SaveServerTemplateModal

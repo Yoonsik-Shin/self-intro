@@ -95,6 +95,13 @@ export const skillBadgeOptions: SkillBadgeOption[] = [
     { key: 'docker', label: 'Docker', color: '2496ED', aliases: ['docker', 'docker compose'] },
     { key: 'grafana', label: 'Grafana', color: 'F46800', aliases: ['grafana', 'loki', 'alloy'] },
     { key: 'kubernetes', label: 'Kubernetes', color: '326CE5', aliases: ['kubernetes'] },
+    { key: 'argo', label: 'ArgoCD', color: 'EF7B4D', aliases: ['argocd', 'argo cd', 'argo'] },
+    {
+        key: 'hibernate',
+        label: 'JPA/Hibernate',
+        color: '59666C',
+        aliases: ['jpa', 'hibernate', 'jpa/hibernate'],
+    },
     {
         key: 'amazonecs',
         label: 'AWS ECS',

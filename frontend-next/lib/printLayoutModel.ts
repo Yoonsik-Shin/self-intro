@@ -1,4 +1,5 @@
 import type { PageOrientation } from '@/lib/pdfLayoutEngine';
+import { randomId } from '@/lib/uuid';
 
 export const OUTPUT_LAYOUT_SCHEMA_VERSION = 3;
 
@@ -57,6 +58,62 @@ export type OutputPlacement = {
  * 강제하지 않으며, 사용자가 명시적으로 "N페이지로 강제"를 누른 경우에만 pageLocked가 true다.
  * 따라서 Notion식 좌우 배치와 강제 페이지 override는 같은 객체를 쓰되 서로 독립적으로 동작한다.
  */
+/** 문서 전체 톤(폰트 패밀리). 고딕/명조/모노 3종 — 새 값을 추가하면 반드시
+ *  PRINT_FONT_STACKS(app/globals.css 또는 PrintCanvas.tsx)에도 짝을 맞춰야 한다. */
+export type PrintFontFamily = 'PRETENDARD' | 'NOTO_SERIF_KR' | 'NANUM_GOTHIC_CODING';
+export const PRINT_FONT_FAMILIES: PrintFontFamily[] = [
+    'PRETENDARD',
+    'NOTO_SERIF_KR',
+    'NANUM_GOTHIC_CODING',
+];
+/** 실제 렌더에 쓰는 CSS font-family 스택. .resume-page에 인라인 스타일로 적용된다. */
+export const PRINT_FONT_STACKS: Record<PrintFontFamily, string> = {
+    PRETENDARD: "'Pretendard', 'Plus Jakarta Sans', sans-serif",
+    NOTO_SERIF_KR: "'Noto Serif KR', serif",
+    NANUM_GOTHIC_CODING: "'Nanum Gothic Coding', monospace",
+};
+export const PRINT_FONT_FAMILY_LABELS: Record<PrintFontFamily, string> = {
+    PRETENDARD: '고딕',
+    NOTO_SERIF_KR: '명조',
+    NANUM_GOTHIC_CODING: '모노',
+};
+/** 자유 텍스트 입력 대신 고르는, 한글을 지원하는 구글 폰트 중 검증된 추가 목록 —
+ *  전부 실제 fonts.google.com에 등록된 이름이라 오타로 인한 로딩 실패가 없다. */
+export const PRINT_ADDITIONAL_GOOGLE_FONTS: string[] = [
+    'Noto Sans KR',
+    'Nanum Gothic',
+    'Nanum Myeongjo',
+    'Nanum Pen Script',
+    'Gowun Dodum',
+    'Gowun Batang',
+    'IBM Plex Sans KR',
+    'Gothic A1',
+    'Do Hyeon',
+    'Jua',
+    'Black Han Sans',
+    'Song Myung',
+    'Stylish',
+    'Poor Story',
+    'East Sea Dokdo',
+    'Gaegu',
+    'Yeon Sung',
+    'Single Day',
+];
+const MAX_CUSTOM_FONT_FAMILY_LENGTH = 60;
+
+export function isPresetPrintFontFamily(value: string): value is PrintFontFamily {
+    return (PRINT_FONT_FAMILIES as string[]).includes(value);
+}
+
+/** outputLayout.fontFamily(프리셋 토큰 또는 사용자가 입력한 구글 폰트 이름)를
+ *  실제 CSS font-family 스택으로 바꾼다. React의 style prop은 문자열을 DOM
+ *  스타일 프로퍼티로 직접 대입하므로(마크업 문자열 삽입이 아님) 사용자 입력을
+ *  그대로 써도 CSS/HTML 인젝션 위험은 없다. */
+export function resolvePrintFontStack(fontFamily: string): string {
+    if (isPresetPrintFontFamily(fontFamily)) return PRINT_FONT_STACKS[fontFamily];
+    return `'${fontFamily}', 'Pretendard', sans-serif`;
+}
+
 export type OutputLayout = {
     schemaVersion: number;
     pages: OutputPage[];
@@ -66,6 +123,9 @@ export type OutputLayout = {
     pageMargins: OutputPageMargins;
     /** 문서 전체 타이포그래피 배율. 1은 템플릿 기본 크기다. */
     fontScale: number;
+    /** 문서 전체 톤(폰트). PRINT_FONT_FAMILIES 중 하나(프리셋)이거나, 사용자가
+     *  직접 입력한 구글 폰트 이름(커스텀)이다. 기본은 고딕(Pretendard). */
+    fontFamily: string;
 };
 
 export type StoredPrintLayoutSettings = {
@@ -121,6 +181,7 @@ export function createDefaultOutputLayout(): OutputLayout {
         placements: [],
         pageMargins: { ...DEFAULT_OUTPUT_PAGE_MARGINS },
         fontScale: 1,
+        fontFamily: 'PRETENDARD',
     };
 }
 
@@ -230,7 +291,16 @@ function createRow(
     rowNumber: number,
     columnCount = 1
 ): { row: OutputRow; regions: OutputRegion[] } {
-    const rowId = `${pageId}-row-${rowNumber}`;
+    // 예전엔 id를 `${pageId}-row-${rowNumber}`로 지었다 — 그런데 행을 다른
+    // 페이지로 옮기는 함수들(moveSectionRows 등)은 pageId 필드만 바꾸고 id는
+    // 안 바꾼다(대부분의 코드가 id로 페이지를 판별하지 않는다는 전제 위에서
+    // 그래왔다). 그 결과 "이름은 A페이지, 실제로는 B페이지"인 행이 계속
+    // 생겼고, 원래 페이지(A)가 자기 행을 처음부터 다시 매기면(materialize 등)
+    // 그 떠도는 이름과 겹쳐 React 중복 key 크래시가 났다(이번 세션에 반복
+    // 발생 확인됨 — 번호 채번을 아무리 충돌회피로 고쳐도 다시 재발했다).
+    // 페이지 이름이 아니라 전역 고유값으로 지으면 애초에 이런 충돌 자체가
+    // 구조적으로 불가능해진다.
+    const rowId = `row-${randomId()}`;
     const normalizedCount = clamp(Math.round(columnCount), 1, 4);
     const mode = modeForColumnCount(normalizedCount);
     const regions = Array.from({ length: normalizedCount }, (_, index): OutputRegion => {
@@ -453,6 +523,15 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
         })
         .filter((region): region is OutputRegion => region !== null);
     const normalizedRegionIds = new Set(normalizedRegions.map((region) => region.id));
+    // row.order는 같은 페이지 안에서만 의미 있는 값이다(페이지마다 0부터 다시
+    // 매겨짐). pageId를 안 보고 order만으로 전역 정렬하면 서로 다른 페이지의
+    // 행이 우연히 같은 order 값을 가질 때 뒤섞여, 원래 페이지별로 묶여 있던
+    // rows 배열 순서가 (내용은 그대로인데) 매번 다르게 재배열된다(실제 발생
+    // 확인됨 — undo/redo가 outputLayout을 복원할 때마다 이 정규화를 거치면서
+    // 배열 순서만 바뀌어, 그 차이를 진짜 편집으로 오인한 되돌리기 히스토리가
+    // 계속 잘못 쌓였다). 페이지 순서를 먼저 기준으로 삼고, 그 안에서만 order로
+    // 정렬한다.
+    const pageIndexById = new Map(parsedPages.map((page, index) => [page.id, index]));
     const normalizedRows = rows
         .map((row): OutputRow | null => {
             const regionIds = row.regionIds.filter((regionId) => normalizedRegionIds.has(regionId));
@@ -461,7 +540,11 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
                 : null;
         })
         .filter((row): row is OutputRow => row !== null)
-        .sort((left, right) => left.order - right.order);
+        .sort((left, right) => {
+            const pageDiff =
+                (pageIndexById.get(left.pageId) ?? 0) - (pageIndexById.get(right.pageId) ?? 0);
+            return pageDiff !== 0 ? pageDiff : left.order - right.order;
+        });
     const normalizedRowIds = new Set(normalizedRows.map((row) => row.id));
 
     const widthSumByRowId = new Map<string, number>();
@@ -477,20 +560,28 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
             Math.max(0.05, region.widthFraction) / (widthSumByRowId.get(region.rowId) ?? 1),
     }));
 
-    const normalizedPages = parsedPages
-        .map((page): OutputPage | null => {
-            const pageRows = normalizedRows
-                .filter((row) => row.pageId === page.id && normalizedRowIds.has(row.id))
-                .sort((left, right) => left.order - right.order);
-            if (pageRows.length === 0) return null;
-            return {
-                ...page,
-                rowIds: pageRows.map((row) => row.id),
-                regionIds: pageRows.flatMap((row) => row.regionIds),
-                layoutMode: pageRows.length === 1 ? pageRows[0].layoutMode : 'SINGLE_COLUMN',
-            };
-        })
-        .filter((page): page is OutputPage => page !== null);
+    // 예전엔 행이 하나도 없는 페이지를 통째로 걸러냈다(손상된 문서의 유령
+    // 페이지 정리용). 그런데 store.setOutputLayout이 커밋할 때마다 이 함수를
+    // 무조건 거치므로, "다음 페이지에 넘칠 내용을 받으려고 미리 만들어둔 빈
+    // 페이지"(grow-pages 이펙트가 자연 페이지 수만큼 미리 만들어두는 페이지,
+    // self-heal이 아직 거기로 아무것도 안 옮겼거나 다 옮겼다 되돌린 경우)도
+    // 똑같이 걸러졌다. 그러면 grow-pages가 다시 "부족하다"고 판단해 같은 빈
+    // 페이지를 새로 만들고, self-heal이 다시 정리하고, 커밋할 때 또 걸러지는
+    // 무한 루프가 났다(실제 발생 확인됨 — actual/natural 페이지 수가 9↔10을
+    // 영원히 오간다). 미리보기 렌더는 store.outputLayout.pages가 아니라
+    // pageLayers(자연 계산)로 페이지 수를 정하므로, 빈 페이지가 남아있어도
+    // 화면에 빈 페이지로 보이지 않는다 — 안전하게 그대로 둔다.
+    const normalizedPages = parsedPages.map((page): OutputPage => {
+        const pageRows = normalizedRows
+            .filter((row) => row.pageId === page.id && normalizedRowIds.has(row.id))
+            .sort((left, right) => left.order - right.order);
+        return {
+            ...page,
+            rowIds: pageRows.map((row) => row.id),
+            regionIds: pageRows.flatMap((row) => row.regionIds),
+            layoutMode: pageRows.length === 1 ? pageRows[0].layoutMode : 'SINGLE_COLUMN',
+        };
+    });
     if (normalizedPages.length === 0) return createDefaultOutputLayout();
     const normalizedPageIds = new Set(normalizedPages.map((page) => page.id));
 
@@ -540,6 +631,10 @@ export function normalizeOutputLayout(value: unknown): OutputLayout {
             0.8,
             1.3
         ),
+        fontFamily:
+            typeof value.fontFamily === 'string' && value.fontFamily.trim().length > 0
+                ? value.fontFamily.trim().slice(0, MAX_CUSTOM_FONT_FAMILY_LENGTH)
+                : 'PRETENDARD',
     };
 }
 
@@ -580,11 +675,20 @@ export function forceAtomsToPage(
 export function clearAtomPlacements(source: OutputLayout, atomIds: string[]): OutputLayout {
     const atomIdSet = new Set(atomIds);
     const layout = normalizeOutputLayout(source);
+    // pageLocked만 false로 내리고 placement(행/페이지 위치) 자체는 그대로 두면,
+    // 이 atom은 여전히 "명시적으로 배치됨" 취급이라 순수 자연 계산
+    // (partitionAtomsIntoPages)에서 제외된 채 예전 위치에 그대로 눌러앉는다.
+    // 그런데 같은 섹션의 아직 한 번도 배치 안 된(순수 자연 흐름) 형제 atom들은
+    // 그 눌러앉은 자리를 전혀 모르고 자기 계산대로 같은 페이지에 계속 쌓여서,
+    // 오버플로 감지가 놓치는 "이중 배정"이 생겼다(실제 발생 확인됨 — 헤더+회사+
+    // 상세 몇 개를 해제했는데도 그 페이지에 물리적으로 눌러앉아 있고, 그 뒤
+    // 아직 안 배치된 상세 항목들이 페이지 용량을 모른 채 같은 페이지에 계속
+    // 얹혀 실제 렌더가 여백을 뚫고 넘침). placement를 완전히 지워 순수 자연
+    // 흐름으로 되돌리면, materializePageIntoRows가 다음 self-heal에서 신선한
+    // 자연 계산(atomPageMap) 기준으로 다시 배치해 이런 이중 배정이 안 생긴다.
     return {
         ...layout,
-        placements: layout.placements.map((item) =>
-            atomIdSet.has(item.atomId) ? { ...item, pageLocked: false } : item
-        ),
+        placements: layout.placements.filter((item) => !atomIdSet.has(item.atomId)),
     };
 }
 
@@ -697,8 +801,69 @@ export function replaceOutputPageComposition(
         layout.placements.map((placement) => [placement.atomId, placement])
     );
 
-    normalizedComposition.forEach((columns, rowIndex) => {
-        const { row, regions } = createRow(page.id, rowIndex + 1, columns.length);
+    // 행 id가 전역 랜덤값이라(createRow), composition에 변화가 없는 행도 매번
+    // 새로 만들면 매 self-heal 패스마다 안 바뀐 행까지 새 id를 받는다. 그러면
+    // `row:<rowId>` 키로 캐시된 실측 높이(atomHeights)가 매번 무효화되고,
+    // 그 여파로 pageLayers가 다시 계산되며 다른 페이지의 hasNewAtom 판정이
+    // 흔들려 self-heal이 영영 수렴하지 않는 무한 루프가 났다(실제 발생 확인—
+    // outputLayout이 매 렌더 계속 바뀌며 "Maximum update depth exceeded").
+    // 기존 행 중 이번 구성과 열 구성·atom 순서가 완전히 같은 행이 있으면 그
+    // 행(과 그 region들, id 포함)을 그대로 재사용해 불필요한 id churn을 막는다.
+    const oldRowSignature = (rowId: string): string => {
+        const regionsForRow = layout.regions
+            .filter((region) => region.rowId === rowId)
+            .sort((a, b) => a.order - b.order);
+        const cols = regionsForRow.map((region) =>
+            layout.placements
+                .filter((p) => p.regionId === region.id)
+                .sort((a, b) => a.order - b.order)
+                .map((p) => p.atomId)
+        );
+        return JSON.stringify(cols);
+    };
+    const signatureToOldRow = new Map<string, OutputRow>();
+    layout.rows
+        .filter((row) => oldRowIds.has(row.id))
+        .forEach((row) => {
+            const sig = oldRowSignature(row.id);
+            if (!signatureToOldRow.has(sig)) signatureToOldRow.set(sig, row);
+        });
+
+    normalizedComposition.forEach((columns) => {
+        const sig = JSON.stringify(columns);
+        const matchedRow = signatureToOldRow.get(sig);
+        if (matchedRow) {
+            signatureToOldRow.delete(sig);
+            const reusedRegions = layout.regions
+                .filter((region) => region.rowId === matchedRow.id)
+                .sort((a, b) => a.order - b.order);
+            const reusedRow: OutputRow = { ...matchedRow, order: nextRows.length };
+            nextRows.push(reusedRow);
+            nextRegions.push(...reusedRegions);
+            columns.forEach((atomIds, columnIndex) => {
+                atomIds.forEach((atomId, order) => {
+                    nextPlacements.push({
+                        atomId,
+                        pageId: page.id,
+                        regionId: reusedRegions[columnIndex].id,
+                        order,
+                        columnSpan: 1,
+                        rowSpan: 1,
+                        pageLocked: previousPlacementByAtomId.get(atomId)?.pageLocked === true,
+                    });
+                });
+            });
+            return;
+        }
+
+        // 새로 만드는 행의 순번은 반드시 "지금까지 nextRows에 쌓인 개수"와
+        // 일치해야 한다. 예전엔 별도의 pickRowNumber() 카운터를 썼는데, 재사용된
+        // 행(order: nextRows.length)과 새로 만든 행(pickRowNumber() 기반)이 서로
+        // 다른 카운터를 쓰는 바람에 순서가 어긋났다 — 예를 들어 헤더 행이
+        // 재사용되고 그다음 합쳐진 2열 행이 새로 만들어지면 둘 다 order 0을
+        // 받아 헤더가 콘텐츠 뒤로 밀리는 버그가 났다(실제 발생 확인됨 — 2열
+        // 배치 드래그 직후 섹션 헤더가 자기 콘텐츠 아래로 내려감).
+        const { row, regions } = createRow(page.id, nextRows.length + 1, columns.length);
         nextRows.push(row);
         nextRegions.push(...regions);
         columns.forEach((atomIds, columnIndex) => {
@@ -808,6 +973,68 @@ export function setOutputRowColumnCount(
         };
     });
     return { ...layout, pages, rows, regions, placements };
+}
+
+/**
+ * row id는 생성 시점 페이지 이름을 그대로 담는다(`${pageId}-row-${n}`). 크로스
+ * 페이지 이동 함수들은 pageId 필드만 바꾸고 id는 그대로 두므로(대부분의 코드가
+ * id를 페이지 판별에 안 쓴다는 전제 — 맞다), 원래 페이지 이름을 담은 행이 다른
+ * 페이지로 옮겨간 채 떠돌 수 있다. 그 상태에서 원래 페이지가 자기 행을 처음부터
+ * 순번으로 다시 매기면(materialize/replaceOutputPageComposition 등) 그 떠도는
+ * 행과 이름이 겹칠 수 있었다(실제 발생 확인됨 — React "duplicate key" 경고,
+ * 저장된 상태에 이미 박혀 있던 손상). 새로 만드는 곳들은 이제 겹치지 않게
+ * 고치지만, 이미 저장돼 있는 손상은 이 함수로 한 번 걸러 고친다 — self-heal이
+ * 매 패스마다 불러서 저장된 문서에 남아있는 중복도 정리한다.
+ */
+export function deduplicateRowIds(source: OutputLayout): OutputLayout {
+    const idCounts = new Map<string, number>();
+    source.rows.forEach((row) => idCounts.set(row.id, (idCounts.get(row.id) ?? 0) + 1));
+    if (![...idCounts.values()].some((count) => count > 1)) return source;
+
+    const allIds = new Set(source.rows.map((row) => row.id));
+    const seen = new Set<string>();
+    const renameByIndex = new Map<number, string>();
+
+    source.rows.forEach((row, index) => {
+        if (!seen.has(row.id)) {
+            seen.add(row.id);
+            return;
+        }
+        let n = 1;
+        let candidate = `${row.pageId}-row-dup${n}`;
+        while (allIds.has(candidate) || seen.has(candidate)) {
+            n += 1;
+            candidate = `${row.pageId}-row-dup${n}`;
+        }
+        seen.add(candidate);
+        allIds.add(candidate);
+        renameByIndex.set(index, candidate);
+    });
+
+    const rows = source.rows.map((row, index) => {
+        const newId = renameByIndex.get(index);
+        return newId ? { ...row, id: newId } : row;
+    });
+
+    let regions = source.regions;
+    let pages = source.pages;
+    renameByIndex.forEach((newId, index) => {
+        const original = source.rows[index];
+        const oldId = original.id;
+        const pageId = original.pageId;
+        regions = regions.map((region) =>
+            region.rowId === oldId && region.pageId === pageId
+                ? { ...region, rowId: newId }
+                : region
+        );
+        pages = pages.map((page) =>
+            page.id === pageId
+                ? { ...page, rowIds: page.rowIds.map((id) => (id === oldId ? newId : id)) }
+                : page
+        );
+    });
+
+    return { ...source, rows, regions, pages };
 }
 
 /**
@@ -1386,9 +1613,19 @@ export function moveSectionRows(
  *
  * pageLocked가 걸린 행(사용자가 명시적으로 "N페이지로 강제"한 것)은 절대 옮기지
  * 않는다 — 그 행 자체가 넘쳐도 그대로 두고, 그 뒤에 오는 잠기지 않은 행들만
- * 다음 페이지로 넘긴다. "당겨오기"(다음 페이지 내용을 앞으로 끌어와 빈 공간을
- * 채우는 것)는 하지 않는다 — 사용자가 의도적으로 만든 페이지 분할을 건드릴
- * 위험이 커서, 넘치는 것을 뒤로 미는 방향만 다룬다.
+ * 다음 페이지로 넘긴다.
+ *
+ * 넘치는 걸 뒤로 미는 것과 별개로, 페이지에 남는 공간이 있으면 다음 페이지의
+ * (잠기지 않은) 선두 콘텐츠를 당겨와 채운다 — 이것도 pageLocked 행은 절대
+ * 건드리지 않는다(사용자가 의도적으로 만든 페이지 분할을 지킨다). 밀어내기
+ * 패스가 먼저 끝나 "넘치는 페이지는 없다"를 보장해 놓은 뒤에 당겨오기 패스가
+ * 도니, 밀었다 당겼다 하는 왕복은 생기지 않는다.
+ *
+ * (이전 시도 기록: createRow가 id를 `${pageId}-row-N`으로 짓던 시절엔, 당겨오기로
+ * 행을 옮기면 id가 원래 페이지 이름을 유지한 채 다른 페이지에 남고, 원래 페이지가
+ * 자기 행을 처음부터 다시 매기면 그 이름과 겹쳐 React 중복 key 크래시가 반복
+ * 재발했다 — 두 번 되돌렸었다. createRow를 전역 고유 id(uuid)로 바꿔서 근본
+ * 원인을 없앴다.)
  */
 export function rebalancePageOverflow(
     source: OutputLayout,
@@ -1431,6 +1668,17 @@ export function rebalancePageOverflow(
             .filter((row) => row.pageId === page.id)
             .sort((a, b) => a.order - b.order);
 
+        // 페이지 전체를 건너뛰지 않는다 — 강제 배치(고정)된 행이 여러 개
+        // 모여 페이지 하나를 통째로 넘칠 만큼 크면(예: 회사 카드 하나를
+        // 통째로 강제 배치), 그 넘친 부분이 페이지 하단을 그냥 뚫고
+        // 나가버렸다(실제 발생 확인됨 — 강제 배치 후 하단 콘텐츠가 페이지
+        // 경계를 넘어 다음 페이지 내용과 겹침). 아래의 넘침 계산과 이동은
+        // 행 단위로 isRowLocked를 개별 검사해 고정된 행 자체는 옮기지 않고
+        // 제자리를 지키면서도, 고정 행들이 페이지를 넘치면 그 넘친 뒤쪽
+        // 고정 행들이 다음 페이지로 이어지도록 허용한다 — "강제 배치는
+        // 페이지 규격을 넘어도 된다"는 원래 의도를 "페이지 경계를 그냥
+        // 뚫고 나간다"가 아니라 "다음 페이지로 자연스럽게 이어진다"로
+        // 정확히 구현한다.
         let cumulative = 0;
         let overflowStartIndex = -1;
         for (let i = 0; i < pageRows.length; i += 1) {
@@ -1465,7 +1713,7 @@ export function rebalancePageOverflow(
         // 덩어리로 다음 페이지로 밀리고, 그 페이지도 곧바로 다시 넘쳐서 페이지 수가
         // 걷잡을 수 없이 늘어난다(실제 발생 확인됨 — 9페이지가 12페이지로). 실제로
         // 안 들어가는 atom부터만 다음 페이지 맨 앞에 새 행으로 쪼갠다.
-        if (!isRowLocked(overflowRow) && overflowRow.regionIds.length === 1) {
+        if (overflowRow.regionIds.length === 1) {
             const atomIds = atomsInRegion(overflowRow.regionIds[0]);
             if (atomIds.length > 1) {
                 let used = 0;
@@ -1485,48 +1733,38 @@ export function rebalancePageOverflow(
                     const targetFirstRow = layout.rows
                         .filter((row) => row.pageId === targetPage.id)
                         .sort((a, b) => a.order - b.order)[0];
-                    if (targetFirstRow) {
-                        layout = insertAtomsNextToRow(layout, moveIds, targetFirstRow.id, 'before');
-                    } else {
-                        const { row: newRow, regions: newRegions } = createRow(targetPage.id, 1, 1);
-                        const movingSet = new Set(moveIds);
-                        const newPlacements: OutputPlacement[] = moveIds.map((atomId, order) => ({
-                            atomId,
-                            pageId: targetPage.id,
-                            regionId: newRegions[0].id,
-                            order,
-                            columnSpan: 1,
-                            rowSpan: 1,
-                            pageLocked: false,
-                        }));
-                        layout = {
-                            ...layout,
-                            pages: layout.pages.map((p) =>
-                                p.id === targetPage.id
-                                    ? {
-                                          ...p,
-                                          rowIds: [newRow.id],
-                                          regionIds: newRegions.map((r) => r.id),
-                                      }
-                                    : p
-                            ),
-                            rows: [...layout.rows, newRow],
-                            regions: [...layout.regions, ...newRegions],
-                            placements: [
-                                ...layout.placements.filter((p) => !movingSet.has(p.atomId)),
-                                ...newPlacements,
-                            ],
-                        };
-                    }
+                    layout = targetFirstRow
+                        ? insertAtomsNextToRow(layout, moveIds, targetFirstRow.id, 'before')
+                        : appendAtomsAsNewRowToPage(layout, moveIds, targetPage.id);
                     // pageIndex는 그대로 유지해 같은 페이지를 다시 검사한다.
                     continue;
                 }
             }
         }
 
-        const rowsToMove = pageRows.slice(overflowStartIndex).filter((row) => !isRowLocked(row));
+        // push는 "이 페이지에 고정(locked)된 행이 여러 개 모여서" 넘칠 때만
+        // 그 고정 행들도 함께 다음 페이지로 옮긴다 — outputLayoutToForcedPageOverrides가
+        // "강제 배치된 페이지"를 그 행의 현재 pageId에서 매번 다시 계산하므로
+        // (고정 시점에 저장해둔 페이지 번호가 아니라), 행이 다음 페이지로
+        // 넘어가면 "강제 배치됨" 배지도 자동으로 그 새 페이지를 가리키게
+        // 갱신된다 — 고정을 어기는 게 아니라 고정된 채로 자연스럽게 다음
+        // 페이지로 이어지는 것이다(회사 카드 하나를 통째로 강제 배치했을 때
+        // 처럼 고정된 행 여러 개가 한 페이지에 다 안 들어가는 경우, 실제
+        // 발생 확인됨). 하지만 이 페이지에 고정된 행이 "딱 하나뿐"이면
+        // 얘기가 다르다 — 그건 사용자가 방금 "여기로 올려줘/내려줘"라고
+        // 명시적으로 지정한 단일 항목이라는 뜻이라, 그게 넘친다고 push가
+        // 도로 다른 페이지로 옮겨버리면 강제 배치 자체가 무의미해진다(실제
+        // 발생 확인됨 — 프로젝트 하나를 2페이지로 끌어올렸는데 그 페이지가
+        // 꽉 차 있어서 push가 즉시 3페이지로 도로 밀어내 버림, 마치 강제
+        // 배치가 전혀 안 먹힌 것처럼 보임). 그런 단일 고정 행은 페이지
+        // 규격을 넘어도 그 자리에 그대로 둔다.
+        const lockedRowCountOnPage = pageRows.filter((row) => isRowLocked(row)).length;
+        const rowsToMove =
+            lockedRowCountOnPage > 1
+                ? pageRows.slice(overflowStartIndex)
+                : pageRows.slice(overflowStartIndex).filter((row) => !isRowLocked(row));
         if (rowsToMove.length === 0) {
-            // 넘치는 나머지가 전부 잠긴 행 — 옮길 게 없으니 다음 페이지로 넘어간다.
+            // 넘치는 나머지가 (단일) 고정 행뿐 — 옮기지 않고 다음 페이지로 넘어간다.
             pageIndex += 1;
             continue;
         }
@@ -1588,7 +1826,161 @@ export function rebalancePageOverflow(
         // 자연스럽게 다시 검사된다.
     }
 
+    let pullPageIndex = 0;
+    let pullGuard = 0;
+    while (pullPageIndex < layout.pages.length - 1 && pullGuard < 200) {
+        pullGuard += 1;
+        const page = layout.pages[pullPageIndex];
+        const nextPage = layout.pages[pullPageIndex + 1];
+        const pageRows = layout.rows
+            .filter((row) => row.pageId === page.id)
+            .sort((a, b) => a.order - b.order);
+        const usedHeight = pageRows.reduce((sum, row) => sum + rowHeightPx(row), 0);
+        const remainingBudget = maxContentHeightPx - usedHeight;
+
+        if (remainingBudget <= 0) {
+            pullPageIndex += 1;
+            continue;
+        }
+
+        // 당겨온 내용은 항상 페이지 맨 끝(마지막 행 뒤)에만 붙는다. 그러니 실제로
+        // 조심해야 할 건 "마지막 행 자체가 잠겨있는가"뿐이다 — 잠긴 행이 페이지
+        // 중간/맨 위에 있어도 그 뒤 순서는 안 건드리므로 끝에 붙이는 건 안전하다.
+        // 예전엔 페이지에 잠긴 행이 하나라도 있으면 통째로 건너뛰었는데, 그러면
+        // "맨 위로 강제 배치된 행"이 있는 페이지는 다른 강제 배치를 해제해도
+        // 영원히 아무것도 안 당겨와서 원래 자리로 못 돌아왔다(실제 발생 확인됨
+        // — career-header를 해제해도 그 페이지 맨 위에 다른 강제 배치 행이
+        // 있다는 이유만으로 계속 다음 페이지에 머묾).
+        const lastRowOnPageBeforePull = pageRows[pageRows.length - 1];
+        if (lastRowOnPageBeforePull && isRowLocked(lastRowOnPageBeforePull)) {
+            pullPageIndex += 1;
+            continue;
+        }
+
+        const nextPageRows = layout.rows
+            .filter((row) => row.pageId === nextPage.id)
+            .sort((a, b) => a.order - b.order);
+        const firstNextRow = nextPageRows[0];
+        if (!firstNextRow || isRowLocked(firstNextRow)) {
+            pullPageIndex += 1;
+            continue;
+        }
+
+        const lastRowOnPage = pageRows[pageRows.length - 1];
+        const rowH = rowHeightPx(firstNextRow);
+
+        if (rowH <= remainingBudget) {
+            layout = lastRowOnPage
+                ? moveSectionRows(layout, [firstNextRow.id], {
+                      rowId: lastRowOnPage.id,
+                      position: 'after',
+                  })
+                : reassignRowToPage(layout, firstNextRow, page.id, 0);
+            // pullPageIndex 유지하고 이 페이지에 더 당겨올 게 있는지 계속 검사한다.
+            continue;
+        }
+
+        // 행 전체는 안 들어가지만, 단일 열 다중 atom 행이면(자연 순서 구간을 통째로
+        // 하나의 flow row로 묶어두는 materializePageIntoRows 특성상 흔함) 앞부분
+        // atom만 잘라서 당겨온다.
+        if (firstNextRow.regionIds.length === 1) {
+            const atomIds = atomsInRegion(firstNextRow.regionIds[0]);
+            if (atomIds.length > 1) {
+                let used = 0;
+                let splitAt = 0;
+                for (let i = 0; i < atomIds.length; i += 1) {
+                    const h = getAtomHeightPx(atomIds[i]);
+                    if (used + h > remainingBudget) break;
+                    used += h;
+                    splitAt = i + 1;
+                }
+                if (splitAt > 0) {
+                    const moveIds = atomIds.slice(0, splitAt);
+                    layout = lastRowOnPage
+                        ? insertAtomsNextToRow(layout, moveIds, lastRowOnPage.id, 'after')
+                        : appendAtomsAsNewRowToPage(layout, moveIds, page.id);
+                }
+            }
+        }
+
+        // 더 못 당기면(행도 못 넣고 atom도 못 쪼갬) 이 페이지는 끝 — 다음 페이지로.
+        pullPageIndex += 1;
+    }
+
     return pruneEmptyOutputRows(layout);
+}
+
+function reassignRowToPage(
+    layout: OutputLayout,
+    row: OutputRow,
+    targetPageId: string,
+    order: number
+): OutputLayout {
+    const movingRegionIds = new Set(
+        layout.regions.filter((r) => r.rowId === row.id).map((r) => r.id)
+    );
+    return {
+        ...layout,
+        rows: layout.rows.map((r) => (r.id === row.id ? { ...r, pageId: targetPageId, order } : r)),
+        regions: layout.regions.map((region) =>
+            movingRegionIds.has(region.id) ? { ...region, pageId: targetPageId } : region
+        ),
+        placements: layout.placements.map((placement) =>
+            movingRegionIds.has(placement.regionId)
+                ? { ...placement, pageId: targetPageId }
+                : placement
+        ),
+        pages: layout.pages.map((p) =>
+            p.id === targetPageId
+                ? {
+                      ...p,
+                      rowIds: [row.id],
+                      regionIds: [...movingRegionIds],
+                      layoutMode: row.layoutMode,
+                  }
+                : p
+        ),
+    };
+}
+
+function appendAtomsAsNewRowToPage(
+    layout: OutputLayout,
+    atomIds: string[],
+    targetPageId: string
+): OutputLayout {
+    // 크로스페이지 이동으로 이름만 이 페이지인(pageId는 다른 페이지) 행이 떠돌 수
+    // 있어(실제 발생 확인됨), 하드코딩된 "row-1"이 그런 행과 이름이 겹칠 수 있다.
+    // 전체 레이아웃에서 안 겹치는 번호를 고른다.
+    const existingRowIds = new Set(layout.rows.map((r) => r.id));
+    let rowNumber = 1;
+    while (existingRowIds.has(`${targetPageId}-row-${rowNumber}`)) {
+        rowNumber += 1;
+    }
+    const { row: newRow, regions: newRegions } = createRow(targetPageId, rowNumber, 1);
+    const movingSet = new Set(atomIds);
+    const newPlacements: OutputPlacement[] = atomIds.map((atomId, order) => ({
+        atomId,
+        pageId: targetPageId,
+        regionId: newRegions[0].id,
+        order,
+        columnSpan: 1,
+        rowSpan: 1,
+        pageLocked: false,
+    }));
+    return {
+        ...layout,
+        pages: layout.pages.map((p) =>
+            p.id === targetPageId
+                ? { ...p, rowIds: [newRow.id], regionIds: newRegions.map((r) => r.id) }
+                : p
+        ),
+        rows: [...layout.rows, newRow],
+        regions: [...layout.regions, ...newRegions],
+        placements: [
+            ...layout.placements.filter((p) => !movingSet.has(p.atomId)),
+            ...newPlacements,
+        ],
+    };
 }
 
 /**

@@ -52,6 +52,7 @@ type PrintState = {
     atomHeights: Map<string, number>;
     printModalOpen: boolean;
     printModeResolved: boolean;
+    autoPrintRequested: boolean;
 
     setZoom: (zoom: number) => void;
     toggleExcluded: (id: string) => void;
@@ -104,6 +105,7 @@ type PrintState = {
     mergeRows: (rowAId: string, rowBId: string) => void;
     setPageMargins: (margins: Partial<OutputPageMargins>) => void;
     setFontScale: (value: number) => void;
+    setFontFamily: (value: string) => void;
     addRow: (pageIndex: number, columnCount: number) => void;
     setRowColumnCount: (rowId: string, columnCount: number) => void;
     setRowGap: (rowId: string, gapMm: number) => void;
@@ -116,6 +118,7 @@ type PrintState = {
     setAtomHeights: (heights: Map<string, number>) => void;
     setPrintPending: (pending: boolean) => void;
     setPrintModalOpen: (open: boolean) => void;
+    setAutoPrintRequested: (requested: boolean) => void;
     resetManual: () => void;
     applyTemplate: (settings: {
         excludedIds: string[];
@@ -155,6 +158,7 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     atomHeights: new Map(),
     printModalOpen: false,
     printModeResolved: false,
+    autoPrintRequested: false,
 
     setZoom: (zoom) => set({ zoom: Math.min(Math.max(zoom, 0.3), 2.0) }),
 
@@ -401,6 +405,14 @@ export const usePrintStore = create<PrintState>((set, get) => ({
             }),
         })),
 
+    setFontFamily: (value) =>
+        set((state) => ({
+            outputLayout: normalizeOutputLayout({
+                ...state.outputLayout,
+                fontFamily: value,
+            }),
+        })),
+
     addRow: (pageIndex, columnCount) =>
         set((state) => ({
             outputLayout: addOutputRow(state.outputLayout, pageIndex, columnCount),
@@ -461,6 +473,8 @@ export const usePrintStore = create<PrintState>((set, get) => ({
     setPrintPending: (pending) => set({ printPending: pending }),
 
     setPrintModalOpen: (open) => set({ printModalOpen: open }),
+
+    setAutoPrintRequested: (requested) => set({ autoPrintRequested: requested }),
 
     resetManual: () =>
         set({
