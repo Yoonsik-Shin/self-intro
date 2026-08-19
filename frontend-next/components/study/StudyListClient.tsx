@@ -92,8 +92,7 @@ export function StudyListClient({
     const [search, setSearch] = useState('');
     const [activeSection, setActiveSection] = useState<StudySection | null>(null);
     const [activeTaxonomyNodeId, setActiveTaxonomyNodeId] = useState<number | null>(null);
-    const [viewMode, setViewMode] = useState<'TREE' | 'LIST' | 'GRAPH'>('TREE');
-    const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'TREE' | 'LIST' | 'GRAPH' | 'TERMINAL'>('TREE');
     const [isNavCollapsed, setIsNavCollapsed] = useResponsiveSidebar(false);
     const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
     const [isRecentExpanded, setIsRecentExpanded] = useState(false);
@@ -352,6 +351,7 @@ export function StudyListClient({
                                     ['TREE', GitBranch, '트리'],
                                     ['LIST', List, '리스트'],
                                     ['GRAPH', Network, '그래프'],
+                                    ['TERMINAL', Terminal, '터미널'],
                                 ] as const
                             ).map(([value, Icon, label]) => (
                                 <button
@@ -366,24 +366,15 @@ export function StudyListClient({
                                 </button>
                             ))}
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setIsTerminalOpen(true)}
-                            title="터미널로 검색"
-                            className="flex shrink-0 items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-emerald-400 transition hover:bg-slate-800"
-                        >
-                            <Terminal className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">터미널</span>
-                        </button>
                     </div>
                 </div>
 
-                {isTerminalOpen && (
+                {viewMode === 'TERMINAL' && (
                     <StudyTerminal
                         workspaceSlug={workspaceSlug}
                         previewMode={previewMode}
                         initialStudies={initialStudies}
-                        onClose={() => setIsTerminalOpen(false)}
+                        onClose={() => setViewMode('LIST')}
                     />
                 )}
 

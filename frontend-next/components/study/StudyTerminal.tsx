@@ -505,148 +505,137 @@ export function StudyTerminal({
     };
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 sm:p-8"
-            onClick={onClose}
-        >
-            <div
-                className="flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-emerald-900/60 bg-black shadow-2xl"
-                onClick={(event) => event.stopPropagation()}
-            >
-                <div className="flex shrink-0 items-center justify-between border-b border-emerald-900/60 bg-emerald-950/30 px-4 py-2">
-                    <div className="flex items-center gap-1.5">
-                        <span className="h-3 w-3 rounded-full bg-rose-500/80" />
-                        <span className="h-3 w-3 rounded-full bg-amber-400/80" />
-                        <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
-                        <span className="ml-3 font-mono text-xs text-emerald-500/70">
-                            guest@study — studyOS
-                        </span>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-md p-1 text-emerald-500/70 transition hover:bg-emerald-900/40 hover:text-emerald-200"
-                        aria-label="터미널 닫기"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
+        <div className="flex h-[680px] flex-col overflow-hidden rounded-lg border border-emerald-900/60 bg-black shadow-sm">
+            <div className="flex shrink-0 items-center justify-between border-b border-emerald-900/60 bg-emerald-950/30 px-4 py-2">
+                <div className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-full bg-rose-500/80" />
+                    <span className="h-3 w-3 rounded-full bg-amber-400/80" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
+                    <span className="ml-3 font-mono text-xs text-emerald-500/70">
+                        guest@study — studyOS
+                    </span>
                 </div>
-
-                <div
-                    ref={scrollRef}
-                    onClick={() => inputRef.current?.focus()}
-                    className="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed"
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-md p-1 text-emerald-500/70 transition hover:bg-emerald-900/40 hover:text-emerald-200"
+                    aria-label="터미널 나가기"
+                    title="터미널 나가기 (다른 뷰로 전환)"
                 >
-                    {output.map((entry, index) => {
-                        if (entry.kind === 'banner') {
-                            return (
-                                <pre key={index} className="mb-3 text-emerald-500/80">
-                                    {`   _____ __            __         ____  _____
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+
+            <div
+                ref={scrollRef}
+                onClick={() => inputRef.current?.focus()}
+                className="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed"
+            >
+                {output.map((entry, index) => {
+                    if (entry.kind === 'banner') {
+                        return (
+                            <pre key={index} className="mb-3 text-emerald-500/80">
+                                {`   _____ __            __         ____  _____
   / ___// /___  ______/ /_  __   / __ \\/ ___/
   \\__ \\/ __/ / / / __  / / / /  / / / /\\__ \\
  ___/ / /_/ /_/ / /_/ / /_/ /  / /_/ /___/ /
 /____/\\__/\\__,_/\\__,_/\\__, /   \\____//____/
                      /____/`}
-                                    <br />
-                                    studyOS v1.0 — 'help' 입력해서 명령어 확인, Esc로 닫기
-                                </pre>
-                            );
-                        }
-                        if (entry.kind === 'command') {
-                            return (
-                                <div key={index} className="text-slate-200">
-                                    {entry.text}
-                                </div>
-                            );
-                        }
-                        if (entry.kind === 'link') {
-                            return (
-                                <button
-                                    key={index}
-                                    type="button"
-                                    onClick={() => {
-                                        const study = studies.find(
-                                            (item) => item.slug === entry.slug
-                                        );
-                                        if (study) openStudy(study);
-                                    }}
-                                    className="block text-left text-sky-400 underline decoration-sky-800 underline-offset-2 hover:text-sky-300"
-                                >
-                                    {entry.text}
-                                </button>
-                            );
-                        }
-                        if (entry.kind === 'dir') {
-                            return (
-                                <button
-                                    key={index}
-                                    type="button"
-                                    onClick={() => setPath(entry.target)}
-                                    className="block text-left text-emerald-300 hover:text-emerald-100 hover:underline"
-                                >
-                                    {entry.text}
-                                </button>
-                            );
-                        }
+                                <br />
+                                studyOS v1.0 — 'help' 입력해서 명령어 확인, Esc로 닫기
+                            </pre>
+                        );
+                    }
+                    if (entry.kind === 'command') {
                         return (
-                            <div key={index} className={toneClass(entry.tone)}>
-                                {entry.text || '\u00A0'}
+                            <div key={index} className="text-slate-200">
+                                {entry.text}
                             </div>
                         );
-                    })}
-
-                    <form onSubmit={handleSubmit} className="mt-1 flex items-center gap-1.5">
-                        <span className="shrink-0 text-emerald-400">
-                            guest@study:{promptPath()}$
-                        </span>
-                        <input
-                            ref={inputRef}
-                            value={input}
-                            onChange={(event) => setInput(event.target.value)}
-                            onKeyDown={handleKeyDown}
-                            spellCheck={false}
-                            autoComplete="off"
-                            className="flex-1 bg-transparent text-emerald-100 outline-none caret-emerald-400"
-                        />
-                    </form>
-
-                    {input.trim() && completionCandidates.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5 pl-0">
-                            {completionCandidates.map((candidate) => (
-                                <button
-                                    key={candidate}
-                                    type="button"
-                                    onClick={() => applyCompletion(candidate)}
-                                    className="rounded border border-emerald-800 bg-emerald-950/60 px-1.5 py-0.5 text-[11px] text-emerald-300 hover:border-emerald-500 hover:text-emerald-100"
-                                >
-                                    {candidate}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="shrink-0 border-t border-emerald-900/60 bg-emerald-950/20 px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="mr-1 font-mono text-[11px] text-emerald-700">
-                            명령어 잘 모르겠으면:
-                        </span>
-                        {[
-                            ['help', '전체 명령어 보기'],
-                            ['ls', '지금 위치 보기'],
-                            ...(path.length > 0 ? [['cd ..', '한 단계 위로']] : []),
-                        ].map(([command, label]) => (
+                    }
+                    if (entry.kind === 'link') {
+                        return (
                             <button
-                                key={command}
+                                key={index}
                                 type="button"
-                                onClick={() => runQuickCommand(command)}
-                                className="rounded-full border border-emerald-800 bg-black px-2.5 py-1 font-mono text-[11px] font-bold text-emerald-300 transition hover:border-emerald-500 hover:text-emerald-100"
-                                title={label}
+                                onClick={() => {
+                                    const study = studies.find((item) => item.slug === entry.slug);
+                                    if (study) openStudy(study);
+                                }}
+                                className="block text-left text-sky-400 underline decoration-sky-800 underline-offset-2 hover:text-sky-300"
                             >
-                                {command}
+                                {entry.text}
+                            </button>
+                        );
+                    }
+                    if (entry.kind === 'dir') {
+                        return (
+                            <button
+                                key={index}
+                                type="button"
+                                onClick={() => setPath(entry.target)}
+                                className="block text-left text-emerald-300 hover:text-emerald-100 hover:underline"
+                            >
+                                {entry.text}
+                            </button>
+                        );
+                    }
+                    return (
+                        <div key={index} className={toneClass(entry.tone)}>
+                            {entry.text || '\u00A0'}
+                        </div>
+                    );
+                })}
+
+                <form onSubmit={handleSubmit} className="mt-1 flex items-center gap-1.5">
+                    <span className="shrink-0 text-emerald-400">guest@study:{promptPath()}$</span>
+                    <input
+                        ref={inputRef}
+                        value={input}
+                        onChange={(event) => setInput(event.target.value)}
+                        onKeyDown={handleKeyDown}
+                        spellCheck={false}
+                        autoComplete="off"
+                        className="flex-1 bg-transparent text-emerald-100 outline-none caret-emerald-400"
+                    />
+                </form>
+
+                {input.trim() && completionCandidates.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5 pl-0">
+                        {completionCandidates.map((candidate) => (
+                            <button
+                                key={candidate}
+                                type="button"
+                                onClick={() => applyCompletion(candidate)}
+                                className="rounded border border-emerald-800 bg-emerald-950/60 px-1.5 py-0.5 text-[11px] text-emerald-300 hover:border-emerald-500 hover:text-emerald-100"
+                            >
+                                {candidate}
                             </button>
                         ))}
                     </div>
+                )}
+            </div>
+
+            <div className="shrink-0 border-t border-emerald-900/60 bg-emerald-950/20 px-4 py-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 font-mono text-[11px] text-emerald-700">
+                        명령어 잘 모르겠으면:
+                    </span>
+                    {[
+                        ['help', '전체 명령어 보기'],
+                        ['ls', '지금 위치 보기'],
+                        ...(path.length > 0 ? [['cd ..', '한 단계 위로']] : []),
+                    ].map(([command, label]) => (
+                        <button
+                            key={command}
+                            type="button"
+                            onClick={() => runQuickCommand(command)}
+                            className="rounded-full border border-emerald-800 bg-black px-2.5 py-1 font-mono text-[11px] font-bold text-emerald-300 transition hover:border-emerald-500 hover:text-emerald-100"
+                            title={label}
+                        >
+                            {command}
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>
